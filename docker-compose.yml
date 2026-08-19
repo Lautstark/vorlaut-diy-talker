@@ -7,8 +7,13 @@ services:
       - "8771:8771"
     volumes:
       # Das ganze Projekt hineinreichen: so liegen layout.json, symbols/ und
-      # cache/ auf dem NAS und ueberleben jedes Neubauen des Abbilds.
+      # cache/ auf dem NAS und ueberleben jedes Neubauen des Abbilds. Der
+      # Azure-Schluessel kommt ueber die .env aus genau diesem Ordner - er
+      # steckt bewusst nicht im Abbild.
       - ./:/app
-    env_file:
-      - .env
+    # Auf einer Synology laeuft der Container sonst als root, und alles, was er
+    # anlegt (cache/, layout.json), gehoert danach root - ueber die Netzfreigabe
+    # laesst es sich dann nicht mehr bearbeiten. Eigene Kennung per SSH mit
+    # "id" herausfinden und hier eintragen, z.B. "1026:100".
+    # user: "1026:100"
     restart: unless-stopped

@@ -5,3 +5,7 @@ __pycache__/
 cache/thumbs/
 firmware/mitreden/data/
 firmware/mitreden/littlefs.bin
+
+# Der Azure-Schluessel gehoert nicht in eine Abbild-Schicht. Zur Laufzeit
+# kommt er aus dem eingehaengten Projektordner.
+.env

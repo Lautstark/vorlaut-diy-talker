@@ -55,11 +55,40 @@ damit auf dem NAS und laufen in dessen Sicherung mit.
 Geprueft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
 `build.py` laufen im Container durch.
 
+#### Auf einer Synology
+
+1. Gemeinsamen Ordner anlegen, ueblich ist `docker`, darin `mitreden` -
+   der Pfad ist dann `/volume1/docker/mitreden`.
+2. Das Projekt dorthin kopieren, am einfachsten ueber die Netzfreigabe im
+   Finder. **Die `.env` gehoert nicht ins Repo und muss von Hand mit.**
+3. **Container Manager** oeffnen (DSM 7.2 und neuer; davor heisst das Paket
+   *Docker*) -> *Projekt* -> *Anlegen* -> als Pfad den Ordner waehlen. Die
+   `docker-compose.yml` wird erkannt, das Abbild baut er selbst.
+4. Aufrufen unter `http://<NAS>:8771`.
+
+Damit liegt der ganze Bestand auf dem NAS und laeuft in dessen Sicherung mit.
+Am Mac haengst du dieselbe Freigabe ein und arbeitest dort mit git weiter -
+es ist ein einziger Ordner, keine zweite Kopie.
+
+Was dabei erfahrungsgemaess zuerst klemmt:
+
+- **Dateirechte.** Der Container laeuft als root, alles was er anlegt gehoert
+  danach root, und ueber die Netzfreigabe kommst du nicht mehr dran. In der
+  `docker-compose.yml` steht eine auskommentierte `user:`-Zeile dafuer; die
+  eigene Kennung liefert `id` ueber SSH.
+- **Aelteres DSM.** Das alte *Docker*-Paket bringt Compose 1 mit und will eine
+  Zeile `version: "3.8"` ganz oben in der `docker-compose.yml`. Container
+  Manager braucht sie nicht.
+- **ARM-Modelle** bauen das Abbild spuerbar langsamer als die Intel-Modelle.
+  Einmalig, danach laeuft es.
+
 Zu bedenken:
 
 - **Keine Anmeldung.** Wer den Port erreicht, kann die Inhalte aendern. Im
-  Heimnetz in Ordnung, aber nicht ins Internet weiterleiten.
-- Der `.env` mit dem Azure-Schluessel muss auf dem NAS liegen.
+  Heimnetz in Ordnung, aber **nicht im Router freigeben**. Fuer unterwegs
+  lieber ein privates Netz wie Tailscale, dann braucht es keine Anmeldung.
+- Der Azure-Schluessel steckt bewusst **nicht** im Abbild - `.dockerignore`
+  schliesst `.env` aus. Zur Laufzeit kommt er aus dem eingehaengten Ordner.
 - Geflasht wird weiter vom Mac aus - dafuer braucht es USB.
 
 Ins offene Internet gehoert die Oberflaeche nicht: sie braucht einen
