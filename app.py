@@ -372,9 +372,13 @@ PAGE = r"""<!doctype html>
     display: flex; flex-direction: column; gap: 8px; justify-content: flex-start;
     border: 3px solid var(--accent);
   }
-  /* Das Set-Symbol darf etwas kleiner sein als die Sprechtasten - es ist
-     eine Beschriftung, keine Taste, die sie treffen muss. */
-  .setTile .thumb { width: 82%; align-self: center; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch {
+    width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
+    border: 2px solid transparent; box-sizing: border-box;
+  }
+  .swatch:hover { border-color: var(--muted); }
+  .swatch.active { border-color: var(--text); }
   .thumb {
     aspect-ratio: 1/1; flex: 0 0 auto; background: #fff; border-radius: 8px; cursor: pointer;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
@@ -652,8 +656,10 @@ function clearDragMarks() {
   document.querySelectorAll(".dragover").forEach((el) => el.classList.remove("dragover"));
 }
 
+// Vom Server eingesetzt, damit die Liste nur in build.py gepflegt wird.
+const palette = __PALETTE__;
+
 function emptySet(index) {
-  const palette = __PALETTE__;
   return {
     name: "Set " + (index + 1),
     symbol: "",
@@ -776,6 +782,20 @@ function render() {
   hexInput.onchange = () => applyColor(hexInput.value);
   colorRow.append(colorInput, hexInput);
   setTile.appendChild(colorRow);
+
+  const swatches = document.createElement("div");
+  swatches.className = "swatches";
+  palette.forEach((hex) => {
+    const feld = document.createElement("span");
+    const aktiv = hex.toUpperCase() === (color || "").toUpperCase();
+    feld.className = "swatch" + (aktiv ? " active" : "");
+    feld.style.background = hex;
+    feld.title = hex;
+    feld.onclick = () => applyColor(hex);
+    swatches.appendChild(feld);
+  });
+  setTile.appendChild(swatches);
+
   setCol.append(setTile, removeSetBtn);
   device.appendChild(setCol);
 
