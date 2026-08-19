@@ -95,6 +95,16 @@ def save_upload(data: bytes, original_name: str) -> str:
     except Exception as exc:  # Pillow wirft je nach Format Verschiedenes
         raise ValueError("Das ist kein lesbares Bild.") from exc
 
+    # Auf quadratisch beschneiden, mittig. Die Kachel ist quadratisch - ohne
+    # das bliebe an zwei Seiten ein weisser Balken stehen, und das Bild waere
+    # kleiner als noetig. Zuerst schneiden, dann verkleinern: das kostet
+    # weniger Schaerfe, als andersherum.
+    if picture.width != picture.height:
+        seite = min(picture.size)
+        links = (picture.width - seite) // 2
+        oben = (picture.height - seite) // 2
+        picture = picture.crop((links, oben, links + seite, oben + seite))
+
     # Handyfotos kommen mit mehreren tausend Pixeln an. Direkt beim Annehmen
     # verkleinern, damit nie ein Riesenbild in symbols/ landet.
     if max(picture.size) > SYMBOL_MAX_PX:

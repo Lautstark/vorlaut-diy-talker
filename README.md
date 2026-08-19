@@ -40,6 +40,12 @@ Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
   Bestehende Dateien werden nie ueberschrieben, gleiche Namen bekommen `-2`
   angehaengt. Hoechstens 10 MB pro Bild.
 
+  Nicht-quadratische Bilder werden **mittig auf quadratisch beschnitten**, damit
+  sie die Kachel randlos fuellen - sonst bliebe an zwei Seiten ein weisser
+  Balken. Bei einem Hochformat faellt dabei oben und unten je ein Stueck weg.
+  Wenn es auf den Bildausschnitt ankommt, das Foto vorher in der Fotos-App
+  quadratisch zuschneiden; dann bleibt es unangetastet.
+
   Grosse Bilder werden beim Annehmen auf **500 Pixel lange Kante** verkleinert
   (`SYMBOL_MAX_PX` in `app.py`) - dasselbe Mass, in dem ARASAAC seine
   Piktogramme liefert. Ein Handyfoto mit 3024x4032 wiegt danach ein paar
