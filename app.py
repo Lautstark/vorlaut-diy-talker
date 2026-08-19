@@ -467,9 +467,6 @@ PAGE = r"""<!doctype html>
     main { padding: 12px; }
     .device { grid-template-columns: 1fr 1fr; }
     .setCol { grid-row: auto; grid-column: 1 / -1; }
-    /* ueber die volle Breite wuerde das Set-Symbol sonst den halben
-       Bildschirm fuellen */
-    .setTile .thumb { max-width: 190px; align-self: center; width: 100%; }
     #removeSet { width: auto; align-self: flex-start; }
   }
 
