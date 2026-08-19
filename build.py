@@ -326,12 +326,10 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     expected: set[str] = set()
     audio_ok = True
 
-    if with_audio and sets and not tts.have_key():
-        audio_ok = False
-        note(
-            "WARNUNG: AZURE_SPEECH_KEY fehlt - Bilder und layout.h werden "
-            "gebaut, die WAVs nicht."
-        )
+    # Ohne Key laesst sich nichts Neues sprechen - aber alles, was schon im
+    # Cache liegt, kann trotzdem verwendet werden. Genau das macht einen
+    # frischen Klon des Repos ohne Azure-Zugang brauchbar.
+    kein_key = with_audio and not tts.have_key()
 
     for index, entry in enumerate(sets, start=1):
         color = entry["color"]
@@ -364,7 +362,18 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
                 expected.discard(audio_name)
                 continue
 
-            if not (with_audio and audio_ok):
+            if not with_audio:
+                expected.discard(audio_name)
+                continue
+
+            im_cache = tts.cache_path(slot["text"]).exists()
+            if kein_key and (not im_cache or force_audio):
+                audio_ok = False
+                note(
+                    f"Set {index} Slot {slot_index}: \"{slot['text']}\" liegt "
+                    "nicht im Cache und ohne AZURE_SPEECH_KEY laesst es sich "
+                    "nicht sprechen."
+                )
                 expected.discard(audio_name)
                 continue
 
@@ -402,6 +411,35 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     return log
 
 
+def prune_cache() -> list[str]:
+    """Entfernt Sprachdateien, die zu keinem Text in layout.json mehr gehoeren."""
+    log: list[str] = []
+    layout = load_layout()
+    gebraucht = {
+        tts.fingerprint(slot["text"])
+        for entry in layout["sets"]
+        for slot in entry["slots"]
+        if slot["text"]
+    }
+    index = tts.load_index()
+    entfernt = 0
+    for datei in sorted(tts.CACHE_DIR.glob("*.wav")):
+        if datei.stem not in gebraucht:
+            text = index.pop(datei.stem, None)
+            log.append(f"entfernt: {text!r}" if text else f"entfernt: {datei.name}")
+            datei.unlink()
+            entfernt += 1
+    if entfernt:
+        tts.INDEX_FILE.write_text(
+            json.dumps(index, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    log.append(f"{entfernt} verwaiste Sprachdatei(en) entfernt.")
+    for line in log:
+        print(line, flush=True)
+    return log
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="mitreden: firmware/data bauen")
     parser.add_argument(
@@ -410,7 +448,19 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--force-audio", action="store_true", help="alle WAVs neu rendern"
     )
+    parser.add_argument(
+        "--prune-cache",
+        action="store_true",
+        help="Sprachdateien loeschen, die in layout.json nicht mehr vorkommen",
+    )
     args = parser.parse_args(argv[1:])
+    if args.prune_cache:
+        try:
+            prune_cache()
+        except (BuildError, tts.TTSError) as exc:
+            print(f"Fehler: {exc}", file=sys.stderr)
+            return 1
+        return 0
     try:
         build(with_audio=not args.no_audio, force_audio=args.force_audio)
     except (BuildError, tts.TTSError) as exc:

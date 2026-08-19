@@ -126,6 +126,41 @@ Nuetzliche Schalter:
 
 ---
 
+## Was im Repo liegt und was nicht
+
+Faustregel: was Geld oder einen Schluessel kostet, kommt mit. Was sich gratis
+in Sekunden neu erzeugen laesst, bleibt draussen.
+
+| | im Repo | warum |
+|---|---|---|
+| `layout.json`, `symbols/` | ja | deine Arbeit |
+| `cache/tts/` | **ja** | gesprochene Saetze kosten Azure-Guthaben und den Key |
+| `firmware/mitreden/layout.h` | ja | winzig, und Aenderungen sind im Diff lesbar |
+| `firmware/mitreden/data/` | nein | 800 KB Bilder, gratis aus `symbols/` neu gebaut |
+| `cache/thumbs/`, `cache/layout-backups/` | nein | rein oertlich |
+| `.env` | nein | der Schluessel |
+
+Dadurch ist ein frischer Klon **ohne Azure-Zugang vollstaendig baubar**, solange
+sich die Texte nicht geaendert haben: `build.py` nimmt die Saetze aus
+`cache/tts/`, statt sie neu sprechen zu lassen. Erst ein *neuer* Text braucht
+wieder den Key - und sagt das dann auch deutlich.
+
+Die Dateinamen im Cache sind Pruefsummen und damit unlesbar. Deshalb fuehrt
+`tts.py` daneben `cache/tts/index.json`, das jede Pruefsumme ihrem Text
+zuordnet. Damit ist auch nach Monaten nachvollziehbar, was da eigentlich liegt.
+
+Aufraeumen, wenn der Cache zu viel Altes angesammelt hat:
+
+```bash
+.venv/bin/python build.py --prune-cache
+```
+
+Das loescht alle Sprachdateien, die in `layout.json` nicht mehr vorkommen.
+Vorsicht: darunter ist auch alles, was du frueher einmal eingetragen und
+spaeter wieder entfernt hast.
+
+---
+
 ## Sprachausgabe
 
 `tts.py` spricht ueber die Azure Speech REST API mit **de-DE-GiselaNeural**,
@@ -281,5 +316,8 @@ mitreden/
 │       ├── layout.h     generiert
 │       └── data/        generiert, gitignored
 ├── .env                 AZURE_SPEECH_KEY, gitignored
-└── cache/               TTS- und Symbol-Cache, gitignored
+└── cache/
+    ├── tts/             gesprochene Saetze, im Repo
+    ├── thumbs/          Suchvorschauen, gitignored
+    └── layout-backups/  letzte 60 Staende von layout.json, gitignored
 ```

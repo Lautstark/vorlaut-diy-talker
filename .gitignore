@@ -4,8 +4,12 @@
 # generierte Firmware-Daten
 firmware/mitreden/data/
 
-# TTS-Cache (wird bei Bedarf neu gerendert)
-cache/
+# Cache: Vorschaubilder und Sicherungskopien bleiben lokal ...
+cache/*
+# ... die gesprochenen Saetze kommen mit ins Repo. Sie kosten Geld und einen
+# Azure-Key, um sie wiederherzustellen - anders als die Bilder, die build.py
+# jederzeit gratis neu erzeugt.
+!cache/tts/
 
 # Python
 .venv/

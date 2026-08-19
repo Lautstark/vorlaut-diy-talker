@@ -17,6 +17,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import tempfile
 import urllib.error
 import urllib.request
@@ -24,7 +25,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CACHE_DIR = ROOT / "cache" / "tts"
+INDEX_FILE = CACHE_DIR / "index.json"
 ENV_FILE = ROOT / ".env"
+
+_index_lock = threading.Lock()
 
 # --- Stimm-Konfiguration -----------------------------------------------------
 # Alles hier fliesst in den Fingerprint ein: aendert sich ein Wert, werden die
@@ -122,6 +126,36 @@ def fingerprint(text: str) -> str:
 
 def cache_path(text: str) -> Path:
     return CACHE_DIR / f"{fingerprint(text)}.wav"
+
+
+def load_index() -> dict:
+    """Fingerprint -> gesprochener Text.
+
+    Die Dateinamen im Cache sind Pruefsummen und damit unlesbar. Dieses
+    Verzeichnis macht sie wieder lesbar - und haelt fest, was einmal
+    gesprochen wurde, auch wenn es aus layout.json verschwindet.
+    """
+    if not INDEX_FILE.exists():
+        return {}
+    try:
+        data = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def remember(text: str) -> None:
+    key = fingerprint(text)
+    with _index_lock:
+        index = load_index()
+        if index.get(key) == text:
+            return
+        index[key] = text
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        INDEX_FILE.write_text(
+            json.dumps(index, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
 
 # --- Azure -------------------------------------------------------------------
@@ -249,6 +283,7 @@ def synthesize(text: str, force: bool = False) -> Path:
     if not text:
         raise TTSError("Leerer Text laesst sich nicht sprechen.")
     target = cache_path(text)
+    remember(text)
     if target.exists() and not force:
         return target
     raw = azure_synthesize(text)
