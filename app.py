@@ -794,7 +794,9 @@ function render() {
     feld.onclick = () => applyColor(hex);
     swatches.appendChild(feld);
   });
-  setTile.appendChild(swatches);
+  // Direkt unter das Namensfeld: die Schnellauswahl ist der Normalfall,
+  // der Farbwaehler darunter die Ausnahme.
+  setTile.insertBefore(swatches, colorRow);
 
   setCol.append(setTile, removeSetBtn);
   device.appendChild(setCol);
