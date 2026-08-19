@@ -1065,13 +1065,19 @@ def main(argv: list[str] | None = None) -> int:
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
     server = Server((args.host, args.port), Handler)
     if args.host in ("0.0.0.0", "::"):
-        print(f"mitreden laeuft auf Port {args.port} - erreichbar unter:", flush=True)
-        print(f"  http://localhost:{args.port}", flush=True)
-        for adresse in eigene_adressen():
-            print(f"  http://{adresse}:{args.port}   <- diese im Handy eingeben",
-                  flush=True)
-        print("Achtung: Jeder im selben WLAN kann damit die Inhalte aendern.",
-              flush=True)
+        print(f"mitreden laeuft auf Port {args.port}", flush=True)
+        if Path("/.dockerenv").exists():
+            # Im Container waere die eigene Adresse die des Docker-Netzes und
+            # damit von aussen nutzlos.
+            print("  Im Container: die Adresse des NAS mit dem freigegebenen "
+                  "Port verwenden.", flush=True)
+        else:
+            print(f"  http://localhost:{args.port}", flush=True)
+            for adresse in eigene_adressen():
+                print(f"  http://{adresse}:{args.port}   <- diese im Handy eingeben",
+                      flush=True)
+        print("Achtung: Es gibt keine Anmeldung - wer den Port erreicht, kann "
+              "die Inhalte aendern.", flush=True)
     else:
         print(f"mitreden laeuft auf http://{args.host}:{args.port}", flush=True)
     print("(Strg+C beendet)", flush=True)

@@ -1,0 +1,14 @@
+services:
+  mitreden:
+    build: .
+    image: mitreden
+    container_name: mitreden
+    ports:
+      - "8771:8771"
+    volumes:
+      # Das ganze Projekt hineinreichen: so liegen layout.json, symbols/ und
+      # cache/ auf dem NAS und ueberleben jedes Neubauen des Abbilds.
+      - ./:/app
+    env_file:
+      - .env
+    restart: unless-stopped

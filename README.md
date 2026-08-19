@@ -39,6 +39,29 @@ darunter.
 und ueber die Vorhoer-Taste Azure-Guthaben verbrauchen. Fuer zuhause in
 Ordnung, in einem fremden oder oeffentlichen Netz nicht.
 
+### Auf einem NAS betreiben
+
+Sinnvoller als ein Mac, der nur manchmal an ist. Es liegt ein `Dockerfile` und
+eine `docker-compose.yml` bei:
+
+```bash
+docker compose up -d
+```
+
+Das Abbild bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
+selbst wird hineingereicht - `layout.json`, `symbols/` und `cache/` bleiben
+damit auf dem NAS und laufen in dessen Sicherung mit.
+
+Geprueft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
+`build.py` laufen im Container durch.
+
+Zu bedenken:
+
+- **Keine Anmeldung.** Wer den Port erreicht, kann die Inhalte aendern. Im
+  Heimnetz in Ordnung, aber nicht ins Internet weiterleiten.
+- Der `.env` mit dem Azure-Schluessel muss auf dem NAS liegen.
+- Geflasht wird weiter vom Mac aus - dafuer braucht es USB.
+
 Ins offene Internet gehoert die Oberflaeche nicht: sie braucht einen
 laufenden Python-Prozess, schreibt Dateien und hat den Azure-Schluessel. Auf
 GitHub Pages laeuft sie deshalb nicht - das ist reines Ausliefern fertiger
