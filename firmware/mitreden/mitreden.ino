@@ -48,6 +48,10 @@ static const uint8_t PANEL_ROTATION = 0;
 // --- Verhalten ---------------------------------------------------------------
 
 static const uint32_t DEBOUNCE_MS = 80;    // so lange muss gedrueckt bleiben
+// Die Set-Taste braucht laenger. Ein versehentlicher Wechsel nimmt ihr das
+// Wort weg, das sie gerade sagen wollte, und sie muss erst wiederfinden, wo
+// sie ist - das ist aergerlicher als ein falsch getroffenes Wort.
+static const uint32_t SET_HOLD_MS = 400;
 static const uint32_t SAMPLE_RATE = 16000; // wie build.py die WAVs schreibt
 static const size_t AUDIO_CHUNK = 1024;
 
@@ -252,13 +256,18 @@ static void waitForRelease() {
   clearButtonStates();
 }
 
+// Wie lange diese Taste gehalten werden muss, bevor sie ausloest.
+static uint32_t holdTime(uint8_t index) {
+  return index == SET_BUTTON ? SET_HOLD_MS : DEBOUNCE_MS;
+}
+
 // Liefert den Index einer frisch erkannten Taste oder -1.
 static int8_t pollButtons() {
   const uint32_t now = millis();
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     if (isDown(i)) {
       if (button[i].downSince == 0) button[i].downSince = now;
-      if (!button[i].reported && now - button[i].downSince >= DEBOUNCE_MS) {
+      if (!button[i].reported && now - button[i].downSince >= holdTime(i)) {
         button[i].reported = true;
         return (int8_t)i;
       }

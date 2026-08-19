@@ -327,8 +327,45 @@ losgelassen wurde, bevor wieder auf Eingaben reagiert wird. Sonst spraeche das
 Geraet ein Wort, das sie gar nicht sagen wollte: bei dunklen Displays drueckt
 sie ja blind.
 
-Entprellt wird ueber eine Mindest-Druckdauer von 80 ms, damit Streifschuesse
-nichts ausloesen.
+Entprellt wird ueber eine Mindest-Druckdauer: **80 ms** fuer die Sprechtasten,
+**400 ms** fuer die Set-Taste (`DEBOUNCE_MS` und `SET_HOLD_MS` im Sketch). Die
+Set-Taste braucht laenger, weil ein versehentlicher Wechsel ihr das Wort
+wegnimmt, das sie gerade sagen wollte - sie muss dann erst wiederfinden, wo sie
+ist. Das ist aergerlicher als ein falsch getroffenes Wort.
+
+### Gehaeuse
+
+Gemessene Teile: Screenkey-Platine 25,94 x 35,29 mm, Tastenkappe 22,00 x
+25,30 mm mit 8,6 mm Ueberstand, sichtbares Bild nur **15,21 x 15,21 mm**.
+Lautsprecher 40,3 x 40,3 x 25,3 mm.
+
+| | Mass |
+|---|---|
+| Raster der vier Sprechtasten | 37,0 x 45,3 mm |
+| Spalt zwischen den Kappen | 15 mm seitlich, 20 mm zwischen den Reihen |
+| Abstand Set-Taste zum Viererblock | 25 mm |
+| Spalt Lautsprecher zur Set-Taste | 5 mm |
+| Bauteile insgesamt | 117 x 81 mm |
+| Gehaeuse aussen | etwa 131 x 95 x 35 mm |
+
+Anordnung: Lautsprecher oben links, darunter die Set-Taste, rechts daneben die
+vier Sprechtasten als 2x2-Block. Set-Taste und untere Tastenreihe schliessen
+unten buendig ab - das geht genau auf, weil Lautsprecher + 5 mm + Set-Platine
+zusammen 80,6 mm ergeben und der Block bei diesem Raster ebenfalls 80,6 mm hoch
+ist.
+
+**Wichtig:** Die Platinen duerfen sich nicht beruehren. Dann blieben seitlich
+nur 25,94 - 22,00 = 3,9 mm zwischen den Kappen, und eine Kinderhand traefe zwei
+Tasten auf einmal.
+
+Die Tiefe bestimmt der Lautsprecher mit 25,3 mm; die Screenkeys brauchen hinter
+der Frontplatte nur 15,4 mm. Hinter dem Tastenblock bleiben damit rund 10 mm
+fuer den flach liegenden Akku, der Feather passt daneben.
+
+Noch zu pruefen, wenn die Teile da sind: ob die Tastenkappe mittig auf der
+Platine sitzt. Auf den Bildern liegen FPC- und Stiftleistenanschluss im unteren
+Bereich - falls die Kappe nach oben versetzt ist, verschieben sich alle
+Senkrechtmasse und damit die Frontausschnitte.
 
 ---
 
