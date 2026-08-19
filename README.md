@@ -34,11 +34,17 @@ Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
 
 - **Auf ein Symbol klicken** oeffnet die ARASAAC-Suche. Ein Klick auf ein
   Ergebnis laedt das PNG nach `symbols/` und traegt es in `layout.json` ein.
-  Im selben Dialog liegt **Eigenes Bild ...** - damit laesst sich ein Foto oder
+  Im selben Dialog liegt **Eigenes Bild** - damit laesst sich ein Foto oder
   eine eigene Zeichnung hochladen. Alles, was Pillow lesen kann (PNG, JPG,
   HEIC-Export, GIF ...), wird nach PNG gewandelt und in `symbols/` abgelegt.
   Bestehende Dateien werden nie ueberschrieben, gleiche Namen bekommen `-2`
   angehaengt. Hoechstens 10 MB pro Bild.
+
+  Grosse Bilder werden beim Annehmen auf **500 Pixel lange Kante** verkleinert
+  (`SYMBOL_MAX_PX` in `app.py`) - dasselbe Mass, in dem ARASAAC seine
+  Piktogramme liefert. Ein Handyfoto mit 3024x4032 wiegt danach ein paar
+  Kilobyte statt mehrerer Megabyte. Das ist Absicht: `symbols/` liegt im Repo,
+  und das Geraet rendert ohnehin nur 116x116 Pixel.
 - **Textfeld**: was Gisela sagt. Das darf vom Symbolwort abweichen - das
   Symbol zeigt "anhalten", gesagt wird "Stopp".
 - **▶** hoert den Satz vorher ab (geht ueber Azure, braucht also den Key).

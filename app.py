@@ -31,7 +31,10 @@ MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB reichen fuer jedes Symbol
 
 ARASAAC_SEARCH = "https://api.arasaac.org/api/pictograms/de/search/"
 ARASAAC_IMAGE = "https://api.arasaac.org/api/pictograms/"
-ARASAAC_RESOLUTION = 500
+ARASAAC_RESOLUTION = 500  # die API erlaubt nur 500 oder 2500
+# Hausmass fuer alles in symbols/. Das Geraet rendert 116x116 Pixel, 500 laesst
+# reichlich Luft und haelt den Repo klein - Symbole werden mitcommittet.
+SYMBOL_MAX_PX = 500
 
 
 # --- Hilfsfunktionen ---------------------------------------------------------
@@ -92,6 +95,11 @@ def save_upload(data: bytes, original_name: str) -> str:
     except Exception as exc:  # Pillow wirft je nach Format Verschiedenes
         raise ValueError("Das ist kein lesbares Bild.") from exc
 
+    # Handyfotos kommen mit mehreren tausend Pixeln an. Direkt beim Annehmen
+    # verkleinern, damit nie ein Riesenbild in symbols/ landet.
+    if max(picture.size) > SYMBOL_MAX_PX:
+        picture.thumbnail((SYMBOL_MAX_PX, SYMBOL_MAX_PX), Image.LANCZOS)
+
     stem = slugify(Path(original_name).stem)
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
     # Vorhandene Symbole nicht ueberschreiben, sondern durchnummerieren.
@@ -100,7 +108,7 @@ def save_upload(data: bytes, original_name: str) -> str:
     while (SYMBOLS_DIR / filename).exists():
         filename = f"{stem}-{counter}.png"
         counter += 1
-    picture.save(SYMBOLS_DIR / filename, "PNG")
+    picture.save(SYMBOLS_DIR / filename, "PNG", optimize=True)
     return filename
 
 
