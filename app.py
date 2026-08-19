@@ -60,8 +60,15 @@ def slugify(value: str) -> str:
 def arasaac_search(word: str) -> list[dict]:
     url = ARASAAC_SEARCH + urllib.parse.quote(word.strip())
     request = urllib.request.Request(url, headers={"User-Agent": "mitreden"})
-    with urllib.request.urlopen(request, timeout=20) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        # ARASAAC antwortet auf ein Wort ohne Treffer mit 404 und einer leeren
+        # Liste. Das ist kein Fehler, sondern schlicht kein Ergebnis.
+        if exc.code == 404:
+            return []
+        raise
     if not isinstance(payload, list):
         return []
     results = []
@@ -468,6 +475,9 @@ PAGE = r"""<!doctype html>
     display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
     gap: 10px; padding: 16px; max-height: 60vh; overflow: auto;
   }
+  /* Meldungen sind keine Ergebnisse - sie sollen nicht in eine 96px-Spalte
+     gequetscht werden. */
+  .results p { grid-column: 1 / -1; margin: 4px 2px; color: var(--muted); }
   .results figure { margin: 0; cursor: pointer; text-align: center; }
   .results img {
     width: 100%; aspect-ratio: 1/1; object-fit: contain; background: #fff;
@@ -905,11 +915,11 @@ function openPicker(target, seed) {
 async function doSearch() {
   const word = $("q").value.trim();
   if (!word) return;
-  $("results").innerHTML = '<p style="color:var(--muted)">sucht ...</p>';
+  $("results").innerHTML = '<p>sucht ...</p>';
   try {
     const items = await (await api("/api/search?q=" + encodeURIComponent(word))).json();
     if (!items.length) {
-      $("results").innerHTML = '<p style="color:var(--muted)">Nichts gefunden.</p>';
+      $("results").innerHTML = '<p>Nichts gefunden zu „' + word + '“.</p>';
       return;
     }
     $("results").innerHTML = "";
@@ -922,7 +932,7 @@ async function doSearch() {
       $("results").appendChild(figure);
     });
   } catch (error) {
-    $("results").innerHTML = '<p style="color:var(--muted)">' + error.message + '</p>';
+    $("results").innerHTML = '<p>' + error.message + '</p>';
   }
 }
 
