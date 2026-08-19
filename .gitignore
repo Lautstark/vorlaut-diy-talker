@@ -1,0 +1,13 @@
+# Geheimnisse
+.env
+
+# generierte Firmware-Daten
+firmware/mitreden/data/
+
+# TTS-Cache (wird bei Bedarf neu gerendert)
+cache/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
