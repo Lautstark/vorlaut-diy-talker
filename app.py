@@ -479,6 +479,7 @@ PAGE = r"""<!doctype html>
 <header>
   <h1>mitreden</h1>
   <span class="status" id="status"></span>
+  <button id="saveBtn">Speichern</button>
   <button class="primary" id="buildBtn">Bauen</button>
 </header>
 
@@ -515,6 +516,7 @@ let dragSet = null;         // Index des gezogenen Sets
 let dragSlot = null;        // Index der gezogenen Taste
 let saveTimer = null;
 let layoutVersion = null;   // Stand, den diese Seite geladen hat
+let unsaved = false;        // es gibt Aenderungen, die noch nicht in der Datei sind
 
 const $ = (id) => document.getElementById(id);
 const removeSetBtn = $("removeSet");
@@ -536,16 +538,45 @@ async function load() {
   layout = await response.json();
   if (current >= layout.sets.length) current = Math.max(0, layout.sets.length - 1);
   $("conflict").classList.remove("show");
+  unsaved = false;
+  status("");
   render();
 }
 
 function saveSoon() {
   clearTimeout(saveTimer);
-  status("speichert ...");
+  unsaved = true;
+  status("noch nicht gespeichert");
   saveTimer = setTimeout(save, 400);
 }
 
-async function save() {
+// Bringt layout in dieselbe Form, die der Server daraus macht. Nur so lassen
+// sich die beiden Staende sinnvoll vergleichen.
+function vergleichbar(l) {
+  return JSON.stringify({
+    sets: (l.sets || []).map((entry) => ({
+      name: (entry.name || "").trim(),
+      symbol: (entry.symbol || "").trim(),
+      color: (entry.color || "").trim().toUpperCase(),
+      slots: (entry.slots || []).map((slot) => ({
+        text: (slot.text || "").trim(),
+        symbol: (slot.symbol || "").trim(),
+      })),
+    })),
+  });
+}
+
+// Speichervorgaenge nacheinander abarbeiten. Zwei gleichzeitige wuerden sich
+// mit dem Stand-Abgleich gegenseitig abweisen - und der Aufrufer koennte nicht
+// mehr darauf warten, dass wirklich geschrieben wurde.
+let saveChain = Promise.resolve();
+
+function save() {
+  saveChain = saveChain.then(doSave, doSave);
+  return saveChain;
+}
+
+async function doSave() {
   clearTimeout(saveTimer);
   try {
     const response = await fetch("/api/layout", {
@@ -571,7 +602,24 @@ async function save() {
       throw new Error(message);
     }
     layoutVersion = response.headers.get("X-Layout-Version");
-    layout = await response.json();
+    // layout hier NICHT durch die Antwort ersetzen. Die Eingabefelder haengen
+    // an genau diesen Objekten; ein frisches Geflecht vom Server wuerde ihre
+    // Handler ins Leere zeigen lassen, und alles weitere Getippte ginge
+    // verloren, bis das naechste render() die Felder neu aufbaut.
+    const gespeichert = await response.json();
+
+    // Nachpruefen statt vertrauen: steht in der Datei wirklich das, was auf
+    // dem Bildschirm steht? Wenn nicht, lieber laut sagen als still verlieren.
+    if (vergleichbar(gespeichert) !== vergleichbar(layout)) {
+      $("conflictText").textContent =
+        "Achtung: Die Datei enthaelt nicht das, was hier steht. Bitte den " +
+        "Text pruefen und melden - das ist ein Fehler im Programm.";
+      $("conflict").classList.add("show");
+      status("NICHT richtig gespeichert");
+      return;
+    }
+
+    unsaved = false;
     $("conflict").classList.remove("show");
     status("gespeichert");
   } catch (error) {
@@ -587,6 +635,18 @@ $("overwriteBtn").onclick = async () => {
   await save();
 };
 $("reloadBtn").onclick = () => load();
+
+$("saveBtn").onclick = async () => {
+  clearTimeout(saveTimer);
+  await save();
+};
+
+// Wer das Fenster schliesst, waehrend noch etwas aussteht, soll das merken.
+window.addEventListener("beforeunload", (event) => {
+  if (!unsaved) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 function clearDragMarks() {
   document.querySelectorAll(".dragover").forEach((el) => el.classList.remove("dragover"));
