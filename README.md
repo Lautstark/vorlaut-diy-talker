@@ -226,21 +226,68 @@ direkt daneben sucht. Beides zeigt auf dieselbe Struktur.
 
 Board-Einstellung: USB CDC On Boot **an**.
 
-### Daten aufs Geraet bringen
+### Aufs Geraet bringen
+
+Es sind zwei getrennte Dinge, die in getrennte Flash-Bereiche gehen: das
+**Programm** (der Sketch) und die **Daten** (Bilder und Toene). Aendert sich nur
+ein Wort oder ein Symbol, muss das Programm nicht neu drauf - dann reichen die
+Schritte 3 und 4.
+
+**1. Port finden.** Feather per USB-C anstecken, dann:
+
+```bash
+arduino-cli board list
+```
+
+Gesucht ist etwas wie `/dev/cu.usbmodem1101`. Diesen Port unten ueberall
+statt `/dev/cu.usbmodemXXXX` einsetzen.
+
+**2. Programm uebersetzen und schreiben:**
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
+arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
+```
+
+Meldet der Upload, dass er das Board nicht findet: **BOOT** gedrueckt halten,
+kurz **RESET** tippen, **BOOT** loslassen. Dann haengt der Feather im
+Bootloader und der Befehl geht durch. Danach einmal RESET druecken.
+
+**3. Daten packen:**
 
 ```bash
 .venv/bin/python build.py --fs-image
 ```
 
-Das packt `firmware/mitreden/data/` in ein LittleFS-Abbild und nennt gleich den
-Schreibbefehl. Die Adresse `0x670000` ist der Anfang der `spiffs`-Partition aus
-`default_8MB.csv`:
+**4. Daten schreiben** - den Befehl gibt Schritt 3 mit vollem Pfad aus:
 
 ```bash
-esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write_flash 0x670000 firmware/mitreden/littlefs.bin
+~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool \
+  --chip esp32s3 --port /dev/cu.usbmodemXXXX \
+  write-flash 0x670000 firmware/mitreden/littlefs.bin
 ```
 
-Das Abbild ist gitignored - es entsteht in Sekunden neu aus `data/`.
+Die Adresse `0x670000` ist der Anfang der `spiffs`-Partition aus
+`default_8MB.csv`. Sie gilt nur fuer dieses Partitionsschema - mit einem
+anderen landen die Daten an der falschen Stelle.
+
+**Mitlesen, was das Geraet sagt:**
+
+```bash
+arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
+```
+
+Dort steht beim Start, welches Set geladen wurde, welche Taste gedrueckt wurde
+und ob LittleFS sich einhaengen liess.
+
+### Wie das Abbild entsteht
+
+`build.py --fs-image` packt `firmware/mitreden/data/` mit `mklittlefs` in ein
+Abbild von 1536 KiB - genau die Groesse der `spiffs`-Partition. Passen die
+Daten nicht hinein, bricht es mit einer klaren Meldung ab, statt ein zu grosses
+Abbild zu erzeugen.
+
+Das Abbild selbst ist gitignored: es entsteht in Sekunden neu aus `data/`.
 
 Uebersetzen:
 

@@ -500,18 +500,24 @@ FS_OFFSET = 0x670000
 FS_IMAGE = SKETCH_DIR / "littlefs.bin"
 
 
-def find_mklittlefs() -> Path | None:
-    basis = Path.home() / "Library/Arduino15/packages/esp32/tools/mklittlefs"
-    if not basis.exists():
-        basis = Path.home() / ".arduino15/packages/esp32/tools/mklittlefs"
-    treffer = sorted(basis.glob("*/mklittlefs")) if basis.exists() else []
-    return treffer[-1] if treffer else None
+def find_tool(name: str) -> Path | None:
+    """Sucht ein Werkzeug im ESP32-Core der Arduino-IDE."""
+    for basis in (
+        Path.home() / "Library/Arduino15/packages/esp32/tools",
+        Path.home() / ".arduino15/packages/esp32/tools",
+    ):
+        ordner = basis / ("esptool_py" if name == "esptool" else name)
+        if ordner.exists():
+            treffer = sorted(ordner.glob(f"*/{name}"))
+            if treffer:
+                return treffer[-1]
+    return None
 
 
 def build_fs_image() -> list[str]:
     """Packt firmware/mitreden/data/ in ein LittleFS-Abbild zum Flashen."""
     log: list[str] = []
-    werkzeug = find_mklittlefs()
+    werkzeug = find_tool("mklittlefs")
     if not werkzeug:
         raise BuildError(
             "mklittlefs nicht gefunden. Es kommt mit dem ESP32-Core der "
@@ -530,12 +536,16 @@ def build_fs_image() -> list[str]:
     )
     if ergebnis.returncode != 0:
         raise BuildError(f"mklittlefs fehlgeschlagen: {ergebnis.stderr.strip()[:300]}")
+    esptool = find_tool("esptool")
+    aufruf = str(esptool) if esptool else "esptool"
     for zeile in [
         f"Abbild: {FS_IMAGE.relative_to(ROOT)}  "
         f"({belegt / 1024:.0f} von {FS_SIZE / 1024:.0f} KiB belegt)",
+        "Port suchen mit:  arduino-cli board list",
         "Schreiben mit:",
-        f"  esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX "
-        f"write_flash 0x{FS_OFFSET:X} {FS_IMAGE.relative_to(ROOT)}",
+        f"  {aufruf} \\",
+        f"    --chip esp32s3 --port /dev/cu.usbmodemXXXX \\",
+        f"    write-flash 0x{FS_OFFSET:X} {FS_IMAGE.relative_to(ROOT)}",
     ]:
         log.append(zeile)
         print(zeile, flush=True)
