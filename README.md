@@ -111,17 +111,32 @@ ergibt eine Platzhalter-Kachel mit grauem Kreuz.
 Schreibt nach `firmware/mitreden/data/` (gitignored, wird auf das Geraet
 hochgeladen):
 
-| Datei                  | Inhalt                                              |
-|------------------------|-----------------------------------------------------|
-| `set<S>_slot<N>.wav`   | gesprochener Satz, 16 kHz mono 16 bit               |
-| `set<S>_slot<N>.bin`   | 128x128 RGB565 big-endian, mit Rahmen in Set-Farbe  |
-| `set<S>_label.bin`     | dasselbe fuer das Set-Symbol                        |
+| Datei              | Inhalt                                          |
+|--------------------|-------------------------------------------------|
+| `a<pruefsumme>.wav` | gesprochener Satz, 16 kHz mono 16 bit          |
+| `t<pruefsumme>.bin` | 116x116 Symbolflaeche, RGB565 big-endian       |
 
 und dazu `firmware/mitreden/layout.h` mit Anzahl der Sets, Dateinamen, Farben und
 `sleep_timeout_seconds` als Konstanten fuer die Firmware.
 
-`S` und `N` sind 1-basiert. Dateien aus frueheren Laeufen, die nicht mehr
-gebraucht werden, raeumt `build.py` selbst weg.
+**Die Dateinamen sind Pruefsummen des Inhalts, nicht der Position.** Das hat
+zwei Folgen:
+
+- Kommt dasselbe Symbol oder derselbe Satz in mehreren Sets vor, liegt er auf
+  dem Geraet trotzdem nur **einmal**. `layout.h` laesst dann einfach mehrere
+  Eintraege auf dieselbe Datei zeigen.
+- Eine Datei kann nicht veralten, ohne dass sich ihr Name mitaendert. Ein
+  Name kann also nie auf einen falschen Inhalt zeigen.
+
+**Der farbige Rahmen steckt nicht im Bild.** Die Datei enthaelt nur die
+116x116 Symbolflaeche; die sechs Pixel Rahmen zeichnet die Firmware selbst aus
+`SET_COLORS`. Sonst haenge das Bild am Set, in dem es gerade liegt - dasselbe
+Symbol waere in einem blauen und einem gruenen Set zwei verschiedene Dateien,
+und eine Farbaenderung wuerde saemtliche Bilder eines Sets neu schreiben. So
+kostet ein Farbwechsel **null** Bilddaten.
+
+Dateien aus frueheren Laeufen, die nicht mehr gebraucht werden, raeumt
+`build.py` selbst weg.
 
 Nuetzliche Schalter:
 
@@ -141,6 +156,7 @@ in Sekunden neu erzeugen laesst, bleibt draussen.
 |---|---|---|
 | `layout.json`, `symbols/` | ja | deine Arbeit |
 | `cache/tts/` | **ja** | gesprochene Saetze kosten Azure-Guthaben und den Key |
+| `cache/tiles/` | ja | gerenderte Symbolflaechen, Name = Pruefsumme |
 | `firmware/mitreden/layout.h` | ja | winzig, und Aenderungen sind im Diff lesbar |
 | `firmware/mitreden/data/` | nein | 800 KB Bilder, gratis aus `symbols/` neu gebaut |
 | `cache/thumbs/`, `cache/layout-backups/` | nein | rein oertlich |
@@ -324,6 +340,7 @@ mitreden/
 ├── .env                 AZURE_SPEECH_KEY, gitignored
 └── cache/
     ├── tts/             gesprochene Saetze, im Repo
+    ├── tiles/           gerenderte Symbolflaechen, im Repo
     ├── thumbs/          Suchvorschauen, gitignored
     └── layout-backups/  letzte 60 Staende von layout.json, gitignored
 ```

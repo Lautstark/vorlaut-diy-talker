@@ -101,27 +101,37 @@ static void setupDisplays() {
   }
 }
 
-// Zeichnet eine 128x128-Rohdatei (RGB565, big-endian) zeilenweise.
-static void drawImage(Panel *tft, const char *path) {
-  static uint16_t line[DISPLAY_W];
+// Zeichnet den Rahmen in der Set-Farbe und darin die Symbolflaeche aus der
+// Datei (TILE_W x TILE_H, RGB565 big-endian).
+//
+// Der Rahmen steht bewusst nicht in der Datei: so haengt eine Bilddatei nur am
+// Symbol und nicht am Set. Dasselbe Symbol in einem blauen und einem gruenen
+// Set ist damit eine Datei statt zweien.
+static void drawTile(Panel *tft, const char *path, uint16_t frame) {
+  tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, frame);
+  tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, frame);
+  tft->fillRect(0, TILE_BORDER, TILE_BORDER, TILE_H, frame);
+  tft->fillRect(DISPLAY_W - TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_H, frame);
 
-  File file = filesystemReady ? LittleFS.open(path, "r") : File();
+  static uint16_t line[TILE_W];
+
+  File file = (filesystemReady && path) ? LittleFS.open(path, "r") : File();
   if (!file) {
-    Serial.printf("fehlt: %s\n", path);
-    tft->fillScreen(ST77XX_BLACK);
+    if (path) Serial.printf("fehlt: %s\n", path);
+    tft->fillRect(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H, ST77XX_BLACK);
     return;
   }
 
   tft->startWrite();
-  tft->setAddrWindow(0, 0, DISPLAY_W, DISPLAY_H);
-  for (uint16_t y = 0; y < DISPLAY_H; y++) {
+  tft->setAddrWindow(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H);
+  for (uint16_t y = 0; y < TILE_H; y++) {
     size_t got = file.read((uint8_t *)line, sizeof(line));
     if (got < sizeof(line)) {
       memset((uint8_t *)line + got, 0, sizeof(line) - got);
     }
     // bigEndian = true: die Bytes gehen genau so raus, wie sie in der Datei
     // stehen. build.py schreibt sie bereits in Panel-Reihenfolge.
-    tft->writePixels(line, DISPLAY_W, true, true);
+    tft->writePixels(line, TILE_W, true, true);
   }
   tft->endWrite();
   file.close();
@@ -130,10 +140,11 @@ static void drawImage(Panel *tft, const char *path) {
 static void drawCurrentSet() {
 #if SET_COUNT > 0
   const uint8_t s = rtcCurrentSet;
+  const uint16_t frame = SET_COLORS[s];
   for (uint8_t i = 0; i < SLOT_COUNT && i < DISPLAY_COUNT - 1; i++) {
-    drawImage(display[i], SLOT_IMAGE[s][i]);
+    drawTile(display[i], SLOT_IMAGE[s][i], frame);
   }
-  drawImage(display[SET_BUTTON], SET_LABEL_IMAGE[s]);
+  drawTile(display[SET_BUTTON], SET_LABEL_IMAGE[s], frame);
   Serial.printf("Set %u: %s\n", (unsigned)(s + 1), SET_NAMES[s]);
 #else
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) display[i]->fillScreen(ST77XX_BLACK);
@@ -180,7 +191,8 @@ static bool seekToWavData(File &file, uint32_t &dataBytes) {
 }
 
 static void playWav(const char *path) {
-  if (!filesystemReady) return;
+  // Ein Slot ohne Text hat keine Tondatei - dann bleibt es still.
+  if (!filesystemReady || !path) return;
   File file = LittleFS.open(path, "r");
   if (!file) {
     Serial.printf("kein Ton: %s\n", path);
