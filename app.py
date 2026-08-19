@@ -8,10 +8,12 @@ im 2x2-Raster und daneben die Set-Kachel.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import io
 import json
 import re
+import sys
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -26,7 +28,7 @@ ROOT = Path(__file__).resolve().parent
 SYMBOLS_DIR = ROOT / "symbols"
 THUMB_CACHE = ROOT / "cache" / "thumbs"
 PORT = 8771
-HOST = "127.0.0.1"
+HOST = "127.0.0.1"   # Voreinstellung: nur dieser Rechner
 MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB reichen fuer jedes Symbol
 
 ARASAAC_SEARCH = "https://api.arasaac.org/api/pictograms/de/search/"
@@ -456,6 +458,19 @@ PAGE = r"""<!doctype html>
     margin-top: 12px; background: #101216; border: 1px solid var(--line);
     border-radius: 10px; padding: 14px; font-size: 12.5px; color: #c8d0dc;
     max-height: 260px; overflow: auto; white-space: pre-wrap; display: none;
+  }
+
+  /* Auf dem Handy passen drei Spalten nicht - dann die Set-Kachel ueber die
+     volle Breite und die vier Sprechtasten als 2x2 darunter. Die raeumliche
+     Zuordnung bleibt damit erhalten. */
+  @media (max-width: 620px) {
+    main { padding: 12px; }
+    .device { grid-template-columns: 1fr 1fr; }
+    .setCol { grid-row: auto; grid-column: 1 / -1; }
+    /* ueber die volle Breite wuerde das Set-Symbol sonst den halben
+       Bildschirm fuellen */
+    .setTile .thumb { max-width: 190px; align-self: center; width: 100%; }
+    #removeSet { width: auto; align-self: flex-start; }
   }
 
   dialog {
@@ -1024,10 +1039,45 @@ class Server(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
-def main() -> int:
+def eigene_adressen() -> list[str]:
+    """IP-Adressen, unter denen dieser Rechner im Netz erreichbar ist."""
+    import socket
+    adressen = set()
+    try:
+        # Kein Verbindungsaufbau - der Kernel verraet nur, ueber welche
+        # Schnittstelle er hinauswollte.
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("192.0.2.1", 9))
+            adressen.add(s.getsockname()[0])
+    except OSError:
+        pass
+    return sorted(adressen)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="mitreden: Weboberflaeche")
+    parser.add_argument(
+        "--host",
+        default=HOST,
+        help='Voreinstellung 127.0.0.1 (nur dieser Rechner). Fuer Zugriff vom '
+             'Handy im selben WLAN: --host 0.0.0.0',
+    )
+    parser.add_argument("--port", type=int, default=PORT)
+    args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
-    server = Server((HOST, PORT), Handler)
-    print(f"mitreden laeuft auf http://{HOST}:{PORT}  (Strg+C beendet)")
+    server = Server((args.host, args.port), Handler)
+    if args.host in ("0.0.0.0", "::"):
+        print(f"mitreden laeuft auf Port {args.port} - erreichbar unter:", flush=True)
+        print(f"  http://localhost:{args.port}", flush=True)
+        for adresse in eigene_adressen():
+            print(f"  http://{adresse}:{args.port}   <- diese im Handy eingeben",
+                  flush=True)
+        print("Achtung: Jeder im selben WLAN kann damit die Inhalte aendern.",
+              flush=True)
+    else:
+        print(f"mitreden laeuft auf http://{args.host}:{args.port}", flush=True)
+    print("(Strg+C beendet)", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -21,6 +21,29 @@ cp .env.example .env        # und den Azure-Key eintragen
 
 Ausserdem wird `ffmpeg` gebraucht (`brew install ffmpeg`).
 
+### Vom Handy aus bearbeiten
+
+Voreingestellt hoert der Server nur auf diesem Rechner. Fuer den Zugriff aus
+dem eigenen WLAN:
+
+```bash
+.venv/bin/python app.py --host 0.0.0.0
+```
+
+Beim Start nennt er die Adresse, die ins Handy gehoert, etwa
+`http://192.168.0.25:8771`. Die Oberflaeche bricht auf schmalen Bildschirmen
+um: Set-Kachel oben ueber die volle Breite, die vier Sprechtasten als 2x2
+darunter.
+
+**Das ist ohne Anmeldung.** Wer im selben WLAN ist, kann die Inhalte aendern
+und ueber die Vorhoer-Taste Azure-Guthaben verbrauchen. Fuer zuhause in
+Ordnung, in einem fremden oder oeffentlichen Netz nicht.
+
+Ins offene Internet gehoert die Oberflaeche nicht: sie braucht einen
+laufenden Python-Prozess, schreibt Dateien und hat den Azure-Schluessel. Auf
+GitHub Pages laeuft sie deshalb nicht - das ist reines Ausliefern fertiger
+Dateien, ohne Server dahinter.
+
 Ohne Azure-Key laesst sich schon alles ausser dem Ton benutzen: Symbole
 suchen, Layout bearbeiten, Bilder bauen.
 
