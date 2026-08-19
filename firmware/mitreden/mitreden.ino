@@ -317,7 +317,12 @@ void setup() {
 
   filesystemReady = LittleFS.begin(false);
   if (!filesystemReady) {
-    Serial.println("LittleFS fehlt - wurde firmware/data/ hochgeladen?");
+    // Haeufigste Ursache: falsches Partitionsschema. Die Voreinstellung des
+    // Boards (tinyuf2) legt den Datenbereich als "ffat" an, LittleFS sucht
+    // aber eine Partition namens "spiffs". Richtig ist "Default 8MB".
+    Serial.println("LittleFS liess sich nicht einhaengen.");
+    Serial.println("  1. Partitionsschema \"Default (3MB APP/1.5MB SPIFFS)\"?");
+    Serial.println("  2. firmware/mitreden/data/ schon hochgeladen?");
   }
 
 #if SET_COUNT > 0

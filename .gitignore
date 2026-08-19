@@ -3,6 +3,7 @@
 
 # generierte Firmware-Daten
 firmware/mitreden/data/
+firmware/mitreden/littlefs.bin
 
 # Cache: Vorschaubilder und Sicherungskopien bleiben lokal ...
 cache/*

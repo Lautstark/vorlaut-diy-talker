@@ -15,6 +15,7 @@ import datetime
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -492,6 +493,55 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     return log
 
 
+# Werte aus default_8MB.csv des ESP32-Cores - dort heisst die Partition
+# "spiffs", und genau die haengt LittleFS ein.
+FS_SIZE = 0x180000       # 1536 KiB
+FS_OFFSET = 0x670000
+FS_IMAGE = SKETCH_DIR / "littlefs.bin"
+
+
+def find_mklittlefs() -> Path | None:
+    basis = Path.home() / "Library/Arduino15/packages/esp32/tools/mklittlefs"
+    if not basis.exists():
+        basis = Path.home() / ".arduino15/packages/esp32/tools/mklittlefs"
+    treffer = sorted(basis.glob("*/mklittlefs")) if basis.exists() else []
+    return treffer[-1] if treffer else None
+
+
+def build_fs_image() -> list[str]:
+    """Packt firmware/mitreden/data/ in ein LittleFS-Abbild zum Flashen."""
+    log: list[str] = []
+    werkzeug = find_mklittlefs()
+    if not werkzeug:
+        raise BuildError(
+            "mklittlefs nicht gefunden. Es kommt mit dem ESP32-Core der "
+            "Arduino-IDE; ohne den laesst sich kein Abbild bauen."
+        )
+    belegt = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
+    if belegt > FS_SIZE:
+        raise BuildError(
+            f"Die Daten sind {belegt / 1024:.0f} KiB gross, der Dateibereich "
+            f"fasst nur {FS_SIZE / 1024:.0f} KiB."
+        )
+    ergebnis = subprocess.run(
+        [str(werkzeug), "-c", str(DATA_DIR), "-b", "4096", "-p", "256",
+         "-s", str(FS_SIZE), str(FS_IMAGE)],
+        capture_output=True, text=True,
+    )
+    if ergebnis.returncode != 0:
+        raise BuildError(f"mklittlefs fehlgeschlagen: {ergebnis.stderr.strip()[:300]}")
+    for zeile in [
+        f"Abbild: {FS_IMAGE.relative_to(ROOT)}  "
+        f"({belegt / 1024:.0f} von {FS_SIZE / 1024:.0f} KiB belegt)",
+        "Schreiben mit:",
+        f"  esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX "
+        f"write_flash 0x{FS_OFFSET:X} {FS_IMAGE.relative_to(ROOT)}",
+    ]:
+        log.append(zeile)
+        print(zeile, flush=True)
+    return log
+
+
 def prune_cache() -> list[str]:
     """Entfernt Sprachdateien und Kacheln, die in layout.json nicht mehr vorkommen."""
     log: list[str] = []
@@ -554,6 +604,11 @@ def main(argv: list[str]) -> int:
         "--force-audio", action="store_true", help="alle WAVs neu rendern"
     )
     parser.add_argument(
+        "--fs-image",
+        action="store_true",
+        help="zusaetzlich ein LittleFS-Abbild zum Flashen bauen",
+    )
+    parser.add_argument(
         "--prune-cache",
         action="store_true",
         help="Sprachdateien loeschen, die in layout.json nicht mehr vorkommen",
@@ -568,6 +623,8 @@ def main(argv: list[str]) -> int:
         return 0
     try:
         build(with_audio=not args.no_audio, force_audio=args.force_audio)
+        if args.fs_image:
+            build_fs_image()
     except (BuildError, tts.TTSError) as exc:
         print(f"Fehler: {exc}", file=sys.stderr)
         return 1

@@ -221,22 +221,45 @@ direkt daneben sucht. Beides zeigt auf dieselbe Struktur.
 
 - **Arduino ESP32 Core 3.x** (Board: *Adafruit Feather ESP32-S3 No PSRAM*)
 - Bibliotheken: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`
-- Ein LittleFS-Upload-Werkzeug, um `firmware/mitreden/data/` auf den Flash zu
-  bringen
-  (z.B. *arduino-esp32 littlefs plugin* oder `mklittlefs` + `esptool`)
+- `mklittlefs` und `esptool` fuer den Dateibereich - beide kommen mit dem
+  ESP32-Core, `build.py --fs-image` findet sie von selbst
 
-Board-Einstellungen: USB CDC On Boot **an**, Partition Scheme so waehlen, dass
-genug SPIFFS/LittleFS-Platz bleibt. Bei 5 vollen Sets sind es rund
-25 × 32 KiB Bilder plus die WAVs, also grob 1-2 MB.
+Board-Einstellung: USB CDC On Boot **an**.
+
+### Daten aufs Geraet bringen
+
+```bash
+.venv/bin/python build.py --fs-image
+```
+
+Das packt `firmware/mitreden/data/` in ein LittleFS-Abbild und nennt gleich den
+Schreibbefehl. Die Adresse `0x670000` ist der Anfang der `spiffs`-Partition aus
+`default_8MB.csv`:
+
+```bash
+esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write_flash 0x670000 firmware/mitreden/littlefs.bin
+```
+
+Das Abbild ist gitignored - es entsteht in Sekunden neu aus `data/`.
 
 Uebersetzen:
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram firmware/mitreden
+arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
 ```
 
+> **Das Partitionsschema ist nicht optional.** Die Voreinstellung des Boards
+> heisst *tinyuf2* und legt den Datenbereich als `ffat` an - `LittleFS.begin()`
+> sucht aber eine Partition namens `spiffs` und scheitert daran. Das Geraet
+> bootet dann mit schwarzen Displays. In der Arduino-IDE unter
+> *Werkzeuge > Partition Scheme* auf **"Default (3MB APP/1.5MB SPIFFS)"**
+> stellen, auf der Kommandozeile `PartitionScheme=default_8MB` anhaengen.
+
 Getestet mit ESP32-Core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0:
-469 KB Programm (22 %), 57 KB RAM (17 %) - reichlich Luft.
+470 KB Programm (14 % von 3 MB), 57 KB RAM (17 %).
+
+Der Dateibereich fasst 1536 KiB. Ein volles Layout mit fuenf Sets belegt
+davon rund 630 KiB, also gut 40 %.
 
 > Der Sketch **compiliert**, ist aber noch nie auf echter Hardware gelaufen.
 > Vor dem ersten Flashen die Pinbelegung gegen die echten Boards pruefen.
