@@ -108,7 +108,7 @@ def pruefe_arduino() -> None:
     pfad = shutil.which("arduino-cli")
     melde("arduino-cli", bool(pfad),
           version_von("arduino-cli", "version") if pfad else "",
-          "Nur zum Übersetzen der Firmware nötig. Wer das fertige Abbild aus\n"
+          "Nur zum Übersetzen der Firmware nötig. Wer das fertige Image aus\n"
           "CI nimmt, braucht nur esptool.\n"
           + rat_fuer("brew install arduino-cli",
                      "siehe arduino.github.io/arduino-cli"),
@@ -142,7 +142,7 @@ def werkzeug_im_core(name: str) -> Path | None:
 
 def pruefe_flash_werkzeuge() -> None:
     for name, wofuer in (("esptool", "zum Flashen"),
-                         ("mklittlefs", "für das Dateisystem-Abbild")):
+                         ("mklittlefs", "für das Filesystem-Image")):
         im_pfad = shutil.which(name)
         im_core = werkzeug_im_core(name)
         ort = "im PATH" if im_pfad else (f"im ESP32-Core" if im_core else "")
@@ -178,7 +178,7 @@ def pruefe_inhalte() -> None:
 def main() -> int:
     print(f"\nmitreden – {platform.system()} {platform.release()}, "
           f"{platform.machine()}\n")
-    print(" Für die Weboberfläche und den Bauvorgang")
+    print(" Für die Weboberfläche und den Build")
     pruefe_python()
     pruefe_pillow()
     pruefe_ffmpeg()

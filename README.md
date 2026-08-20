@@ -24,8 +24,8 @@ Strom kommt aus einem LiPo, geladen über USB-C am Feather. Die Firmware ist
 ein Arduino-Sketch.
 
 Bearbeitet wird am Rechner: eine Weboberfläche aus der Python-Standardbibliothek, Piktogramme von [ARASAAC](https://arasaac.org), Sprachausgabe
-über Azure. Der Bauvorgang rechnet daraus RGB565-Bilder und 16-kHz-WAVs und
-packt sie in ein LittleFS-Abbild für den Flash.
+über Azure. Der Build rechnet daraus RGB565-Bilder und 16-kHz-WAVs und
+packt sie in ein LittleFS-Image für den Flash.
 
 ## Schnellstart
 
@@ -59,9 +59,9 @@ Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
 | | |
 |---|---|
 | [docs/hardware.md](docs/hardware.md) | Bauteile, Pinbelegung, Gehäusemaße |
-| [docs/software.md](docs/software.md) | Weboberfläche, layout.json, Bauvorgang, Sprachausgabe |
+| [docs/software.md](docs/software.md) | Weboberfläche, layout.json, Build, Sprachausgabe |
 | [docs/inbetriebnahme.md](docs/inbetriebnahme.md) | Erstaufbau in Stufen, mit kleinen Testsketchen |
-| [docs/firmware.md](docs/firmware.md) | Fertiges Abbild oder selbst übersetzen, Partitionsschema, Flashen |
+| [docs/firmware.md](docs/firmware.md) | Fertiges Image oder selbst übersetzen, Partition Scheme, Flashen |
 | [docs/betrieb.md](docs/betrieb.md) | Im Container starten, vom Handy bearbeiten, Betrieb auf einem NAS |
 
 ## Lizenz

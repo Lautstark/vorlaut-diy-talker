@@ -2,7 +2,7 @@
 
 Wenn man alles zusammenlötet, flasht und nichts geht, hat man acht Fehlerquellen
 gleichzeitig: Panel-Profil, Versatz, CS-Zuordnung, Taster-Pins, I2S, Verstärker,
-Hintergrundlicht, Partitionsschema.
+Hintergrundlicht, Partition Scheme.
 
 Gestaffelt wird daraus jeweils eine. Jede Stufe ist ein kleiner Sketch unter
 `firmware/tests/`, der genau eine Sache prüft und im seriellen Monitor sagt,

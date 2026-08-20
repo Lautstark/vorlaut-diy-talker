@@ -70,7 +70,7 @@ class Panel : public Adafruit_ST7735 {
 
 static Layout layout;
 
-// Aus 16 Prüfsummenbytes den Dateinamen bauen: /t<32 hex>.bin bzw. /a….wav
+// Aus 16 Hashesbytes den Dateinamen bauen: /t<32 hex>.bin bzw. /a….wav
 static void hashPath(char *out, char kind, const uint8_t *hash, const char *ext) {
   out[0] = '/';
   out[1] = kind;
@@ -509,11 +509,11 @@ void setup() {
 
   filesystemReady = LittleFS.begin(false);
   if (!filesystemReady) {
-    // Häufigste Ursache: falsches Partitionsschema. Die Voreinstellung des
+    // Häufigste Ursache: falsches Partition Scheme. Die Voreinstellung des
     // Boards (tinyuf2) legt den Datenbereich als "ffat" an, LittleFS sucht
     // aber eine Partition namens "spiffs". Richtig ist "Default 8MB".
     Serial.println("LittleFS ließ sich nicht einhängen.");
-    Serial.println("  1. Partitionsschema \"Default (3MB APP/1.5MB SPIFFS)\"?");
+    Serial.println("  1. Partition Scheme \"Default (3MB APP/1.5MB SPIFFS)\"?");
     Serial.println("  2. firmware/mitreden/data/ schon hochgeladen?");
   }
 

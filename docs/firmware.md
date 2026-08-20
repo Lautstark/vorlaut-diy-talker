@@ -33,11 +33,11 @@ arduino-cli board list
 Gesucht ist etwas wie `/dev/cu.usbmodem1101`. Diesen Port unten überall
 statt `/dev/cu.usbmodemXXXX` einsetzen.
 
-**2a. Ohne Arduino: fertiges Abbild nehmen.**
+**2a. Ohne Arduino: fertiges Image nehmen.**
 
-Bei jedem Push baut CI die Firmware und hängt sie als Artefakt an den Lauf.
+Bei jedem Push baut CI die Firmware und hängt sie als Artifact an den Workflow-Lauf.
 Unter *Actions* den neuesten grünen Lauf öffnen und `firmware` herunterladen.
-Darin liegt `mitreden.ino.merged.bin` - Bootloader, Partitionstabelle und
+Darin liegt `mitreden.ino.merged.bin` - Bootloader, Partition Table und
 Programm in einer Datei, geschrieben an Adresse 0:
 
 ```bash
@@ -45,7 +45,7 @@ esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 mitreden.ino.
 ```
 
 Damit braucht es weder Arduino-Core noch Bibliotheken - nur esptool. Das
-Partitionsschema steckt schon im Abbild, es lässt sich also auch nicht falsch
+Partition Scheme steckt schon im Image, es lässt sich also auch nicht falsch
 einstellen.
 
 **2b. Selbst übersetzen und schreiben:**
@@ -74,7 +74,7 @@ Bootloader und der Befehl geht durch. Danach einmal RESET drücken.
 ```
 
 Die Adresse `0x670000` ist der Anfang der `spiffs`-Partition aus
-`default_8MB.csv`. Sie gilt nur für dieses Partitionsschema - mit einem
+`default_8MB.csv`. Sie gilt nur für dieses Partition Scheme - mit einem
 anderen landen die Daten an der falschen Stelle.
 
 **Mitlesen, was das Gerät sagt:**
@@ -86,14 +86,14 @@ arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 Dort steht beim Start, welches Set geladen wurde, welche Taste gedrückt wurde
 und ob LittleFS sich einhängen ließ.
 
-### Wie das Abbild entsteht
+### Wie das Image entsteht
 
 `build.py --fs-image` packt `firmware/mitreden/data/` mit `mklittlefs` in ein
-Abbild von 1536 KiB - genau die Größe der `spiffs`-Partition. Passen die
+Image von 1536 KiB - genau die Größe der `spiffs`-Partition. Passen die
 Daten nicht hinein, bricht es mit einer klaren Meldung ab, statt ein zu großes
-Abbild zu erzeugen.
+Image zu erzeugen.
 
-Das Abbild selbst ist gitignored: es entsteht in Sekunden neu aus `data/`.
+Das Image selbst ist gitignored: es entsteht in Sekunden neu aus `data/`.
 
 Übersetzen:
 
@@ -101,7 +101,7 @@ Das Abbild selbst ist gitignored: es entsteht in Sekunden neu aus `data/`.
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
 ```
 
-> **Das Partitionsschema ist nicht optional.** Die Voreinstellung des Boards
+> **Das Partition Scheme ist nicht optional.** Die Voreinstellung des Boards
 > heißt *tinyuf2* und legt den Datenbereich als `ffat` an - `LittleFS.begin()`
 > sucht aber eine Partition namens `spiffs` und scheitert daran. Das Gerät
 > bootet dann mit schwarzen Displays. In der Arduino-IDE unter

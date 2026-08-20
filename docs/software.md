@@ -4,13 +4,13 @@
 
 | | wofür |
 |---|---|
-| Python 3.9 oder neuer | Weboberfläche und Bauvorgang |
+| Python 3.9 oder neuer | Weboberfläche und Build |
 | ffmpeg | Sprachdateien zuschneiden und normalisieren |
 | Pillow | Bilder umrechnen (`requirements.txt`) |
 | arduino-cli oder Arduino IDE | Firmware übersetzen und flashen |
 | ESP32-Core 3.x | für den Feather |
 
-Alternativ läuft die Weboberfläche im mitgelieferten Docker-Abbild — dann
+Alternativ läuft die Weboberfläche im mitgelieferten Docker-Image — dann
 braucht es lokal nur noch die Arduino-Werkzeuge fürs Flashen.
 
 ## Für die Sprachausgabe
@@ -119,18 +119,18 @@ hochgeladen):
 
 | Datei              | Inhalt                                          |
 |--------------------|-------------------------------------------------|
-| `a<prüfsumme>.wav` | gesprochener Satz, 16 kHz mono 16 bit          |
-| `t<prüfsumme>.bin` | 116x116 Symbolfläche, RGB565 big-endian       |
+| `a<Hash>.wav` | gesprochener Satz, 16 kHz mono 16 bit          |
+| `t<Hash>.bin` | 116x116 Symbolfläche, RGB565 big-endian       |
 
 und dazu `layout.bin` — eine kompakte Tabelle mit Anzahl der Sets, Farben,
-Schlafzeit und den Prüfsummen, welche Datei zu welcher Taste gehört.
+Schlafzeit und den Hashes, welche Datei zu welcher Taste gehört.
 
 **Diese Tabelle liegt beim Inhalt, nicht in der Firmware.** Ein Set anlegen,
 umbenennen oder umfärben ändert damit nichts am Programm — es muss nichts
 neu übersetzt und nichts mit Kabel aufgespielt werden. Die Firmware ist für
 alle dieselbe.
 
-**Die Dateinamen sind Prüfsummen des Inhalts, nicht der Position.** Das hat
+**Die Dateinamen sind Hashes des Inhalts, nicht der Position.** Das hat
 zwei Folgen:
 
 - Kommt dasselbe Symbol oder derselbe Satz in mehreren Sets vor, liegt er auf
@@ -243,5 +243,5 @@ drin, und Git fängt sie absichtlich nicht mehr auf. Auf einem NAS läuft sie in
 Sicherung mit; auf einem Rechner gehört sie in dein übliches Backup.
 
 Nicht im Repo sind ausserdem `firmware/mitreden/data/`, `layout.h` und das
-LittleFS-Abbild - die entstehen in Sekunden neu aus `content/`. Und `.env`
+LittleFS-Image - die entstehen in Sekunden neu aus `content/`. Und `.env`
 mit dem Azure-Schlüssel.

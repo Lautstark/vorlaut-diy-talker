@@ -155,7 +155,7 @@ def cache_path(text: str) -> Path:
 def load_index() -> dict:
     """Fingerprint -> gesprochener Text.
 
-    Die Dateinamen im Cache sind Prüfsummen und damit unlesbar. Dieses
+    Die Dateinamen im Cache sind Hashes und damit unlesbar. Dieses
     Verzeichnis macht sie wieder lesbar - und hält fest, was einmal
     gesprochen wurde, auch wenn es aus layout.json verschwindet.
     """

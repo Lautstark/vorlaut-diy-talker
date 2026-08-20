@@ -330,10 +330,10 @@ def to_rgb565_be(image) -> bytes:
 #          4  Schlafzeit in Sekunden
 #   je Set 2  Farbe als RGB565
 #         32  Name, mit Nullbytes aufgefüllt
-#         16  Prüfsumme der Set-Kachel
+#         16  Hash der Set-Kachel
 #            je Taste (4x):
-#         16     Prüfsumme des Bildes
-#         16     Prüfsumme des Tons
+#         16     Hash des Bildes
+#         16     Hash des Tons
 #          1     1 = Ton vorhanden
 #          1     frei
 LAYOUT_BIN = "layout.bin"
@@ -348,7 +348,7 @@ HEADER_BYTES = 4 + 4 + 4                            # 12
 
 
 def _hash_bytes(dateiname: str) -> bytes:
-    """Aus "t3bd7a62….bin" die 16 rohen Prüfsummenbytes."""
+    """Aus "t3bd7a62….bin" die 16 rohen Hashesbytes."""
     if not dateiname:
         return b"\x00" * HASH_BYTES
     kern = Path(dateiname).stem[1:]          # führendes t oder a weg
@@ -399,7 +399,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     # frischen Klon des Repos ohne Azure-Zugang brauchbar.
     kein_key = with_audio and not tts.have_key()
 
-    # Die Dateinamen auf dem Gerät sind Prüfsummen des Inhalts. Damit liegt
+    # Die Dateinamen auf dem Gerät sind Hashes des Inhalts. Damit liegt
     # dasselbe Symbol oder derselbe Satz dort genau einmal, egal in wie vielen
     # Sets er vorkommt - und eine Datei kann nie veralten, ohne dass sich ihr
     # Name mitändert.
@@ -524,13 +524,13 @@ def find_tool(name: str) -> Path | None:
 
 
 def build_fs_image() -> list[str]:
-    """Packt firmware/mitreden/data/ in ein LittleFS-Abbild zum Flashen."""
+    """Packt firmware/mitreden/data/ in ein LittleFS-Image zum Flashen."""
     log: list[str] = []
     werkzeug = find_tool("mklittlefs")
     if not werkzeug:
         raise BuildError(
             "mklittlefs nicht gefunden. Es kommt mit dem ESP32-Core der "
-            "Arduino-IDE; ohne den lässt sich kein Abbild bauen."
+            "Arduino-IDE; ohne den lässt sich kein Image bauen."
         )
     belegt = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
     if belegt > FS_SIZE:
@@ -548,7 +548,7 @@ def build_fs_image() -> list[str]:
     esptool = find_tool("esptool")
     aufruf = str(esptool) if esptool else "esptool"
     for zeile in [
-        f"Abbild: {FS_IMAGE.relative_to(ROOT)}  "
+        f"Image: {FS_IMAGE.relative_to(ROOT)}  "
         f"({belegt / 1024:.0f} von {FS_SIZE / 1024:.0f} KiB belegt)",
         "Port suchen mit:  arduino-cli board list",
         "Schreiben mit:",
@@ -626,7 +626,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--fs-image",
         action="store_true",
-        help="zusätzlich ein LittleFS-Abbild zum Flashen bauen",
+        help="zusätzlich ein LittleFS-Image zum Flashen bauen",
     )
     parser.add_argument(
         "--prune-cache",

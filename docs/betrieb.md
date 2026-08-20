@@ -19,9 +19,9 @@ lässt sich also wie eine App ablegen: in Safari *Teilen → Zum Home-Bildschirm
 in Chrome über das Menü. Danach startet sie ohne Adressleiste im
 Vollbild.
 
-Bewusst **ohne Service Worker**, also ohne Offline-Zwischenspeicher. Ohne
+Bewusst **ohne Service Worker**, also ohne Offline-Cache. Ohne
 Server kann die Oberfläche ohnehin nichts - weder speichern noch vorhören noch
-bauen. Ein Zwischenspeicher würde nur alte Fassungen ausliefern und wäre eher
+bauen. Ein Cache würde nur alte Fassungen ausliefern und wäre eher
 Fehlerquelle als Nutzen.
 
 **Das ist ohne Anmeldung.** Wer im selben WLAN ist, kann die Inhalte ändern
@@ -37,7 +37,7 @@ eine `docker-compose.yml` bei:
 docker compose up -d
 ```
 
-Wer nicht selbst bauen will, zieht das fertige Abbild — es wird bei jeder
+Wer nicht selbst bauen will, zieht das fertige Image — es wird bei jeder
 Änderung an `Dockerfile` oder `requirements.txt` für amd64 und arm64 gebaut:
 
 ```
@@ -48,11 +48,11 @@ Dafür in der `docker-compose.yml` `build: .` durch
 `image: ghcr.io/steffipetaffy/mitreden:latest` ersetzen. Auf einem NAS mit
 ARM spart das mehrere Minuten Bauzeit.
 
-Das Abbild bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
+Das Image bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
 selbst wird hineingereicht - `content/layout.json`, `content/symbols/` und `content/cache/` bleiben
 damit auf dem NAS und laufen in dessen Sicherung mit.
 
-Geprüft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
+Geprüft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Image), ARASAAC-Suche und
 `build.py` laufen im Container durch.
 
 #### Starten
@@ -135,7 +135,7 @@ beide nehmen die Datei an.
    Finder. **Die `.env` gehört nicht ins Repo und muss von Hand mit.**
 3. **Container Manager** öffnen (DSM 7.2 und neuer; davor heißt das Paket
    *Docker*) -> *Projekt* -> *Anlegen* -> als Pfad den Ordner wählen. Die
-   `docker-compose.yml` wird erkannt, das Abbild baut er selbst.
+   `docker-compose.yml` wird erkannt, das Image baut er selbst.
 4. Aufrufen unter `http://<NAS>:8771`.
 
 Damit liegt der ganze Bestand auf dem NAS und läuft in dessen Sicherung mit.
@@ -151,7 +151,7 @@ Was dabei erfahrungsgemäß zuerst klemmt:
 - **Aelteres DSM.** Das alte *Docker*-Paket bringt Compose 1 mit und will eine
   Zeile `version: "3.8"` ganz oben in der `docker-compose.yml`. Container
   Manager braucht sie nicht.
-- **ARM-Modelle** bauen das Abbild spürbar langsamer als die Intel-Modelle.
+- **ARM-Modelle** bauen das Image spürbar langsamer als die Intel-Modelle.
   Einmalig, danach läuft es.
 
 Zu bedenken:
@@ -159,7 +159,7 @@ Zu bedenken:
 - **Keine Anmeldung.** Wer den Port erreicht, kann die Inhalte ändern. Im
   Heimnetz in Ordnung, aber **nicht im Router freigeben**. Für unterwegs
   lieber ein privates Netz wie Tailscale, dann braucht es keine Anmeldung.
-- Der Azure-Schlüssel steckt bewusst **nicht** im Abbild - `.dockerignore`
+- Der Azure-Schlüssel steckt bewusst **nicht** im Image - `.dockerignore`
   schließt `.env` aus. Zur Laufzeit kommt er aus dem eingehängten Ordner.
 - Geflasht wird weiter vom Rechner aus - dafür braucht es USB.
 
