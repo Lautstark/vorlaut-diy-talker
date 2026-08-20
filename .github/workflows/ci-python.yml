@@ -1,0 +1,64 @@
+name: Python und Bauvorgang
+
+# Läuft nur, wenn dieser Job auch etwas zu prüfen hat.
+#
+# firmware/mitreden/ steht bewusst mit in der Liste, obwohl hier kein Sketch
+# übersetzt wird: tests/layout_dump.cpp bindet layout_format.h aus dem Sketch
+# ein und vergleicht, was der C-Leser liest, mit dem was build.py schreibt.
+# Ändert sich das Format in der Firmware, muss dieser Test laufen - sonst
+# merkt es niemand, bis das Gerät stumm bleibt.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.py'
+      - requirements.txt
+      - tests/**
+      - example/**
+      - firmware/mitreden/**
+      - .github/workflows/ci-python.yml
+  pull_request:
+    paths:
+      - '**.py'
+      - requirements.txt
+      - tests/**
+      - example/**
+      - firmware/mitreden/**
+      - .github/workflows/ci-python.yml
+
+jobs:
+  python:
+    name: Python und Bauvorgang
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          pip install -r requirements.txt
+
+      # Wenn doctor hier meckert, fehlt dem Ablauf wirklich etwas - und
+      # dann fehlt es einem Nachbauer genauso.
+      - name: doctor läuft durch
+        run: python doctor.py
+
+      - name: Module importierbar
+        run: python -c "import app, build, tts"
+
+      - name: layout.bin gegen den Firmware-Leser prüfen
+        # Übersetzt den C-Code aus dem Sketch auf dem Runner und vergleicht,
+        # was er liest, mit dem was build.py geschrieben hat.
+        run: python tests/test_layout_format.py
+
+      - name: Bauvorgang mit den Beispielinhalten
+        # Ohne Azure-Schlüssel: Bilder und layout.h entstehen, Ton nicht.
+        # Prüft, dass content/ sich aus example/ füllt und alles durchläuft.
+        run: |
+          python build.py --no-audio
+          test -f firmware/mitreden/data/layout.bin
+          test -f content/layout.json

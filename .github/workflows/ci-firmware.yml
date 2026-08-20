@@ -1,0 +1,53 @@
+name: Firmware übersetzen
+
+# Nur bei Änderungen an der Firmware selbst - der ESP32-Core braucht knapp
+# eine Minute zum Installieren, die muss eine Doku-Änderung nicht bezahlen.
+on:
+  push:
+    branches: [main]
+    paths:
+      - firmware/**
+      - .github/actions/firmware/**
+      - .github/workflows/ci-firmware.yml
+  pull_request:
+    paths:
+      - firmware/**
+      - .github/actions/firmware/**
+      - .github/workflows/ci-firmware.yml
+
+jobs:
+  firmware:
+    name: Firmware übersetzen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Die Testsketche kommen mit: sie benutzen dieselbe pins.h wie die
+      # richtige Firmware. Wer sie nicht mit übersetzt, merkt eine kaputte
+      # pins.h erst, wenn jemand mit dem Lötkolben davorsitzt.
+      - uses: ./.github/actions/firmware
+        with:
+          sketche: |
+            firmware/mitreden
+            firmware/tests/test1_board
+            firmware/tests/test2_display
+            firmware/tests/test3_displays
+            firmware/tests/test4_tasten
+            firmware/tests/test5_ton
+
+      # Fertiges Abbild, damit niemand Arduino installieren muss, um zu
+      # flashen. merged.bin enthält Bootloader, Partitionstabelle und
+      # Programm und wird an Adresse 0 geschrieben. Die Inhalte kommen
+      # getrennt dazu.
+      #
+      # Artefakte laufen nach 90 Tagen ab und brauchen eine Anmeldung. Wer
+      # nur flashen will, nimmt besser die Veröffentlichung zum Tag - siehe
+      # release.yml.
+      - name: Firmware-Abbild sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            build/mitreden/mitreden.ino.merged.bin
+            build/mitreden/mitreden.ino.bin
+          if-no-files-found: error

@@ -35,10 +35,16 @@ statt `/dev/cu.usbmodemXXXX` einsetzen.
 
 **2a. Ohne Arduino: fertiges Abbild nehmen.**
 
-Bei jedem Push baut CI die Firmware und hängt sie als Artefakt an den Lauf.
-Unter *Actions* den neuesten grünen Lauf öffnen und `firmware` herunterladen.
-Darin liegt `mitreden.ino.merged.bin` - Bootloader, Partitionstabelle und
-Programm in einer Datei, geschrieben an Adresse 0:
+Unter [Releases](https://github.com/SteffiPeTaffy/mitreden/releases) hängt an
+jedem Tag ein fertiges `mitreden.ino.merged.bin`. Das ist der bequeme Weg: ein
+gewöhnlicher Link, kein GitHub-Konto nötig, und es bleibt liegen.
+
+Wer den allerneuesten Stand von `main` braucht, holt ihn aus *Actions*: der
+Lauf *Firmware übersetzen* hängt das Abbild als Artefakt `firmware` an. Dafür
+braucht es eine Anmeldung, und nach 90 Tagen ist es weg.
+
+`mitreden.ino.merged.bin` enthält Bootloader, Partitionstabelle und Programm in
+einer Datei, geschrieben an Adresse 0:
 
 ```bash
 esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 mitreden.ino.merged.bin
