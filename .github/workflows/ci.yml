@@ -39,32 +39,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - uses: arduino/setup-arduino-cli@v2
 
-      # Der Sketch braucht keine erzeugten Dateien mehr - die Tabelle liegt
-      # zur Laufzeit auf dem Dateisystem des Geräts.
+      # Bewusst von Hand statt über arduino/compile-sketches: nur so lässt
+      # sich --output-dir setzen und das fertige Abbild einsammeln.
+      - name: ESP32-Core und Bibliotheken
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+          arduino-cli lib install \
+            "Adafruit GFX Library" \
+            "Adafruit ST7735 and ST7789 Library"
+
       - name: Übersetzen
-        uses: arduino/compile-sketches@v1
-        with:
-          fqbn: "esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB"
-          platforms: |
-            - source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-              name: esp32:esp32
-          libraries: |
-            - name: Adafruit GFX Library
-            - name: Adafruit ST7735 and ST7789 Library
-          sketch-paths: |
-            - firmware/mitreden
-          enable-warnings-report: true
-          cli-compile-flags: |
-            - --output-dir
-            - ./build
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB \
+            --warnings all \
+            --output-dir build \
+            firmware/mitreden
+          ls -lh build
 
-      # Fertig geflashte Datei, damit niemand Arduino installieren muss.
-      # merged.bin enthält Bootloader, Partitionstabelle und Programm und
-      # wird an Adresse 0 geschrieben. Die Inhalte kommen getrennt dazu.
+      # Fertiges Abbild, damit niemand Arduino installieren muss, um zu
+      # flashen. merged.bin enthält Bootloader, Partitionstabelle und
+      # Programm und wird an Adresse 0 geschrieben. Die Inhalte kommen
+      # getrennt dazu.
       - name: Firmware-Abbild sichern
         uses: actions/upload-artifact@v4
         with:
