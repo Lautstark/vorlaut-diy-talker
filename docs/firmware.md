@@ -33,7 +33,22 @@ arduino-cli board list
 Gesucht ist etwas wie `/dev/cu.usbmodem1101`. Diesen Port unten überall
 statt `/dev/cu.usbmodemXXXX` einsetzen.
 
-**2. Programm übersetzen und schreiben:**
+**2a. Ohne Arduino: fertiges Abbild nehmen.**
+
+Bei jedem Push baut CI die Firmware und hängt sie als Artefakt an den Lauf.
+Unter *Actions* den neuesten grünen Lauf öffnen und `firmware` herunterladen.
+Darin liegt `mitreden.ino.merged.bin` - Bootloader, Partitionstabelle und
+Programm in einer Datei, geschrieben an Adresse 0:
+
+```bash
+esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 mitreden.ino.merged.bin
+```
+
+Damit braucht es weder Arduino-Core noch Bibliotheken - nur esptool. Das
+Partitionsschema steckt schon im Abbild, es lässt sich also auch nicht falsch
+einstellen.
+
+**2b. Selbst übersetzen und schreiben:**
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
