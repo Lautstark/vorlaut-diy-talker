@@ -12,7 +12,7 @@ Tiefe hat, oder ein Dom, der von einem anderen Körper weggeschnitten wurde.
     openscad -o /tmp/wanne.stl   -D 'teil="wanne"'   gehaeuse/mitreden-gehaeuse.scad
     openscad -o /tmp/traeger.stl -D 'teil="traeger"' gehaeuse/mitreden-gehaeuse.scad
     openscad -o /tmp/deckel.stl  -D 'teil="deckel"'  gehaeuse/mitreden-gehaeuse.scad
-    python3 gehaeuse/pruefe-stl.py /tmp/wanne.stl /tmp/traeger.stl /tmp/deckel.stl
+    python3 gehaeuse/check-stl.py /tmp/wanne.stl /tmp/traeger.stl /tmp/deckel.stl
 
 Zu den Punktproben: getestet wird per Strahlensatz nach oben (+z). Punkte
 genau auf einer Zylinderachse oder auf einer Tessellierungsnaht liefern
@@ -27,11 +27,11 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from nachrechnen import lade_parameter, SCAD          # noqa: E402
+from nachrechnen import load_parameters, SCAD          # noqa: E402
 
 
-def lade_stl(pfad):
-    with open(pfad, 'rb') as f:
+def load_stl(path):
+    with open(path, 'rb') as f:
         d = f.read()
     if d[:5].lower() == b'solid' and b'facet' in d[:2000]:
         vs = [tuple(float(x) for x in m.groups())
@@ -54,9 +54,9 @@ def bbox(tris):
     return min(xs), min(ys), min(zs), max(xs), max(ys), max(zs)
 
 
-def _drin(tris, pt):
+def _inside(tris, pt):
     px, py, pz = pt
-    treffer = 0
+    hits = 0
     for a, b, c in tris:
         d1 = (px - b[0]) * (a[1] - b[1]) - (a[0] - b[0]) * (py - b[1])
         d2 = (px - c[0]) * (b[1] - c[1]) - (b[0] - c[0]) * (py - c[1])
@@ -72,13 +72,13 @@ def _drin(tris, pt):
             continue
         zs = a[2] + (nx * (a[0] - px) + ny * (a[1] - py)) / nz
         if zs > pz + 1e-9:
-            treffer += 1
-    return treffer % 2 == 1
+            hits += 1
+    return hits % 2 == 1
 
 
 def material(tris, pt):
     """Drei leicht versetzte Strahlen, Mehrheit entscheidet."""
-    stimmen = [_drin(tris, (pt[0] + dx, pt[1] + dy, pt[2]))
+    stimmen = [_inside(tris, (pt[0] + dx, pt[1] + dy, pt[2]))
                for dx, dy in ((0.0, 0.0), (0.11, -0.07), (-0.09, 0.13))]
     return sum(stimmen) >= 2
 
@@ -87,7 +87,7 @@ class Lauf:
     def __init__(self):
         self.fehl = 0
 
-    def mass(self, was, ist, soll, tol=0.05):
+    def measure(self, was, ist, soll, tol=0.05):
         ok = abs(ist - soll) <= tol
         self.fehl += 0 if ok else 1
         print('  %s %-46s %9.3f  soll %9.3f'
@@ -107,15 +107,15 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    p = lade_parameter(SCAD)
+    p = load_parameters(SCAD)
     G = p.get
     L = Lauf()
     teile = {}
-    for pfad in sys.argv[1:]:
-        name = os.path.splitext(os.path.basename(pfad))[0].lower()
+    for path in sys.argv[1:]:
+        name = os.path.splitext(os.path.basename(path))[0].lower()
         for k in ('wanne', 'traeger', 'deckel'):
             if k in name:
-                teile[k] = lade_stl(pfad)
+                teile[k] = load_stl(path)
 
     print('\nAussenmasse')
     print('-----------')
@@ -123,23 +123,23 @@ def main():
         b = bbox(teile['wanne'])
         # Das Logo an der Unterkante steht 0,6 mm vor die Wand — es gehoert
         # zum Bauteil, aber nicht zum Gehaeusemass.
-        L.mass('Wanne Breite', b[3] - b[0], G('aussen_b'))
-        L.mass('Wanne Hoehe (mit Logo an der Unterkante)', b[4] - b[1],
+        L.measure('Wanne Breite', b[3] - b[0], G('aussen_b'))
+        L.measure('Wanne Hoehe (mit Logo an der Unterkante)', b[4] - b[1],
                G('aussen_h') + G('logo_seite_h'))
-        L.mass('Wanne Tiefe', b[5] - b[2], G('aussen_t'))
+        L.measure('Wanne Tiefe', b[5] - b[2], G('aussen_t'))
     if 'traeger' in teile:
         b = bbox(teile['traeger'])
-        L.mass('Traeger Breite', b[3] - b[0],
+        L.measure('Traeger Breite', b[3] - b[0],
                G('innen_b') - G('traeger_spiel'))
-        L.mass('Traeger Hoehe', b[4] - b[1], G('innen_h') - G('traeger_spiel'))
-        L.mass('Traeger Bauhoehe', b[5] - b[2], G('traeger_d') + G('akku_d') + 0.2)
+        L.measure('Traeger Hoehe', b[4] - b[1], G('innen_h') - G('traeger_spiel'))
+        L.measure('Traeger Bauhoehe', b[5] - b[2], G('traeger_d') + G('akku_d') + 0.2)
     if 'deckel' in teile:
         b = bbox(teile['deckel'])
-        L.mass('Deckel Breite', b[3] - b[0],
+        L.measure('Deckel Breite', b[3] - b[0],
                G('aussen_b') - 2 * G('lippe') - G('deckel_spiel'))
-        L.mass('Deckel Hoehe', b[4] - b[1],
+        L.measure('Deckel Hoehe', b[4] - b[1],
                G('aussen_h') - 2 * G('lippe') - G('deckel_spiel'))
-        L.mass('Deckel Bauhoehe', b[5] - b[2],
+        L.measure('Deckel Bauhoehe', b[5] - b[2],
                G('deckel_d') + G('logo_deckel_h'))
 
     if 'wanne' in teile:
