@@ -4,18 +4,18 @@ services:
     image: mitreden
     container_name: mitreden
     ports:
-      # Anderer Port am Rechner, falls dort schon etwas laeuft:
+      # Anderer Port am Rechner, falls dort schon etwas läuft:
       #   MITREDEN_PORT=8798 docker compose up -d
       - "${MITREDEN_PORT:-8771}:8771"
     volumes:
       # Das ganze Projekt hineinreichen: so liegen layout.json, symbols/ und
-      # cache/ auf dem NAS und ueberleben jedes Neubauen des Abbilds. Der
-      # Azure-Schluessel kommt ueber die .env aus genau diesem Ordner - er
+      # cache/ auf dem NAS und überleben jedes Neubauen des Abbilds. Der
+      # Azure-Schlüssel kommt über die .env aus genau diesem Ordner - er
       # steckt bewusst nicht im Abbild.
       - ./:/app
-    # Auf einer Synology laeuft der Container sonst als root, und alles, was er
-    # anlegt (cache/, layout.json), gehoert danach root - ueber die Netzfreigabe
-    # laesst es sich dann nicht mehr bearbeiten. Eigene Kennung per SSH mit
+    # Auf einer Synology läuft der Container sonst als root, und alles, was er
+    # anlegt (cache/, layout.json), gehört danach root - über die Netzfreigabe
+    # lässt es sich dann nicht mehr bearbeiten. Eigene Kennung per SSH mit
     # "id" herausfinden und hier eintragen, z.B. "1026:100".
     # user: "1026:100"
     restart: unless-stopped

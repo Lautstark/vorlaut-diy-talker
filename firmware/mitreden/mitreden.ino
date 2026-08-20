@@ -1,9 +1,9 @@
-// mitreden - kleiner Talker mit fuenf Screenkey-Tasten
+// mitreden - kleiner Talker mit fünf Screenkey-Tasten
 //
-// Vier Tasten sprechen, die fuenfte schaltet das Set um. Solange das Geraet
-// wach ist, sind alle fuenf Displays an. Nach SLEEP_TIMEOUT_SECONDS ohne
-// Eingabe geht es in den Deep Sleep und wacht durch jede der fuenf Tasten
-// wieder auf - dieser erste Druck loest bewusst nichts aus.
+// Vier Tasten sprechen, die fünfte schaltet das Set um. Solange das Gerät
+// wach ist, sind alle fünf Displays an. Nach SLEEP_TIMEOUT_SECONDS ohne
+// Eingabe geht es in den Deep Sleep und wacht durch jede der fünf Tasten
+// wieder auf - dieser erste Druck löst bewusst nichts aus.
 //
 // layout.h und der Inhalt von data/ werden von build.py erzeugt.
 
@@ -19,7 +19,7 @@
 #include "layout.h"
 
 // --- Pinbelegung (Adafruit ESP32-S3 Feather) --------------------------------
-// Die Taster muessen auf GPIO 0..21 liegen, nur die koennen den Chip aus dem
+// Die Taster müssen auf GPIO 0..21 liegen, nur die können den Chip aus dem
 // Deep Sleep holen (EXT1).
 
 static const int8_t PIN_SCK  = 36;  // SCK,  gemeinsam
@@ -47,10 +47,10 @@ static const uint8_t PANEL_ROTATION = 0;
 
 // --- Verhalten ---------------------------------------------------------------
 
-static const uint32_t DEBOUNCE_MS = 80;    // so lange muss gedrueckt bleiben
-// Die Set-Taste braucht laenger. Ein versehentlicher Wechsel nimmt ihr das
+static const uint32_t DEBOUNCE_MS = 80;    // so lange muss gedrückt bleiben
+// Die Set-Taste braucht länger. Ein versehentlicher Wechsel nimmt ihr das
 // Wort weg, das sie gerade sagen wollte, und sie muss erst wiederfinden, wo
-// sie ist - das ist aergerlicher als ein falsch getroffenes Wort.
+// sie ist - das ist ärgerlicher als ein falsch getroffenes Wort.
 static const uint32_t SET_HOLD_MS = 400;
 static const uint32_t SAMPLE_RATE = 16000; // wie build.py die WAVs schreibt
 static const size_t AUDIO_CHUNK = 1024;
@@ -58,7 +58,7 @@ static const size_t AUDIO_CHUNK = 1024;
 // --- Zustand -----------------------------------------------------------------
 
 // setColRowStart ist in der Bibliothek protected. Diese Ableitung macht den
-// Panel-Versatz zugaenglich, ohne die Bibliothek anzufassen.
+// Panel-Versatz zugänglich, ohne die Bibliothek anzufassen.
 class Panel : public Adafruit_ST7735 {
  public:
   using Adafruit_ST7735::Adafruit_ST7735;
@@ -83,9 +83,9 @@ static bool filesystemReady = false;
 // --- Displays ----------------------------------------------------------------
 
 static void setupDisplays() {
-  // RST haengt an allen fuenf Panels. Deshalb einmal von Hand pulsen und den
-  // Treibern -1 geben - sonst wuerde die Initialisierung von Display 3 die
-  // Displays 1 und 2 wieder zuruecksetzen.
+  // RST hängt an allen fünf Panels. Deshalb einmal von Hand pulsen und den
+  // Treibern -1 geben - sonst würde die Initialisierung von Display 3 die
+  // Displays 1 und 2 wieder zurücksetzen.
   pinMode(PIN_RST, OUTPUT);
   digitalWrite(PIN_RST, HIGH);
   delay(10);
@@ -105,11 +105,11 @@ static void setupDisplays() {
   }
 }
 
-// Zeichnet den Rahmen in der Set-Farbe und darin die Symbolflaeche aus der
+// Zeichnet den Rahmen in der Set-Farbe und darin die Symbolfläche aus der
 // Datei (TILE_W x TILE_H, RGB565 big-endian).
 //
-// Der Rahmen steht bewusst nicht in der Datei: so haengt eine Bilddatei nur am
-// Symbol und nicht am Set. Dasselbe Symbol in einem blauen und einem gruenen
+// Der Rahmen steht bewusst nicht in der Datei: so hängt eine Bilddatei nur am
+// Symbol und nicht am Set. Dasselbe Symbol in einem blauen und einem grünen
 // Set ist damit eine Datei statt zweien.
 static void drawTile(Panel *tft, const char *path, uint16_t frame) {
   tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, frame);
@@ -152,7 +152,7 @@ static void drawCurrentSet() {
   Serial.printf("Set %u: %s\n", (unsigned)(s + 1), SET_NAMES[s]);
 #else
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) display[i]->fillScreen(ST77XX_BLACK);
-  Serial.println("layout.h enthaelt keine Sets.");
+  Serial.println("layout.h enthält keine Sets.");
 #endif
 }
 
@@ -164,12 +164,12 @@ static void backlight(bool on) {
 
 static void setupAudio() {
   pinMode(PIN_AMP_SD, OUTPUT);
-  digitalWrite(PIN_AMP_SD, LOW);  // Verstaerker aus, bis wirklich etwas kommt
+  digitalWrite(PIN_AMP_SD, LOW);  // Verstärker aus, bis wirklich etwas kommt
 
   i2s.setPins(PIN_I2S_BCLK, PIN_I2S_LRCK, PIN_I2S_DIN);
   if (!i2s.begin(I2S_MODE_STD, SAMPLE_RATE, I2S_DATA_BIT_WIDTH_16BIT,
                  I2S_SLOT_MODE_MONO)) {
-    Serial.println("I2S liess sich nicht starten.");
+    Serial.println("I2S ließ sich nicht starten.");
   }
 }
 
@@ -204,14 +204,14 @@ static void playWav(const char *path) {
   }
   uint32_t remaining = 0;
   if (!seekToWavData(file, remaining)) {
-    Serial.printf("kein gueltiges WAV: %s\n", path);
+    Serial.printf("kein gültiges WAV: %s\n", path);
     file.close();
     return;
   }
 
   static uint8_t chunk[AUDIO_CHUNK];
   digitalWrite(PIN_AMP_SD, HIGH);
-  delay(5);  // Verstaerker kurz wach werden lassen
+  delay(5);  // Verstärker kurz wach werden lassen
 
   while (remaining > 0) {
     size_t want = remaining < AUDIO_CHUNK ? remaining : AUDIO_CHUNK;
@@ -248,15 +248,15 @@ static void clearButtonStates() {
   }
 }
 
-// Nach dem Aufwachen: warten, bis wirklich keine Taste mehr gedrueckt ist.
-// Der Druck, der geweckt hat, darf nichts ausloesen - sie drueckt ja blind.
+// Nach dem Aufwachen: warten, bis wirklich keine Taste mehr gedrückt ist.
+// Der Druck, der geweckt hat, darf nichts auslösen - sie drückt ja blind.
 static void waitForRelease() {
   while (anyDown()) delay(10);
   delay(DEBOUNCE_MS);
   clearButtonStates();
 }
 
-// Wie lange diese Taste gehalten werden muss, bevor sie ausloest.
+// Wie lange diese Taste gehalten werden muss, bevor sie auslöst.
 static uint32_t holdTime(uint8_t index) {
   return index == SET_BUTTON ? SET_HOLD_MS : DEBOUNCE_MS;
 }
@@ -295,7 +295,7 @@ static void goToSleep() {
   digitalWrite(PIN_AMP_SD, LOW);
   i2s.end();
 
-  // Pull-ups muessen im Schlaf aktiv bleiben, sonst floaten die Eingaenge.
+  // Pull-ups müssen im Schlaf aktiv bleiben, sonst floaten die Eingänge.
   uint64_t mask = 0;
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     gpio_num_t pin = (gpio_num_t)PIN_BUTTON[i];
@@ -326,10 +326,10 @@ void setup() {
 
   filesystemReady = LittleFS.begin(false);
   if (!filesystemReady) {
-    // Haeufigste Ursache: falsches Partitionsschema. Die Voreinstellung des
+    // Häufigste Ursache: falsches Partitionsschema. Die Voreinstellung des
     // Boards (tinyuf2) legt den Datenbereich als "ffat" an, LittleFS sucht
     // aber eine Partition namens "spiffs". Richtig ist "Default 8MB".
-    Serial.println("LittleFS liess sich nicht einhaengen.");
+    Serial.println("LittleFS ließ sich nicht einhängen.");
     Serial.println("  1. Partitionsschema \"Default (3MB APP/1.5MB SPIFFS)\"?");
     Serial.println("  2. firmware/mitreden/data/ schon hochgeladen?");
   }
@@ -343,7 +343,7 @@ void setup() {
 
   clearButtonStates();
   if (wokeFromSleep) {
-    // Weckdruck verfaellt: nur die Displays gehen an, sonst nichts.
+    // Weckdruck verfällt: nur die Displays gehen an, sonst nichts.
     waitForRelease();
   }
 

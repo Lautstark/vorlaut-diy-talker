@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Weboberflaeche fuer mitreden - laeuft auf http://localhost:8771
+"""Weboberfläche für mitreden - läuft auf http://localhost:8771
 
 Bewusst ohne Framework: nur die Python-Standardbibliothek. Die Seite sieht aus
-wie das Geraet - oben die Reiter fuer die Sets, darunter die vier Sprechtasten
+wie das Gerät - oben die Reiter für die Sets, darunter die vier Sprechtasten
 im 2x2-Raster und daneben die Set-Kachel.
 """
 
@@ -29,13 +29,13 @@ SYMBOLS_DIR = ROOT / "symbols"
 THUMB_CACHE = ROOT / "cache" / "thumbs"
 PORT = 8771
 HOST = "127.0.0.1"   # Voreinstellung: nur dieser Rechner
-MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB reichen fuer jedes Symbol
+MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB reichen für jedes Symbol
 
 ARASAAC_SEARCH = "https://api.arasaac.org/api/pictograms/de/search/"
 ARASAAC_IMAGE = "https://api.arasaac.org/api/pictograms/"
 ARASAAC_RESOLUTION = 500  # die API erlaubt nur 500 oder 2500
-# Hausmass fuer alles in symbols/. Das Geraet rendert 116x116 Pixel, 500 laesst
-# reichlich Luft und haelt den Repo klein - Symbole werden mitcommittet.
+# Hausmaß für alles in symbols/. Das Gerät rendert 116x116 Pixel, 500 lässt
+# reichlich Luft und hält den Repo klein - Symbole werden mitcommittet.
 SYMBOL_MAX_PX = 500
 
 
@@ -43,7 +43,7 @@ SYMBOL_MAX_PX = 500
 
 def layout_version() -> str:
     """Kennung des aktuellen Dateistands, damit ein veralteter Tab nicht
-    stillschweigend die Arbeit eines anderen ueberschreibt."""
+    stillschweigend die Arbeit eines anderen überschreibt."""
     if not build.LAYOUT_FILE.exists():
         return "leer"
     return hashlib.sha256(build.LAYOUT_FILE.read_bytes()).hexdigest()[:16]
@@ -86,8 +86,8 @@ def arasaac_search(word: str) -> list[dict]:
             {
                 "id": pictogram_id,
                 "label": label,
-                # ueber den eigenen Server, damit die Seite keine Anfragen
-                # nach draussen stellen muss
+                # über den eigenen Server, damit die Seite keine Anfragen
+                # nach draußen stellen muss
                 "url": f"/api/thumb?id={pictogram_id}",
             }
         )
@@ -105,9 +105,9 @@ def save_upload(data: bytes, original_name: str) -> str:
         raise ValueError("Das ist kein lesbares Bild.") from exc
 
     # Auf quadratisch beschneiden, mittig. Die Kachel ist quadratisch - ohne
-    # das bliebe an zwei Seiten ein weisser Balken stehen, und das Bild waere
-    # kleiner als noetig. Zuerst schneiden, dann verkleinern: das kostet
-    # weniger Schaerfe, als andersherum.
+    # das bliebe an zwei Seiten ein weißer Balken stehen, und das Bild wäre
+    # kleiner als nötig. Zuerst schneiden, dann verkleinern: das kostet
+    # weniger Schärfe, als andersherum.
     if picture.width != picture.height:
         seite = min(picture.size)
         links = (picture.width - seite) // 2
@@ -121,7 +121,7 @@ def save_upload(data: bytes, original_name: str) -> str:
 
     stem = slugify(Path(original_name).stem)
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
-    # Vorhandene Symbole nicht ueberschreiben, sondern durchnummerieren.
+    # Vorhandene Symbole nicht überschreiben, sondern durchnummerieren.
     filename = f"{stem}.png"
     counter = 2
     while (SYMBOLS_DIR / filename).exists():
@@ -134,8 +134,8 @@ def save_upload(data: bytes, original_name: str) -> str:
 def arasaac_fetch(pictogram_id: int) -> bytes:
     """Holt ein Piktogramm als PNG und legt es im Cache ab.
 
-    Die API erlaubt nur die Aufloesungen 500 und 2500; wir nehmen 500 sowohl
-    fuer die Vorschau in der Suche als auch fuer die Datei in symbols/.
+    Die API erlaubt nur die Auflösungen 500 und 2500; wir nehmen 500 sowohl
+    für die Vorschau in der Suche als auch für die Datei in symbols/.
     """
     identifier = int(pictogram_id)
     THUMB_CACHE.mkdir(parents=True, exist_ok=True)
@@ -205,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
             self._error("Es kamen keine Bilddaten an.")
             return
         if length > MAX_UPLOAD:
-            self._error(f"Das Bild ist zu gross (hoechstens {MAX_UPLOAD // 1048576} MB).")
+            self._error(f"Das Bild ist zu groß (höchstens {MAX_UPLOAD // 1048576} MB).")
             return
         data = self.rfile.read(length)
         name = (query.get("name") or ["bild"])[0]
@@ -278,19 +278,19 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = self._body()
         except json.JSONDecodeError:
-            self._error("Ungueltiges JSON.")
+            self._error("Ungültiges JSON.")
             return
 
         if path == "/api/layout":
             gesendet = self.headers.get("X-Layout-Version")
             aktuell = layout_version()
             if gesendet and gesendet != aktuell:
-                # Diese Seite kennt einen aelteren Stand. Nicht ueberschreiben.
+                # Diese Seite kennt einen älteren Stand. Nicht überschreiben.
                 self._json(
                     {
                         "error": "Diese Seite hat einen veralteten Stand - "
                                  "layout.json wurde zwischenzeitlich woanders "
-                                 "geaendert.",
+                                 "geändert.",
                         "conflict": True,
                     },
                     409,
@@ -396,7 +396,7 @@ PAGE = r"""<!doctype html>
   .thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
   .thumb .empty { color: #b9bfc9; font-size: 13px; text-align: center; padding: 8px; }
   .thumb:hover::after {
-    content: "Symbol waehlen"; position: absolute; inset: auto 0 0 0;
+    content: "Symbol wählen"; position: absolute; inset: auto 0 0 0;
     background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 4px;
     text-align: center;
   }
@@ -413,7 +413,7 @@ PAGE = r"""<!doctype html>
     border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
   }
   input[type=color]:hover { border-color: var(--muted); }
-  /* Etwas schmaler gesetzt, damit "#4A90D9" vollstaendig hineinpasst. */
+  /* Etwas schmaler gesetzt, damit "#4A90D9" vollständig hineinpasst. */
   .colorRow input[type=text] {
     flex: 1 1 auto; padding: 8px 6px; font-family: ui-monospace, monospace;
     font-size: 13px;
@@ -448,7 +448,7 @@ PAGE = r"""<!doctype html>
   }
   .conflict.show { display: flex; }
   .conflict button { background: #4d2b2e; border-color: #7a3a3f; color: #f0d7d9; }
-  /* Linke Spalte: Set-Kachel und darunter der Loeschen-Knopf. */
+  /* Linke Spalte: Set-Kachel und darunter der Löschen-Knopf. */
   .setCol {
     grid-row: span 2; display: flex; flex-direction: column; gap: 10px;
     justify-content: flex-start;
@@ -460,8 +460,8 @@ PAGE = r"""<!doctype html>
     max-height: 260px; overflow: auto; white-space: pre-wrap; display: none;
   }
 
-  /* Auf dem Handy passen drei Spalten nicht - dann die Set-Kachel ueber die
-     volle Breite und die vier Sprechtasten als 2x2 darunter. Die raeumliche
+  /* Auf dem Handy passen drei Spalten nicht - dann die Set-Kachel über die
+     volle Breite und die vier Sprechtasten als 2x2 darunter. Die räumliche
      Zuordnung bleibt damit erhalten. */
   @media (max-width: 620px) {
     main { padding: 12px; }
@@ -479,7 +479,7 @@ PAGE = r"""<!doctype html>
     display: flex; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line);
     align-items: center;
   }
-  /* Die Knoepfe behalten ihre Breite, das Suchfeld gibt nach - sonst bricht
+  /* Die Knöpfe behalten ihre Breite, das Suchfeld gibt nach - sonst bricht
      die Beschriftung um und wird abgeschnitten. */
   .dlgHead button { flex: none; white-space: nowrap; }
   .dlgHead input[type=text] { flex: 1 1 auto; width: auto; min-width: 4rem; }
@@ -518,7 +518,7 @@ PAGE = r"""<!doctype html>
   <div class="tabs" id="tabs"></div>
   <div class="device" id="device"></div>
 
-  <button id="removeSet" class="danger">Dieses Set loeschen</button>
+  <button id="removeSet" class="danger">Dieses Set löschen</button>
   <pre class="log" id="log"></pre>
 <input type="file" id="fileInput" accept="image/*" hidden>
 </main>
@@ -528,7 +528,7 @@ PAGE = r"""<!doctype html>
     <input type="text" id="q" placeholder="ARASAAC durchsuchen, z.B. trinken">
     <button id="searchBtn">Suchen</button>
     <button id="uploadBtn">Eigenes Bild</button>
-    <button id="closeBtn">Schliessen</button>
+    <button id="closeBtn">Schließen</button>
   </div>
   <div class="results" id="results"></div>
   <div class="hint">Piktogramme: ARASAAC, Urheber Sergio Palao, Lizenz CC BY-NC-SA.</div>
@@ -542,7 +542,7 @@ let dragSet = null;         // Index des gezogenen Sets
 let dragSlot = null;        // Index der gezogenen Taste
 let saveTimer = null;
 let layoutVersion = null;   // Stand, den diese Seite geladen hat
-let unsaved = false;        // es gibt Aenderungen, die noch nicht in der Datei sind
+let unsaved = false;        // es gibt Änderungen, die noch nicht in der Datei sind
 
 const $ = (id) => document.getElementById(id);
 const removeSetBtn = $("removeSet");
@@ -577,7 +577,7 @@ function saveSoon() {
 }
 
 // Bringt layout in dieselbe Form, die der Server daraus macht. Nur so lassen
-// sich die beiden Staende sinnvoll vergleichen.
+// sich die beiden Stände sinnvoll vergleichen.
 function vergleichbar(l) {
   return JSON.stringify({
     sets: (l.sets || []).map((entry) => ({
@@ -592,8 +592,8 @@ function vergleichbar(l) {
   });
 }
 
-// Speichervorgaenge nacheinander abarbeiten. Zwei gleichzeitige wuerden sich
-// mit dem Stand-Abgleich gegenseitig abweisen - und der Aufrufer koennte nicht
+// Speichervorgänge nacheinander abarbeiten. Zwei gleichzeitige würden sich
+// mit dem Stand-Abgleich gegenseitig abweisen - und der Aufrufer könnte nicht
 // mehr darauf warten, dass wirklich geschrieben wurde.
 let saveChain = Promise.resolve();
 
@@ -617,7 +617,7 @@ async function doSave() {
       // Nichts geschrieben. Sie entscheidet, welcher Stand gilt.
       $("conflictText").textContent =
         "Nicht gespeichert: layout.json wurde zwischenzeitlich woanders " +
-        "geaendert. Was hier auf dem Bildschirm steht, ist noch da.";
+        "geändert. Was hier auf dem Bildschirm steht, ist noch da.";
       $("conflict").classList.add("show");
       status("nicht gespeichert");
       return;
@@ -628,18 +628,18 @@ async function doSave() {
       throw new Error(message);
     }
     layoutVersion = response.headers.get("X-Layout-Version");
-    // layout hier NICHT durch die Antwort ersetzen. Die Eingabefelder haengen
-    // an genau diesen Objekten; ein frisches Geflecht vom Server wuerde ihre
+    // layout hier NICHT durch die Antwort ersetzen. Die Eingabefelder hängen
+    // an genau diesen Objekten; ein frisches Geflecht vom Server würde ihre
     // Handler ins Leere zeigen lassen, und alles weitere Getippte ginge
-    // verloren, bis das naechste render() die Felder neu aufbaut.
+    // verloren, bis das nächste render() die Felder neu aufbaut.
     const gespeichert = await response.json();
 
-    // Nachpruefen statt vertrauen: steht in der Datei wirklich das, was auf
+    // Nachprüfen statt vertrauen: steht in der Datei wirklich das, was auf
     // dem Bildschirm steht? Wenn nicht, lieber laut sagen als still verlieren.
     if (vergleichbar(gespeichert) !== vergleichbar(layout)) {
       $("conflictText").textContent =
-        "Achtung: Die Datei enthaelt nicht das, was hier steht. Bitte den " +
-        "Text pruefen und melden - das ist ein Fehler im Programm.";
+        "Achtung: Die Datei enthält nicht das, was hier steht. Bitte den " +
+        "Text prüfen und melden - das ist ein Fehler im Programm.";
       $("conflict").classList.add("show");
       status("NICHT richtig gespeichert");
       return;
@@ -667,7 +667,7 @@ $("saveBtn").onclick = async () => {
   await save();
 };
 
-// Wer das Fenster schliesst, waehrend noch etwas aussteht, soll das merken.
+// Wer das Fenster schließt, während noch etwas aussteht, soll das merken.
 window.addEventListener("beforeunload", (event) => {
   if (!unsaved) return;
   event.preventDefault();
@@ -791,7 +791,7 @@ function render() {
   const colorInput = document.createElement("input");
   colorInput.type = "color";
   colorInput.value = color;
-  colorInput.title = "Farbe des Sets waehlen";
+  colorInput.title = "Farbe des Sets wählen";
   const hexInput = document.createElement("input");
   hexInput.type = "text";
   hexInput.value = color;
@@ -817,7 +817,7 @@ function render() {
     swatches.appendChild(feld);
   });
   // Direkt unter das Namensfeld: die Schnellauswahl ist der Normalfall,
-  // der Farbwaehler darunter die Ausnahme.
+  // der Farbwähler darunter die Ausnahme.
   setTile.insertBefore(swatches, colorRow);
 
   setCol.append(setTile, removeSetBtn);
@@ -833,7 +833,7 @@ function render() {
     caption.textContent = "TASTE " + (index + 1);
 
     // Tasten tauschen: im festen 2x2-Raster ist Tauschen eindeutiger als
-    // Einsortieren - die andere Taste rueckt genau dorthin, wo diese herkam.
+    // Einsortieren - die andere Taste rückt genau dorthin, wo diese herkam.
     const grip = document.createElement("span");
     grip.className = "grip";
     grip.textContent = "\u283F";
@@ -878,7 +878,7 @@ function render() {
     const playBtn = document.createElement("button");
     playBtn.className = "play";
     playBtn.textContent = "▶";
-    playBtn.title = "Vorhoeren";
+    playBtn.title = "Vorhören";
     playBtn.onclick = () => speak(slot.text, playBtn);
     row.append(textInput, playBtn);
     tile.appendChild(row);
@@ -909,7 +909,7 @@ async function speak(text, button) {
     await audio.play();
     status("");
   } catch (error) {
-    status("Vorhoeren nicht moeglich: " + error.message);
+    status("Vorhören nicht möglich: " + error.message);
   } finally {
     button.textContent = before;
   }
@@ -948,7 +948,7 @@ async function doSearch() {
   }
 }
 
-// Traegt ein fertiges Symbol dort ein, wo der Dialog geoeffnet wurde.
+// Trägt ein fertiges Symbol dort ein, wo der Dialog geöffnet wurde.
 async function applySymbol(filename) {
   const entry = layout.sets[current];
   if (pickTarget.kind === "set") entry.symbol = filename;
@@ -959,7 +959,7 @@ async function applySymbol(filename) {
 }
 
 async function pick(item) {
-  status("laedt Symbol ...");
+  status("lädt Symbol ...");
   try {
     const result = await (await api("/api/pick", {
       method: "POST",
@@ -980,14 +980,14 @@ $("fileInput").onchange = async () => {
   const file = $("fileInput").files[0];
   $("fileInput").value = "";
   if (!file) return;
-  status("laedt Bild hoch ...");
+  status("lädt Bild hoch ...");
   try {
     const result = await (await api(
       "/api/upload?name=" + encodeURIComponent(file.name),
       { method: "POST", body: file }
     )).json();
     await applySymbol(result.symbol);
-    status("Bild uebernommen");
+    status("Bild übernommen");
   } catch (error) {
     status("Upload fehlgeschlagen: " + error.message);
   }
@@ -999,7 +999,7 @@ $("closeBtn").onclick = () => $("picker").close();
 
 removeSetBtn.onclick = async () => {
   if (!layout.sets.length) return;
-  if (!confirm("Set \"" + (layout.sets[current].name || "") + "\" wirklich loeschen?")) return;
+  if (!confirm("Set \"" + (layout.sets[current].name || "") + "\" wirklich löschen?")) return;
   layout.sets.splice(current, 1);
   current = Math.max(0, current - 1);
   await save();
@@ -1011,7 +1011,7 @@ $("buildBtn").onclick = async () => {
   $("buildBtn").disabled = true;
   status("baut ...");
   $("log").style.display = "block";
-  $("log").textContent = "laeuft ...";
+  $("log").textContent = "läuft ...";
   try {
     const result = await (await api("/api/build", { method: "POST" })).json();
     $("log").textContent = result.log.join("\n");
@@ -1041,7 +1041,7 @@ def eigene_adressen() -> list[str]:
     import socket
     adressen = set()
     try:
-        # Kein Verbindungsaufbau - der Kernel verraet nur, ueber welche
+        # Kein Verbindungsaufbau - der Kernel verrät nur, über welche
         # Schnittstelle er hinauswollte.
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("192.0.2.1", 9))
@@ -1052,11 +1052,11 @@ def eigene_adressen() -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="mitreden: Weboberflaeche")
+    parser = argparse.ArgumentParser(description="mitreden: Weboberfläche")
     parser.add_argument(
         "--host",
         default=HOST,
-        help='Voreinstellung 127.0.0.1 (nur dieser Rechner). Fuer Zugriff vom '
+        help='Voreinstellung 127.0.0.1 (nur dieser Rechner). Für Zugriff vom '
              'Handy im selben WLAN: --host 0.0.0.0',
     )
     parser.add_argument("--port", type=int, default=PORT)
@@ -1065,10 +1065,10 @@ def main(argv: list[str] | None = None) -> int:
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
     server = Server((args.host, args.port), Handler)
     if args.host in ("0.0.0.0", "::"):
-        print(f"mitreden laeuft auf Port {args.port}", flush=True)
+        print(f"mitreden läuft auf Port {args.port}", flush=True)
         if Path("/.dockerenv").exists():
-            # Im Container waere die eigene Adresse die des Docker-Netzes und
-            # damit von aussen nutzlos.
+            # Im Container wäre die eigene Adresse die des Docker-Netzes und
+            # damit von außen nutzlos.
             print("  Im Container: die Adresse des NAS mit dem freigegebenen "
                   "Port verwenden.", flush=True)
         else:
@@ -1077,9 +1077,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  http://{adresse}:{args.port}   <- diese im Handy eingeben",
                       flush=True)
         print("Achtung: Es gibt keine Anmeldung - wer den Port erreicht, kann "
-              "die Inhalte aendern.", flush=True)
+              "die Inhalte ändern.", flush=True)
     else:
-        print(f"mitreden laeuft auf http://{args.host}:{args.port}", flush=True)
+        print(f"mitreden läuft auf http://{args.host}:{args.port}", flush=True)
     print("(Strg+C beendet)", flush=True)
     try:
         server.serve_forever()

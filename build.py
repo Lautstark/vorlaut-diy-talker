@@ -4,8 +4,8 @@
 Erzeugt pro Set S (1-basiert) und Slot N (1-basiert):
   set<S>_slot<N>.wav   gesprochener Satz, 16 kHz mono 16 bit
   set<S>_slot<N>.bin   128x128 RGB565 big-endian, mit Set-Farbe als Rahmen
-  set<S>_label.bin     dasselbe fuer das Set-Symbol
-und dazu firmware/layout.h mit allen Konstanten fuer die Firmware.
+  set<S>_label.bin     dasselbe für das Set-Symbol
+und dazu firmware/layout.h mit allen Konstanten für die Firmware.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import tts
 ROOT = Path(__file__).resolve().parent
 LAYOUT_FILE = ROOT / "layout.json"
 SYMBOLS_DIR = ROOT / "symbols"
-# Arduino verlangt, dass der Sketch-Ordner so heisst wie die .ino-Datei, und
+# Arduino verlangt, dass der Sketch-Ordner so heißt wie die .ino-Datei, und
 # der LittleFS-Uploader sucht data/ direkt daneben. Deshalb diese Ebene.
 BACKUP_DIR = ROOT / "cache" / "layout-backups"
 KEEP_BACKUPS = 60
@@ -34,14 +34,14 @@ HEADER_FILE = SKETCH_DIR / "layout.h"
 
 MAX_SETS = 5
 SLOTS_PER_SET = 4
-IMG_SIZE = 128           # Displayflaeche
+IMG_SIZE = 128           # Displayfläche
 BORDER = 6               # Rahmenbreite, wird von der Firmware gezeichnet
-TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, was tatsaechlich als Datei anfaellt
+TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, was tatsächlich als Datei anfällt
 TILE_CACHE = ROOT / "cache" / "tiles"
 TILE_INDEX = TILE_CACHE / "index.json"
-TILE_PIPELINE = 1        # hochzaehlen, wenn sich das Rendern aendert
+TILE_PIPELINE = 1        # hochzählen, wenn sich das Rendern ändert
 DEFAULT_COLOR = "#3B5BDB"
-# Vorschlaege fuer neue Sets, in dieser Reihenfolge vergeben. Die Oberflaeche
+# Vorschläge für neue Sets, in dieser Reihenfolge vergeben. Die Oberfläche
 # holt sich dieselbe Liste, damit sie nicht doppelt gepflegt werden muss.
 DEFAULT_PALETTE = ["#3B5BDB", "#159947", "#9B7BFF", "#FF8BC7", "#FF6B35"]
 DEFAULT_SLEEP_TIMEOUT = 600
@@ -87,13 +87,13 @@ def rgb_to_565(r: int, g: int, b: int) -> int:
 
 
 def load_layout(path: Path = LAYOUT_FILE) -> dict:
-    """Liest layout.json und bringt es in eine garantiert vollstaendige Form."""
+    """Liest layout.json und bringt es in eine garantiert vollständige Form."""
     if not path.exists():
         raise BuildError(f"{path.name} nicht gefunden.")
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise BuildError(f"{path.name} ist kein gueltiges JSON: {exc}") from exc
+        raise BuildError(f"{path.name} ist kein gültiges JSON: {exc}") from exc
     return normalize_layout(raw)
 
 
@@ -109,7 +109,7 @@ def normalize_layout(raw: dict) -> dict:
     if not isinstance(sets, list):
         raise BuildError("\"sets\" muss eine Liste sein.")
     if len(sets) > MAX_SETS:
-        raise BuildError(f"Hoechstens {MAX_SETS} Sets, gefunden: {len(sets)}.")
+        raise BuildError(f"Höchstens {MAX_SETS} Sets, gefunden: {len(sets)}.")
 
     clean_sets = []
     for index, entry in enumerate(sets):
@@ -117,7 +117,7 @@ def normalize_layout(raw: dict) -> dict:
         slots = entry.get("slots") or []
         if not isinstance(slots, list):
             slots = []
-        # Genau 4 Slots: fehlende auffuellen, ueberzaehlige sind ein Fehler.
+        # Genau 4 Slots: fehlende auffüllen, überzählige sind ein Fehler.
         if len(slots) > SLOTS_PER_SET:
             raise BuildError(
                 f"Set {index + 1} hat {len(slots)} Slots, erlaubt sind genau "
@@ -147,10 +147,10 @@ def normalize_layout(raw: dict) -> dict:
 
 
 def backup_layout(path: Path = LAYOUT_FILE) -> None:
-    """Legt den bisherigen Stand beiseite, bevor er ueberschrieben wird.
+    """Legt den bisherigen Stand beiseite, bevor er überschrieben wird.
 
-    Billige Versicherung: die Oberflaeche speichert immer die ganze Datei, und
-    ein Fehlgriff ist damit sonst endgueltig.
+    Billige Versicherung: die Oberfläche speichert immer die ganze Datei, und
+    ein Fehlgriff ist damit sonst endgültig.
     """
     if not path.exists():
         return
@@ -185,13 +185,13 @@ def _require_pillow():
 
 
 def render_symbol(symbol: str) -> bytes:
-    """116x116 Symbolflaeche auf Weiss, ohne Rahmen.
+    """116x116 Symbolfläche auf Weiß, ohne Rahmen.
 
     Der farbige Rahmen kommt nicht mit ins Bild - den zeichnet die Firmware
-    aus SET_COLORS. Dadurch haengt diese Datei nur am Symbol: dasselbe Bild in
+    aus SET_COLORS. Dadurch hängt diese Datei nur am Symbol: dasselbe Bild in
     zwei verschieden farbigen Sets ist genau eine Datei.
 
-    Rueckgabe sind rohe RGB565-Daten, big-endian, wie sie das ST7735-Panel
+    Rückgabe sind rohe RGB565-Daten, big-endian, wie sie das ST7735-Panel
     erwartet.
     """
     Image, ImageDraw = _require_pillow()
@@ -204,7 +204,7 @@ def render_symbol(symbol: str) -> bytes:
         with Image.open(source_path) as raw:
             picture = raw.convert("RGBA")
         picture.thumbnail((inner_size, inner_size), Image.LANCZOS)
-        # Transparenz auf Weiss legen, sonst wird sie schwarz.
+        # Transparenz auf Weiß legen, sonst wird sie schwarz.
         backdrop = Image.new("RGBA", picture.size, (255, 255, 255, 255))
         backdrop.alpha_composite(picture)
         offset = (
@@ -225,7 +225,7 @@ def render_symbol(symbol: str) -> bytes:
 
 
 def tile_fingerprint(symbol: str) -> str:
-    """Haengt nur am Inhalt des Symbols, nicht an Name, Set oder Farbe."""
+    """Hängt nur am Inhalt des Symbols, nicht an Name, Set oder Farbe."""
     quelle = SYMBOLS_DIR / symbol if symbol else None
     if quelle and quelle.exists():
         inhalt = hashlib.sha256(quelle.read_bytes()).hexdigest()
@@ -249,7 +249,7 @@ def load_tile_index() -> dict:
 
 
 def tile_bytes(symbol: str) -> bytes:
-    """Gerenderte Symbolflaeche, aus dem Cache oder frisch erzeugt."""
+    """Gerenderte Symbolfläche, aus dem Cache oder frisch erzeugt."""
     key = tile_fingerprint(symbol)
     pfad = TILE_CACHE / f"{key}.bin"
     index = load_tile_index()
@@ -269,9 +269,9 @@ def tile_bytes(symbol: str) -> bytes:
 
 
 def to_rgb565_be(image) -> bytes:
-    breite, hoehe = image.size
+    breite, höhe = image.size
     pixels = image.tobytes("raw", "RGB")
-    out = bytearray(breite * hoehe * 2)
+    out = bytearray(breite * höhe * 2)
     write = 0
     for read in range(0, len(pixels), 3):
         value = rgb_to_565(pixels[read], pixels[read + 1], pixels[read + 2])
@@ -285,7 +285,7 @@ def to_rgb565_be(image) -> bytes:
 
 def c_string(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    # Umlaute als UTF-8 im Quelltext sind fuer den Compiler in Ordnung.
+    # Umlaute als UTF-8 im Quelltext sind für den Compiler in Ordnung.
     return f'"{escaped}"'
 
 
@@ -296,7 +296,7 @@ def render_header(layout: dict, label_datei=None, bild_datei=None,
     lines: list[str] = []
     add = lines.append
 
-    add("// AUTOMATISCH ERZEUGT von build.py - nicht von Hand aendern.")
+    add("// AUTOMATISCH ERZEUGT von build.py - nicht von Hand ändern.")
     add("// Quelle: layout.json")
     add("#pragma once")
     add("#include <stdint.h>")
@@ -306,8 +306,8 @@ def render_header(layout: dict, label_datei=None, bild_datei=None,
     add(f"#define SLEEP_TIMEOUT_SECONDS {layout['sleep_timeout_seconds']}")
     add(f"#define DISPLAY_W {IMG_SIZE}")
     add(f"#define DISPLAY_H {IMG_SIZE}")
-    add("// Die Bilddateien enthalten nur die Symbolflaeche. Den Rahmen in der")
-    add("// Set-Farbe zeichnet die Firmware selbst - so haengt eine Bilddatei")
+    add("// Die Bilddateien enthalten nur die Symbolfläche. Den Rahmen in der")
+    add("// Set-Farbe zeichnet die Firmware selbst - so hängt eine Bilddatei")
     add("// nur am Symbol und nicht am Set, in dem es gerade liegt.")
     add(f"#define TILE_BORDER {BORDER}")
     add(f"#define TILE_W {TILE_SIZE}")
@@ -315,7 +315,7 @@ def render_header(layout: dict, label_datei=None, bild_datei=None,
     add("")
 
     if count == 0:
-        add("// layout.json enthaelt noch keine Sets.")
+        add("// layout.json enthält noch keine Sets.")
         return "\n".join(lines) + "\n"
 
     add("static const char* const SET_NAMES[SET_COUNT] = {")
@@ -324,7 +324,7 @@ def render_header(layout: dict, label_datei=None, bild_datei=None,
     add("};")
     add("")
 
-    add("// Rahmenfarbe des Sets, bereits als RGB565 fuer das Panel.")
+    add("// Rahmenfarbe des Sets, bereits als RGB565 für das Panel.")
     add("static const uint16_t SET_COLORS[SET_COUNT] = {")
     for entry in sets:
         add(f"  0x{rgb_to_565(*hex_to_rgb(entry['color'])):04X},  // {entry['color']}")
@@ -336,12 +336,12 @@ def render_header(layout: dict, label_datei=None, bild_datei=None,
     ton_datei = ton_datei or [[""] * SLOTS_PER_SET for _ in range(count)]
 
     def pfad(name: str) -> str:
-        # Leerer Name heisst: fuer diesen Slot gibt es nichts abzuspielen.
+        # Leerer Name heißt: für diesen Slot gibt es nichts abzuspielen.
         return c_string(f"/{name}") if name else "nullptr"
 
-    add("// Dateinamen sind Pruefsummen des Inhalts. Kommt dasselbe Symbol oder")
-    add("// derselbe Satz mehrfach vor, zeigen hier mehrere Eintraege auf")
-    add("// dieselbe Datei - auf dem Geraet liegt sie nur einmal.")
+    add("// Dateinamen sind Prüfsummen des Inhalts. Kommt dasselbe Symbol oder")
+    add("// derselbe Satz mehrfach vor, zeigen hier mehrere Einträge auf")
+    add("// dieselbe Datei - auf dem Gerät liegt sie nur einmal.")
     add("static const char* const SET_LABEL_IMAGE[SET_COUNT] = {")
     for name in label_datei:
         add(f"  {pfad(name)},")
@@ -386,20 +386,20 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     if not sets:
-        note("layout.json enthaelt keine Sets - es gibt nichts zu bauen.")
+        note("layout.json enthält keine Sets - es gibt nichts zu bauen.")
 
     expected: set[str] = set()
     audio_ok = True
 
-    # Ohne Key laesst sich nichts Neues sprechen - aber alles, was schon im
+    # Ohne Key lässt sich nichts Neues sprechen - aber alles, was schon im
     # Cache liegt, kann trotzdem verwendet werden. Genau das macht einen
     # frischen Klon des Repos ohne Azure-Zugang brauchbar.
     kein_key = with_audio and not tts.have_key()
 
-    # Die Dateinamen auf dem Geraet sind Pruefsummen des Inhalts. Damit liegt
+    # Die Dateinamen auf dem Gerät sind Prüfsummen des Inhalts. Damit liegt
     # dasselbe Symbol oder derselbe Satz dort genau einmal, egal in wie vielen
     # Sets er vorkommt - und eine Datei kann nie veralten, ohne dass sich ihr
-    # Name mitaendert.
+    # Name mitändert.
     bild_datei: list[list[str]] = []   # [set][slot] -> Dateiname
     ton_datei: list[list[str]] = []
     label_datei: list[str] = []
@@ -417,12 +417,12 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         # Set-Kachel
         label_datei.append(lege_bild_ab(entry["symbol"]))
         if not entry["symbol"]:
-            note(f"Set {index} ({entry['name']}): noch kein Set-Symbol gewaehlt.")
+            note(f"Set {index} ({entry['name']}): noch kein Set-Symbol gewählt.")
         elif not (SYMBOLS_DIR / entry["symbol"]).exists():
             note(f"Set {index}: Symbol {entry['symbol']} fehlt in symbols/.")
 
         bilder: list[str] = []
-        toene: list[str] = []
+        tondateien: list[str] = []
         for slot_index, slot in enumerate(entry["slots"], start=1):
             bilder.append(lege_bild_ab(slot["symbol"]))
             if slot["symbol"] and not (SYMBOLS_DIR / slot["symbol"]).exists():
@@ -433,11 +433,11 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
 
             if not slot["text"]:
                 note(f"Set {index} Slot {slot_index}: kein Text - kein Ton.")
-                toene.append("")
+                tondateien.append("")
                 continue
 
             if not with_audio:
-                toene.append("")
+                tondateien.append("")
                 continue
 
             im_cache = tts.cache_path(slot["text"]).exists()
@@ -445,10 +445,10 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
                 audio_ok = False
                 note(
                     f"Set {index} Slot {slot_index}: \"{slot['text']}\" liegt "
-                    "nicht im Cache und ohne AZURE_SPEECH_KEY laesst es sich "
+                    "nicht im Cache und ohne AZURE_SPEECH_KEY lässt es sich "
                     "nicht sprechen."
                 )
-                toene.append("")
+                tondateien.append("")
                 continue
 
             try:
@@ -456,7 +456,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             except tts.TTSError as exc:
                 audio_ok = False
                 note(f"WARNUNG: TTS fehlgeschlagen bei \"{slot['text']}\": {exc}")
-                toene.append("")
+                tondateien.append("")
                 continue
 
             name = f"a{tts.fingerprint(slot['text'])}.wav"
@@ -464,13 +464,13 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             ziel = DATA_DIR / name
             if not ziel.exists() or ziel.stat().st_size != cached.stat().st_size:
                 shutil.copyfile(cached, ziel)
-            toene.append(name)
+            tondateien.append(name)
             note(f"Set {index} Slot {slot_index}: \"{slot['text']}\"")
 
         bild_datei.append(bilder)
-        ton_datei.append(toene)
+        ton_datei.append(tondateien)
 
-    # Reste frueherer Laeufe entfernen, damit kein altes Set uebrig bleibt.
+    # Reste früherer Läufe entfernen, damit kein altes Set übrig bleibt.
     for existing in DATA_DIR.iterdir():
         if existing.is_file() and existing.name not in expected:
             existing.unlink()
@@ -493,8 +493,8 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     return log
 
 
-# Werte aus default_8MB.csv des ESP32-Cores - dort heisst die Partition
-# "spiffs", und genau die haengt LittleFS ein.
+# Werte aus default_8MB.csv des ESP32-Cores - dort heißt die Partition
+# "spiffs", und genau die hängt LittleFS ein.
 FS_SIZE = 0x180000       # 1536 KiB
 FS_OFFSET = 0x670000
 FS_IMAGE = SKETCH_DIR / "littlefs.bin"
@@ -521,12 +521,12 @@ def build_fs_image() -> list[str]:
     if not werkzeug:
         raise BuildError(
             "mklittlefs nicht gefunden. Es kommt mit dem ESP32-Core der "
-            "Arduino-IDE; ohne den laesst sich kein Abbild bauen."
+            "Arduino-IDE; ohne den lässt sich kein Abbild bauen."
         )
     belegt = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
     if belegt > FS_SIZE:
         raise BuildError(
-            f"Die Daten sind {belegt / 1024:.0f} KiB gross, der Dateibereich "
+            f"Die Daten sind {belegt / 1024:.0f} KiB groß, der Dateibereich "
             f"fasst nur {FS_SIZE / 1024:.0f} KiB."
         )
     ergebnis = subprocess.run(
@@ -616,12 +616,12 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--fs-image",
         action="store_true",
-        help="zusaetzlich ein LittleFS-Abbild zum Flashen bauen",
+        help="zusätzlich ein LittleFS-Abbild zum Flashen bauen",
     )
     parser.add_argument(
         "--prune-cache",
         action="store_true",
-        help="Sprachdateien loeschen, die in layout.json nicht mehr vorkommen",
+        help="Sprachdateien löschen, die in layout.json nicht mehr vorkommen",
     )
     args = parser.parse_args(argv[1:])
     if args.prune_cache:

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Azure Text-to-Speech fuer mitreden.
+"""Azure Text-to-Speech für mitreden.
 
 Rendert einen Satz mit der Stimme de-DE-GiselaNeural, schneidet Stille an den
-Raendern weg, normalisiert die Lautheit und legt das Ergebnis als 16 kHz mono
+Rändern weg, normalisiert die Lautheit und legt das Ergebnis als 16 kHz mono
 16 bit WAV im Cache ab.
 
 Neu gerendert wird nur, wenn sich der Text oder die Stimm-Konfiguration
-geaendert hat (Fingerprint ueber beides).
+geändert hat (Fingerprint über beides).
 """
 
 from __future__ import annotations
@@ -31,24 +31,24 @@ ENV_FILE = ROOT / ".env"
 _index_lock = threading.Lock()
 
 # --- Stimm-Konfiguration -----------------------------------------------------
-# Alles hier fliesst in den Fingerprint ein: aendert sich ein Wert, werden die
-# betroffenen WAVs beim naechsten Bauen neu erzeugt.
+# Alles hier fließt in den Fingerprint ein: ändert sich ein Wert, werden die
+# betroffenen WAVs beim nächsten Bauen neu erzeugt.
 VOICE = "de-DE-GiselaNeural"
 LOCALE = "de-DE"
 REGION = "germanywestcentral"
 RATE = "-5%"
 SAMPLE_RATE = 16000
 
-# Nachbearbeitung. Version hochzaehlen, wenn sich die ffmpeg-Kette aendert.
+# Nachbearbeitung. Version hochzählen, wenn sich die ffmpeg-Kette ändert.
 PIPELINE_VERSION = 2
 SILENCE_THRESHOLD = "-45dB"
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
-# Nicht bis auf den letzten hoerbaren Sample schneiden: ein Rest Raumton bleibt
-# stehen, sonst klingen kurze Woerter wie "Ja" abgehackt.
+# Nicht bis auf den letzten hörbaren Sample schneiden: ein Rest Raumton bleibt
+# stehen, sonst klingen kurze Wörter wie "Ja" abgehackt.
 KEEP_HEAD = 0.06   # Sekunden Stille vor dem Wort
 KEEP_TAIL = 0.10   # Sekunden nach dem Wort, damit es ausklingen darf
-FADE = 0.012       # kurze Blende an beiden Raendern gegen Knackser
-TAIL_PAD = 0.06    # Ruhe am Ende, bevor der Verstaerker abschaltet
+FADE = 0.012       # kurze Blende an beiden Rändern gegen Knackser
+TAIL_PAD = 0.06    # Ruhe am Ende, bevor der Verstärker abschaltet
 
 AZURE_ENDPOINT = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
 AZURE_FORMAT = "riff-16khz-16bit-mono-pcm"
@@ -131,8 +131,8 @@ def cache_path(text: str) -> Path:
 def load_index() -> dict:
     """Fingerprint -> gesprochener Text.
 
-    Die Dateinamen im Cache sind Pruefsummen und damit unlesbar. Dieses
-    Verzeichnis macht sie wieder lesbar - und haelt fest, was einmal
+    Die Dateinamen im Cache sind Prüfsummen und damit unlesbar. Dieses
+    Verzeichnis macht sie wieder lesbar - und hält fest, was einmal
     gesprochen wurde, auch wenn es aus layout.json verschwindet.
     """
     if not INDEX_FILE.exists():
@@ -219,9 +219,9 @@ def _ffmpeg_binary() -> str:
 def _filter_chain() -> str:
     """Baut die ffmpeg-Filterkette.
 
-    Reihenfolge: Stille vorne kuerzen und einblenden, Signal umdrehen, dasselbe
-    fuer das (nun vorne liegende) Ende, zurueckdrehen, hinten etwas Ruhe
-    anhaengen, zum Schluss normalisieren.
+    Reihenfolge: Stille vorne kürzen und einblenden, Signal umdrehen, dasselbe
+    für das (nun vorne liegende) Ende, zurückdrehen, hinten etwas Ruhe
+    anhängen, zum Schluss normalisieren.
     """
 
     def trim(keep: float) -> str:
@@ -272,16 +272,16 @@ def postprocess(raw_wav: bytes, target: Path) -> None:
         shutil.copyfile(output, target)
 
 
-# --- oeffentliche Schnittstelle ---------------------------------------------
+# --- öffentliche Schnittstelle ---------------------------------------------
 
 def synthesize(text: str, force: bool = False) -> Path:
-    """Liefert den Pfad zu einem fertigen WAV fuer diesen Text.
+    """Liefert den Pfad zu einem fertigen WAV für diesen Text.
 
     Rendert nur, wenn es zum Fingerprint noch keine Datei im Cache gibt.
     """
     text = (text or "").strip()
     if not text:
-        raise TTSError("Leerer Text laesst sich nicht sprechen.")
+        raise TTSError("Leerer Text lässt sich nicht sprechen.")
     target = cache_path(text)
     remember(text)
     if target.exists() and not force:

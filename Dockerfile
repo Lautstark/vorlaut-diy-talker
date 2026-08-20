@@ -1,4 +1,4 @@
-# mitreden auf einem NAS oder einem anderen Rechner, der durchlaeuft.
+# mitreden auf einem NAS oder einem anderen Rechner, der durchläuft.
 #
 # Das Abbild bringt nur die Laufzeit mit - Python, ffmpeg, Pillow. Das Projekt
 # selbst wird als Verzeichnis hineingereicht, damit layout.json, symbols/ und
@@ -19,5 +19,5 @@ COPY . .
 
 EXPOSE 8771
 # Im Container muss auf allen Adressen gelauscht werden, sonst kommt die
-# Portweiterleitung nicht durch. Nach aussen begrenzt das die Portfreigabe.
+# Portweiterleitung nicht durch. Nach außen begrenzt das die Portfreigabe.
 CMD ["python", "app.py", "--host", "0.0.0.0"]

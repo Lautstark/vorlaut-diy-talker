@@ -1,12 +1,12 @@
 # mitreden
 
-Kleiner, robuster Talker fuer unterwegs: fuenf Tasten, die gleichzeitig
-Displays sind. Vier davon sprechen, die fuenfte schaltet zwischen den Sets um.
-Gedacht als Ergaenzung zum grossen Talker (MetaTalk 3x5 auf dem iPad), nicht
+Kleiner, robuster Talker für unterwegs: fünf Tasten, die gleichzeitig
+Displays sind. Vier davon sprechen, die fünfte schaltet zwischen den Sets um.
+Gedacht als Ergänzung zum großen Talker (MetaTalk 3x5 auf dem iPad), nicht
 als Ersatz.
 
-Alles, was auf dem Geraet landet, kommt aus `layout.json`. Bearbeitet wird das
-ueber eine kleine Weboberflaeche, gebaut wird mit `build.py`.
+Alles, was auf dem Gerät landet, kommt aus `layout.json`. Bearbeitet wird das
+über eine kleine Weboberfläche, gebaut wird mit `build.py`.
 
 ---
 
@@ -19,25 +19,25 @@ cp .env.example .env        # und den Azure-Key eintragen
 .venv/bin/python app.py     # http://localhost:8771
 ```
 
-Ausserdem wird `ffmpeg` gebraucht (`brew install ffmpeg`).
+Außerdem wird `ffmpeg` gebraucht (`brew install ffmpeg`).
 
 ### Vom Handy aus bearbeiten
 
-Voreingestellt hoert der Server nur auf diesem Rechner. Fuer den Zugriff aus
+Voreingestellt hört der Server nur auf diesem Rechner. Für den Zugriff aus
 dem eigenen WLAN:
 
 ```bash
 .venv/bin/python app.py --host 0.0.0.0
 ```
 
-Beim Start nennt er die Adresse, die ins Handy gehoert, etwa
-`http://192.168.0.25:8771`. Die Oberflaeche bricht auf schmalen Bildschirmen
-um: Set-Kachel oben ueber die volle Breite, die vier Sprechtasten als 2x2
+Beim Start nennt er die Adresse, die ins Handy gehört, etwa
+`http://192.168.0.25:8771`. Die Oberfläche bricht auf schmalen Bildschirmen
+um: Set-Kachel oben über die volle Breite, die vier Sprechtasten als 2x2
 darunter.
 
-**Das ist ohne Anmeldung.** Wer im selben WLAN ist, kann die Inhalte aendern
-und ueber die Vorhoer-Taste Azure-Guthaben verbrauchen. Fuer zuhause in
-Ordnung, in einem fremden oder oeffentlichen Netz nicht.
+**Das ist ohne Anmeldung.** Wer im selben WLAN ist, kann die Inhalte ändern
+und über die Vorhör-Taste Azure-Guthaben verbrauchen. Für zuhause in
+Ordnung, in einem fremden oder öffentlichen Netz nicht.
 
 ### Auf einem NAS betreiben
 
@@ -52,12 +52,12 @@ Das Abbild bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
 selbst wird hineingereicht - `layout.json`, `symbols/` und `cache/` bleiben
 damit auf dem NAS und laufen in dessen Sicherung mit.
 
-Geprueft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
+Geprüft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
 `build.py` laufen im Container durch.
 
 #### Vorher lokal ausprobieren
 
-Sinnvoll, bevor du dich mit DSM herumschlaegst - dieselbe Datei, derselbe
+Sinnvoll, bevor du dich mit DSM herumschlägst - dieselbe Datei, derselbe
 Container:
 
 ```bash
@@ -66,7 +66,7 @@ docker compose logs -f          # was der Container sagt
 docker compose down             # wieder weg
 ```
 
-Laeuft schon ein `app.py` auf 8771, kann der Container einen anderen Port am
+Läuft schon ein `app.py` auf 8771, kann der Container einen anderen Port am
 Rechner bekommen:
 
 ```bash
@@ -74,109 +74,109 @@ MITREDEN_PORT=8798 docker compose up -d --build
 ```
 
 Achtung: Container und `app.py` arbeiten auf **denselben Dateien**. Beide
-gleichzeitig laufen zu lassen ist moeglich, aber es sollte immer nur einer
+gleichzeitig laufen zu lassen ist möglich, aber es sollte immer nur einer
 davon bedient werden.
 
-Geprueft mit `docker compose` 2.x und dem aelteren `docker-compose` 1.29 -
+Geprüft mit `docker compose` 2.x und dem älteren `docker-compose` 1.29 -
 beide nehmen die Datei an.
 
-> Stolperstein: `docker compose` liest die `.env` im Projektordner fuer
+> Stolperstein: `docker compose` liest die `.env` im Projektordner für
 > Variablen mit. Steht darin etwas anderes als `SCHLUESSEL=WERT`, bricht es
-> mit *"Can't separate key from value"* ab. Die `.env` gehoert also nur dem
-> Azure-Schluessel.
+> mit *"Can't separate key from value"* ab. Die `.env` gehört also nur dem
+> Azure-Schlüssel.
 
 #### Auf einer Synology
 
-1. Gemeinsamen Ordner anlegen, ueblich ist `docker`, darin `mitreden` -
+1. Gemeinsamen Ordner anlegen, üblich ist `docker`, darin `mitreden` -
    der Pfad ist dann `/volume1/docker/mitreden`.
-2. Das Projekt dorthin kopieren, am einfachsten ueber die Netzfreigabe im
-   Finder. **Die `.env` gehoert nicht ins Repo und muss von Hand mit.**
-3. **Container Manager** oeffnen (DSM 7.2 und neuer; davor heisst das Paket
-   *Docker*) -> *Projekt* -> *Anlegen* -> als Pfad den Ordner waehlen. Die
+2. Das Projekt dorthin kopieren, am einfachsten über die Netzfreigabe im
+   Finder. **Die `.env` gehört nicht ins Repo und muss von Hand mit.**
+3. **Container Manager** öffnen (DSM 7.2 und neuer; davor heißt das Paket
+   *Docker*) -> *Projekt* -> *Anlegen* -> als Pfad den Ordner wählen. Die
    `docker-compose.yml` wird erkannt, das Abbild baut er selbst.
 4. Aufrufen unter `http://<NAS>:8771`.
 
-Damit liegt der ganze Bestand auf dem NAS und laeuft in dessen Sicherung mit.
-Am Mac haengst du dieselbe Freigabe ein und arbeitest dort mit git weiter -
+Damit liegt der ganze Bestand auf dem NAS und läuft in dessen Sicherung mit.
+Am Mac hängst du dieselbe Freigabe ein und arbeitest dort mit git weiter -
 es ist ein einziger Ordner, keine zweite Kopie.
 
-Was dabei erfahrungsgemaess zuerst klemmt:
+Was dabei erfahrungsgemäß zuerst klemmt:
 
-- **Dateirechte.** Der Container laeuft als root, alles was er anlegt gehoert
-  danach root, und ueber die Netzfreigabe kommst du nicht mehr dran. In der
-  `docker-compose.yml` steht eine auskommentierte `user:`-Zeile dafuer; die
-  eigene Kennung liefert `id` ueber SSH.
+- **Dateirechte.** Der Container läuft als root, alles was er anlegt gehört
+  danach root, und über die Netzfreigabe kommst du nicht mehr dran. In der
+  `docker-compose.yml` steht eine auskommentierte `user:`-Zeile dafür; die
+  eigene Kennung liefert `id` über SSH.
 - **Aelteres DSM.** Das alte *Docker*-Paket bringt Compose 1 mit und will eine
   Zeile `version: "3.8"` ganz oben in der `docker-compose.yml`. Container
   Manager braucht sie nicht.
-- **ARM-Modelle** bauen das Abbild spuerbar langsamer als die Intel-Modelle.
-  Einmalig, danach laeuft es.
+- **ARM-Modelle** bauen das Abbild spürbar langsamer als die Intel-Modelle.
+  Einmalig, danach läuft es.
 
 Zu bedenken:
 
-- **Keine Anmeldung.** Wer den Port erreicht, kann die Inhalte aendern. Im
-  Heimnetz in Ordnung, aber **nicht im Router freigeben**. Fuer unterwegs
+- **Keine Anmeldung.** Wer den Port erreicht, kann die Inhalte ändern. Im
+  Heimnetz in Ordnung, aber **nicht im Router freigeben**. Für unterwegs
   lieber ein privates Netz wie Tailscale, dann braucht es keine Anmeldung.
-- Der Azure-Schluessel steckt bewusst **nicht** im Abbild - `.dockerignore`
-  schliesst `.env` aus. Zur Laufzeit kommt er aus dem eingehaengten Ordner.
-- Geflasht wird weiter vom Mac aus - dafuer braucht es USB.
+- Der Azure-Schlüssel steckt bewusst **nicht** im Abbild - `.dockerignore`
+  schließt `.env` aus. Zur Laufzeit kommt er aus dem eingehängten Ordner.
+- Geflasht wird weiter vom Mac aus - dafür braucht es USB.
 
-Ins offene Internet gehoert die Oberflaeche nicht: sie braucht einen
-laufenden Python-Prozess, schreibt Dateien und hat den Azure-Schluessel. Auf
-GitHub Pages laeuft sie deshalb nicht - das ist reines Ausliefern fertiger
+Ins offene Internet gehört die Oberfläche nicht: sie braucht einen
+laufenden Python-Prozess, schreibt Dateien und hat den Azure-Schlüssel. Auf
+GitHub Pages läuft sie deshalb nicht - das ist reines Ausliefern fertiger
 Dateien, ohne Server dahinter.
 
-Ohne Azure-Key laesst sich schon alles ausser dem Ton benutzen: Symbole
+Ohne Azure-Key lässt sich schon alles außer dem Ton benutzen: Symbole
 suchen, Layout bearbeiten, Bilder bauen.
 
 ---
 
-## Weboberflaeche
+## Weboberfläche
 
-`app.py` startet auf <http://localhost:8771> und sieht aus wie das Geraet:
-oben die Reiter fuer die Sets, darunter die Set-Kachel und die vier
+`app.py` startet auf <http://localhost:8771> und sieht aus wie das Gerät:
+oben die Reiter für die Sets, darunter die Set-Kachel und die vier
 Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
 
-- **Auf ein Symbol klicken** oeffnet die ARASAAC-Suche. Ein Klick auf ein
-  Ergebnis laedt das PNG nach `symbols/` und traegt es in `layout.json` ein.
-  Im selben Dialog liegt **Eigenes Bild** - damit laesst sich ein Foto oder
+- **Auf ein Symbol klicken** öffnet die ARASAAC-Suche. Ein Klick auf ein
+  Ergebnis lädt das PNG nach `symbols/` und trägt es in `layout.json` ein.
+  Im selben Dialog liegt **Eigenes Bild** - damit lässt sich ein Foto oder
   eine eigene Zeichnung hochladen. Alles, was Pillow lesen kann (PNG, JPG,
   HEIC-Export, GIF ...), wird nach PNG gewandelt und in `symbols/` abgelegt.
-  Bestehende Dateien werden nie ueberschrieben, gleiche Namen bekommen `-2`
-  angehaengt. Hoechstens 10 MB pro Bild.
+  Bestehende Dateien werden nie überschrieben, gleiche Namen bekommen `-2`
+  angehängt. Höchstens 10 MB pro Bild.
 
   Nicht-quadratische Bilder werden **mittig auf quadratisch beschnitten**, damit
-  sie die Kachel randlos fuellen - sonst bliebe an zwei Seiten ein weisser
-  Balken. Bei einem Hochformat faellt dabei oben und unten je ein Stueck weg.
+  sie die Kachel randlos füllen - sonst bliebe an zwei Seiten ein weißer
+  Balken. Bei einem Hochformat fällt dabei oben und unten je ein Stück weg.
   Wenn es auf den Bildausschnitt ankommt, das Foto vorher in der Fotos-App
   quadratisch zuschneiden; dann bleibt es unangetastet.
 
-  Grosse Bilder werden beim Annehmen auf **500 Pixel lange Kante** verkleinert
-  (`SYMBOL_MAX_PX` in `app.py`) - dasselbe Mass, in dem ARASAAC seine
+  Große Bilder werden beim Annehmen auf **500 Pixel lange Kante** verkleinert
+  (`SYMBOL_MAX_PX` in `app.py`) - dasselbe Maß, in dem ARASAAC seine
   Piktogramme liefert. Ein Handyfoto mit 3024x4032 wiegt danach ein paar
   Kilobyte statt mehrerer Megabyte. Das ist Absicht: `symbols/` liegt im Repo,
-  und das Geraet rendert ohnehin nur 116x116 Pixel.
+  und das Gerät rendert ohnehin nur 116x116 Pixel.
 - **Textfeld**: was Gisela sagt. Das darf vom Symbolwort abweichen - das
   Symbol zeigt "anhalten", gesagt wird "Stopp".
-- **▶** hoert den Satz vorher ab (geht ueber Azure, braucht also den Key).
+- **▶** hört den Satz vorher ab (geht über Azure, braucht also den Key).
 - **Bauen** oben rechts ruft `build.py` und zeigt das Protokoll an.
 
 **Umsortieren per Ziehen:** jede Sprechtaste hat oben rechts einen Griff (⠿).
-Zieht man ihn auf eine andere Taste, **tauschen** die beiden die Plaetze - im
+Zieht man ihn auf eine andere Taste, **tauschen** die beiden die Plätze - im
 festen 2x2-Raster ist das eindeutiger als Einsortieren. Die Reiter oben lassen
-sich ebenfalls ziehen; deren Reihenfolge bestimmt, wie die Set-Taste am Geraet
+sich ebenfalls ziehen; deren Reihenfolge bestimmt, wie die Set-Taste am Gerät
 durchschaltet.
 
-Umsortieren kostet nichts: die Sprachdateien haengen im Cache am Text, nicht an
+Umsortieren kostet nichts: die Sprachdateien hängen im Cache am Text, nicht an
 der Position. Es wird also nichts neu gesprochen.
 
-Aenderungen werden automatisch in `layout.json` gespeichert.
+Änderungen werden automatisch in `layout.json` gespeichert.
 
 ---
 
 ## layout.json
 
-Die einzige Quelle der Wahrheit. Hoechstens 5 Sets, genau 4 Slots pro Set.
+Die einzige Quelle der Wahrheit. Höchstens 5 Sets, genau 4 Slots pro Set.
 
 ```json
 {
@@ -197,10 +197,10 @@ Die einzige Quelle der Wahrheit. Hoechstens 5 Sets, genau 4 Slots pro Set.
 }
 ```
 
-`color` ist die Farbe, die als Rahmen um alle fuenf Bilder gerendert wird -
+`color` ist die Farbe, die als Rahmen um alle fünf Bilder gerendert wird -
 damit sie am Farbeindruck erkennt, in welchem Set sie gerade ist. Neue Sets
 bekommen der Reihe nach eine Farbe aus `DEFAULT_PALETTE` in `build.py`; die
-Weboberflaeche holt sich dieselbe Liste von dort.
+Weboberfläche holt sich dieselbe Liste von dort.
 
 Ein leerer `text` bedeutet: diese Taste bleibt stumm. Ein leeres `symbol`
 ergibt eine Platzhalter-Kachel mit grauem Kreuz.
@@ -213,37 +213,37 @@ ergibt eine Platzhalter-Kachel mit grauem Kreuz.
 .venv/bin/python build.py
 ```
 
-Schreibt nach `firmware/mitreden/data/` (gitignored, wird auf das Geraet
+Schreibt nach `firmware/mitreden/data/` (gitignored, wird auf das Gerät
 hochgeladen):
 
 | Datei              | Inhalt                                          |
 |--------------------|-------------------------------------------------|
-| `a<pruefsumme>.wav` | gesprochener Satz, 16 kHz mono 16 bit          |
-| `t<pruefsumme>.bin` | 116x116 Symbolflaeche, RGB565 big-endian       |
+| `a<prüfsumme>.wav` | gesprochener Satz, 16 kHz mono 16 bit          |
+| `t<prüfsumme>.bin` | 116x116 Symbolfläche, RGB565 big-endian       |
 
 und dazu `firmware/mitreden/layout.h` mit Anzahl der Sets, Dateinamen, Farben und
-`sleep_timeout_seconds` als Konstanten fuer die Firmware.
+`sleep_timeout_seconds` als Konstanten für die Firmware.
 
-**Die Dateinamen sind Pruefsummen des Inhalts, nicht der Position.** Das hat
+**Die Dateinamen sind Prüfsummen des Inhalts, nicht der Position.** Das hat
 zwei Folgen:
 
 - Kommt dasselbe Symbol oder derselbe Satz in mehreren Sets vor, liegt er auf
-  dem Geraet trotzdem nur **einmal**. `layout.h` laesst dann einfach mehrere
-  Eintraege auf dieselbe Datei zeigen.
-- Eine Datei kann nicht veralten, ohne dass sich ihr Name mitaendert. Ein
+  dem Gerät trotzdem nur **einmal**. `layout.h` lässt dann einfach mehrere
+  Einträge auf dieselbe Datei zeigen.
+- Eine Datei kann nicht veralten, ohne dass sich ihr Name mitändert. Ein
   Name kann also nie auf einen falschen Inhalt zeigen.
 
-**Der farbige Rahmen steckt nicht im Bild.** Die Datei enthaelt nur die
-116x116 Symbolflaeche; die sechs Pixel Rahmen zeichnet die Firmware selbst aus
-`SET_COLORS`. Sonst haenge das Bild am Set, in dem es gerade liegt - dasselbe
-Symbol waere in einem blauen und einem gruenen Set zwei verschiedene Dateien,
-und eine Farbaenderung wuerde saemtliche Bilder eines Sets neu schreiben. So
+**Der farbige Rahmen steckt nicht im Bild.** Die Datei enthält nur die
+116x116 Symbolfläche; die sechs Pixel Rahmen zeichnet die Firmware selbst aus
+`SET_COLORS`. Sonst hänge das Bild am Set, in dem es gerade liegt - dasselbe
+Symbol wäre in einem blauen und einem grünen Set zwei verschiedene Dateien,
+und eine Farbänderung würde sämtliche Bilder eines Sets neu schreiben. So
 kostet ein Farbwechsel **null** Bilddaten.
 
-Dateien aus frueheren Laeufen, die nicht mehr gebraucht werden, raeumt
+Dateien aus früheren Läufen, die nicht mehr gebraucht werden, räumt
 `build.py` selbst weg.
 
-Nuetzliche Schalter:
+Nützliche Schalter:
 
 ```bash
 .venv/bin/python build.py --no-audio      # nur Bilder und layout.h
@@ -254,56 +254,56 @@ Nuetzliche Schalter:
 
 ## Was im Repo liegt und was nicht
 
-Faustregel: was Geld oder einen Schluessel kostet, kommt mit. Was sich gratis
-in Sekunden neu erzeugen laesst, bleibt draussen.
+Faustregel: was Geld oder einen Schlüssel kostet, kommt mit. Was sich gratis
+in Sekunden neu erzeugen lässt, bleibt draußen.
 
 | | im Repo | warum |
 |---|---|---|
 | `layout.json`, `symbols/` | ja | deine Arbeit |
-| `cache/tts/` | **ja** | gesprochene Saetze kosten Azure-Guthaben und den Key |
-| `cache/tiles/` | ja | gerenderte Symbolflaechen, Name = Pruefsumme |
-| `firmware/mitreden/layout.h` | ja | winzig, und Aenderungen sind im Diff lesbar |
+| `cache/tts/` | **ja** | gesprochene Sätze kosten Azure-Guthaben und den Key |
+| `cache/tiles/` | ja | gerenderte Symbolflächen, Name = Prüfsumme |
+| `firmware/mitreden/layout.h` | ja | winzig, und Änderungen sind im Diff lesbar |
 | `firmware/mitreden/data/` | nein | 800 KB Bilder, gratis aus `symbols/` neu gebaut |
-| `cache/thumbs/`, `cache/layout-backups/` | nein | rein oertlich |
-| `.env` | nein | der Schluessel |
+| `cache/thumbs/`, `cache/layout-backups/` | nein | rein örtlich |
+| `.env` | nein | der Schlüssel |
 
-Dadurch ist ein frischer Klon **ohne Azure-Zugang vollstaendig baubar**, solange
-sich die Texte nicht geaendert haben: `build.py` nimmt die Saetze aus
+Dadurch ist ein frischer Klon **ohne Azure-Zugang vollständig baubar**, solange
+sich die Texte nicht geändert haben: `build.py` nimmt die Sätze aus
 `cache/tts/`, statt sie neu sprechen zu lassen. Erst ein *neuer* Text braucht
 wieder den Key - und sagt das dann auch deutlich.
 
-Die Dateinamen im Cache sind Pruefsummen und damit unlesbar. Deshalb fuehrt
-`tts.py` daneben `cache/tts/index.json`, das jede Pruefsumme ihrem Text
+Die Dateinamen im Cache sind Prüfsummen und damit unlesbar. Deshalb fuehrt
+`tts.py` daneben `cache/tts/index.json`, das jede Prüfsumme ihrem Text
 zuordnet. Damit ist auch nach Monaten nachvollziehbar, was da eigentlich liegt.
 
-Aufraeumen, wenn der Cache zu viel Altes angesammelt hat:
+Aufräumen, wenn der Cache zu viel Altes angesammelt hat:
 
 ```bash
 .venv/bin/python build.py --prune-cache
 ```
 
-Das loescht alle Sprachdateien, die in `layout.json` nicht mehr vorkommen.
-Vorsicht: darunter ist auch alles, was du frueher einmal eingetragen und
-spaeter wieder entfernt hast.
+Das löscht alle Sprachdateien, die in `layout.json` nicht mehr vorkommen.
+Vorsicht: darunter ist auch alles, was du früher einmal eingetragen und
+später wieder entfernt hast.
 
 ---
 
 ## Sprachausgabe
 
-`tts.py` spricht ueber die Azure Speech REST API mit **de-DE-GiselaNeural**,
+`tts.py` spricht über die Azure Speech REST API mit **de-DE-GiselaNeural**,
 Region **germanywestcentral**, Sprechtempo **-5 %**.
 
 Danach durch ffmpeg: Stille am Anfang und Ende weg, dann
 `loudnorm I=-16:TP=-1.5:LRA=11`, Ausgabe als 16 kHz mono 16 bit WAV. Dadurch
-sind alle Tasten gleich laut - wichtig, weil es am Geraet keinen
-Lautstaerkeregler gibt.
+sind alle Tasten gleich laut - wichtig, weil es am Gerät keinen
+Lautstärkeregler gibt.
 
 Der Key kommt aus der Umgebungsvariablen `AZURE_SPEECH_KEY`, ersatzweise aus
 `.env`. Eine gesetzte Umgebungsvariable gewinnt.
 
-Gerendert wird nur, was sich geaendert hat: ueber Text und Stimm-Konfiguration
+Gerendert wird nur, was sich geändert hat: über Text und Stimm-Konfiguration
 wird ein Fingerprint gebildet, fertige Dateien liegen unter `cache/tts/`.
-Wer die Stimme oder die ffmpeg-Kette aendert, aendert damit auch den
+Wer die Stimme oder die ffmpeg-Kette ändert, ändert damit auch den
 Fingerprint - dann wird automatisch alles neu gerendert.
 
 Einzeln testen geht auch:
@@ -319,22 +319,22 @@ Einzeln testen geht auch:
 `firmware/mitreden/mitreden.ino`, Arduino-Framework.
 
 Der Sketch liegt in einem eigenen Unterordner, weil Arduino verlangt, dass der
-Ordner so heisst wie die `.ino`-Datei - und weil der LittleFS-Uploader `data/`
+Ordner so heißt wie die `.ino`-Datei - und weil der LittleFS-Uploader `data/`
 direkt daneben sucht. Beides zeigt auf dieselbe Struktur.
 
 ### Was gebraucht wird
 
 - **Arduino ESP32 Core 3.x** (Board: *Adafruit Feather ESP32-S3 No PSRAM*)
 - Bibliotheken: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`
-- `mklittlefs` und `esptool` fuer den Dateibereich - beide kommen mit dem
+- `mklittlefs` und `esptool` für den Dateibereich - beide kommen mit dem
   ESP32-Core, `build.py --fs-image` findet sie von selbst
 
 Board-Einstellung: USB CDC On Boot **an**.
 
-### Aufs Geraet bringen
+### Aufs Gerät bringen
 
 Es sind zwei getrennte Dinge, die in getrennte Flash-Bereiche gehen: das
-**Programm** (der Sketch) und die **Daten** (Bilder und Toene). Aendert sich nur
+**Programm** (der Sketch) und die **Daten** (Bilder und Töne). Aendert sich nur
 ein Wort oder ein Symbol, muss das Programm nicht neu drauf - dann reichen die
 Schritte 3 und 4.
 
@@ -344,19 +344,19 @@ Schritte 3 und 4.
 arduino-cli board list
 ```
 
-Gesucht ist etwas wie `/dev/cu.usbmodem1101`. Diesen Port unten ueberall
+Gesucht ist etwas wie `/dev/cu.usbmodem1101`. Diesen Port unten überall
 statt `/dev/cu.usbmodemXXXX` einsetzen.
 
-**2. Programm uebersetzen und schreiben:**
+**2. Programm übersetzen und schreiben:**
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
 arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
 ```
 
-Meldet der Upload, dass er das Board nicht findet: **BOOT** gedrueckt halten,
-kurz **RESET** tippen, **BOOT** loslassen. Dann haengt der Feather im
-Bootloader und der Befehl geht durch. Danach einmal RESET druecken.
+Meldet der Upload, dass er das Board nicht findet: **BOOT** gedrückt halten,
+kurz **RESET** tippen, **BOOT** loslassen. Dann hängt der Feather im
+Bootloader und der Befehl geht durch. Danach einmal RESET drücken.
 
 **3. Daten packen:**
 
@@ -373,48 +373,48 @@ Bootloader und der Befehl geht durch. Danach einmal RESET druecken.
 ```
 
 Die Adresse `0x670000` ist der Anfang der `spiffs`-Partition aus
-`default_8MB.csv`. Sie gilt nur fuer dieses Partitionsschema - mit einem
+`default_8MB.csv`. Sie gilt nur für dieses Partitionsschema - mit einem
 anderen landen die Daten an der falschen Stelle.
 
-**Mitlesen, was das Geraet sagt:**
+**Mitlesen, was das Gerät sagt:**
 
 ```bash
 arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 ```
 
-Dort steht beim Start, welches Set geladen wurde, welche Taste gedrueckt wurde
-und ob LittleFS sich einhaengen liess.
+Dort steht beim Start, welches Set geladen wurde, welche Taste gedrückt wurde
+und ob LittleFS sich einhängen ließ.
 
 ### Wie das Abbild entsteht
 
 `build.py --fs-image` packt `firmware/mitreden/data/` mit `mklittlefs` in ein
-Abbild von 1536 KiB - genau die Groesse der `spiffs`-Partition. Passen die
-Daten nicht hinein, bricht es mit einer klaren Meldung ab, statt ein zu grosses
+Abbild von 1536 KiB - genau die Größe der `spiffs`-Partition. Passen die
+Daten nicht hinein, bricht es mit einer klaren Meldung ab, statt ein zu großes
 Abbild zu erzeugen.
 
 Das Abbild selbst ist gitignored: es entsteht in Sekunden neu aus `data/`.
 
-Uebersetzen:
+Übersetzen:
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
 ```
 
 > **Das Partitionsschema ist nicht optional.** Die Voreinstellung des Boards
-> heisst *tinyuf2* und legt den Datenbereich als `ffat` an - `LittleFS.begin()`
-> sucht aber eine Partition namens `spiffs` und scheitert daran. Das Geraet
+> heißt *tinyuf2* und legt den Datenbereich als `ffat` an - `LittleFS.begin()`
+> sucht aber eine Partition namens `spiffs` und scheitert daran. Das Gerät
 > bootet dann mit schwarzen Displays. In der Arduino-IDE unter
 > *Werkzeuge > Partition Scheme* auf **"Default (3MB APP/1.5MB SPIFFS)"**
-> stellen, auf der Kommandozeile `PartitionScheme=default_8MB` anhaengen.
+> stellen, auf der Kommandozeile `PartitionScheme=default_8MB` anhängen.
 
 Getestet mit ESP32-Core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0:
 470 KB Programm (14 % von 3 MB), 57 KB RAM (17 %).
 
-Der Dateibereich fasst 1536 KiB. Ein volles Layout mit fuenf Sets belegt
+Der Dateibereich fasst 1536 KiB. Ein volles Layout mit fünf Sets belegt
 davon rund 630 KiB, also gut 40 %.
 
 > Der Sketch **compiliert**, ist aber noch nie auf echter Hardware gelaufen.
-> Vor dem ersten Flashen die Pinbelegung gegen die echten Boards pruefen.
+> Vor dem ersten Flashen die Pinbelegung gegen die echten Boards prüfen.
 
 ### Pinbelegung (Vorschlag)
 
@@ -441,20 +441,20 @@ davon rund 630 KiB, also gut 40 %.
 | MAX98357A SD            |    4 | SCL                          |
 
 Warum genau diese Taster-Pins: aufwecken aus dem Deep Sleep geht beim ESP32-S3
-nur ueber GPIO 0 bis 21. GPIO 14 bis 18 liegen in diesem Bereich und sind auf
-dem Feather als A0-A4 sauber herausgefuehrt.
+nur über GPIO 0 bis 21. GPIO 14 bis 18 liegen in diesem Bereich und sind auf
+dem Feather als A0-A4 sauber herausgeführt.
 
 **Verkabelung:**
 
-- Taster gegen **GND**, die internen Pull-ups sind aktiv. Gedrueckt = LOW.
+- Taster gegen **GND**, die internen Pull-ups sind aktiv. Gedrückt = LOW.
 - MISO wird nicht gebraucht, die Displays werden nur beschrieben.
-- `SD` am MAX98357A haengt an GPIO 4: der Verstaerker ist stumm, ausser waehrend
-  ein Wort laeuft. Das spart Strom und das leise Rauschen im Ruhezustand.
-- Das Backlight aller fuenf Displays an einem GPIO funktioniert nur, wenn der
+- `SD` am MAX98357A hängt an GPIO 4: der Verstärker ist stumm, außer während
+  ein Wort läuft. Das spart Strom und das leise Rauschen im Ruhezustand.
+- Das Backlight aller fünf Displays an einem GPIO funktioniert nur, wenn der
   BL-Eingang der Screenkeys ein Logikeingang ist. Zieht er den LED-Strom
-  direkt, gehoert ein kleiner MOSFET dazwischen - fuenf Backlights sind mehr,
+  direkt, gehört ein kleiner MOSFET dazwischen - fünf Backlights sind mehr,
   als ein GPIO treiben darf.
-- Beim Verloeten die tatsaechliche Screenkey-Belegung pruefen; die Tabelle oben
+- Beim Verlöten die tatsächliche Screenkey-Belegung prüfen; die Tabelle oben
   beschreibt die Seite des Feathers.
 
 Falls das Bild um ein paar Pixel verschoben ist oder ein Rand stehen bleibt:
@@ -462,62 +462,62 @@ Falls das Bild um ein paar Pixel verschoben ist oder ein Rand stehen bleibt:
 
 ### Verhalten
 
-- **Wach:** alle fuenf Displays sind durchgehend an. Sie muss sehen koennen,
+- **Wach:** alle fünf Displays sind durchgehend an. Sie muss sehen können,
   was zur Auswahl steht.
-- **Taste 1-4:** das zugehoerige WAV wird abgespielt.
-- **Taste 5:** naechstes Set (1→2→3→4→5→1), alle Displays werden neu gezeichnet.
-  Das aktuelle Set ueberlebt den Schlaf.
+- **Taste 1-4:** das zugehörige WAV wird abgespielt.
+- **Taste 5:** nächstes Set (1→2→3→4→5→1), alle Displays werden neu gezeichnet.
+  Das aktuelle Set überlebt den Schlaf.
 - **Nach `sleep_timeout_seconds` ohne Eingabe:** Displays aus, Deep Sleep.
 
 ### Aufwachen
 
-Jede der fuenf Tasten weckt das Geraet (EXT1 auf allen Taster-Pins).
+Jede der fünf Tasten weckt das Gerät (EXT1 auf allen Taster-Pins).
 
-**Der Druck, der aufweckt, loest nichts aus** - kein Wort, kein Umschalten.
-Er holt nur die Displays zurueck. Danach wartet die Firmware, bis die Taste
-losgelassen wurde, bevor wieder auf Eingaben reagiert wird. Sonst spraeche das
-Geraet ein Wort, das sie gar nicht sagen wollte: bei dunklen Displays drueckt
+**Der Druck, der aufweckt, löst nichts aus** - kein Wort, kein Umschalten.
+Er holt nur die Displays zurück. Danach wartet die Firmware, bis die Taste
+losgelassen wurde, bevor wieder auf Eingaben reagiert wird. Sonst spräche das
+Gerät ein Wort, das sie gar nicht sagen wollte: bei dunklen Displays drückt
 sie ja blind.
 
-Entprellt wird ueber eine Mindest-Druckdauer: **80 ms** fuer die Sprechtasten,
-**400 ms** fuer die Set-Taste (`DEBOUNCE_MS` und `SET_HOLD_MS` im Sketch). Die
-Set-Taste braucht laenger, weil ein versehentlicher Wechsel ihr das Wort
+Entprellt wird über eine Mindest-Druckdauer: **80 ms** für die Sprechtasten,
+**400 ms** für die Set-Taste (`DEBOUNCE_MS` und `SET_HOLD_MS` im Sketch). Die
+Set-Taste braucht länger, weil ein versehentlicher Wechsel ihr das Wort
 wegnimmt, das sie gerade sagen wollte - sie muss dann erst wiederfinden, wo sie
-ist. Das ist aergerlicher als ein falsch getroffenes Wort.
+ist. Das ist ärgerlicher als ein falsch getroffenes Wort.
 
-### Gehaeuse
+### Gehäuse
 
 Gemessene Teile: Screenkey-Platine 25,94 x 35,29 mm, Tastenkappe 22,00 x
-25,30 mm mit 8,6 mm Ueberstand, sichtbares Bild nur **15,21 x 15,21 mm**.
+25,30 mm mit 8,6 mm Überstand, sichtbares Bild nur **15,21 x 15,21 mm**.
 Lautsprecher 40,3 x 40,3 x 25,3 mm.
 
-| | Mass |
+| | Maß |
 |---|---|
 | Raster der vier Sprechtasten | 37,0 x 45,3 mm |
 | Spalt zwischen den Kappen | 15 mm seitlich, 20 mm zwischen den Reihen |
 | Abstand Set-Taste zum Viererblock | 25 mm |
 | Spalt Lautsprecher zur Set-Taste | 5 mm |
 | Bauteile insgesamt | 117 x 81 mm |
-| Gehaeuse aussen | etwa 131 x 95 x 35 mm |
+| Gehäuse außen | etwa 131 x 95 x 35 mm |
 
 Anordnung: Lautsprecher oben links, darunter die Set-Taste, rechts daneben die
-vier Sprechtasten als 2x2-Block. Set-Taste und untere Tastenreihe schliessen
-unten buendig ab - das geht genau auf, weil Lautsprecher + 5 mm + Set-Platine
+vier Sprechtasten als 2x2-Block. Set-Taste und untere Tastenreihe schließen
+unten bündig ab - das geht genau auf, weil Lautsprecher + 5 mm + Set-Platine
 zusammen 80,6 mm ergeben und der Block bei diesem Raster ebenfalls 80,6 mm hoch
 ist.
 
-**Wichtig:** Die Platinen duerfen sich nicht beruehren. Dann blieben seitlich
-nur 25,94 - 22,00 = 3,9 mm zwischen den Kappen, und eine Kinderhand traefe zwei
+**Wichtig:** Die Platinen dürfen sich nicht berühren. Dann blieben seitlich
+nur 25,94 - 22,00 = 3,9 mm zwischen den Kappen, und eine Kinderhand träfe zwei
 Tasten auf einmal.
 
 Die Tiefe bestimmt der Lautsprecher mit 25,3 mm; die Screenkeys brauchen hinter
 der Frontplatte nur 15,4 mm. Hinter dem Tastenblock bleiben damit rund 10 mm
-fuer den flach liegenden Akku, der Feather passt daneben.
+für den flach liegenden Akku, der Feather passt daneben.
 
-Noch zu pruefen, wenn die Teile da sind: ob die Tastenkappe mittig auf der
+Noch zu prüfen, wenn die Teile da sind: ob die Tastenkappe mittig auf der
 Platine sitzt. Auf den Bildern liegen FPC- und Stiftleistenanschluss im unteren
 Bereich - falls die Kappe nach oben versetzt ist, verschieben sich alle
-Senkrechtmasse und damit die Frontausschnitte.
+Senkrechtmaße und damit die Frontausschnitte.
 
 ---
 
@@ -529,7 +529,7 @@ Die Piktogramme stammen von **[ARASAAC](https://arasaac.org)**.
 > [ARASAAC](https://arasaac.org), Regierung von Aragonien (Spanien).
 > Lizenz: **CC BY-NC-SA**.
 
-Die Suche in der Weboberflaeche nutzt die offene ARASAAC-API ohne
+Die Suche in der Weboberfläche nutzt die offene ARASAAC-API ohne
 Anmeldung. Heruntergeladene Symbole liegen in `symbols/` und liegen im Repo
 mit; welches Symbol woher kommt, steht in `symbols/QUELLEN.md`.
 
