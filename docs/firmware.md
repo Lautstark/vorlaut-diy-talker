@@ -111,6 +111,31 @@ davon rund 630 KiB, also gut 40 %.
   Das aktuelle Set überlebt den Schlaf.
 - **Nach `sleep_timeout_seconds` ohne Eingabe:** Displays aus, Deep Sleep.
 
+### Menü
+
+**Set-Taste und Taste 2 fünf Sekunden gleichzeitig halten.** Die beiden liegen
+diagonal am weitesten auseinander - mit einer Kinderhand kaum gleichzeitig zu
+treffen. Während des Haltens zählen alle Displays herunter; wer loslässt,
+bricht ab, ohne dass etwas passiert.
+
+Im Menü beschriften sich die Tasten selbst. Derzeit:
+
+| Taste | |
+|---|---|
+| 1 | **Info** - Anzahl der Sets, ist das Dateisystem da |
+| Set | **zurück** in den Normalbetrieb |
+
+Die übrigen bleiben leer. Einträge kommen dazu, wenn es die Funktion dahinter
+gibt - WLAN einrichten und Inhalte holen, sobald der Abgleich steht.
+
+Das Menü zeichnet sich ohne Dateien, aus Text und Rechtecken. Es funktioniert
+also auch auf einem frisch geflashten Gerät, auf dem noch nichts liegt - und
+genau dort braucht man es zuerst. Der Rahmen ist grau statt in der Set-Farbe,
+damit man auf einen Blick sieht, dass das nicht der Talker ist.
+
+**Nach 30 Sekunden ohne Eingabe geht es von selbst zurück.** Ein Gerät, das im
+Menü hängenbleibt, spricht nicht mehr - das darf nicht passieren.
+
 ### Aufwachen
 
 Jede der fünf Tasten weckt das Gerät (EXT1 auf allen Taster-Pins).

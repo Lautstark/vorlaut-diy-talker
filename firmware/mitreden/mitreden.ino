@@ -71,6 +71,16 @@ static const uint32_t DEBOUNCE_MS = 80;    // so lange muss gedrückt bleiben
 // Wort weg, das sie gerade sagen wollte, und sie muss erst wiederfinden, wo
 // sie ist - das ist ärgerlicher als ein falsch getroffenes Wort.
 static const uint32_t SET_HOLD_MS = 400;
+// Ins Menü kommt man nur über zwei Tasten gleichzeitig, fünf Sekunden lang.
+// Die beiden liegen diagonal am weitesten auseinander - mit einer Kinderhand
+// kaum zu treffen. Während des Haltens läuft ein Countdown; wer loslässt,
+// bricht ab.
+static const uint32_t MENU_HOLD_MS = 5000;
+static const uint8_t MENU_KEY_A = SET_BUTTON;   // Set-Taste
+static const uint8_t MENU_KEY_B = 1;            // Taste 2, diagonal gegenüber
+// Ohne Eingabe zurück in den Normalbetrieb. Ein Gerät, das im Menü
+// hängenbleibt, spricht nicht mehr - das darf nicht passieren.
+static const uint32_t MENU_IDLE_MS = 30000;
 static const uint32_t SAMPLE_RATE = 16000; // wie build.py die WAVs schreibt
 static const size_t AUDIO_CHUNK = 1024;
 
@@ -130,6 +140,12 @@ static ButtonState button[DISPLAY_COUNT];
 static uint32_t lastActivity = 0;
 static bool filesystemReady = false;
 static bool contentReady = true;
+
+enum Mode { MODE_NORMAL, MODE_MENU };
+static Mode mode = MODE_NORMAL;
+static uint32_t menuSince = 0;
+static uint32_t comboSince = 0;   // seit wann beide Menütasten gehalten werden
+static int8_t countdownShown = -1;
 
 // --- Inhalte laden -----------------------------------------------------------
 
@@ -290,6 +306,79 @@ static void drawCurrentSet() {
   Serial.printf("Set %u: %s\n", (unsigned)(rtcCurrentSet + 1), e.name);
 }
 
+// --- Menü --------------------------------------------------------------------
+//
+// Absichtlich ohne Dateien: Text und Rahmen werden gezeichnet. So funktioniert
+// das Menü auch auf einem frisch geflashten Gerät, auf dem noch gar nichts
+// liegt - und genau dort braucht man es zuerst.
+//
+// Grauer Rahmen statt Set-Farbe: man sieht auf einen Blick, dass das hier
+// nicht der Talker ist.
+static const uint16_t MENU_FRAME = 0x8410;   // mittleres Grau in RGB565
+
+static void drawMenuKey(Panel *tft, const char *zeile1, const char *zeile2) {
+  tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, MENU_FRAME);
+  tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, MENU_FRAME);
+  tft->fillRect(0, TILE_BORDER, TILE_BORDER, TILE_H, MENU_FRAME);
+  tft->fillRect(DISPLAY_W - TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_H,
+                MENU_FRAME);
+  tft->fillRect(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H, ST77XX_BLACK);
+  if (!zeile1 && !zeile2) return;   // unbelegte Taste bleibt leer
+
+  tft->setTextColor(ST77XX_WHITE);
+  tft->setTextSize(2);
+  const int16_t zeichen = 12, hoehe = 16;
+  for (uint8_t i = 0; i < 2; i++) {
+    const char *text = i == 0 ? zeile1 : zeile2;
+    if (!text || !*text) continue;
+    int16_t breite = (int16_t)strlen(text) * zeichen;
+    tft->setCursor((DISPLAY_W - breite) / 2,
+                   DISPLAY_H / 2 - hoehe + i * (hoehe + 4));
+    tft->print(text);
+  }
+}
+
+// Nur zeigen, was es wirklich gibt. Einträge kommen dazu, wenn die Funktion
+// dahinter existiert - nicht vorher.
+static void drawMenu() {
+  drawMenuKey(display[0], "Info", nullptr);
+  drawMenuKey(display[1], nullptr, nullptr);
+  drawMenuKey(display[2], nullptr, nullptr);
+  drawMenuKey(display[3], nullptr, nullptr);
+  drawMenuKey(display[SET_BUTTON], "zurück", nullptr);
+}
+
+static void drawInfo() {
+  char zeile[24];
+  drawMenuKey(display[0], "Sets", nullptr);
+  snprintf(zeile, sizeof(zeile), "%u", (unsigned)(contentReady ? layout.setCount : 0));
+  drawMenuKey(display[1], zeile, nullptr);
+
+  drawMenuKey(display[2], "Datei-", "system");
+  drawMenuKey(display[3], filesystemReady ? "da" : "fehlt", nullptr);
+  drawMenuKey(display[SET_BUTTON], "zurück", nullptr);
+
+  if (filesystemReady) {
+    Serial.printf("LittleFS: %u von %u Byte belegt\n",
+                  (unsigned)LittleFS.usedBytes(), (unsigned)LittleFS.totalBytes());
+  }
+}
+
+static void enterMenu() {
+  mode = MODE_MENU;
+  menuSince = millis();
+  countdownShown = -1;
+  Serial.println("Menü geöffnet");
+  drawMenu();
+}
+
+static void leaveMenu() {
+  mode = MODE_NORMAL;
+  countdownShown = -1;
+  Serial.println("Menü verlassen");
+  drawCurrentSet();
+}
+
 static void backlight(bool on) {
   digitalWrite(PIN_BL, on ? HIGH : LOW);
 }
@@ -395,6 +484,38 @@ static uint32_t holdTime(uint8_t index) {
   return index == SET_BUTTON ? SET_HOLD_MS : DEBOUNCE_MS;
 }
 
+// Beide Menütasten gehalten? Zeigt den Countdown und meldet, wenn die fünf
+// Sekunden voll sind. Loslassen bricht ab, ohne dass etwas passiert.
+static bool menuComboReady() {
+  const uint32_t jetzt = millis();
+  if (!(isDown(MENU_KEY_A) && isDown(MENU_KEY_B))) {
+    if (comboSince != 0 && countdownShown >= 0) {
+      // Abgebrochen: zurück zu dem, was vorher zu sehen war.
+      countdownShown = -1;
+      if (mode == MODE_MENU) drawMenu(); else drawCurrentSet();
+    }
+    comboSince = 0;
+    return false;
+  }
+  if (comboSince == 0) comboSince = jetzt;
+  const uint32_t gehalten = jetzt - comboSince;
+  if (gehalten >= MENU_HOLD_MS) {
+    comboSince = 0;
+    countdownShown = -1;
+    return true;
+  }
+  const int8_t rest = (int8_t)((MENU_HOLD_MS - gehalten) / 1000) + 1;
+  if (rest != countdownShown) {
+    countdownShown = rest;
+    char zahl[4];
+    snprintf(zahl, sizeof(zahl), "%d", rest);
+    for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+      drawMenuKey(display[i], "Menü", zahl);
+    }
+  }
+  return false;
+}
+
 // Liefert den Index einer frisch erkannten Taste oder -1.
 static int8_t pollButtons() {
   const uint32_t now = millis();
@@ -485,7 +606,40 @@ void setup() {
 }
 
 void loop() {
+  // Die Geste hat Vorrang - sonst würde das Loslassen als Tastendruck gelten.
+  if (menuComboReady()) {
+    if (mode == MODE_MENU) leaveMenu(); else enterMenu();
+    // Beide Tasten werden ja noch gehalten. Ohne das Warten würde die
+    // Set-Taste 400 ms später gleich wieder umschalten.
+    waitForRelease();
+    lastActivity = millis();
+    menuSince = millis();
+    return;
+  }
+  if (comboSince != 0) {
+    lastActivity = millis();
+    delay(5);
+    return;   // während des Countdowns nichts anderes auslösen
+  }
+
   const int8_t pressed = pollButtons();
+
+  if (mode == MODE_MENU) {
+    if (pressed == SET_BUTTON) {
+      leaveMenu();
+    } else if (pressed == 0) {
+      drawInfo();
+      menuSince = millis();
+    }
+    if (pressed >= 0) {
+      lastActivity = millis();
+      menuSince = millis();
+    }
+    // Nicht im Menü hängenbleiben: nach einer Weile ohne Eingabe zurück.
+    if (millis() - menuSince >= MENU_IDLE_MS) leaveMenu();
+    delay(5);
+    return;
+  }
 
   if (pressed >= 0) {
     lastActivity = millis();
