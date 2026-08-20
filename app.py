@@ -25,8 +25,8 @@ import build
 import tts
 
 ROOT = Path(__file__).resolve().parent
-SYMBOLS_DIR = ROOT / "symbols"
-THUMB_CACHE = ROOT / "cache" / "thumbs"
+SYMBOLS_DIR = build.SYMBOLS_DIR
+THUMB_CACHE = build.CONTENT / "cache" / "thumbs"
 PORT = 8771
 HOST = "127.0.0.1"   # Voreinstellung: nur dieser Rechner
 MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB reichen für jedes Symbol
@@ -1062,7 +1062,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=PORT)
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
-    SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
+    build.ensure_content()
     server = Server((args.host, args.port), Handler)
     if args.host in ("0.0.0.0", "::"):
         print(f"mitreden läuft auf Port {args.port}", flush=True)

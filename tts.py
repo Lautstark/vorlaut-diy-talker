@@ -24,7 +24,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-CACHE_DIR = ROOT / "cache" / "tts"
+# Gleiche Wurzel wie in build.py - dort steht die Begründung.
+CONTENT = Path(os.environ.get("MITREDEN_CONTENT") or ROOT / "content").resolve()
+CACHE_DIR = CONTENT / "cache" / "tts"
 INDEX_FILE = CACHE_DIR / "index.json"
 ENV_FILE = ROOT / ".env"
 

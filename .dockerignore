@@ -2,7 +2,7 @@
 .venv/
 __pycache__/
 *.pyc
-cache/thumbs/
+content/
 firmware/mitreden/data/
 firmware/mitreden/littlefs.bin
 

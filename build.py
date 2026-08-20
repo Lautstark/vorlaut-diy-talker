@@ -14,6 +14,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -22,11 +23,18 @@ from pathlib import Path
 import tts
 
 ROOT = Path(__file__).resolve().parent
-LAYOUT_FILE = ROOT / "layout.json"
-SYMBOLS_DIR = ROOT / "symbols"
+
+# Alles, was dir gehört - Layout, Symbole, gesprochene Sätze - liegt unter
+# content/ und ist bewusst nicht versioniert. Der Ort lässt sich verlegen,
+# etwa auf eine Netzfreigabe:  MITREDEN_CONTENT=/volume1/talker
+CONTENT = Path(os.environ.get("MITREDEN_CONTENT") or ROOT / "content").resolve()
+EXAMPLE = ROOT / "example"
+
+LAYOUT_FILE = CONTENT / "layout.json"
+SYMBOLS_DIR = CONTENT / "symbols"
 # Arduino verlangt, dass der Sketch-Ordner so heißt wie die .ino-Datei, und
 # der LittleFS-Uploader sucht data/ direkt daneben. Deshalb diese Ebene.
-BACKUP_DIR = ROOT / "cache" / "layout-backups"
+BACKUP_DIR = CONTENT / "cache" / "layout-backups"
 KEEP_BACKUPS = 60
 SKETCH_DIR = ROOT / "firmware" / "mitreden"
 DATA_DIR = SKETCH_DIR / "data"
@@ -37,7 +45,7 @@ SLOTS_PER_SET = 4
 IMG_SIZE = 128           # Displayfläche
 BORDER = 6               # Rahmenbreite, wird von der Firmware gezeichnet
 TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, was tatsächlich als Datei anfällt
-TILE_CACHE = ROOT / "cache" / "tiles"
+TILE_CACHE = CONTENT / "cache" / "tiles"
 TILE_INDEX = TILE_CACHE / "index.json"
 TILE_PIPELINE = 1        # hochzählen, wenn sich das Rendern ändert
 DEFAULT_COLOR = "#3B5BDB"
@@ -84,6 +92,30 @@ def hex_to_rgb(value: str) -> tuple[int, int, int]:
 
 def rgb_to_565(r: int, g: int, b: int) -> int:
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+
+
+def ensure_content() -> None:
+    """Legt content/ an und füllt es beim ersten Mal aus example/.
+
+    So zeigt ein frisch geklontes Projekt sofort etwas an, ohne dass jemand
+    von Hand Dateien anlegen muss.
+    """
+    CONTENT.mkdir(parents=True, exist_ok=True)
+    SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
+    if LAYOUT_FILE.exists():
+        return
+    beispiel = EXAMPLE / "layout.json"
+    if beispiel.exists():
+        shutil.copyfile(beispiel, LAYOUT_FILE)
+        for datei in sorted((EXAMPLE / "symbols").glob("*")):
+            ziel = SYMBOLS_DIR / datei.name
+            if not ziel.exists():
+                shutil.copyfile(datei, ziel)
+        print(f"content/ mit den Beispielen aus example/ gefüllt.", flush=True)
+    else:
+        LAYOUT_FILE.write_text(
+            json.dumps({"sleep_timeout_seconds": DEFAULT_SLEEP_TIMEOUT, "sets": []},
+                       indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def load_layout(path: Path = LAYOUT_FILE) -> dict:
@@ -381,6 +413,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         log.append(message)
         print(message, flush=True)
 
+    ensure_content()
     layout = load_layout()
     sets = layout["sets"]
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -555,6 +588,7 @@ def build_fs_image() -> list[str]:
 def prune_cache() -> list[str]:
     """Entfernt Sprachdateien und Kacheln, die in layout.json nicht mehr vorkommen."""
     log: list[str] = []
+    ensure_content()
     layout = load_layout()
 
     # Kacheln

@@ -3,17 +3,15 @@
 .env.*
 !.env.example
 
-# generierte Firmware-Daten
+# Deine Inhalte: Layout, Symbole, gesprochene Sätze. Bewusst nicht
+# versioniert - hier stehen Namen, Fotos und Sätze deines Kindes drin.
+# Beim ersten Start wird der Ordner aus example/ befüllt.
+content/
+
+# Was die Firmware bekommt, entsteht in Sekunden neu aus content/
 firmware/mitreden/data/
 firmware/mitreden/littlefs.bin
-
-# Cache: Vorschaubilder und Sicherungskopien bleiben lokal ...
-cache/*
-# ... die gesprochenen Saetze kommen mit ins Repo. Sie kosten Geld und einen
-# Azure-Key, um sie wiederherzustellen - anders als die Bilder, die build.py
-# jederzeit gratis neu erzeugt.
-!cache/tts/
-!cache/tiles/
+firmware/mitreden/layout.h
 
 # Python
 .venv/

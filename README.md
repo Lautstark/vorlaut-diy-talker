@@ -5,7 +5,7 @@ Displays sind. Vier davon sprechen, die fünfte schaltet zwischen den Sets um.
 Gedacht als Ergänzung zum großen Talker (MetaTalk 3x5 auf dem iPad), nicht
 als Ersatz.
 
-Alles, was auf dem Gerät landet, kommt aus `layout.json`. Bearbeitet wird das
+Alles, was auf dem Gerät landet, kommt aus `content/layout.json`. Bearbeitet wird das
 über eine kleine Weboberfläche, gebaut wird mit `build.py`.
 
 ---
@@ -49,7 +49,7 @@ docker compose up -d
 ```
 
 Das Abbild bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
-selbst wird hineingereicht - `layout.json`, `symbols/` und `cache/` bleiben
+selbst wird hineingereicht - `content/layout.json`, `content/symbols/` und `content/cache/` bleiben
 damit auf dem NAS und laufen in dessen Sicherung mit.
 
 Geprüft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
@@ -138,10 +138,10 @@ oben die Reiter für die Sets, darunter die Set-Kachel und die vier
 Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
 
 - **Auf ein Symbol klicken** öffnet die ARASAAC-Suche. Ein Klick auf ein
-  Ergebnis lädt das PNG nach `symbols/` und trägt es in `layout.json` ein.
+  Ergebnis lädt das PNG nach `content/symbols/` und trägt es in `content/layout.json` ein.
   Im selben Dialog liegt **Eigenes Bild** - damit lässt sich ein Foto oder
   eine eigene Zeichnung hochladen. Alles, was Pillow lesen kann (PNG, JPG,
-  HEIC-Export, GIF ...), wird nach PNG gewandelt und in `symbols/` abgelegt.
+  HEIC-Export, GIF ...), wird nach PNG gewandelt und in `content/symbols/` abgelegt.
   Bestehende Dateien werden nie überschrieben, gleiche Namen bekommen `-2`
   angehängt. Höchstens 10 MB pro Bild.
 
@@ -154,7 +154,7 @@ Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
   Große Bilder werden beim Annehmen auf **500 Pixel lange Kante** verkleinert
   (`SYMBOL_MAX_PX` in `app.py`) - dasselbe Maß, in dem ARASAAC seine
   Piktogramme liefert. Ein Handyfoto mit 3024x4032 wiegt danach ein paar
-  Kilobyte statt mehrerer Megabyte. Das ist Absicht: `symbols/` liegt im Repo,
+  Kilobyte statt mehrerer Megabyte. Das ist Absicht: `content/symbols/` liegt im Repo,
   und das Gerät rendert ohnehin nur 116x116 Pixel.
 - **Textfeld**: was Gisela sagt. Das darf vom Symbolwort abweichen - das
   Symbol zeigt "anhalten", gesagt wird "Stopp".
@@ -170,7 +170,7 @@ durchschaltet.
 Umsortieren kostet nichts: die Sprachdateien hängen im Cache am Text, nicht an
 der Position. Es wird also nichts neu gesprochen.
 
-Änderungen werden automatisch in `layout.json` gespeichert.
+Änderungen werden automatisch in `content/layout.json` gespeichert.
 
 ---
 
@@ -254,39 +254,42 @@ Nützliche Schalter:
 
 ## Was im Repo liegt und was nicht
 
-Faustregel: was Geld oder einen Schlüssel kostet, kommt mit. Was sich gratis
-in Sekunden neu erzeugen lässt, bleibt draußen.
+Im Repo liegt **nur Code und Dokumentation**. Alles, was ein Kind betrifft -
+Layout, Symbole, Fotos, gesprochene Sätze - liegt unter `content/` und ist
+bewusst nicht versioniert.
 
-| | im Repo | warum |
-|---|---|---|
-| `layout.json`, `symbols/` | ja | deine Arbeit |
-| `cache/tts/` | **ja** | gesprochene Sätze kosten Azure-Guthaben und den Key |
-| `cache/tiles/` | ja | gerenderte Symbolflächen, Name = Prüfsumme |
-| `firmware/mitreden/layout.h` | ja | winzig, und Änderungen sind im Diff lesbar |
-| `firmware/mitreden/data/` | nein | 800 KB Bilder, gratis aus `symbols/` neu gebaut |
-| `cache/thumbs/`, `cache/layout-backups/` | nein | rein örtlich |
-| `.env` | nein | der Schlüssel |
+```
+content/                 deine Inhalte, gitignored
+├── layout.json
+├── symbols/
+└── cache/
+    ├── tts/             gesprochene Sätze
+    ├── tiles/           gerenderte Symbolflächen
+    ├── thumbs/          Suchvorschauen
+    └── layout-backups/  die letzten 60 Stände von layout.json
 
-Dadurch ist ein frischer Klon **ohne Azure-Zugang vollständig baubar**, solange
-sich die Texte nicht geändert haben: `build.py` nimmt die Sätze aus
-`cache/tts/`, statt sie neu sprechen zu lassen. Erst ein *neuer* Text braucht
-wieder den Key - und sagt das dann auch deutlich.
-
-Die Dateinamen im Cache sind Prüfsummen und damit unlesbar. Deshalb fuehrt
-`tts.py` daneben `cache/tts/index.json`, das jede Prüfsumme ihrem Text
-zuordnet. Damit ist auch nach Monaten nachvollziehbar, was da eigentlich liegt.
-
-Aufräumen, wenn der Cache zu viel Altes angesammelt hat:
-
-```bash
-.venv/bin/python build.py --prune-cache
+example/                 neutrale Beispielinhalte, im Repo
+├── layout.json
+└── symbols/
 ```
 
-Das löscht alle Sprachdateien, die in `layout.json` nicht mehr vorkommen.
-Vorsicht: darunter ist auch alles, was du früher einmal eingetragen und
-später wieder entfernt hast.
+Beim ersten Start wird `content/` aus `example/` gefüllt. Ein frisch
+geklontes Projekt zeigt also sofort ein Set mit vier Tasten an, ohne dass
+jemand etwas anlegen muss.
 
----
+Der Ort lässt sich verlegen, etwa auf eine Netzfreigabe:
+
+```bash
+MITREDEN_CONTENT=/volume1/talker/inhalte .venv/bin/python app.py
+```
+
+**Sichere `content/` selbst.** Da steckt deine ganze Arbeit drin, und Git
+fängt sie absichtlich nicht mehr auf. Auf einem NAS läuft sie in dessen
+Sicherung mit; auf einem Rechner gehört sie in dein übliches Backup.
+
+Nicht im Repo sind ausserdem `firmware/mitreden/data/`, `layout.h` und das
+LittleFS-Abbild - die entstehen in Sekunden neu aus `content/`. Und `.env`
+mit dem Azure-Schlüssel.
 
 ## Sprachausgabe
 
@@ -302,7 +305,7 @@ Der Key kommt aus der Umgebungsvariablen `AZURE_SPEECH_KEY`, ersatzweise aus
 `.env`. Eine gesetzte Umgebungsvariable gewinnt.
 
 Gerendert wird nur, was sich geändert hat: über Text und Stimm-Konfiguration
-wird ein Fingerprint gebildet, fertige Dateien liegen unter `cache/tts/`.
+wird ein Fingerprint gebildet, fertige Dateien liegen unter `content/cache/tts/`.
 Wer die Stimme oder die ffmpeg-Kette ändert, ändert damit auch den
 Fingerprint - dann wird automatisch alles neu gerendert.
 
@@ -530,8 +533,8 @@ Die Piktogramme stammen von **[ARASAAC](https://arasaac.org)**.
 > Lizenz: **CC BY-NC-SA**.
 
 Die Suche in der Weboberfläche nutzt die offene ARASAAC-API ohne
-Anmeldung. Heruntergeladene Symbole liegen in `symbols/` und liegen im Repo
-mit; welches Symbol woher kommt, steht in `symbols/QUELLEN.md`.
+Anmeldung. Heruntergeladene Symbole liegen in `content/symbols/` und liegen im Repo
+mit; welches Symbol woher kommt, steht in `content/symbols/QUELLEN.md`.
 
 ---
 
@@ -539,20 +542,12 @@ mit; welches Symbol woher kommt, steht in `symbols/QUELLEN.md`.
 
 ```
 mitreden/
-├── layout.json          Quelle der Wahrheit
-├── symbols/             heruntergeladene PNGs
-├── tts.py               Azure TTS
-├── app.py               Weboberflaeche, localhost:8771
+├── app.py               Weboberfläche, localhost:8771
 ├── build.py             erzeugt data/ und layout.h im Sketchordner
-├── firmware/
-│   └── mitreden/        Arduino-Sketchordner
-│       ├── mitreden.ino
-│       ├── layout.h     generiert
-│       └── data/        generiert, gitignored
-├── .env                 AZURE_SPEECH_KEY, gitignored
-└── cache/
-    ├── tts/             gesprochene Saetze, im Repo
-    ├── tiles/           gerenderte Symbolflaechen, im Repo
-    ├── thumbs/          Suchvorschauen, gitignored
-    └── layout-backups/  letzte 60 Staende von layout.json, gitignored
+├── tts.py               Sprachausgabe
+├── example/             neutrale Beispielinhalte
+├── content/             deine Inhalte, gitignored
+├── firmware/mitreden/   Arduino-Sketch, data/ und layout.h generiert
+├── Dockerfile           für den Betrieb auf einem NAS
+└── .env                 AZURE_SPEECH_KEY, gitignored
 ```

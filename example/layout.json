@@ -1,0 +1,16 @@
+{
+  "sleep_timeout_seconds": 600,
+  "sets": [
+    {
+      "name": "Grundset",
+      "symbol": "start.png",
+      "color": "#3B5BDB",
+      "slots": [
+        { "text": "Ja!", "symbol": "ja.png" },
+        { "text": "Nein!", "symbol": "nein.png" },
+        { "text": "Stopp", "symbol": "stopp.png" },
+        { "text": "Hilf mir", "symbol": "hilfe.png" }
+      ]
+    }
+  ]
+}
