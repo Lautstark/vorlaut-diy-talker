@@ -13,6 +13,9 @@ firmware/mitreden/build/
 
 # Was die Firmware bekommt, entsteht in Sekunden neu aus content/
 firmware/mitreden/data/
+# layout.h wird nicht mehr erzeugt, kann aber aus alten Ständen herumliegen -
+# und enthielt die Sätze im Klartext.
+firmware/mitreden/layout.h
 firmware/mitreden/littlefs.bin
 
 
