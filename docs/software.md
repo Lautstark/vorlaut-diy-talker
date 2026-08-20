@@ -52,12 +52,15 @@ Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
 - **▶** hört den Satz vorher ab (geht über Azure, braucht also den Key).
 - **Bauen** oben rechts ruft `build.py` und zeigt das Protokoll an.
 
-**Gerätevorschau:** der Schalter oben zeigt die Kacheln so, wie das Display
-sie wirklich anzeigt — auf 116x116 verkleinert, auf RGB565 gerundet, mit dem
-Rahmen, den die Firmware zeichnet. Darunter erscheint jede Taste zusätzlich
-in **Originalgröße**: die sichtbare Fläche der ScreenKeys ist nur
-15,21 x 15,21 mm, und ein detailreiches Piktogramm kann darauf unlesbar
-werden. Besser vor dem Aussuchen sehen als hinterher.
+**Originalgröße:** der Schaltknopf oben zeigt unter jeder Kachel zusätzlich
+an, wie es auf dem Gerät ankommt — auf 116x116 verkleinert, auf RGB565
+gerundet, mit dem Rahmen den die Firmware zeichnet, und in der Größe der
+tatsächlich sichtbaren Fläche von **15,21 x 15,21 mm**. Ein detailreiches
+Piktogramm kann darauf unlesbar werden; besser vor dem Aussuchen sehen als
+hinterher.
+
+Die große Kachel bleibt dabei das Quellbild in voller Schärfe — sie ist zum
+Aussuchen da.
 
 **Umsortieren per Ziehen:** jede Sprechtaste hat oben rechts einen Griff (⠿).
 Zieht man ihn auf eine andere Taste, **tauschen** die beiden die Plätze - im

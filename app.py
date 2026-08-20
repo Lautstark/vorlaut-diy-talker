@@ -478,12 +478,12 @@ PAGE = r"""<!doctype html>
   .tab[draggable=true] { cursor: grab; }
 
   .status { color: var(--muted); font-size: 13px; }
-  .schalter {
-    display: flex; align-items: center; gap: 6px; color: var(--muted);
-    font-size: 13px; cursor: pointer; white-space: nowrap;
+  /* Eingeschaltet sichtbar, aber anders als der blaue Bauen-Knopf: der löst
+     etwas aus, dieser hält einen Zustand. */
+  button[aria-pressed="true"] {
+    border-color: var(--accent); color: var(--accent); background: var(--panel-2);
   }
-  header .schalter { margin-left: auto; }
-  header .status { margin-left: 0; }
+  header .status { margin-left: auto; }
   /* Originalgröße: 15,21 mm sind auf dem Gerät sichtbar. Auf dem Bildschirm
      ungefähr lebensgroß, damit man beurteilen kann, ob ein Symbol darauf
      überhaupt erkennbar ist. */
@@ -559,9 +559,10 @@ PAGE = r"""<!doctype html>
 <header>
   <h1>mitreden</h1>
   <span class="status" id="status"></span>
-  <label class="schalter" title="Zeigt, was das Display wirklich anzeigt">
-    <input type="checkbox" id="previewToggle"> Gerätevorschau
-  </label>
+  <button id="previewToggle" aria-pressed="false"
+          title="Zeigt zusätzlich, wie groß und wie grob es auf dem Display ankommt">
+    Originalgröße
+  </button>
   <button id="saveBtn">Speichern</button>
   <button class="primary" id="buildBtn">Bauen</button>
 </header>
@@ -720,8 +721,9 @@ $("overwriteBtn").onclick = async () => {
 };
 $("reloadBtn").onclick = () => load();
 
-$("previewToggle").onchange = () => {
-  vorschau = $("previewToggle").checked;
+$("previewToggle").onclick = () => {
+  vorschau = !vorschau;
+  $("previewToggle").setAttribute("aria-pressed", vorschau ? "true" : "false");
   render();
 };
 
@@ -753,22 +755,25 @@ function emptySet(index) {
   };
 }
 
-function thumb(symbol, onClick, farbe) {
+// Die sichtbare Fläche der ScreenKeys ist nur 15,21 mm. Ob ein Piktogramm
+// darauf erkennbar ist, sieht man erst in dieser Größe - und zwar so, wie das
+// Display es zeigt: auf 116x116 verkleinert und auf RGB565 gerundet.
+//
+// Die große Kachel darüber bleibt bewusst das Quellbild. Sie ist zum
+// Aussuchen da und soll scharf sein.
+function echtgross(symbol, farbe) {
+  const zeile = document.createElement("div");
+  zeile.className = "echtgross";
+  const bild = document.createElement("img");
+  bild.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
+           + "&color=" + encodeURIComponent(farbe || "#000000");
+  zeile.append(bild, document.createTextNode("so groß auf dem Gerät"));
+  return zeile;
+}
+
+function thumb(symbol, onClick) {
   const box = document.createElement("div");
   box.className = "thumb";
-  if (vorschau) {
-    // Was das Display zeigt: verkleinert, auf RGB565 gerundet, mit Rahmen.
-    const image = document.createElement("img");
-    image.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
-              + "&color=" + encodeURIComponent(farbe || "#000000")
-              + "&v=" + Date.now();
-    image.style.imageRendering = "pixelated";
-    image.style.padding = "0";
-    box.style.background = "transparent";
-    box.appendChild(image);
-    box.onclick = onClick;
-    return box;
-  }
   if (symbol) {
     const image = document.createElement("img");
     image.src = "/symbols/" + encodeURIComponent(symbol) + "?v=" + Date.now();
@@ -853,8 +858,9 @@ function render() {
   setLabel.className = "slotNr";
   setLabel.textContent = "SET-TASTE";
   setTile.appendChild(setLabel);
-  setTile.appendChild(thumb(entry.symbol,
-    () => openPicker({ kind: "set" }, entry.name), color));
+  setTile.appendChild(thumb(entry.symbol, () => openPicker({ kind: "set" }, entry.name)));
+
+  if (vorschau) setTile.appendChild(echtgross(entry.symbol, color));
 
   const nameInput = document.createElement("input");
   nameInput.type = "text";
@@ -943,8 +949,7 @@ function render() {
       render();
     };
 
-    tile.appendChild(thumb(slot.symbol,
-      () => openPicker({ kind: "slot", index }, slot.text), color));
+    tile.appendChild(thumb(slot.symbol, () => openPicker({ kind: "slot", index }, slot.text)));
 
     const row = document.createElement("div");
     row.className = "row";
@@ -961,15 +966,7 @@ function render() {
     row.append(textInput, playBtn);
     tile.appendChild(row);
 
-    if (vorschau) {
-      const echt = document.createElement("div");
-      echt.className = "echtgross";
-      const bild = document.createElement("img");
-      bild.src = "/api/preview?symbol=" + encodeURIComponent(slot.symbol || "")
-               + "&color=" + encodeURIComponent(color);
-      echt.append(bild, document.createTextNode("so groß auf dem Gerät"));
-      tile.appendChild(echt);
-    }
+    if (vorschau) tile.appendChild(echtgross(slot.symbol, color));
     device.appendChild(tile);
   });
 }
