@@ -8,6 +8,9 @@
 # Beim ersten Start wird der Ordner aus example/ befüllt.
 content/
 
+# arduino-cli legt sein Zwischenverzeichnis im Sketchordner an
+firmware/mitreden/build/
+
 # Was die Firmware bekommt, entsteht in Sekunden neu aus content/
 firmware/mitreden/data/
 firmware/mitreden/littlefs.bin

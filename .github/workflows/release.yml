@@ -1,0 +1,81 @@
+name: Veröffentlichung
+
+# Ein Artefakt am Workflow-Lauf läuft nach 90 Tagen ab und braucht eine
+# GitHub-Anmeldung zum Herunterladen. Für ein Projekt zum Nachbauen ist das
+# nichts. Eine Veröffentlichung bleibt liegen und lässt sich mit einem
+# gewöhnlichen Link ohne Konto herunterladen.
+#
+#   git tag v0.1  &&  git push origin v0.1
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  veroeffentlichen:
+    name: Firmware veröffentlichen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dieselbe Board-Einstellung wie in der CI - sie steht nur an einer
+      # Stelle, siehe .github/actions/firmware.
+      - uses: ./.github/actions/firmware
+
+      - name: Veröffentlichung anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          kern=$(arduino-cli core list | awk '/^esp32:esp32/ {print $2}')
+          # Auf den Stand des Tags zeigen, nicht auf main: eine
+          # Veröffentlichung soll auch in einem Jahr noch das beschreiben,
+          # was in ihr steckt.
+          doku="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}"
+          summen=$(cd build/mitreden && sha256sum mitreden.ino.merged.bin \
+            mitreden.ino.bin)
+
+          cat > hinweise.md <<HINWEISE
+          > **Diese Firmware ist noch nie auf echter Hardware gelaufen.**
+          > Sie übersetzt sauber, mehr ist bisher nicht geprüft. Vor dem ersten
+          > Flashen die Pinbelegung gegen die eigenen Boards halten und die
+          > [Inbetriebnahme in Stufen](${doku}/docs/inbetriebnahme.md) durchgehen -
+          > sie findet Verdrahtungsfehler einzeln statt alle auf einmal.
+
+          ## Aufspielen
+
+          Es braucht nur \`esptool\`, keinen Arduino-Core und keine
+          Bibliotheken. \`mitreden.ino.merged.bin\` enthält Bootloader,
+          Partitionstabelle und Programm und wird an Adresse 0 geschrieben:
+
+          \`\`\`bash
+          esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\
+            write-flash 0x0 mitreden.ino.merged.bin
+          \`\`\`
+
+          Den Port findet \`arduino-cli board list\`. Meldet esptool, dass es
+          das Board nicht findet: **BOOT** halten, kurz **RESET** tippen,
+          **BOOT** loslassen.
+
+          Das ist nur das Programm. Bilder und Töne sind persönlich und liegen
+          nicht im Repo - die entstehen mit \`build.py --fs-image\` aus den
+          eigenen Inhalten und werden getrennt geschrieben, siehe
+          [docs/firmware.md](${doku}/docs/firmware.md).
+
+          ## Gebaut aus
+
+          Commit \`${GITHUB_SHA}\`, ESP32-Core \`${kern}\`.
+
+          \`\`\`
+          ${summen}
+          \`\`\`
+          HINWEISE
+
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME - Firmware, auf Hardware ungetestet" \
+            --notes-file hinweise.md \
+            --prerelease \
+            build/mitreden/mitreden.ino.merged.bin \
+            build/mitreden/mitreden.ino.bin
