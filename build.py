@@ -39,6 +39,10 @@ SYMBOLS_DIR = CONTENT / "symbols"
 # der LittleFS-Uploader sucht data/ direkt daneben. Deshalb diese Ebene.
 BACKUP_DIR = CONTENT / "cache" / "layout-backups"
 KEEP_BACKUPS = 60
+# Die Oberflaeche speichert kurz nach der letzten Eingabe, beim Tippen also
+# laufend. Ohne Mindestabstand fuellen sich die 60 Plaetze mit Zwischenstaenden
+# einzelner Woerter, und der Stand von gestern faellt hinten heraus.
+BACKUP_MIN_INTERVAL = 5 * 60
 SKETCH_DIR = ROOT / "firmware" / "vorlaut"
 DATA_DIR = SKETCH_DIR / "data"
 
@@ -217,10 +221,27 @@ def backup_layout(path: Path = LAYOUT_FILE) -> None:
 
     Billige Versicherung: die Oberfläche speichert immer die ganze Datei, und
     ein Fehlgriff ist damit sonst endgültig.
+
+    Nicht bei jedem Speichern: unverändert braucht es keine Sicherung, und
+    kurz nach der letzten ist der ältere Stand der wertvollere - ihn durch
+    einen Zwischenstand von vor zehn Sekunden zu verdrängen hilft niemandem.
     """
     if not path.exists():
         return
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+    previous = sorted(BACKUP_DIR.glob("layout-*.json"))
+    if previous:
+        latest = previous[-1]
+        try:
+            if latest.read_bytes() == path.read_bytes():
+                return
+            age = datetime.datetime.now().timestamp() - latest.stat().st_mtime
+            if age < BACKUP_MIN_INTERVAL:
+                return
+        except OSError:
+            pass   # nicht lesbar: dann lieber sichern als nicht sichern
+
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
     shutil.copyfile(path, BACKUP_DIR / f"layout-{stamp}.json")
     old_files = sorted(BACKUP_DIR.glob("layout-*.json"))

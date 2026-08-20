@@ -753,11 +753,13 @@ async function load() {
   render();
 }
 
+// Eine Sekunde nach der letzten Eingabe. Kuerzer bringt nichts - es fuehlt
+// sich nicht schneller an, erzeugt aber deutlich mehr Schreibvorgaenge.
 function saveSoon() {
   clearTimeout(saveTimer);
   unsaved = true;
   status("noch nicht gespeichert");
-  saveTimer = setTimeout(save, 400);
+  saveTimer = setTimeout(save, 1000);
 }
 
 // Bringt layout in dieselbe Form, die der Server daraus macht. Nur so lassen
