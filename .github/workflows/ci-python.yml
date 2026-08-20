@@ -1,4 +1,4 @@
-name: Python und Bauvorgang
+name: Python and build
 
 # Läuft nur, wenn dieser Job auch etwas zu prüfen hat.
 #
@@ -28,7 +28,7 @@ on:
 
 jobs:
   python:
-    name: Python und Bauvorgang
+    name: Python and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Abhängigkeiten
+      - name: Dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
@@ -44,18 +44,18 @@ jobs:
 
       # Wenn doctor hier meckert, fehlt dem Ablauf wirklich etwas - und
       # dann fehlt es einem Nachbauer genauso.
-      - name: doctor läuft durch
+      - name: doctor passes
         run: python doctor.py
 
-      - name: Module importierbar
+      - name: Modules import
         run: python -c "import app, build, tts"
 
-      - name: layout.bin gegen den Firmware-Leser prüfen
+      - name: Cross-check layout.bin against the firmware reader
         # Übersetzt den C-Code aus dem Sketch auf dem Runner und vergleicht,
         # was er liest, mit dem was build.py geschrieben hat.
         run: python tests/test_layout_format.py
 
-      - name: Bauvorgang mit den Beispielinhalten
+      - name: Build with the example content
         # Ohne Azure-Schlüssel: Bilder und layout.h entstehen, Ton nicht.
         # Prüft, dass content/ sich aus example/ füllt und alles durchläuft.
         run: |

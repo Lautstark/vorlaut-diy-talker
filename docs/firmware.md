@@ -40,7 +40,7 @@ jedem Tag ein fertiges `mitreden.ino.merged.bin`. Das ist der bequeme Weg: ein
 gewöhnlicher Link, kein GitHub-Konto nötig, und es bleibt liegen.
 
 Wer den allerneuesten Stand von `main` braucht, holt ihn aus *Actions*: der
-Workflow *Firmware übersetzen* hängt das Image als Artifact `firmware` an. Dafür
+Workflow *Firmware build* hängt das Image als Artifact `firmware` an. Dafür
 braucht es eine Anmeldung, und nach 90 Tagen ist es weg.
 
 `mitreden.ino.merged.bin` enthält Bootloader, Partition Table und Programm in

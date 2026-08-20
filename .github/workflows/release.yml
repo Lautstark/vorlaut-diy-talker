@@ -1,8 +1,8 @@
-name: Veröffentlichung
+name: Release
 
 # Ein Artefakt am Workflow-Lauf läuft nach 90 Tagen ab und braucht eine
 # GitHub-Anmeldung zum Herunterladen. Für ein Projekt zum Nachbauen ist das
-# nichts. Eine Veröffentlichung bleibt liegen und lässt sich mit einem
+# nichts. Eine Release bleibt liegen und lässt sich mit einem
 # gewöhnlichen Link ohne Konto herunterladen.
 #
 #   git tag v0.1  &&  git push origin v0.1
@@ -15,8 +15,8 @@ permissions:
   contents: write
 
 jobs:
-  veroeffentlichen:
-    name: Firmware veröffentlichen
+  release:
+    name: Publish firmware
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,13 +25,13 @@ jobs:
       # Stelle, siehe .github/actions/firmware.
       - uses: ./.github/actions/firmware
 
-      - name: Veröffentlichung anlegen
+      - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           kern=$(arduino-cli core list | awk '/^esp32:esp32/ {print $2}')
           # Auf den Stand des Tags zeigen, nicht auf main: eine
-          # Veröffentlichung soll auch in einem Jahr noch das beschreiben,
+          # Release soll auch in einem Jahr noch das beschreiben,
           # was in ihr steckt.
           doku="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}"
           summen=$(cd build/mitreden && sha256sum mitreden.ino.merged.bin \

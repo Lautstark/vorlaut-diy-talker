@@ -49,17 +49,17 @@ def load_env_file(path: Path = ENV_FILE) -> dict[str, str]:
     return values
 
 
-def einstellung(name: str, standard: str) -> str:
+def setting(name: str, standard: str) -> str:
     """Wert aus der Umgebung, sonst aus .env, sonst der Standard.
 
     Eine gesetzte Umgebungsvariable gewinnt - so lässt sich für einen
     einzelnen Lauf etwas anderes ausprobieren, ohne die Datei anzufassen.
     """
-    wert = os.environ.get(name, "").strip()
-    if wert:
-        return wert
-    wert = load_env_file().get(name, "").strip()
-    return wert or standard
+    value = os.environ.get(name, "").strip()
+    if value:
+        return value
+    value = load_env_file().get(name, "").strip()
+    return value or standard
 
 
 # --- Stimm-Konfiguration -----------------------------------------------------
@@ -68,11 +68,11 @@ def einstellung(name: str, standard: str) -> str:
 #
 # Einstellbar über .env oder Umgebungsvariablen:
 #   AZURE_SPEECH_REGION   muss zur Region des Schlüssels passen
-#   AZURE_SPEECH_VOICE    z. B. de-DE-KatjaNeural, verfügbare mit --stimmen
+#   AZURE_SPEECH_VOICE    z. B. de-DE-KatjaNeural, verfügbare mit --voices
 #   AZURE_SPEECH_RATE     Sprechtempo, z. B. -5% oder +10%
-REGION = einstellung("AZURE_SPEECH_REGION", "germanywestcentral")
-VOICE = einstellung("AZURE_SPEECH_VOICE", "de-DE-GiselaNeural")
-RATE = einstellung("AZURE_SPEECH_RATE", "-5%")
+REGION = setting("AZURE_SPEECH_REGION", "germanywestcentral")
+VOICE = setting("AZURE_SPEECH_VOICE", "de-DE-GiselaNeural")
+RATE = setting("AZURE_SPEECH_RATE", "-5%")
 
 # Die Sprache steckt im Stimmnamen: de-DE-GiselaNeural -> de-DE
 _teile = VOICE.split("-")
@@ -236,7 +236,7 @@ def azure_synthesize(text: str) -> bytes:
 def _ffmpeg_binary() -> str:
     binary = shutil.which("ffmpeg")
     if not binary:
-        raise TTSError("ffmpeg nicht gefunden. Unter macOS: brew install ffmpeg")
+        raise TTSError("ffmpeg nicht found. Unter macOS: brew install ffmpeg")
     return binary
 
 
@@ -322,32 +322,32 @@ def list_voices() -> int:
         url, headers={"Ocp-Apim-Subscription-Key": get_speech_key()})
     try:
         with urllib.request.urlopen(request, timeout=30) as antwort:
-            stimmen = json.loads(antwort.read().decode("utf-8"))
+            voices = json.loads(antwort.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         print(f"Azure antwortet mit {exc.code}. Passen Schlüssel und Region "
               f"({REGION}) zusammen?", file=sys.stderr)
         return 1
-    sprache = LOCALE.split("-")[0]
-    passend = [v for v in stimmen if v.get("Locale", "").startswith(sprache)]
-    print(f"Region {REGION}, Sprache {sprache}: {len(passend)} Stimmen")
-    for v in sorted(passend, key=lambda x: x["ShortName"]):
-        stile = ", ".join(v.get("StyleList") or []) or "-"
-        marke = " <- eingestellt" if v["ShortName"] == VOICE else ""
-        print(f"  {v['ShortName']:32} {v.get('Gender',''):7} Stile: {stile}{marke}")
+    language = LOCALE.split("-")[0]
+    matching = [v for v in voices if v.get("Locale", "").startswith(language)]
+    print(f"Region {REGION}, Sprache {language}: {len(matching)} Stimmen")
+    for v in sorted(matching, key=lambda x: x["ShortName"]):
+        styles = ", ".join(v.get("StyleList") or []) or "-"
+        marker = " <- eingestellt" if v["ShortName"] == VOICE else ""
+        print(f"  {v['ShortName']:32} {v.get('Gender',''):7} Stile: {styles}{marker}")
     print("\nAndere wählen: AZURE_SPEECH_VOICE in .env eintragen.")
     return 0
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) >= 2 and argv[1] in ("--stimmen", "--voices"):
+    if len(argv) >= 2 and argv[1] in ("--voices", "--voices"):
         try:
             return list_voices()
         except TTSError as exc:
             print(f"Fehler: {exc}", file=sys.stderr)
             return 1
     if len(argv) < 2:
-        print("Aufruf: python3 tts.py \"Der Satz\" [ziel.wav]\n"
-              "        python3 tts.py --stimmen", file=sys.stderr)
+        print("Aufruf: python3 tts.py \"Der Satz\" [target.wav]\n"
+              "        python3 tts.py --voices", file=sys.stderr)
         return 2
     text = argv[1]
     try:

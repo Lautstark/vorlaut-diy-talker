@@ -1,4 +1,4 @@
-name: Firmware übersetzen
+name: Firmware build
 
 # Nur bei Änderungen an der Firmware selbst - der ESP32-Core braucht knapp
 # eine Minute zum Installieren, die muss eine Doku-Änderung nicht bezahlen.
@@ -17,7 +17,7 @@ on:
 
 jobs:
   firmware:
-    name: Firmware übersetzen
+    name: Firmware build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,9 +41,9 @@ jobs:
       # getrennt dazu.
       #
       # Artefakte laufen nach 90 Tagen ab und brauchen eine Anmeldung. Wer
-      # nur flashen will, nimmt besser die Veröffentlichung zum Tag - siehe
+      # nur flashen will, nimmt besser die Release zum Tag - siehe
       # release.yml.
-      - name: Firmware-Abbild sichern
+      - name: Upload firmware image
         uses: actions/upload-artifact@v4
         with:
           name: firmware

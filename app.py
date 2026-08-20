@@ -46,7 +46,7 @@ def layout_version() -> str:
     """Kennung des aktuellen Dateistands, damit ein veralteter Tab nicht
     stillschweigend die Arbeit eines anderen überschreibt."""
     if not build.LAYOUT_FILE.exists():
-        return "leer"
+        return "empty"
     return hashlib.sha256(build.LAYOUT_FILE.read_bytes()).hexdigest()[:16]
 
 
@@ -103,24 +103,24 @@ def preview_png(symbol: str, color: str) -> bytes:
     Auf 15,21 mm sichtbarer Fläche macht das einen Unterschied.
     """
     Image, _ = build._require_pillow()
-    roh = build.tile_bytes(symbol)          # 116x116, RGB565 big-endian
+    raw = build.tile_bytes(symbol)          # 116x116, RGB565 big-endian
     kante = build.TILE_SIZE
     innen = Image.new("RGB", (kante, kante))
     px = innen.load()
     for i in range(kante * kante):
-        wert = (roh[i * 2] << 8) | roh[i * 2 + 1]
-        r = (wert >> 11) << 3
-        g = ((wert >> 5) & 0x3F) << 2
-        b = (wert & 0x1F) << 3
+        value = (raw[i * 2] << 8) | raw[i * 2 + 1]
+        r = (value >> 11) << 3
+        g = ((value >> 5) & 0x3F) << 2
+        b = (value & 0x1F) << 3
         # Die unteren Bits so auffüllen, wie ein Panel es tut
         px[i % kante, i // kante] = (r | r >> 5, g | g >> 6, b | b >> 5)
 
-    kachel = Image.new("RGB", (build.IMG_SIZE, build.IMG_SIZE),
+    tile = Image.new("RGB", (build.IMG_SIZE, build.IMG_SIZE),
                        build.hex_to_rgb(color))
-    kachel.paste(innen, (build.BORDER, build.BORDER))
-    puffer = io.BytesIO()
-    kachel.save(puffer, "PNG")
-    return puffer.getvalue()
+    tile.paste(innen, (build.BORDER, build.BORDER))
+    buffer = io.BytesIO()
+    tile.save(buffer, "PNG")
+    return buffer.getvalue()
 
 
 def save_upload(data: bytes, original_name: str) -> str:
@@ -277,12 +277,12 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
-            datei = ASSETS / Path(path).name
-            if not datei.exists():
-                self._error("Symbol nicht gefunden.", 404)
+            file = ASSETS / Path(path).name
+            if not file.exists():
+                self._error("Symbol nicht found.", 404)
                 return
             art = "image/svg+xml" if path.endswith(".svg") else "image/png"
-            self._send(200, datei.read_bytes(), art)
+            self._send(200, file.read_bytes(), art)
             return
 
         if path == "/manifest.webmanifest":
@@ -310,9 +310,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/preview":
             symbol = (query.get("symbol") or [""])[0]
-            farbe = (query.get("color") or ["#000000"])[0]
+            colour = (query.get("color") or ["#000000"])[0]
             try:
-                self._send(200, preview_png(symbol, farbe), "image/png")
+                self._send(200, preview_png(symbol, colour), "image/png")
             except build.BuildError as exc:
                 self._error(str(exc), 500)
             return
@@ -329,12 +329,12 @@ class Handler(BaseHTTPRequestHandler):
             name = Path(urllib.parse.unquote(path[len("/symbols/"):])).name
             target = SYMBOLS_DIR / name
             if not name or not target.exists():
-                self._error("Symbol nicht gefunden.", 404)
+                self._error("Symbol nicht found.", 404)
                 return
             self._send(200, target.read_bytes(), "image/png")
             return
 
-        self._error("Nicht gefunden.", 404)
+        self._error("Nicht found.", 404)
 
     def do_POST(self):
         route = urllib.parse.urlparse(self.path)
@@ -352,9 +352,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/layout":
-            gesendet = self.headers.get("X-Layout-Version")
-            aktuell = layout_version()
-            if gesendet and gesendet != aktuell:
+            sent = self.headers.get("X-Layout-Version")
+            current = layout_version()
+            if sent and sent != current:
                 # Diese Seite kennt einen älteren Stand. Nicht überschreiben.
                 self._json(
                     {
@@ -402,7 +402,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"log": log})
             return
 
-        self._error("Nicht gefunden.", 404)
+        self._error("Nicht found.", 404)
 
 
 PAGE = r"""<!doctype html>
@@ -827,14 +827,14 @@ function emptySet(index) {
 //
 // Die große Kachel darüber bleibt bewusst das Quellbild. Sie ist zum
 // Aussuchen da und soll scharf sein.
-function echtgross(symbol, farbe) {
-  const zeile = document.createElement("div");
-  zeile.className = "echtgross";
+function echtgross(symbol, colour) {
+  const line = document.createElement("div");
+  line.className = "echtgross";
   const bild = document.createElement("img");
   bild.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
-           + "&color=" + encodeURIComponent(farbe || "#000000");
-  zeile.append(bild, document.createTextNode("so groß auf dem Gerät"));
-  return zeile;
+           + "&color=" + encodeURIComponent(colour || "#000000");
+  line.append(bild, document.createTextNode("so groß auf dem Gerät"));
+  return line;
 }
 
 function thumb(symbol, onClick) {
@@ -1082,7 +1082,7 @@ async function doSearch() {
   try {
     const items = await (await api("/api/search?q=" + encodeURIComponent(word))).json();
     if (!items.length) {
-      $("results").innerHTML = '<p>Nichts gefunden zu „' + word + '“.</p>';
+      $("results").innerHTML = '<p>Nichts found zu „' + word + '“.</p>';
       return;
     }
     $("results").innerHTML = "";
@@ -1124,7 +1124,7 @@ async function pick(item) {
   }
 }
 
-// Eigenes Bild: die Datei geht roh an den Server, der Name steht im
+// Eigenes Bild: die Datei geht raw an den Server, der Name steht im
 // Query-String. So braucht es kein Multipart-Formular.
 $("uploadBtn").onclick = () => $("fileInput").click();
 $("fileInput").onchange = async () => {
@@ -1187,7 +1187,7 @@ class Server(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
-def eigene_adressen() -> list[str]:
+def local_addresses() -> list[str]:
     """IP-Adressen, unter denen dieser Rechner im Netz erreichbar ist."""
     import socket
     adressen = set()
@@ -1224,7 +1224,7 @@ def main(argv: list[str] | None = None) -> int:
                   "Port verwenden.", flush=True)
         else:
             print(f"  http://localhost:{args.port}", flush=True)
-            for adresse in eigene_adressen():
+            for adresse in local_addresses():
                 print(f"  http://{adresse}:{args.port}   <- diese im Handy eingeben",
                       flush=True)
         print("Achtung: Es gibt keine Anmeldung - wer den Port erreicht, kann "

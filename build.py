@@ -104,13 +104,13 @@ def ensure_content() -> None:
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
     if LAYOUT_FILE.exists():
         return
-    beispiel = EXAMPLE / "layout.json"
-    if beispiel.exists():
-        shutil.copyfile(beispiel, LAYOUT_FILE)
-        for datei in sorted((EXAMPLE / "symbols").glob("*")):
-            ziel = SYMBOLS_DIR / datei.name
-            if not ziel.exists():
-                shutil.copyfile(datei, ziel)
+    example_file = EXAMPLE / "layout.json"
+    if example_file.exists():
+        shutil.copyfile(example_file, LAYOUT_FILE)
+        for file in sorted((EXAMPLE / "symbols").glob("*")):
+            target = SYMBOLS_DIR / file.name
+            if not target.exists():
+                shutil.copyfile(file, target)
         print(f"content/ mit den Beispielen aus example/ gefüllt.", flush=True)
     else:
         LAYOUT_FILE.write_text(
@@ -121,7 +121,7 @@ def ensure_content() -> None:
 def load_layout(path: Path = LAYOUT_FILE) -> dict:
     """Liest layout.json und bringt es in eine garantiert vollständige Form."""
     if not path.exists():
-        raise BuildError(f"{path.name} nicht gefunden.")
+        raise BuildError(f"{path.name} nicht found.")
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -141,7 +141,7 @@ def normalize_layout(raw: dict) -> dict:
     if not isinstance(sets, list):
         raise BuildError("\"sets\" muss eine Liste sein.")
     if len(sets) > MAX_SETS:
-        raise BuildError(f"Höchstens {MAX_SETS} Sets, gefunden: {len(sets)}.")
+        raise BuildError(f"Höchstens {MAX_SETS} Sets, found: {len(sets)}.")
 
     clean_sets = []
     for index, entry in enumerate(sets):
@@ -189,9 +189,9 @@ def backup_layout(path: Path = LAYOUT_FILE) -> None:
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
     shutil.copyfile(path, BACKUP_DIR / f"layout-{stamp}.json")
-    alte = sorted(BACKUP_DIR.glob("layout-*.json"))
-    for veraltet in alte[:-KEEP_BACKUPS]:
-        veraltet.unlink()
+    old_files = sorted(BACKUP_DIR.glob("layout-*.json"))
+    for stale in old_files[:-KEEP_BACKUPS]:
+        stale.unlink()
 
 
 def save_layout(layout: dict, path: Path = LAYOUT_FILE) -> dict:
@@ -224,7 +224,7 @@ def render_symbol(symbol: str) -> bytes:
     zwei verschieden farbigen Sets ist genau eine Datei.
 
     Rückgabe sind rohe RGB565-Daten, big-endian, wie sie das ST7735-Panel
-    erwartet.
+    expected_size.
     """
     Image, ImageDraw = _require_pillow()
 
@@ -258,16 +258,16 @@ def render_symbol(symbol: str) -> bytes:
 
 def tile_fingerprint(symbol: str) -> str:
     """Hängt nur am Inhalt des Symbols, nicht an Name, Set oder Farbe."""
-    quelle = SYMBOLS_DIR / symbol if symbol else None
-    if quelle and quelle.exists():
-        inhalt = hashlib.sha256(quelle.read_bytes()).hexdigest()
+    source = SYMBOLS_DIR / symbol if symbol else None
+    if source and source.exists():
+        content = hashlib.sha256(source.read_bytes()).hexdigest()
     else:
-        inhalt = "platzhalter"
-    roh = json.dumps(
-        {"inhalt": inhalt, "size": TILE_SIZE, "pipeline": TILE_PIPELINE},
+        content = "platzhalter"
+    raw = json.dumps(
+        {"content": content, "size": TILE_SIZE, "pipeline": TILE_PIPELINE},
         sort_keys=True,
     )
-    return hashlib.sha256(roh.encode("utf-8")).hexdigest()[:32]
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
 def load_tile_index() -> dict:
@@ -283,7 +283,7 @@ def load_tile_index() -> dict:
 def tile_bytes(symbol: str) -> bytes:
     """Gerenderte Symbolfläche, aus dem Cache oder frisch erzeugt."""
     key = tile_fingerprint(symbol)
-    pfad = TILE_CACHE / f"{key}.bin"
+    path = TILE_CACHE / f"{key}.bin"
     index = load_tile_index()
     if index.get(key) != (symbol or ""):
         index[key] = symbol or ""
@@ -292,12 +292,12 @@ def tile_bytes(symbol: str) -> bytes:
             json.dumps(index, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-    if pfad.exists():
-        return pfad.read_bytes()
-    daten = render_symbol(symbol)
+    if path.exists():
+        return path.read_bytes()
+    data = render_symbol(symbol)
     TILE_CACHE.mkdir(parents=True, exist_ok=True)
-    pfad.write_bytes(daten)
-    return daten
+    path.write_bytes(data)
+    return data
 
 
 def to_rgb565_be(image) -> bytes:
@@ -351,26 +351,26 @@ def _hash_bytes(dateiname: str) -> bytes:
     """Aus "t3bd7a62….bin" die 16 rohen Hash-Bytes."""
     if not dateiname:
         return b"\x00" * HASH_BYTES
-    kern = Path(dateiname).stem[1:]          # führendes t oder a weg
-    return bytes.fromhex(kern)[:HASH_BYTES].ljust(HASH_BYTES, b"\x00")
+    core = Path(dateiname).stem[1:]          # führendes t oder a weg
+    return bytes.fromhex(core)[:HASH_BYTES].ljust(HASH_BYTES, b"\x00")
 
 
-def render_layout_bin(layout: dict, label_datei, bild_datei, ton_datei) -> bytes:
+def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> bytes:
     sets = layout["sets"]
-    daten = bytearray()
-    daten += LAYOUT_MAGIC
-    daten += struct.pack("<BBBB", LAYOUT_VERSION, len(sets), SLOTS_PER_SET, 0)
-    daten += struct.pack("<I", layout["sleep_timeout_seconds"])
+    data = bytearray()
+    data += LAYOUT_MAGIC
+    data += struct.pack("<BBBB", LAYOUT_VERSION, len(sets), SLOTS_PER_SET, 0)
+    data += struct.pack("<I", layout["sleep_timeout_seconds"])
     for index, entry in enumerate(sets):
-        daten += struct.pack("<H", rgb_to_565(*hex_to_rgb(entry["color"])))
-        daten += entry["name"].encode("utf-8")[:NAME_BYTES].ljust(NAME_BYTES, b"\x00")
-        daten += _hash_bytes(label_datei[index])
+        data += struct.pack("<H", rgb_to_565(*hex_to_rgb(entry["color"])))
+        data += entry["name"].encode("utf-8")[:NAME_BYTES].ljust(NAME_BYTES, b"\x00")
+        data += _hash_bytes(label_files[index])
         for slot in range(SLOTS_PER_SET):
-            ton = ton_datei[index][slot]
-            daten += _hash_bytes(bild_datei[index][slot])
-            daten += _hash_bytes(ton)
-            daten += struct.pack("<BB", 1 if ton else 0, 0)
-    return bytes(daten)
+            ton = audio_files[index][slot]
+            data += _hash_bytes(tile_files[index][slot])
+            data += _hash_bytes(ton)
+            data += struct.pack("<BB", 1 if ton else 0, 0)
+    return bytes(data)
 
 
 # --- Bauen -------------------------------------------------------------------
@@ -397,37 +397,37 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     # Ohne Key lässt sich nichts Neues sprechen - aber alles, was schon im
     # Cache liegt, kann trotzdem verwendet werden. Genau das macht einen
     # frischen Klon des Repos ohne Azure-Zugang brauchbar.
-    kein_key = with_audio and not tts.have_key()
+    no_key = with_audio and not tts.have_key()
 
     # Die Dateinamen auf dem Gerät sind Hashes des Inhalts. Damit liegt
     # dasselbe Symbol oder derselbe Satz dort genau einmal, egal in wie vielen
     # Sets er vorkommt - und eine Datei kann nie veralten, ohne dass sich ihr
     # Name mitändert.
-    bild_datei: list[list[str]] = []   # [set][slot] -> Dateiname
-    ton_datei: list[list[str]] = []
-    label_datei: list[str] = []
+    tile_files: list[list[str]] = []   # [set][slot] -> Dateiname
+    audio_files: list[list[str]] = []
+    label_files: list[str] = []
 
-    def lege_bild_ab(symbol: str) -> str:
+    def store_tile(symbol: str) -> str:
         key = tile_fingerprint(symbol)
         name = f"t{key}.bin"
         expected.add(name)
-        ziel = DATA_DIR / name
-        if not ziel.exists():
-            ziel.write_bytes(tile_bytes(symbol))
+        target = DATA_DIR / name
+        if not target.exists():
+            target.write_bytes(tile_bytes(symbol))
         return name
 
     for index, entry in enumerate(sets, start=1):
         # Set-Kachel
-        label_datei.append(lege_bild_ab(entry["symbol"]))
+        label_files.append(store_tile(entry["symbol"]))
         if not entry["symbol"]:
             note(f"Set {index} ({entry['name']}): noch kein Set-Symbol gewählt.")
         elif not (SYMBOLS_DIR / entry["symbol"]).exists():
             note(f"Set {index}: Symbol {entry['symbol']} fehlt in symbols/.")
 
-        bilder: list[str] = []
-        tondateien: list[str] = []
+        tile_names: list[str] = []
+        audio_names: list[str] = []
         for slot_index, slot in enumerate(entry["slots"], start=1):
-            bilder.append(lege_bild_ab(slot["symbol"]))
+            tile_names.append(store_tile(slot["symbol"]))
             if slot["symbol"] and not (SYMBOLS_DIR / slot["symbol"]).exists():
                 note(
                     f"Set {index} Slot {slot_index}: Symbol {slot['symbol']} "
@@ -436,22 +436,22 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
 
             if not slot["text"]:
                 note(f"Set {index} Slot {slot_index}: kein Text - kein Ton.")
-                tondateien.append("")
+                audio_names.append("")
                 continue
 
             if not with_audio:
-                tondateien.append("")
+                audio_names.append("")
                 continue
 
-            im_cache = tts.cache_path(slot["text"]).exists()
-            if kein_key and (not im_cache or force_audio):
+            in_cache = tts.cache_path(slot["text"]).exists()
+            if no_key and (not in_cache or force_audio):
                 audio_ok = False
                 note(
                     f"Set {index} Slot {slot_index}: \"{slot['text']}\" liegt "
                     "nicht im Cache und ohne AZURE_SPEECH_KEY lässt es sich "
                     "nicht sprechen."
                 )
-                tondateien.append("")
+                audio_names.append("")
                 continue
 
             try:
@@ -459,29 +459,29 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             except tts.TTSError as exc:
                 audio_ok = False
                 note(f"WARNUNG: TTS fehlgeschlagen bei \"{slot['text']}\": {exc}")
-                tondateien.append("")
+                audio_names.append("")
                 continue
 
             name = f"a{tts.fingerprint(slot['text'])}.wav"
             expected.add(name)
-            ziel = DATA_DIR / name
-            if not ziel.exists() or ziel.stat().st_size != cached.stat().st_size:
-                shutil.copyfile(cached, ziel)
-            tondateien.append(name)
+            target = DATA_DIR / name
+            if not target.exists() or target.stat().st_size != cached.stat().st_size:
+                shutil.copyfile(cached, target)
+            audio_names.append(name)
             note(f"Set {index} Slot {slot_index}: \"{slot['text']}\"")
 
-        bild_datei.append(bilder)
-        ton_datei.append(tondateien)
+        tile_files.append(tile_names)
+        audio_files.append(audio_names)
 
     # Reste früherer Läufe entfernen, damit kein altes Set übrig bleibt.
     for existing in DATA_DIR.iterdir():
         if existing.is_file() and existing.name not in expected:
             existing.unlink()
-            note(f"entfernt: {existing.name}")
+            note(f"removed: {existing.name}")
 
     expected.add(LAYOUT_BIN)
     (DATA_DIR / LAYOUT_BIN).write_bytes(
-        render_layout_bin(layout, label_datei, bild_datei, ton_datei))
+        render_layout_bin(layout, label_files, tile_files, audio_files))
     note(f"geschrieben: {(DATA_DIR / LAYOUT_BIN).relative_to(ROOT)}")
 
     total = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
@@ -517,47 +517,47 @@ def find_tool(name: str) -> Path | None:
     ):
         ordner = basis / ("esptool_py" if name == "esptool" else name)
         if ordner.exists():
-            treffer = sorted(ordner.glob(f"*/{name}"))
-            if treffer:
-                return treffer[-1]
+            hits = sorted(ordner.glob(f"*/{name}"))
+            if hits:
+                return hits[-1]
     return None
 
 
 def build_fs_image() -> list[str]:
     """Packt firmware/mitreden/data/ in ein LittleFS-Image zum Flashen."""
     log: list[str] = []
-    werkzeug = find_tool("mklittlefs")
-    if not werkzeug:
+    tool = find_tool("mklittlefs")
+    if not tool:
         raise BuildError(
-            "mklittlefs nicht gefunden. Es kommt mit dem ESP32-Core der "
+            "mklittlefs nicht found. Es kommt mit dem ESP32-Core der "
             "Arduino-IDE; ohne den lässt sich kein Image bauen."
         )
-    belegt = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
-    if belegt > FS_SIZE:
+    used = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
+    if used > FS_SIZE:
         raise BuildError(
-            f"Die Daten sind {belegt / 1024:.0f} KiB groß, der Dateibereich "
+            f"Die Daten sind {used / 1024:.0f} KiB groß, der Dateibereich "
             f"fasst nur {FS_SIZE / 1024:.0f} KiB."
         )
-    ergebnis = subprocess.run(
-        [str(werkzeug), "-c", str(DATA_DIR), "-b", "4096", "-p", "256",
+    result = subprocess.run(
+        [str(tool), "-c", str(DATA_DIR), "-b", "4096", "-p", "256",
          "-s", str(FS_SIZE), str(FS_IMAGE)],
         capture_output=True, text=True,
     )
-    if ergebnis.returncode != 0:
-        raise BuildError(f"mklittlefs fehlgeschlagen: {ergebnis.stderr.strip()[:300]}")
+    if result.returncode != 0:
+        raise BuildError(f"mklittlefs fehlgeschlagen: {result.stderr.strip()[:300]}")
     esptool = find_tool("esptool")
-    aufruf = str(esptool) if esptool else "esptool"
-    for zeile in [
+    call = str(esptool) if esptool else "esptool"
+    for line in [
         f"Image: {FS_IMAGE.relative_to(ROOT)}  "
-        f"({belegt / 1024:.0f} von {FS_SIZE / 1024:.0f} KiB belegt)",
+        f"({used / 1024:.0f} von {FS_SIZE / 1024:.0f} KiB used)",
         "Port suchen mit:  arduino-cli board list",
         "Schreiben mit:",
-        f"  {aufruf} \\",
+        f"  {call} \\",
         f"    --chip esp32s3 --port /dev/cu.usbmodemXXXX \\",
         f"    write-flash 0x{FS_OFFSET:X} {FS_IMAGE.relative_to(ROOT)}",
     ]:
-        log.append(zeile)
-        print(zeile, flush=True)
+        log.append(line)
+        print(line, flush=True)
     return log
 
 
@@ -568,47 +568,47 @@ def prune_cache() -> list[str]:
     layout = load_layout()
 
     # Kacheln
-    gebrauchte_kacheln = {
+    needed_tiles = {
         tile_fingerprint(sym)
         for entry in layout["sets"]
         for sym in [entry["symbol"], *(slot["symbol"] for slot in entry["slots"])]
     }
-    kachel_index = load_tile_index()
-    kacheln_weg = 0
-    for datei in sorted(TILE_CACHE.glob("*.bin")):
-        if datei.stem not in gebrauchte_kacheln:
-            symbol = kachel_index.pop(datei.stem, None)
-            log.append(f"entfernt: Kachel {symbol or datei.name}")
-            datei.unlink()
-            kacheln_weg += 1
-    if kacheln_weg:
+    tile_index = load_tile_index()
+    tiles_removed = 0
+    for file in sorted(TILE_CACHE.glob("*.bin")):
+        if file.stem not in needed_tiles:
+            symbol = tile_index.pop(file.stem, None)
+            log.append(f"removed: Kachel {symbol or file.name}")
+            file.unlink()
+            tiles_removed += 1
+    if tiles_removed:
         TILE_INDEX.write_text(
-            json.dumps(kachel_index, indent=2, ensure_ascii=False, sort_keys=True)
+            json.dumps(tile_index, indent=2, ensure_ascii=False, sort_keys=True)
             + "\n",
             encoding="utf-8",
         )
 
-    gebraucht = {
+    needed = {
         tts.fingerprint(slot["text"])
         for entry in layout["sets"]
         for slot in entry["slots"]
         if slot["text"]
     }
     index = tts.load_index()
-    entfernt = 0
-    for datei in sorted(tts.CACHE_DIR.glob("*.wav")):
-        if datei.stem not in gebraucht:
-            text = index.pop(datei.stem, None)
-            log.append(f"entfernt: {text!r}" if text else f"entfernt: {datei.name}")
-            datei.unlink()
-            entfernt += 1
-    if entfernt:
+    removed = 0
+    for file in sorted(tts.CACHE_DIR.glob("*.wav")):
+        if file.stem not in needed:
+            text = index.pop(file.stem, None)
+            log.append(f"removed: {text!r}" if text else f"removed: {file.name}")
+            file.unlink()
+            removed += 1
+    if removed:
         tts.INDEX_FILE.write_text(
             json.dumps(index, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )
     log.append(
-        f"{entfernt} verwaiste Sprachdatei(en) und {kacheln_weg} Kachel(n) entfernt."
+        f"{removed} verwaiste Sprachdatei(en) und {tiles_removed} Kachel(n) removed."
     )
     for line in log:
         print(line, flush=True)

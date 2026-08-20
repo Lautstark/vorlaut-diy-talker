@@ -1,10 +1,10 @@
-name: Firmware übersetzen
+name: Firmware build
 description: >
   Richtet arduino-cli mit ESP32-Core und den Adafruit-Bibliotheken ein und
   übersetzt die angegebenen Sketche.
 
 # Warum ein eigener Schritt und nicht zweimal derselbe Text: CI und
-# Veröffentlichung müssen dieselbe Board-Einstellung benutzen. Ein Abbild mit
+# Release müssen dieselbe Board-Einstellung benutzen. Ein Abbild mit
 # einem anderen Partitionsschema bootet mit schwarzen Displays - das darf nicht
 # davon abhängen, ob jemand beide Dateien nachzieht.
 
@@ -25,7 +25,7 @@ runs:
 
     # Bewusst von Hand statt über arduino/compile-sketches: nur so lässt sich
     # --output-dir setzen und das fertige Abbild einsammeln.
-    - name: ESP32-Core und Bibliotheken
+    - name: ESP32 core and libraries
       shell: bash
       run: |
         arduino-cli config init --overwrite
@@ -39,7 +39,7 @@ runs:
         arduino-cli core list
         arduino-cli lib list
 
-    - name: Übersetzen
+    - name: Compile
       shell: bash
       env:
         SKETCHE: ${{ inputs.sketche }}
