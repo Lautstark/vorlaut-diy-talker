@@ -5,12 +5,15 @@
 | Teil | Anzahl | Bezugsquelle | Einzelpreis |
 |------|-------:|--------------|------------:|
 | Adafruit ESP32-S3 Feather, 8 MB Flash, ohne PSRAM | 1 | [Eckstein](https://eckstein-shop.de/Adafruit-ESP32-S3-Feather-8MB-Flash-No-PSRAM-with-STEMMA-QT-Qwiic) | 24,95 € |
-| Waveshare 0.85" ScreenKey, 128×128, ST7735 | 5 | Waveshare | |
+| Waveshare ScreenKey, 0,85" IPS, 128×128, ST7735 | 5 | [BerryBase](https://www.berrybase.de/waveshare-screenkey-lcd-modul-0-85-zoll-ips-display-128-x-128-pixel-st7735-schwarz-3-3v/version-vollstaendiger-screenkey) | |
 | Adafruit MAX98357A, I2S 3W Class-D | 1 | [Eckstein](https://eckstein-shop.de/AdafruitI2S3WClassDAmplifierBreakout-MAX98357A) | 7,95 € |
 | Lautsprecher 40 mm, 4 Ω, 5 W | 1 | [Eckstein](https://eckstein-shop.de/40mm-15-Internal-Magnetic-4Ohm-5W-Bass-Multimedia-Speaker) | 3,95 € |
 | LiPo 3,7 V 2500 mAh, JST-PHR-2 | 1 | [Eckstein](https://eckstein-shop.de/LiPo-Akku-Lithium-Ion-Polymer-Batterie-37V-2500mAh-mit-JST-PHR-2-Stecker-LP785060) | 9,95 € |
 
-Preise Stand August 2026, ohne die fünf ScreenKeys und ohne Gehäuse.
+Preise Stand August 2026, ohne Gehäuse. Beim ScreenKey die Ausführung
+**"vollständiger ScreenKey"** wählen — es gibt das Modul auch ohne den
+Tastenmechanismus, und der ist hier der halbe Sinn: Display und Taster in
+einem.
 
 **Der Feather ist nicht beliebig austauschbar.** Zwei Dinge hängen an ihm:
 
