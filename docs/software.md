@@ -52,7 +52,7 @@ Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
 - **▶** hört den Satz vorher ab (geht über Azure, braucht also den Key).
 - **Bauen** oben rechts ruft `build.py` und zeigt das Protokoll an.
 
-**Originalgröße:** der Schaltknopf oben zeigt unter jeder Kachel zusätzlich
+**Gerätevorschau:** der Schiebeschalter oben zeigt unter jeder Kachel zusätzlich
 an, wie es auf dem Gerät ankommt — auf 116x116 verkleinert, auf RGB565
 gerundet, mit dem Rahmen den die Firmware zeichnet, und in der Größe der
 tatsächlich sichtbaren Fläche von **15,21 x 15,21 mm**. Ein detailreiches

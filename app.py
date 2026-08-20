@@ -478,10 +478,28 @@ PAGE = r"""<!doctype html>
   .tab[draggable=true] { cursor: grab; }
 
   .status { color: var(--muted); font-size: 13px; }
-  /* Eingeschaltet sichtbar, aber anders als der blaue Bauen-Knopf: der löst
-     etwas aus, dieser hält einen Zustand. */
-  button[aria-pressed="true"] {
-    border-color: var(--accent); color: var(--accent); background: var(--panel-2);
+  /* Schiebeschalter. HTML kennt so etwas nicht - Safari 17.4 rendert
+     <input type="checkbox" switch> nativ so, sonst gibt es nur das Kästchen.
+     Also aus dem Kästchen gebaut: das bleibt darunter erhalten und damit auch
+     Tastaturbedienung und Vorlesen. */
+  .schalter {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    color: var(--muted); font-size: 13px; white-space: nowrap;
+  }
+  .schalter input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .pille {
+    width: 38px; height: 22px; border-radius: 11px; flex: none;
+    background: var(--line); position: relative; transition: background .15s;
+  }
+  .pille::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .45); transition: transform .15s;
+  }
+  .schalter input:checked + .pille { background: var(--accent); }
+  .schalter input:checked + .pille::after { transform: translateX(16px); }
+  .schalter input:focus-visible + .pille {
+    outline: 2px solid var(--muted); outline-offset: 2px;
   }
   header .status { margin-left: auto; }
   /* Originalgröße: 15,21 mm sind auf dem Gerät sichtbar. Auf dem Bildschirm
@@ -559,10 +577,12 @@ PAGE = r"""<!doctype html>
 <header>
   <h1>mitreden</h1>
   <span class="status" id="status"></span>
-  <button id="previewToggle" aria-pressed="false"
-          title="Zeigt zusätzlich, wie groß und wie grob es auf dem Display ankommt">
-    Originalgröße
-  </button>
+  <label class="schalter"
+         title="Zeigt zusätzlich, wie groß und wie grob es auf dem Display ankommt">
+    <input type="checkbox" id="previewToggle">
+    <span class="pille"></span>
+    Gerätevorschau
+  </label>
   <button id="saveBtn">Speichern</button>
   <button class="primary" id="buildBtn">Bauen</button>
 </header>
@@ -721,9 +741,8 @@ $("overwriteBtn").onclick = async () => {
 };
 $("reloadBtn").onclick = () => load();
 
-$("previewToggle").onclick = () => {
-  vorschau = !vorschau;
-  $("previewToggle").setAttribute("aria-pressed", vorschau ? "true" : "false");
+$("previewToggle").onchange = () => {
+  vorschau = $("previewToggle").checked;
   render();
 };
 
