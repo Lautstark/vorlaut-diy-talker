@@ -58,3 +58,18 @@ jobs:
           sketch-paths: |
             - firmware/mitreden
           enable-warnings-report: true
+          cli-compile-flags: |
+            - --output-dir
+            - ./build
+
+      # Fertig geflashte Datei, damit niemand Arduino installieren muss.
+      # merged.bin enthält Bootloader, Partitionstabelle und Programm und
+      # wird an Adresse 0 geschrieben. Die Inhalte kommen getrennt dazu.
+      - name: Firmware-Abbild sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            build/mitreden.ino.merged.bin
+            build/mitreden.ino.bin
+          if-no-files-found: error
