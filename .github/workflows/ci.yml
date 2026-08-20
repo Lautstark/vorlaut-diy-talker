@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: Python und Bauvorgang
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten
+        run: pip install -r requirements.txt
+
+      - name: Module importierbar
+        run: python -c "import app, build, tts"
+
+      - name: Bauvorgang mit den Beispielinhalten
+        # Ohne Azure-Schlüssel: Bilder und layout.h entstehen, Ton nicht.
+        # Prüft, dass content/ sich aus example/ füllt und alles durchläuft.
+        run: |
+          python build.py --no-audio
+          test -f firmware/mitreden/layout.h
+          test -f content/layout.json
+
+      - name: layout.h für die Firmware sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: layout-header
+          path: firmware/mitreden/layout.h
+
+  firmware:
+    name: Firmware übersetzen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Abhängigkeiten
+        run: pip install -r requirements.txt
+
+      - name: layout.h erzeugen
+        # Der Sketch bindet layout.h ein, und das entsteht erst beim Bauen.
+        run: python build.py --no-audio
+
+      - name: Übersetzen
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: "esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB"
+          platforms: |
+            - source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+              name: esp32:esp32
+          libraries: |
+            - name: Adafruit GFX Library
+            - name: Adafruit ST7735 and ST7789 Library
+          sketch-paths: |
+            - firmware/mitreden
+          enable-warnings-report: true

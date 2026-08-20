@@ -523,6 +523,13 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     )
     if not audio_ok:
         note("Hinweis: Es fehlen Tondateien - siehe Warnungen oben.")
+
+    # Das Bauen erzeugt nur Dateien. Auf dem Gerät ändert sich davon nichts -
+    # das ist ein eigener Schritt, und ohne diesen Hinweis wundert man sich.
+    note("")
+    note("Aufs Gerät kommen die Dateien damit noch nicht. Dafür:")
+    note("  python build.py --fs-image   und der Befehl, den es ausgibt")
+    note("  Einzelheiten in docs/firmware.md")
     return log
 
 
