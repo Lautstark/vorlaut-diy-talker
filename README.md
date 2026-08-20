@@ -16,6 +16,17 @@ Ich baue das für meine dreieinhalbjährige Tochter, die noch nicht spricht.
 - Ein Befehl macht daraus Bilder und Sprachdateien fürs Gerät
 - Schläft von selbst ein, wacht auf jeden Tastendruck auf
 
+## Woraus
+
+Ein **ESP32-S3 Feather** treibt fünf **Waveshare ScreenKeys** — 0,85-Zoll-Displays mit 128×128 Pixeln und eingebautem Taster — über einen gemeinsamen
+SPI-Bus. Der Ton geht über einen **MAX98357A** an einen 40-mm-Lautsprecher,
+Strom kommt aus einem LiPo, geladen über USB-C am Feather. Die Firmware ist
+ein Arduino-Sketch.
+
+Bearbeitet wird am Rechner: eine Weboberfläche aus der Python-Standardbibliothek, Piktogramme von [ARASAAC](https://arasaac.org), Sprachausgabe
+über Azure. Der Bauvorgang rechnet daraus RGB565-Bilder und 16-kHz-WAVs und
+packt sie in ein LittleFS-Abbild für den Flash.
+
 ## Schnellstart
 
 ```bash
