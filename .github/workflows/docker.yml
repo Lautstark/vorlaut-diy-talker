@@ -26,6 +26,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Docker-Tags müssen klein geschrieben sein, GitHub-Benutzernamen
+      # nicht - deshalb hier umsetzen.
+      - name: Abbildnamen kleinschreiben
+        run: |
+          echo "ABBILD=ghcr.io/$(echo '${{ github.repository }}' \
+            | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
       # amd64 und arm64, damit auch NAS-Modelle mit ARM es ziehen können,
       # statt es selbst zu bauen.
       - name: Bauen und veröffentlichen
@@ -34,4 +41,4 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ${{ env.ABBILD }}:latest
