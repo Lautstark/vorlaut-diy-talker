@@ -45,6 +45,23 @@ damit auf dem NAS und laufen in dessen Sicherung mit.
 Geprüft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
 `build.py` laufen im Container durch.
 
+#### Starten
+
+```bash
+./start.sh
+```
+
+Baut neu falls nötig, ersetzt einen laufenden Container, wartet bis die
+Oberfläche wirklich antwortet und nennt die Adresse. Ein anderer Port geht
+mit `./start.sh 8798`.
+
+Dahinter steckt im Kern ein einziger Befehl - das Skript nimmt nur die
+Handgriffe drumherum ab:
+
+```bash
+docker compose up -d --build
+```
+
 #### Vorher lokal ausprobieren
 
 Sinnvoll, bevor du dich mit DSM herumschlägst - dieselbe Datei, derselbe

@@ -55,7 +55,7 @@ Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
 | [docs/hardware.md](docs/hardware.md) | Bauteile, Pinbelegung, Gehäusemaße |
 | [docs/software.md](docs/software.md) | Weboberfläche, layout.json, Bauvorgang, Sprachausgabe |
 | [docs/firmware.md](docs/firmware.md) | Übersetzen, Partitionsschema, Flashen |
-| [docs/betrieb.md](docs/betrieb.md) | Vom Handy bearbeiten, Betrieb auf einem NAS |
+| [docs/betrieb.md](docs/betrieb.md) | Im Container starten, vom Handy bearbeiten, Betrieb auf einem NAS |
 
 ## Lizenz
 
