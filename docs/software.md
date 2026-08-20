@@ -153,15 +153,14 @@ ARASAAC, und `metacom:`-Verweise ergeben die Platzhalter-Kachel statt eines
 Abbruchs. So bleibt dasselbe `layout.json` auf einem Rechner ohne Lizenz
 benutzbar.
 
-Für den Container muss der Ordner zusätzlich eingehängt werden, lesend:
+Für den Container ist das schon eingerichtet: `docker-compose.yml` hängt den
+Pfad aus `.env` lesend unter `/metacom` ein und setzt `VORLAUT_METACOM_DIR`
+dort hin. Es genügt also dieselbe Zeile in `.env` wie beim Start ohne Container.
+Auf einem NAS trägst du dort den NAS-Pfad ein - im Container heißt er immer
+`/metacom`, der Rest bleibt gleich.
 
-```yaml
-volumes:
-  - ./:/app
-  - /pfad/zu/METACOM_9_Desktop:/metacom:ro
-```
-
-und dann `VORLAUT_METACOM_DIR=/metacom`.
+Ist nichts gesetzt, zeigt die Einhängung ersatzweise auf `example/`; dort fehlt
+die METACOM-Struktur, und die Anbindung schaltet sich von selbst ab.
 
 `python doctor.py` zeigt unter „Wahlweise", ob die Sammlung gefunden wurde und
 ob die Stichwörter gelesen werden konnten.

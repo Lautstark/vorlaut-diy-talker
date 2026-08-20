@@ -7,12 +7,25 @@ services:
       # Anderer Port am Rechner, falls dort schon etwas läuft:
       #   VORLAUT_PORT=8798 docker compose up -d
       - "${VORLAUT_PORT:-8771}:8771"
+    environment:
+      # Eine lizenzierte METACOM-Sammlung liegt ausserhalb des Projekts und
+      # muss eingehaengt werden. Wo sie auf dem Rechner liegt, steht in .env -
+      # die liest Compose von selbst. Im Container liegt sie immer unter
+      # /metacom, damit derselbe Stand auf Mac und NAS funktioniert.
+      # Ist nichts eingehaengt, findet sich unter /metacom nicht die
+      # erwartete Ordnerstruktur - dann laeuft die Suche nur mit ARASAAC.
+      - VORLAUT_METACOM_DIR=/metacom
     volumes:
       # Das ganze Projekt hineinreichen: so liegen layout.json, symbols/ und
       # cache/ auf dem NAS und überleben jedes Neubauen des Abbilds. Der
       # Azure-Schlüssel kommt über die .env aus genau diesem Ordner - er
       # steckt bewusst nicht im Abbild.
       - ./:/app
+      # Nur lesend - die Sammlung wird nie veraendert. Ohne gesetzten Pfad
+      # zeigt die Einhaengung ersatzweise auf example/; dort fehlt die
+      # METACOM-Struktur, und die Anbindung schaltet sich von selbst ab.
+      # Compose kann eine Einhaengung nicht weglassen, deshalb dieser Weg.
+      - ${VORLAUT_METACOM_DIR:-./example}:/metacom:ro
     # Auf einer Synology läuft der Container sonst als root, und alles, was er
     # anlegt (cache/, layout.json), gehört danach root - über die Netzfreigabe
     # lässt es sich dann nicht mehr bearbeiten. Eigene Kennung per SSH mit
