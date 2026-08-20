@@ -1,5 +1,7 @@
-# Geheimnisse
+# Geheimnisse - auch Sicherungskopien wie .env.bak
 .env
+.env.*
+!.env.example
 
 # generierte Firmware-Daten
 firmware/mitreden/data/

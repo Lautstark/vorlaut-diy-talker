@@ -55,6 +55,36 @@ damit auf dem NAS und laufen in dessen Sicherung mit.
 Geprueft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Abbild), ARASAAC-Suche und
 `build.py` laufen im Container durch.
 
+#### Vorher lokal ausprobieren
+
+Sinnvoll, bevor du dich mit DSM herumschlaegst - dieselbe Datei, derselbe
+Container:
+
+```bash
+docker compose up -d --build
+docker compose logs -f          # was der Container sagt
+docker compose down             # wieder weg
+```
+
+Laeuft schon ein `app.py` auf 8771, kann der Container einen anderen Port am
+Rechner bekommen:
+
+```bash
+MITREDEN_PORT=8798 docker compose up -d --build
+```
+
+Achtung: Container und `app.py` arbeiten auf **denselben Dateien**. Beide
+gleichzeitig laufen zu lassen ist moeglich, aber es sollte immer nur einer
+davon bedient werden.
+
+Geprueft mit `docker compose` 2.x und dem aelteren `docker-compose` 1.29 -
+beide nehmen die Datei an.
+
+> Stolperstein: `docker compose` liest die `.env` im Projektordner fuer
+> Variablen mit. Steht darin etwas anderes als `SCHLUESSEL=WERT`, bricht es
+> mit *"Can't separate key from value"* ab. Die `.env` gehoert also nur dem
+> Azure-Schluessel.
+
 #### Auf einer Synology
 
 1. Gemeinsamen Ordner anlegen, ueblich ist `docker`, darin `mitreden` -
