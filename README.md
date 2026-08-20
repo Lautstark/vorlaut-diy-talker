@@ -5,12 +5,8 @@ sind: vier sprechen einen hinterlegten Satz, die fünfte schaltet zwischen
 Sets um.
 
 Ich baue das für meine dreieinhalbjährige Tochter, die noch nicht spricht.
-Ein Talker ist beantragt, aber noch nicht da — und für draußen wäre ein iPad
-ohnehin unpraktisch. Das hier hat vier Wörter, hält etwas aus und ist sofort
-an.
 
-> **In Arbeit.** Die Software läuft, die Hardware ist bestellt und noch nicht
-> aufgebaut. Alles zur Verdrahtung ist gerechnet, nicht gemessen.
+> **In Arbeit.** Noch nicht auf echter Hardware gelaufen.
 
 ## Was es tut
 
