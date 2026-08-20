@@ -18,6 +18,18 @@ Gehäuse und Verdrahtung: siehe [Gehäuse](#gehäuse) und
 [Pinbelegung](#pinbelegung-vorschlag).
 
 
+## Verdrahtung
+
+![Verdrahtung](verdrahtung.png)
+
+Gezeichnet von `tools/verdrahtung.py` aus der Belegung unten — wenn sich an
+den echten Modulen etwas als anders herausstellt, dort ändern und das Skript
+neu laufen lassen:
+
+```bash
+python3 tools/verdrahtung.py
+```
+
 ## Pinbelegung (Vorschlag)
 
 | Funktion                | GPIO | Beschriftung auf dem Feather |
