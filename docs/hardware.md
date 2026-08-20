@@ -2,21 +2,29 @@
 
 ## Bauteile
 
-| Teil | Anzahl | Anmerkung |
-|------|-------:|-----------|
-| Adafruit ESP32-S3 Feather (8 MB Flash, ohne PSRAM) | 1 | WLAN und USB-C an Bord |
-| Waveshare 0.85" ScreenKey (128×128, ST7735) | 5 | Display und Taster in einem |
-| Adafruit MAX98357A I2S-Verstärker | 1 | |
-| Lautsprecher 40 mm, 4 Ω | 1 | |
-| LiPo-Akku 2500 mAh | 1 | Laden über USB-C am Feather |
+| Teil | Anzahl | Bezugsquelle | Einzelpreis |
+|------|-------:|--------------|------------:|
+| Adafruit ESP32-S3 Feather, 8 MB Flash, ohne PSRAM | 1 | [Eckstein](https://eckstein-shop.de/Adafruit-ESP32-S3-Feather-8MB-Flash-No-PSRAM-with-STEMMA-QT-Qwiic) | 24,95 € |
+| Waveshare 0.85" ScreenKey, 128×128, ST7735 | 5 | Waveshare | |
+| Adafruit MAX98357A, I2S 3W Class-D | 1 | [Eckstein](https://eckstein-shop.de/AdafruitI2S3WClassDAmplifierBreakout-MAX98357A) | 7,95 € |
+| Lautsprecher 40 mm, 4 Ω, 5 W | 1 | [Eckstein](https://eckstein-shop.de/40mm-15-Internal-Magnetic-4Ohm-5W-Bass-Multimedia-Speaker) | 3,95 € |
+| LiPo 3,7 V 2500 mAh, JST-PHR-2 | 1 | [Eckstein](https://eckstein-shop.de/LiPo-Akku-Lithium-Ion-Polymer-Batterie-37V-2500mAh-mit-JST-PHR-2-Stecker-LP785060) | 9,95 € |
+
+Preise Stand August 2026, ohne die fünf ScreenKeys und ohne Gehäuse.
+
+**Der Feather ist nicht beliebig austauschbar.** Zwei Dinge hängen an ihm:
+
+- Er lädt den LiPo über USB-C und hat den passenden JST-PH-Anschluss dafür.
+  Deshalb braucht das Gerät weder Ladebuchse noch Schalter. Ein Board ohne
+  Ladeschaltung - etwa im Arduino-Nano-Format - braucht zusätzlich ein
+  Lademodul.
+- Die gesamte Pinbelegung unten ist auf ihn zugeschnitten, besonders die
+  Taster: sie müssen auf GPIO 0 bis 21 liegen, sonst wecken sie den Chip
+  nicht aus dem Tiefschlaf.
 
 Bewusst nicht vorgesehen: Lautstärkeregler und Ein-/Aus-Schalter. Das Gerät
-schläft von selbst ein und wacht auf Tastendruck wieder auf; die Lautstärke
-regelt die Normalisierung beim Bauen.
-
-Gehäuse und Verdrahtung: siehe [Gehäuse](#gehäuse) und
-[Pinbelegung](#pinbelegung-vorschlag).
-
+schläft von selbst ein und wacht auf Tastendruck auf; die Lautstärke regelt
+die Normalisierung beim Bauen.
 
 ## Verdrahtung
 
