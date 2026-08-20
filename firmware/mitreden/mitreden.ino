@@ -29,13 +29,12 @@
 // Wie viele Sets es gibt, welche Farben und welche Datei zu welcher Taste
 // gehört, steht NICHT in der Firmware, sondern in /layout.bin auf dem
 // Dateisystem. Sonst müsste man ein neues Set mit Kabel aufspielen.
-// Aufbau der Datei: siehe build.py.
-#define SLOT_COUNT 4
-#define MAX_SETS 5
-#define HASH_BYTES 16
-#define NAME_BYTES 32
+//
+// Struktur und Leselogik liegen in layout_format.h - dieselbe Datei wird von
+// tests/test_layout_format.py auf dem Rechner übersetzt und gegen eine echte
+// layout.bin geprüft.
+#include "layout_format.h"
 #define LAYOUT_FILE "/layout.bin"
-#define LAYOUT_VERSION 1
 
 // --- Pinbelegung (Adafruit ESP32-S3 Feather) --------------------------------
 // Die Taster müssen auf GPIO 0..21 liegen, nur die können den Chip aus dem
@@ -94,25 +93,6 @@ class Panel : public Adafruit_ST7735 {
   void setOffsets(int8_t col, int8_t row) { setColRowStart(col, row); }
 };
 
-struct Slot {
-  uint8_t image[HASH_BYTES];
-  uint8_t audio[HASH_BYTES];
-  bool hasAudio;
-};
-
-struct SetEntry {
-  uint16_t color;
-  char name[NAME_BYTES + 1];
-  uint8_t label[HASH_BYTES];
-  Slot slots[SLOT_COUNT];
-};
-
-struct Layout {
-  uint8_t setCount;
-  uint32_t sleepSeconds;
-  SetEntry sets[MAX_SETS];
-};
-
 static Layout layout;
 
 // Aus 16 Prüfsummenbytes den Dateinamen bauen: /t<32 hex>.bin bzw. /a….wav
@@ -149,53 +129,26 @@ static int8_t countdownShown = -1;
 
 // --- Inhalte laden -----------------------------------------------------------
 
-// Liest /layout.bin. Liefert false, wenn die Datei fehlt oder nicht passt -
-// dann gibt es schlicht noch keine Inhalte, und das ist kein Fehler.
+// Liest /layout.bin und übergibt sie an parseLayout aus layout_format.h.
+// Fehlt die Datei oder passt sie nicht, gibt es schlicht noch keine Inhalte -
+// das ist kein Fehler, sondern der Zustand nach dem ersten Flashen.
 static bool loadLayout() {
   if (!filesystemReady) return false;
   File file = LittleFS.open(LAYOUT_FILE, "r");
-  if (!file) return false;
-
-  char magic[4];
-  uint8_t version, sets, slots, reserviert;
-  if (file.read((uint8_t *)magic, 4) != 4 || memcmp(magic, "MTRD", 4) != 0) {
-    Serial.println("layout.bin: unbekannte Kennung");
-    file.close();
+  if (!file) {
+    Serial.println("layout.bin fehlt - noch keine Inhalte auf dem Gerät.");
     return false;
   }
-  file.read(&version, 1);
-  file.read(&sets, 1);
-  file.read(&slots, 1);
-  file.read(&reserviert, 1);
-  if (version != LAYOUT_VERSION || slots != SLOT_COUNT) {
-    Serial.printf("layout.bin: Version %u, %u Tasten - erwartet %u/%u\n",
-                  version, slots, LAYOUT_VERSION, SLOT_COUNT);
-    file.close();
-    return false;
-  }
-  if (sets > MAX_SETS) sets = MAX_SETS;
-
-  uint32_t schlaf = 0;
-  file.read((uint8_t *)&schlaf, 4);   // little endian, wie der ESP32 selbst
-
-  layout.setCount = sets;
-  layout.sleepSeconds = schlaf;
-  for (uint8_t i = 0; i < sets; i++) {
-    SetEntry &e = layout.sets[i];
-    file.read((uint8_t *)&e.color, 2);
-    file.read((uint8_t *)e.name, NAME_BYTES);
-    e.name[NAME_BYTES] = '\0';
-    file.read(e.label, HASH_BYTES);
-    for (uint8_t j = 0; j < SLOT_COUNT; j++) {
-      uint8_t hatTon, fuellbyte;
-      file.read(e.slots[j].image, HASH_BYTES);
-      file.read(e.slots[j].audio, HASH_BYTES);
-      file.read(&hatTon, 1);
-      file.read(&fuellbyte, 1);
-      e.slots[j].hasAudio = hatTon != 0;
-    }
-  }
+  static uint8_t puffer[LAYOUT_MAX_BYTES];
+  const size_t gelesen = file.read(puffer, sizeof(puffer));
   file.close();
+
+  const LayoutResult ergebnis = parseLayout(puffer, (uint32_t)gelesen, layout);
+  if (ergebnis != LAYOUT_OK) {
+    Serial.printf("layout.bin unbrauchbar (Grund %d, %u Byte)\n",
+                  (int)ergebnis, (unsigned)gelesen);
+    return false;
+  }
   Serial.printf("layout.bin: %u Set(s), Schlafzeit %u s\n",
                 layout.setCount, layout.sleepSeconds);
   return layout.setCount > 0;

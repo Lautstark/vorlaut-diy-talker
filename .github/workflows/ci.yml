@@ -21,6 +21,11 @@ jobs:
       - name: Module importierbar
         run: python -c "import app, build, tts"
 
+      - name: layout.bin gegen den Firmware-Leser prüfen
+        # Übersetzt den C-Code aus dem Sketch auf dem Runner und vergleicht,
+        # was er liest, mit dem was build.py geschrieben hat.
+        run: python tests/test_layout_format.py
+
       - name: Bauvorgang mit den Beispielinhalten
         # Ohne Azure-Schlüssel: Bilder und layout.h entstehen, Ton nicht.
         # Prüft, dass content/ sich aus example/ füllt und alles durchläuft.
