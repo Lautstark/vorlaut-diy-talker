@@ -471,6 +471,22 @@ echo(str("Kammervolumen brutto ca. ",
 echo(str("Schwerpunkt Akku+Lautsprecher: x=", round(sp_x*10)/10,
          " (Mitte ", round(mitte_x*10)/10, "), y=", round(sp_y*10)/10,
          " (Mitte ", round(mitte_y*10)/10, ")"));
+echo(str("Kappenversatz    : ", kappe_versatz_y, " mm eingetragen, ",
+         round(versatz_y_max*1000)/1000, " mm sind das Budget -> ",
+         dome_pro_taste, " von 4 Domen je ScreenKey"));
+if (dome_pro_taste < 4)
+  echo(str("!! ACHTUNG: nur ", dome_pro_taste, " Dome je ScreenKey. Die Platine ",
+           "haengt dann an EINER Kante und kann kippeln. Vor dem Drucken ",
+           "pruefen, ob sk_loch_rand wirklich stimmt."));
+echo(str("Schrauben        : ", gewindeeinsatz ? "M3-Gewindeeinsaetze" :
+         "M3 selbstschneidend", ", Dom ", dom_d, " mm, Kernloch ", dom_kern));
+echo(str("Wand ", wand, " mm = ", wand/0.4, " Bahnen bei 0,4er Duese"));
+echo(str("Druckbett noetig : Wanne ", aussen_b, " x ", aussen_h,
+         " mm, hoch ", aussen_t, " mm"));
+echo(str("Hoechster Stapel auf dem Traeger: ",
+         stapel_max == stapel_feather ? "Feather" :
+         stapel_max == stapel_akku ? "Akku" : "Verstaerker",
+         " mit ", stapel_max, " mm, frei sind ", innen_z_h - traeger_z_o));
 echo(str("---------------------------------------------------------"));
 
 
@@ -776,15 +792,25 @@ module traeger_umriss() {
   }
 }
 
+// Vier Eckwinkel, die den Akku in der Ebene halten. Kein Deckel darüber —
+// der Akku soll sich zum Tauschen nach oben herausnehmen lassen.
+//
+// Jeder Winkel ist EIN Polygon. Vorher waren es zwei Quader, die sich nur
+// an einer Kante berührten; daraus wurde beim Export ein nicht-2-mannig-
+// faltiger Körper, den ein Slicer stillschweigend falsch repariert.
 module akku_rippen() {
-  h = akku_d + 0.2;
-  l = 14;  b = 2.0;  s = 0.4;   // s = Spiel um den Akku
-  for (i = [0,1], j = [0,1]) {
-    x = akku_x - s + i*(akku_b + 2*s);
-    y = akku_y - s + j*(akku_h + 2*s);
-    translate([x - (i ? 0 : b), y - (j ? l - b : 0), 0]) cube([b, l, h]);
-    translate([x - (i ? l - b : 0), y - (j ? 0 : b), 0]) cube([l, b, h]);
-  }
+  h  = akku_d + 0.2;              // etwas höher als der Akku
+  l  = 14;                        // Schenkellänge
+  b  = rippe_b;
+  ix = akku_b + 2*bauteil_spiel;  // Innenmaß zwischen den Winkeln
+  iy = akku_h + 2*bauteil_spiel;
+  cx = akku_x + akku_b/2;
+  cy = akku_y + akku_h/2;
+  for (mx = [0,1], my = [0,1])
+    translate([cx, cy, 0]) mirror([mx,0,0]) mirror([0,my,0])
+      translate([-ix/2 - b, -iy/2 - b, 0])
+        linear_extrude(h)
+          polygon([[0,0], [l,0], [l,b], [b,b], [b,l], [0,l]]);
 }
 
 module feather_sockel() {
@@ -798,7 +824,7 @@ module feather_sockel() {
 }
 
 module amp_bett() {
-  h = amp_stuetze + 2.5;  b = 1.8;  s = 0.4;
+  h = amp_stuetze + 2.5;  b = rippe_b;  s = bauteil_spiel;
   // drei Rippen: der Verstärker wird eingeschoben und mit einem Streifen
   // doppelseitigem Klebeband gesichert. Zwei Löcher wären Ratespiel,
   // solange die Lochlage nicht nachgemessen ist.
@@ -861,7 +887,7 @@ module attrappen() {
     linear_extrude(ls_tiefe) square([ls_rahmen, ls_rahmen], center = true);
   color("#7a5") translate([akku_x, akku_y, traeger_z_o]) cube([akku_b, akku_h, akku_d]);
   color("#25a") translate([feather_x, feather_y, traeger_z_o + feather_stuetze])
-    cube([feather_l, feather_b, feather_h - feather_stuetze]);
+    cube([feather_l, feather_b, feather_h]);
   color("#a52") translate([amp_x, amp_y, traeger_z_o + amp_stuetze])
     cube([amp_b, amp_h, amp_d]);
 }
