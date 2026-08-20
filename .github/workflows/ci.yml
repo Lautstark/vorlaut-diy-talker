@@ -16,8 +16,13 @@ jobs:
           python-version: "3.12"
 
       - name: Abhängigkeiten
-        run: pip install -r requirements.txt
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          pip install -r requirements.txt
 
+      # Wenn doctor hier meckert, fehlt dem Ablauf wirklich etwas - und
+      # dann fehlt es einem Nachbauer genauso.
       - name: doctor läuft durch
         run: python doctor.py
 
