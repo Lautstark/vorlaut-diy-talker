@@ -70,7 +70,7 @@ class Panel : public Adafruit_ST7735 {
 
 static Layout layout;
 
-// Aus 16 Hashesbytes den Dateinamen bauen: /t<32 hex>.bin bzw. /a….wav
+// Aus 16 Hash-Bytes den Dateinamen bauen: /t<32 hex>.bin bzw. /a….wav
 static void hashPath(char *out, char kind, const uint8_t *hash, const char *ext) {
   out[0] = '/';
   out[1] = kind;

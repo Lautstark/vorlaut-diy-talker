@@ -348,7 +348,7 @@ HEADER_BYTES = 4 + 4 + 4                            # 12
 
 
 def _hash_bytes(dateiname: str) -> bytes:
-    """Aus "t3bd7a62….bin" die 16 rohen Hashesbytes."""
+    """Aus "t3bd7a62….bin" die 16 rohen Hash-Bytes."""
     if not dateiname:
         return b"\x00" * HASH_BYTES
     kern = Path(dateiname).stem[1:]          # führendes t oder a weg
