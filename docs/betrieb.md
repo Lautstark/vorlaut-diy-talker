@@ -14,6 +14,16 @@ Beim Start nennt er die Adresse, die ins Handy gehört, etwa
 um: Set-Kachel oben über die volle Breite, die vier Sprechtasten als 2x2
 darunter.
 
+**Auf den Startbildschirm legen.** Die Seite bringt ein Web-Manifest mit, sie
+lässt sich also wie eine App ablegen: in Safari *Teilen → Zum Home-Bildschirm*,
+in Chrome über das Menü. Danach startet sie ohne Adressleiste im
+Vollbild.
+
+Bewusst **ohne Service Worker**, also ohne Offline-Zwischenspeicher. Ohne
+Server kann die Oberfläche ohnehin nichts - weder speichern noch vorhören noch
+bauen. Ein Zwischenspeicher würde nur alte Fassungen ausliefern und wäre eher
+Fehlerquelle als Nutzen.
+
 **Das ist ohne Anmeldung.** Wer im selben WLAN ist, kann die Inhalte ändern
 und über die Vorhör-Taste Azure-Guthaben verbrauchen. Für zuhause in
 Ordnung, in einem fremden oder öffentlichen Netz nicht.

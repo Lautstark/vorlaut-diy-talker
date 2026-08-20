@@ -25,6 +25,7 @@ import build
 import tts
 
 ROOT = Path(__file__).resolve().parent
+ASSETS = ROOT / "assets"
 SYMBOLS_DIR = build.SYMBOLS_DIR
 THUMB_CACHE = build.CONTENT / "cache" / "thumbs"
 PORT = 8771
@@ -275,6 +276,38 @@ class Handler(BaseHTTPRequestHandler):
                 self._error(f"ARASAAC nicht erreichbar: {exc}", 502)
             return
 
+        if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
+            datei = ASSETS / Path(path).name
+            if not datei.exists():
+                self._error("Symbol nicht gefunden.", 404)
+                return
+            art = "image/svg+xml" if path.endswith(".svg") else "image/png"
+            self._send(200, datei.read_bytes(), art)
+            return
+
+        if path == "/manifest.webmanifest":
+            # Damit sich die Seite als App auf den Startbildschirm legen
+            # lässt. Bewusst ohne Service Worker: die Oberfläche ist ohne
+            # Server ohnehin nutzlos, und zwischengespeichertes JavaScript
+            # hätte schon genug Ärger gemacht.
+            self._json({
+                "name": "mitreden",
+                "short_name": "mitreden",
+                "description": "Inhalte für den Talker bearbeiten",
+                "start_url": "/",
+                "display": "standalone",
+                "orientation": "portrait",
+                "background_color": "#16181d",
+                "theme_color": "#16181d",
+                "icons": [
+                    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+                    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png",
+                     "purpose": "maskable"},
+                ],
+            })
+            return
+
         if path == "/api/preview":
             symbol = (query.get("symbol") or [""])[0]
             farbe = (query.get("color") or ["#000000"])[0]
@@ -376,8 +409,15 @@ PAGE = r"""<!doctype html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>mitreden</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#16181d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="mitreden">
 <style>
   :root {
     --bg: #16181d;
@@ -398,6 +438,7 @@ PAGE = r"""<!doctype html>
     padding: 12px 24px; border-bottom: 1px solid var(--line);
   }
   header h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  .logo { width: 26px; height: 26px; flex: none; }
   header .status { margin-left: auto; }
   main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
 
@@ -575,6 +616,7 @@ PAGE = r"""<!doctype html>
 </head>
 <body>
 <header>
+  <img src="/icon.svg" alt="" class="logo">
   <h1>mitreden</h1>
   <span class="status" id="status"></span>
   <label class="schalter"
