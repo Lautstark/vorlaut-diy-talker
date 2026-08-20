@@ -46,7 +46,14 @@ BACKUP_MIN_INTERVAL = 5 * 60
 SKETCH_DIR = ROOT / "firmware" / "vorlaut"
 DATA_DIR = SKETCH_DIR / "data"
 
-MAX_SETS = 5
+# Was gleichzeitig aufs Geraet geht. Nicht willkuerlich: ein voll befuelltes
+# Set kostet rund 300 KiB, der Dateibereich fasst 1536 KiB. Dieselbe Zahl
+# steht als MAX_SETS in firmware/vorlaut/layout_format.h.
+MAX_ACTIVE_SETS = 5
+# Wie viele insgesamt in layout.json stehen duerfen. Keine Geraetegrenze -
+# die Sammlung liegt auf dem Rechner. Nur ein Riegel gegen eine Datei, die
+# niemand mehr ueberblickt.
+MAX_SETS = 25
 SLOTS_PER_SET = 4
 IMG_SIZE = 128           # Displayfläche
 BORDER = 6               # Rahmenbreite, wird von der Firmware gezeichnet
@@ -102,6 +109,7 @@ class BuildError(RuntimeError):
 def empty_set(index: int = 0) -> dict:
     return {
         "name": f"Set {index + 1}",
+        "active": True,
         "symbol": "",
         "color": DEFAULT_PALETTE[index % len(DEFAULT_PALETTE)],
         "slots": [{"text": "", "symbol": ""} for _ in range(SLOTS_PER_SET)],
@@ -179,7 +187,7 @@ def normalize_layout(raw: dict) -> dict:
     if not isinstance(sets, list):
         raise BuildError("\"sets\" muss eine Liste sein.")
     if len(sets) > MAX_SETS:
-        raise BuildError(f"Höchstens {MAX_SETS} Sets, found: {len(sets)}.")
+        raise BuildError(f"Höchstens {MAX_SETS} Sets, gefunden: {len(sets)}.")
 
     clean_sets = []
     for index, entry in enumerate(sets):
@@ -207,13 +215,28 @@ def normalize_layout(raw: dict) -> dict:
         clean_sets.append(
             {
                 "name": str(entry.get("name") or f"Set {index + 1}").strip(),
+                # Fehlt das Feld, ist das Set aktiv - so bleiben Layouts aus
+                # der Zeit vor dieser Unterscheidung unveraendert gueltig.
+                "active": bool(entry.get("active", True)),
                 "symbol": str(entry.get("symbol") or "").strip(),
                 "color": normalize_color(entry.get("color") or empty_set(index)["color"]),
                 "slots": clean_slots,
             }
         )
 
+    active = sum(1 for entry in clean_sets if entry["active"])
+    if active > MAX_ACTIVE_SETS:
+        raise BuildError(
+            f"Höchstens {MAX_ACTIVE_SETS} Sets gleichzeitig aktiv, "
+            f"gewählt sind {active}. Mehr passen nicht aufs Gerät."
+        )
+
     return {"sleep_timeout_seconds": timeout, "sets": clean_sets}
+
+
+def active_sets(layout: dict) -> list[dict]:
+    """Die Sets, die aufs Gerät gehen - in der Reihenfolge des Layouts."""
+    return [entry for entry in layout["sets"] if entry.get("active", True)]
 
 
 def backup_layout(path: Path = LAYOUT_FILE) -> None:
@@ -435,7 +458,9 @@ def _hash_bytes(dateiname: str) -> bytes:
 
 
 def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> bytes:
-    sets = layout["sets"]
+    # Nur die aktiven Sets - die Dateilisten sind genauso aufgebaut, und
+    # setCount im Kopf muss zu ihnen passen.
+    sets = active_sets(layout)
     data = bytearray()
     data += LAYOUT_MAGIC
     data += struct.pack("<BBBB", LAYOUT_VERSION, len(sets), SLOTS_PER_SET, 0)
@@ -464,11 +489,18 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
 
     ensure_content()
     layout = load_layout()
-    sets = layout["sets"]
+    # Aufs Geraet geht nur die Auswahl. Der Rest bleibt in layout.json liegen,
+    # samt Kacheln und Tonspuren im Zwischenspeicher - wieder anschalten
+    # kostet deshalb weder Rechenzeit noch einen Azure-Aufruf.
+    sets = active_sets(layout)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not sets:
+    if not layout["sets"]:
         note("layout.json enthält keine Sets - es gibt nichts zu bauen.")
+    elif not sets:
+        note("Kein Set ist aktiv - das Gerät hätte nichts anzuzeigen.")
+    elif len(sets) != len(layout["sets"]):
+        note(f"{len(sets)} von {len(layout['sets'])} Sets aktiv.")
 
     expected: set[str] = set()
     audio_ok = True
@@ -496,25 +528,27 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         return name
 
     for index, entry in enumerate(sets, start=1):
+        # Die Nummer ist die Stelle in der Reihenfolge auf dem Geraet, nicht
+        # die in layout.json - bei abgeschalteten Sets faellt beides
+        # auseinander, deshalb steht der Name immer dabei.
+        wer = (f"Set {index}" if entry["name"] == f"Set {index}"
+               else f"Set {index} ({entry['name']})")
         # Set-Kachel
         label_files.append(store_tile(entry["symbol"]))
         if not entry["symbol"]:
-            note(f"Set {index} ({entry['name']}): noch kein Set-Symbol gewählt.")
+            note(f"{wer}: noch kein Set-Symbol gewählt.")
         elif symbol_path(entry["symbol"]) is None:
-            note(f"Set {index}: {missing_hint(entry['symbol'])}")
+            note(f"{wer}: {missing_hint(entry['symbol'])}")
 
         tile_names: list[str] = []
         audio_names: list[str] = []
         for slot_index, slot in enumerate(entry["slots"], start=1):
             tile_names.append(store_tile(slot["symbol"]))
             if slot["symbol"] and symbol_path(slot["symbol"]) is None:
-                note(
-                    f"Set {index} Slot {slot_index}: "
-                    f"{missing_hint(slot['symbol'])}"
-                )
+                note(f"{wer} Slot {slot_index}: {missing_hint(slot['symbol'])}")
 
             if not slot["text"]:
-                note(f"Set {index} Slot {slot_index}: kein Text - kein Ton.")
+                note(f"{wer} Slot {slot_index}: kein Text - kein Ton.")
                 audio_names.append("")
                 continue
 
@@ -526,7 +560,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             if no_key and (not in_cache or force_audio):
                 audio_ok = False
                 note(
-                    f"Set {index} Slot {slot_index}: \"{slot['text']}\" liegt "
+                    f"{wer} Slot {slot_index}: \"{slot['text']}\" liegt "
                     "nicht im Cache und ohne AZURE_SPEECH_KEY lässt es sich "
                     "nicht sprechen."
                 )
@@ -547,7 +581,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             if not target.exists() or target.stat().st_size != cached.stat().st_size:
                 shutil.copyfile(cached, target)
             audio_names.append(name)
-            note(f"Set {index} Slot {slot_index}: \"{slot['text']}\"")
+            note(f"{wer} Slot {slot_index}: \"{slot['text']}\"")
 
         tile_files.append(tile_names)
         audio_files.append(audio_names)

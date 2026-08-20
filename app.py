@@ -255,7 +255,12 @@ class Handler(BaseHTTPRequestHandler):
         query = urllib.parse.parse_qs(route.query)
 
         if path in ("/", "/index.html"):
-            page = PAGE.replace("__PALETTE__", json.dumps(build.DEFAULT_PALETTE))
+            page = (PAGE
+                    .replace("__PALETTE__", json.dumps(build.DEFAULT_PALETTE))
+                    .replace("__LIMITS__", json.dumps({
+                        "maxSets": build.MAX_SETS,
+                        "maxActive": build.MAX_ACTIVE_SETS,
+                    })))
             self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             return
 
@@ -633,6 +638,12 @@ PAGE = r"""<!doctype html>
     .schalter { order: 1; }
     header .status { order: 2; margin-left: auto; }
 
+    /* Bei 20 Sets fraessen umbrechende Reiter das halbe Display, bevor
+       ueberhaupt Inhalt kommt. Auf dem Handy deshalb eine Zeile zum Wischen. */
+    .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin;
+      margin-bottom: 8px; }
+    .tabs .tab { flex: none; }
+
     main { padding: 12px; }
     .device { grid-template-columns: 1fr 1fr; }
     .setCol { grid-row: auto; grid-column: 1 / -1; }
@@ -672,6 +683,12 @@ PAGE = r"""<!doctype html>
     letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
     border-bottom: 1px solid var(--line); padding-bottom: 4px; }
   .results .group:first-child { margin-top: 0; }
+  /* Inaktive Sets bleiben sichtbar, treten aber zurueck - man soll an der
+     Leiste ablesen koennen, was gerade aufs Geraet geht. */
+  .tab.aus { opacity: .45; }
+  .tab.aus .dot { box-shadow: inset 0 0 0 2px var(--panel); }
+  .plaetze { color: var(--muted); font-size: 12px; margin: -8px 2px 14px; }
+  .schalter.aufGeraet { margin-top: 10px; font-size: 13px; }
   .hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -697,6 +714,7 @@ PAGE = r"""<!doctype html>
     <button id="reloadBtn">Neu laden</button>
   </div>
   <div class="tabs" id="tabs"></div>
+  <div class="plaetze" id="plaetze"></div>
   <div class="device" id="device"></div>
 
   <button id="removeSet" class="danger">Dieses Set löschen</button>
@@ -871,10 +889,16 @@ function clearDragMarks() {
 
 // Vom Server eingesetzt, damit die Liste nur in build.py gepflegt wird.
 const palette = __PALETTE__;
+const limits = __LIMITS__;
 
-function emptySet(index) {
+function activeCount() {
+  return layout.sets.filter((s) => s.active !== false).length;
+}
+
+function emptySet(index, active) {
   return {
     name: "Set " + (index + 1),
+    active: !!active,
     symbol: "",
     color: palette[index % palette.length],
     slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
@@ -917,7 +941,9 @@ function render() {
   tabs.innerHTML = "";
   layout.sets.forEach((entry, index) => {
     const tab = document.createElement("div");
-    tab.className = "tab" + (index === current ? " active" : "");
+    tab.className = "tab" + (index === current ? " active" : "")
+                  + (entry.active === false ? " aus" : "");
+    tab.title = entry.active === false ? "Nicht auf dem Gerät" : "Geht aufs Gerät";
     tab.style.borderColor = index === current ? entry.color : "transparent";
     tab.innerHTML = '<span class="dot" style="background:' + entry.color + '"></span>';
     tab.append(entry.name || "Set " + (index + 1));
@@ -951,18 +977,25 @@ function render() {
 
     tabs.appendChild(tab);
   });
-  if (layout.sets.length < 5) {
+  if (layout.sets.length < limits.maxSets) {
     const add = document.createElement("div");
     add.className = "tab add";
     add.textContent = "+ Set";
     add.onclick = async () => {
-      layout.sets.push(emptySet(layout.sets.length));
+      // Ein neues Set nur dann gleich aktiv, wenn noch ein Platz frei ist -
+      // sonst liesse sich das Layout gar nicht speichern.
+      layout.sets.push(emptySet(layout.sets.length, activeCount() < limits.maxActive));
       current = layout.sets.length - 1;
       await save();
       render();
     };
     tabs.appendChild(add);
   }
+
+  $("plaetze").textContent =
+    activeCount() + " von " + limits.maxActive + " Plätzen auf dem Gerät belegt"
+    + (layout.sets.length > activeCount()
+       ? "  ·  " + layout.sets.length + " Sets angelegt" : "");
 
   const device = $("device");
   device.innerHTML = "";
@@ -994,6 +1027,29 @@ function render() {
   nameInput.placeholder = "Name des Sets";
   nameInput.oninput = () => { entry.name = nameInput.value; saveSoon(); renderTabsOnly(); };
   setTile.appendChild(nameInput);
+
+  // Aufs Geraet passen nur fuenf Sets - anlegen darf man mehr. Der Schalter
+  // entscheidet, welche davon gerade mitkommen.
+  const anSchalter = document.createElement("label");
+  anSchalter.className = "schalter aufGeraet";
+  const anBox = document.createElement("input");
+  anBox.type = "checkbox";
+  anBox.checked = entry.active !== false;
+  const anPille = document.createElement("span");
+  anPille.className = "pille";
+  anSchalter.append(anBox, anPille, document.createTextNode("Auf dem Gerät"));
+  anBox.onchange = async () => {
+    if (anBox.checked && activeCount() >= limits.maxActive) {
+      anBox.checked = false;
+      status("Es sind schon " + limits.maxActive + " Sets aktiv - erst eins abschalten.");
+      return;
+    }
+    entry.active = anBox.checked;
+    await save();
+    status("");
+    render();
+  };
+  setTile.appendChild(anSchalter);
 
   const colorRow = document.createElement("div");
   colorRow.className = "colorRow";

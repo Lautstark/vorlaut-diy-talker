@@ -98,6 +98,24 @@ Die einzige Quelle der Wahrheit. Höchstens 5 Sets, genau 4 Slots pro Set.
 }
 ```
 
+`active` entscheidet, ob ein Set aufs Gerät geht. Fehlt das Feld, gilt es als
+aktiv - ältere Layouts bleiben damit unverändert gültig.
+
+Angelegt werden dürfen bis zu 25 Sets, **gleichzeitig aktiv höchstens 5**. Die
+5 ist keine willkürliche Zahl: ein voll befülltes Set kostet rund 300 KiB, der
+Dateibereich auf dem ESP32 fasst 1536 KiB. Dieselbe Grenze steht als
+`MAX_SETS` in `firmware/vorlaut/layout_format.h`.
+
+Der Sinn: Sets für den Urlaub, für Oma, fürs Schwimmbad lassen sich vorbereiten
+und liegenlassen, ohne dass etwas verlorengeht. Umgeschaltet wird am Rechner,
+danach neu bauen und aufspielen - das Gerät selbst kann die Auswahl nicht
+ändern.
+
+Beim Umschalten fällt kein Aufwand doppelt an: Kacheln und Tonspuren liegen
+inhaltsadressiert im Zwischenspeicher unter `content/cache/`. Ein Set nach
+Wochen wieder anzuschalten kostet deshalb weder Rechenzeit noch einen
+Azure-Aufruf.
+
 `color` ist die Farbe, die als Rahmen um alle fünf Bilder gerendert wird -
 damit sie am Farbeindruck erkennt, in welchem Set sie gerade ist. Neue Sets
 bekommen der Reihe nach eine Farbe aus `DEFAULT_PALETTE` in `build.py`; die
