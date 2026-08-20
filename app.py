@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Weboberfläche für mitreden - läuft auf http://localhost:8771
+"""Weboberfläche für vorlaut - läuft auf http://localhost:8771
 
 Bewusst ohne Framework: nur die Python-Standardbibliothek. Die Seite sieht aus
 wie das Gerät - oben die Reiter für die Sets, darunter die vier Sprechtasten
@@ -62,7 +62,7 @@ def slugify(value: str) -> str:
 
 def arasaac_search(word: str) -> list[dict]:
     url = ARASAAC_SEARCH + urllib.parse.quote(word.strip())
-    request = urllib.request.Request(url, headers={"User-Agent": "mitreden"})
+    request = urllib.request.Request(url, headers={"User-Agent": "vorlaut"})
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             payload = json.loads(response.read().decode("utf-8"))
@@ -172,7 +172,7 @@ def arasaac_fetch(pictogram_id: int) -> bytes:
     if cached.exists():
         return cached.read_bytes()
     url = f"{ARASAAC_IMAGE}{identifier}?resolution={ARASAAC_RESOLUTION}"
-    request = urllib.request.Request(url, headers={"User-Agent": "mitreden"})
+    request = urllib.request.Request(url, headers={"User-Agent": "vorlaut"})
     with urllib.request.urlopen(request, timeout=30) as response:
         data = response.read()
     if not data.startswith(b"\x89PNG"):
@@ -193,7 +193,7 @@ def arasaac_download(pictogram_id: int, label: str) -> str:
 # --- HTTP --------------------------------------------------------------------
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "mitreden"
+    server_version = "vorlaut"
 
     def log_message(self, fmt, *args):  # ruhiger Log
         if self.path.startswith("/api/"):
@@ -291,8 +291,8 @@ class Handler(BaseHTTPRequestHandler):
             # Server ohnehin nutzlos, und zwischengespeichertes JavaScript
             # hätte schon genug Ärger gemacht.
             self._json({
-                "name": "mitreden",
-                "short_name": "mitreden",
+                "name": "vorlaut",
+                "short_name": "vorlaut",
                 "description": "Inhalte für den Talker bearbeiten",
                 "start_url": "/",
                 "display": "standalone",
@@ -410,14 +410,14 @@ PAGE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>mitreden</title>
+<title>vorlaut</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#16181d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="mitreden">
+<meta name="apple-mobile-web-app-title" content="vorlaut">
 <style>
   :root {
     --bg: #16181d;
@@ -622,7 +622,7 @@ PAGE = r"""<!doctype html>
 <body>
 <header>
   <img src="/icon.svg" alt="" class="logo">
-  <h1>mitreden</h1>
+  <h1>vorlaut</h1>
   <span class="status" id="status"></span>
   <label class="schalter"
          title="Zeigt zusätzlich, wie groß und wie grob es auf dem Display ankommt">
@@ -1203,7 +1203,7 @@ def local_addresses() -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="mitreden: Weboberfläche")
+    parser = argparse.ArgumentParser(description="vorlaut: Weboberfläche")
     parser.add_argument(
         "--host",
         default=HOST,
@@ -1216,7 +1216,7 @@ def main(argv: list[str] | None = None) -> int:
     build.ensure_content()
     server = Server((args.host, args.port), Handler)
     if args.host in ("0.0.0.0", "::"):
-        print(f"mitreden läuft auf Port {args.port}", flush=True)
+        print(f"vorlaut läuft auf Port {args.port}", flush=True)
         if Path("/.dockerenv").exists():
             # Im Container wäre die eigene Adresse die des Docker-Netzes und
             # damit von außen nutzlos.
@@ -1230,7 +1230,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Achtung: Es gibt keine Anmeldung - wer den Port erreicht, kann "
               "die Inhalte ändern.", flush=True)
     else:
-        print(f"mitreden läuft auf http://{args.host}:{args.port}", flush=True)
+        print(f"vorlaut läuft auf http://{args.host}:{args.port}", flush=True)
     print("(Strg+C beendet)", flush=True)
     try:
         server.serve_forever()

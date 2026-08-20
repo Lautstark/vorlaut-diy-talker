@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
 PORT="${1:-8771}"
 
 echo "Container:"
-if [ -n "$(docker ps -aq --filter name=mitreden 2>/dev/null)" ]; then
+if [ -n "$(docker ps -aq --filter name=vorlaut 2>/dev/null)" ]; then
   docker compose down
   echo "  beendet"
 else

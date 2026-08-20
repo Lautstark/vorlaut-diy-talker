@@ -3,8 +3,8 @@
 __pycache__/
 *.pyc
 content/
-firmware/mitreden/data/
-firmware/mitreden/littlefs.bin
+firmware/vorlaut/data/
+firmware/vorlaut/littlefs.bin
 
 # Der Azure-Schluessel gehoert nicht in eine Abbild-Schicht. Zur Laufzeit
 # kommt er aus dem eingehaengten Projektordner.

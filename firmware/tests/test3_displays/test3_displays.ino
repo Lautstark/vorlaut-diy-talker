@@ -24,7 +24,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 
-#include "../../mitreden/pins.h"
+#include "../../vorlaut/pins.h"
 
 class Panel : public Adafruit_ST7735 {
  public:
@@ -41,7 +41,7 @@ void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("mitreden – Stufe 3: alle fünf Displays");
+  Serial.println("vorlaut – Stufe 3: alle fünf Displays");
 
   pinMode(PIN_BL, OUTPUT);
   digitalWrite(PIN_BL, HIGH);

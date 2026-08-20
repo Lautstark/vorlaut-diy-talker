@@ -41,11 +41,11 @@ Wer nicht selbst bauen will, zieht das fertige Image — es wird bei jeder
 Änderung an `Dockerfile` oder `requirements.txt` für amd64 und arm64 gebaut:
 
 ```
-ghcr.io/steffipetaffy/mitreden:latest
+ghcr.io/steffipetaffy/vorlaut:latest
 ```
 
 Dafür in der `docker-compose.yml` `build: .` durch
-`image: ghcr.io/steffipetaffy/mitreden:latest` ersetzen. Auf einem NAS mit
+`image: ghcr.io/steffipetaffy/vorlaut:latest` ersetzen. Auf einem NAS mit
 ARM spart das mehrere Minuten Bauzeit.
 
 Das Image bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
@@ -93,8 +93,8 @@ pgrep -fl app.py          # direkt gestartete Server
 Projektordner heraus. Von überall geht:
 
 ```bash
-docker stop mitreden
-docker logs -f mitreden
+docker stop vorlaut
+docker logs -f vorlaut
 ```
 
 #### Vorher lokal ausprobieren
@@ -112,7 +112,7 @@ Läuft schon ein `app.py` auf 8771, kann der Container einen anderen Port am
 Rechner bekommen:
 
 ```bash
-MITREDEN_PORT=8798 docker compose up -d --build
+VORLAUT_PORT=8798 docker compose up -d --build
 ```
 
 Achtung: Container und `app.py` arbeiten auf **denselben Dateien**. Beide
@@ -129,8 +129,8 @@ beide nehmen die Datei an.
 
 #### Auf einer Synology
 
-1. Gemeinsamen Ordner anlegen, üblich ist `docker`, darin `mitreden` -
-   der Pfad ist dann `/volume1/docker/mitreden`.
+1. Gemeinsamen Ordner anlegen, üblich ist `docker`, darin `vorlaut` -
+   der Pfad ist dann `/volume1/docker/vorlaut`.
 2. Das Projekt dorthin kopieren, am einfachsten über die Netzfreigabe im
    Finder. **Die `.env` gehört nicht ins Repo und muss von Hand mit.**
 3. **Container Manager** öffnen (DSM 7.2 und neuer; davor heißt das Paket

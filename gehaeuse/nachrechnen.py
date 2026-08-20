@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Nachrechnung für mitreden-gehaeuse.scad.
+Nachrechnung für vorlaut-gehaeuse.scad.
 
 Warum es das gibt: OpenSCAD zeigt eine Vorschau, aber eine Vorschau lügt
 freundlich. Ob ein Ausschnitt 0,4 mm daneben sitzt oder eine Rippe 1,9 mm
@@ -26,7 +26,7 @@ import re
 import sys
 
 SCAD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                    'mitreden-gehaeuse.scad')
+                    'vorlaut-gehaeuse.scad')
 
 
 # ---------------------------------------------------------------- Parser
@@ -459,7 +459,7 @@ def main():
     if a.versatz is not None:
         p['kappe_versatz_y'] = a.versatz
 
-    print('mitreden — Gehaeuse, Nachrechnung')
+    print('vorlaut — Gehaeuse, Nachrechnung')
     print('Quelle: %s' % os.path.relpath(a.scad))
     print('Aussen: %.2f x %.2f x %.2f mm   Bett: %.0f x %.0f mm'
           % (p['aussen_b'], p['aussen_h'], p['aussen_t'], a.bett[0], a.bett[1]))

@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "../firmware/mitreden/layout_format.h"
+#include "../firmware/vorlaut/layout_format.h"
 
 static void hex(const uint8_t *p, int n) {
   for (int i = 0; i < n; i++) printf("%02x", p[i]);

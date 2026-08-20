@@ -2,7 +2,7 @@ name: Python and build
 
 # Läuft nur, wenn dieser Job auch etwas zu prüfen hat.
 #
-# firmware/mitreden/ steht bewusst mit in der Liste, obwohl hier kein Sketch
+# firmware/vorlaut/ steht bewusst mit in der Liste, obwohl hier kein Sketch
 # übersetzt wird: tests/layout_dump.cpp bindet layout_format.h aus dem Sketch
 # ein und vergleicht, was der C-Leser liest, mit dem was build.py schreibt.
 # Ändert sich das Format in der Firmware, muss dieser Test laufen - sonst
@@ -15,7 +15,7 @@ on:
       - requirements.txt
       - tests/**
       - example/**
-      - firmware/mitreden/**
+      - firmware/vorlaut/**
       - .github/workflows/ci-python.yml
   pull_request:
     paths:
@@ -23,7 +23,7 @@ on:
       - requirements.txt
       - tests/**
       - example/**
-      - firmware/mitreden/**
+      - firmware/vorlaut/**
       - .github/workflows/ci-python.yml
 
 jobs:
@@ -60,5 +60,5 @@ jobs:
         # Prüft, dass content/ sich aus example/ füllt und alles durchläuft.
         run: |
           python build.py --no-audio
-          test -f firmware/mitreden/data/layout.bin
+          test -f firmware/vorlaut/data/layout.bin
           test -f content/layout.json

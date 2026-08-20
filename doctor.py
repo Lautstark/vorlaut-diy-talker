@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prüft, ob alles da ist, was mitreden braucht - und sagt, was fehlt.
+"""Prüft, ob alles da ist, was vorlaut braucht - und sagt, was fehlt.
 
     python3 doctor.py
 
@@ -162,7 +162,7 @@ def check_docker() -> None:
 
 
 def check_content() -> None:
-    content = Path(os.environ.get("MITREDEN_CONTENT") or ROOT / "content")
+    content = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content")
     layout = content / "layout.json"
     if layout.exists():
         try:
@@ -176,7 +176,7 @@ def check_content() -> None:
 
 
 def main() -> int:
-    print(f"\nmitreden – {platform.system()} {platform.release()}, "
+    print(f"\nvorlaut – {platform.system()} {platform.release()}, "
           f"{platform.machine()}\n")
     print(" Für die Weboberfläche und den Build")
     check_python()

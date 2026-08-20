@@ -1,12 +1,12 @@
 services:
-  mitreden:
+  vorlaut:
     build: .
-    image: mitreden
-    container_name: mitreden
+    image: vorlaut
+    container_name: vorlaut
     ports:
       # Anderer Port am Rechner, falls dort schon etwas läuft:
-      #   MITREDEN_PORT=8798 docker compose up -d
-      - "${MITREDEN_PORT:-8771}:8771"
+      #   VORLAUT_PORT=8798 docker compose up -d
+      - "${VORLAUT_PORT:-8771}:8771"
     volumes:
       # Das ganze Projekt hineinreichen: so liegen layout.json, symbols/ und
       # cache/ auf dem NAS und überleben jedes Neubauen des Abbilds. Der

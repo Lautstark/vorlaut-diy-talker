@@ -104,6 +104,6 @@ herausstellt, gehört zurück ins Repo:
 
 | | wo |
 |---|---|
-| Panel-Profil und Versatz | `firmware/mitreden/pins.h` |
-| Reihenfolge der CS- und KEY-Leitungen | `firmware/mitreden/pins.h` |
+| Panel-Profil und Versatz | `firmware/vorlaut/pins.h` |
+| Reihenfolge der CS- und KEY-Leitungen | `firmware/vorlaut/pins.h` |
 | Tatsächliche Bauteilmaße | `docs/hardware.md`, `tools/verdrahtung.py` |

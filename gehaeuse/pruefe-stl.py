@@ -9,9 +9,9 @@ entscheidenden Stellen wirklich Material bzw. Luft ist. Das fängt Fehler,
 die auf Parameterebene unsichtbar sind — ein Ausschnitt, der die falsche
 Tiefe hat, oder ein Dom, der von einem anderen Körper weggeschnitten wurde.
 
-    openscad -o /tmp/wanne.stl   -D 'teil="wanne"'   gehaeuse/mitreden-gehaeuse.scad
-    openscad -o /tmp/traeger.stl -D 'teil="traeger"' gehaeuse/mitreden-gehaeuse.scad
-    openscad -o /tmp/deckel.stl  -D 'teil="deckel"'  gehaeuse/mitreden-gehaeuse.scad
+    openscad -o /tmp/wanne.stl   -D 'teil="wanne"'   gehaeuse/vorlaut-gehaeuse.scad
+    openscad -o /tmp/traeger.stl -D 'teil="traeger"' gehaeuse/vorlaut-gehaeuse.scad
+    openscad -o /tmp/deckel.stl  -D 'teil="deckel"'  gehaeuse/vorlaut-gehaeuse.scad
     python3 gehaeuse/check-stl.py /tmp/wanne.stl /tmp/traeger.stl /tmp/deckel.stl
 
 Zu den Punktproben: getestet wird per Strahlensatz nach oben (+z). Punkte

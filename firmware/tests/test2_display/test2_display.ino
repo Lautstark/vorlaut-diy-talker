@@ -23,7 +23,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 
-#include "../../mitreden/pins.h"
+#include "../../vorlaut/pins.h"
 
 #define BREITE 128
 #define HOEHE  128
@@ -41,7 +41,7 @@ void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("mitreden – Stufe 2: ein Display");
+  Serial.println("vorlaut – Stufe 2: ein Display");
   Serial.printf("CS auf GPIO %d, DC %d, RST %d, Versatz %d/%d\n",
                 PIN_CS[0], PIN_DC, PIN_RST, PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
 

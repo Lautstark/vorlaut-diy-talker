@@ -27,8 +27,8 @@ ROOT = Path(__file__).resolve().parent
 
 # Alles, was dir gehört - Layout, Symbole, gesprochene Sätze - liegt unter
 # content/ und ist bewusst nicht versioniert. Der Ort lässt sich verlegen,
-# etwa auf eine Netzfreigabe:  MITREDEN_CONTENT=/volume1/talker
-CONTENT = Path(os.environ.get("MITREDEN_CONTENT") or ROOT / "content").resolve()
+# etwa auf eine Netzfreigabe:  VORLAUT_CONTENT=/volume1/talker
+CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
 EXAMPLE = ROOT / "example"
 
 LAYOUT_FILE = CONTENT / "layout.json"
@@ -37,7 +37,7 @@ SYMBOLS_DIR = CONTENT / "symbols"
 # der LittleFS-Uploader sucht data/ direkt daneben. Deshalb diese Ebene.
 BACKUP_DIR = CONTENT / "cache" / "layout-backups"
 KEEP_BACKUPS = 60
-SKETCH_DIR = ROOT / "firmware" / "mitreden"
+SKETCH_DIR = ROOT / "firmware" / "vorlaut"
 DATA_DIR = SKETCH_DIR / "data"
 
 MAX_SETS = 5
@@ -524,7 +524,7 @@ def find_tool(name: str) -> Path | None:
 
 
 def build_fs_image() -> list[str]:
-    """Packt firmware/mitreden/data/ in ein LittleFS-Image zum Flashen."""
+    """Packt firmware/vorlaut/data/ in ein LittleFS-Image zum Flashen."""
     log: list[str] = []
     tool = find_tool("mklittlefs")
     if not tool:
@@ -616,7 +616,7 @@ def prune_cache() -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="mitreden: firmware/data bauen")
+    parser = argparse.ArgumentParser(description="vorlaut: firmware/data bauen")
     parser.add_argument(
         "--no-audio", action="store_true", help="nur Bilder und layout.h bauen"
     )

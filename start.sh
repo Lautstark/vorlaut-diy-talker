@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 PORT="${1:-8771}"
-export MITREDEN_PORT="$PORT"
+export VORLAUT_PORT="$PORT"
 
 if [ ! -f .env ]; then
   echo "Hinweis: keine .env - ohne Azure-Schlüssel bleibt es stumm."
@@ -41,8 +41,8 @@ fi
 # Ein Container dieses Namens kann aus einem früheren Lauf übrig sein, auch
 # gestoppt - dann verweigert Docker den Namen. Vorher wegräumen, statt an
 # "name is already in use" zu scheitern.
-if [ -n "$(docker ps -aq --filter name='^mitreden$' 2>/dev/null)" ]; then
-  docker rm -f mitreden >/dev/null 2>&1 || true
+if [ -n "$(docker ps -aq --filter name='^vorlaut$' 2>/dev/null)" ]; then
+  docker rm -f vorlaut >/dev/null 2>&1 || true
 fi
 
 echo "Baue und starte ..."

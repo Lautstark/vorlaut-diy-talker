@@ -12,7 +12,7 @@ inputs:
   sketche:
     description: Sketch-Ordner, einer je Zeile.
     required: false
-    default: firmware/mitreden
+    default: firmware/vorlaut
   fqbn:
     description: Board-Einstellung samt Partitionsschema.
     required: false

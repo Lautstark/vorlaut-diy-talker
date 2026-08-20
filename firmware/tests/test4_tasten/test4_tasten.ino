@@ -19,7 +19,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 
-#include "../../mitreden/pins.h"
+#include "../../vorlaut/pins.h"
 
 class Panel : public Adafruit_ST7735 {
  public:
@@ -46,7 +46,7 @@ void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("mitreden – Stufe 4: Taster");
+  Serial.println("vorlaut – Stufe 4: Taster");
 
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) pinMode(PIN_BUTTON[i], INPUT_PULLUP);
 

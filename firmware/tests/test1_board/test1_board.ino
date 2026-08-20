@@ -19,7 +19,7 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   delay(2000);            // dem USB-Monitor Zeit geben, sich zu verbinden
   Serial.println();
-  Serial.println("mitreden – Stufe 1: Board");
+  Serial.println("vorlaut – Stufe 1: Board");
   Serial.printf("Chip: %s, %u MHz, %u Kerne\n",
                 ESP.getChipModel(), ESP.getCpuFreqMHz(), ESP.getChipCores());
   Serial.printf("Flash: %u MB\n", ESP.getFlashChipSize() / (1024 * 1024));

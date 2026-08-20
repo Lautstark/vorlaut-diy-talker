@@ -34,8 +34,8 @@ jobs:
           # Release soll auch in einem Jahr noch das beschreiben,
           # was in ihr steckt.
           doku="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}"
-          summen=$(cd build/mitreden && sha256sum mitreden.ino.merged.bin \
-            mitreden.ino.bin)
+          summen=$(cd build/vorlaut && sha256sum vorlaut.ino.merged.bin \
+            vorlaut.ino.bin)
 
           cat > hinweise.md <<HINWEISE
           > **Diese Firmware ist noch nie auf echter Hardware gelaufen.**
@@ -47,12 +47,12 @@ jobs:
           ## Aufspielen
 
           Es braucht nur \`esptool\`, keinen Arduino-Core und keine
-          Bibliotheken. \`mitreden.ino.merged.bin\` enthält Bootloader,
+          Bibliotheken. \`vorlaut.ino.merged.bin\` enthält Bootloader,
           Partitionstabelle und Programm und wird an Adresse 0 geschrieben:
 
           \`\`\`bash
           esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\
-            write-flash 0x0 mitreden.ino.merged.bin
+            write-flash 0x0 vorlaut.ino.merged.bin
           \`\`\`
 
           Den Port findet \`arduino-cli board list\`. Meldet esptool, dass es
@@ -77,5 +77,5 @@ jobs:
             --title "$GITHUB_REF_NAME - Firmware, auf Hardware ungetestet" \
             --notes-file hinweise.md \
             --prerelease \
-            build/mitreden/mitreden.ino.merged.bin \
-            build/mitreden/mitreden.ino.bin
+            build/vorlaut/vorlaut.ino.merged.bin \
+            build/vorlaut/vorlaut.ino.bin

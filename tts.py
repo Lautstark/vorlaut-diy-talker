@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Azure Text-to-Speech für mitreden.
+"""Azure Text-to-Speech für vorlaut.
 
 Rendert einen Satz mit der Stimme de-DE-GiselaNeural, schneidet Stille an den
 Rändern weg, normalisiert die Lautheit und legt das Ergebnis als 16 kHz mono
@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 # Gleiche Wurzel wie in build.py - dort steht die Begründung.
-CONTENT = Path(os.environ.get("MITREDEN_CONTENT") or ROOT / "content").resolve()
+CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
 CACHE_DIR = CONTENT / "cache" / "tts"
 INDEX_FILE = CACHE_DIR / "index.json"
 ENV_FILE = ROOT / ".env"
@@ -213,7 +213,7 @@ def azure_synthesize(text: str) -> bytes:
             "Ocp-Apim-Subscription-Key": get_speech_key(),
             "Content-Type": "application/ssml+xml",
             "X-Microsoft-OutputFormat": AZURE_FORMAT,
-            "User-Agent": "mitreden",
+            "User-Agent": "vorlaut",
         },
     )
     try:

@@ -28,7 +28,7 @@ jobs:
       - uses: ./.github/actions/firmware
         with:
           sketche: |
-            firmware/mitreden
+            firmware/vorlaut
             firmware/tests/test1_board
             firmware/tests/test2_display
             firmware/tests/test3_displays
@@ -48,6 +48,6 @@ jobs:
         with:
           name: firmware
           path: |
-            build/mitreden/mitreden.ino.merged.bin
-            build/mitreden/mitreden.ino.bin
+            build/vorlaut/vorlaut.ino.merged.bin
+            build/vorlaut/vorlaut.ino.bin
           if-no-files-found: error

@@ -114,7 +114,7 @@ ergibt eine Platzhalter-Kachel mit grauem Kreuz.
 .venv/bin/python build.py
 ```
 
-Schreibt nach `firmware/mitreden/data/` (gitignored, wird auf das Gerät
+Schreibt nach `firmware/vorlaut/data/` (gitignored, wird auf das Gerät
 hochgeladen):
 
 | Datei              | Inhalt                                          |
@@ -235,13 +235,13 @@ jemand etwas anlegen muss.
 Der Ort lässt sich verlegen, etwa auf eine Netzfreigabe:
 
 ```bash
-MITREDEN_CONTENT=/volume1/talker/inhalte .venv/bin/python app.py
+VORLAUT_CONTENT=/volume1/talker/inhalte .venv/bin/python app.py
 ```
 
 **`content/` muss selbst gesichert werden.** Da steckt die ganze Arbeit
 drin, und Git fängt sie absichtlich nicht mehr auf. Auf einem NAS läuft sie in dessen
 Sicherung mit; auf einem Rechner gehört sie in dein übliches Backup.
 
-Nicht im Repo sind ausserdem `firmware/mitreden/data/`, `layout.h` und das
+Nicht im Repo sind ausserdem `firmware/vorlaut/data/`, `layout.h` und das
 LittleFS-Image - die entstehen in Sekunden neu aus `content/`. Und `.env`
 mit dem Azure-Schlüssel.

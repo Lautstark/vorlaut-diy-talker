@@ -1,5 +1,5 @@
 // =====================================================================
-//  mitreden — Gehäuse
+//  vorlaut — Gehäuse
 //  Ein Talker mit fünf ScreenKeys, Lautsprecher, ESP32-S3 Feather
 //  und LiPo. Für einen einfachen FDM-Drucker, eine Farbe, ohne Stützen.
 //
@@ -458,7 +458,7 @@ m_ls   = 35;   // [A] g, geschätzt
 sp_x = (m_akku*(akku_x+akku_b/2) + m_ls*ls_mx) / (m_akku + m_ls);
 sp_y = (m_akku*(akku_y+akku_h/2) + m_ls*ls_my) / (m_akku + m_ls);
 
-echo(str("--- mitreden Gehaeuse ------------------------------------"));
+echo(str("--- vorlaut Gehaeuse ------------------------------------"));
 echo(str("Bauteil-Rechteck : ", env_b, " x ", env_h, " mm"));
 echo(str("Gehaeuse aussen  : ", aussen_b, " x ", aussen_h, " x ", aussen_t, " mm"));
 echo(str("Innenraum        : ", innen_b, " x ", innen_h, " x ", innen_t, " mm"));

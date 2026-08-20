@@ -20,7 +20,7 @@
 #include <ESP_I2S.h>
 #include <math.h>
 
-#include "../../mitreden/pins.h"
+#include "../../vorlaut/pins.h"
 
 static const uint32_t ABTASTRATE = 16000;   // wie build.py die WAVs schreibt
 static const size_t BLOCK = 512;
@@ -53,7 +53,7 @@ void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("mitreden – Stufe 5: Ton");
+  Serial.println("vorlaut – Stufe 5: Ton");
   Serial.printf("BCLK GPIO %d, LRC %d, DIN %d, SD %d\n",
                 PIN_I2S_BCLK, PIN_I2S_LRCK, PIN_I2S_DIN, PIN_AMP_SD);
 

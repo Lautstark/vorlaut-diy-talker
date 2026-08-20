@@ -1,4 +1,4 @@
-# mitreden
+# vorlaut
 
 Ein kleiner Talker zum Selberbauen. Fünf Tasten, die gleichzeitig Displays
 sind: vier sprechen einen hinterlegten Satz, die fünfte schaltet zwischen
@@ -30,8 +30,8 @@ packt sie in ein LittleFS-Image für den Flash.
 ## Schnellstart
 
 ```bash
-git clone https://github.com/SteffiPeTaffy/mitreden.git
-cd mitreden
+git clone https://github.com/SteffiPeTaffy/vorlaut.git
+cd vorlaut
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python app.py
 ```

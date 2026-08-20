@@ -2,7 +2,7 @@
 
 ## Firmware
 
-`firmware/mitreden/mitreden.ino`, Arduino-Framework.
+`firmware/vorlaut/vorlaut.ino`, Arduino-Framework.
 
 Der Sketch liegt in einem eigenen Unterordner, weil Arduino verlangt, dass der
 Ordner so heißt wie die `.ino`-Datei - und weil der LittleFS-Uploader `data/`
@@ -35,19 +35,19 @@ statt `/dev/cu.usbmodemXXXX` einsetzen.
 
 **2a. Ohne Arduino: fertiges Image nehmen.**
 
-Unter [Releases](https://github.com/SteffiPeTaffy/mitreden/releases) hängt an
-jedem Tag ein fertiges `mitreden.ino.merged.bin`. Das ist der bequeme Weg: ein
+Unter [Releases](https://github.com/SteffiPeTaffy/vorlaut/releases) hängt an
+jedem Tag ein fertiges `vorlaut.ino.merged.bin`. Das ist der bequeme Weg: ein
 gewöhnlicher Link, kein GitHub-Konto nötig, und es bleibt liegen.
 
 Wer den allerneuesten Stand von `main` braucht, holt ihn aus *Actions*: der
 Workflow *Firmware build* hängt das Image als Artifact `firmware` an. Dafür
 braucht es eine Anmeldung, und nach 90 Tagen ist es weg.
 
-`mitreden.ino.merged.bin` enthält Bootloader, Partition Table und Programm in
+`vorlaut.ino.merged.bin` enthält Bootloader, Partition Table und Programm in
 einer Datei, geschrieben an Adresse 0:
 
 ```bash
-esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 mitreden.ino.merged.bin
+esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 vorlaut.ino.merged.bin
 ```
 
 Damit braucht es weder Arduino-Core noch Bibliotheken - nur esptool. Das
@@ -57,8 +57,8 @@ einstellen.
 **2b. Selbst übersetzen und schreiben:**
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
-arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
+arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
+arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
 ```
 
 Meldet der Upload, dass er das Board nicht findet: **BOOT** gedrückt halten,
@@ -76,7 +76,7 @@ Bootloader und der Befehl geht durch. Danach einmal RESET drücken.
 ```bash
 ~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool \
   --chip esp32s3 --port /dev/cu.usbmodemXXXX \
-  write-flash 0x670000 firmware/mitreden/littlefs.bin
+  write-flash 0x670000 firmware/vorlaut/littlefs.bin
 ```
 
 Die Adresse `0x670000` ist der Anfang der `spiffs`-Partition aus
@@ -94,7 +94,7 @@ und ob LittleFS sich einhängen ließ.
 
 ### Wie das Image entsteht
 
-`build.py --fs-image` packt `firmware/mitreden/data/` mit `mklittlefs` in ein
+`build.py --fs-image` packt `firmware/vorlaut/data/` mit `mklittlefs` in ein
 Image von 1536 KiB - genau die Größe der `spiffs`-Partition. Passen die
 Daten nicht hinein, bricht es mit einer klaren Meldung ab, statt ein zu großes
 Image zu erzeugen.
@@ -104,7 +104,7 @@ Das Image selbst ist gitignored: es entsteht in Sekunden neu aus `data/`.
 Übersetzen:
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/mitreden
+arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
 ```
 
 > **Das Partition Scheme ist nicht optional.** Die Voreinstellung des Boards

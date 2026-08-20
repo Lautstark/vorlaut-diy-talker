@@ -1,4 +1,4 @@
-# mitreden auf einem NAS oder einem anderen Rechner, der durchläuft.
+# vorlaut auf einem NAS oder einem anderen Rechner, der durchläuft.
 #
 # Das Abbild bringt nur die Laufzeit mit - Python, ffmpeg, Pillow. Das Projekt
 # selbst wird als Verzeichnis hineingereicht, damit layout.json, symbols/ und

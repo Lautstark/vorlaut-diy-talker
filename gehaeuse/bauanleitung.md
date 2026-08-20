@@ -1,7 +1,7 @@
 # Gehäuse bauen
 
 Drei gedruckte Teile, sechs Schrauben, ein Abend Arbeit. Die Maße stehen
-alle in [`mitreden-gehaeuse.scad`](mitreden-gehaeuse.scad); diese Datei
+alle in [`vorlaut-gehaeuse.scad`](vorlaut-gehaeuse.scad); diese Datei
 erklärt, was man damit macht.
 
 > **Ungetestet.** Zum Zeitpunkt dieser Zeilen war noch kein Bauteil in der
@@ -22,7 +22,7 @@ Der Platzbedarf der Wanne auf dem Bett ist 136,0 × 100,0 mm — das Logo an
 der Unterkante steht 0,6 mm vor die Wand.
 
 ```bash
-openscad -o wanne.stl -D 'teil="wanne"' gehaeuse/mitreden-gehaeuse.scad
+openscad -o wanne.stl -D 'teil="wanne"' gehaeuse/vorlaut-gehaeuse.scad
 ```
 
 Dasselbe mit `traeger` und `deckel`. `teil="montage"` zeigt alles

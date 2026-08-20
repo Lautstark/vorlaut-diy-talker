@@ -1,4 +1,4 @@
-// mitreden - kleiner Talker mit fünf Screenkey-Tasten
+// vorlaut - kleiner Talker mit fünf Screenkey-Tasten
 //
 // Vier Tasten sprechen, die fünfte schaltet das Set um. Solange das Gerät
 // wach ist, sind alle fünf Displays an. Nach der eingestellten Zeit ohne
@@ -514,7 +514,7 @@ void setup() {
     // aber eine Partition namens "spiffs". Richtig ist "Default 8MB".
     Serial.println("LittleFS ließ sich nicht einhängen.");
     Serial.println("  1. Partition Scheme \"Default (3MB APP/1.5MB SPIFFS)\"?");
-    Serial.println("  2. firmware/mitreden/data/ schon hochgeladen?");
+    Serial.println("  2. firmware/vorlaut/data/ schon hochgeladen?");
   }
 
   // Erst hier, weil dafür das Dateisystem stehen muss.

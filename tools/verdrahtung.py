@@ -81,7 +81,7 @@ def main() -> None:
         if unter:
             d.text((x + 14, y + 33), unter, font=fk, fill=GRAU)
 
-    d.text((40, 26), "mitreden - Verdrahtung", font=ft, fill=TXT)
+    d.text((40, 26), "vorlaut - Verdrahtung", font=ft, fill=TXT)
     d.text((40, 56), "Sieben Leitungen gehen an alle fünf Module. "
                      "Nur CS und KEY sind pro Modul einzeln.", font=f, fill=GRAU)
 
