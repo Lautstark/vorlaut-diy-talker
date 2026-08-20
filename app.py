@@ -45,6 +45,18 @@ SEARCH_LIMIT = 40
 
 # --- Hilfsfunktionen ---------------------------------------------------------
 
+def build_current_flag() -> str:
+    """"1", wenn data/ zum aktuellen Layout passt - sonst "0".
+
+    Die Oberflaeche zeigt daran, ob das Bauen ansteht. Ein Fehler hier darf
+    Laden und Speichern nicht stoeren, deshalb im Zweifel "0".
+    """
+    try:
+        return "1" if build.build_is_current() else "0"
+    except Exception:
+        return "0"
+
+
 def layout_version() -> str:
     """Kennung des aktuellen Dateistands, damit ein veralteter Tab nicht
     stillschweigend die Arbeit eines anderen überschreibt."""
@@ -268,7 +280,10 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self._json(
                     build.load_layout(),
-                    extra={"X-Layout-Version": layout_version()},
+                    extra={
+                        "X-Layout-Version": layout_version(),
+                        "X-Build-Current": build_current_flag(),
+                    },
                 )
             except build.BuildError as exc:
                 self._error(str(exc), 500)
@@ -405,7 +420,10 @@ class Handler(BaseHTTPRequestHandler):
             except build.BuildError as exc:
                 self._error(str(exc))
                 return
-            self._json(saved, extra={"X-Layout-Version": layout_version()})
+            self._json(saved, extra={
+                "X-Layout-Version": layout_version(),
+                "X-Build-Current": build_current_flag(),
+            })
             return
 
         if path == "/api/pick":
@@ -763,6 +781,7 @@ async function api(path, options) {
 async function load() {
   const response = await api("/api/layout");
   layoutVersion = response.headers.get("X-Layout-Version");
+  markBuildState(response.headers.get("X-Build-Current"));
   layout = await response.json();
   if (current >= layout.sets.length) current = Math.max(0, layout.sets.length - 1);
   $("conflict").classList.remove("show");
@@ -773,6 +792,19 @@ async function load() {
 
 // Eine Sekunde nach der letzten Eingabe. Kuerzer bringt nichts - es fuehlt
 // sich nicht schneller an, erzeugt aber deutlich mehr Schreibvorgaenge.
+// Der Bauen-Knopf sagt selbst, ob er dran ist: hervorgehoben, solange
+// data/ nicht zum Layout passt, sonst zurueckgenommen. Damit muss sich
+// niemand merken, wann gebaut werden muss.
+function markBuildState(flag) {
+  if (flag === null || flag === undefined) return;
+  const noetig = flag !== "1";
+  const knopf = $("buildBtn");
+  knopf.classList.toggle("primary", noetig);
+  knopf.title = noetig
+    ? "Das Gerät bekommt erst durch Bauen und Aufspielen den neuen Stand"
+    : "Die Dateien in data/ entsprechen dem Layout";
+}
+
 function saveSoon() {
   clearTimeout(saveTimer);
   unsaved = true;
@@ -832,6 +864,7 @@ async function doSave() {
       throw new Error(message);
     }
     layoutVersion = response.headers.get("X-Layout-Version");
+  markBuildState(response.headers.get("X-Build-Current"));
     // layout hier NICHT durch die Antwort ersetzen. Die Eingabefelder hängen
     // an genau diesen Objekten; ein frisches Geflecht vom Server würde ihre
     // Handler ins Leere zeigen lassen, und alles weitere Getippte ginge
@@ -861,6 +894,7 @@ async function doSave() {
 $("overwriteBtn").onclick = async () => {
   const response = await api("/api/layout");
   layoutVersion = response.headers.get("X-Layout-Version");
+  markBuildState(response.headers.get("X-Build-Current"));
   await response.json();
   await save();
 };
@@ -1343,6 +1377,7 @@ $("buildBtn").onclick = async () => {
   try {
     const result = await (await api("/api/build", { method: "POST" })).json();
     $("log").textContent = result.log.join("\n");
+    markBuildState("1");
     status("fertig gebaut");
   } catch (error) {
     $("log").textContent = "Fehler: " + error.message;

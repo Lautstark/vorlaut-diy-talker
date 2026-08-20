@@ -60,6 +60,8 @@ BORDER = 6               # Rahmenbreite, wird von der Firmware gezeichnet
 TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, was tatsächlich als Datei anfällt
 TILE_CACHE = CONTENT / "cache" / "tiles"
 TILE_INDEX = TILE_CACHE / "index.json"
+# Haelt fest, welcher Stand zuletzt nach data/ gebaut wurde.
+BUILD_STATE = CONTENT / "cache" / "build-state.json"
 TILE_PIPELINE = 2        # hochzählen, wenn sich das Rendern ändert
 DEFAULT_COLOR = "#3B5BDB"
 # Vorschläge für neue Sets, in dieser Reihenfolge vergeben. Die Oberfläche
@@ -237,6 +239,55 @@ def normalize_layout(raw: dict) -> dict:
 def active_sets(layout: dict) -> list[dict]:
     """Die Sets, die aufs Gerät gehen - in der Reihenfolge des Layouts."""
     return [entry for entry in layout["sets"] if entry.get("active", True)]
+
+
+def built_fingerprint(layout: dict) -> str:
+    """Kennung dessen, was tatsächlich in data/ landet.
+
+    Bewusst nur die aktiven Sets: an einem abgeschalteten Set zu arbeiten
+    ändert nichts am Gerät und soll deshalb auch nicht als "neu bauen"
+    gemeldet werden.
+    """
+    payload = {
+        "sleep": layout["sleep_timeout_seconds"],
+        "sets": active_sets(layout),
+        "pipeline": TILE_PIPELINE,
+        "format": LAYOUT_VERSION,
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+
+
+def _remember_build(layout: dict) -> None:
+    """Haelt fest, welcher Stand gerade nach data/ gebaut wurde."""
+    try:
+        BUILD_STATE.parent.mkdir(parents=True, exist_ok=True)
+        BUILD_STATE.write_text(
+            json.dumps({"fingerprint": built_fingerprint(layout)}) + "\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        pass   # ohne Merkzettel meldet die Oberflaeche haeufiger "neu bauen"
+
+
+def build_is_current(layout: dict | None = None) -> bool:
+    """Entspricht data/ dem aktuellen Layout?
+
+    Nicht erkannt wird, wenn sich eine Symboldatei unter demselben Namen
+    ändert - dafür müsste jedes Bild bei jeder Abfrage gehasht werden.
+    """
+    if not (DATA_DIR / "layout.bin").exists():
+        return False
+    try:
+        stored = json.loads(BUILD_STATE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if layout is None:
+        try:
+            layout = load_layout()
+        except BuildError:
+            return False
+    return stored.get("fingerprint") == built_fingerprint(layout)
 
 
 def backup_layout(path: Path = LAYOUT_FILE) -> None:
@@ -598,6 +649,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     note(f"geschrieben: {(DATA_DIR / LAYOUT_BIN).relative_to(ROOT)}")
 
     total = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
+    _remember_build(layout)
     note(
         f"Fertig: {len(sets)} Set(s), "
         f"{sum(1 for f in DATA_DIR.iterdir() if f.is_file())} Dateien, "
