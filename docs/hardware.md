@@ -52,7 +52,7 @@ python3 tools/verdrahtung.py
 | Backlight (alle)        |    3 | SDA                          |
 | CS Display 1            |   11 | D11                          |
 | CS Display 2            |   12 | D12                          |
-| CS Display 3            |   13 | D13                          |
+| CS Display 3            |   37 | MI (MISO)                    |
 | CS Display 4            |    5 | D5                           |
 | CS Display 5 (Set)      |    6 | D6                           |
 | Taster 1                |   18 | A0                           |
@@ -72,7 +72,9 @@ dem Feather als A0-A4 sauber herausgeführt.
 **Verkabelung:**
 
 - Taster gegen **GND**, die internen Pull-ups sind aktiv. Gedrückt = LOW.
-- MISO wird nicht gebraucht, die Displays werden nur beschrieben.
+- MISO trägt CS für Display 3. GPIO 13 ist beim Feather die eingebaute
+  rote LED und bleibt deshalb frei - sie ist beim Erstaufbau das erste
+  Lebenszeichen. Gelesen wird von den Displays ohnehin nicht.
 - `SD` am MAX98357A hängt an GPIO 4: der Verstärker ist stumm, außer während
   ein Wort läuft. Das spart Strom und das leise Rauschen im Ruhezustand.
 - Das Backlight aller fünf Displays an einem GPIO funktioniert nur, wenn der

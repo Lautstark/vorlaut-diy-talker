@@ -23,7 +23,7 @@ LILA = (135, 75, 185); TUERKIS = (25, 140, 160)
 GEMEINSAM = [("3V", "VCC", ROT), ("GND", "GND", SCHWARZ), ("SCK", "CLK", BLAU),
              ("MO", "DIN", BLAU), ("D9", "DC", ORANGE), ("D10", "RST", ORANGE),
              ("SDA", "PWM", GELB)]
-CS = ["D11", "D12", "D13", "D5", "D6"]
+CS = ["D11", "D12", "MI", "D5", "D6"]
 KEY = ["A0", "A1", "A2", "A3", "A4"]
 VERSTAERKER = [("A5  / GPIO 8", "BCLK"), ("RX  / GPIO 38", "LRC"),
                ("TX  / GPIO 39", "DIN"), ("SCL / GPIO 4", "SD"),
@@ -34,7 +34,7 @@ FEATHER = [
     ("D9", "GPIO 9", ORANGE, "an alle"), ("D10", "GPIO 10", ORANGE, "an alle"),
     ("SDA", "GPIO 3", GELB, "an alle"),
     ("D11", "GPIO 11", GRUEN, "CS 1"), ("D12", "GPIO 12", GRUEN, "CS 2"),
-    ("D13", "GPIO 13", GRUEN, "CS 3"), ("D5", "GPIO 5", GRUEN, "CS 4"),
+    ("MI", "GPIO 37", GRUEN, "CS 3"), ("D5", "GPIO 5", GRUEN, "CS 4"),
     ("D6", "GPIO 6", GRUEN, "CS 5"),
     ("A0", "GPIO 18", LILA, "KEY 1"), ("A1", "GPIO 17", LILA, "KEY 2"),
     ("A2", "GPIO 16", LILA, "KEY 3"), ("A3", "GPIO 15", LILA, "KEY 4"),
@@ -50,7 +50,9 @@ HINWEISE = [
     ("", "Zieht er den LED-Strom direkt, gehört ein MOSFET dazwischen."),
     ("Taster gegen GND,", "die internen Pull-ups sind aktiv. Gedrückt = LOW."),
     ("Taster nur auf GPIO 0 bis 21.", "Nur die wecken aus dem Tiefschlaf."),
-    ("MISO wird nicht gebraucht,", "die Displays werden nur beschrieben."),
+    ("MISO trägt CS 3.", "GPIO 13 ist die eingebaute LED und bleibt frei,"),
+    ("", "damit sie als Lebenszeichen taugt. Gelesen wird von den"),
+    ("", "Displays ohnehin nicht."),
 ]
 
 
