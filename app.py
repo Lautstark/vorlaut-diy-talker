@@ -412,14 +412,16 @@ class Handler(BaseHTTPRequestHandler):
                 if build.symbol_path(reference) is None:
                     self._error("Dieses METACOM-Symbol gibt es nicht.", 404)
                     return
-                self._json({"symbol": reference})
+                name = reference[len(build.METACOM_PREFIX):]
+                self._json({"symbol": reference, "label": metacom.label_for(name)})
                 return
+            label = body.get("label") or "symbol"
             try:
-                filename = arasaac_download(body.get("id"), body.get("label") or "symbol")
+                filename = arasaac_download(body.get("id"), label)
             except (urllib.error.URLError, ValueError, TypeError, TimeoutError) as exc:
                 self._error(f"Download fehlgeschlagen: {exc}", 502)
                 return
-            self._json({"symbol": filename})
+            self._json({"symbol": filename, "label": label})
             return
 
         if path == "/api/speak":
@@ -1192,10 +1194,20 @@ async function doSearch() {
 }
 
 // Trägt ein fertiges Symbol dort ein, wo der Dialog geöffnet wurde.
-async function applySymbol(filename) {
+// label ist das Wort zum Symbol, sofern die Quelle eines mitliefert.
+async function applySymbol(filename, label) {
   const entry = layout.sets[current];
-  if (pickTarget.kind === "set") entry.symbol = filename;
-  else entry.slots[pickTarget.index].symbol = filename;
+  const word = (label || "").trim();
+  if (pickTarget.kind === "set") {
+    entry.symbol = filename;
+    // Nur ein leeres Feld vorbelegen, niemals etwas überschreiben: das Symbol
+    // heißt "zustimmen", deine Taste soll aber "Ja!" sagen.
+    if (word && !entry.name.trim()) entry.name = word;
+  } else {
+    const slot = entry.slots[pickTarget.index];
+    slot.symbol = filename;
+    if (word && !slot.text.trim()) slot.text = word;
+  }
   await save();
   $("picker").close();
   render();
@@ -1214,7 +1226,7 @@ async function pick(item) {
         label: item.label || $("q").value,
       }),
     })).json();
-    await applySymbol(result.symbol);
+    await applySymbol(result.symbol, result.label);
     status("");
   } catch (error) {
     status("Symbol konnte nicht geladen werden: " + error.message);
