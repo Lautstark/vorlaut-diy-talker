@@ -32,13 +32,52 @@ ENV_FILE = ROOT / ".env"
 
 _index_lock = threading.Lock()
 
+def load_env_file(path: Path = ENV_FILE) -> dict[str, str]:
+    """Liest .env als einfache KEY=VALUE-Datei. Kommentare mit # werden ignoriert."""
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        values[key.strip()] = value
+    return values
+
+
+def einstellung(name: str, standard: str) -> str:
+    """Wert aus der Umgebung, sonst aus .env, sonst der Standard.
+
+    Eine gesetzte Umgebungsvariable gewinnt - so lässt sich für einen
+    einzelnen Lauf etwas anderes ausprobieren, ohne die Datei anzufassen.
+    """
+    wert = os.environ.get(name, "").strip()
+    if wert:
+        return wert
+    wert = load_env_file().get(name, "").strip()
+    return wert or standard
+
+
 # --- Stimm-Konfiguration -----------------------------------------------------
 # Alles hier fließt in den Fingerprint ein: ändert sich ein Wert, werden die
 # betroffenen WAVs beim nächsten Bauen neu erzeugt.
-VOICE = "de-DE-GiselaNeural"
-LOCALE = "de-DE"
-REGION = "germanywestcentral"
-RATE = "-5%"
+#
+# Einstellbar über .env oder Umgebungsvariablen:
+#   AZURE_SPEECH_REGION   muss zur Region des Schlüssels passen
+#   AZURE_SPEECH_VOICE    z. B. de-DE-KatjaNeural, verfügbare mit --stimmen
+#   AZURE_SPEECH_RATE     Sprechtempo, z. B. -5% oder +10%
+REGION = einstellung("AZURE_SPEECH_REGION", "germanywestcentral")
+VOICE = einstellung("AZURE_SPEECH_VOICE", "de-DE-GiselaNeural")
+RATE = einstellung("AZURE_SPEECH_RATE", "-5%")
+
+# Die Sprache steckt im Stimmnamen: de-DE-GiselaNeural -> de-DE
+_teile = VOICE.split("-")
+LOCALE = "-".join(_teile[:2]) if len(_teile) >= 3 else "de-DE"
+
 SAMPLE_RATE = 16000
 
 # Nachbearbeitung. Version hochzählen, wenn sich die ffmpeg-Kette ändert.
@@ -61,23 +100,6 @@ class TTSError(RuntimeError):
 
 
 # --- Key ---------------------------------------------------------------------
-
-def load_env_file(path: Path = ENV_FILE) -> dict[str, str]:
-    """Liest .env als einfache KEY=VALUE-Datei. Kommentare mit # werden ignoriert."""
-    values: dict[str, str] = {}
-    if not path.exists():
-        return values
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
-        values[key.strip()] = value
-    return values
-
 
 def get_speech_key() -> str:
     """Gesetzte Umgebungsvariable gewinnt, sonst .env."""
@@ -293,9 +315,39 @@ def synthesize(text: str, force: bool = False) -> Path:
     return target
 
 
+def list_voices() -> int:
+    """Zeigt, welche Stimmen der eigene Schlüssel in dieser Region anbietet."""
+    url = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/voices/list"
+    request = urllib.request.Request(
+        url, headers={"Ocp-Apim-Subscription-Key": get_speech_key()})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as antwort:
+            stimmen = json.loads(antwort.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        print(f"Azure antwortet mit {exc.code}. Passen Schlüssel und Region "
+              f"({REGION}) zusammen?", file=sys.stderr)
+        return 1
+    sprache = LOCALE.split("-")[0]
+    passend = [v for v in stimmen if v.get("Locale", "").startswith(sprache)]
+    print(f"Region {REGION}, Sprache {sprache}: {len(passend)} Stimmen")
+    for v in sorted(passend, key=lambda x: x["ShortName"]):
+        stile = ", ".join(v.get("StyleList") or []) or "-"
+        marke = " <- eingestellt" if v["ShortName"] == VOICE else ""
+        print(f"  {v['ShortName']:32} {v.get('Gender',''):7} Stile: {stile}{marke}")
+    print("\nAndere wählen: AZURE_SPEECH_VOICE in .env eintragen.")
+    return 0
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) >= 2 and argv[1] in ("--stimmen", "--voices"):
+        try:
+            return list_voices()
+        except TTSError as exc:
+            print(f"Fehler: {exc}", file=sys.stderr)
+            return 1
     if len(argv) < 2:
-        print("Aufruf: python3 tts.py \"Der Satz\" [ziel.wav]", file=sys.stderr)
+        print("Aufruf: python3 tts.py \"Der Satz\" [ziel.wav]\n"
+              "        python3 tts.py --stimmen", file=sys.stderr)
         return 2
     text = argv[1]
     try:

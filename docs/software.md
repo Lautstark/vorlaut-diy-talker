@@ -145,8 +145,31 @@ Nützliche Schalter:
 
 ## Sprachausgabe
 
-`tts.py` spricht über die Azure Speech REST API mit **de-DE-GiselaNeural**,
-Region **germanywestcentral**, Sprechtempo **-5 %**.
+`tts.py` spricht über die Azure Speech REST API. Voreingestellt ist
+**de-DE-GiselaNeural** in der Region **germanywestcentral** mit Sprechtempo
+**-5 %**.
+
+Alles drei lässt sich in `.env` ändern:
+
+```
+AZURE_SPEECH_REGION=westeurope
+AZURE_SPEECH_VOICE=de-DE-KatjaNeural
+AZURE_SPEECH_RATE=-10%
+```
+
+**Die Region ist keine Geschmacksfrage** - sie muss zu der passen, in der
+der Schlüssel angelegt wurde, sonst antwortet Azure mit 401. Welche Stimmen
+der eigene Schlüssel anbietet, zeigt:
+
+```bash
+.venv/bin/python tts.py --stimmen
+```
+
+Die Sprache wird aus dem Stimmnamen abgeleitet, `de-DE-GiselaNeural` ergibt
+also `de-DE`. Eine englische Stimme funktioniert damit genauso.
+
+Ein Stimmwechsel ändert den Fingerprint, also wird beim nächsten Bauen
+automatisch alles neu gesprochen.
 
 Danach durch ffmpeg: Stille am Anfang und Ende weg, dann
 `loudnorm I=-16:TP=-1.5:LRA=11`, Ausgabe als 16 kHz mono 16 bit WAV. Dadurch

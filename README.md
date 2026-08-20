@@ -40,8 +40,13 @@ Dann [localhost:8771](http://localhost:8771) öffnen. Beim ersten Start füllt
 sich `content/` aus `example/`, es ist also gleich ein Set mit vier Tasten da.
 
 Zusätzlich wird `ffmpeg` gebraucht (`brew install ffmpeg` beziehungsweise
-`apt install ffmpeg`). Für die Sprachausgabe ein Azure-Speech-Schlüssel in
-`.env` — Vorlage in `.env.example`.
+`apt install ffmpeg`).
+
+Für die Sprachausgabe braucht es einen eigenen **Azure-Speech-Schlüssel** —
+ein kostenloses Konto genügt, die Stufe F0 enthält 0,5 Mio. Zeichen im
+Monat. Schlüssel und Region kommen in `.env`, Vorlage ist `.env.example`.
+Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
+`.venv/bin/python tts.py --stimmen` zeigt, was zur Auswahl steht.
 
 ## Weiter
 
