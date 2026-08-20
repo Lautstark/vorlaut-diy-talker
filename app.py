@@ -279,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
             file = ASSETS / Path(path).name
             if not file.exists():
-                self._error("Symbol nicht found.", 404)
+                self._error("Symbol nicht gefunden.", 404)
                 return
             art = "image/svg+xml" if path.endswith(".svg") else "image/png"
             self._send(200, file.read_bytes(), art)
@@ -329,12 +329,12 @@ class Handler(BaseHTTPRequestHandler):
             name = Path(urllib.parse.unquote(path[len("/symbols/"):])).name
             target = SYMBOLS_DIR / name
             if not name or not target.exists():
-                self._error("Symbol nicht found.", 404)
+                self._error("Symbol nicht gefunden.", 404)
                 return
             self._send(200, target.read_bytes(), "image/png")
             return
 
-        self._error("Nicht found.", 404)
+        self._error("Nicht gefunden.", 404)
 
     def do_POST(self):
         route = urllib.parse.urlparse(self.path)
@@ -402,7 +402,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"log": log})
             return
 
-        self._error("Nicht found.", 404)
+        self._error("Nicht gefunden.", 404)
 
 
 PAGE = r"""<!doctype html>

@@ -121,7 +121,7 @@ def ensure_content() -> None:
 def load_layout(path: Path = LAYOUT_FILE) -> dict:
     """Liest layout.json und bringt es in eine garantiert vollständige Form."""
     if not path.exists():
-        raise BuildError(f"{path.name} nicht found.")
+        raise BuildError(f"{path.name} nicht gefunden.")
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -529,7 +529,7 @@ def build_fs_image() -> list[str]:
     tool = find_tool("mklittlefs")
     if not tool:
         raise BuildError(
-            "mklittlefs nicht found. Es kommt mit dem ESP32-Core der "
+            "mklittlefs nicht gefunden. Es kommt mit dem ESP32-Core der "
             "Arduino-IDE; ohne den lässt sich kein Image bauen."
         )
     used = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())

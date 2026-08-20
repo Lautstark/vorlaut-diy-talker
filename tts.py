@@ -236,7 +236,7 @@ def azure_synthesize(text: str) -> bytes:
 def _ffmpeg_binary() -> str:
     binary = shutil.which("ffmpeg")
     if not binary:
-        raise TTSError("ffmpeg nicht found. Unter macOS: brew install ffmpeg")
+        raise TTSError("ffmpeg nicht gefunden. Unter macOS: brew install ffmpeg")
     return binary
 
 
