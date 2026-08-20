@@ -49,7 +49,7 @@ BORDER = 6               # Rahmenbreite, wird von der Firmware gezeichnet
 TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, was tatsächlich als Datei anfällt
 TILE_CACHE = CONTENT / "cache" / "tiles"
 TILE_INDEX = TILE_CACHE / "index.json"
-TILE_PIPELINE = 1        # hochzählen, wenn sich das Rendern ändert
+TILE_PIPELINE = 2        # hochzählen, wenn sich das Rendern ändert
 DEFAULT_COLOR = "#3B5BDB"
 # Vorschläge für neue Sets, in dieser Reihenfolge vergeben. Die Oberfläche
 # holt sich dieselbe Liste, damit sie nicht doppelt gepflegt werden muss.
@@ -250,6 +250,28 @@ def _require_pillow():
     return Image, ImageDraw
 
 
+def fill_colour(picture) -> tuple[int, int, int]:
+    """Die Farbe für die Fläche, die neben einem Symbol frei bleibt.
+
+    Nicht jedes Symbol ist quadratisch - METACOM liefert 706x589 -, in der
+    quadratischen Kachel bleibt also oben und unten ein Streifen übrig. Weiß
+    ist dort richtig, solange das Symbol auf hellem Grund gezeichnet ist.
+    Bei den randlos farbigen Symbolen - "ja" ist durchgehend grün, "nein" rot -
+    entstünde dagegen ein sichtbarer weißer Balken.
+
+    Deshalb: kein Alphakanal und alle vier Ecken dieselbe Farbe heißt randlos
+    gefärbt, dann wird mit dieser Farbe weitergefüllt. Sonst bleibt es bei
+    Weiß - dunkle Strichzeichnung braucht den hellen Grund, und ein bunter
+    Untergrund würde den Kontrast nehmen.
+    """
+    if picture.getchannel("A").getextrema()[0] < 255:
+        return (255, 255, 255)
+    width, height = picture.size
+    corners = {picture.getpixel(xy)[:3] for xy in
+               ((0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1))}
+    return corners.pop() if len(corners) == 1 else (255, 255, 255)
+
+
 def render_symbol(symbol: str) -> bytes:
     """116x116 Symbolfläche auf Weiß, ohne Rahmen.
 
@@ -269,9 +291,11 @@ def render_symbol(symbol: str) -> bytes:
     if source_path:
         with Image.open(source_path) as raw:
             picture = raw.convert("RGBA")
+        ground = fill_colour(picture)
+        inner = Image.new("RGB", (inner_size, inner_size), ground)
         picture.thumbnail((inner_size, inner_size), Image.LANCZOS)
-        # Transparenz auf Weiß legen, sonst wird sie schwarz.
-        backdrop = Image.new("RGBA", picture.size, (255, 255, 255, 255))
+        # Transparenz auf den Untergrund legen, sonst wird sie schwarz.
+        backdrop = Image.new("RGBA", picture.size, ground + (255,))
         backdrop.alpha_composite(picture)
         offset = (
             (inner_size - picture.width) // 2,
