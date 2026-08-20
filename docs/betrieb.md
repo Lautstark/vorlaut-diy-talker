@@ -62,6 +62,31 @@ Handgriffe drumherum ab:
 docker compose up -d --build
 ```
 
+#### Beenden
+
+```bash
+./stop.sh
+```
+
+Beendet den Container und sagt, ob daneben noch ein direkt gestartetes
+`app.py` auf dem Port hängt - das kennt Docker nämlich nicht und beendet es
+auch nicht.
+
+Wo läuft überhaupt etwas?
+
+```bash
+docker ps                 # laufende Container
+pgrep -fl app.py          # direkt gestartete Server
+```
+
+`docker compose down` und `docker compose logs` funktionieren nur aus dem
+Projektordner heraus. Von überall geht:
+
+```bash
+docker stop mitreden
+docker logs -f mitreden
+```
+
 #### Vorher lokal ausprobieren
 
 Sinnvoll, bevor du dich mit DSM herumschlägst - dieselbe Datei, derselbe

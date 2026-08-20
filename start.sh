@@ -38,6 +38,13 @@ if command -v lsof >/dev/null 2>&1; then
   fi
 fi
 
+# Ein Container dieses Namens kann aus einem früheren Lauf übrig sein, auch
+# gestoppt - dann verweigert Docker den Namen. Vorher wegräumen, statt an
+# "name is already in use" zu scheitern.
+if [ -n "$(docker ps -aq --filter name='^mitreden$' 2>/dev/null)" ]; then
+  docker rm -f mitreden >/dev/null 2>&1 || true
+fi
+
 echo "Baue und starte ..."
 docker compose up -d --build
 
