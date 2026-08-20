@@ -79,6 +79,7 @@ static ButtonState button[DISPLAY_COUNT];
 
 static uint32_t lastActivity = 0;
 static bool filesystemReady = false;
+static bool contentReady = true;
 
 // --- Displays ----------------------------------------------------------------
 
@@ -141,6 +142,34 @@ static void drawTile(Panel *tft, const char *path, uint16_t frame) {
   file.close();
 }
 
+// Zwei Zeilen mittig auf ein Display, ohne Datei. Für Zustände, in denen es
+// noch nichts anzuzeigen gibt - beim allerersten Start etwa, wenn die
+// Firmware drauf ist, aber noch keine Inhalte.
+static void drawMessage(Panel *tft, const char *zeile1, const char *zeile2) {
+  tft->fillScreen(ST77XX_BLACK);
+  tft->setTextColor(ST77XX_WHITE);
+  const uint8_t groesse = 2;
+  tft->setTextSize(groesse);
+  const int16_t zeichen = 6 * groesse, hoehe = 8 * groesse;
+  for (uint8_t i = 0; i < 2; i++) {
+    const char *text = i == 0 ? zeile1 : zeile2;
+    if (!text || !*text) continue;
+    int16_t breite = (int16_t)strlen(text) * zeichen;
+    tft->setCursor((DISPLAY_W - breite) / 2,
+                   DISPLAY_H / 2 - hoehe + i * (hoehe + 4));
+    tft->print(text);
+  }
+}
+
+// Alle fünf Displays mit demselben Hinweis, damit man ihn nicht übersieht.
+static void showNoContent() {
+  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+    drawMessage(display[i], "keine", "Inhalte");
+  }
+  Serial.println("Keine Inhalte auf dem Gerät.");
+  Serial.println("  Inhalte bauen und aufspielen - siehe docs/firmware.md");
+}
+
 static void drawCurrentSet() {
 #if SET_COUNT > 0
   const uint8_t s = rtcCurrentSet;
@@ -151,8 +180,7 @@ static void drawCurrentSet() {
   drawTile(display[SET_BUTTON], SET_LABEL_IMAGE[s], frame);
   Serial.printf("Set %u: %s\n", (unsigned)(s + 1), SET_NAMES[s]);
 #else
-  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) display[i]->fillScreen(ST77XX_BLACK);
-  Serial.println("layout.h enthält keine Sets.");
+  showNoContent();
 #endif
 }
 
@@ -325,6 +353,11 @@ void setup() {
   setupAudio();
 
   filesystemReady = LittleFS.begin(false);
+  if (filesystemReady && !LittleFS.exists(SET_LABEL_IMAGE[0])) {
+    // Dateisystem da, aber leer: das ist der Normalfall direkt nach dem
+    // ersten Aufspielen der Firmware.
+    contentReady = false;
+  }
   if (!filesystemReady) {
     // Häufigste Ursache: falsches Partitionsschema. Die Voreinstellung des
     // Boards (tinyuf2) legt den Datenbereich als "ffat" an, LittleFS sucht
@@ -338,7 +371,11 @@ void setup() {
   if (rtcCurrentSet >= SET_COUNT) rtcCurrentSet = 0;
 #endif
 
-  drawCurrentSet();
+  if (contentReady) {
+    drawCurrentSet();
+  } else {
+    showNoContent();
+  }
   backlight(true);
 
   clearButtonStates();
@@ -355,6 +392,13 @@ void loop() {
 
   if (pressed >= 0) {
     lastActivity = millis();
+    if (!contentReady) {
+      // Ohne Inhalte gibt es nichts umzuschalten und nichts zu sagen.
+      // Der Hinweis bleibt stehen, das Gerät reagiert aber - es ist nicht
+      // kaputt, es ist nur leer.
+      showNoContent();
+      return;
+    }
 #if SET_COUNT > 0
     if (pressed == SET_BUTTON) {
       rtcCurrentSet = (uint8_t)((rtcCurrentSet + 1) % SET_COUNT);
