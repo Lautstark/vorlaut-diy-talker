@@ -1,14 +1,76 @@
 # mitreden
 
-Kleiner, robuster Talker für unterwegs: fünf Tasten, die gleichzeitig
-Displays sind. Vier davon sprechen, die fünfte schaltet zwischen den Sets um.
-Gedacht als Ergänzung zum großen Talker (MetaTalk 3x5 auf dem iPad), nicht
-als Ersatz.
+Ein kleiner Talker zum Selberbauen: fünf Tasten, die gleichzeitig Displays
+sind. Vier davon sprechen einen hinterlegten Satz, die fünfte schaltet
+zwischen Sets um. Gedacht für Kinder, die nicht oder noch nicht sprechen —
+als robuste Ergänzung für unterwegs, nicht als Ersatz für ein richtiges
+Talker-Gerät.
 
-Alles, was auf dem Gerät landet, kommt aus `content/layout.json`. Bearbeitet wird das
-über eine kleine Weboberfläche, gebaut wird mit `build.py`.
+Entstanden ist es für ein dreieinhalbjähriges Kind, das einen MetaTalk 3x5
+auf dem iPad nutzt. Das iPad ist gut, aber groß, teuer und im Sandkasten
+fehl am Platz. Dieses Gerät hat vier Wörter, hält etwas aus und ist in
+Sekunden an.
 
----
+Der Inhalt kommt aus einer Datei, bearbeitet wird er über eine kleine
+Weboberfläche im Browser, und ein Befehl macht daraus die Bilder und
+Sprachdateien für das Gerät.
+
+## Wie ehrlich ist der Stand?
+
+**Die Software läuft und ist geprüft.** Weboberfläche, Sprachausgabe,
+Bilderzeugung und der ganze Bauvorgang funktionieren; die Firmware
+übersetzt sauber.
+
+**Die Hardware ist noch nie gelaufen.** Zum Zeitpunkt dieser Zeilen sind die
+Bauteile bestellt, aber nicht eingetroffen. Pinbelegung, Panel-Profil und
+Gehäusemaße sind aus Datenblättern gerechnet, nicht am lebenden Objekt
+geprüft. Wer nachbaut, sollte damit rechnen, dass an dieser Stelle noch
+etwas klemmt — und ist herzlich eingeladen, Erfahrungen zurückzumelden.
+
+Es ist **kein Medizinprodukt** und ersetzt keine Beratung. Welche Wörter auf
+so ein Gerät gehören und ob es überhaupt das richtige Hilfsmittel ist,
+gehört mit den Menschen besprochen, die das Kind begleiten.
+
+## Was man dafür braucht
+
+### Bauteile
+
+| Teil | Anzahl | Anmerkung |
+|------|-------:|-----------|
+| Adafruit ESP32-S3 Feather (8 MB Flash, ohne PSRAM) | 1 | WLAN und USB-C an Bord |
+| Waveshare 0.85" ScreenKey (128×128, ST7735) | 5 | Display und Taster in einem |
+| Adafruit MAX98357A I2S-Verstärker | 1 | |
+| Lautsprecher 40 mm, 4 Ω | 1 | |
+| LiPo-Akku 2500 mAh | 1 | Laden über USB-C am Feather |
+
+Bewusst nicht vorgesehen: Lautstärkeregler und Ein-/Aus-Schalter. Das Gerät
+schläft von selbst ein und wacht auf Tastendruck wieder auf; die Lautstärke
+regelt die Normalisierung beim Bauen.
+
+Gehäuse und Verdrahtung: siehe [Gehäuse](#gehäuse) und
+[Pinbelegung](#pinbelegung-vorschlag).
+
+### Auf dem Rechner
+
+| | wofür |
+|---|---|
+| Python 3.9 oder neuer | Weboberfläche und Bauvorgang |
+| ffmpeg | Sprachdateien zuschneiden und normalisieren |
+| Pillow | Bilder umrechnen (`requirements.txt`) |
+| arduino-cli oder Arduino IDE | Firmware übersetzen und flashen |
+| ESP32-Core 3.x | für den Feather |
+
+Alternativ läuft die Weboberfläche im mitgelieferten Docker-Abbild — dann
+braucht es lokal nur noch die Arduino-Werkzeuge fürs Flashen.
+
+### Für die Sprachausgabe
+
+Zurzeit **Azure Speech** mit der Stimme `de-DE-GiselaNeural`. Dafür wird ein
+eigener Schlüssel gebraucht; die kostenlose Stufe F0 enthält 0,5 Mio.
+Zeichen im Monat, was für einen Talker reichlich ist.
+
+> Eine Variante ohne Cloud-Konto ist geplant (offline-TTS), damit das
+> Projekt auch ohne Microsoft-Konto nachbaubar ist. Noch nicht umgesetzt.
 
 ## Schnellstart
 
@@ -259,7 +321,7 @@ Layout, Symbole, Fotos, gesprochene Sätze - liegt unter `content/` und ist
 bewusst nicht versioniert.
 
 ```
-content/                 deine Inhalte, gitignored
+content/                 eigene Inhalte, gitignored
 ├── layout.json
 ├── symbols/
 └── cache/
@@ -283,8 +345,8 @@ Der Ort lässt sich verlegen, etwa auf eine Netzfreigabe:
 MITREDEN_CONTENT=/volume1/talker/inhalte .venv/bin/python app.py
 ```
 
-**Sichere `content/` selbst.** Da steckt deine ganze Arbeit drin, und Git
-fängt sie absichtlich nicht mehr auf. Auf einem NAS läuft sie in dessen
+**`content/` muss selbst gesichert werden.** Da steckt die ganze Arbeit
+drin, und Git fängt sie absichtlich nicht mehr auf. Auf einem NAS läuft sie in dessen
 Sicherung mit; auf einem Rechner gehört sie in dein übliches Backup.
 
 Nicht im Repo sind ausserdem `firmware/mitreden/data/`, `layout.h` und das
@@ -524,6 +586,33 @@ Senkrechtmaße und damit die Frontausschnitte.
 
 ---
 
+## Lizenz
+
+Der **Code** steht unter der [MIT-Lizenz](LICENSE) — nutzen, ändern,
+weitergeben, auch kommerziell, solange der Lizenztext beiliegt.
+
+Die **Piktogramme** in `example/symbols/` fallen ausdrücklich *nicht*
+darunter. Sie stammen von ARASAAC und stehen unter **CC BY-NC-SA**:
+Namensnennung, nicht kommerziell, Weitergabe unter gleichen Bedingungen.
+Einzelheiten in [`example/symbols/LIZENZ.md`](example/symbols/LIZENZ.md).
+
+Wer über die Weboberfläche weitere Piktogramme lädt, holt sie ebenfalls von
+ARASAAC — dieselbe Lizenz gilt dann auch dafür.
+
+Ohne Gewähr und ohne Haftung, wie im Lizenztext beschrieben. Es ist ein
+Bastelprojekt, kein Produkt.
+
+## Mitmachen
+
+Rückmeldungen sind willkommen, besonders von allen, die es tatsächlich
+aufbauen — die Hardware ist ja noch ungetestet. Was besonders hilft:
+
+- Stimmt die Pinbelegung an den echten ScreenKey-Modulen?
+- Sitzt die Tastenkappe mittig auf der Platine? Davon hängen alle
+  Frontausschnitte ab.
+- Ist `INITR_144GREENTAB` das richtige Panel-Profil, stimmt der Versatz?
+- Trägt der 40-mm-Lautsprecher im fertigen Gehäuse?
+
 ## Symbole
 
 Die Piktogramme stammen von **[ARASAAC](https://arasaac.org)**.
@@ -546,7 +635,7 @@ mitreden/
 ├── build.py             erzeugt data/ und layout.h im Sketchordner
 ├── tts.py               Sprachausgabe
 ├── example/             neutrale Beispielinhalte
-├── content/             deine Inhalte, gitignored
+├── content/             eigene Inhalte, gitignored
 ├── firmware/mitreden/   Arduino-Sketch, data/ und layout.h generiert
 ├── Dockerfile           für den Betrieb auf einem NAS
 └── .env                 AZURE_SPEECH_KEY, gitignored
