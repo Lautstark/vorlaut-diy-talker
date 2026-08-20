@@ -94,6 +94,34 @@ def arasaac_search(word: str) -> list[dict]:
     return results
 
 
+def preview_png(symbol: str, color: str) -> bytes:
+    """Was das Display wirklich zeigen wird, als PNG.
+
+    Nicht das Quellbild: hier steckt die Verkleinerung auf 116x116, die
+    Quantisierung auf RGB565 und der Rahmen drin, den die Firmware zeichnet.
+    Auf 15,21 mm sichtbarer Fläche macht das einen Unterschied.
+    """
+    Image, _ = build._require_pillow()
+    roh = build.tile_bytes(symbol)          # 116x116, RGB565 big-endian
+    kante = build.TILE_SIZE
+    innen = Image.new("RGB", (kante, kante))
+    px = innen.load()
+    for i in range(kante * kante):
+        wert = (roh[i * 2] << 8) | roh[i * 2 + 1]
+        r = (wert >> 11) << 3
+        g = ((wert >> 5) & 0x3F) << 2
+        b = (wert & 0x1F) << 3
+        # Die unteren Bits so auffüllen, wie ein Panel es tut
+        px[i % kante, i // kante] = (r | r >> 5, g | g >> 6, b | b >> 5)
+
+    kachel = Image.new("RGB", (build.IMG_SIZE, build.IMG_SIZE),
+                       build.hex_to_rgb(color))
+    kachel.paste(innen, (build.BORDER, build.BORDER))
+    puffer = io.BytesIO()
+    kachel.save(puffer, "PNG")
+    return puffer.getvalue()
+
+
 def save_upload(data: bytes, original_name: str) -> str:
     """Nimmt ein hochgeladenes Bild an und legt es als PNG in symbols/ ab."""
     Image, _ = build._require_pillow()
@@ -245,6 +273,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(arasaac_search(word))
             except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
                 self._error(f"ARASAAC nicht erreichbar: {exc}", 502)
+            return
+
+        if path == "/api/preview":
+            symbol = (query.get("symbol") or [""])[0]
+            farbe = (query.get("color") or ["#000000"])[0]
+            try:
+                self._send(200, preview_png(symbol, farbe), "image/png")
+            except build.BuildError as exc:
+                self._error(str(exc), 500)
             return
 
         if path == "/api/thumb":
@@ -441,6 +478,23 @@ PAGE = r"""<!doctype html>
   .tab[draggable=true] { cursor: grab; }
 
   .status { color: var(--muted); font-size: 13px; }
+  .schalter {
+    display: flex; align-items: center; gap: 6px; color: var(--muted);
+    font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  header .schalter { margin-left: auto; }
+  header .status { margin-left: 0; }
+  /* Originalgröße: 15,21 mm sind auf dem Gerät sichtbar. Auf dem Bildschirm
+     ungefähr lebensgroß, damit man beurteilen kann, ob ein Symbol darauf
+     überhaupt erkennbar ist. */
+  .echtgross {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--muted); font-size: 11px;
+  }
+  .echtgross img {
+    width: 15.21mm; height: 15.21mm; image-rendering: pixelated;
+    border-radius: 2px;
+  }
   .conflict {
     display: none; gap: 10px; align-items: center; flex-wrap: wrap;
     background: #3a2224; border: 1px solid #7a3a3f; color: #f0d7d9;
@@ -505,6 +559,9 @@ PAGE = r"""<!doctype html>
 <header>
   <h1>mitreden</h1>
   <span class="status" id="status"></span>
+  <label class="schalter" title="Zeigt, was das Display wirklich anzeigt">
+    <input type="checkbox" id="previewToggle"> Gerätevorschau
+  </label>
   <button id="saveBtn">Speichern</button>
   <button class="primary" id="buildBtn">Bauen</button>
 </header>
@@ -543,6 +600,7 @@ let dragSlot = null;        // Index der gezogenen Taste
 let saveTimer = null;
 let layoutVersion = null;   // Stand, den diese Seite geladen hat
 let unsaved = false;        // es gibt Änderungen, die noch nicht in der Datei sind
+let vorschau = false;       // Kacheln so zeigen, wie das Display sie anzeigt
 
 const $ = (id) => document.getElementById(id);
 const removeSetBtn = $("removeSet");
@@ -662,6 +720,11 @@ $("overwriteBtn").onclick = async () => {
 };
 $("reloadBtn").onclick = () => load();
 
+$("previewToggle").onchange = () => {
+  vorschau = $("previewToggle").checked;
+  render();
+};
+
 $("saveBtn").onclick = async () => {
   clearTimeout(saveTimer);
   await save();
@@ -690,9 +753,22 @@ function emptySet(index) {
   };
 }
 
-function thumb(symbol, onClick) {
+function thumb(symbol, onClick, farbe) {
   const box = document.createElement("div");
   box.className = "thumb";
+  if (vorschau) {
+    // Was das Display zeigt: verkleinert, auf RGB565 gerundet, mit Rahmen.
+    const image = document.createElement("img");
+    image.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
+              + "&color=" + encodeURIComponent(farbe || "#000000")
+              + "&v=" + Date.now();
+    image.style.imageRendering = "pixelated";
+    image.style.padding = "0";
+    box.style.background = "transparent";
+    box.appendChild(image);
+    box.onclick = onClick;
+    return box;
+  }
   if (symbol) {
     const image = document.createElement("img");
     image.src = "/symbols/" + encodeURIComponent(symbol) + "?v=" + Date.now();
@@ -777,7 +853,8 @@ function render() {
   setLabel.className = "slotNr";
   setLabel.textContent = "SET-TASTE";
   setTile.appendChild(setLabel);
-  setTile.appendChild(thumb(entry.symbol, () => openPicker({ kind: "set" }, entry.name)));
+  setTile.appendChild(thumb(entry.symbol,
+    () => openPicker({ kind: "set" }, entry.name), color));
 
   const nameInput = document.createElement("input");
   nameInput.type = "text";
@@ -866,7 +943,8 @@ function render() {
       render();
     };
 
-    tile.appendChild(thumb(slot.symbol, () => openPicker({ kind: "slot", index }, slot.text)));
+    tile.appendChild(thumb(slot.symbol,
+      () => openPicker({ kind: "slot", index }, slot.text), color));
 
     const row = document.createElement("div");
     row.className = "row";
@@ -882,6 +960,16 @@ function render() {
     playBtn.onclick = () => speak(slot.text, playBtn);
     row.append(textInput, playBtn);
     tile.appendChild(row);
+
+    if (vorschau) {
+      const echt = document.createElement("div");
+      echt.className = "echtgross";
+      const bild = document.createElement("img");
+      bild.src = "/api/preview?symbol=" + encodeURIComponent(slot.symbol || "")
+               + "&color=" + encodeURIComponent(color);
+      echt.append(bild, document.createTextNode("so groß auf dem Gerät"));
+      tile.appendChild(echt);
+    }
     device.appendChild(tile);
   });
 }
