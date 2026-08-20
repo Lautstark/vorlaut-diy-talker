@@ -48,6 +48,10 @@ sk_kappe_b          = 22.00;  // [M] Tastenkappe breit
 sk_kappe_h          = 25.30;  // [M] Tastenkappe hoch
 sk_kappe_ueberstand =  8.60;  // [M] wie weit die Kappe vor der Front steht
 sk_gesamttiefe      = 24.00;  // [M] Kappenvorderkante bis Modulrückseite
+// Wie tief der BEWEGLICHE Kappenkörper hinter die Frontplatte reicht. Dieser
+// Raum muss über die ganze Tiefe frei bleiben, sonst klemmt die Taste. Im
+// Zweifel zu groß ansetzen — hier steht der ungünstigste Fall (ganzes Modul).
+sk_kappe_tiefe      = 15.40;  // [A] = sk_gesamttiefe - sk_kappe_ueberstand
 sk_bild             = 15.21;  // [M] sichtbare Displayfläche (nur zur Kontrolle)
 
 // >>> DIE Zahl, die nach dem Auspacken wahrscheinlich falsch ist. <<<
@@ -73,7 +77,8 @@ ls_schraube_d       =  2.90;  // [A] Durchgangsloch für M2,5
 /* --- Adafruit ESP32-S3 Feather --- */
 feather_l           = 50.80;  // [R] 2,0"
 feather_b           = 22.80;  // [R] 0,9"
-feather_h           =  8.00;  // [M] mit Stiftleisten
+feather_h           =  8.00;  // [A] Gesamthöhe mit aufgelöteten Stiftleisten
+feather_pcb_d       =  1.60;  // [A] Platinendicke, typisch FR4
 feather_loch_l      = 45.72;  // [R] Lochabstand längs (Feather-Spec: 0,1" Rand)
 feather_loch_b      = 17.78;  // [R] Lochabstand quer
 feather_loch_d      =  2.50;  // [R]
@@ -111,8 +116,9 @@ env_h  = ls_rahmen + spalt_ls_set + sk_platine_h;             // [G] 80,59
 set_mx = ls_rahmen/2;                                          // [G] 20,15
 set_my = sk_platine_h/2;                                       // [G] 17,645
 // Linke Spalte des Viererblocks: Kappenspalt 25 mm zur Set-Kappe
-blk_mx1 = set_mx + kappe_versatz_x + sk_kappe_b/2
-          + spalt_set_block + sk_kappe_b/2 - kappe_versatz_x;  // [G] 67,15
+// Kappenspalt 25 mm zur Set-Kappe. Ein waagerechter Kappenversatz hebt sich
+// heraus, weil ALLE Kappen gleich versetzt sind — der Abstand bleibt gleich.
+blk_mx1 = set_mx + sk_kappe_b + spalt_set_block;                // [G] 67,15
 blk_mx2 = blk_mx1 + raster_x;                                  // [G] 104,15
 blk_my1 = sk_platine_h/2;                                      // [G] 17,645  (unten bündig)
 blk_my2 = blk_my1 + raster_y;                                  // [G] 62,945
@@ -147,25 +153,53 @@ fase_vorn     = 1.20;   // [K] 45°-Fase rundum an der Frontkante
 fase_hinten   = 0.60;   // [K]
 fase_deckel   = 0.80;   // [K] Fase an der Deckeloberkante
 
-innen_rand    = 7.00;   // [K] Luft zwischen Bauteil-Rechteck und Innenwand
-                        //     auf Trägerhöhe. In der Platinenebene bleiben
-                        //     davon innen_rand - sockel = 5,0 mm übrig,
-                        //     genau der Wert aus docs/hardware.md.
-                        //     7 statt 5, weil die Deckeldome in den Ecken
-                        //     Platz brauchen, ohne die Platinen zu berühren.
+/* --- Verschraubung des Deckels --- */
+// Schrauben statt Schnapphaken. Begründung steht in bauanleitung.md.
+// false = selbstschneidende M3 direkt ins Plastik (braucht kein Werkzeug
+//         außer einem Schraubendreher, hält ein Prototypenleben lang)
+// true  = M3-Gewindeeinsätze zum Einschmelzen (Ø4,0 x 5 mm). Nur nötig,
+//         wenn das Gehäuse oft geöffnet wird. Die Dome und damit das
+//         ganze Gehäuse werden dadurch automatisch etwas größer.
+gewindeeinsatz = false;  // [K]
+dom_d     = gewindeeinsatz ? 8.00 : 6.00;   // [G] Außendurchmesser Deckeldom
+dom_kern  = gewindeeinsatz ? 4.20 : 2.50;   // [G] Kernloch
+senk_d    = 6.20;   // [K] Kopfdurchmesser M3-Senkschraube
+senk_t    = 1.80;   // [K] Senktiefe
+dom_luft  = 1.00;   // [K] Abstand Domkante zum Bauteil-Rechteck
+
+// Luft zwischen Bauteil-Rechteck und Innenwand auf Trägerhöhe. Der Wert
+// wird NICHT frei gewählt, sondern von den Deckeldomen bestimmt: die stehen
+// an der Innenwand und dürfen keine Platine berühren. Untergrenze 7,0 mm,
+// damit in der Platinenebene noch innen_rand - sockel = 5,0 mm bleiben —
+// der Wert aus docs/hardware.md.
+innen_rand    = max(7.00, dom_d + dom_luft);   // [G] 7,0 bzw. 9,0
 
 /* --- Tiefenaufbau --- */
 sk_hinter_front = sk_gesamttiefe - sk_kappe_ueberstand;   // [G] 15,40
 kabelraum       = 6.00;   // [K] hinter der ScreenKey-Rückseite: Stiftleiste,
                           //     FPC-Stecker und Litzen. Ohne diesen Abstand
                           //     drückt der Akku auf die Steckerpins.
-akku_luft       = 0.60;   // [K] Luft zwischen Akku und Deckel
+bauteil_luft    = 0.60;   // [K] Luft zwischen dem höchsten Bauteil und dem Deckel
+feather_stuetze = 2.00;   // [K] Distanzsockel unter dem Feather. Nicht kleiner
+                          //     machen: darunter stehen die Lötstifte der
+                          //     Stiftleisten ab.
+amp_stuetze     = 2.00;   // [K] dito unter dem Verstärker
 
 sk_platine_z_v  = sk_hinter_front - sk_platine_d;         // [G] 13,80 Vorderseite
 traeger_z_u     = sk_hinter_front + kabelraum;            // [G] 21,40 Trägerunterkante
 traeger_z_o     = traeger_z_u + traeger_d;                // [G] 23,80 Trägeroberkante
-innen_z_h       = traeger_z_o + akku_d + akku_luft;       // [G] 32,50 Innenraumboden hinten
-aussen_t        = innen_z_h + deckel_d;                   // [G] 35,50 Gesamttiefe
+
+// Wie hoch der Innenraum über dem Träger sein muss, bestimmt das HÖCHSTE
+// Bauteil auf dem Träger — und das ist nicht der Akku, sondern der Feather
+// auf seinen Distanzsockeln. Genau das war im ersten Entwurf falsch: dort
+// stand nur der Akku im Budget, der Feather ragte 1,3 mm in den Deckel.
+stapel_akku     = akku_d;                       // [G]  8,10
+stapel_feather  = feather_stuetze + feather_h;  // [G] 10,00  <- der Maßgebliche
+stapel_amp      = amp_stuetze + amp_d;          // [G]  5,00
+stapel_max      = max(stapel_akku, stapel_feather, stapel_amp);   // [G] 10,00
+
+innen_z_h       = traeger_z_o + stapel_max + bauteil_luft;  // [G] 34,40
+aussen_t        = innen_z_h + deckel_d;                     // [G] 37,40 Gesamttiefe
 
 /* --- Außenmaße --- */
 innen_b  = env_b + 2*innen_rand;      // [G] 131,12
@@ -180,20 +214,17 @@ spalt_kappe   = 0.60;   // [K] Luft rundum um die Tastenkappe im Frontausschnitt
                         //     Groß genug, dass die Taste nie klemmt; zu schmal,
                         //     als dass ein Kinderfinger hineinkäme.
 fase_taste    = 0.80;   // [K] Fase am Rand des Tastenausschnitts
+kappe_r       = 2.00;   // [K] Eckenradius des Tastenausschnitts
 deckel_spiel  = 0.40;   // [K] Gesamtspiel des Deckels im Falz
 traeger_spiel = 0.40;   // [K] Gesamtspiel des Trägers
 
-/* --- Verschraubung --- */
-// Schrauben statt Schnapphaken. Begründung steht in bauanleitung.md.
-dom_d     = 6.00;   // [K] Außendurchmesser der Deckeldome
-dom_kern  = 2.50;   // [K] Kernloch. 2,5 = selbstschneidende M3.
-                    //     Für M3-Gewindeeinsätze (Ø4,0 x 5) auf 4.20 setzen.
-senk_d    = 6.20;   // [K] Kopfdurchmesser M3-Senkschraube
-senk_t    = 1.80;   // [K] Senktiefe
-
+/* --- Befestigung der ScreenKeys --- */
 sk_dom_d    = 4.50;  // [K] ScreenKey-Dom außen
 sk_dom_kern = 1.60;  // [K] Kernloch für selbstschneidende M2
 sk_dom_fuss = 1.50;  // [K] 45°-Fußkegel, damit der Dom nicht abbricht
+sk_dom_wand = 1.00;  // [K] Mindestwand um das Kernloch. Fällt ein Dom durch
+                     //     den Kappen-Freiraum darunter, wird er weggelassen
+                     //     statt angeschnitten — siehe sk_dome().
 sk_dom_h    = sk_platine_z_v - front_d;   // [G] 11,40
 
 /* --- Lautsprecherkammer --- */
@@ -214,14 +245,31 @@ gitter_feld_d = 34.50; // [K] etwas größer als die Membran
 // Alle in Bauteil-Koordinaten. Die Prüfungen in Abschnitt 4 rechnen nach,
 // dass sich nichts überschneidet — wer hier etwas verschiebt, bekommt
 // beim Rendern sofort eine Fehlermeldung statt eines kaputten Drucks.
-akku_x    =  52.00;  // [K] rechts der Kammer, waagerecht gegen den
-akku_y    =  15.00;  // [K] Lautsprecher austariert (siehe unten)
-feather_x =  -innen_rand;   // [K] Platinenkante an der Innenwand links,
-feather_y =  13.00;         //     damit die USB-C-Buchse die Wand erreicht
-amp_x     =   2.00;  // [K] unten links, kurze Wege zu Feather und Kammer
-amp_y     =  -6.50;  // [K]
-feather_stuetze = 2.00;  // [K] Höhe der Distanzsockel unter dem Feather
-amp_stuetze     = 2.00;  // [K]
+// Akku: rechts der Lautsprecherkammer. Waagerecht wiegt er den Lautsprecher
+// (oben links) auf; senkrecht sitzt er so tief, wie der untere Mitteldom es
+// zulässt — seine Halterippen dürfen den Dom nicht berühren. Ergebnis:
+// Schwerpunkt praktisch in der Gehäusemitte, siehe Echo in Abschnitt 4.
+akku_x    =  52.00;  // [K]
+akku_y    =   2.50;  // [K]
+
+// Feather: Platinenkante bündig an der linken Innenwand, damit die
+// USB-C-Buchse die Gehäusekante erreicht. Senkrecht in den unteren
+// Streifen, unterhalb der Lautsprecherkammer.
+feather_x =  -innen_rand;   // [G]
+feather_y =   8.00;         // [K]
+
+// Verstärker: rechts neben der Kammerwand, oberhalb des Akkus. Dort sind
+// die Wege zum Lautsprecher kurz und der Träger ist nicht ausgeschnitten.
+// (Im ersten Entwurf saß er unten links — dort ragte sein Bett 1,9 mm
+//  über die Trägerkante hinaus und stieß gegen die Gehäusewand.)
+amp_x     =  49.00;  // [K]
+amp_y     =  58.50;  // [K]
+
+// Halterippen auf dem Träger. Dieselben Zahlen benutzen die Prüfungen in
+// Abschnitt 4 und die Module in Abschnitt 8 — sonst laufen sie auseinander.
+rippe_b       = 2.00;  // [K] Dicke einer Halterippe
+bauteil_spiel = 0.40;  // [K] Luft zwischen Bauteil und Rippe
+bett          = rippe_b + bauteil_spiel;   // [G] 2,40 Zuschlag ringsum
 
 /* --- Deckeldome: 4 Ecken + Mitte oben + Mitte unten --- */
 dom_e = innen_rand - dom_d/2;   // [G] 4,0 — Domachse von der Innenwand weg
@@ -276,6 +324,48 @@ assert(spalt_kappe_y > 8,
 assert(spalt_pcb_x > 2 && spalt_pcb_y > 2,
   "Die ScreenKey-Platinen beruehren sich. Raster vergroessern.");
 
+/* --- Kappen-Freiraum gegen ScreenKey-Dome ---------------------------
+   Das ist die empfindlichste Stelle des ganzen Entwurfs.
+
+   Die Tastenkappe ist 22,00 x 25,30 mm, die Platine 25,94 x 35,29 mm.
+   Senkrecht liegen zwischen Kappenkante (12,65 von der Mitte) und
+   Lochmitte (15,645) nur 2,995 mm. Ein Dom mit Kernloch 1,6 und 1,0 mm
+   Wand braucht davon 1,8 mm, der Luftspalt um die Kappe 0,6 mm.
+   Übrig bleiben rund 0,6 mm — das ist das GESAMTE Budget, um das die
+   Kappe aus der Platinenmitte wandern darf, bevor die Ecken-Dome
+   nicht mehr passen.
+
+   Der Entwurf fängt das ab, ohne dass man etwas nachrechnen muss:
+   `kappen_freiraum()` schneidet die Kappenbahn frei, und `sk_dome()`
+   lässt jeden Dom weg, der dadurch angeschnitten würde. Steht am Ende
+   ein Tastenpaar ohne Halt da, meldet sich der Assert weiter unten.   */
+
+freiraum_hb = (sk_kappe_b + 2*spalt_kappe)/2;      // [G] 11,60
+freiraum_hh = (sk_kappe_h + 2*spalt_kappe)/2;      // [G] 13,25
+sk_loch_dx  = sk_platine_b/2 - sk_loch_rand;       // [G] 10,97
+sk_loch_dy  = sk_platine_h/2 - sk_loch_rand;       // [G] 15,645
+dom_noetig  = sk_dom_kern/2 + sk_dom_wand;         // [G]  1,80
+
+// Wie weit steht ein Dom vom Freiraum ab? Der Dom bleibt stehen, sobald er
+// in EINER Achse aus dem Rechteck herausragt — deshalb max() statt min().
+function dom_frei(sx, sy) =
+  max(abs(sk_loch_dx*sx - kappe_versatz_x) - freiraum_hb,
+      abs(sk_loch_dy*sy - kappe_versatz_y) - freiraum_hh);
+
+dom_da      = [ for (sx=[-1,1], sy=[-1,1]) if (dom_frei(sx,sy) >= dom_noetig) 1 ];
+dome_pro_taste = len(dom_da);
+
+// Budget für kappe_versatz_y, bevor der erste Dom wegfällt
+versatz_y_max = sk_loch_dy - freiraum_hh - dom_noetig;   // [G] 0,595
+
+assert(dome_pro_taste >= 2,
+  str("Bei kappe_versatz_y = ", kappe_versatz_y, " mm bleiben nur ",
+      dome_pro_taste, " von 4 Domen je ScreenKey stehen. Zulaessig sind ",
+      round(versatz_y_max*100)/100, " mm. Mehr Versatz heisst: die Ecken-",
+      "loecher der Platine liegen zu dicht an der Kappe. Dann NICHT die ",
+      "Zahl kleinerreden, sondern sk_loch_rand am echten Modul nachmessen ",
+      "- vielleicht sitzen die Loecher ganz woanders."));
+
 /* --- Tiefenbudget --- */
 innen_t = innen_z_h - front_d;    // nutzbare Innentiefe
 assert(innen_t >= ls_tiefe + 0.5,
@@ -283,30 +373,66 @@ assert(innen_t >= ls_tiefe + 0.5,
       ls_tiefe, " mm)."));
 assert(innen_z_h - traeger_z_o >= akku_d,
   "Ueber dem Traeger ist kein Platz fuer den Akku.");
-assert(innen_z_h - traeger_z_o >= feather_h,
-  "Ueber dem Traeger ist kein Platz fuer den Feather.");
+// Der Feather steht auf Distanzsockeln - die gehoeren mit ins Budget.
+// Genau diese Zeile fehlte im ersten Entwurf; der Feather ragte 1,3 mm
+// in den Deckel, ohne dass ein Assert angeschlagen haette.
+assert(innen_z_h - traeger_z_o >= feather_stuetze + feather_h,
+  str("Ueber dem Traeger ist kein Platz fuer den Feather: ",
+      innen_z_h - traeger_z_o, " mm frei, ",
+      feather_stuetze + feather_h, " mm noetig."));
+assert(innen_z_h - traeger_z_o >= amp_stuetze + amp_d,
+  "Ueber dem Traeger ist kein Platz fuer den Verstaerker.");
 
-/* --- Passt der Akku überhaupt flach neben die Kammer? --- */
-// Der Akku liegt NICHT auf dem Tastenblock gestapelt, sondern flach auf dem
-// Zwischenboden rechts der Lautsprecherkammer. Das spart gegenüber dem
-// gestapelten Aufbau aus docs/hardware.md rund 5 mm Bautiefe.
-assert(akku_x >= kammer_x + kammer_wand + 0.5 || akku_y + akku_h <= kammer_y,
-  "Akku ragt in die Lautsprecherkammer.");
-assert(akku_x + akku_b <= env_b + innen_rand - 0.5,
-  "Akku stoesst rechts an die Innenwand.");
-assert(akku_y + akku_h <= env_h + innen_rand - 0.5,
-  "Akku stoesst oben an die Innenwand.");
+/* --- Was auf dem Träger liegt, darf sich nicht ins Gehege kommen ------
+   Statt einzelner Handprüfungen ("Akku links vom Amp?") steht hier eine
+   Liste von Rechtecken - Bauteil samt Halterippen - und ein stumpfer
+   Paarvergleich. Wer eine Position verschiebt, bekommt die Kollision
+   beim Rendern genannt, mit Namen, statt sie im Druck zu finden.
+   Die Lautsprecherkammer und die Deckeldome stehen als feste Hindernisse
+   mit in derselben Liste.                                              */
 
-/* --- Feather --- */
-assert(feather_y + feather_b <= kammer_y - 0.5,
-  "Feather ragt in die Lautsprecherkammer.");
-assert(feather_x + feather_l <= akku_x - 1.0 || feather_y + feather_b <= akku_y,
-  "Feather und Akku ueberschneiden sich.");
-assert(amp_y + amp_h <= feather_y - 0.5,
-  "Verstaerker und Feather ueberschneiden sich.");
+function ueberlappt(a, b) =
+  a[0] < b[2] - 0.001 && b[0] < a[2] - 0.001 &&
+  a[1] < b[3] - 0.001 && b[1] < a[3] - 0.001;
+
+// beweglich = frei platzierbar, jede Zahl davon steht in Abschnitt 3
+traeger_teile = [
+  ["Akku",        [akku_x - bett,    akku_y - bett,
+                   akku_x + akku_b + bett,    akku_y + akku_h + bett]],
+  ["Feather",     [feather_x,        feather_y,
+                   feather_x + feather_l,     feather_y + feather_b]],
+  ["Verstaerker", [amp_x - bett,     amp_y - bett,
+                   amp_x + amp_b + bett,      amp_y + amp_h + bett]] ];
+
+// fest = ergibt sich aus dem Gehäuse selbst. Dass der linke obere Deckeldom
+// INNERHALB der Lautsprecherkammer steht, ist Absicht (dort ist ohnehin nur
+// Luft), deshalb werden die festen Hindernisse nicht gegeneinander geprüft.
+hindernisse = concat(
+  [ ["Kammer",  [-innen_rand, kammer_y, kammer_x + kammer_wand, env_h + innen_rand]] ],
+  [ for (i = [0:len(dom_pos)-1])
+      [ str("Deckeldom ", i), [dom_pos[i][0] - dom_d/2, dom_pos[i][1] - dom_d/2,
+                               dom_pos[i][0] + dom_d/2, dom_pos[i][1] + dom_d/2] ] ]);
+
+kollisionen = concat(
+  [ for (i = [0:len(traeger_teile)-2], j = [i+1:len(traeger_teile)-1])
+      if (ueberlappt(traeger_teile[i][1], traeger_teile[j][1]))
+        str(traeger_teile[i][0], " <-> ", traeger_teile[j][0]) ],
+  [ for (b = traeger_teile, h = hindernisse)
+      if (ueberlappt(b[1], h[1])) str(b[0], " <-> ", h[0]) ]);
+
+assert(len(kollisionen) == 0,
+  str("Auf dem Traeger ueberschneiden sich: ", kollisionen));
+
+// ... und alles muss innerhalb der Innenwand bleiben.
+draussen = [ for (b = traeger_teile)
+               if (b[1][0] < -innen_rand - 0.001 || b[1][1] < -innen_rand - 0.001 ||
+                   b[1][2] > env_b + innen_rand + 0.001 ||
+                   b[1][3] > env_h + innen_rand + 0.001) b[0] ];
+assert(len(draussen) == 0,
+  str("Ragt ueber die Innenwand hinaus: ", draussen));
 
 /* --- USB-C-Fenster muss zwischen Träger und Deckel passen --- */
-usb_z    = traeger_z_o + feather_stuetze + 1.0 + usb_mitte_ueber_pcb; // Buchsenmitte
+usb_z    = traeger_z_o + feather_stuetze + feather_pcb_d + usb_mitte_ueber_pcb;
 usb_fen_h = usb_buchse_h + 1.4;
 assert(usb_z - usb_fen_h/2 > traeger_z_o + 1.0,
   "USB-Fenster schneidet in die Traegerauflage.");
@@ -314,7 +440,6 @@ assert(usb_z + usb_fen_h/2 < innen_z_h - 1.0,
   "USB-Fenster schneidet in den Deckelfalz.");
 
 /* --- Deckeldome dürfen keine Platine berühren --- */
-module _dom_check() {}
 dom_abstand_min = min([ for (p = dom_pos)
                         min([ for (s = sk_pos)
                               max( abs(p[0]-s[0]) - sk_platine_b/2,
@@ -459,37 +584,53 @@ module hohlraum() {
   }
 }
 
-/* --- Frontausschnitte für die Tastenkappen --- */
-module tasten_ausschnitte() {
+/* --- Freiraum für die Tastenkappen ---------------------------------
+   EIN Körper für alles, was der beweglichen Kappe im Weg stehen könnte.
+   Er schneidet den Frontausschnitt, bricht dessen Außenkante und räumt
+   die Bahn dahinter über die volle Kappentiefe frei.
+
+   Der erste Entwurf hatte hier nur ein flaches Loch durch die Frontplatte
+   und liess die Dom-Fusskegel stehen. Nachgerechnet ragten die 0,755 mm in
+   die Kappe hinein - die Taste haette geklemmt, und zwar an allen fuenf
+   Stellen gleichzeitig.
+
+   Weil dieser Koerper mit kappe_versatz_y mitwandert, bleibt die Bahn frei,
+   egal was dort eingetragen wird. Das ist die halbe Miete fuer die "eine
+   Zahl"; die andere Haelfte ist sk_dome(), das weichende Dome weglaesst. */
+module kappen_freiraum() {
   ob = sk_kappe_b + 2*spalt_kappe;
   oh = sk_kappe_h + 2*spalt_kappe;
   for (p = sk_pos) translate([p[0] + kappe_versatz_x, p[1] + kappe_versatz_y, 0]) {
-    translate([0,0,-1]) rprism(ob, oh, 2.0, front_d + 2);
+    translate([0,0,-1]) rprism(ob, oh, kappe_r, 1 + front_d + sk_kappe_tiefe);
     // Fase an der Außenkante, damit keine scharfe Kante stehen bleibt
     translate([0,0,-0.01]) hull() {
-      linear_extrude(0.02) rrect(ob + 2*fase_taste, oh + 2*fase_taste, 2.0 + fase_taste);
-      translate([0,0,fase_taste]) linear_extrude(0.02) rrect(ob, oh, 2.0);
+      linear_extrude(0.02)
+        rrect(ob + 2*fase_taste, oh + 2*fase_taste, kappe_r + fase_taste);
+      translate([0,0,fase_taste]) linear_extrude(0.02) rrect(ob, oh, kappe_r);
     }
   }
 }
 
 /* --- ScreenKey-Befestigungsdome --- */
+// Ein Dom entsteht nur, wenn er neben dem Kappen-Freiraum genug Fleisch
+// behaelt. Angeschnittene Dome mit 0,3 mm Restwand sind schlimmer als gar
+// keine: sie brechen beim ersten Schrauben ab und liegen dann lose im Geraet.
 module sk_dome() {
-  lx = sk_platine_b - 2*sk_loch_rand;
-  ly = sk_platine_h - 2*sk_loch_rand;
   for (p = sk_pos) translate([p[0], p[1], front_d])
-    for (sx = [-1,1], sy = [-1,1]) translate([sx*lx/2, sy*ly/2, 0]) {
-      cylinder(d = sk_dom_d, h = sk_dom_h);
-      cylinder(d1 = sk_dom_d + 2*sk_dom_fuss, d2 = sk_dom_d, h = sk_dom_fuss);
-    }
+    for (sx = [-1,1], sy = [-1,1])
+      if (dom_frei(sx, sy) >= dom_noetig)
+        translate([sx*sk_loch_dx, sy*sk_loch_dy, 0]) {
+          cylinder(d = sk_dom_d, h = sk_dom_h);
+          cylinder(d1 = sk_dom_d + 2*sk_dom_fuss, d2 = sk_dom_d, h = sk_dom_fuss);
+        }
 }
 
 module sk_dome_kern() {
-  lx = sk_platine_b - 2*sk_loch_rand;
-  ly = sk_platine_h - 2*sk_loch_rand;
   for (p = sk_pos) translate([p[0], p[1], 0])
-    for (sx = [-1,1], sy = [-1,1]) translate([sx*lx/2, sy*ly/2, front_d + 1.0])
-      cylinder(d = sk_dom_kern, h = sk_dom_h);
+    for (sx = [-1,1], sy = [-1,1])
+      if (dom_frei(sx, sy) >= dom_noetig)
+        translate([sx*sk_loch_dx, sy*sk_loch_dy, front_d + 1.0])
+          cylinder(d = sk_dom_kern, h = sk_dom_h);
 }
 
 /* --- Lautsprecher: Gitter, Schrauben, Positionierrippen --- */
@@ -597,21 +738,17 @@ module wanne() {
         kammer_waende();
         ls_rippen();
       }
-      tasten_ausschnitte();
+      kappen_freiraum();
       ls_gitter();
       ls_schrauben();
       sk_dome_kern();
       deckel_dome_kern();
-      traeger_stuetzen_kein_loch();
       usb_fenster();
       kammer_kabel();
     }
     logo_unterkante();
   }
 }
-
-module traeger_stuetzen_kein_loch() { }   // Platzhalter: Zapfen bleiben massiv
-
 
 /* =====================================================================
    8.  TRÄGER  (Zwischenboden)
