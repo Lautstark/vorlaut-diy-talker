@@ -292,7 +292,11 @@ stuetze_pos = [
   [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 85,65 / 17,645
   [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 85,65 / 40,295
   [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 85,65 / 62,945
-  [ (set_mx + sk_platine_b/2 + blk_mx1 - sk_platine_b/2)/2, 8.0 ]  // 43,65 / 8
+  // In der Luecke zwischen Set-Platine und Viererblock. Nicht hoeher
+  // legen: bei y = 8 lag das Zapfenloch im Traeger 0,73 mm unter einem
+  // Distanzsockel des Feathers, der Sockel haette ueber der Lochkante
+  // angefangen zu drucken.
+  [ (set_mx + blk_mx1)/2, 4.0 ]                        // 43,65 / 4
 ];
 
 /* --- Logo --- */
@@ -516,7 +520,7 @@ module rprism_fase_o(b, h, r, t, f) {
   rprism(b, h, r, t - f);
   translate([0, 0, t - f]) hull() {
     linear_extrude(0.02) rrect(b, h, r);
-    translate([0, 0, f]) linear_extrude(0.02)
+    translate([0, 0, f - 0.02]) linear_extrude(0.02)
       rrect(b - 2*f, h - 2*f, max(0.4, r - f));
   }
 }
@@ -574,7 +578,7 @@ module aussenkoerper() {
     rprism_fase_u(aussen_b, aussen_h, ecke_r, aussen_t - fase_hinten, fase_vorn);
     translate([0,0,aussen_t - fase_hinten]) hull() {
       linear_extrude(0.02) rrect(aussen_b, aussen_h, ecke_r);
-      translate([0,0,fase_hinten]) linear_extrude(0.02)
+      translate([0,0,fase_hinten - 0.02]) linear_extrude(0.02)
         rrect(aussen_b - 2*fase_hinten, aussen_h - 2*fase_hinten,
               ecke_r - fase_hinten);
     }
@@ -833,14 +837,27 @@ module amp_bett() {
   translate([amp_x + amp_b + s, amp_y - s - b, 0]) cube([b, amp_h + 2*s + 2*b, h]);
 }
 
-module traeger() {
-  translate([0, 0, traeger_z_u]) {
-    linear_extrude(traeger_d) traeger_umriss();
-    translate([0, 0, traeger_d]) {
+// Alles, was oben auf dem Träger steht, wird auf dessen Außenkontur
+// beschnitten. Ohne das ragten die Distanzsockel des Feathers 0,16 mm
+// über die Kante — der Träger hätte sich beim Einlegen an der Gehäuse-
+// wand verhakt, und der Sockel hätte über der Kante in der Luft gedruckt.
+// Beschnitten wird nur an der AUSSENkontur, nicht an den Löchern darin.
+module traeger_aufbauten() {
+  intersection() {
+    union() {
       akku_rippen();
       feather_sockel();
       amp_bett();
     }
+    linear_extrude(100) translate([mitte_x, mitte_y])
+      rrect(innen_b - traeger_spiel, innen_h - traeger_spiel, ecke_r - wand);
+  }
+}
+
+module traeger() {
+  translate([0, 0, traeger_z_u]) {
+    linear_extrude(traeger_d) traeger_umriss();
+    translate([0, 0, traeger_d]) traeger_aufbauten();
   }
 }
 

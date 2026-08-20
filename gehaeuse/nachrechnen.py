@@ -298,6 +298,23 @@ def rechne(p, bett_x, bett_y):
                      schnitt_x - G('innen_rand') - 1.0,
                      hinweis='steht ueber dem Kammerausschnitt')
 
+    # Zapfenloecher im Traeger duerfen nicht unter einem Feather-Sockel
+    # liegen — sonst faengt der Sockel ueber einer Lochkante an zu drucken.
+    stuetze_pos = [((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my1')),
+                   ((G('blk_mx1') + G('blk_mx2')) / 2, env_h / 2),
+                   ((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my2')),
+                   ((G('set_mx') + G('blk_mx1')) / 2, 4.0)]
+    loch_r = (G('zapfen_d') + 0.4) / 2
+    naeh = 1e9
+    for sx, sy in stuetze_pos:
+        for ix in (-1, 1):
+            for iy in (-1, 1):
+                px = G('feather_x') + G('feather_l') / 2 + ix * G('feather_loch_l') / 2
+                py = G('feather_y') + G('feather_b') / 2 + iy * G('feather_loch_b') / 2
+                naeh = min(naeh, math.hypot(px - sx, py - sy) - loch_r - 2.5)
+    b.pruefe(g, 'Feather-Sockel zum naechsten Zapfenloch', naeh, '>=', 0.5,
+             hinweis='Sockel druckt ueber einer Lochkante')
+
     # --- 6. USB-C ---------------------------------------------------------
     g = '6. USB-C — die einzige Verbindung nach aussen'
     b.pruefe(g, 'Feather-Kante an der Innenwand',
