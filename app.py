@@ -623,6 +623,16 @@ PAGE = r"""<!doctype html>
      volle Breite und die vier Sprechtasten als 2x2 darunter. Die räumliche
      Zuordnung bleibt damit erhalten. */
   @media (max-width: 620px) {
+    /* Nebeneinander braucht die Kopfzeile 493px - auf einem 375px breiten
+       Display fielen "Speichern" und "Bauen" heraus, ohne dass sich seitlich
+       scrollen liess. Also umbrechen statt stauchen:
+       Zeile 1  Logo, Name, die beiden Knoepfe rechts
+       Zeile 2  Geraetevorschau, Statustext rechts */
+    header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+    header h1 { margin-right: auto; }
+    .schalter { order: 1; }
+    header .status { order: 2; margin-left: auto; }
+
     main { padding: 12px; }
     .device { grid-template-columns: 1fr 1fr; }
     .setCol { grid-row: auto; grid-column: 1 / -1; }
