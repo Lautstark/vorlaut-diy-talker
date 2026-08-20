@@ -1,4 +1,9 @@
 <svg viewBox="0 0 512 512" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Weiße Platte mit runden Ecken. Nicht nur Optik: iOS legt bei
+       apple-touch-icon hinter Transparenz Schwarz, und Android schneidet
+       das Symbol in eine Form. Beides braucht eine deckende Fläche. -->
+  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="#FFFFFF" />
+
   <!-- Sprechblase -->
   <path
     d="M 128 76 H 384 Q 436 76 436 128 V 272 Q 436 324 384 324 H 314 L 256 408 L 198 324 H 128 Q 76 324 76 272 V 128 Q 76 76 128 76 Z"

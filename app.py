@@ -426,7 +426,7 @@ PAGE = r"""<!doctype html>
     --line: #343a45;
     --text: #eceff4;
     --muted: #9aa3b2;
-    --accent: #4A90D9;
+    --accent: #9B7BFF;   /* das Lila aus dem Symbol */
   }
   * { box-sizing: border-box; }
   body {
@@ -501,7 +501,12 @@ PAGE = r"""<!doctype html>
     border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px;
   }
   button:hover { background: #303540; }
-  button.primary { background: var(--accent); border-color: transparent; color: #fff; }
+  /* Dunkle Schrift auf dem Lila: 5,5:1 statt 3,2:1 mit Weiß. */
+  button.primary {
+    background: var(--accent); border-color: transparent; color: #1b1b20;
+    font-weight: 600;
+  }
+  button.primary:hover { background: #ac91ff; }
   button.danger { color: #e88; }
   .play { width: 40px; flex: none; }
   .slotNr {
