@@ -16,6 +16,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import metacom
+
 ROOT = Path(__file__).resolve().parent
 SYSTEM = platform.system()
 
@@ -161,6 +163,32 @@ def check_docker() -> None:
           required=False)
 
 
+def check_metacom() -> None:
+    """Die lizenzierte METACOM-Sammlung ist freiwillig - ohne sie sucht die
+    Oberfläche nur bei ARASAAC."""
+    eingestellt = metacom.configured()
+    if not eingestellt:
+        report("METACOM-Sammlung", False, "VORLAUT_METACOM_DIR nicht gesetzt",
+               "Nur nötig, wenn du eine METACOM-Lizenz hast.\n"
+               "Pfad auf den entpackten Download zeigen lassen - in .env\n"
+               "oder als Umgebungsvariable:\n"
+               "  VORLAUT_METACOM_DIR=~/METACOM_9_Desktop",
+               required=False)
+        return
+    if not metacom.available():
+        report("METACOM-Sammlung", False, "Ordner nicht lesbar",
+               f"VORLAUT_METACOM_DIR zeigt auf {eingestellt},\n"
+               f"darunter fehlt {metacom.SYMBOL_SUBDIR}.",
+               required=False)
+        return
+    art = "mit Stichwörtern" if metacom.has_keywords() else "nur Dateinamen"
+    report("METACOM-Sammlung", True, f"{metacom.count()} Symbole, {art}",
+           required=False)
+    if not metacom.has_keywords():
+        print("         Die Datenbank von MetaSearch wurde nicht gefunden -")
+        print("         die Suche läuft über Dateinamen und findet weniger.")
+
+
 def check_content() -> None:
     content = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content")
     layout = content / "layout.json"
@@ -190,6 +218,7 @@ def main() -> int:
     check_flash_tools()
     print("\n Wahlweise")
     check_docker()
+    check_metacom()
 
     print()
     if missing_required:

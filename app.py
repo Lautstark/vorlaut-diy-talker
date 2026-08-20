@@ -22,6 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import build
+import metacom
 import tts
 
 ROOT = Path(__file__).resolve().parent
@@ -38,6 +39,8 @@ ARASAAC_RESOLUTION = 500  # die API erlaubt nur 500 oder 2500
 # Hausmaß für alles in symbols/. Das Gerät rendert 116x116 Pixel, 500 lässt
 # reichlich Luft und hält den Repo klein - Symbole werden mitcommittet.
 SYMBOL_MAX_PX = 500
+# Je Quelle, nicht insgesamt - sonst verdrängt die eine die andere.
+SEARCH_LIMIT = 40
 
 
 # --- Hilfsfunktionen ---------------------------------------------------------
@@ -85,6 +88,7 @@ def arasaac_search(word: str) -> list[dict]:
             label = keywords[0].get("keyword") or ""
         results.append(
             {
+                "source": "arasaac",
                 "id": pictogram_id,
                 "label": label,
                 # über den eigenen Server, damit die Seite keine Anfragen
@@ -267,13 +271,36 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/search":
             word = (query.get("q") or [""])[0].strip()
+            # Ohne Angabe beide Quellen. Die Oberfläche fragt sie einzeln ab,
+            # damit die lizenzierte Sammlung sofort dasteht und nicht auf die
+            # Antwort aus dem Netz wartet.
+            source = (query.get("source") or [""])[0].strip()
             if not word:
                 self._json([])
                 return
-            try:
-                self._json(arasaac_search(word))
-            except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
-                self._error(f"ARASAAC nicht erreichbar: {exc}", 502)
+
+            results: list[dict] = []
+            if source in ("", "metacom"):
+                results.extend(metacom.search(word, limit=SEARCH_LIMIT))
+            if source in ("", "arasaac"):
+                try:
+                    results.extend(arasaac_search(word)[:SEARCH_LIMIT])
+                except (urllib.error.URLError, json.JSONDecodeError,
+                        TimeoutError) as exc:
+                    # Treffer aus der eigenen Sammlung sind mehr wert als eine
+                    # Fehlermeldung - die kommt nur, wenn sonst nichts da ist.
+                    if not results:
+                        self._error(f"ARASAAC nicht erreichbar: {exc}", 502)
+                        return
+            self._json(results)
+            return
+
+        if path == "/api/sources":
+            self._json({
+                "metacom": metacom.available(),
+                "metacomKeywords": metacom.has_keywords(),
+                "metacomCount": metacom.count(),
+            })
             return
 
         if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
@@ -326,9 +353,11 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/symbols/"):
-            name = Path(urllib.parse.unquote(path[len("/symbols/"):])).name
-            target = SYMBOLS_DIR / name
-            if not name or not target.exists():
+            # Der Verweis kann "bild.png" sein oder "metacom:name" - welche
+            # Datei gemeint ist, entscheidet build.symbol_path.
+            reference = urllib.parse.unquote(path[len("/symbols/"):])
+            target = build.symbol_path(reference)
+            if target is None:
                 self._error("Symbol nicht gefunden.", 404)
                 return
             self._send(200, target.read_bytes(), "image/png")
@@ -375,6 +404,16 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/pick":
+            # METACOM-Symbole werden nicht heruntergeladen und nicht kopiert:
+            # sie bleiben in der lizenzierten Sammlung, im Layout steht nur
+            # der Verweis darauf.
+            if (body.get("source") or "") == "metacom":
+                reference = str(body.get("ref") or "")
+                if build.symbol_path(reference) is None:
+                    self._error("Dieses METACOM-Symbol gibt es nicht.", 404)
+                    return
+                self._json({"symbol": reference})
+                return
             try:
                 filename = arasaac_download(body.get("id"), body.get("label") or "symbol")
             except (urllib.error.URLError, ValueError, TypeError, TimeoutError) as exc:
@@ -616,6 +655,11 @@ PAGE = r"""<!doctype html>
   .results figure:hover img { border-color: var(--accent); }
   .results figcaption { font-size: 11px; color: var(--muted); margin-top: 4px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Trennt die Quellen: die lizenzierte Sammlung oben, ARASAAC darunter. */
+  .results .group { grid-column: 1 / -1; margin: 10px 2px 0; font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .results .group:first-child { margin-top: 0; }
   .hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -656,13 +700,15 @@ PAGE = r"""<!doctype html>
     <button id="closeBtn">Schließen</button>
   </div>
   <div class="results" id="results"></div>
-  <div class="hint">Piktogramme: ARASAAC, Urheber Sergio Palao, Lizenz CC BY-NC-SA.</div>
+  <div class="hint" id="quellen">Piktogramme: ARASAAC, Urheber Sergio Palao, Lizenz CC BY-NC-SA.</div>
 </dialog>
 
 <script>
 let layout = { sleep_timeout_seconds: 600, sets: [] };
 let current = 0;
 let pickTarget = null;      // {kind: "set"} oder {kind: "slot", index: n}
+let sources = { metacom: false };
+let searchToken = 0;        // damit eine langsame Antwort keine neuere überholt
 let dragSet = null;         // Index des gezogenen Sets
 let dragSlot = null;        // Index der gezogenen Taste
 let saveTimer = null;
@@ -1075,27 +1121,73 @@ function openPicker(target, seed) {
   if ($("q").value) doSearch();
 }
 
+async function ask(word, source) {
+  const url = "/api/search?source=" + source + "&q=" + encodeURIComponent(word);
+  return await (await api(url)).json();
+}
+
+function sagen(box, text) {
+  box.innerHTML = "";
+  const note = document.createElement("p");
+  note.textContent = text;
+  box.appendChild(note);
+}
+
 async function doSearch() {
   const word = $("q").value.trim();
   if (!word) return;
-  $("results").innerHTML = '<p>sucht ...</p>';
-  try {
-    const items = await (await api("/api/search?q=" + encodeURIComponent(word))).json();
-    if (!items.length) {
-      $("results").innerHTML = '<p>Nichts found zu „' + word + '“.</p>';
-      return;
-    }
-    $("results").innerHTML = "";
+  const box = $("results");
+  const mine = ++searchToken;
+  sagen(box, "sucht ...");
+
+  let cleared = false;
+  let total = 0;
+  const show = (title, items) => {
+    if (!cleared) { box.innerHTML = ""; cleared = true; }
+    if (!items.length) return;
+    const head = document.createElement("div");
+    head.className = "group";
+    head.textContent = title;
+    box.appendChild(head);
     items.forEach((item) => {
       const figure = document.createElement("figure");
-      figure.innerHTML =
-        '<img src="' + item.url + '" alt="" loading="lazy">' +
-        '<figcaption>' + (item.label || item.id) + '</figcaption>';
+      const image = document.createElement("img");
+      image.src = item.url;
+      image.loading = "lazy";
+      image.alt = "";
+      const caption = document.createElement("figcaption");
+      // textContent statt innerHTML: die Beschriftung kommt aus einer fremden
+      // Datenquelle und ist kein Markup.
+      caption.textContent = item.label || item.id;
+      figure.append(image, caption);
       figure.onclick = () => pick(item);
-      $("results").appendChild(figure);
+      box.appendChild(figure);
     });
+    total += items.length;
+  };
+
+  try {
+    // Die lizenzierte Sammlung liegt lokal und ist sofort da. ARASAAC geht
+    // über das Netz und kommt danach - so steht schon etwas auf dem Schirm,
+    // während die zweite Quelle noch antwortet.
+    if (sources.metacom) {
+      const hits = await ask(word, "metacom");
+      if (mine !== searchToken) return;
+      show("METACOM", hits);
+    }
+    const remote = await ask(word, "arasaac");
+    if (mine !== searchToken) return;
+    show("ARASAAC", remote);
+    if (!total) sagen(box, "Nichts gefunden zu „" + word + "“.");
   } catch (error) {
-    $("results").innerHTML = '<p>' + error.message + '</p>';
+    if (mine !== searchToken) return;
+    if (total) {
+      const note = document.createElement("p");
+      note.textContent = "ARASAAC nicht erreichbar - nur METACOM-Treffer.";
+      box.appendChild(note);
+    } else {
+      sagen(box, error.message);
+    }
   }
 }
 
@@ -1110,12 +1202,17 @@ async function applySymbol(filename) {
 }
 
 async function pick(item) {
-  status("lädt Symbol ...");
+  status(item.source === "metacom" ? "übernimmt Symbol ..." : "lädt Symbol ...");
   try {
     const result = await (await api("/api/pick", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: item.id, label: item.label || $("q").value }),
+      body: JSON.stringify({
+        source: item.source,
+        id: item.id,
+        ref: item.ref,
+        label: item.label || $("q").value,
+      }),
     })).json();
     await applySymbol(result.symbol);
     status("");
@@ -1175,6 +1272,26 @@ $("buildBtn").onclick = async () => {
   }
 };
 
+// Welche Symbolquellen es gibt, steht beim Start fest - einmal erfragen
+// reicht. Schlägt das fehl, bleibt es bei ARASAAC allein.
+async function loadSources() {
+  try {
+    sources = await (await api("/api/sources")).json();
+  } catch (error) {
+    sources = { metacom: false };
+  }
+  $("q").placeholder = sources.metacom
+    ? "METACOM und ARASAAC durchsuchen, z.B. trinken"
+    : "ARASAAC durchsuchen, z.B. trinken";
+  if (sources.metacom) {
+    $("quellen").textContent =
+      "Symbole: METACOM 9 (Annette Kitzinger), lizenziert für diesen Rechner - "
+      + "sie werden nur verwiesen, nicht ins Projekt kopiert. "
+      + "Piktogramme: ARASAAC, Urheber Sergio Palao, Lizenz CC BY-NC-SA.";
+  }
+}
+
+loadSources();
 load().catch((error) => status("Laden fehlgeschlagen: " + error.message));
 </script>
 </body>

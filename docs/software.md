@@ -106,6 +106,48 @@ Weboberfläche holt sich dieselbe Liste von dort.
 Ein leerer `text` bedeutet: diese Taste bleibt stumm. Ein leeres `symbol`
 ergibt eine Platzhalter-Kachel mit grauem Kreuz.
 
+Ein `symbol` ist entweder ein Dateiname aus `content/symbols/` oder ein Verweis
+der Form `metacom:<name>` - siehe den nächsten Abschnitt.
+
+---
+
+## METACOM (wahlweise)
+
+Wer eine METACOM-Lizenz hat, kann die Sammlung dazuschalten. Sie wird **nicht**
+ins Projekt kopiert und nicht versioniert; gesetzt wird nur der Pfad auf den
+entpackten Download:
+
+```
+VORLAUT_METACOM_DIR=/Users/du/METACOM_9_Desktop
+```
+
+Erwartet werden darunter `METACOM_Symbole/Symbole_PNG/PNG_ohne_Rahmen` (ohne
+Rahmen, denn den zeichnet die Firmware selbst) und die MetaSearch-Anwendung,
+aus der die Stichwörter kommen. Beim ersten Start entsteht daraus ein
+Suchindex unter `content/cache/metacom-index.json`; er wird neu gebaut, sobald
+sich der Pfad oder die MetaSearch-Datei ändert.
+
+Im Layout stehen METACOM-Symbole als `"symbol": "metacom:trinken"`. Der Name
+ist der Dateiname ohne Endung.
+
+Ist die Variable nicht gesetzt, läuft alles wie vorher: Die Suche liefert nur
+ARASAAC, und `metacom:`-Verweise ergeben die Platzhalter-Kachel statt eines
+Abbruchs. So bleibt dasselbe `layout.json` auf einem Rechner ohne Lizenz
+benutzbar.
+
+Für den Container muss der Ordner zusätzlich eingehängt werden, lesend:
+
+```yaml
+volumes:
+  - ./:/app
+  - /pfad/zu/METACOM_9_Desktop:/metacom:ro
+```
+
+und dann `VORLAUT_METACOM_DIR=/metacom`.
+
+`python doctor.py` zeigt unter „Wahlweise", ob die Sammlung gefunden wurde und
+ob die Stichwörter gelesen werden konnten.
+
 ---
 
 ## Bauen

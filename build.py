@@ -21,6 +21,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import metacom
+
 import tts
 
 ROOT = Path(__file__).resolve().parent
@@ -53,6 +55,38 @@ DEFAULT_COLOR = "#3B5BDB"
 # holt sich dieselbe Liste, damit sie nicht doppelt gepflegt werden muss.
 DEFAULT_PALETTE = ["#3B5BDB", "#159947", "#9B7BFF", "#FF8BC7", "#FF6B35"]
 DEFAULT_SLEEP_TIMEOUT = 600
+
+
+METACOM_PREFIX = "metacom:"
+
+
+def symbol_path(symbol: str) -> Path | None:
+    """Die Bilddatei zu einem Symbolverweis - oder None, wenn es sie nicht gibt.
+
+    Zwei Herkünfte: ein nackter Dateiname meint symbols/ und damit etwas, das
+    dir gehört. Der Präfix "metacom:" meint die lizenzierte Sammlung, die
+    außerhalb des Projekts liegt und nur über VORLAUT_METACOM_DIR erreichbar
+    ist. Fehlt die, kommt None zurück wie bei jedem anderen fehlenden Symbol -
+    gerendert wird dann der Platzhalter.
+    """
+    if not symbol:
+        return None
+    if symbol.startswith(METACOM_PREFIX):
+        return metacom.resolve(symbol[len(METACOM_PREFIX):])
+    # Der Name stammt aus layout.json: alles ausser dem Dateinamen verwerfen,
+    # damit "../" nicht aus symbols/ herausführt.
+    candidate = SYMBOLS_DIR / Path(symbol).name
+    return candidate if candidate.exists() else None
+
+
+def missing_hint(symbol: str) -> str:
+    """Warum ein Symbol nicht auflösbar ist - als Satz fürs Bauprotokoll."""
+    if symbol.startswith(METACOM_PREFIX):
+        if not metacom.available():
+            return (f"Symbol {symbol} kommt aus der METACOM-Sammlung, aber "
+                    "VORLAUT_METACOM_DIR ist nicht gesetzt.")
+        return f"Symbol {symbol} steht nicht in der METACOM-Sammlung."
+    return f"Symbol {symbol} fehlt in symbols/."
 
 
 class BuildError(RuntimeError):
@@ -231,8 +265,8 @@ def render_symbol(symbol: str) -> bytes:
     inner_size = TILE_SIZE
     inner = Image.new("RGB", (inner_size, inner_size), (255, 255, 255))
 
-    source_path = SYMBOLS_DIR / symbol if symbol else None
-    if source_path and source_path.exists():
+    source_path = symbol_path(symbol)
+    if source_path:
         with Image.open(source_path) as raw:
             picture = raw.convert("RGBA")
         picture.thumbnail((inner_size, inner_size), Image.LANCZOS)
@@ -258,8 +292,8 @@ def render_symbol(symbol: str) -> bytes:
 
 def tile_fingerprint(symbol: str) -> str:
     """Hängt nur am Inhalt des Symbols, nicht an Name, Set oder Farbe."""
-    source = SYMBOLS_DIR / symbol if symbol else None
-    if source and source.exists():
+    source = symbol_path(symbol)
+    if source:
         content = hashlib.sha256(source.read_bytes()).hexdigest()
     else:
         content = "platzhalter"
@@ -421,17 +455,17 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         label_files.append(store_tile(entry["symbol"]))
         if not entry["symbol"]:
             note(f"Set {index} ({entry['name']}): noch kein Set-Symbol gewählt.")
-        elif not (SYMBOLS_DIR / entry["symbol"]).exists():
-            note(f"Set {index}: Symbol {entry['symbol']} fehlt in symbols/.")
+        elif symbol_path(entry["symbol"]) is None:
+            note(f"Set {index}: {missing_hint(entry['symbol'])}")
 
         tile_names: list[str] = []
         audio_names: list[str] = []
         for slot_index, slot in enumerate(entry["slots"], start=1):
             tile_names.append(store_tile(slot["symbol"]))
-            if slot["symbol"] and not (SYMBOLS_DIR / slot["symbol"]).exists():
+            if slot["symbol"] and symbol_path(slot["symbol"]) is None:
                 note(
-                    f"Set {index} Slot {slot_index}: Symbol {slot['symbol']} "
-                    "fehlt in symbols/."
+                    f"Set {index} Slot {slot_index}: "
+                    f"{missing_hint(slot['symbol'])}"
                 )
 
             if not slot["text"]:
