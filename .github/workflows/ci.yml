@@ -26,14 +26,8 @@ jobs:
         # Prüft, dass content/ sich aus example/ füllt und alles durchläuft.
         run: |
           python build.py --no-audio
-          test -f firmware/mitreden/layout.h
+          test -f firmware/mitreden/data/layout.bin
           test -f content/layout.json
-
-      - name: layout.h für die Firmware sichern
-        uses: actions/upload-artifact@v4
-        with:
-          name: layout-header
-          path: firmware/mitreden/layout.h
 
   firmware:
     name: Firmware übersetzen
@@ -44,13 +38,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Abhängigkeiten
-        run: pip install -r requirements.txt
-
-      - name: layout.h erzeugen
-        # Der Sketch bindet layout.h ein, und das entsteht erst beim Bauen.
-        run: python build.py --no-audio
-
+      # Der Sketch braucht keine erzeugten Dateien mehr - die Tabelle liegt
+      # zur Laufzeit auf dem Dateisystem des Geräts.
       - name: Übersetzen
         uses: arduino/compile-sketches@v1
         with:

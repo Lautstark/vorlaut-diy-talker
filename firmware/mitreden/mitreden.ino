@@ -1,7 +1,7 @@
 // mitreden - kleiner Talker mit fünf Screenkey-Tasten
 //
 // Vier Tasten sprechen, die fünfte schaltet das Set um. Solange das Gerät
-// wach ist, sind alle fünf Displays an. Nach SLEEP_TIMEOUT_SECONDS ohne
+// wach ist, sind alle fünf Displays an. Nach der eingestellten Zeit ohne
 // Eingabe geht es in den Deep Sleep und wacht durch jede der fünf Tasten
 // wieder auf - dieser erste Druck löst bewusst nichts aus.
 //
@@ -16,7 +16,26 @@
 #include <driver/rtc_io.h>
 #include <esp_sleep.h>
 
-#include "layout.h"
+// --- Anzeige ----------------------------------------------------------------
+// Die Bilddateien enthalten nur die Symbolfläche; den Rahmen in der Set-Farbe
+// zeichnet die Firmware selbst.
+#define DISPLAY_W 128
+#define DISPLAY_H 128
+#define TILE_BORDER 6
+#define TILE_W (DISPLAY_W - 2 * TILE_BORDER)
+#define TILE_H (DISPLAY_H - 2 * TILE_BORDER)
+
+// --- Aufbau der Inhalte -----------------------------------------------------
+// Wie viele Sets es gibt, welche Farben und welche Datei zu welcher Taste
+// gehört, steht NICHT in der Firmware, sondern in /layout.bin auf dem
+// Dateisystem. Sonst müsste man ein neues Set mit Kabel aufspielen.
+// Aufbau der Datei: siehe build.py.
+#define SLOT_COUNT 4
+#define MAX_SETS 5
+#define HASH_BYTES 16
+#define NAME_BYTES 32
+#define LAYOUT_FILE "/layout.bin"
+#define LAYOUT_VERSION 1
 
 // --- Pinbelegung (Adafruit ESP32-S3 Feather) --------------------------------
 // Die Taster müssen auf GPIO 0..21 liegen, nur die können den Chip aus dem
@@ -65,7 +84,38 @@ class Panel : public Adafruit_ST7735 {
   void setOffsets(int8_t col, int8_t row) { setColRowStart(col, row); }
 };
 
-// Ueberlebt den Deep Sleep: sie soll im selben Set aufwachen.
+struct Slot {
+  uint8_t image[HASH_BYTES];
+  uint8_t audio[HASH_BYTES];
+  bool hasAudio;
+};
+
+struct SetEntry {
+  uint16_t color;
+  char name[NAME_BYTES + 1];
+  uint8_t label[HASH_BYTES];
+  Slot slots[SLOT_COUNT];
+};
+
+struct Layout {
+  uint8_t setCount;
+  uint32_t sleepSeconds;
+  SetEntry sets[MAX_SETS];
+};
+
+static Layout layout;
+
+// Aus 16 Prüfsummenbytes den Dateinamen bauen: /t<32 hex>.bin bzw. /a….wav
+static void hashPath(char *out, char kind, const uint8_t *hash, const char *ext) {
+  out[0] = '/';
+  out[1] = kind;
+  for (uint8_t i = 0; i < HASH_BYTES; i++) {
+    sprintf(out + 2 + i * 2, "%02x", hash[i]);
+  }
+  strcpy(out + 2 + HASH_BYTES * 2, ext);
+}
+
+// Überlebt den Deep Sleep: sie soll im selben Set aufwachen.
 RTC_DATA_ATTR static uint8_t rtcCurrentSet = 0;
 
 static Panel *display[DISPLAY_COUNT];
@@ -80,6 +130,60 @@ static ButtonState button[DISPLAY_COUNT];
 static uint32_t lastActivity = 0;
 static bool filesystemReady = false;
 static bool contentReady = true;
+
+// --- Inhalte laden -----------------------------------------------------------
+
+// Liest /layout.bin. Liefert false, wenn die Datei fehlt oder nicht passt -
+// dann gibt es schlicht noch keine Inhalte, und das ist kein Fehler.
+static bool loadLayout() {
+  if (!filesystemReady) return false;
+  File file = LittleFS.open(LAYOUT_FILE, "r");
+  if (!file) return false;
+
+  char magic[4];
+  uint8_t version, sets, slots, reserviert;
+  if (file.read((uint8_t *)magic, 4) != 4 || memcmp(magic, "MTRD", 4) != 0) {
+    Serial.println("layout.bin: unbekannte Kennung");
+    file.close();
+    return false;
+  }
+  file.read(&version, 1);
+  file.read(&sets, 1);
+  file.read(&slots, 1);
+  file.read(&reserviert, 1);
+  if (version != LAYOUT_VERSION || slots != SLOT_COUNT) {
+    Serial.printf("layout.bin: Version %u, %u Tasten - erwartet %u/%u\n",
+                  version, slots, LAYOUT_VERSION, SLOT_COUNT);
+    file.close();
+    return false;
+  }
+  if (sets > MAX_SETS) sets = MAX_SETS;
+
+  uint32_t schlaf = 0;
+  file.read((uint8_t *)&schlaf, 4);   // little endian, wie der ESP32 selbst
+
+  layout.setCount = sets;
+  layout.sleepSeconds = schlaf;
+  for (uint8_t i = 0; i < sets; i++) {
+    SetEntry &e = layout.sets[i];
+    file.read((uint8_t *)&e.color, 2);
+    file.read((uint8_t *)e.name, NAME_BYTES);
+    e.name[NAME_BYTES] = '\0';
+    file.read(e.label, HASH_BYTES);
+    for (uint8_t j = 0; j < SLOT_COUNT; j++) {
+      uint8_t hatTon, fuellbyte;
+      file.read(e.slots[j].image, HASH_BYTES);
+      file.read(e.slots[j].audio, HASH_BYTES);
+      file.read(&hatTon, 1);
+      file.read(&fuellbyte, 1);
+      e.slots[j].hasAudio = hatTon != 0;
+    }
+  }
+  file.close();
+  Serial.printf("layout.bin: %u Set(s), Schlafzeit %u s\n",
+                layout.setCount, layout.sleepSeconds);
+  return layout.setCount > 0;
+}
 
 // --- Displays ----------------------------------------------------------------
 
@@ -171,17 +275,19 @@ static void showNoContent() {
 }
 
 static void drawCurrentSet() {
-#if SET_COUNT > 0
-  const uint8_t s = rtcCurrentSet;
-  const uint16_t frame = SET_COLORS[s];
-  for (uint8_t i = 0; i < SLOT_COUNT && i < DISPLAY_COUNT - 1; i++) {
-    drawTile(display[i], SLOT_IMAGE[s][i], frame);
+  if (!contentReady) {
+    showNoContent();
+    return;
   }
-  drawTile(display[SET_BUTTON], SET_LABEL_IMAGE[s], frame);
-  Serial.printf("Set %u: %s\n", (unsigned)(s + 1), SET_NAMES[s]);
-#else
-  showNoContent();
-#endif
+  const SetEntry &e = layout.sets[rtcCurrentSet];
+  char pfad[2 + HASH_BYTES * 2 + 5];
+  for (uint8_t i = 0; i < SLOT_COUNT && i < DISPLAY_COUNT - 1; i++) {
+    hashPath(pfad, 't', e.slots[i].image, ".bin");
+    drawTile(display[i], pfad, e.color);
+  }
+  hashPath(pfad, 't', e.label, ".bin");
+  drawTile(display[SET_BUTTON], pfad, e.color);
+  Serial.printf("Set %u: %s\n", (unsigned)(rtcCurrentSet + 1), e.name);
 }
 
 static void backlight(bool on) {
@@ -353,11 +459,6 @@ void setup() {
   setupAudio();
 
   filesystemReady = LittleFS.begin(false);
-  if (filesystemReady && !LittleFS.exists(SET_LABEL_IMAGE[0])) {
-    // Dateisystem da, aber leer: das ist der Normalfall direkt nach dem
-    // ersten Aufspielen der Firmware.
-    contentReady = false;
-  }
   if (!filesystemReady) {
     // Häufigste Ursache: falsches Partitionsschema. Die Voreinstellung des
     // Boards (tinyuf2) legt den Datenbereich als "ffat" an, LittleFS sucht
@@ -367,15 +468,11 @@ void setup() {
     Serial.println("  2. firmware/mitreden/data/ schon hochgeladen?");
   }
 
-#if SET_COUNT > 0
-  if (rtcCurrentSet >= SET_COUNT) rtcCurrentSet = 0;
-#endif
+  // Erst hier, weil dafür das Dateisystem stehen muss.
+  contentReady = loadLayout();
+  if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
 
-  if (contentReady) {
-    drawCurrentSet();
-  } else {
-    showNoContent();
-  }
+  drawCurrentSet();
   backlight(true);
 
   clearButtonStates();
@@ -399,20 +496,25 @@ void loop() {
       showNoContent();
       return;
     }
-#if SET_COUNT > 0
     if (pressed == SET_BUTTON) {
-      rtcCurrentSet = (uint8_t)((rtcCurrentSet + 1) % SET_COUNT);
+      rtcCurrentSet = (uint8_t)((rtcCurrentSet + 1) % layout.setCount);
       drawCurrentSet();
     } else {
-      Serial.printf("Taste %d: %s\n", pressed + 1,
-                    SLOT_TEXT[rtcCurrentSet][pressed]);
-      playWav(SLOT_AUDIO[rtcCurrentSet][pressed]);
+      const Slot &slot = layout.sets[rtcCurrentSet].slots[pressed];
+      if (slot.hasAudio) {
+        char pfad[2 + HASH_BYTES * 2 + 5];
+        hashPath(pfad, 'a', slot.audio, ".wav");
+        Serial.printf("Taste %d: %s\n", pressed + 1, pfad);
+        playWav(pfad);
+      } else {
+        Serial.printf("Taste %d: kein Ton hinterlegt\n", pressed + 1);
+      }
     }
-#endif
     lastActivity = millis();  // Spielzeit nicht auf den Timeout anrechnen
   }
 
-  if (millis() - lastActivity >= (uint32_t)SLEEP_TIMEOUT_SECONDS * 1000UL) {
+  const uint32_t schlaf = layout.sleepSeconds ? layout.sleepSeconds : 600;
+  if (millis() - lastActivity >= schlaf * 1000UL) {
     goToSleep();
   }
 

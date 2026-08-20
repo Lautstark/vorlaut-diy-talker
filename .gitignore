@@ -11,7 +11,7 @@ content/
 # Was die Firmware bekommt, entsteht in Sekunden neu aus content/
 firmware/mitreden/data/
 firmware/mitreden/littlefs.bin
-firmware/mitreden/layout.h
+
 
 # Python
 .venv/

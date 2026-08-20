@@ -112,8 +112,13 @@ hochgeladen):
 | `a<prüfsumme>.wav` | gesprochener Satz, 16 kHz mono 16 bit          |
 | `t<prüfsumme>.bin` | 116x116 Symbolfläche, RGB565 big-endian       |
 
-und dazu `firmware/mitreden/layout.h` mit Anzahl der Sets, Dateinamen, Farben und
-`sleep_timeout_seconds` als Konstanten für die Firmware.
+und dazu `layout.bin` — eine kompakte Tabelle mit Anzahl der Sets, Farben,
+Schlafzeit und den Prüfsummen, welche Datei zu welcher Taste gehört.
+
+**Diese Tabelle liegt beim Inhalt, nicht in der Firmware.** Ein Set anlegen,
+umbenennen oder umfärben ändert damit nichts am Programm — es muss nichts
+neu übersetzt und nichts mit Kabel aufgespielt werden. Die Firmware ist für
+alle dieselbe.
 
 **Die Dateinamen sind Prüfsummen des Inhalts, nicht der Position.** Das hat
 zwei Folgen:

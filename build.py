@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -38,7 +39,6 @@ BACKUP_DIR = CONTENT / "cache" / "layout-backups"
 KEEP_BACKUPS = 60
 SKETCH_DIR = ROOT / "firmware" / "mitreden"
 DATA_DIR = SKETCH_DIR / "data"
-HEADER_FILE = SKETCH_DIR / "layout.h"
 
 MAX_SETS = 5
 SLOTS_PER_SET = 4
@@ -313,94 +313,64 @@ def to_rgb565_be(image) -> bytes:
     return bytes(out)
 
 
-# --- layout.h ----------------------------------------------------------------
+# --- layout.bin --------------------------------------------------------------
+#
+# Die Tabelle - wie viele Sets, welche Farben, welche Datei je Taste - liegt
+# beim Inhalt und nicht in der Firmware. Sonst müsste man ein neues Set mit
+# Kabel aufspielen.
+#
+# Bewusst eine feste Binärstruktur und kein JSON: die Firmware liest damit
+# Feld für Feld, ohne Parser.
+#
+#   Kopf   4  Kennung "MTRD"
+#          1  Version
+#          1  Anzahl Sets
+#          1  Tasten je Set
+#          1  frei
+#          4  Schlafzeit in Sekunden
+#   je Set 2  Farbe als RGB565
+#         32  Name, mit Nullbytes aufgefüllt
+#         16  Prüfsumme der Set-Kachel
+#            je Taste (4x):
+#         16     Prüfsumme des Bildes
+#         16     Prüfsumme des Tons
+#          1     1 = Ton vorhanden
+#          1     frei
+LAYOUT_BIN = "layout.bin"
+LAYOUT_MAGIC = b"MTRD"
+LAYOUT_VERSION = 1
+NAME_BYTES = 32
+HASH_BYTES = 16
+# Feste Schrittweiten - die Firmware rechnet mit denselben Zahlen.
+SLOT_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1        # 34
+SET_BYTES = 2 + NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES   # 186
+HEADER_BYTES = 4 + 4 + 4                            # 12
 
-def c_string(value: str) -> str:
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    # Umlaute als UTF-8 im Quelltext sind für den Compiler in Ordnung.
-    return f'"{escaped}"'
+
+def _hash_bytes(dateiname: str) -> bytes:
+    """Aus "t3bd7a62….bin" die 16 rohen Prüfsummenbytes."""
+    if not dateiname:
+        return b"\x00" * HASH_BYTES
+    kern = Path(dateiname).stem[1:]          # führendes t oder a weg
+    return bytes.fromhex(kern)[:HASH_BYTES].ljust(HASH_BYTES, b"\x00")
 
 
-def render_header(layout: dict, label_datei=None, bild_datei=None,
-                  ton_datei=None) -> str:
+def render_layout_bin(layout: dict, label_datei, bild_datei, ton_datei) -> bytes:
     sets = layout["sets"]
-    count = len(sets)
-    lines: list[str] = []
-    add = lines.append
-
-    add("// AUTOMATISCH ERZEUGT von build.py - nicht von Hand ändern.")
-    add("// Quelle: layout.json")
-    add("#pragma once")
-    add("#include <stdint.h>")
-    add("")
-    add(f"#define SET_COUNT {count}")
-    add(f"#define SLOT_COUNT {SLOTS_PER_SET}")
-    add(f"#define SLEEP_TIMEOUT_SECONDS {layout['sleep_timeout_seconds']}")
-    add(f"#define DISPLAY_W {IMG_SIZE}")
-    add(f"#define DISPLAY_H {IMG_SIZE}")
-    add("// Die Bilddateien enthalten nur die Symbolfläche. Den Rahmen in der")
-    add("// Set-Farbe zeichnet die Firmware selbst - so hängt eine Bilddatei")
-    add("// nur am Symbol und nicht am Set, in dem es gerade liegt.")
-    add(f"#define TILE_BORDER {BORDER}")
-    add(f"#define TILE_W {TILE_SIZE}")
-    add(f"#define TILE_H {TILE_SIZE}")
-    add("")
-
-    if count == 0:
-        add("// layout.json enthält noch keine Sets.")
-        return "\n".join(lines) + "\n"
-
-    add("static const char* const SET_NAMES[SET_COUNT] = {")
-    for entry in sets:
-        add(f"  {c_string(entry['name'])},")
-    add("};")
-    add("")
-
-    add("// Rahmenfarbe des Sets, bereits als RGB565 für das Panel.")
-    add("static const uint16_t SET_COLORS[SET_COUNT] = {")
-    for entry in sets:
-        add(f"  0x{rgb_to_565(*hex_to_rgb(entry['color'])):04X},  // {entry['color']}")
-    add("};")
-    add("")
-
-    label_datei = label_datei or [""] * count
-    bild_datei = bild_datei or [[""] * SLOTS_PER_SET for _ in range(count)]
-    ton_datei = ton_datei or [[""] * SLOTS_PER_SET for _ in range(count)]
-
-    def pfad(name: str) -> str:
-        # Leerer Name heißt: für diesen Slot gibt es nichts abzuspielen.
-        return c_string(f"/{name}") if name else "nullptr"
-
-    add("// Dateinamen sind Prüfsummen des Inhalts. Kommt dasselbe Symbol oder")
-    add("// derselbe Satz mehrfach vor, zeigen hier mehrere Einträge auf")
-    add("// dieselbe Datei - auf dem Gerät liegt sie nur einmal.")
-    add("static const char* const SET_LABEL_IMAGE[SET_COUNT] = {")
-    for name in label_datei:
-        add(f"  {pfad(name)},")
-    add("};")
-    add("")
-
-    add("static const char* const SLOT_IMAGE[SET_COUNT][SLOT_COUNT] = {")
-    for zeile in bild_datei:
-        add("  { " + ", ".join(pfad(n) for n in zeile) + " },")
-    add("};")
-    add("")
-
-    add("static const char* const SLOT_AUDIO[SET_COUNT][SLOT_COUNT] = {")
-    for zeile in ton_datei:
-        add("  { " + ", ".join(pfad(n) for n in zeile) + " },")
-    add("};")
-    add("")
-
-    add("// Nur zur Anzeige im seriellen Log.")
-    add("static const char* const SLOT_TEXT[SET_COUNT][SLOT_COUNT] = {")
-    for entry in sets:
-        texts = ", ".join(c_string(slot["text"]) for slot in entry["slots"])
-        add(f"  {{ {texts} }},")
-    add("};")
-    add("")
-
-    return "\n".join(lines) + "\n"
+    daten = bytearray()
+    daten += LAYOUT_MAGIC
+    daten += struct.pack("<BBBB", LAYOUT_VERSION, len(sets), SLOTS_PER_SET, 0)
+    daten += struct.pack("<I", layout["sleep_timeout_seconds"])
+    for index, entry in enumerate(sets):
+        daten += struct.pack("<H", rgb_to_565(*hex_to_rgb(entry["color"])))
+        daten += entry["name"].encode("utf-8")[:NAME_BYTES].ljust(NAME_BYTES, b"\x00")
+        daten += _hash_bytes(label_datei[index])
+        for slot in range(SLOTS_PER_SET):
+            ton = ton_datei[index][slot]
+            daten += _hash_bytes(bild_datei[index][slot])
+            daten += _hash_bytes(ton)
+            daten += struct.pack("<BB", 1 if ton else 0, 0)
+    return bytes(daten)
 
 
 # --- Bauen -------------------------------------------------------------------
@@ -509,11 +479,10 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             existing.unlink()
             note(f"entfernt: {existing.name}")
 
-    HEADER_FILE.write_text(
-        render_header(layout, label_datei, bild_datei, ton_datei),
-        encoding="utf-8",
-    )
-    note(f"geschrieben: {HEADER_FILE.relative_to(ROOT)}")
+    expected.add(LAYOUT_BIN)
+    (DATA_DIR / LAYOUT_BIN).write_bytes(
+        render_layout_bin(layout, label_datei, bild_datei, ton_datei))
+    note(f"geschrieben: {(DATA_DIR / LAYOUT_BIN).relative_to(ROOT)}")
 
     total = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
     note(
