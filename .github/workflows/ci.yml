@@ -18,6 +18,9 @@ jobs:
       - name: Abhängigkeiten
         run: pip install -r requirements.txt
 
+      - name: doctor läuft durch
+        run: python doctor.py
+
       - name: Module importierbar
         run: python -c "import app, build, tts"
 

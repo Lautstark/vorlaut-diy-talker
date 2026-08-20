@@ -36,6 +36,12 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python app.py
 ```
 
+Ob alles Nötige da ist, sagt:
+
+```bash
+python3 doctor.py
+```
+
 Dann [localhost:8771](http://localhost:8771) öffnen. Beim ersten Start füllt
 sich `content/` aus `example/`, es ist also gleich ein Set mit vier Tasten da.
 
