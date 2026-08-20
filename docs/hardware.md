@@ -8,7 +8,7 @@
 | Waveshare ScreenKey, 0,85" IPS, 128×128, ST7735 | 5 | [BerryBase](https://www.berrybase.de/waveshare-screenkey-lcd-modul-0-85-zoll-ips-display-128-x-128-pixel-st7735-schwarz-3-3v/version-vollstaendiger-screenkey) | |
 | Adafruit MAX98357A, I2S 3W Class-D | 1 | [Eckstein](https://eckstein-shop.de/AdafruitI2S3WClassDAmplifierBreakout-MAX98357A) | 7,95 € |
 | Lautsprecher 40 mm, 4 Ω, 5 W | 1 | [Eckstein](https://eckstein-shop.de/40mm-15-Internal-Magnetic-4Ohm-5W-Bass-Multimedia-Speaker) | 3,95 € |
-| LiPo 3,7 V 2500 mAh, JST-PHR-2 | 1 | [Eckstein](https://eckstein-shop.de/LiPo-Akku-Lithium-Ion-Polymer-Batterie-37V-2500mAh-mit-JST-PHR-2-Stecker-LP785060) | 9,95 € |
+| LiPo 3,7 V 2500 mAh, JST-PHR-2, 63 × 50,3 × 8,1 mm, 52 g | 1 | [Eckstein](https://eckstein-shop.de/LiPo-Akku-Lithium-Ion-Polymer-Batterie-37V-2500mAh-mit-JST-PHR-2-Stecker-LP785060) | 9,95 € |
 
 Preise Stand August 2026, ohne Gehäuse. Beim ScreenKey die Ausführung
 **"vollständiger ScreenKey"** wählen — es gibt das Modul auch ohne den
@@ -98,7 +98,7 @@ Lautsprecher 40,3 x 40,3 x 25,3 mm.
 | Abstand Set-Taste zum Viererblock | 25 mm |
 | Spalt Lautsprecher zur Set-Taste | 5 mm |
 | Bauteile insgesamt | 117 x 81 mm |
-| Gehäuse außen | etwa 131 x 95 x 35 mm |
+| Gehäuse außen | etwa 131 x 95 x 36 mm |
 
 Anordnung: Lautsprecher oben links, darunter die Set-Taste, rechts daneben die
 vier Sprechtasten als 2x2-Block. Set-Taste und untere Tastenreihe schließen
@@ -110,9 +110,32 @@ ist.
 nur 25,94 - 22,00 = 3,9 mm zwischen den Kappen, und eine Kinderhand träfe zwei
 Tasten auf einmal.
 
-Die Tiefe bestimmt der Lautsprecher mit 25,3 mm; die Screenkeys brauchen hinter
-der Frontplatte nur 15,4 mm. Hinter dem Tastenblock bleiben damit rund 10 mm
-für den flach liegenden Akku, der Feather passt daneben.
+### Was hinter die Front passt
+
+Die ScreenKeys brauchen hinter der Frontplatte nur **15,4 mm** (24,0 gesamt
+minus 8,6 Kappenüberstand), der Lautsprecher **25,3 mm**. Den Rest bestimmen
+Akku und Feather.
+
+Der Akku ist **63 × 50,3 × 8,1 mm**. Hinter den Tastenblock (62,9 × 80,6 mm)
+passt er nur **quer gedreht** - längs fehlt ein Zehntelmillimeter. Quer bleiben
+seitlich 12,6 mm und oben 17,6 mm frei.
+
+Der Feather ist 22,8 mm breit und passt damit **nicht** in die 12,6 mm neben
+den Akku. Er muss darüber, also gestapelt:
+
+```
+Taste 15,4  +  Akku 8,1  +  Feather 8,0  =  31,5 mm
+Lautsprecher allein:                        25,3 mm
+```
+
+Damit bestimmt nicht mehr der Lautsprecher die Tiefe, sondern der Stapel:
+**innen etwa 32 mm, außen rund 36 mm.**
+
+Beim Stapeln daran denken, dass die USB-C-Buchse des Feathers eine
+Gehäusekante erreichen muss - sonst lässt sich nicht laden.
+
+Der Akku wiegt **52 g** und ist damit das schwerste Einzelteil. Wo er sitzt,
+entscheidet, wie sich das Gerät in der Hand anfühlt.
 
 Noch zu prüfen, wenn die Teile da sind: ob die Tastenkappe mittig auf der
 Platine sitzt. Auf den Bildern liegen FPC- und Stiftleistenanschluss im unteren
