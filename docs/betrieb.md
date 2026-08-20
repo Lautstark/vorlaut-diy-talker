@@ -27,6 +27,17 @@ eine `docker-compose.yml` bei:
 docker compose up -d
 ```
 
+Wer nicht selbst bauen will, zieht das fertige Abbild — es wird bei jeder
+Änderung an `Dockerfile` oder `requirements.txt` für amd64 und arm64 gebaut:
+
+```
+ghcr.io/steffipetaffy/mitreden:latest
+```
+
+Dafür in der `docker-compose.yml` `build: .` durch
+`image: ghcr.io/steffipetaffy/mitreden:latest` ersetzen. Auf einem NAS mit
+ARM spart das mehrere Minuten Bauzeit.
+
 Das Abbild bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
 selbst wird hineingereicht - `content/layout.json`, `content/symbols/` und `content/cache/` bleiben
 damit auf dem NAS und laufen in dessen Sicherung mit.
