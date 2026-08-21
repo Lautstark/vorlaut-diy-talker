@@ -46,6 +46,28 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.voice_fetching": "fetching {name} ... ({done} of {total})",
         "ui.voice_fetch_done": "The voices are here.",
         "ui.voice_gone": "not available here",
+        "ui.azure": "Azure voices",
+        "ui.azure_intro": "A key of your own brings more voices and better "
+                          "ones. A free account is enough.",
+        "ui.azure_key": "Key",
+        "ui.azure_key_set": "stored, ends in {hint}",
+        "ui.azure_key_none": "not stored",
+        "ui.azure_key_placeholder": "paste the key here",
+        "ui.azure_region": "Region",
+        "ui.azure_local_only": "Only on the computer this runs on. On a phone "
+                               "everything else can be edited, but not this.",
+        "ui.symbols": "Symbols",
+        "ui.metacom_intro": "A licensed METACOM collection is searched "
+                            "alongside ARASAAC. The symbols stay where they "
+                            "are and are only referenced.",
+        "ui.metacom_path": "Folder of the collection",
+        "ui.metacom_ok": "{count} symbols, {kind}",
+        "ui.metacom_keywords": "with keywords",
+        "ui.metacom_names": "file names only",
+        "ui.metacom_bad": "nothing readable in that folder",
+        "ui.metacom_none": "not set - searching ARASAAC alone",
+        "ui.settings_saved": "saved",
+        "ui.metacom_offer": "Have a METACOM licence? Add the folder under the gear, and it is searched alongside this.",
         "ui.voice_failed": "The list of voices could not be loaded: {error}",
 
         # --- pairing --------------------------------------------------------
@@ -158,6 +180,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "err.download_failed": "Download failed: {reason}",
         "err.no_device_sync": "Device sync is not set up - "
                               "VORLAUT_DEVICE_TOKEN is missing.",
+        "err.settings_local_only": "The Azure key can only be set on the "
+                                   "computer this runs on - not over the "
+                                   "network.",
+        "err.settings_write": "The settings could not be written: {reason}",
         "err.pair_wrong_code": "Those five digits do not match. Compare them "
                                 "with the displays.",
         "err.pair_expired": "No device is waiting to be paired. Start it at the "
@@ -275,6 +301,29 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.voice_fetching": "holt {name} ... ({done} von {total})",
         "ui.voice_fetch_done": "Die Stimmen sind da.",
         "ui.voice_gone": "hier nicht verfügbar",
+        "ui.azure": "Azure-Stimmen",
+        "ui.azure_intro": "Ein eigener Schlüssel bringt mehr und bessere "
+                          "Stimmen. Ein kostenloses Konto reicht.",
+        "ui.azure_key": "Schlüssel",
+        "ui.azure_key_set": "hinterlegt, endet auf {hint}",
+        "ui.azure_key_none": "nicht hinterlegt",
+        "ui.azure_key_placeholder": "Schlüssel hier einfügen",
+        "ui.azure_region": "Region",
+        "ui.azure_local_only": "Nur an dem Rechner, auf dem das hier läuft. "
+                               "Am Handy lässt sich alles andere ändern, "
+                               "das hier nicht.",
+        "ui.symbols": "Symbole",
+        "ui.metacom_intro": "Eine lizenzierte METACOM-Sammlung wird neben "
+                            "ARASAAC durchsucht. Die Symbole bleiben, wo sie "
+                            "sind, und werden nur referenziert.",
+        "ui.metacom_path": "Ordner der Sammlung",
+        "ui.metacom_ok": "{count} Symbole, {kind}",
+        "ui.metacom_keywords": "mit Schlagwörtern",
+        "ui.metacom_names": "nur Dateinamen",
+        "ui.metacom_bad": "in dem Ordner ist nichts Lesbares",
+        "ui.metacom_none": "nicht gesetzt - es wird nur ARASAAC durchsucht",
+        "ui.settings_saved": "gespeichert",
+        "ui.metacom_offer": "Du hast eine METACOM-Lizenz? Trag den Ordner beim Zahnrad ein, dann wird er hier mit durchsucht.",
         "ui.voice_failed": "Die Liste der Stimmen kam nicht an: {error}",
 
         # --- Koppeln --------------------------------------------------------
@@ -388,6 +437,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "err.download_failed": "Download fehlgeschlagen: {reason}",
         "err.no_device_sync": "Der Geräte-Abgleich ist nicht eingerichtet - "
                               "VORLAUT_DEVICE_TOKEN fehlt.",
+        "err.settings_local_only": "Der Azure-Schlüssel lässt sich nur an "
+                                   "dem Rechner setzen, auf dem das hier "
+                                   "läuft - nicht übers Netz.",
+        "err.settings_write": "Die Einstellungen ließen sich nicht "
+                              "schreiben: {reason}",
         "err.pair_wrong_code": "Diese fünf Ziffern passen nicht. Vergleich sie "
                                 "mit den Displays.",
         "err.pair_expired": "Es wartet kein Gerät aufs Koppeln. Starte es am "

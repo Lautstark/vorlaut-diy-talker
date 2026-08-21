@@ -290,6 +290,32 @@ portal takes the search out of the loop.
 The two sides are `firmware/vorlaut/discover.h` and `discovery.py`;
 `tests/test_discovery.py` plays the answers through.
 
+## Settings from the interface
+
+The gear next to the name opens a sheet: the voice, an Azure key, the METACOM
+folder. The voice goes into `layout.json` with the content — it is a property
+of what is being said. The other two go into `.env`, because they belong to
+this installation and not to the sentences.
+
+`config.py` is the only thing that touches `.env`, reading and writing both.
+The writing is why it exists: that file is also the documentation of its own
+settings, so a value is replaced where it stands, a commented-out entry is
+woken up under the paragraph that explains it, and an emptied one goes back to
+being an example instead of disappearing. `tests/test_config.py` checks the
+quiet ways that can go wrong.
+
+**The Azure key can only be set from the machine itself.** Editing content
+from a phone is the point of `--host 0.0.0.0`, and none of that is worth
+protecting from the household — but the key is somebody's bill, and it can be
+read back out. So `/api/settings` refuses to write it unless the request came
+from loopback, and the sheet says why instead of hiding the field. In a
+container the question cannot be answered — what arrives is the bridge
+gateway — so there it is allowed.
+
+The key is never sent to the page. What comes back is whether one is stored
+and its last four characters, which is enough to recognise it by and not
+enough to use.
+
 ## Pairing on the server
 
 The device's half of this is in `firmware/vorlaut/pairing.h`, the wire format

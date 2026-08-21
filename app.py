@@ -399,6 +399,30 @@ def pair_confirm(code: str) -> tuple[str, str, int]:
         return ("wrong", "", left)
 
 
+# --- Settings ----------------------------------------------------------------
+# What the gear writes. Two of these are secrets and one is a path, and the
+# difference decides who may set them - see _may_set_secrets().
+
+def secret_hint(value: str) -> str:
+    """Enough to recognise a key by, not enough to use it."""
+    return value[-4:] if len(value) >= 8 else ""
+
+
+def settings_state() -> dict:
+    key = config.value("AZURE_SPEECH_KEY")
+    where = metacom.configured()
+    return {
+        "azureKey": {"set": bool(key), "hint": secret_hint(key)},
+        "azureRegion": config.value("AZURE_SPEECH_REGION", "germanywestcentral"),
+        "metacom": {
+            "path": where,
+            "ok": metacom.available(),
+            "count": metacom.count() if metacom.available() else 0,
+            "keywords": metacom.has_keywords() if metacom.available() else False,
+        },
+    }
+
+
 # --- HTTP --------------------------------------------------------------------
 
 class Handler(BaseHTTPRequestHandler):
@@ -609,6 +633,10 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if path == "/api/settings":
+            self._json(dict(settings_state(), local=self._may_set_secrets()))
+            return
+
         if path == "/api/pair":
             # So the page can offer the five boxes only when a device is
             # actually waiting. "since" is seconds, so it can also say how
@@ -696,6 +724,25 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         self._error("err.not_found", 404)
+
+    # -- Settings --
+
+    def _may_set_secrets(self) -> bool:
+        """Whether this request may write the Azure key.
+
+        Editing content from a phone is the point of --host 0.0.0.0, and none
+        of that is worth protecting from the household. The key is: it is
+        somebody's bill and it can be read back out. So it is set at the
+        machine itself.
+
+        In a container the question cannot be answered - what arrives is the
+        bridge gateway, never 127.0.0.1 - and refusing there would lock
+        somebody out of their own NAS. Then it is allowed, and docs/operation.md
+        says so.
+        """
+        if Path("/.dockerenv").exists():
+            return True
+        return self.client_address[0] in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
 
     # -- Pairing --
 
@@ -814,6 +861,29 @@ class Handler(BaseHTTPRequestHandler):
                 self._error("err.download_failed", 502, reason=str(exc))
                 return
             self._json({"symbol": filename, "label": label})
+            return
+
+        if path == "/api/settings":
+            updates: dict[str, str] = {}
+            if "azureKey" in body:
+                if not self._may_set_secrets():
+                    self._error("err.settings_local_only", 403)
+                    return
+                updates["AZURE_SPEECH_KEY"] = str(body.get("azureKey") or "").strip()
+            if "azureRegion" in body:
+                updates["AZURE_SPEECH_REGION"] = str(
+                    body.get("azureRegion") or "").strip()
+            if "metacom" in body:
+                updates["VORLAUT_METACOM_DIR"] = str(body.get("metacom") or "").strip()
+            try:
+                config.write(updates)
+            except OSError as exc:
+                self._error("err.settings_write", 500, reason=str(exc))
+                return
+            # Read back rather than echo: what the file says is the truth, and
+            # a path that turned out unusable should say so here and not on
+            # the next build.
+            self._json(dict(settings_state(), local=self._may_set_secrets()))
             return
 
         if path == "/api/pair/confirm":
@@ -948,7 +1018,7 @@ PAGE = r"""<!doctype html>
     text-align: center;
   }
   .row { display: flex; gap: 8px; }
-  input[type=text] {
+  input[type=text], input[type=password] {
     width: 100%; min-width: 0; background: var(--panel-2); border: 1px solid var(--line);
     color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 14px;
     flex: 0 1 auto; align-self: flex-start;
@@ -1213,12 +1283,26 @@ PAGE = r"""<!doctype html>
   }
   /* Narrower than the symbol picker: that one shows a grid of tiles, this one
      reads as a list of settings. */
-  dialog.sheet { width: min(520px, 92vw); }
+  dialog.sheet {
+    width: min(520px, 92vw); max-height: 88vh;
+    display: flex; flex-direction: column;
+  }
+  dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
+  /* One scrolling area for the whole sheet, rather than a scrolling list
+     inside a scrolling dialog - two of them nested is a way to lose the Save
+     button without noticing it is there. */
+  .sheetBody { overflow-y: auto; }
   .sheet .section {
     padding: 16px 16px 0; font-size: 12px; letter-spacing: .08em;
     text-transform: uppercase; color: var(--muted);
   }
-  .sheet .voiceList { padding-top: 10px; max-height: 50vh; }
+  .sheet .voiceList { padding-top: 10px; }
+  .field { padding: 10px 16px 4px; display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 13px; color: var(--muted); }
+  .field .lead { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+  .field .note { margin: 0; font-size: 12px; color: var(--muted); }
+  .field input { width: 100%; }
+  .field input[type=password] { font-family: ui-monospace, monospace; }
   .sheetFoot {
     display: flex; gap: 8px; padding: 0 16px 16px; justify-content: flex-end;
   }
@@ -1314,9 +1398,31 @@ PAGE = r"""<!doctype html>
     <strong id="settingsHeading"></strong>
     <button id="voiceClose" class="closeX">×</button>
   </div>
+  <div class="sheetBody">
   <div class="section" id="voiceSection"></div>
   <div class="voiceList" id="voiceList"></div>
   <div class="hint" id="voiceHint"></div>
+
+  <div class="section" id="azureSection"></div>
+  <div class="field">
+    <p class="lead" id="azureIntro"></p>
+    <label id="azureKeyLabel" for="azureKey"></label>
+    <input type="password" id="azureKey" autocomplete="off">
+    <p class="note" id="azureKeyState"></p>
+    <label id="azureRegionLabel" for="azureRegion"></label>
+    <input type="text" id="azureRegion" autocomplete="off">
+  </div>
+
+  <div class="section" id="symbolsSection"></div>
+  <div class="field">
+    <p class="lead" id="metacomIntro"></p>
+    <label id="metacomLabel" for="metacomPath"></label>
+    <input type="text" id="metacomPath" autocomplete="off">
+    <p class="note" id="metacomState"></p>
+  </div>
+
+  </div>
+
   <div class="sheetFoot">
     <button class="primary" id="voiceSave"></button>
     <button id="voiceCancel"></button>
@@ -1524,6 +1630,14 @@ function applyTexts() {
   $("quellen").textContent = t("ui.credits_arasaac");
   $("settingsHeading").textContent = t("ui.settings");
   $("voiceSection").textContent = t("ui.voice");
+  $("azureSection").textContent = t("ui.azure");
+  $("azureIntro").textContent = t("ui.azure_intro");
+  $("azureKeyLabel").textContent = t("ui.azure_key");
+  $("azureKey").placeholder = t("ui.azure_key_placeholder");
+  $("azureRegionLabel").textContent = t("ui.azure_region");
+  $("symbolsSection").textContent = t("ui.symbols");
+  $("metacomIntro").textContent = t("ui.metacom_intro");
+  $("metacomLabel").textContent = t("ui.metacom_path");
   $("gear").title = t("ui.settings");
   $("gear").setAttribute("aria-label", t("ui.settings"));
   $("voiceSave").textContent = t("ui.save");
@@ -2186,14 +2300,85 @@ function chooseVoice(id) {
   renderVoices();
 }
 
+// --- The rest of the settings ------------------------------------------------
+// The Azure key and the METACOM folder live in .env, not in layout.json: they
+// belong to this installation, not to the content. So they save through their
+// own endpoint - and the key only from the machine itself, see the server.
+
+let settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
+                 metacom: { path: "", ok: false, count: 0, keywords: false },
+                 local: true };
+
+function renderSettings() {
+  $("azureRegion").value = settings.azureRegion || "";
+  $("metacomPath").value = settings.metacom.path || "";
+  $("azureKeyState").textContent = settings.azureKey.set
+    ? t("ui.azure_key_set", { hint: settings.azureKey.hint })
+    : t("ui.azure_key_none");
+  // The key is never sent back to the page, so the field starts empty and
+  // means "leave it alone" until somebody types in it.
+  $("azureKey").value = "";
+  $("azureKey").disabled = !settings.local;
+  if (!settings.local) $("azureKeyState").textContent = t("ui.azure_local_only");
+
+  const where = settings.metacom;
+  $("metacomState").textContent = !where.path
+    ? t("ui.metacom_none")
+    : (where.ok
+        ? t("ui.metacom_ok", {
+            count: where.count,
+            kind: t(where.keywords ? "ui.metacom_keywords" : "ui.metacom_names"),
+          })
+        : t("ui.metacom_bad"));
+}
+
+async function loadSettings() {
+  try {
+    settings = await (await api("/api/settings")).json();
+    renderSettings();
+  } catch (error) {
+    status(t("ui.voice_failed", { error: error.message }));
+  }
+}
+
+async function saveSettings() {
+  const wanted = {
+    azureRegion: $("azureRegion").value.trim(),
+    metacom: $("metacomPath").value.trim(),
+  };
+  // Only when something was typed: an untouched field must not wipe the key.
+  const typed = $("azureKey").value.trim();
+  if (typed) wanted.azureKey = typed;
+  const answer = await api("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(wanted),
+  });
+  settings = await answer.json();
+  renderSettings();
+}
+
+// One Save for the whole sheet, because that is how it reads: two panels and
+// one button. The voice goes into layout.json, the rest into .env - which is
+// the server's business, not something the page should make anybody think
+// about.
 async function saveVoice() {
+  try {
+    await saveSettings();
+  } catch (error) {
+    status(t("ui.save_failed", { error: error.message }));
+    return;                       // stay open, the message is in the header
+  }
   if (pendingVoice && pendingVoice !== voices.chosen) {
     layout.voice = pendingVoice;
     await save();
     // The server decides what the entry resolves to, so ask rather than guess -
     // and the release button has to light up, which save() already did.
-    await loadVoices();
   }
+  // A key that has just arrived can mean Azure voices that were not there
+  // when the sheet opened.
+  await loadVoices();
+  status(t("ui.settings_saved"));
   $("voices").close();
 }
 
@@ -2202,7 +2387,7 @@ async function openVoices() {
   $("voiceHint").textContent = "";
   fetchDone = false;
   $("voices").showModal();
-  await Promise.all([loadVoices(), readFetch()]);
+  await Promise.all([loadVoices(), readFetch(), loadSettings()]);
   pendingVoice = voices.chosen;
   renderVoices();
   // A download started before this dialog was opened - in another tab, or
@@ -2396,6 +2581,12 @@ async function loadSources() {
   $("q").placeholder = t(sources.metacom ? "ui.search_both" : "ui.search_arasaac");
   if (sources.metacom) {
     $("quellen").textContent = t("ui.credits_both");
+  } else {
+    // Where somebody is standing when they wish the pictograms were better.
+    // Nobody opens settings to find out that a licence they own would be
+    // searched too.
+    $("quellen").textContent =
+      t("ui.metacom_offer") + " " + t("ui.credits_arasaac");
   }
 }
 

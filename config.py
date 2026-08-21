@@ -97,7 +97,14 @@ def write(updates: dict[str, str], path: Path | None = None) -> None:
     try:
         lines = file.read_text(encoding="utf-8").splitlines()
     except OSError:
-        lines = []
+        # A file written by the interface holds only what the interface set.
+        # Deliberately not copied from .env.example: the entries there carry
+        # placeholder values, and a copied "put-your-own-key-here" would read
+        # back as a key that is set. A line pointing at the example does the
+        # same job without that.
+        lines = ["# Written by the vorlaut interface. Every setting there is,",
+                 "# with the paragraph explaining it, is in .env.example.",
+                 ""]
 
     remaining = dict(updates)
     out: list[str] = []

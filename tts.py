@@ -49,7 +49,12 @@ setting = config.value
 # Configurable through .env or environment variables:
 #   AZURE_SPEECH_REGION   must match the region of the key
 #   AZURE_SPEECH_RATE     speaking rate, e.g. -5% or +10%
-REGION = setting("AZURE_SPEECH_REGION", "germanywestcentral")
+# Asked for when it is needed, not once at import: the page can write a new
+# one into .env, and a key that arrives together with a region has to reach
+# that region straight away. Frozen here, the key would work and point at the
+# wrong endpoint until somebody restarted the server.
+def region() -> str:
+    return setting("AZURE_SPEECH_REGION", "germanywestcentral")
 RATE = setting("AZURE_SPEECH_RATE", "-5%")
 
 # From the time before layout.json knew about voices. An entry here decides
@@ -114,9 +119,14 @@ KEEP_TAIL = 0.10   # seconds after the word, so it can ring out
 FADE = 0.012       # short fade at both ends against clicks
 TAIL_PAD = 0.06    # quiet at the end, before the amplifier switches off
 
-AZURE_ENDPOINT = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
-AZURE_VOICE_LIST = (f"https://{REGION}.tts.speech.microsoft.com"
-                    "/cognitiveservices/voices/list")
+def azure_endpoint() -> str:
+    return (f"https://{region()}.tts.speech.microsoft.com"
+            "/cognitiveservices/v1")
+
+
+def azure_voice_list() -> str:
+    return (f"https://{region()}.tts.speech.microsoft.com"
+            "/cognitiveservices/voices/list")
 AZURE_FORMAT = "riff-16khz-16bit-mono-pcm"
 
 
@@ -347,7 +357,7 @@ def azure_voice_names() -> list[str]:
     except (OSError, ValueError, KeyError):
         pass
     request = urllib.request.Request(
-        AZURE_VOICE_LIST, headers={"Ocp-Apim-Subscription-Key": get_speech_key()})
+        azure_voice_list(), headers={"Ocp-Apim-Subscription-Key": get_speech_key()})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             catalogue = json.loads(response.read().decode("utf-8"))
@@ -469,7 +479,7 @@ def voice_config(vid: str) -> dict:
     return {
         "voice": rest,
         "locale": locale_of(rest),
-        "region": REGION,
+        "region": region(),
         "rate": RATE,
         "azure_format": AZURE_FORMAT,
         **shared,
@@ -543,7 +553,7 @@ def build_ssml(text: str, voice: str) -> str:
 def azure_synthesize(text: str, voice: str) -> bytes:
     """Calls the Azure Speech REST API and returns raw WAV bytes."""
     request = urllib.request.Request(
-        AZURE_ENDPOINT,
+        azure_endpoint(),
         data=build_ssml(text, voice).encode("utf-8"),
         method="POST",
         headers={
@@ -559,7 +569,7 @@ def azure_synthesize(text: str, voice: str) -> bytes:
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "replace")[:400]
         if exc.code == 401:
-            raise TTSError("tts.err.rejected", region=REGION) from exc
+            raise TTSError("tts.err.rejected", region=region()) from exc
         raise TTSError("tts.err.azure", code=exc.code, detail=detail) from exc
     except urllib.error.URLError as exc:
         raise TTSError("tts.err.unreachable", reason=exc.reason) from exc
