@@ -23,13 +23,14 @@ import config
 import layout_format
 import tiles
 from buildbase import BuildError, write_json
-from layout import DEFAULT_LANGUAGE, active_sets, chosen_voice, load_layout
+from layout import (DEFAULT_LANGUAGE, Layout, active_sets, chosen_voice,
+                    load_layout)
 
 # Records which state was last built into data/.
 BUILD_STATE = config.CONTENT / "cache" / "build-state.json"
 
 
-def built_fingerprint(layout: dict) -> str:
+def built_fingerprint(layout: Layout) -> str:
     """Identifier of what actually ends up in data/.
 
     Deliberately the active sets only: working on a switched-off set changes
@@ -124,7 +125,7 @@ def device_manifest() -> dict:
     }
 
 
-def _remember_build(layout: dict) -> None:
+def _remember_build(layout: Layout) -> None:
     """Records which state has just been built into data/."""
     try:
         # No lock needed - this writes a fresh note rather than changing the
@@ -136,7 +137,7 @@ def _remember_build(layout: dict) -> None:
         pass   # without the note the interface says "rebuild" more often
 
 
-def build_is_current(layout: dict | None = None) -> bool:
+def build_is_current(layout: Layout | None = None) -> bool:
     """Does data/ match the current layout?
 
     What goes undetected is a symbol file changing under the same name - that

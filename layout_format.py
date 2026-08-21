@@ -40,6 +40,7 @@ from layout import (
     DEFAULT_LANGUAGE,
     LANGUAGE_CODES,
     SLOTS_PER_SET,
+    Layout,
     active_sets,
     hex_to_rgb,
 )
@@ -64,7 +65,7 @@ def _hash_bytes(filename: str) -> bytes:
     return bytes.fromhex(core)[:HASH_BYTES].ljust(HASH_BYTES, b"\x00")
 
 
-def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> bytes:
+def render_layout_bin(layout: Layout, label_files, tile_files, audio_files) -> bytes:
     # The active sets only - the file lists are built the same way, and
     # setCount in the header has to match them.
     sets = active_sets(layout)

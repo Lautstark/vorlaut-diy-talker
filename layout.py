@@ -20,12 +20,53 @@ import datetime
 import json
 import shutil
 from pathlib import Path
+from typing import TypedDict
 
 import config
 import texts
 import tiles
 import tts
 from buildbase import BuildError
+
+# --- The shape -----------------------------------------------------------
+# What the docstring above promises, written down so it can be read by a tool
+# and not only by a person. These are the three dictionaries that travel
+# through the whole build: the web interface posts them, normalize_layout()
+# completes them, and the tiles, the manifest and layout.bin all read them.
+#
+# There is no type checker in this project and no plan for one, so nothing
+# here is enforced at import time - an annotation alone would be a comment
+# with a colon in it. tests/test_layout_types.py is what gives it teeth: it
+# builds a layout through normalize_layout() and checks the keys that actually
+# come out against the keys written here. Add a field to one and forget the
+# other, and that test says so.
+
+
+class Slot(TypedDict):
+    """One speech key: the sentence and the picture above it."""
+
+    text: str
+    symbol: str
+
+
+class SetEntry(TypedDict):
+    """One set - four speech keys, plus the set key that switches to it."""
+
+    name: str
+    active: bool
+    symbol: str
+    color: str
+    slots: list[Slot]
+
+
+class Layout(TypedDict):
+    """The whole of layout.json, after normalize_layout() has completed it."""
+
+    sleep_timeout_seconds: int
+    language: str
+    voice: str
+    sets: list[SetEntry]
+
 
 EXAMPLE = config.ROOT / "example"
 # The example sentences, already spoken. They go into the TTS cache, not into
@@ -68,7 +109,7 @@ LANGUAGE_CODES = {"en": 0, "de": 1}
 DEFAULT_LANGUAGE = "en"
 
 
-def empty_set(index: int = 0) -> dict:
+def empty_set(index: int = 0) -> SetEntry:
     return {
         "name": f"Set {index + 1}",
         "active": True,
@@ -190,7 +231,7 @@ def ensure_content() -> None:
                        indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def load_layout(path: Path = LAYOUT_FILE) -> dict:
+def load_layout(path: Path = LAYOUT_FILE) -> Layout:
     """Reads layout.json and brings it into a guaranteed complete shape."""
     if not path.exists():
         raise BuildError("build.err.not_found", name=path.name)
@@ -202,7 +243,7 @@ def load_layout(path: Path = LAYOUT_FILE) -> dict:
     return normalize_layout(raw)
 
 
-def normalize_layout(raw: dict) -> dict:
+def normalize_layout(raw: dict) -> Layout:
     timeout = raw.get("sleep_timeout_seconds", DEFAULT_SLEEP_TIMEOUT)
     try:
         timeout = int(timeout)
@@ -280,12 +321,12 @@ def normalize_layout(raw: dict) -> dict:
     }
 
 
-def active_sets(layout: dict) -> list[dict]:
+def active_sets(layout: Layout) -> list[SetEntry]:
     """The sets that go onto the device, in the order of the layout."""
     return [entry for entry in layout["sets"] if entry.get("active", True)]
 
 
-def chosen_voice(layout: dict) -> str:
+def chosen_voice(layout: Layout) -> str:
     """The voice this layout is spoken in.
 
     An empty entry is not an error but the normal case for a fresh layout:
@@ -329,7 +370,7 @@ def backup_layout(path: Path = LAYOUT_FILE) -> None:
         stale.unlink()
 
 
-def save_layout(layout: dict, path: Path = LAYOUT_FILE) -> dict:
+def save_layout(layout: dict, path: Path = LAYOUT_FILE) -> Layout:
     layout = normalize_layout(layout)
     backup_layout(path)
     path.write_text(

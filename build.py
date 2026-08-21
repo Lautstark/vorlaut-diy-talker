@@ -55,6 +55,9 @@ from layout import (
     MAX_ACTIVE_SETS,
     MAX_SETS,
     SLOTS_PER_SET,
+    Layout,
+    SetEntry,
+    Slot,
     active_sets,
     backup_layout,
     chosen_voice,
@@ -116,6 +119,9 @@ from tiles import (
 # from tidying away imports that look unused because the users of them are in
 # other files.
 __all__ = [
+    "Layout",
+    "SetEntry",
+    "Slot",
     "BACKUP_DIR", "BACKUP_MIN_INTERVAL", "BORDER", "BUILD_STATE", "BuildError",
     "CONTENT", "DATA_DIR", "DEFAULT_COLOR", "DEFAULT_LANGUAGE",
     "DEFAULT_PALETTE", "DEFAULT_SLEEP_TIMEOUT", "EXAMPLE", "EXAMPLE_SPEECH",

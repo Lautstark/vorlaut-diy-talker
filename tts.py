@@ -154,10 +154,13 @@ class TTSError(RuntimeError):
 # --- Key ---------------------------------------------------------------------
 
 def get_speech_key() -> str:
-    """A set environment variable wins, otherwise .env."""
-    key = os.environ.get("AZURE_SPEECH_KEY", "").strip()
-    if key:
-        return key
+    """A set environment variable wins, otherwise .env.
+
+    Both of those are config.value()'s job, and it did them here twice: this
+    used to check os.environ itself first, from before there was one place
+    that reads .env. The two orders agreed, so nothing was ever wrong - the
+    lines simply stopped doing anything.
+    """
     key = config.value("AZURE_SPEECH_KEY")
     if not key:
         raise TTSError("tts.err.no_key")
