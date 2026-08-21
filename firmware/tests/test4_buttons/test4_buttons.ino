@@ -27,25 +27,25 @@ class Panel : public Adafruit_ST7735 {
 };
 
 static Panel *display[DISPLAY_COUNT];
-static bool zuletzt[DISPLAY_COUNT];
+static bool was_down[DISPLAY_COUNT];
 
-static void zeichne(uint8_t i, bool gedrueckt) {
+static void draw(uint8_t i, bool down) {
   Panel *t = display[i];
-  t->fillScreen(gedrueckt ? 0x07E0 : 0x2124);
-  t->setTextColor(gedrueckt ? ST77XX_BLACK : 0x8410);
+  t->fillScreen(down ? 0x07E0 : 0x2124);
+  t->setTextColor(down ? ST77XX_BLACK : 0x8410);
   t->setTextSize(2);
   t->setCursor(14, 40);
-  t->print(i == SET_BUTTON ? "SET" : "Taste");
+  t->print(i == SET_BUTTON ? "SET" : "KEY");
   t->setTextSize(4);
   t->setCursor(46, 66);
-  t->print(gedrueckt ? "!" : (i == SET_BUTTON ? "S" : String(i + 1)));
+  t->print(down ? "!" : (i == SET_BUTTON ? "S" : String(i + 1)));
 }
 
 void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("vorlaut – Stufe 4: Taster");
+  Serial.println("vorlaut - stage 4: buttons");
 
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) pinMode(PIN_BUTTON[i], INPUT_PULLUP);
 
@@ -62,23 +62,23 @@ void setup() {
     display[i]->initR(INITR_144GREENTAB);
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
     display[i]->setRotation(PANEL_ROTATION);
-    zuletzt[i] = false;
-    zeichne(i, false);
-    Serial.printf("Taste %u an GPIO %u, Display an CS GPIO %d\n",
+    was_down[i] = false;
+    draw(i, false);
+    Serial.printf("key %u on GPIO %u, display on CS GPIO %d\n",
                   i + 1, PIN_BUTTON[i], PIN_CS[i]);
   }
-  Serial.println("Jetzt drücken. Jedes Display zeigt seinen eigenen Taster.");
+  Serial.println("Press now. Each display shows its own button.");
 }
 
 void loop() {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
-    const bool jetzt = digitalRead(PIN_BUTTON[i]) == LOW;
-    if (jetzt != zuletzt[i]) {
-      zuletzt[i] = jetzt;
-      zeichne(i, jetzt);
+    const bool now = digitalRead(PIN_BUTTON[i]) == LOW;
+    if (now != was_down[i]) {
+      was_down[i] = now;
+      draw(i, now);
       Serial.printf("%s %u (GPIO %u) %s\n",
-                    i == SET_BUTTON ? "SET-Taste" : "Taste", i + 1,
-                    PIN_BUTTON[i], jetzt ? "gedrückt" : "losgelassen");
+                    i == SET_BUTTON ? "set key" : "key", i + 1,
+                    PIN_BUTTON[i], now ? "pressed" : "released");
     }
   }
   delay(20);

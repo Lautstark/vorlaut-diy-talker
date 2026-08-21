@@ -343,8 +343,14 @@ to create anything.
 The location can be moved, onto a network share for instance:
 
 ```bash
-VORLAUT_CONTENT=/volume1/talker/inhalte .venv/bin/python app.py
+VORLAUT_CONTENT=/volume1/talker/content .venv/bin/python app.py
 ```
+
+The built output follows along: with `VORLAUT_CONTENT` set, `build.py` writes
+into `<content>/data/` instead of `firmware/vorlaut/data/`. That is deliberate
+- whoever points the content somewhere else is usually working on a copy, and
+a build must not then overwrite the real device data. `VORLAUT_DATA` overrides
+both if the two really do belong apart.
 
 **`content/` has to be backed up separately.** All the work is in there, and git
 deliberately no longer catches it. On a NAS it is covered by the NAS backup; on

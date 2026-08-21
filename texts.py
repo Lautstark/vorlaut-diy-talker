@@ -125,6 +125,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "err.preview_failed": "Preview cannot be loaded: {reason}",
         "err.not_found": "Not found.",
         "err.bad_json": "Invalid JSON.",
+        "err.not_an_image": "That is not a readable picture.",
         "err.no_such_metacom": "There is no such METACOM symbol.",
         "err.download_failed": "Download failed: {reason}",
         "err.no_device_sync": "Device sync is not set up - "
@@ -193,6 +194,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "tts.err.no_ffmpeg": "ffmpeg not found. On macOS: brew install ffmpeg",
         "tts.err.ffmpeg": "ffmpeg failed: {reason}",
         "tts.err.empty": "Empty text cannot be spoken.",
+        "tts.err.no_key": "AZURE_SPEECH_KEY is missing. Either set it as an "
+                          "environment variable or write it into .env "
+                          "(template: .env.example).",
+        "tts.err.rejected": "Azure rejects the key (401). Do the key and the "
+                            "region ({region}) match?",
     },
 
     "de": {
@@ -297,6 +303,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "err.preview_failed": "Vorschau nicht ladbar: {reason}",
         "err.not_found": "Nicht gefunden.",
         "err.bad_json": "Ungültiges JSON.",
+        "err.not_an_image": "Das ist kein lesbares Bild.",
         "err.no_such_metacom": "Dieses METACOM-Symbol gibt es nicht.",
         "err.download_failed": "Download fehlgeschlagen: {reason}",
         "err.no_device_sync": "Der Geräte-Abgleich ist nicht eingerichtet - "
@@ -368,6 +375,11 @@ TEXTS: dict[str, dict[str, str]] = {
                              "ffmpeg",
         "tts.err.ffmpeg": "ffmpeg fehlgeschlagen: {reason}",
         "tts.err.empty": "Leerer Text lässt sich nicht sprechen.",
+        "tts.err.no_key": "AZURE_SPEECH_KEY fehlt. Entweder als Umgebungs-"
+                          "variable setzen oder in die Datei .env "
+                          "schreiben (Vorlage: .env.example).",
+        "tts.err.rejected": "Azure lehnt den Key ab (401). Stimmen Key und "
+                            "Region ({region}) zusammen?",
     },
 }
 

@@ -45,15 +45,30 @@ KEEP_BACKUPS = 60
 # of single words, and yesterday's state drops off the end.
 BACKUP_MIN_INTERVAL = 5 * 60
 SKETCH_DIR = ROOT / "firmware" / "vorlaut"
-DATA_DIR = SKETCH_DIR / "data"
+# What the device gets. Normally next to the sketch, because Arduino's LittleFS
+# uploader looks for data/ there.
+#
+# But it follows VORLAUT_CONTENT: whoever points the content somewhere else is
+# working on a copy, and a build must not then overwrite the real device data.
+# Without this, testing against a copy quietly wiped the actual firmware/
+# vorlaut/data/ - it happened three times before it was noticed, and nothing
+# in the output said so.
+#
+# VORLAUT_DATA overrides both, for the case where the two really do belong
+# apart.
+DATA_DIR = Path(
+    os.environ.get("VORLAUT_DATA")
+    or (CONTENT / "data" if os.environ.get("VORLAUT_CONTENT")
+        else SKETCH_DIR / "data")
+).resolve()
 
 # How many go onto the device at once. Not arbitrary: a fully filled set
-# costs around 300 KiB and the file area holds 1536 KiB. The same number
-# steht als MAX_SETS in firmware/vorlaut/layout_format.h.
+# costs around 300 KiB and the file area holds 1536 KiB. The same number is
+# MAX_SETS in firmware/vorlaut/layout_format.h.
 MAX_ACTIVE_SETS = 5
-# Wie viele insgesamt in layout.json stehen duerfen. Keine Geraetegrenze -
-# the collection lives on the computer. Just a guard against a file that
-# niemand mehr ueberblickt.
+# How many may be in layout.json in total. Not a device limit - the
+# collection lives on the computer. Just a guard against a file nobody can
+# take in any more.
 MAX_SETS = 25
 SLOTS_PER_SET = 4
 IMG_SIZE = 128           # display area
@@ -554,6 +569,20 @@ SET_BYTES = 2 + NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES   # 186
 HEADER_BYTES = 4 + 4 + 4                            # 12
 
 
+def short(path: Path) -> str:
+    """A path as it reads best in the log.
+
+    Relative to the project as long as it lies inside it - that is the normal
+    case and the short one. Once VORLAUT_CONTENT points somewhere else it does
+    not, and then the full path is the useful thing anyway: it says which copy
+    was just written.
+    """
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _hash_bytes(filename: str) -> bytes:
     """The 16 raw hash bytes out of "t3bd7a62….bin"."""
     if not filename:
@@ -713,13 +742,13 @@ def build(with_audio: bool = True, force_audio: bool = False,
     expected.add(LAYOUT_BIN)
     (DATA_DIR / LAYOUT_BIN).write_bytes(
         render_layout_bin(layout, label_files, tile_files, audio_files))
-    note("build.written", name=(DATA_DIR / LAYOUT_BIN).relative_to(ROOT))
+    note("build.written", name=short(DATA_DIR / LAYOUT_BIN))
 
     total = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
     _remember_build(layout)
     note("build.done", sets=len(sets),
          files=sum(1 for f in DATA_DIR.iterdir() if f.is_file()),
-         size=f"{total / 1024:.0f}", where=f"{DATA_DIR.relative_to(ROOT)}/")
+         size=f"{total / 1024:.0f}", where=f"{short(DATA_DIR)}/")
     if not audio_ok:
         note("build.audio_missing")
 
@@ -774,13 +803,13 @@ def build_fs_image() -> list[str]:
     esptool = find_tool("esptool")
     call = str(esptool) if esptool else "esptool"
     for line in [
-        f"Image: {FS_IMAGE.relative_to(ROOT)}  "
+        f"Image: {short(FS_IMAGE)}  "
         f"({used / 1024:.0f} of {FS_SIZE / 1024:.0f} KiB used)",
         "Find the port with:  arduino-cli board list",
         "Write it with:",
         f"  {call} \\",
         f"    --chip esp32s3 --port /dev/cu.usbmodemXXXX \\",
-        f"    write-flash 0x{FS_OFFSET:X} {FS_IMAGE.relative_to(ROOT)}",
+        f"    write-flash 0x{FS_OFFSET:X} {short(FS_IMAGE)}",
     ]:
         log.append(line)
         print(line, flush=True)
@@ -788,7 +817,7 @@ def build_fs_image() -> list[str]:
 
 
 def prune_cache() -> list[str]:
-    """Entfernt Sprachdateien und Kacheln, die in layout.json nicht mehr vorkommen."""
+    """Removes speech files and tiles that layout.json no longer mentions."""
     log: list[str] = []
     ensure_content()
     layout = load_layout()

@@ -1,12 +1,12 @@
-# vorlaut auf einem NAS oder einem anderen Rechner, der durchläuft.
+# vorlaut on a NAS or another machine that stays on.
 #
-# Das Abbild bringt nur die Laufzeit mit - Python, ffmpeg, Pillow. Das Projekt
-# selbst wird als Verzeichnis hineingereicht, damit layout.json, symbols/ und
-# cache/ auf dem NAS liegen und dort gesichert werden.
+# The image brings only the runtime - Python, ffmpeg, Pillow. The project
+# itself is handed in as a directory, so that layout.json, symbols/ and cache/
+# live on the NAS and are backed up there.
 
 FROM python:3.12-slim
 
-# ffmpeg schneidet die Stille und normalisiert die Lautheit.
+# ffmpeg trims the silence and normalises the loudness.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg \
  && rm -rf /var/lib/apt/lists/*
@@ -18,6 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8771
-# Im Container muss auf allen Adressen gelauscht werden, sonst kommt die
-# Portweiterleitung nicht durch. Nach außen begrenzt das die Portfreigabe.
+# Inside a container it has to listen on every address, otherwise the port
+# forwarding does not get through. Outwards the published port limits it.
 CMD ["python", "app.py", "--host", "0.0.0.0"]

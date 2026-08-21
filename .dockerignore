@@ -6,6 +6,6 @@ content/
 firmware/vorlaut/data/
 firmware/vorlaut/littlefs.bin
 
-# Der Azure-Schluessel gehoert nicht in eine Abbild-Schicht. Zur Laufzeit
-# kommt er aus dem eingehaengten Projektordner.
+# The Azure key does not belong in an image layer. At runtime it comes from
+# the mounted project folder.
 .env

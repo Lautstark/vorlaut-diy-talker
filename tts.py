@@ -122,10 +122,7 @@ def get_speech_key() -> str:
         return key
     key = load_env_file().get("AZURE_SPEECH_KEY", "").strip()
     if not key:
-        raise TTSError(
-            "AZURE_SPEECH_KEY fehlt. Entweder als Umgebungsvariable setzen "
-            "oder in die Datei .env schreiben (Vorlage: .env.example)."
-        )
+        raise TTSError("tts.err.no_key")
     return key
 
 
@@ -236,10 +233,7 @@ def azure_synthesize(text: str) -> bytes:
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "replace")[:400]
         if exc.code == 401:
-            raise TTSError(
-                "Azure lehnt den Key ab (401). Stimmen Key und Region "
-                f"({REGION}) zusammen?"
-            ) from exc
+            raise TTSError("tts.err.rejected", region=REGION) from exc
         raise TTSError("tts.err.azure", code=exc.code, detail=detail) from exc
     except urllib.error.URLError as exc:
         raise TTSError("tts.err.unreachable", reason=exc.reason) from exc

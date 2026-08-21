@@ -166,7 +166,7 @@ def save_upload(data: bytes, original_name: str) -> str:
             opened.load()
             picture = opened.convert("RGBA")
     except Exception as exc:  # Pillow raises different things per format
-        raise ValueError("Das ist kein lesbares Bild.") from exc
+        raise build.BuildError("err.not_an_image") from exc
 
     # Crop to square, centred. The tile is square - without this a white bar
     # would remain on two sides and the picture would be smaller than needed.
@@ -217,7 +217,7 @@ def arasaac_fetch(pictogram_id: int) -> bytes:
 
 
 def arasaac_download(pictogram_id: int, label: str) -> str:
-    """Legt ein Piktogramm in symbols/ ab und liefert den Dateinamen."""
+    """Puts a pictogram into symbols/ and returns the file name."""
     data = arasaac_fetch(pictogram_id)
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
     filename = f"{slugify(label)}-{int(pictogram_id)}.png"
@@ -357,8 +357,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/search":
             word = (query.get("q") or [""])[0].strip()
             # Without a value, both sources. The interface asks for them
-            # separately so the licensed collection is there at once instead of
-            # Antwort aus dem Netz wartet.
+            # separately so the licensed collection is there at once
+            # instead of waiting for an answer from the network.
             source = (query.get("source") or [""])[0].strip()
             if not word:
                 self._json([])
@@ -994,7 +994,7 @@ async function doSave() {
   }
 }
 
-// Bewusst den Stand dieser Seite durchsetzen.
+// Deliberately force through what this page holds.
 $("overwriteBtn").onclick = async () => {
   const response = await api("/api/layout");
   layoutVersion = response.headers.get("X-Layout-Version");
@@ -1600,18 +1600,18 @@ class Server(ThreadingHTTPServer):
 
 
 def local_addresses() -> list[str]:
-    """IP-Adressen, unter denen dieser Rechner im Netz erreichbar ist."""
+    """The addresses this computer can be reached at on the network."""
     import socket
-    adressen = set()
+    addresses = set()
     try:
         # No connection is made - the kernel only reveals which
         # Schnittstelle er hinauswollte.
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("192.0.2.1", 9))
-            adressen.add(s.getsockname()[0])
+            addresses.add(s.getsockname()[0])
     except OSError:
         pass
-    return sorted(adressen)
+    return sorted(addresses)
 
 
 def main(argv: list[str] | None = None) -> int:

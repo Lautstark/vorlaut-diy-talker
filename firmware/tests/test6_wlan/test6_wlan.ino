@@ -87,8 +87,8 @@ void setup() {
 
   Serial.println("Suche gespeichertes Netz ...");
   if (!wm.autoConnect(AP_NAME)) {
-    Serial.println("Keine Verbindung und das Portal ist abgelaufen.");
-    Serial.println("Das Geraet laeuft trotzdem weiter - nur ohne Netz.");
+    Serial.println("No connection and the portal has timed out.");
+    Serial.println("The device keeps running anyway - just without a network.");
     return;
   }
 

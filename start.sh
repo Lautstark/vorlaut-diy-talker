@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# Startet die Weboberfläche im Container - egal ob gerade einer läuft oder
-# nicht, und immer mit dem aktuellen Stand.
+# Starts the web interface in the container - whether one is running or not,
+# and always with the current state.
 #
-#   ./start.sh              auf Port 8771
-#   ./start.sh 8798         auf einem anderen Port
+#   ./start.sh              on port 8771
+#   ./start.sh 8798         on another port
 #
-# Dahinter steckt im Kern ein einziger Befehl:
+# At heart there is a single command behind it:
 #   docker compose up -d --build
-# Der baut neu, falls sich Dockerfile oder requirements.txt geändert haben,
-# und ersetzt einen laufenden Container. Der Python-Code kommt ohnehin aus
-# diesem Ordner, nicht aus dem Abbild - ein Neustart genügt dafür.
+# That rebuilds if the Dockerfile or requirements.txt changed, and replaces a
+# running container. The Python code comes from this folder anyway, not from
+# the image - a restart is enough for that.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -19,45 +19,45 @@ PORT="${1:-8771}"
 export VORLAUT_PORT="$PORT"
 
 if [ ! -f .env ]; then
-  echo "Hinweis: keine .env - ohne Azure-Schlüssel bleibt es stumm."
-  echo "         Vorlage: cp .env.example .env"
+  echo "Note: no .env - without an Azure key it stays silent."
+  echo "      Template: cp .env.example .env"
   echo
 fi
 
-# Belegt etwas den Port außerhalb von Docker? Meist ein direkt gestartetes
-# app.py. Beide gleichzeitig auf denselben Dateien wäre keine gute Idee.
+# Is something holding the port outside Docker? Usually an app.py that was
+# started directly. Both at once on the same files would be a bad idea.
 if command -v lsof >/dev/null 2>&1; then
-  fremd=$(lsof -ti "tcp:$PORT" 2>/dev/null | while read -r pid; do
+  other=$(lsof -ti "tcp:$PORT" 2>/dev/null | while read -r pid; do
             ps -o command= -p "$pid" | grep -q "[a]pp.py" && echo "$pid"
           done || true)
-  if [ -n "$fremd" ]; then
-    echo "Auf Port $PORT läuft bereits ein app.py (PID $fremd)."
-    echo "Erst beenden, oder den Container auf einen anderen Port legen:"
+  if [ -n "$other" ]; then
+    echo "An app.py is already running on port $PORT (PID $other)."
+    echo "Stop it first, or put the container on another port:"
     echo "  ./start.sh 8798"
     exit 1
   fi
 fi
 
-# Ein Container dieses Namens kann aus einem früheren Lauf übrig sein, auch
-# gestoppt - dann verweigert Docker den Namen. Vorher wegräumen, statt an
-# "name is already in use" zu scheitern.
+# A container of this name may be left over from an earlier run, even a
+# stopped one - Docker then refuses the name. Clear it away first instead of
+# failing on "name is already in use".
 if [ -n "$(docker ps -aq --filter name='^vorlaut$' 2>/dev/null)" ]; then
   docker rm -f vorlaut >/dev/null 2>&1 || true
 fi
 
-echo "Baue und starte ..."
+echo "Building and starting ..."
 docker compose up -d --build
 
-# Warten, bis die Oberfläche wirklich antwortet - "gestartet" heißt noch
-# nicht "bereit".
-printf "Warte auf den Server "
+# Wait until the interface really answers - "started" does not yet mean
+# "ready".
+printf "Waiting for the server "
 for _ in $(seq 1 30); do
   if curl -sf -o /dev/null "http://127.0.0.1:$PORT/"; then
     echo
-    echo "Läuft: http://localhost:$PORT"
+    echo "Running: http://localhost:$PORT"
     echo
-    echo "  Protokoll:  docker compose logs -f"
-    echo "  Beenden:    docker compose down"
+    echo "  Log:   docker compose logs -f"
+    echo "  Stop:  docker compose down"
     exit 0
   fi
   printf "."
@@ -65,6 +65,6 @@ for _ in $(seq 1 30); do
 done
 
 echo
-echo "Der Server antwortet nicht. Was sagt er selbst:"
+echo "The server does not answer. What it says itself:"
 docker compose logs --tail 20
 exit 1

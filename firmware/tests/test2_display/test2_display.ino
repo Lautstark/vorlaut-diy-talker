@@ -29,7 +29,7 @@
 #define HOEHE  128
 
 // Panel profile. The default is the variant of the real Screenkeys
-// (128x128). Zum Ausprobieren ohne Codeaenderung ueberschreibbar, etwa
+// (128x128). Overridable without changing the code, for instance
 //   arduino-cli compile --build-property \
 //     "compiler.cpp.extra_flags=-DPANEL_INITR=INITR_BLACKTAB" ...
 #ifndef PANEL_INITR
@@ -66,7 +66,7 @@ void setup() {
   tft->initR(PANEL_INITR);
   tft->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
   tft->setRotation(PANEL_ROTATION);
-  Serial.println("Bleibt es schwarz: Verkabelung von CLK, DIN, DC, RST und VCC prüfen.");
+  Serial.println("If it stays black: check the wiring of CLK, DIN, DC, RST and VCC.");
 }
 
 static void rahmenBild() {
@@ -87,7 +87,7 @@ static void rahmenBild() {
 void loop() {
   switch (schritt) {
     case 0: tft->fillScreen(ST77XX_RED);   Serial.println("ROT");   break;
-    case 1: tft->fillScreen(ST77XX_GREEN); Serial.println("GRÜN");  break;
+    case 1: tft->fillScreen(ST77XX_GREEN); Serial.println("GREEN"); break;
     case 2: tft->fillScreen(ST77XX_BLUE);  Serial.println("BLAU");  break;
     case 3: rahmenBild();
             Serial.println("Rahmen: ringsum gleich breit? Alle vier Ecken ganz?");

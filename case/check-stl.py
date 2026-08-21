@@ -121,8 +121,8 @@ def main():
     print('----------------')
     if 'tub' in parts:
         b = bbox(parts['tub'])
-        # Das Logo an der Unterkante steht 0,6 mm vor die Wand — es gehoert
-        # zum Bauteil, aber nicht zum Gehaeusemass.
+        # The logo on the bottom edge stands 0.6 mm proud of the wall -
+        # it is part of the piece, but not part of the case's size.
         L.measure('tub width', b[3] - b[0], G('outer_b'))
         L.measure('tub height (with logo at the bottom edge)', b[4] - b[1],
                G('outer_h') + G('logo_side_h'))

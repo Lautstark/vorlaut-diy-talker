@@ -4,31 +4,31 @@ services:
     image: vorlaut
     container_name: vorlaut
     ports:
-      # Anderer Port am Rechner, falls dort schon etwas läuft:
+      # Another port on the computer, in case something already runs there:
       #   VORLAUT_PORT=8798 docker compose up -d
       - "${VORLAUT_PORT:-8771}:8771"
     environment:
-      # Eine lizenzierte METACOM-Sammlung liegt ausserhalb des Projekts und
-      # muss eingehaengt werden. Wo sie auf dem Rechner liegt, steht in .env -
-      # die liest Compose von selbst. Im Container liegt sie immer unter
-      # /metacom, damit derselbe Stand auf Mac und NAS funktioniert.
-      # Ist nichts eingehaengt, findet sich unter /metacom nicht die
-      # erwartete Ordnerstruktur - dann laeuft die Suche nur mit ARASAAC.
+      # A licensed METACOM collection lives outside the project and has to be
+      # mounted. Where it sits on the computer is in .env - Compose reads that
+      # by itself. Inside the container it is always at /metacom, so the same
+      # setup works on a Mac and on a NAS.
+      # With nothing mounted, /metacom does not hold the expected folder
+      # structure - then the search runs with ARASAAC alone.
       - VORLAUT_METACOM_DIR=/metacom
     volumes:
-      # Das ganze Projekt hineinreichen: so liegen layout.json, symbols/ und
-      # cache/ auf dem NAS und überleben jedes Neubauen des Abbilds. Der
-      # Azure-Schlüssel kommt über die .env aus genau diesem Ordner - er
-      # steckt bewusst nicht im Abbild.
+      # Hand in the whole project: that way layout.json, symbols/ and cache/
+      # live on the NAS and survive every rebuild of the image. The Azure key
+      # comes through the .env from exactly this folder - deliberately not
+      # baked into the image.
       - ./:/app
-      # Nur lesend - die Sammlung wird nie veraendert. Ohne gesetzten Pfad
-      # zeigt die Einhaengung ersatzweise auf example/; dort fehlt die
-      # METACOM-Struktur, und die Anbindung schaltet sich von selbst ab.
-      # Compose kann eine Einhaengung nicht weglassen, deshalb dieser Weg.
+      # Read only - the collection is never changed. With no path set, the
+      # mount points at example/ instead; the METACOM structure is missing
+      # there and the integration switches itself off. Compose cannot leave a
+      # mount out, hence this route.
       - ${VORLAUT_METACOM_DIR:-./example}:/metacom:ro
-    # Auf einer Synology läuft der Container sonst als root, und alles, was er
-    # anlegt (cache/, layout.json), gehört danach root - über die Netzfreigabe
-    # lässt es sich dann nicht mehr bearbeiten. Eigene Kennung per SSH mit
-    # "id" herausfinden und hier eintragen, z.B. "1026:100".
+    # On a Synology the container otherwise runs as root, and everything it
+    # creates (cache/, layout.json) belongs to root afterwards - over the
+    # network share it can then no longer be edited. Find your own id over SSH
+    # with "id" and enter it here, e.g. "1026:100".
     # user: "1026:100"
     restart: unless-stopped

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Beendet die Weboberfläche - egal ob sie im Container läuft oder direkt
-# gestartet wurde.
+# Stops the web interface - whether it runs in the container or was started
+# directly.
 #
-#   ./stop.sh          Port 8771
-#   ./stop.sh 8798     anderer Port
+#   ./stop.sh          port 8771
+#   ./stop.sh 8798     another port
 
 set -uo pipefail
 cd "$(dirname "$0")"
@@ -13,29 +13,29 @@ PORT="${1:-8771}"
 echo "Container:"
 if [ -n "$(docker ps -aq --filter name=vorlaut 2>/dev/null)" ]; then
   docker compose down
-  echo "  beendet"
+  echo "  stopped"
 else
-  echo "  keiner vorhanden"
+  echo "  none there"
 fi
 
-# Ein direkt gestartetes app.py hört Docker nicht - das muss man selbst
-# beenden. Absichtlich nur melden statt ungefragt abschießen.
-echo "Direkt gestartete Server auf Port $PORT:"
-gefunden=""
+# Docker does not hear about an app.py that was started directly - that one
+# has to be stopped by hand. Deliberately only reported, not killed unasked.
+echo "Directly started servers on port $PORT:"
+found=""
 if command -v lsof >/dev/null 2>&1; then
-  gefunden=$(lsof -ti "tcp:$PORT" 2>/dev/null || true)
+  found=$(lsof -ti "tcp:$PORT" 2>/dev/null || true)
 fi
-if [ -z "$gefunden" ]; then
-  echo "  keine"
+if [ -z "$found" ]; then
+  echo "  none"
 else
-  for pid in $gefunden; do
+  for pid in $found; do
     echo "  PID $pid: $(ps -o command= -p "$pid" | cut -c1-70)"
   done
   echo
-  echo "  Beenden mit:  kill $gefunden"
+  echo "  Stop it with:  kill $found"
 fi
 
 echo
 if command -v lsof >/dev/null 2>&1 && [ -z "$(lsof -ti "tcp:$PORT" 2>/dev/null)" ]; then
-  echo "Port $PORT ist frei."
+  echo "Port $PORT is free."
 fi

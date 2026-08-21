@@ -29,53 +29,53 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          kern=$(arduino-cli core list | awk '/^esp32:esp32/ {print $2}')
-          # Point at the state of the tag, not at main: a release should
-          # still describe, a year from now, what
-          # was in ihr steckt.
-          doku="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}"
-          summen=$(cd build/vorlaut && sha256sum vorlaut.ino.merged.bin \
+          core=$(arduino-cli core list | awk '/^esp32:esp32/ {print $2}')
+          # Point at the state of the tag, not at main: a year from now a
+          # release should still describe what is actually in it.
+          docs="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}"
+          sums=$(cd build/vorlaut && sha256sum vorlaut.ino.merged.bin \
             vorlaut.ino.bin)
 
-          cat > hinweise.md <<HINWEISE
-          > **Diese Firmware ist noch nie auf echter Hardware gelaufen.**
-          > Sie übersetzt sauber, mehr ist bisher nicht geprüft. Vor dem ersten
-          > Flashen die Pinbelegung gegen die eigenen Boards halten und die
-          > [Inbetriebnahme in Stufen](${doku}/docs/bring-up.md) durchgehen -
-          > sie findet Verdrahtungsfehler einzeln statt alle auf einmal.
+          cat > notes.md <<NOTES
+          > **This firmware has never run on real hardware.**
+          > It compiles cleanly, and nothing beyond that has been checked.
+          > Before the first flash, hold the pin assignment against your own
+          > boards and work through the
+          > [bring-up in stages](${docs}/docs/bring-up.md) - it finds wiring
+          > mistakes one at a time instead of all at once.
 
-          ## Aufspielen
+          ## Flashing
 
-          Es braucht nur \`esptool\`, keinen Arduino-Core und keine
-          Bibliotheken. \`vorlaut.ino.merged.bin\` enthält Bootloader,
-          Partitionstabelle und Programm und wird an Adresse 0 geschrieben:
+          All you need is \`esptool\`, no Arduino core and no libraries.
+          \`vorlaut.ino.merged.bin\` contains the bootloader, the partition
+          table and the program, and is written at address 0:
 
           \`\`\`bash
           esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\
             write-flash 0x0 vorlaut.ino.merged.bin
           \`\`\`
 
-          Den Port findet \`arduino-cli board list\`. Meldet esptool, dass es
-          das Board nicht findet: **BOOT** halten, kurz **RESET** tippen,
-          **BOOT** loslassen.
+          \`arduino-cli board list\` finds the port. If esptool reports that
+          it cannot find the board: hold **BOOT**, tap **RESET**, release
+          **BOOT**.
 
-          Das ist nur das Programm. Bilder und Töne sind persönlich und liegen
-          nicht im Repo - die entstehen mit \`build.py --fs-image\` aus den
-          eigenen Inhalten und werden getrennt geschrieben, siehe
-          [docs/firmware.md](${doku}/docs/firmware.md).
+          That is the program only. Pictures and sounds are personal and are
+          not in the repo - they are produced by \`build.py --fs-image\` from
+          your own content and written separately, see
+          [docs/firmware.md](${docs}/docs/firmware.md).
 
-          ## Gebaut aus
+          ## Built from
 
-          Commit \`${GITHUB_SHA}\`, ESP32-Core \`${kern}\`.
+          Commit \`${GITHUB_SHA}\`, ESP32 core \`${core}\`.
 
           \`\`\`
-          ${summen}
+          ${sums}
           \`\`\`
-          HINWEISE
+          NOTES
 
           gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME - Firmware, auf Hardware ungetestet" \
-            --notes-file hinweise.md \
+            --title "$GITHUB_REF_NAME - firmware, untested on hardware" \
+            --notes-file notes.md \
             --prerelease \
             build/vorlaut/vorlaut.ino.merged.bin \
             build/vorlaut/vorlaut.ino.bin

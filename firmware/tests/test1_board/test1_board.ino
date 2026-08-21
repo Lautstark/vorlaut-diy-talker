@@ -17,14 +17,14 @@ static uint32_t zaehler = 0;
 void setup() {
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
-  delay(2000);            // dem USB-Monitor Zeit geben, sich zu verbinden
+  delay(2000);            // give the USB monitor time to connect
   Serial.println();
   Serial.println("vorlaut – Stufe 1: Board");
   Serial.printf("Chip: %s, %u MHz, %u Kerne\n",
                 ESP.getChipModel(), ESP.getCpuFreqMHz(), ESP.getChipCores());
   Serial.printf("Flash: %u MB\n", ESP.getFlashChipSize() / (1024 * 1024));
   Serial.printf("Freier Arbeitsspeicher: %u Byte\n", ESP.getFreeHeap());
-  Serial.println("Wenn die rote LED blinkt, ist Stufe 1 geschafft.");
+  Serial.println("If the red LED blinks, stage 1 is done.");
 }
 
 void loop() {
@@ -33,7 +33,7 @@ void loop() {
   digitalWrite(LED_BUILTIN, LOW);
   delay(500);
   if (++zaehler % 2 == 0) {
-    Serial.printf("läuft seit %lu s, Arbeitsspeicher %u Byte\n",
+    Serial.printf("up for %lu s, free memory %u bytes\n",
                   millis() / 1000, ESP.getFreeHeap());
   }
 }

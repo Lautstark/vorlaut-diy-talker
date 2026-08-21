@@ -212,7 +212,7 @@ def check_content() -> None:
             sets = len(json.loads(layout.read_text(encoding="utf-8")).get("sets", []))
             report("Content", True, f"{content.name}/, {sets} set(s)")
         except Exception as exc:
-            report("Content", False, "", f"layout.json ist nicht lesbar: {exc}")
+            report("Content", False, "", f"layout.json cannot be read: {exc}")
     else:
         report("Content", True, "none yet - created on the first start")
 

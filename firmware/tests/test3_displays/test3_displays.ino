@@ -35,13 +35,13 @@ class Panel : public Adafruit_ST7735 {
 static Panel *display[DISPLAY_COUNT];
 static const uint16_t FARBE[DISPLAY_COUNT] = {
   ST77XX_RED, ST77XX_GREEN, ST77XX_BLUE, ST77XX_YELLOW, 0x9BDF };
-static const char *BESCHRIFTUNG[DISPLAY_COUNT] = { "1", "2", "3", "4", "S" };
+static const char *LABEL[DISPLAY_COUNT] = { "1", "2", "3", "4", "S" };
 
 void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("vorlaut – Stufe 3: alle fünf Displays");
+  Serial.println("vorlaut - stage 3: all five displays");
 
   pinMode(PIN_BL, OUTPUT);
   digitalWrite(PIN_BL, HIGH);
@@ -65,9 +65,9 @@ void setup() {
     display[i]->setTextColor(ST77XX_BLACK);
     display[i]->setTextSize(6);
     display[i]->setCursor(128 / 2 - 18, 128 / 2 - 24);
-    display[i]->print(BESCHRIFTUNG[i]);
+    display[i]->print(LABEL[i]);
   }
-  Serial.println("Reihenfolge gegen docs/hardware.md prüfen: 1 2 oben, 3 4 unten, S links.");
+  Serial.println("Check the order against docs/hardware.md: 1 2 top, 3 4 bottom, S left.");
 }
 
 void loop() {

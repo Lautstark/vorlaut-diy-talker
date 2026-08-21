@@ -31,6 +31,7 @@ GERMAN_BY_DESIGN = {
     "README.md",                      # the way into the project
     "texts.py",                       # holds the German interface texts
     "firmware/vorlaut/texts.h",       # holds the German device labels
+    "tests/test_language.py",         # this file - it is made of German
 }
 
 SKIP_SUFFIX = {".png", ".svg", ".json", ".bin", ".stl", ".ico"}
@@ -62,6 +63,11 @@ ALLOWED = [
     ("`ä ö ü ß é à ñ ç`", "which letters the font has"),
     # Test data that is German on purpose.
     ("Ein sehr langer Name", "a name with umlauts, to test the encoding"),
+    # The Wi-Fi captive portal: what a parent reads on their phone. That is
+    # product text, not code, so it follows the product language. It moves
+    # into texts.h when Wi-Fi lands in the main firmware.
+    ("Damit der Talker neue Inhalte holen kann", "the captive portal"),
+    ("Es bleibt gespeichert, diese Seite kommt", "the captive portal"),
     # Regular expressions that match German.
     ('re.search(r"[äöüßÄÖÜ]"', "a check for German"),
     ('re.search(r"[äöüß]"', "a check for German"),

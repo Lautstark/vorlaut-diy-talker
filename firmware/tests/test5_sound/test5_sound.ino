@@ -63,19 +63,19 @@ void setup() {
   i2s.setPins(PIN_I2S_BCLK, PIN_I2S_LRCK, PIN_I2S_DIN);
   if (!i2s.begin(I2S_MODE_STD, ABTASTRATE, I2S_DATA_BIT_WIDTH_16BIT,
                  I2S_SLOT_MODE_MONO)) {
-    Serial.println("I2S ließ sich nicht starten - hier ist schon etwas falsch.");
+    Serial.println("I2S would not start - something is wrong already.");
   }
 }
 
 void loop() {
-  Serial.println("Verstärker an, 440 Hz für zwei Sekunden");
+  Serial.println("amplifier on, 440 Hz for two seconds");
   digitalWrite(PIN_AMP_SD, HIGH);
   delay(5);
   stille(50);                 // Einschaltknacken beobachten
   ton(440.0f, 2000);
   stille(60);
   digitalWrite(PIN_AMP_SD, LOW);
-  Serial.println("Verstärker aus. Knackt es hier?");
+  Serial.println("amplifier off. Does it click here?");
   delay(1500);
 
   Serial.println("Durchlauf 200 bis 2000 Hz");
@@ -84,6 +84,6 @@ void loop() {
   for (float hz = 200.0f; hz <= 2000.0f; hz *= 1.06f) ton(hz, 60);
   stille(60);
   digitalWrite(PIN_AMP_SD, LOW);
-  Serial.println("Wo wurde er dünn? Das ist die untere Grenze des Lautsprechers.");
+  Serial.println("Where did it get thin? That is the speaker's lower limit.");
   delay(2500);
 }

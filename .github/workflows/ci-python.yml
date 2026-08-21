@@ -43,7 +43,7 @@ jobs:
           pip install -r requirements.txt
 
       # If doctor complains here, the workflow really is missing something -
-      # dann fehlt es einem Nachbauer genauso.
+      # and somebody rebuilding the project is missing it just the same.
       - name: doctor passes
         run: python doctor.py
 

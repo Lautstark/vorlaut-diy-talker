@@ -10,7 +10,7 @@ description: >
 
 inputs:
   sketches:
-    description: Sketch-Ordner, einer je Zeile.
+    description: Sketch folders, one per line.
     required: false
     default: firmware/vorlaut
   fqbn:
