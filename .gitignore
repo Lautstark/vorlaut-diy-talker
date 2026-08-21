@@ -6,7 +6,12 @@
 # Your content: layout, symbols, spoken sentences. Deliberately not
 # versioned - the names, photos and sentences of your child are in here.
 # On the first start the folder is filled from example/.
-content/
+#
+# No trailing slash on purpose. "content/" matches a directory only, and a
+# content that is a symlink onto a network share - which is one of the ways
+# this is meant to be moved - is not a directory to git. It would have been
+# offered up for committing like any other new file.
+content
 
 # arduino-cli puts its intermediate directory inside the sketch folder
 firmware/vorlaut/build/
@@ -25,6 +30,9 @@ firmware/vorlaut/littlefs.bin
 
 
 # Python
-.venv/
+# Also without a trailing slash, and for a reason that turned up in practice:
+# a worktree that symlinks .venv to the one next door - so that .venv/bin/python
+# keeps working there - had that symlink staged by git add -A.
+.venv
 __pycache__/
 *.pyc
