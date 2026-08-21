@@ -31,7 +31,11 @@ ROOT = Path(__file__).resolve().parent
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
 CACHE_DIR = CONTENT / "cache" / "tts"
 INDEX_FILE = CACHE_DIR / "index.json"
-ENV_FILE = ROOT / ".env"
+# Overridable so a test can run against a file that is not the developer's
+# own. Without that, whether a test passes depends on what happens to stand
+# in .env on the machine it runs on - and the one thing a test must not do is
+# read the key of the person running it.
+ENV_FILE = Path(os.environ.get("VORLAUT_ENV_FILE") or ROOT / ".env")
 
 _index_lock = threading.Lock()
 

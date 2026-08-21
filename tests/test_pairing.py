@@ -85,6 +85,10 @@ def asked(path: str) -> dict:
 def serve(content: Path, token: str | None):
     environment = dict(os.environ, VORLAUT_CONTENT=str(content))
     environment.pop("AZURE_SPEECH_KEY", None)     # no calls out of a test
+    # And not the .env of whoever is running this: it carries a real device
+    # key on a machine that has one, and then "without a key" is not a state
+    # this test can reach at all.
+    environment["VORLAUT_ENV_FILE"] = str(content / "does-not-exist.env")
     if token:
         environment["VORLAUT_DEVICE_TOKEN"] = token
     else:
