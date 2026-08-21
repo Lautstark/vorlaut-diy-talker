@@ -909,13 +909,9 @@ PAGE = r"""<!doctype html>
     display: flex; align-items: center; gap: 16px;
     padding: 12px 24px; border-bottom: 1px solid var(--line);
   }
-  /* The wordmark is hidden, not deleted: the logo next to it says the same
-     thing, but a page still wants a heading for screen readers and for its
-     outline. */
-  header h1 {
-    position: absolute; width: 1px; height: 1px; margin: -1px;
-    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-  }
+  /* "vorlaut" is the name of the thing, not a label: it stays this word in
+     every language and therefore stands in the markup, not in texts.py. */
+  header h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .3px; }
   .logo { width: 26px; height: 26px; flex: none; }
   header .status { margin-left: auto; }
   main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
@@ -1095,7 +1091,13 @@ PAGE = r"""<!doctype html>
        Row 1  logo, name, the two buttons on the right
        Row 2  device preview, status text on the right */
     header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
-    header h1 { margin-right: auto; }
+    /* Here the wordmark is hidden, not deleted: it costs 64px next to a
+       logo that carries the same brand, and the bar has to fit one line.
+       Screen readers and the page outline keep the heading. */
+    header h1 {
+      position: absolute; width: 1px; height: 1px; margin: -1px;
+      overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+    }
     /* Same order as on a wide screen: settings first, the action last, and
        the whole group against the right edge. On a wide screen the status
        carries the auto margin that pushes them there; here it sits next to
