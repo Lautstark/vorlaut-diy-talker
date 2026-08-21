@@ -78,6 +78,7 @@ The single source of truth. Exactly 4 slots per set.
 ```json
 {
   "sleep_timeout_seconds": 600,
+  "language": "de",
   "sets": [
     {
       "name": "Grundset",
@@ -94,6 +95,17 @@ The single source of truth. Exactly 4 slots per set.
   ]
 }
 ```
+
+`language` says which language the **device** labels itself in - the four menu
+keys and the notice on an empty device, nothing else. The words on the keys are
+whatever somebody typed; this is only about the text the firmware draws by
+itself. Available are `en` and `de`, more in
+[`firmware/vorlaut/texts.h`](../firmware/vorlaut/texts.h). If the field is
+absent it is `en`.
+
+It travels in `layout.bin`, so a change needs a rebuild and an upload - but no
+reflashing of the program. One and the same firmware image speaks every
+language.
 
 `active` decides whether a set goes onto the device. If the field is absent it
 counts as active — that keeps older layouts valid unchanged.

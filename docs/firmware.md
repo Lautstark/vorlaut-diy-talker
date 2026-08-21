@@ -114,8 +114,8 @@ arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:Partitio
 > **"Default (3MB APP/1.5MB SPIFFS)"**, on the command line append
 > `PartitionScheme=default_8MB`.
 
-Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0: 470 KB
-program (14 % of 3 MB), 57 KB RAM (17 %).
+Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0: 472 KB
+program (14 % of 3 MB), 58 KB RAM (18 %).
 
 The file area holds 1536 KiB. A full layout with five sets takes around
 630 KiB of that, so a good 40 %.
@@ -144,10 +144,28 @@ In the menu the keys label themselves. Currently:
 | Key | |
 |---|---|
 | 1 | **Info** — number of sets, is the file system there |
-| Set | **zurück** to normal operation |
+| Set | **back** to normal operation |
 
 The rest stay empty. Entries appear once the function behind them exists —
 setting up Wi-Fi and fetching content, as soon as the sync is in place.
+
+All of those labels sit in [`texts.h`](../firmware/vorlaut/texts.h), one table
+per language, and the device picks one by the `language` field from
+`layout.bin`. English is the default and the fallback — an empty device shows
+English, because the language comes from the content and an empty device has
+none.
+
+**Nine characters per line, two lines.** Text size 2 is 12 pixels per
+character and a display is 128 wide; anything longer is drawn past the edge.
+`tests/test_texts.py` checks every entry against that, so a translation that
+does not fit fails on the computer.
+
+**Not every letter can be drawn.** The built-in font is not Unicode: it draws
+one byte as one glyph, using code page 437. `panel_text.h` translates UTF-8
+into it — that covers the western European accents, so `ä ö ü ß é à ñ ç` are
+fine, but `ł ő ş` and anything Cyrillic are not. Those need a font of their own
+(a `GFXfont`), which is a separate job. The test reports what is missing rather
+than letting a question mark appear on the device.
 
 The menu draws itself without files, from text and rectangles. So it works on a
 freshly flashed device with nothing on it yet — and that is exactly where it is

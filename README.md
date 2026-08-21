@@ -56,16 +56,29 @@ Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
 
 ## Sprachen im Projekt
 
-Das **Produkt** ist vorerst deutsch: die Weboberfläche, die Texte auf dem
-Talker und alles, was gesprochen wird. Mehrsprachig ist es noch nicht.
+Das **Produkt** ist vorerst deutsch: die Weboberfläche und alles, was
+gesprochen wird.
+
+Der **Talker** selbst nicht mehr. Die paar Wörter, die die Firmware selbst
+malt — vier Menütasten und der Hinweis auf einem leeren Gerät — stehen in einer
+Tabelle pro Sprache in [`firmware/vorlaut/texts.h`](firmware/vorlaut/texts.h).
+Welche gilt, entscheidet `"language"` in `layout.json` und reist in
+`layout.bin` mit; dieselbe Firmware spricht also jede Sprache, ein Wechsel
+braucht kein Kabel. Standard ist Englisch.
+
+Der eingebaute Font ist dabei kein Unicode, sondern Codepage 437: `zurück` wäre
+als `zur├╝ck` auf dem Display gelandet. Was sich zeichnen lässt und was nicht,
+steht in [docs/firmware.md](docs/firmware.md); ein Test prüft jede Übersetzung
+gegen die Breite eines Displays.
 
 **Code und Dokumentation sind englisch** — Bezeichner, Kommentare,
 Commit-Nachrichten, `docs/` und die CLI. Nur diese README bleibt deutsch, als
 Einstieg ins Projekt.
 
 Die Trennung verläuft also nicht nach Datei, sondern danach, wer es liest:
-was auf einem Bildschirm des Geräts oder in der Oberfläche steht, ist deutsch;
-was beim Weiterentwickeln gelesen wird, ist englisch.
+was in der Oberfläche steht, ist deutsch; was beim Weiterentwickeln gelesen
+wird, ist englisch. Die Texte auf dem Gerät sind der Sonderfall — sie liegen
+als Tabelle vor und gehören keiner Sprache mehr fest an.
 
 ## Weiter
 
