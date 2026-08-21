@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vorlaut",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["app.py", "--port", "8798"],
+      "port": 8798,
+      "autoPort": false,
+      "env": { "VORLAUT_DEVICE_TOKEN": "test-token-abcdefghijklmnop" }
+    }
+  ]
+}

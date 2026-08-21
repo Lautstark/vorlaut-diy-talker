@@ -25,6 +25,14 @@ These are two separate things that go into separate flash areas: the
 or a symbol changes, the program does not have to be reflashed — steps 3 and 4
 are enough then.
 
+**For a first flash from a release, steps 3 and 4 can be skipped.** The
+ready-made image under 2a carries the example content already, so the device
+speaks as soon as it starts: one set with *Ja!*, *Nein!*, *Stopp* and *Hilf
+mir*. That is there so the very first flash can be checked on its own — if the
+keys speak, the partition scheme, the file system, the audio path and the
+displays are all right. Your own content comes afterwards, through steps 3
+and 4 or over Wi-Fi.
+
 **1. Find the port.** Plug in the Feather over USB-C, then:
 
 ```bash
@@ -42,10 +50,12 @@ ordinary link, no GitHub account needed, and it stays put.
 
 Whoever needs the very latest state of `main` gets it from *Actions*: the
 *Firmware build* workflow attaches the image as the artifact `firmware`. That
-requires signing in, and after 90 days it is gone.
+requires signing in, and after 90 days it is gone. **That one is the program
+only** — the example content is merged in by the release workflow, not by the
+CI build.
 
-`vorlaut.ino.merged.bin` contains bootloader, partition table and program in a
-single file, written at address 0:
+`vorlaut.ino.merged.bin` from a release contains bootloader, partition table,
+program and the example content in a single file, written at address 0:
 
 ```bash
 esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 vorlaut.ino.merged.bin
@@ -54,6 +64,16 @@ esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 vorlaut.ino.m
 That needs neither the Arduino core nor the libraries — only esptool. The
 partition scheme is already inside the image, so it cannot be set wrongly
 either.
+
+> **The image is 8 MB and covers the whole flash**, file area included. On a
+> device that already carries your content it replaces it with the example.
+> To update only the program and leave the content alone, write the app on its
+> own — the release carries it as `vorlaut.ino.bin`, and `0x10000` is where
+> `app0` starts:
+>
+> ```bash
+> esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x10000 vorlaut.ino.bin
+> ```
 
 **2b. Compile and write it yourself:**
 
@@ -101,6 +121,29 @@ does not fit, it stops with a clear message instead of producing an oversized
 image.
 
 The image itself is gitignored: it is recreated from `data/` in seconds.
+
+**Into one file:** `build.py --merge-into IMAGE` writes that image into a
+whole-flash image at `0x670000`, which is what the release workflow does with
+`vorlaut.ino.merged.bin`. It works because `arduino-cli` already pads that file
+out to the full 8 MB — the file area is in there, as 1536 KiB of `0xFF`, and
+filling it in changes nothing around it. The offset lives in `build.py` next to
+`FS_SIZE`, so it is written down once and both paths use the same number.
+
+It refuses if that range is not blank. Then either the partition scheme is a
+different one or the program has grown into it, and writing anyway would
+produce an image that flashes cleanly and boots wrong — which is the one
+failure the whole arrangement exists to avoid.
+
+**Where the sound in the release comes from:** the four example sentences are
+in the repo, already spoken, under `example/speech/`. So the release can build
+content with sound without an Azure key, and so can a fresh clone —
+`ensure_content()` copies them into the TTS cache along with the example
+layout. The file name is the fingerprint of the text and the voice
+configuration, so changing the voice makes them stop matching;
+`tests/test_example_speech.py` is what notices, and
+`build.py --require-audio` turns a silent key from a warning into a failed
+build. See [`example/speech/LIZENZ.md`](../example/speech/LIZENZ.md) for where
+that recording comes from.
 
 Compiling:
 

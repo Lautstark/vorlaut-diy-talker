@@ -33,6 +33,9 @@ ROOT = Path(__file__).resolve().parent
 # for instance onto a network share:  VORLAUT_CONTENT=/volume1/talker
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
 EXAMPLE = ROOT / "example"
+# The example sentences, already spoken. They go into the TTS cache, not into
+# content/ - see seed_example_speech().
+EXAMPLE_SPEECH = EXAMPLE / "speech"
 
 LAYOUT_FILE = CONTENT / "layout.json"
 SYMBOLS_DIR = CONTENT / "symbols"
@@ -172,6 +175,73 @@ def rgb_to_565(r: int, g: int, b: int) -> int:
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
 
 
+def example_voice() -> str:
+    """The voice the example recordings were made with - or "" if they no
+    longer match this installation.
+
+    voice.json next to them holds the configuration they were rendered under.
+    Everything in it goes into the fingerprint, so comparing it with what this
+    version would produce answers both questions at once: which voice to file
+    them under, and whether they are still usable at all. A changed ffmpeg
+    chain or a bumped PIPELINE_VERSION makes the comparison fail, and then the
+    recordings are ignored rather than filed under names nothing will read.
+    """
+    try:
+        recorded = json.loads(
+            (EXAMPLE_SPEECH / "voice.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    if recorded.get("backend") == "piper":
+        voice = f"piper:{recorded.get('model', '')}"
+    else:
+        voice = f"azure:{recorded.get('voice', '')}"
+    return voice if tts.voice_config(voice) == recorded else ""
+
+
+def seed_example_speech() -> int:
+    """Puts the already spoken example sentences into the TTS cache.
+
+    Nothing more is needed to make them work: the build looks a sentence up by
+    its fingerprint, and a file that is already lying there gets used as it is.
+    That is the same path that lets a cached sentence be rebuilt without a key
+    - the examples just arrive in the cache instead of being rendered into it.
+
+    Which is the whole point: without this a fresh clone has the example
+    sentences but no voice, and the first flash produces four silent keys.
+
+    The file name carries the voice configuration, so a changed voice or a
+    bumped PIPELINE_VERSION makes these files stop matching. They are then
+    ignored rather than misused - tests/test_example_speech.py is what notices.
+    """
+    files = sorted(EXAMPLE_SPEECH.glob("*.wav"))
+    if not files:
+        return 0
+    voice = example_voice()
+    tts.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for file in files:
+        target = tts.CACHE_DIR / file.name
+        if not target.exists():
+            shutil.copyfile(file, target)
+            copied += 1
+
+    # index.json makes the hashed names readable again. Merged rather than
+    # copied: the cache may already know sentences of its own. Only entries
+    # whose fingerprint still comes out the same are taken over - an index
+    # that names files nobody can use is worse than a short one.
+    index_file = EXAMPLE_SPEECH / "index.json"
+    if index_file.exists():
+        try:
+            entries = json.loads(index_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            entries = {}
+        for key, text in sorted(entries.items()):
+            if voice and isinstance(text, str) \
+                    and tts.fingerprint(text, voice) == key:
+                tts.remember(text, voice)
+    return copied
+
+
 def ensure_content() -> None:
     """Creates content/ and fills it from example/ the first time round.
 
@@ -189,6 +259,7 @@ def ensure_content() -> None:
             target = SYMBOLS_DIR / file.name
             if not target.exists():
                 shutil.copyfile(file, target)
+        seed_example_speech()
         print(texts.t("build.filled_from_example"), flush=True)
     else:
         LAYOUT_FILE.write_text(
@@ -697,7 +768,7 @@ def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> byt
 # --- Building -------------------------------------------------------------------
 
 def build(with_audio: bool = True, force_audio: bool = False,
-          lang: str = texts.DEFAULT) -> list[str]:
+          lang: str = texts.DEFAULT, require_audio: bool = False) -> list[str]:
     """Builds everything and returns the log as a list of lines.
 
     The language decides how the log reads, nothing else. On the command line
@@ -832,6 +903,13 @@ def build(with_audio: bool = True, force_audio: bool = False,
          size=f"{total / 1024:.0f}", where=f"{short(DATA_DIR)}/")
     if not audio_ok:
         note("build.audio_missing")
+        # Normally a missing sentence is a warning: a build without a key is
+        # still worth having, everything except the sound is in it. For a
+        # release it is not - an image that flashes cleanly and then says
+        # nothing is the exact failure this whole path exists to prevent, and
+        # nobody would find out until a device is on the table.
+        if require_audio:
+            raise BuildError("build.err.audio_required")
 
     # Building only produces files. Nothing changes on the device from that -
     # it is a separate step, and without this note one wonders why.
@@ -891,6 +969,64 @@ def build_fs_image() -> list[str]:
         f"  {call} \\",
         f"    --chip esp32s3 --port /dev/cu.usbmodemXXXX \\",
         f"    write-flash 0x{FS_OFFSET:X} {short(FS_IMAGE)}",
+    ]:
+        log.append(line)
+        print(line, flush=True)
+    return log
+
+
+def merge_fs_image(image: Path) -> list[str]:
+    """Writes the LittleFS image into a whole-flash image at the spiffs offset.
+
+    arduino-cli already pads vorlaut.ino.merged.bin out to the full 8 MB, so
+    the file area is in that file already - as 1536 KiB of 0xFF. Filling it in
+    means one write-flash at address 0 puts program *and* content onto the
+    device, and a freshly flashed device speaks instead of showing "keine
+    Inhalte".
+
+    Deliberately not esptool merge-bin: that builds a new image out of its
+    parts and would need every offset written down a second time. This changes
+    exactly the range the partition table calls spiffs and leaves every byte
+    around it alone.
+
+    It refuses if that range is not blank. Then either the partition scheme is
+    a different one or the program has grown into it, and in both cases
+    writing anyway would produce an image that flashes cleanly and boots
+    wrong - which is the one failure this whole path exists to avoid.
+    """
+    log: list[str] = []
+    if not FS_IMAGE.exists():
+        raise BuildError("build.err.not_found", name=short(FS_IMAGE))
+    if not image.exists():
+        raise BuildError("build.err.not_found", name=short(image))
+
+    payload = FS_IMAGE.read_bytes()
+    if len(payload) != FS_SIZE:
+        raise BuildError("build.err.fs_size", found=str(len(payload)),
+                         expected=str(FS_SIZE))
+
+    flash = bytearray(image.read_bytes())
+    end = FS_OFFSET + FS_SIZE
+    if len(flash) < end:
+        raise BuildError("build.err.image_short", name=short(image),
+                         found=f"{len(flash) / 1024:.0f}",
+                         needed=f"{end / 1024:.0f}")
+
+    # Blank flash is 0xFF. Anything else in here is not padding.
+    first_used = next((i for i, byte in enumerate(flash[FS_OFFSET:end])
+                       if byte != 0xFF), None)
+    if first_used is not None:
+        raise BuildError("build.err.area_not_free",
+                         offset=f"0x{FS_OFFSET + first_used:X}",
+                         name=short(image))
+
+    flash[FS_OFFSET:end] = payload
+    image.write_bytes(bytes(flash))
+    for line in [
+        f"{short(FS_IMAGE)} written into {short(image)} at 0x{FS_OFFSET:X}.",
+        "One command now flashes program and content together:",
+        "  esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\",
+        f"    write-flash 0x0 {image.name}",
     ]:
         log.append(line)
         print(line, flush=True)
@@ -966,11 +1102,27 @@ def main(argv: list[str]) -> int:
         help="also build a LittleFS image for flashing",
     )
     parser.add_argument(
+        "--require-audio",
+        action="store_true",
+        help="stop if any sentence stayed silent, instead of warning",
+    )
+    parser.add_argument(
+        "--merge-into",
+        metavar="IMAGE",
+        help="write the LittleFS image into a whole-flash image (e.g. "
+             "vorlaut.ino.merged.bin), so that one write-flash at 0 carries "
+             "program and content",
+    )
+    parser.add_argument(
         "--prune-cache",
         action="store_true",
         help="delete speech files no longer referenced by layout.json",
     )
     args = parser.parse_args(argv[1:])
+    # Together these two would come out as "no sound was asked for, so none is
+    # missing" - a green build that guarantees exactly nothing.
+    if args.require_audio and args.no_audio:
+        parser.error("--require-audio and --no-audio contradict each other")
     if args.prune_cache:
         try:
             prune_cache()
@@ -979,9 +1131,14 @@ def main(argv: list[str]) -> int:
             return 1
         return 0
     try:
-        build(with_audio=not args.no_audio, force_audio=args.force_audio)
-        if args.fs_image:
+        build(with_audio=not args.no_audio, force_audio=args.force_audio,
+              require_audio=args.require_audio)
+        # --merge-into needs an image, so it implies --fs-image. Asking for
+        # both would only be a way to get it wrong.
+        if args.fs_image or args.merge_into:
             build_fs_image()
+        if args.merge_into:
+            merge_fs_image(Path(args.merge_into))
     except (BuildError, tts.TTSError) as exc:
         print(f"Fehler: {exc}", file=sys.stderr)
         return 1

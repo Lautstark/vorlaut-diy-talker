@@ -187,6 +187,20 @@ TEXTS: dict[str, dict[str, str]] = {
                                    "no image can be built.",
         "build.err.too_big": "The data is {used} KiB, the file area holds only "
                              "{fits} KiB.",
+        "build.err.audio_required": "Sentences stayed silent, and this build "
+                                    "was asked not to allow that. An image "
+                                    "with silent keys is worse than no image.",
+        "build.err.fs_size": "The LittleFS image is {found} bytes, the "
+                             "partition holds {expected}. mklittlefs writes "
+                             "the full size - this one is not that image.",
+        "build.err.image_short": "{name} is only {found} KiB, the file area "
+                                 "ends at {needed} KiB. That is not a whole-"
+                                 "flash image.",
+        "build.err.area_not_free": "{name} already has something at {offset}, "
+                                   "where the file area belongs. Either the "
+                                   "partition scheme is a different one or the "
+                                   "program has grown into it - nothing was "
+                                   "written.",
 
         # --- speech output ---------------------------------------------------
         "tts.err.azure": "Azure error {code}: {detail}",
@@ -373,6 +387,22 @@ TEXTS: dict[str, dict[str, str]] = {
                                    "lässt sich kein Image bauen.",
         "build.err.too_big": "Die Daten sind {used} KiB, der Dateibereich "
                              "fasst nur {fits} KiB.",
+        "build.err.audio_required": "Es sind Sätze stumm geblieben, und dieser "
+                                    "Build sollte das nicht durchgehen lassen. "
+                                    "Ein Abbild mit stummen Tasten ist "
+                                    "schlechter als gar keines.",
+        "build.err.fs_size": "Das LittleFS-Image ist {found} Bytes groß, die "
+                             "Partition fasst {expected}. mklittlefs schreibt "
+                             "immer die volle Größe - das hier ist nicht "
+                             "dieses Image.",
+        "build.err.image_short": "{name} ist nur {found} KiB groß, der "
+                                 "Dateibereich endet bei {needed} KiB. Das ist "
+                                 "kein Abbild des ganzen Flash.",
+        "build.err.area_not_free": "In {name} steht bei {offset} schon etwas, "
+                                   "wo der Dateibereich hingehört. Entweder "
+                                   "ist das Partitionsschema ein anderes oder "
+                                   "das Programm ist hineingewachsen - es "
+                                   "wurde nichts geschrieben.",
 
         # --- speech output ---------------------------------------------------
         "tts.err.azure": "Azure-Fehler {code}: {detail}",

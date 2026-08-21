@@ -125,11 +125,25 @@ manifest and say so.
 
 Only now. The procedure is in [firmware.md](firmware.md).
 
-At the very first start the file system is empty — the device then shows
-**"keine Inhalte"** on all five displays. That is correct and not a fault.
-Through the menu (hold the set key and key 2 for five seconds), **Info** shows
-whether LittleFS is mounted, and **Inhalte holen** does what stage 7 did, this
-time with the displays showing progress.
+**Flashed from a release, the device speaks straight away**: the image carries
+the example content, so after the first start there is one set with *Ja!*,
+*Nein!*, *Stopp* and *Hilf mir*. That makes this stage a real check rather than
+a formality — if the four keys speak and the fifth switches sets, then the
+partition scheme, the file system, the audio path and all five displays are
+right at once. Everything the earlier stages tested separately, now together.
+
+Your own content comes afterwards: through the menu (hold the set key and key 2
+for five seconds), **Inhalte holen** does what stage 7 did, this time with the
+displays showing progress. Or over USB, `build.py --fs-image` and step 4 in
+[firmware.md](firmware.md).
+
+**"keine Inhalte" on all five displays** means the file area is empty. That is
+correct and not a fault after flashing a program-only image — the artifact from
+*Actions* is one, and so is `arduino-cli upload`. **From a release it is not**,
+and then it is worth looking: **Info** in the menu says whether LittleFS is
+mounted at all. If it is not, the partition scheme is the first suspect — the
+board default creates the data area as `ffat`, and `LittleFS.begin()` wants one
+called `spiffs`.
 
 ---
 
