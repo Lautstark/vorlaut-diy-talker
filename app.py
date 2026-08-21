@@ -384,9 +384,13 @@ class Handler(BaseHTTPRequestHandler):
             if not self._device_allowed():
                 return
             try:
-                self._json(build.device_manifest())
+                # Lines, not JSON - the device has no parser, see
+                # build.manifest_text(). Also nicer with curl.
+                body = build.manifest_text(build.device_manifest())
             except build.BuildError as exc:
                 self._failed(exc, 500)
+                return
+            self._send(200, body.encode("utf-8"), "text/plain; charset=utf-8")
             return
 
         if path == "/api/device/file":

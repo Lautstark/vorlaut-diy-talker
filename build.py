@@ -319,6 +319,34 @@ def built_version() -> str:
         return ""
 
 
+def manifest_text(manifest: dict) -> str:
+    """The manifest as lines, because the device has no JSON parser.
+
+    That is the same reason layout.bin is binary: on the ESP32 a parser is a
+    library, a heap and a class of failure that a fixed line format does not
+    have. One keyword per line, values separated by single spaces:
+
+        version 3f2a...
+        current 1
+        sets 5
+        bytes 950272
+        file t3bd7....bin 26912
+        file a8c1....wav 41008
+
+    Unknown keywords are meant to be skipped by the reader, so a field can be
+    added later without the firmware in the field falling over.
+    """
+    lines = [
+        f"version {manifest['version']}",
+        f"current {1 if manifest['current'] else 0}",
+        f"sets {manifest['sets']}",
+        f"bytes {manifest['bytes']}",
+    ]
+    lines += [f"file {entry['name']} {entry['size']}"
+              for entry in manifest["files"]]
+    return "\n".join(lines) + "\n"
+
+
 def device_manifest() -> dict:
     """What should sit on the device: version stamp and file list.
 

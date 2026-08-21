@@ -43,6 +43,22 @@
 #include "texts.h"
 #include "panel_text.h"
 
+// --- Fetching content --------------------------------------------------------
+//
+// Wi-Fi is off during normal use and only comes up when somebody asks for it
+// in the menu. The device wakes on a key press and has to speak immediately;
+// bringing up a radio on every wake would cost seconds and most of the
+// battery, for something that is needed once a week at most.
+#include <Preferences.h>
+#include <WiFi.h>
+#include <WiFiManager.h>
+#include "sync.h"
+
+// How long the setup portal stays open before the device gives up and goes
+// back to being a talker. A device stuck in a portal no longer speaks.
+static const uint32_t PORTAL_TIMEOUT_S = 180;
+static Preferences settings;
+
 // --- Behaviour ---------------------------------------------------------------
 
 static const uint32_t DEBOUNCE_MS = 80;    // this long a key has to stay down
@@ -279,10 +295,105 @@ static void drawMenuKey(Panel *tft, const char *first, const char *second) {
 // them exists - not before.
 static void drawMenu() {
   drawMenuKey(display[0], text().info, nullptr);
-  drawMenuKey(display[1], nullptr, nullptr);
+  drawMenuKey(display[1], text().fetch1, text().fetch2);
   drawMenuKey(display[2], nullptr, nullptr);
   drawMenuKey(display[3], nullptr, nullptr);
   drawMenuKey(display[SET_BUTTON], text().back, nullptr);
+}
+
+// --- Fetching -----------------------------------------------------------
+//
+// All five displays show the same thing while this runs. It takes seconds,
+// and a device that looks switched off during them invites a second press.
+
+static void showOnAll(const char *first, const char *second) {
+  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+    drawMenuKey(display[i], first, second);
+  }
+}
+
+static void syncProgress(uint16_t done, uint16_t total) {
+  char count[12];
+  snprintf(count, sizeof(count), "%u/%u", done, total);
+  showOnAll(text().loading, count);
+}
+
+// A reason in one word. The serial monitor gets the English sentence from
+// sync.h; this is what fits on a panel.
+static const char *reasonFor(SyncError code) {
+  switch (code) {
+    case SYNC_NO_NETWORK:    return text().noWifi;
+    case SYNC_NO_SERVER:     return text().noServer;
+    case SYNC_BAD_KEY:       return text().badKey;
+    case SYNC_SWITCHED_OFF:  return text().switchedOff;
+    default:                 return nullptr;
+  }
+}
+
+static void fetchContent() {
+  showOnAll(text().wifi, nullptr);
+
+  settings.begin("vorlaut", false);
+  String host = settings.getString("host", "");
+  const uint16_t port = settings.getUShort("port", 8771);
+  String token = settings.getString("token", "");
+
+  WiFiManager wm;
+  WiFiManagerParameter hostField("host", "Computer (IP or name)",
+                                 host.c_str(), 40);
+  WiFiManagerParameter portField("port", "Port", String(port).c_str(), 6);
+  WiFiManagerParameter tokenField("token", "Key (VORLAUT_DEVICE_TOKEN)",
+                                  token.c_str(), 64);
+  wm.addParameter(&hostField);
+  wm.addParameter(&portField);
+  wm.addParameter(&tokenField);
+  wm.setConfigPortalTimeout(PORTAL_TIMEOUT_S);
+
+  if (!wm.autoConnect("vorlaut einrichten")) {
+    Serial.println("no Wi-Fi, and the portal has timed out.");
+    showOnAll(text().failed, text().noWifi);
+    delay(3000);
+    WiFi.mode(WIFI_OFF);
+    return;
+  }
+  // Only write what changed - NVS has a limited number of erase cycles.
+  if (host != hostField.getValue()) {
+    host = hostField.getValue();
+    settings.putString("host", host);
+  }
+  if (port != (uint16_t)atoi(portField.getValue())) {
+    settings.putUShort("port", (uint16_t)atoi(portField.getValue()));
+  }
+  if (token != tokenField.getValue()) {
+    token = tokenField.getValue();
+    settings.putString("token", token);
+  }
+
+  Serial.printf("Wi-Fi %s, fetching from %s:%u\n", WiFi.SSID().c_str(),
+                host.c_str(), settings.getUShort("port", 8771));
+  Sync sync(host, settings.getUShort("port", 8771), token);
+  const SyncStatus status = sync.run(syncProgress);
+  WiFi.mode(WIFI_OFF);   // straight back off, it costs power
+
+  if (!status.ok) {
+    Serial.printf("sync failed: %s\n", status.error);
+    showOnAll(text().failed, reasonFor(status.code));
+    delay(4000);
+    return;
+  }
+  Serial.printf("sync: %u fetched, %u already here, %u deleted, %u bytes\n",
+                status.fetched, status.kept, status.removed,
+                (unsigned)status.bytes);
+  char count[12];
+  snprintf(count, sizeof(count), "%u", status.fetched);
+  showOnAll(text().done, count);
+  delay(2500);
+
+  // Read the new content in immediately. Otherwise the device would keep
+  // showing yesterday until somebody restarts it, which is a bad way to find
+  // out whether the sync worked.
+  contentReady = loadLayout();
+  if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
 }
 
 static void drawInfo() {
@@ -568,6 +679,13 @@ void loop() {
       leaveMenu();
     } else if (pressed == 0) {
       drawInfo();
+      menuSince = millis();
+    } else if (pressed == 1) {
+      fetchContent();
+      // Whatever happened, the menu is where we came from. Both keys may
+      // still be held after minutes at the portal.
+      waitForRelease();
+      drawMenu();
       menuSince = millis();
     }
     if (pressed >= 0) {

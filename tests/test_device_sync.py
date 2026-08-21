@@ -57,7 +57,24 @@ class Device:
             return answer.read()
 
     def manifest(self) -> dict:
-        return json.loads(self._get("/api/device/manifest"))
+        """Parse the line format the way the firmware will.
+
+        Deliberately as dumbly as the C code can be: split on spaces, look at
+        the first word, ignore anything unfamiliar.
+        """
+        out = {"version": "", "current": False, "sets": 0, "bytes": 0,
+               "files": []}
+        for line in self._get("/api/device/manifest").decode().split("\n"):
+            word = line.split(" ")
+            if word[0] == "version" and len(word) > 1:
+                out["version"] = word[1]
+            elif word[0] == "current" and len(word) > 1:
+                out["current"] = word[1] == "1"
+            elif word[0] in ("sets", "bytes") and len(word) > 1:
+                out[word[0]] = int(word[1])
+            elif word[0] == "file" and len(word) > 2:
+                out["files"].append({"name": word[1], "size": int(word[2])})
+        return out
 
     def sync(self) -> dict:
         """Fetch the manifest, fetch what is missing, throw away the rest."""
@@ -141,6 +158,12 @@ def main() -> int:
                   device.fetched == len(manifest["files"]),
                   f"{device.fetched} files")
             check("the manifest says it is current", manifest["current"] is True)
+            check("the sizes in the manifest are the real ones",
+                  all(len(device.stored[e["name"]]) == e["size"]
+                      for e in manifest["files"]),
+                  f"{len(manifest['files'])} files")
+            check("an unknown keyword does not throw the reader off",
+                  Device(base).manifest()["version"] == manifest["version"])
 
             # --- a name always means the same bytes ---------------------
             #
