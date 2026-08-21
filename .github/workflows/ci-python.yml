@@ -7,6 +7,11 @@ name: Python and build
 # sketch and compares what the C reader reads with what build.py writes. If
 # the format changes in the firmware, this test has to run - otherwise nobody
 # notices until the device stays silent.
+#
+# docs/ and README.md are in the list for the same kind of reason:
+# tests/test_links.py follows every relative link and anchor in them, and a
+# link broken by a renamed file or a moved heading is only ever broken by a
+# change to those files.
 on:
   push:
     branches: [main]
@@ -17,6 +22,8 @@ on:
       - tests/**
       - example/**
       - firmware/vorlaut/**
+      - docs/**
+      - README.md
       - .github/workflows/ci-python.yml
   pull_request:
     paths:
@@ -26,6 +33,8 @@ on:
       - tests/**
       - example/**
       - firmware/vorlaut/**
+      - docs/**
+      - README.md
       - .github/workflows/ci-python.yml
 
 jobs:

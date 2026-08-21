@@ -1,6 +1,6 @@
 # Running it: from a phone, on a NAS
 
-### Editing from a phone
+## Editing from a phone
 
 By default the server listens on this machine only. For access from your own
 Wi-Fi:
@@ -31,7 +31,7 @@ than a benefit.
 and spend Azure quota through the preview button. Fine at home, not in a
 foreign or public network.
 
-### Running it on a NAS
+## Running it on a NAS
 
 More sensible than a computer that is only sometimes on. A `Dockerfile` and a
 `docker-compose.yml` are included:
@@ -59,13 +59,14 @@ therefore stay on the NAS and are covered by its backup.
 Verified: Azure speech, ffmpeg (7.1.5 in the image), ARASAAC search and
 `build.py` all run inside the container.
 
-#### Being found by the device
+### Being found by the device
 
 The device is not told where the server is — it asks the network and takes the
-answer, see [software.md](software.md). A container makes that harder than a
-plain install does: the question arrives as a broadcast, and whether Docker
-carries one through a published port into a bridge network depends on the
-host. On the Mac it was written on it did; on a Synology it may not.
+answer, see [software.md](software.md#finding-the-server). A container makes
+that harder than a plain install does: the question arrives as a broadcast,
+and whether Docker carries one through a published port into a bridge network
+depends on the host. On the Mac it was written on it did; on a Synology it may
+not.
 
 `docker-compose.yml` publishes the UDP port for it and passes
 `VORLAUT_PUBLIC_PORT`, so the answer names the port the NAS publishes and not
@@ -83,7 +84,7 @@ two ways on, and the first is usually enough:
 For `vorlaut.local` it has to be the second one. Multicast is not something a
 published port carries.
 
-#### Starting
+### Starting
 
 ```bash
 ./start.sh
@@ -100,7 +101,7 @@ the handling around it:
 docker compose up -d --build
 ```
 
-#### Stopping
+### Stopping
 
 ```bash
 ./stop.sh
@@ -125,7 +126,7 @@ docker stop vorlaut
 docker logs -f vorlaut
 ```
 
-#### Trying it locally first
+### Trying it locally first
 
 Worth doing before wrestling with DSM — same file, same container:
 
@@ -152,7 +153,7 @@ accept the file.
 > variables. If anything other than `KEY=VALUE` is in there, it aborts with
 > *"Can't separate key from value"*.
 
-#### On a Synology
+### On a Synology
 
 1. Create a shared folder, `docker` is customary, with `vorlaut` inside — the
    path is then `/volume1/docker/vorlaut`.

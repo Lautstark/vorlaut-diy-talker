@@ -1,14 +1,12 @@
 # Compiling the firmware and getting it onto the device
 
-## Firmware
-
 `firmware/vorlaut/vorlaut.ino`, Arduino framework.
 
 The sketch lives in a subfolder of its own, because Arduino requires the folder
 to have the same name as the `.ino` file — and because the LittleFS uploader
 looks for `data/` right next to it. Both point at the same structure.
 
-### What is needed
+## What is needed
 
 - **Arduino ESP32 Core 3.x** (board: *Adafruit Feather ESP32-S3 No PSRAM*)
 - Libraries: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`,
@@ -18,7 +16,7 @@ looks for `data/` right next to it. Both point at the same structure.
 
 Board setting: USB CDC On Boot **enabled**.
 
-### Getting it onto the device
+## Getting it onto the device
 
 These are two separate things that go into separate flash areas: the
 **program** (the sketch) and the **data** (images and sounds). If only a word
@@ -113,7 +111,7 @@ arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 At start-up it says which set was loaded, which key was pressed and whether
 LittleFS could be mounted.
 
-### How the image comes about
+## How the image comes about
 
 `build.py --fs-image` packs `firmware/vorlaut/data/` with `mklittlefs` into an
 image of 1536 KiB — exactly the size of the `spiffs` partition. If the data
@@ -170,7 +168,7 @@ The file area holds 1536 KiB. A full layout with five sets takes around
 > The sketch **compiles** but has never run on real hardware. Check the pin
 > assignment against the actual boards before the first flash.
 
-### Behaviour
+## Behaviour
 
 - **Awake:** all five displays are on continuously. She has to be able to see
   what is on offer.
@@ -179,7 +177,7 @@ The file area holds 1536 KiB. A full layout with five sets takes around
   survives sleep.
 - **After `sleep_timeout_seconds` without input:** displays off, deep sleep.
 
-### Menu
+## Menu
 
 **Hold the set key and key 2 together for five seconds.** Those two sit
 diagonally furthest apart — hard to hit at the same time with a child's hand.
@@ -198,7 +196,7 @@ In the menu the keys label themselves. Currently:
 
 The rest stay empty. Entries appear once the function behind them exists.
 
-### Fetching content
+## Fetching content
 
 **Wi-Fi is off during normal use.** The device wakes on a key press and has to
 speak immediately; bringing up a radio on every wake would cost seconds and
@@ -226,7 +224,7 @@ The key it fetches itself the first time, by pairing: five digits on the
 displays, typed into the web interface. `Pair` on key 4 does it again on
 demand — when the key on the server has been replaced, or when the device is
 to talk to a different computer. The whole of it is in
-[software.md](software.md).
+[software.md](software.md#pairing).
 
 `Fetch content` never opens the portal. It used to, whenever it found no
 network, and while the device stood in one place that was the same thing as
@@ -256,7 +254,7 @@ character is missing from a key that was typed on a phone.
 New content is loaded straight after a successful sync, so the device shows it
 without a restart.
 
-### Pairing
+## Pairing
 
 **A 32-character key typed character by character into a captive portal on a
 phone was the worst step in the whole setup**, and it is gone. Instead the
@@ -321,7 +319,7 @@ glance that this is not the talker.
 **After 30 seconds without input it returns by itself.** A device stuck in the
 menu no longer speaks — that must not happen.
 
-### Several networks
+## Several networks
 
 The talker goes to kindergarten, to the grandparents, on holiday. It stores
 **four networks**, most recently used first; a fifth pushes out the one nobody
@@ -346,7 +344,7 @@ network. Connecting is bounded (a scan plus one attempt), and so is reaching
 the computer (four seconds), so the whole detour costs seconds rather than the
 minute the defaults would take.
 
-### Waking up
+## Waking up
 
 Any of the five keys wakes the device (EXT1 on all button pins).
 
