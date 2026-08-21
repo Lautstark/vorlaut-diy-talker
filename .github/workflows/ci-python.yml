@@ -65,6 +65,12 @@ jobs:
         # side does not exist yet - this settles the protocol before it does.
         run: python tests/test_device_sync.py
 
+      - name: The device can find the server
+        # The answers the device depends on, over a real socket. The broadcast
+        # itself needs a network a runner does not have - that one is stage 7
+        # in docs/bring-up.md.
+        run: python tests/test_discovery.py
+
       - name: Interface texts are complete in every language
         # Both languages carry the same keys and the same placeholders, and
         # nothing says words to the user from outside the table.

@@ -24,6 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import build
+import discovery
 import metacom
 import texts
 import tts
@@ -1664,6 +1665,7 @@ def main(argv: list[str] | None = None) -> int:
 
     build.ensure_content()
     server = Server((args.host, args.port), Handler)
+    finder = None
     if args.host in ("0.0.0.0", "::"):
         print(f"vorlaut is listening on port {args.port}", flush=True)
         if Path("/.dockerenv").exists():
@@ -1676,6 +1678,12 @@ def main(argv: list[str] | None = None) -> int:
             for address in local_addresses():
                 print(f"  http://{address}:{args.port}   <- type this one into "
                       "the phone", flush=True)
+        # Only from here on is there anything to find: bound to 127.0.0.1
+        # neither the device nor the phone could reach us anyway.
+        finder = discovery.start(args.port)
+        if Path("/.dockerenv").exists():
+            print("  Neither of those two crosses a bridge network - "
+                  "see docker-compose.yml.", flush=True)
         print("Careful: there is no sign-in - whoever reaches the port can "
               "change the content.", flush=True)
     else:
@@ -1686,6 +1694,8 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\nstopped.")
     finally:
+        if finder:
+            finder.stop()
         server.server_close()
     return 0
 

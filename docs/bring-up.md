@@ -106,9 +106,18 @@ up — a talker that hangs during setup no longer speaks.
 `test7_sync` — the sync and nothing else. No displays, no sound, no sleep, so
 that a problem here is this one problem and not one of six at the same time.
 
-It needs the address of the computer running `app.py` and the key from
-`VORLAUT_DEVICE_TOKEN` in `.env`. Both are asked for in the same portal as the
-Wi-Fi and are kept afterwards.
+It needs the key from `VORLAUT_DEVICE_TOKEN` in `.env`, asked for in the same
+portal as the Wi-Fi and kept afterwards. **The address it finds by itself:**
+one UDP broadcast, and whoever runs `app.py` answers with the port it listens
+on — the address is the one the answer came from. The monitor shows the search
+before the sync.
+
+If nothing answers, the network is not carrying the broadcast; a guest network
+usually does not, and neither does a container behind a bridge network (see
+[operation.md](operation.md)). The device then falls back on whatever answered
+last time, and the portal still has a field to type an address into, which
+beats the search whenever it is filled in. How it all fits together is in
+[software.md](software.md).
 
 What should happen: **the first run fetches everything, the second fetches
 `layout.bin` only.** That difference is the whole point of the design — the
@@ -120,6 +129,11 @@ this sketch existed.
 Worth trying while you are here: switch a set off in the web interface,
 release, sync again. The device should delete the files that fell out of the
 manifest and say so.
+
+Also worth trying, since this is the stage where it is cheap: **restart the
+computer's server on a different port** (`--port 8798`). The device should find
+it anyway — the port it asks on is fixed, the port it fetches from is whatever
+the answer said.
 
 ## Stage 8 — The real firmware
 

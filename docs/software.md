@@ -203,6 +203,75 @@ whether the keywords could be read.
 
 ---
 
+## Finding the server
+
+The device used to be told where the computer is: an address field in the setup
+portal, typed in on a phone. That is right until the router hands out a
+different number, and it is wrong from the start as soon as the device is
+carried into another network.
+
+So it asks instead. One UDP packet to the broadcast address of the local
+network, port 8771:
+
+```
+vorlaut? 1
+```
+
+and whoever runs `app.py` answers, straight back to where the packet came from:
+
+```
+vorlaut 1
+port 8771
+name vorlaut
+```
+
+**The answer deliberately carries no address.** It arrived from one, and the
+device reads it off the envelope — that is the one address it is certain to be
+able to reach the server at, which is more than the server could promise about
+any address it named itself. A machine with Wi-Fi and a cable has several, and
+which of them is the useful one depends on who is asking.
+
+Lines again, and unknown keywords skipped, for the same reason as the
+manifest: on the other end sits an ESP32 without a parser.
+
+**The port asked on is fixed; the port in the answer is not.** UDP 8771 is the
+one number both sides have to agree on in advance. What the answer carries is
+where the web interface really listens, so `--port 8798` stays findable.
+
+Three attempts, 400 ms each, and then the device gives up. What counts, in this
+order:
+
+| | |
+|---|---|
+| an address typed into the portal | beats everything — for networks where a broadcast goes nowhere |
+| whoever answered the search | … and is kept for next time |
+| whoever answered the time before | so one bad day on the network costs nothing |
+
+A search that finds nothing is not an error, it is a guest network. Nothing
+here may hang and nothing here may stop the device speaking: the content is on
+LittleFS and works with no network at all.
+
+**`vorlaut.local` comes out of the same work.** `discovery.py` also answers
+mDNS queries for that name, so the interface can be bookmarked as
+<http://vorlaut.local:8771> instead of as a number that changes. That one is
+for the person — the device has its search and needs no resolver.
+
+It claims the name without asking, which a complete mDNS implementation would
+not do: there is no probing and no conflict detection. If something else on the
+network is already called `vorlaut`, both answer and the quicker one wins. For
+one of these on a home network that has not been worth the rest of the
+protocol.
+
+**Whoever is on the network can answer a search.** The endpoints stay behind
+the key, but a device asking who has the content will hand its key to whatever
+says "me" first. That is the same trust the project already places in the local
+network — the interface has no sign-in either — but it is worth knowing before
+the device goes into a network that is not yours. An address typed into the
+portal takes the search out of the loop.
+
+The two sides are `firmware/vorlaut/discover.h` and `discovery.py`;
+`tests/test_discovery.py` plays the answers through.
+
 ## Sync with the talker
 
 So the device can fetch its content by itself, the server exposes two
