@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Azure Text-to-Speech für vorlaut.
+"""Azure text-to-speech for vorlaut.
 
-Rendert einen Satz mit der Stimme de-DE-GiselaNeural, schneidet Stille an den
-Rändern weg, normalisiert die Lautheit und legt das Ergebnis als 16 kHz mono
-16 bit WAV im Cache ab.
+Renders a sentence with the voice de-DE-GiselaNeural, trims silence at both
+ends, normalises loudness and stores the result as a 16 kHz mono 16 bit WAV in
+the cache.
 
-Neu gerendert wird nur, wenn sich der Text oder die Stimm-Konfiguration
-geändert hat (Fingerprint über beides).
+Re-rendering happens only when the text or the voice configuration changed
+(the fingerprint covers both).
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-# Gleiche Wurzel wie in build.py - dort steht die Begründung.
+# Same root as in build.py - the reasoning is over there.
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
 CACHE_DIR = CONTENT / "cache" / "tts"
 INDEX_FILE = CACHE_DIR / "index.json"
@@ -33,7 +33,7 @@ ENV_FILE = ROOT / ".env"
 _index_lock = threading.Lock()
 
 def load_env_file(path: Path = ENV_FILE) -> dict[str, str]:
-    """Liest .env als einfache KEY=VALUE-Datei. Kommentare mit # werden ignoriert."""
+    """Reads .env as a plain KEY=VALUE file. Lines starting with # are ignored."""
     values: dict[str, str] = {}
     if not path.exists():
         return values
@@ -50,10 +50,10 @@ def load_env_file(path: Path = ENV_FILE) -> dict[str, str]:
 
 
 def setting(name: str, standard: str) -> str:
-    """Wert aus der Umgebung, sonst aus .env, sonst der Standard.
+    """Value from the environment, else from .env, else the default.
 
-    Eine gesetzte Umgebungsvariable gewinnt - so lässt sich für einen
-    einzelnen Lauf etwas anderes ausprobieren, ohne die Datei anzufassen.
+    A set environment variable wins - that way a single run can try something
+    different without touching the file.
     """
     value = os.environ.get(name, "").strip()
     if value:
@@ -62,30 +62,30 @@ def setting(name: str, standard: str) -> str:
     return value or standard
 
 
-# --- Stimm-Konfiguration -----------------------------------------------------
-# Alles hier fließt in den Fingerprint ein: ändert sich ein Wert, werden die
-# betroffenen WAVs beim nächsten Bauen neu erzeugt.
+# --- Voice configuration -----------------------------------------------------
+# Everything here feeds into the fingerprint: change one value and the
+# affected WAVs get re-rendered on the next build.
 #
-# Einstellbar über .env oder Umgebungsvariablen:
-#   AZURE_SPEECH_REGION   muss zur Region des Schlüssels passen
-#   AZURE_SPEECH_VOICE    z. B. de-DE-KatjaNeural, verfügbare mit --voices
-#   AZURE_SPEECH_RATE     Sprechtempo, z. B. -5% oder +10%
+# Configurable through .env or environment variables:
+#   AZURE_SPEECH_REGION   must match the region of the key
+#   AZURE_SPEECH_VOICE    e.g. de-DE-KatjaNeural, list them with --voices
+#   AZURE_SPEECH_RATE     speaking rate, e.g. -5% or +10%
 REGION = setting("AZURE_SPEECH_REGION", "germanywestcentral")
 VOICE = setting("AZURE_SPEECH_VOICE", "de-DE-GiselaNeural")
 RATE = setting("AZURE_SPEECH_RATE", "-5%")
 
-# Die Sprache steckt im Stimmnamen: de-DE-GiselaNeural -> de-DE
+# The language sits inside the voice name: de-DE-GiselaNeural -> de-DE
 _teile = VOICE.split("-")
 LOCALE = "-".join(_teile[:2]) if len(_teile) >= 3 else "de-DE"
 
 SAMPLE_RATE = 16000
 
-# Nachbearbeitung. Version hochzählen, wenn sich die ffmpeg-Kette ändert.
+# Post-processing. Bump the version when the ffmpeg chain changes.
 PIPELINE_VERSION = 2
 SILENCE_THRESHOLD = "-45dB"
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
-# Nicht bis auf den letzten hörbaren Sample schneiden: ein Rest Raumton bleibt
-# stehen, sonst klingen kurze Wörter wie "Ja" abgehackt.
+# Do not trim down to the last audible sample: a little room tone stays, or
+# short words like "Ja" end up sounding clipped.
 KEEP_HEAD = 0.06   # Sekunden Stille vor dem Wort
 KEEP_TAIL = 0.10   # Sekunden nach dem Wort, damit es ausklingen darf
 FADE = 0.012       # kurze Blende an beiden Rändern gegen Knackser
@@ -102,7 +102,7 @@ class TTSError(RuntimeError):
 # --- Key ---------------------------------------------------------------------
 
 def get_speech_key() -> str:
-    """Gesetzte Umgebungsvariable gewinnt, sonst .env."""
+    """A set environment variable wins, otherwise .env."""
     key = os.environ.get("AZURE_SPEECH_KEY", "").strip()
     if key:
         return key
@@ -153,11 +153,11 @@ def cache_path(text: str) -> Path:
 
 
 def load_index() -> dict:
-    """Fingerprint -> gesprochener Text.
+    """Fingerprint -> spoken text.
 
-    Die Dateinamen im Cache sind Hashes und damit unlesbar. Dieses
-    Verzeichnis macht sie wieder lesbar - und hält fest, was einmal
-    gesprochen wurde, auch wenn es aus layout.json verschwindet.
+    The file names in the cache are hashes and therefore unreadable. This
+    index makes them readable again - and records what was spoken once, even
+    after it disappears from layout.json.
     """
     if not INDEX_FILE.exists():
         return {}
@@ -204,7 +204,7 @@ def build_ssml(text: str) -> str:
 
 
 def azure_synthesize(text: str) -> bytes:
-    """Ruft die Azure Speech REST API auf und liefert rohe WAV-Bytes."""
+    """Calls the Azure Speech REST API and returns raw WAV bytes."""
     request = urllib.request.Request(
         AZURE_ENDPOINT,
         data=build_ssml(text).encode("utf-8"),
@@ -241,11 +241,11 @@ def _ffmpeg_binary() -> str:
 
 
 def _filter_chain() -> str:
-    """Baut die ffmpeg-Filterkette.
+    """Builds the ffmpeg filter chain.
 
-    Reihenfolge: Stille vorne kürzen und einblenden, Signal umdrehen, dasselbe
-    für das (nun vorne liegende) Ende, zurückdrehen, hinten etwas Ruhe
-    anhängen, zum Schluss normalisieren.
+    Order: trim and fade in the leading silence, reverse the signal, do the
+    same for the (now leading) tail, reverse back, append a little quiet at
+    the end, normalise last.
     """
 
     def trim(keep: float) -> str:
@@ -271,7 +271,7 @@ def _filter_chain() -> str:
 
 
 def postprocess(raw_wav: bytes, target: Path) -> None:
-    """Trimmt Stille, normalisiert und schreibt 16 kHz mono 16 bit."""
+    """Trims silence, normalises and writes 16 kHz mono 16 bit."""
     ffmpeg = _ffmpeg_binary()
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
@@ -296,12 +296,12 @@ def postprocess(raw_wav: bytes, target: Path) -> None:
         shutil.copyfile(output, target)
 
 
-# --- öffentliche Schnittstelle ---------------------------------------------
+# --- Public interface --------------------------------------------------------
 
 def synthesize(text: str, force: bool = False) -> Path:
-    """Liefert den Pfad zu einem fertigen WAV für diesen Text.
+    """Returns the path to a finished WAV for this text.
 
-    Rendert nur, wenn es zum Fingerprint noch keine Datei im Cache gibt.
+    Renders only when no file for that fingerprint exists in the cache yet.
     """
     text = (text or "").strip()
     if not text:
@@ -316,7 +316,7 @@ def synthesize(text: str, force: bool = False) -> Path:
 
 
 def list_voices() -> int:
-    """Zeigt, welche Stimmen der eigene Schlüssel in dieser Region anbietet."""
+    """Shows which voices one's own key offers in this region."""
     url = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/voices/list"
     request = urllib.request.Request(
         url, headers={"Ocp-Apim-Subscription-Key": get_speech_key()})

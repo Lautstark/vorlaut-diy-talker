@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Prüft, ob alles da ist, was vorlaut braucht - und sagt, was fehlt.
+"""Checks whether everything vorlaut needs is present - and says what is not.
 
     python3 doctor.py
 
-Läuft absichtlich mit blankem Python ohne Abhängigkeiten, damit es auch dann
-etwas Sinnvolles sagt, wenn noch gar nichts eingerichtet ist.
+Deliberately runs on bare Python without dependencies, so that it still says
+something useful when nothing has been set up yet.
 """
 
 from __future__ import annotations
@@ -164,8 +164,8 @@ def check_docker() -> None:
 
 
 def check_metacom() -> None:
-    """Die lizenzierte METACOM-Sammlung ist freiwillig - ohne sie sucht die
-    Oberfläche nur bei ARASAAC."""
+    """The licensed METACOM collection is optional - without it the web
+    interface searches ARASAAC only."""
     configured = metacom.configured()
     if not configured:
         report("METACOM-Sammlung", False, "VORLAUT_METACOM_DIR nicht gesetzt",
@@ -190,7 +190,7 @@ def check_metacom() -> None:
 
 
 def check_device_token() -> None:
-    """Ohne Schluessel kann sich der Talker keine Inhalte holen."""
+    """Without a key the talker cannot fetch any content."""
     import app
     if app.device_token():
         report("Schluessel fuer den Talker", True, "aus der Umgebung oder .env",

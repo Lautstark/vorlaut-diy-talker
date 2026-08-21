@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Anbindung an eine lizenzierte METACOM-9-Sammlung.
+"""Access to a licensed METACOM 9 collection.
 
-Die Symbole bleiben, wo sie liegen: sie werden weder ins Projekt kopiert noch
-versioniert. Gesetzt wird nur der Pfad auf den entpackten Download:
+The symbols stay where they are: they are neither copied into the project nor
+versioned. All that gets configured is the path to the unpacked download:
 
-    VORLAUT_METACOM_DIR=/Users/du/METACOM_9_Desktop
+    VORLAUT_METACOM_DIR=/Users/you/METACOM_9_Desktop
 
-Ist die Variable leer oder der Ordner nicht da, verhält sich alles wie vorher -
-die Suche liefert nur ARASAAC, und ein Layout, das METACOM-Symbole nennt, zeigt
-die übliche Platzhalter-Kachel statt abzubrechen.
+If the variable is empty or the folder is gone, everything behaves as before -
+search returns ARASAAC only, and a layout referring to METACOM symbols shows
+the usual placeholder tile instead of failing.
 
-Im Layout stehen METACOM-Symbole als "metacom:<name>", wobei <name> der
-Dateiname ohne Endung ist, also genau der Bezeichner aus dem Stichwortindex.
+In the layout, METACOM symbols are written as "metacom:<name>", where <name>
+is the file name without extension, i.e. exactly the identifier from the
+keyword index.
 
-Stichwörter kommen aus der Datenbank von MetaSearch. Die liegt im Programm
-selbst (Electron, app.asar) und nicht als lose Datei daneben, deshalb der
-kleine Umweg über das Archivformat weiter unten. Findet sich die Datenbank
-nicht, fällt die Suche auf die Dateinamen zurück - schlechter, aber nutzbar.
+Keywords come from the MetaSearch database. It lives inside the application
+itself (Electron, app.asar) rather than as a loose file next to it, hence the
+small detour through the archive format below. If the database cannot be
+found, search falls back to file names - worse, but usable.
 """
 
 from __future__ import annotations
@@ -31,46 +32,46 @@ import unicodedata
 import zipfile
 from pathlib import Path
 
-# Bewusst dieselbe Zeile wie in build.py, statt build zu importieren: build
-# importiert dieses Modul, und ein Kreis daraus wäre lästiger als die
-# doppelte Zeile.
+# Deliberately the same line as in build.py instead of importing build: build
+# imports this module, and a cycle would be more annoying than the duplicated
+# line.
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or
                Path(__file__).resolve().parent / "content").resolve()
 CACHE_FILE = CONTENT / "cache" / "metacom-index.json"
 
-# Ohne Rahmen, denn den zeichnet die Firmware selbst - sonst säßen zwei
-# Rahmen ineinander.
+# Without a border, because the firmware draws one itself - otherwise two
+# borders would sit inside each other.
 SYMBOL_SUBDIR = Path("METACOM_Symbole") / "Symbole_PNG" / "PNG_ohne_Rahmen"
 DB_IN_ASAR = ["assets", "db", "metacom-db.json"]
 LANGUAGE = "deutsch"
-CACHE_VERSION = 1        # hochzählen, wenn sich der Aufbau des Zwischenspeichers ändert
+CACHE_VERSION = 1        # bump when the cache layout changes
 
-# SW = schwarz-weiß, FB und _dh = weitere Fassungen desselben Symbols, Ziffern
-# = Alternativen. Rund die Hälfte der 17.114 Dateien sind solche Varianten;
-# ungefiltert schüttet eine Suche nach "essen" 94 Kacheln aus.
+# SW = black and white, FB and _dh = further renditions of the same symbol,
+# digits = alternatives. About half of the 17,114 files are such variants;
+# unfiltered, a search for "essen" spills out 94 tiles.
 VARIANT_SUFFIX = re.compile(r"(?:(?:SW|FB)|_(?:dh|sh|mh))$")
 TRAILING_DIGITS = re.compile(r"\d+$")
 
 
 def configured() -> str:
-    """Der eingestellte Pfad: erst die Umgebung, dann .env.
+    """The configured path: environment first, then .env.
 
-    Dieselbe Reihenfolge wie bei den Azure-Einstellungen in tts.py - eine
-    gesetzte Umgebungsvariable gewinnt, damit sich für einen einzelnen Lauf
-    etwas anderes ausprobieren lässt.
+    Same order as for the Azure settings in tts.py - a set environment
+    variable wins, so that a single run can try something different without
+    touching the file.
     """
     value = (os.environ.get("VORLAUT_METACOM_DIR") or "").strip()
     if value:
         return value
     try:
-        import tts   # erst hier, damit das Modul auch ohne tts nutzbar bleibt
+        import tts   # only here, so the module stays usable without tts
         return (tts.load_env_file().get("VORLAUT_METACOM_DIR") or "").strip()
     except Exception:
         return ""
 
 
 def root() -> Path | None:
-    """Der Paketordner - oder None, wenn nichts eingestellt ist."""
+    """The package folder - or None when nothing is configured."""
     raw = configured()
     if not raw:
         return None
@@ -90,13 +91,13 @@ def available() -> bool:
     return symbols_dir() is not None
 
 
-# --- Stichwortindex ----------------------------------------------------------
+# --- Keyword index -----------------------------------------------------------
 
 def _asar_source() -> tuple[Path, str | None] | None:
-    """Wo die MetaSearch-Datenbank steckt: (Datei, Eintrag im ZIP oder None).
+    """Where the MetaSearch database sits: (file, entry inside the ZIP or None).
 
-    Zwei Fälle: Wer MetaSearch installiert hat, hat app.asar als normale Datei
-    im Paket liegen. Wer es nur heruntergeladen hat, hat das ZIP.
+    Two cases: whoever installed MetaSearch has app.asar as a plain file in
+    the package. Whoever only downloaded it has the ZIP.
     """
     base = root()
     if base is None:
@@ -105,8 +106,8 @@ def _asar_source() -> tuple[Path, str | None] | None:
     for asar in sorted((base / "MetaSearch").rglob("app.asar")):
         return (asar, None)
 
-    # Die Plattform des laufenden Rechners zuerst - das ZIP der eigenen
-    # Plattform ist am ehesten vollständig heruntergeladen.
+    # The running machine's platform first - the ZIP for one's own platform
+    # is the one most likely to have been downloaded completely.
     order = {"darwin": "Mac", "win32": "Windows"}.get(sys.platform, "Linux")
     folders = sorted((base / "MetaSearch").glob("*"),
                      key=lambda p: (p.name != order, p.name))
@@ -123,11 +124,11 @@ def _asar_source() -> tuple[Path, str | None] | None:
 
 
 def _read_asar_entry(stream, parts: list[str]) -> bytes:
-    """Eine einzelne Datei aus einem asar-Archiv holen.
+    """Fetch a single file out of an asar archive.
 
-    asar ist ein JSON-Kopf mit Offsets, danach die Dateien am Stück. Der Strom
-    muss nicht spulbar sein - aus einem ZIP heraus ist er das nicht -, deshalb
-    wird notfalls vorgelesen und verworfen statt gesprungen.
+    asar is a JSON header with offsets, followed by the files in one block.
+    The stream need not be seekable - out of a ZIP it is not - so if need be
+    we read forward and discard instead of seeking.
     """
     head = stream.read(16)
     if len(head) < 16:
@@ -136,7 +137,7 @@ def _read_asar_entry(stream, parts: list[str]) -> bytes:
     header = json.loads(stream.read(json_len).decode("utf-8"))
 
     start = 16 + json_len
-    start += (4 - start % 4) % 4   # der Datenteil beginnt auf 4 Byte ausgerichtet
+    start += (4 - start % 4) % 4   # the data section starts 4-byte aligned
 
     node = header
     for part in parts:
@@ -164,7 +165,7 @@ def _read_asar_entry(stream, parts: list[str]) -> bytes:
 
 
 def _load_database() -> list[dict] | None:
-    """Die deutschen Einträge aus metacom-db.json - oder None."""
+    """The German entries from metacom-db.json - or None."""
     found = _asar_source()
     if found is None:
         return None
@@ -179,8 +180,8 @@ def _load_database() -> list[dict] | None:
                     raw = _read_asar_entry(stream, DB_IN_ASAR)
         blocks = json.loads(raw.decode("utf-8"))
     except (OSError, ValueError, KeyError, json.JSONDecodeError, zipfile.BadZipFile):
-        # Ein anderes METACOM, ein anderes Verpackungsformat - kein Grund,
-        # die Anwendung anzuhalten. Es geht ohne Stichwörter weiter.
+        # A different METACOM, a different packaging format - no reason to
+        # halt the application. It carries on without keywords.
         return None
 
     for block in blocks if isinstance(blocks, list) else []:
@@ -191,7 +192,7 @@ def _load_database() -> list[dict] | None:
 
 
 def _fingerprint() -> str:
-    """Kennung der Quelle, damit der Zwischenspeicher nicht veraltet."""
+    """Identifier of the source, so the cache does not go stale."""
     folder = symbols_dir()
     if folder is None:
         return ""
@@ -208,11 +209,11 @@ def _fingerprint() -> str:
 
 
 def _scan_files() -> dict[str, str]:
-    """Dateiname ohne Endung -> Pfad relativ zum Symbolordner.
+    """File name without extension -> path relative to the symbol folder.
 
-    Flach über alle Kategorieordner statt über die Kategorie aus dem Index:
-    die stimmt nur in 87 % der Fälle mit dem Ordner überein, der Dateiname
-    dagegen ist eindeutig.
+    Flat across all category folders rather than via the category from the
+    index: that one matches the folder in only 87 % of cases, whereas the file
+    name is unambiguous.
     """
     folder = symbols_dir()
     if folder is None:
@@ -236,8 +237,8 @@ def _build_index() -> dict:
             keywords = [k for k in (symbol.get("keywords") or []) if isinstance(k, str)]
             entries.append([name, keywords])
     else:
-        # Rückfall ohne MetaSearch-Datenbank: der Dateiname ist das einzige
-        # Stichwort. Findet "wuetend", aber eben nicht "Wut".
+        # Fallback without the MetaSearch database: the file name is the only
+        # keyword. Finds "wuetend", but not "Wut".
         entries = [[name, []] for name in sorted(files)]
 
     return {
@@ -253,7 +254,7 @@ _cache: dict | None = None
 
 
 def index() -> dict:
-    """Der Suchindex, aus dem Zwischenspeicher oder frisch erzeugt."""
+    """The search index, from cache or freshly built."""
     global _cache
     if not available():
         return {"version": CACHE_VERSION, "fingerprint": "", "keywords": False,
@@ -279,7 +280,7 @@ def index() -> dict:
         CACHE_FILE.write_text(
             json.dumps(_cache, ensure_ascii=False), encoding="utf-8")
     except OSError:
-        pass   # ohne Zwischenspeicher dauert der Start länger, mehr nicht
+        pass   # without a cache the start takes longer, nothing worse
     return _cache
 
 
@@ -291,10 +292,10 @@ def count() -> int:
     return len(index().get("entries") or [])
 
 
-# --- Suche -------------------------------------------------------------------
+# --- Search ------------------------------------------------------------------
 
 def _fold(value: str) -> str:
-    """Kleinschreibung ohne Umlaute, damit "Fuß" und "fuss" dasselbe treffen."""
+    """Lower case without umlauts, so that "Fuß" and "fuss" match the same."""
     value = value.strip().lower()
     for source, replacement in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
         value = value.replace(source, replacement)
@@ -303,7 +304,7 @@ def _fold(value: str) -> str:
 
 
 def base_name(name: str) -> str:
-    """Das Grundsymbol hinter einer Variante: wuetendSW und wuetend2 -> wuetend."""
+    """The base symbol behind a variant: wuetendSW and wuetend2 -> wuetend."""
     stripped = VARIANT_SUFFIX.sub("", name)
     stripped = TRAILING_DIGITS.sub("", stripped)
     return (stripped or name).lower()
@@ -314,13 +315,13 @@ def is_variant(name: str) -> bool:
 
 
 def pretty(keyword: str) -> str:
-    """METACOM schreibt mehrteilige Stichwörter mit Unterstrich - für ein
-    Textfeld, das vorgelesen wird, sind Leerzeichen richtig."""
+    """METACOM writes multi-part keywords with underscores - for a text field
+    that gets spoken aloud, spaces are the right thing."""
     return keyword.replace("_", " ").strip()
 
 
 def label_for(name: str) -> str:
-    """Was als Beschriftung und als Textvorschlag taugt."""
+    """What works as a caption and as a suggested text."""
     for entry_name, keywords in index().get("entries") or []:
         if entry_name == name:
             if keywords:
@@ -330,7 +331,7 @@ def label_for(name: str) -> str:
 
 
 def resolve(name: str) -> Path | None:
-    """Die Bilddatei zu einem METACOM-Namen - oder None."""
+    """The image file for a METACOM name - or None."""
     folder = symbols_dir()
     if folder is None or not name:
         return None
@@ -338,8 +339,8 @@ def resolve(name: str) -> Path | None:
     if not relative:
         return None
     path = folder / relative
-    # Der Name kommt aus dem Layout und damit von außen: sicherstellen, dass
-    # er im Symbolordner bleibt.
+    # The name comes from the layout and therefore from outside: make sure it
+    # stays inside the symbol folder.
     try:
         path.resolve().relative_to(folder.resolve())
     except ValueError:
@@ -348,10 +349,10 @@ def resolve(name: str) -> Path | None:
 
 
 def search(word: str, limit: int = 40) -> list[dict]:
-    """Treffer aus der lizenzierten Sammlung, beste zuerst.
+    """Hits from the licensed collection, best first.
 
-    Varianten desselben Symbols werden zusammengefasst - sonst füllt ein
-    einziges Wort die ganze Ergebnisliste mit Fassungen seiner selbst.
+    Variants of the same symbol are collapsed - otherwise a single word fills
+    the whole result list with renditions of itself.
     """
     needle = _fold(word)
     if not needle or not available():
@@ -362,11 +363,11 @@ def search(word: str, limit: int = 40) -> list[dict]:
         score = 0
         for position, keyword in enumerate(keywords):
             folded = _fold(keyword)
-            # Das erste Stichwort ist das Symbol selbst, jedes weitere nur ein
-            # verwandter Begriff. Ohne diesen Unterschied steht die Asiabox
-            # vor dem Essen, weil beide "essen" führen. Das Gefälle ist so
-            # gewählt, dass ein Wortanfang im eigenen Stichwort ("wut" in
-            # "wütend") vor einem fremden Synonym liegt.
+            # The first keyword is the symbol itself, every further one only
+            # a related term. Without that distinction the lunch box beats the
+            # meal, because both carry "essen". The gradient is chosen so that
+            # a prefix match in the symbol's own keyword ("wut" in "wütend")
+            # outranks someone else's synonym.
             weight = 1.0 if position == 0 else 0.6
             if folded == needle:
                 score = max(score, round(100 * weight))
@@ -382,7 +383,7 @@ def search(word: str, limit: int = 40) -> list[dict]:
         if not score:
             continue
 
-        # Das schlichte Symbol vor seinen Fassungen zeigen.
+        # Show the plain symbol ahead of its renditions.
         if not is_variant(name):
             score += 15
 
