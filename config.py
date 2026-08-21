@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The one place that touches .env.
+"""The one place that touches .env, and where the shared paths live.
 
 Four things used to read this file: tts.py for the Azure settings, metacom.py
 for the collection, app.py for the device key, and doctor.py with a loop of
@@ -21,6 +21,13 @@ to the end: the explanation above
 
 belongs to that line, and a second VORLAUT_METACOM_DIR at the bottom of the
 file would leave the paragraph pointing at nothing.
+
+The paths below are here for a related reason. VORLAUT_CONTENT decides where
+your content sits, and build, tts and metacom all have to arrive at the same
+answer. They used to work it out separately, three copies of one line, and
+metacom carried a comment explaining that importing build would make a cycle.
+This module imports nothing from the project, so nobody has to weigh that
+trade-off any more: the paths are read once, here, and everything else asks.
 """
 
 from __future__ import annotations
@@ -31,6 +38,31 @@ import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+
+# Everything that belongs to you - layout, symbols, spoken sentences - sits
+# content/ and is deliberately not versioned. The location can be moved,
+# for instance onto a network share:  VORLAUT_CONTENT=/volume1/talker
+CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
+
+# Arduino requires the sketch folder to have the same name as the .ino file,
+# and the LittleFS uploader looks for data/ right next to it. Hence this level.
+SKETCH_DIR = ROOT / "firmware" / "vorlaut"
+# What the device gets. Normally next to the sketch, because Arduino's LittleFS
+# uploader looks for data/ there.
+#
+# But it follows VORLAUT_CONTENT: whoever points the content somewhere else is
+# working on a copy, and a build must not then overwrite the real device data.
+# Without this, testing against a copy quietly wiped the actual firmware/
+# vorlaut/data/ - it happened three times before it was noticed, and nothing
+# in the output said so.
+#
+# VORLAUT_DATA overrides both, for the case where the two really do belong
+# apart.
+DATA_DIR = Path(
+    os.environ.get("VORLAUT_DATA")
+    or (CONTENT / "data" if os.environ.get("VORLAUT_CONTENT")
+        else SKETCH_DIR / "data")
+).resolve()
 
 # Overridable so a test can run against a file that is not the developer's
 # own - see tests/test_pairing.py.

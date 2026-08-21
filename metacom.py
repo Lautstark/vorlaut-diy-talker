@@ -23,7 +23,6 @@ found, search falls back to file names - worse, but usable.
 from __future__ import annotations
 
 import json
-import os
 import re
 import struct
 import sys
@@ -34,12 +33,7 @@ import zipfile
 import config
 from pathlib import Path
 
-# Deliberately the same line as in build.py instead of importing build: build
-# imports this module, and a cycle would be more annoying than the duplicated
-# line.
-CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or
-               Path(__file__).resolve().parent / "content").resolve()
-CACHE_FILE = CONTENT / "cache" / "metacom-index.json"
+CACHE_FILE = config.CONTENT / "cache" / "metacom-index.json"
 
 # Without a border, because the firmware draws one itself - otherwise two
 # borders would sit inside each other.

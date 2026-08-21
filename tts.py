@@ -29,9 +29,7 @@ import config
 import texts
 
 ROOT = Path(__file__).resolve().parent
-# Same root as in build.py - the reasoning is over there.
-CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
-CACHE_DIR = CONTENT / "cache" / "tts"
+CACHE_DIR = config.CONTENT / "cache" / "tts"
 INDEX_FILE = CACHE_DIR / "index.json"
 
 _index_lock = threading.Lock()
@@ -74,7 +72,7 @@ SEED_VOICE = setting("AZURE_SPEECH_VOICE", "")
 # content, where they are backed up along with it and survive every rebuild.
 VOICE_DIRS = [d for d in dict.fromkeys(
     [Path(os.environ["VORLAUT_VOICES"]) if os.environ.get("VORLAUT_VOICES") else None,
-     CONTENT / "voices", ROOT / "voices"]) if d is not None]
+     config.CONTENT / "voices", ROOT / "voices"]) if d is not None]
 
 # Which languages the Azure catalogue is trimmed to. Azure offers 556 voices,
 # and a picker holding all of them is not a picker. German and English are
@@ -87,7 +85,7 @@ AZURE_LANGUAGES = tuple(
 # The list is asked of Azure rather than written down here: a hand-typed one
 # goes stale, and it costs a request on every page load otherwise.
 AZURE_CACHE_DAYS = 7
-AZURE_VOICE_CACHE = CONTENT / "cache" / "azure-voices.json"
+AZURE_VOICE_CACHE = config.CONTENT / "cache" / "azure-voices.json"
 
 # The program that reads a piper model. Comes with the piper-tts package.
 PIPER_BINARY = setting("VORLAUT_PIPER_BINARY", "piper")
