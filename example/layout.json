@@ -1,5 +1,6 @@
 {
   "sleep_timeout_seconds": 600,
+  "language": "de",
   "sets": [
     {
       "name": "Grundset",

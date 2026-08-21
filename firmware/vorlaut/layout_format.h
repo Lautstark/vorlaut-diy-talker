@@ -38,17 +38,21 @@ struct SetEntry {
 
 struct Layout {
   uint8_t setCount;
+  // Index into LANGUAGES in texts.h. It rides along in the content and not
+  // in the program, so the same firmware image speaks every language and a
+  // change needs no cable - exactly like set names and colours.
+  uint8_t language;
   uint32_t sleepSeconds;
   SetEntry sets[MAX_SETS];
 };
 
 enum LayoutResult {
   LAYOUT_OK = 0,
-  LAYOUT_ZU_KURZ,
-  LAYOUT_KENNUNG,
-  LAYOUT_VERSION_FALSCH,
-  LAYOUT_TASTENZAHL,
-  LAYOUT_LAENGE,
+  LAYOUT_TOO_SHORT,
+  LAYOUT_BAD_MAGIC,
+  LAYOUT_BAD_VERSION,
+  LAYOUT_BAD_SLOT_COUNT,
+  LAYOUT_BAD_LENGTH,
 };
 
 // Small helpers instead of memcpy onto structs: the file is little-endian,
@@ -62,24 +66,27 @@ static inline uint32_t layoutU32(const uint8_t *p) {
        | ((uint32_t)p[3] << 24);
 }
 
-static inline LayoutResult parseLayout(const uint8_t *daten, uint32_t laenge,
+static inline LayoutResult parseLayout(const uint8_t *data, uint32_t length,
                                        Layout &out) {
-  if (laenge < LAYOUT_HEADER_BYTES) return LAYOUT_ZU_KURZ;
-  if (memcmp(daten, "MTRD", 4) != 0) return LAYOUT_KENNUNG;
-  if (daten[4] != LAYOUT_VERSION) return LAYOUT_VERSION_FALSCH;
+  if (length < LAYOUT_HEADER_BYTES) return LAYOUT_TOO_SHORT;
+  if (memcmp(data, "MTRD", 4) != 0) return LAYOUT_BAD_MAGIC;
+  if (data[4] != LAYOUT_VERSION) return LAYOUT_BAD_VERSION;
 
-  const uint8_t sets = daten[5];
-  if (daten[6] != SLOT_COUNT) return LAYOUT_TASTENZAHL;
-  if (sets > MAX_SETS) return LAYOUT_LAENGE;
-  if (laenge < (uint32_t)LAYOUT_HEADER_BYTES + (uint32_t)sets * LAYOUT_SET_BYTES) {
-    return LAYOUT_LAENGE;
+  const uint8_t sets = data[5];
+  if (data[6] != SLOT_COUNT) return LAYOUT_BAD_SLOT_COUNT;
+  if (sets > MAX_SETS) return LAYOUT_BAD_LENGTH;
+  if (length < (uint32_t)LAYOUT_HEADER_BYTES + (uint32_t)sets * LAYOUT_SET_BYTES) {
+    return LAYOUT_BAD_LENGTH;
   }
 
   out.setCount = sets;
-  out.sleepSeconds = layoutU32(daten + 8);
+  // Byte 7 was reserved and written as zero, and zero is English - so an old
+  // layout.bin stays readable and simply gets the default.
+  out.language = data[7];
+  out.sleepSeconds = layoutU32(data + 8);
 
   for (uint8_t i = 0; i < sets; i++) {
-    const uint8_t *s = daten + LAYOUT_HEADER_BYTES + (uint32_t)i * LAYOUT_SET_BYTES;
+    const uint8_t *s = data + LAYOUT_HEADER_BYTES + (uint32_t)i * LAYOUT_SET_BYTES;
     SetEntry &e = out.sets[i];
     e.color = layoutU16(s);
     memcpy(e.name, s + 2, NAME_BYTES);

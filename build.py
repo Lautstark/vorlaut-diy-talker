@@ -167,7 +167,7 @@ def ensure_content() -> None:
 
 
 def load_layout(path: Path = LAYOUT_FILE) -> dict:
-    """Liest layout.json und bringt es in eine garantiert vollständige Form."""
+    """Reads layout.json and brings it into a guaranteed complete shape."""
     if not path.exists():
         raise BuildError(f"{path.name} nicht gefunden.")
     try:
@@ -184,6 +184,13 @@ def normalize_layout(raw: dict) -> dict:
     except (TypeError, ValueError):
         timeout = DEFAULT_SLEEP_TIMEOUT
     timeout = max(10, min(timeout, 24 * 3600))
+
+    language = str(raw.get("language") or DEFAULT_LANGUAGE).strip().lower()
+    if language not in LANGUAGE_CODES:
+        # Not an error: an unknown language costs the menu labels, not the
+        # content. The device would fall back to English by itself, and it is
+        # better to say so than to stop a build over it.
+        language = DEFAULT_LANGUAGE
 
     sets = raw.get("sets") or []
     if not isinstance(sets, list):
@@ -233,11 +240,15 @@ def normalize_layout(raw: dict) -> dict:
             f"gewählt sind {active}. Mehr passen nicht aufs Gerät."
         )
 
-    return {"sleep_timeout_seconds": timeout, "sets": clean_sets}
+    return {
+        "sleep_timeout_seconds": timeout,
+        "language": language,
+        "sets": clean_sets,
+    }
 
 
 def active_sets(layout: dict) -> list[dict]:
-    """Die Sets, die aufs Gerät gehen - in der Reihenfolge des Layouts."""
+    """The sets that go onto the device, in the order of the layout."""
     return [entry for entry in layout["sets"] if entry.get("active", True)]
 
 
@@ -249,6 +260,7 @@ def built_fingerprint(layout: dict) -> str:
     """
     payload = {
         "sleep": layout["sleep_timeout_seconds"],
+        "language": layout.get("language", DEFAULT_LANGUAGE),
         "sets": active_sets(layout),
         "pipeline": TILE_PIPELINE,
         "format": LAYOUT_VERSION,
@@ -473,9 +485,9 @@ def tile_bytes(symbol: str) -> bytes:
 
 
 def to_rgb565_be(image) -> bytes:
-    breite, höhe = image.size
+    width, height = image.size
     pixels = image.tobytes("raw", "RGB")
-    out = bytearray(breite * höhe * 2)
+    out = bytearray(width * height * 2)
     write = 0
     for read in range(0, len(pixels), 3):
         value = rgb_to_565(pixels[read], pixels[read + 1], pixels[read + 2])
@@ -498,7 +510,7 @@ def to_rgb565_be(image) -> bytes:
 #           1  version
 #           1  number of sets
 #           1  keys per set
-#           1  reserved
+#           1  language (index into LANGUAGES in firmware/vorlaut/texts.h)
 #           4  sleep timeout in seconds
 #   per set 2  colour as RGB565
 #          32  name, padded with null bytes
@@ -511,6 +523,18 @@ def to_rgb565_be(image) -> bytes:
 LAYOUT_BIN = "layout.bin"
 LAYOUT_MAGIC = b"MTRD"
 LAYOUT_VERSION = 1
+
+# The language the device labels its own menu in. The order has to match
+# LANGUAGES in firmware/vorlaut/texts.h - the file carries the index, not
+# the name, because there is exactly one byte for it.
+#
+# That byte used to be reserved and written as zero. Zero is English, so an
+# older layout.bin stays readable and the format version can stay at 1.
+#
+# This says nothing about the content: the words on the keys are whatever
+# somebody typed. It is only about the four labels the firmware draws itself.
+LANGUAGE_CODES = {"en": 0, "de": 1}
+DEFAULT_LANGUAGE = "en"
 NAME_BYTES = 32
 HASH_BYTES = 16
 # Fixed strides - the firmware works with the same numbers.
@@ -520,7 +544,7 @@ HEADER_BYTES = 4 + 4 + 4                            # 12
 
 
 def _hash_bytes(filename: str) -> bytes:
-    """Aus "t3bd7a62….bin" die 16 rohen Hash-Bytes."""
+    """The 16 raw hash bytes out of "t3bd7a62….bin"."""
     if not filename:
         return b"\x00" * HASH_BYTES
     core = Path(filename).stem[1:]           # drop the leading t or a
@@ -533,7 +557,10 @@ def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> byt
     sets = active_sets(layout)
     data = bytearray()
     data += LAYOUT_MAGIC
-    data += struct.pack("<BBBB", LAYOUT_VERSION, len(sets), SLOTS_PER_SET, 0)
+    language = LANGUAGE_CODES.get(layout.get("language", DEFAULT_LANGUAGE),
+                                  LANGUAGE_CODES[DEFAULT_LANGUAGE])
+    data += struct.pack("<BBBB", LAYOUT_VERSION, len(sets), SLOTS_PER_SET,
+                        language)
     data += struct.pack("<I", layout["sleep_timeout_seconds"])
     for index, entry in enumerate(sets):
         data += struct.pack("<H", rgb_to_565(*hex_to_rgb(entry["color"])))
@@ -547,10 +574,10 @@ def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> byt
     return bytes(data)
 
 
-# --- Bauen -------------------------------------------------------------------
+# --- Building -------------------------------------------------------------------
 
 def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
-    """Baut alles und liefert das Protokoll als Liste von Zeilen."""
+    """Builds everything and returns the log as a list of lines."""
     log: list[str] = []
 
     def note(message: str) -> None:
@@ -660,7 +687,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     for existing in DATA_DIR.iterdir():
         if existing.is_file() and existing.name not in expected:
             existing.unlink()
-            note(f"removed: {existing.name}")
+            note(f"entfernt: {existing.name}")
 
     expected.add(LAYOUT_BIN)
     (DATA_DIR / LAYOUT_BIN).write_bytes(
