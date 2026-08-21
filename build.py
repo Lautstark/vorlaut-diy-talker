@@ -19,6 +19,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import metacom
@@ -90,6 +91,36 @@ DEFAULT_SLEEP_TIMEOUT = 600
 
 
 METACOM_PREFIX = "metacom:"
+
+# Held around every read-modify-write of the tile index. The web interface
+# renders a preview per tile on ThreadingHTTPServer request threads, so five
+# threads reading the same dict and writing it back one after another is the
+# normal case, not a rare one - and the last write would be the only one that
+# survived. Same reasoning and same shape as tts._index_lock.
+_index_lock = threading.Lock()
+
+
+def write_json(path: Path, data: dict) -> None:
+    """Writes the file whole and moves it into place.
+
+    The lock above only reaches the threads of one process. `--prune-cache`
+    runs in a second one while the server is up, and a reader that catches a
+    half-written index gets a JSONDecodeError - which load_tile_index() and
+    tts.load_index() both answer with {}. The next write then persists that
+    empty dict over every entry there was. os.replace swaps the finished file
+    in in one step, so a reader sees either the whole old index or the whole
+    new one.
+
+    The interim file carries process and thread in its name for the same
+    reason: one shared .part would be the race again, one step further down.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    interim = path.with_name(f"{path.name}.{os.getpid()}-{threading.get_ident()}.part")
+    interim.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(interim, path)
 
 
 def symbol_path(symbol: str) -> Path | None:
@@ -471,11 +502,11 @@ def device_manifest() -> dict:
 def _remember_build(layout: dict) -> None:
     """Records which state has just been built into data/."""
     try:
-        BUILD_STATE.parent.mkdir(parents=True, exist_ok=True)
-        BUILD_STATE.write_text(
-            json.dumps({"fingerprint": built_fingerprint(layout)}) + "\n",
-            encoding="utf-8",
-        )
+        # No lock needed - this writes a fresh note rather than changing the
+        # one that is there. Written whole all the same: /api/status reads it
+        # on a request thread while a build is running, and half a file reads
+        # back as "not current".
+        write_json(BUILD_STATE, {"fingerprint": built_fingerprint(layout)})
     except OSError:
         pass   # without the note the interface says "rebuild" more often
 
@@ -645,14 +676,14 @@ def tile_bytes(symbol: str) -> bytes:
     """The rendered symbol area, from the cache or freshly made."""
     key = tile_fingerprint(symbol)
     path = TILE_CACHE / f"{key}.bin"
-    index = load_tile_index()
-    if index.get(key) != (symbol or ""):
-        index[key] = symbol or ""
-        TILE_CACHE.mkdir(parents=True, exist_ok=True)
-        TILE_INDEX.write_text(
-            json.dumps(index, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+    # Reading, changing and writing back is one step - see _index_lock. The
+    # rendering below stays outside it: it is the slow part, and two threads
+    # making the same tile at once cost time, not correctness.
+    with _index_lock:
+        index = load_tile_index()
+        if index.get(key) != (symbol or ""):
+            index[key] = symbol or ""
+            write_json(TILE_INDEX, index)
     if path.exists():
         return path.read_bytes()
     data = render_symbol(symbol)
@@ -1045,20 +1076,20 @@ def prune_cache() -> list[str]:
         for entry in layout["sets"]
         for sym in [entry["symbol"], *(slot["symbol"] for slot in entry["slots"])]
     }
-    tile_index = load_tile_index()
-    tiles_removed = 0
-    for file in sorted(TILE_CACHE.glob("*.bin")):
-        if file.stem not in needed_tiles:
-            symbol = tile_index.pop(file.stem, None)
-            log.append(f"removed: Kachel {symbol or file.name}")
-            file.unlink()
-            tiles_removed += 1
-    if tiles_removed:
-        TILE_INDEX.write_text(
-            json.dumps(tile_index, indent=2, ensure_ascii=False, sort_keys=True)
-            + "\n",
-            encoding="utf-8",
-        )
+    # The same read-modify-write as in tile_bytes, and under the same lock:
+    # deleting the files and dropping their entries has to be one step, or a
+    # preview rendered in between would put back an entry whose file is gone.
+    with _index_lock:
+        tile_index = load_tile_index()
+        tiles_removed = 0
+        for file in sorted(TILE_CACHE.glob("*.bin")):
+            if file.stem not in needed_tiles:
+                symbol = tile_index.pop(file.stem, None)
+                log.append(f"removed: Kachel {symbol or file.name}")
+                file.unlink()
+                tiles_removed += 1
+        if tiles_removed:
+            write_json(TILE_INDEX, tile_index)
 
     voice = chosen_voice(layout)
     needed = {
@@ -1076,10 +1107,11 @@ def prune_cache() -> list[str]:
             file.unlink()
             removed += 1
     if removed:
-        tts.INDEX_FILE.write_text(
-            json.dumps(index, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        # tts.remember() guards this file with a lock of its own, which is no
+        # help here: prune runs from the command line, so the thread holding
+        # that lock is in the other process. Writing whole is what protects it
+        # from there.
+        write_json(tts.INDEX_FILE, index)
     log.append(
         f"{removed} verwaiste Sprachdatei(en) und {tiles_removed} Kachel(n) removed."
     )

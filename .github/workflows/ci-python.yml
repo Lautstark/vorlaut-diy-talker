@@ -71,6 +71,13 @@ jobs:
         # own documentation.
         run: python tests/test_config.py
 
+      - name: The tile index survives several threads
+        # The preview grid asks for five tiles at once and the server answers
+        # each in a thread of its own, all of them reading and rewriting one
+        # index.json. Losing it costs only readable names in the prune log -
+        # which is why nobody would notice it going.
+        run: python tests/test_tile_index.py
+
       - name: The device can find the server
         # The answers the device depends on, over a real socket. The broadcast
         # itself needs a network a runner does not have - that one is stage 7
