@@ -3,7 +3,7 @@
 
 content/cache/tiles/index.json maps a tile fingerprint back to the symbol it
 was made from - it is what turns "removed: t3bd7....bin" into "removed:
-Kachel ja.png". It is read, changed and written back on every tile.
+tile ja.png". It is read, changed and written back on every tile.
 
 Which happens on request threads: the preview grid asks the server for five
 tiles of a set at once, and ThreadingHTTPServer answers each one in a thread

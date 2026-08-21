@@ -10,7 +10,7 @@ says about it.
 Per active set and slot it puts into data/:
 
   t<hash>.bin   116x116 RGB565 big-endian, the symbol area without a border
-  a<hash>.wav   gesprochener Satz, 16 kHz mono 16 bit
+  a<hash>.wav   spoken sentence, 16 kHz mono 16 bit
   layout.bin    the table the firmware reads all of it back out of
 
 The file names are hashes of the content, which is what makes the same symbol
@@ -208,7 +208,7 @@ def prune_cache() -> list[str]:
     ensure_content()
     layout = load_layout()
 
-    # Kacheln
+    # Tiles
     needed_tiles = {
         tile_fingerprint(sym)
         for entry in layout["sets"]
@@ -223,7 +223,7 @@ def prune_cache() -> list[str]:
         for file in sorted(TILE_CACHE.glob("*.bin")):
             if file.stem not in needed_tiles:
                 symbol = tile_index.pop(file.stem, None)
-                log.append(f"removed: Kachel {symbol or file.name}")
+                log.append(f"removed: tile {symbol or file.name}")
                 file.unlink()
                 tiles_removed += 1
         if tiles_removed:
@@ -251,7 +251,8 @@ def prune_cache() -> list[str]:
         # from there.
         write_json(tts.INDEX_FILE, index)
     log.append(
-        f"{removed} verwaiste Sprachdatei(en) und {tiles_removed} Kachel(n) removed."
+        f"{removed} orphaned speech file(s) and "
+        f"{tiles_removed} tile(s) removed."
     )
     for line in log:
         print(line, flush=True)
@@ -297,7 +298,7 @@ def main(argv: list[str]) -> int:
         try:
             prune_cache()
         except (BuildError, tts.TTSError) as exc:
-            print(f"Fehler: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
             return 1
         return 0
     try:
@@ -310,6 +311,6 @@ def main(argv: list[str]) -> int:
         if args.merge_into:
             merge_fs_image(Path(args.merge_into))
     except (BuildError, tts.TTSError) as exc:
-        print(f"Fehler: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
     return 0
