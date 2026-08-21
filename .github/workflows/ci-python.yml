@@ -51,9 +51,15 @@ jobs:
         run: python -c "import app, build, tts"
 
       - name: Cross-check layout.bin against the firmware reader
-        # Compiles the C code from the sketch on the runner and compares
-        # was er liest, mit dem was build.py geschrieben hat.
+        # Compiles the C code from the sketch on the runner and compares what
+        # it reads with what build.py wrote.
         run: python tests/test_layout_format.py
+
+      - name: Menu labels fit on a display
+        # Compiles texts.h and panel_text.h the same way. A translation that
+        # is too long, or uses a letter the built-in font does not have, would
+        # otherwise only show once a device is standing on the table.
+        run: python tests/test_texts.py
 
       - name: Build with the example content
         # Without an Azure key: images and layout are produced, audio is

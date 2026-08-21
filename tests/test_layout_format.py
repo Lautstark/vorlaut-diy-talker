@@ -8,7 +8,6 @@ order and alignment without a device having to be connected.
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 import tempfile
@@ -19,44 +18,45 @@ sys.path.insert(0, str(ROOT))
 import build  # noqa: E402
 
 
-def erwartung(layout, label, bilder, toene) -> list[str]:
-    """Dieselben Angaben wie der C-Leser sie ausgibt, aus Python-Sicht."""
-    zeilen = [f"sets {len(layout['sets'])}",
-              f"sleep {layout['sleep_timeout_seconds']}"]
+def expected(layout, label, images, sounds) -> list[str]:
+    """The same fields the C reader prints, seen from Python."""
+    lines = [f"sets {len(layout['sets'])}",
+             f"language {build.LANGUAGE_CODES[layout['language']]}",
+             f"sleep {layout['sleep_timeout_seconds']}"]
     for i, entry in enumerate(layout["sets"]):
-        farbe = build.rgb_to_565(*build.hex_to_rgb(entry["color"]))
+        colour = build.rgb_to_565(*build.hex_to_rgb(entry["color"]))
         name = entry["name"].encode("utf-8")[:build.NAME_BYTES].decode("utf-8", "ignore")
-        zeilen.append(f"set {i} color {farbe:04x} name {name} "
-                      f"label {build._hash_bytes(label[i]).hex()}")
+        lines.append(f"set {i} color {colour:04x} name {name} "
+                     f"label {build._hash_bytes(label[i]).hex()}")
         for j in range(build.SLOTS_PER_SET):
-            ton = toene[i][j]
-            zeilen.append(
-                f"slot {i} {j} image {build._hash_bytes(bilder[i][j]).hex()} "
-                f"audio {build._hash_bytes(ton).hex()} has {1 if ton else 0}")
-    return zeilen
+            sound = sounds[i][j]
+            lines.append(
+                f"slot {i} {j} image {build._hash_bytes(images[i][j]).hex()} "
+                f"audio {build._hash_bytes(sound).hex()} has {1 if sound else 0}")
+    return lines
 
 
-def baue_leser(ziel: Path) -> None:
-    quelle = ROOT / "tests" / "layout_dump.cpp"
-    ergebnis = subprocess.run(
+def build_reader(target: Path) -> None:
+    source = ROOT / "tests" / "layout_dump.cpp"
+    result = subprocess.run(
         ["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-O1",
-         "-o", str(ziel), str(quelle)],
+         "-o", str(target), str(source)],
         capture_output=True, text=True)
-    if ergebnis.returncode != 0:
-        raise SystemExit("C-Leser übersetzt nicht:\n" + ergebnis.stderr)
+    if result.returncode != 0:
+        raise SystemExit("C reader does not compile:\n" + result.stderr)
 
 
-def faelle():
-    """Verschiedene Layouts, damit nicht nur der eine Normalfall geprüft wird."""
-    yield "leer", {"sleep_timeout_seconds": 600, "sets": []}
-    yield "ein Set", {
+def cases():
+    """Several layouts, so more than the one normal case gets checked."""
+    yield "empty", {"sleep_timeout_seconds": 600, "sets": []}
+    yield "one set", {
         "sleep_timeout_seconds": 30,
         "sets": [{"name": "Grundset", "symbol": "a.png", "color": "#3B5BDB",
                   "slots": [{"text": "Ja", "symbol": "j.png"},
                             {"text": "", "symbol": ""},
                             {"text": "Stopp", "symbol": "s.png"},
                             {"text": "", "symbol": ""}]}]}
-    yield "fünf Sets, lange Namen, Randfarben", {
+    yield "five sets, long names, extreme colours", {
         "sleep_timeout_seconds": 86400,
         "sets": [{"name": f"Ein sehr langer Name {i} mit Umlauten äöü",
                   "symbol": f"s{i}.png", "color": c,
@@ -64,64 +64,91 @@ def faelle():
                             for j in range(4)]}
                  for i, c in enumerate(["#000000", "#FFFFFF", "#FF0000",
                                         "#00FF00", "#0000FF"])]}
+    # The language rides in a single byte of the header. Every value build.py
+    # can write has to arrive, and something it cannot write has to end up as
+    # the default rather than as a wrong index.
+    for name in build.LANGUAGE_CODES:
+        yield f"language {name}", {"sleep_timeout_seconds": 600,
+                                   "language": name, "sets": []}
+    yield "unknown language", {"sleep_timeout_seconds": 600,
+                               "language": "kl", "sets": []}
+    yield "no language field", {"sleep_timeout_seconds": 600, "sets": []}
 
 
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
-        leser = Path(tmp) / "layout_dump"
-        baue_leser(leser)
-        fehler = 0
-        for name, roh in faelle():
-            layout = build.normalize_layout(roh)
+        reader = Path(tmp) / "layout_dump"
+        build_reader(reader)
+        failures = 0
+        for name, raw in cases():
+            layout = build.normalize_layout(raw)
             n = len(layout["sets"])
             label = [f"t{'%032x' % (i + 1)}.bin" for i in range(n)]
-            bilder = [[f"t{'%032x' % (i * 10 + j + 100)}.bin" for j in range(4)]
+            images = [[f"t{'%032x' % (i * 10 + j + 100)}.bin" for j in range(4)]
                       for i in range(n)]
-            toene = [[f"a{'%032x' % (i * 10 + j + 200)}.wav"
-                      if layout["sets"][i]["slots"][j]["text"] else ""
-                      for j in range(4)] for i in range(n)]
+            sounds = [[f"a{'%032x' % (i * 10 + j + 200)}.wav"
+                       if layout["sets"][i]["slots"][j]["text"] else ""
+                       for j in range(4)] for i in range(n)]
 
-            datei = Path(tmp) / "layout.bin"
-            datei.write_bytes(build.render_layout_bin(layout, label, bilder, toene))
+            path = Path(tmp) / "layout.bin"
+            path.write_bytes(build.render_layout_bin(layout, label, images, sounds))
 
-            ergebnis = subprocess.run([str(leser), str(datei)],
-                                      capture_output=True, text=True)
-            if ergebnis.returncode != 0:
-                print(f"  {name}: C-Leser meldet {ergebnis.stdout.strip()}")
-                fehler += 1
+            result = subprocess.run([str(reader), str(path)],
+                                    capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"  {name}: C reader reports {result.stdout.strip()}")
+                failures += 1
                 continue
 
-            gelesen = [z for z in ergebnis.stdout.strip().split("\n")
-                       if not z.startswith("bytes")]
-            soll = erwartung(layout, label, bilder, toene)
-            if gelesen == soll:
-                print(f"  {name}: {len(soll)} Angaben stimmen überein")
+            got = [l for l in result.stdout.strip().split("\n")
+                   if not l.startswith("bytes")]
+            want = expected(layout, label, images, sounds)
+            if got == want:
+                print(f"  {name}: {len(want)} fields agree")
             else:
-                fehler += 1
-                print(f"  {name}: UNTERSCHIED")
-                for a, b in zip(soll, gelesen):
+                failures += 1
+                print(f"  {name}: DIFFERENT")
+                for a, b in zip(want, got):
                     if a != b:
                         print(f"    Python: {a}")
                         print(f"    C:      {b}")
-                if len(soll) != len(gelesen):
-                    print(f"    Zeilen: Python {len(soll)}, C {len(gelesen)}")
+                if len(want) != len(got):
+                    print(f"    lines: Python {len(want)}, C {len(got)}")
+
+        # A layout.bin from before the language byte existed still has to
+        # read, and has to come out as the default rather than as garbage.
+        old = bytearray(build.render_layout_bin(
+            build.normalize_layout({"sleep_timeout_seconds": 600, "sets": []}),
+            [], [], []))
+        old[7] = 0                      # what the reserved byte always held
+        path = Path(tmp) / "old.bin"
+        path.write_bytes(bytes(old))
+        result = subprocess.run([str(reader), str(path)],
+                                capture_output=True, text=True)
+        if "language 0" not in result.stdout:
+            print("  a layout.bin from before the language byte does not read "
+                  "as English")
+            failures += 1
+        else:
+            print("  older layout.bin still reads, language falls back to English")
 
         # And the size has to match the calculated structure
         for n in range(6):
-            erwartet = build.HEADER_BYTES + n * build.SET_BYTES
-            leer = build.normalize_layout({"sleep_timeout_seconds": 600, "sets": [
+            want_size = build.HEADER_BYTES + n * build.SET_BYTES
+            layout = build.normalize_layout({"sleep_timeout_seconds": 600, "sets": [
                 {"name": "x", "symbol": "", "color": "#000000",
                  "slots": [{"text": "", "symbol": ""}] * 4} for _ in range(n)]})
-            daten = build.render_layout_bin(leer, [""] * n, [[""] * 4] * n, [[""] * 4] * n)
-            if len(daten) != erwartet:
-                print(f"  Größe bei {n} Sets: {len(daten)}, erwartet {erwartet}")
-                fehler += 1
-        print(f"  Größen für 0 bis 5 Sets stimmen")
+            data = build.render_layout_bin(layout, [""] * n, [[""] * 4] * n,
+                                           [[""] * 4] * n)
+            if len(data) != want_size:
+                print(f"  size at {n} sets: {len(data)}, expected {want_size}")
+                failures += 1
+        print("  sizes for 0 to 5 sets are right")
 
-        if fehler:
-            print(f"\n  {fehler} Abweichung(en)")
+        if failures:
+            print(f"\n  {failures} difference(s)")
             return 1
-        print("\n  Alles in Ordnung.")
+        print("\n  All good.")
         return 0
 
 
