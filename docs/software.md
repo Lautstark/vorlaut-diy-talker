@@ -45,6 +45,11 @@ only new sentences stay silent and say so.
 the sets on top, below them the set tile and the four speech keys in a 2x2
 grid. The border of each tile has the colour of the set.
 
+The page itself is `ui.html`, beside `app.py`. It is read on every request, so
+a change to it shows on a reload without restarting the server. `app.py` fills
+in five placeholders as it serves it: the language, the text table for that
+language, the list of languages, the palette and the set limits.
+
 - **Clicking a symbol** opens the search. Clicking a result loads the PNG into
   `content/symbols/` and enters it into `content/layout.json`. The same dialog
   holds **Eigenes Bild** — that lets you upload a photo or a drawing of your

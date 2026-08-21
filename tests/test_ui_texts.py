@@ -96,20 +96,27 @@ def check_no_leftovers() -> int:
     was never keyed; the second pass catches a label that happens to have no
     umlaut in it - "Set deleted" would sail straight through the first.
     """
-    source = (ROOT / "app.py").read_text(encoding="utf-8")
+    # Both files. The interface moved to ui.html, and that is where nearly
+    # every string a user reads now lives - scanning app.py alone would let
+    # this check pass while looking at none of the page.
+    watched = []
+    for name in ("app.py", "ui.html"):
+        text = (ROOT / name).read_text(encoding="utf-8")
+        watched += [(name, n, l)
+                    for n, l in enumerate(text.split("\n"), start=1)]
     failures = 0
-    for number, line in enumerate(source.split("\n"), start=1):
+    for name, number, line in watched:
         stripped = line.strip()
         # The transliteration table in slugify is data, not a message.
         if "replacement" in line:
             continue
         if re.search(r"[äöüßÄÖÜ]", line):
-            print(f"  FAIL  app.py:{number} still holds German: {stripped[:60]}")
+            print(f"  FAIL  {name}:{number} still holds German: {stripped[:60]}")
             failures += 1
             continue
         match = SHOWS_TEXT.search(line)
         if match and not harmless(line[match.end() - 1:]):
-            print(f"  FAIL  app.py:{number} shows a literal instead of a "
+            print(f"  FAIL  {name}:{number} shows a literal instead of a "
                   f"key: {stripped[:60]}")
             failures += 1
     return failures
@@ -119,7 +126,7 @@ def check_page_renders() -> int:
     """The page has to come out complete in every language, and stay valid JS."""
     failures = 0
     for lang in sorted(texts.TEXTS):
-        page = (app.PAGE
+        page = (app.read_ui()
                 .replace("__LANG__", lang)
                 .replace("__TEXTS__", json.dumps(texts.ui_texts(lang),
                                                  ensure_ascii=False))

@@ -40,13 +40,13 @@ DECLARES_DISPLAY = re.compile(r"(?:^|;)\s*display\s*:", re.M)
 
 
 def stylesheet() -> str:
-    return "\n".join(re.findall(r"<style>(.*?)</style>", app.PAGE, re.S))
+    return "\n".join(re.findall(r"<style>(.*?)</style>", app.read_ui(), re.S))
 
 
 def dialog_handles() -> tuple[set[str], set[str]]:
     """The ids and classes that name a <dialog> in the markup."""
     ids, classes = set(), set()
-    for attributes in re.findall(r"<dialog\b([^>]*)>", app.PAGE):
+    for attributes in re.findall(r"<dialog\b([^>]*)>", app.read_ui()):
         found = re.search(r'\bid="([^"]+)"', attributes)
         if found:
             ids.add(found.group(1))

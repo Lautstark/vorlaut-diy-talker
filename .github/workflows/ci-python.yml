@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - '**.py'
+      - ui.html
       - requirements.txt
       - tests/**
       - example/**
@@ -20,6 +21,7 @@ on:
   pull_request:
     paths:
       - '**.py'
+      - ui.html
       - requirements.txt
       - tests/**
       - example/**
