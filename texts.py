@@ -52,6 +52,14 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.azure": "Azure voices",
         "ui.azure_intro": "A key of your own brings more voices and better "
                           "ones. A free account is enough.",
+        # The address is in the table, not in the markup, because it is one of
+        # the two that differ per language: METACOM sells from a German and an
+        # English page, and sending somebody to the wrong one is the same kind
+        # of mistake as an untranslated label. Azure follows the same shape so
+        # the two read alike. Both have to be https - see static/texts.js.
+        "ui.azure_link": "Where the key comes from",
+        "ui.azure_link_url":
+            "https://azure.microsoft.com/products/ai-foundry/tools/speech",
         "ui.azure_key": "Key",
         "ui.azure_key_set": "stored, ends in {hint}",
         "ui.azure_key_none": "not stored",
@@ -63,6 +71,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_intro": "A licensed METACOM collection is searched "
                             "alongside ARASAAC. The symbols stay where they "
                             "are and are only referenced.",
+        "ui.metacom_link": "Where a licence comes from",
+        "ui.metacom_link_url":
+            "https://www.metacom-symbole.de/en/licensing.html",
         "ui.metacom_path": "Folder of the collection",
         "ui.metacom_ok": "{count} symbols, {kind}",
         "ui.metacom_keywords": "with keywords",
@@ -309,6 +320,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.azure": "Azure-Stimmen",
         "ui.azure_intro": "Ein eigener Schlüssel bringt mehr und bessere "
                           "Stimmen. Ein kostenloses Konto reicht.",
+        "ui.azure_link": "Woher der Schlüssel kommt",
+        "ui.azure_link_url":
+            "https://azure.microsoft.com/products/ai-foundry/tools/speech",
         "ui.azure_key": "Schlüssel",
         "ui.azure_key_set": "hinterlegt, endet auf {hint}",
         "ui.azure_key_none": "nicht hinterlegt",
@@ -321,6 +335,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_intro": "Eine lizenzierte METACOM-Sammlung wird neben "
                             "ARASAAC durchsucht. Die Symbole bleiben, wo sie "
                             "sind, und werden nur referenziert.",
+        "ui.metacom_link": "Woher eine Lizenz kommt",
+        "ui.metacom_link_url":
+            "https://www.metacom-symbole.de/bestellung/lizenzvarianten.html",
         "ui.metacom_path": "Ordner der Sammlung",
         "ui.metacom_ok": "{count} Symbole, {kind}",
         "ui.metacom_keywords": "mit Schlagwörtern",

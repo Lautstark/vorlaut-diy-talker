@@ -3,6 +3,18 @@
 import { $ } from "./dom.js";
 import { LANG, TEXTS } from "./boot.js";
 
+// A label and its address, both out of the table. Everything else on this page
+// arrives through textContent, which is inert whatever it says; an href is the
+// one thing that is not, so it is checked rather than trusted. The table is our
+// own source, not anybody's content - but that is exactly the assumption the
+// old __TEXTS__ hole rested on, and it only has to stop being true once.
+function outward(id, labelKey, urlKey) {
+  const link = $(id);
+  const url = t(urlKey);
+  link.textContent = t(labelKey);
+  link.href = url.startsWith("https://") ? url : "";
+}
+
 export function t(key, params) {
   let out = TEXTS[key] || key;
   if (params) {
@@ -33,6 +45,7 @@ export function applyTexts() {
   $("voiceSection").textContent = t("ui.voice");
   $("azureSection").textContent = t("ui.azure");
   $("azureIntro").textContent = t("ui.azure_intro");
+  outward("azureLink", "ui.azure_link", "ui.azure_link_url");
   $("azureKeyLabel").textContent = t("ui.azure_key");
   $("azureKey").placeholder = t("ui.azure_key_placeholder");
   $("azureRegionLabel").textContent = t("ui.azure_region");
@@ -40,6 +53,7 @@ export function applyTexts() {
   $("languageIntro").textContent = t("ui.language_title");
   $("symbolsSection").textContent = t("ui.symbols");
   $("metacomIntro").textContent = t("ui.metacom_intro");
+  outward("metacomLink", "ui.metacom_link", "ui.metacom_link_url");
   $("metacomLabel").textContent = t("ui.metacom_path");
   $("gear").title = t("ui.settings");
   $("gear").setAttribute("aria-label", t("ui.settings"));

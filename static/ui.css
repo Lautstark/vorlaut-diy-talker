@@ -355,6 +355,8 @@ dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
 .field { padding: 10px 16px 4px; display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 13px; color: var(--muted); }
 .field .lead { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+.field .lead a { color: var(--accent); }
+.field .lead a:hover { text-decoration: none; }
 .field .note { margin: 0; font-size: 12px; color: var(--muted); }
 .field input { width: 100%; }
 .field input[type=password] { font-family: ui-monospace, monospace; }
