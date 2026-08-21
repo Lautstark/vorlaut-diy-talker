@@ -1,147 +1,145 @@
-# Hardware: Bauteile, Verdrahtung, Gehäuse
+# Hardware: parts, wiring, case
 
-## Bauteile
+## Parts
 
-| Teil | Anzahl | Bezugsquelle | Einzelpreis |
-|------|-------:|--------------|------------:|
-| Adafruit ESP32-S3 Feather, 8 MB Flash, ohne PSRAM | 1 | [Eckstein](https://eckstein-shop.de/Adafruit-ESP32-S3-Feather-8MB-Flash-No-PSRAM-with-STEMMA-QT-Qwiic) | 24,95 € |
-| Waveshare ScreenKey, 0,85" IPS, 128×128, ST7735 | 5 | [BerryBase](https://www.berrybase.de/waveshare-screenkey-lcd-modul-0-85-zoll-ips-display-128-x-128-pixel-st7735-schwarz-3-3v/version-vollstaendiger-screenkey) | |
-| Adafruit MAX98357A, I2S 3W Class-D | 1 | [Eckstein](https://eckstein-shop.de/AdafruitI2S3WClassDAmplifierBreakout-MAX98357A) | 7,95 € |
-| Lautsprecher 40 mm, 4 Ω, 5 W | 1 | [Eckstein](https://eckstein-shop.de/40mm-15-Internal-Magnetic-4Ohm-5W-Bass-Multimedia-Speaker) | 3,95 € |
-| LiPo 3,7 V 2500 mAh, JST-PHR-2, 63 × 50,3 × 8,1 mm, 52 g | 1 | [Eckstein](https://eckstein-shop.de/LiPo-Akku-Lithium-Ion-Polymer-Batterie-37V-2500mAh-mit-JST-PHR-2-Stecker-LP785060) | 9,95 € |
+| Part | Qty | Source | Unit price |
+|------|----:|--------|-----------:|
+| Adafruit ESP32-S3 Feather, 8 MB flash, no PSRAM | 1 | [Eckstein](https://eckstein-shop.de/Adafruit-ESP32-S3-Feather-8MB-Flash-No-PSRAM-with-STEMMA-QT-Qwiic) | 24,95 € |
+| Waveshare ScreenKey, 0.85" IPS, 128×128, ST7735 | 5 | [BerryBase](https://www.berrybase.de/waveshare-screenkey-lcd-modul-0-85-zoll-ips-display-128-x-128-pixel-st7735-schwarz-3-3v/version-vollstaendiger-screenkey) | |
+| Adafruit MAX98357A, I2S 3W class D | 1 | [Eckstein](https://eckstein-shop.de/AdafruitI2S3WClassDAmplifierBreakout-MAX98357A) | 7,95 € |
+| Speaker 40 mm, 4 Ω, 5 W | 1 | [Eckstein](https://eckstein-shop.de/40mm-15-Internal-Magnetic-4Ohm-5W-Bass-Multimedia-Speaker) | 3,95 € |
+| LiPo 3.7 V 2500 mAh, JST-PHR-2, 63 × 50.3 × 8.1 mm, 52 g | 1 | [Eckstein](https://eckstein-shop.de/LiPo-Akku-Lithium-Ion-Polymer-Batterie-37V-2500mAh-mit-JST-PHR-2-Stecker-LP785060) | 9,95 € |
 
-Preise Stand August 2026, ohne Gehäuse. Beim ScreenKey die Ausführung
-**"vollständiger ScreenKey"** wählen — es gibt das Modul auch ohne den
-Tastenmechanismus, und der ist hier der halbe Sinn: Display und Taster in
-einem.
+Prices as of August 2026, case not included. For the ScreenKey, pick the
+**"complete ScreenKey"** version — the module also comes without the key
+mechanism, and that mechanism is half the point here: display and button in
+one.
 
-**Der Feather ist nicht beliebig austauschbar.** Zwei Dinge hängen an ihm:
+**The Feather is not freely interchangeable.** Two things depend on it:
 
-- Er lädt den LiPo über USB-C und hat den passenden JST-PH-Anschluss dafür.
-  Deshalb braucht das Gerät weder Ladebuchse noch Schalter. Ein Board ohne
-  Ladeschaltung - etwa im Arduino-Nano-Format - braucht zusätzlich ein
-  Lademodul.
-- Die gesamte Pinbelegung unten ist auf ihn zugeschnitten, besonders die
-  Taster: sie müssen auf GPIO 0 bis 21 liegen, sonst wecken sie den Chip
-  nicht aus dem Tiefschlaf.
+- It charges the LiPo over USB-C and has the matching JST-PH connector for it.
+  That is why the device needs neither a charging socket nor a switch. A board
+  without charging circuitry — an Arduino Nano form factor, say — needs an
+  extra charging module.
+- The whole pin assignment below is cut to fit it, the buttons in particular:
+  they have to sit on GPIO 0 to 21, otherwise they will not wake the chip from
+  deep sleep.
 
-Bewusst nicht vorgesehen: Lautstärkeregler und Ein-/Aus-Schalter. Das Gerät
-schläft von selbst ein und wacht auf Tastendruck auf; die Lautstärke regelt
-die Normalisierung beim Bauen.
+Deliberately not provided for: a volume control and an on/off switch. The
+device falls asleep by itself and wakes on a key press; the volume is set by
+the normalisation during the build.
 
-## Verdrahtung
+## Wiring
 
-![Verdrahtung](verdrahtung.png)
+![Wiring](verdrahtung.png)
 
-Gezeichnet von `tools/verdrahtung.py` aus der Belegung unten — wenn sich an
-den echten Modulen etwas als anders herausstellt, dort ändern und das Skript
-neu laufen lassen:
+Drawn by `tools/verdrahtung.py` from the assignment below — if something turns
+out differently on the real modules, change it there and run the script again:
 
 ```bash
 python3 tools/verdrahtung.py
 ```
 
-## Pinbelegung (Vorschlag)
+## Pin assignment (proposed)
 
-| Funktion                | GPIO | Beschriftung auf dem Feather |
-|-------------------------|-----:|------------------------------|
-| SPI SCK (alle Displays) |   36 | SCK                          |
-| SPI MOSI (alle)         |   35 | MO                           |
-| Display DC (alle)       |    9 | D9                           |
-| Display RST (alle)      |   10 | D10                          |
-| Backlight (alle)        |    3 | SDA                          |
-| CS Display 1            |   11 | D11                          |
-| CS Display 2            |   12 | D12                          |
-| CS Display 3            |   37 | MI (MISO)                    |
-| CS Display 4            |    5 | D5                           |
-| CS Display 5 (Set)      |    6 | D6                           |
-| Taster 1                |   18 | A0                           |
-| Taster 2                |   17 | A1                           |
-| Taster 3                |   16 | A2                           |
-| Taster 4                |   15 | A3                           |
-| Taster 5 (Set)          |   14 | A4                           |
-| I2S BCLK                |    8 | A5                           |
-| I2S LRCLK (WS)          |   38 | RX                           |
-| I2S DIN                 |   39 | TX                           |
-| MAX98357A SD            |    4 | SCL                          |
+| Function                | GPIO | Label on the Feather |
+|-------------------------|-----:|----------------------|
+| SPI SCK (all displays)  |   36 | SCK                  |
+| SPI MOSI (all)          |   35 | MO                   |
+| Display DC (all)        |    9 | D9                   |
+| Display RST (all)       |   10 | D10                  |
+| Backlight (all)         |    3 | SDA                  |
+| CS display 1            |   11 | D11                  |
+| CS display 2            |   12 | D12                  |
+| CS display 3            |   37 | MI (MISO)            |
+| CS display 4            |    5 | D5                   |
+| CS display 5 (set)      |    6 | D6                   |
+| Button 1                |   18 | A0                   |
+| Button 2                |   17 | A1                   |
+| Button 3                |   16 | A2                   |
+| Button 4                |   15 | A3                   |
+| Button 5 (set)          |   14 | A4                   |
+| I2S BCLK                |    8 | A5                   |
+| I2S LRCLK (WS)          |   38 | RX                   |
+| I2S DIN                 |   39 | TX                   |
+| MAX98357A SD            |    4 | SCL                  |
 
-Warum genau diese Taster-Pins: aufwecken aus dem Deep Sleep geht beim ESP32-S3
-nur über GPIO 0 bis 21. GPIO 14 bis 18 liegen in diesem Bereich und sind auf
-dem Feather als A0-A4 sauber herausgeführt.
+Why exactly these button pins: waking from deep sleep on the ESP32-S3 works
+through GPIO 0 to 21 only. GPIO 14 to 18 fall inside that range and are cleanly
+broken out on the Feather as A0-A4.
 
-**Verkabelung:**
+**Wiring notes:**
 
-- Taster gegen **GND**, die internen Pull-ups sind aktiv. Gedrückt = LOW.
-- MISO trägt CS für Display 3. GPIO 13 ist beim Feather die eingebaute
-  rote LED und bleibt deshalb frei - sie ist beim Erstaufbau das erste
-  Lebenszeichen. Gelesen wird von den Displays ohnehin nicht.
-- `SD` am MAX98357A hängt an GPIO 4: der Verstärker ist stumm, außer während
-  ein Wort läuft. Das spart Strom und das leise Rauschen im Ruhezustand.
-- Das Backlight aller fünf Displays an einem GPIO funktioniert nur, wenn der
-  BL-Eingang der Screenkeys ein Logikeingang ist. Zieht er den LED-Strom
-  direkt, gehört ein kleiner MOSFET dazwischen - fünf Backlights sind mehr,
-  als ein GPIO treiben darf.
-- Beim Verlöten die tatsächliche Screenkey-Belegung prüfen; die Tabelle oben
-  beschreibt die Seite des Feathers.
+- Buttons against **GND**, the internal pull-ups are active. Pressed = LOW.
+- MISO carries CS for display 3. On the Feather, GPIO 13 is the built-in red
+  LED and therefore stays free — during first bring-up it is the first sign of
+  life. Nothing is read from the displays anyway.
+- `SD` on the MAX98357A hangs off GPIO 4: the amplifier is muted except while
+  a word is playing. That saves power and the faint hiss at rest.
+- The backlight of all five displays on one GPIO only works if the BL input of
+  the ScreenKeys is a logic input. If it draws the LED current directly, a
+  small MOSFET belongs in between — five backlights are more than one GPIO may
+  drive.
+- When soldering, check the actual ScreenKey pinout; the table above describes
+  the Feather's side.
 
-Falls das Bild um ein paar Pixel verschoben ist oder ein Rand stehen bleibt:
-`PANEL_COL_OFFSET` und `PANEL_ROW_OFFSET` oben im Sketch anpassen.
+If the picture is off by a few pixels or a margin remains: adjust
+`PANEL_COL_OFFSET` and `PANEL_ROW_OFFSET` at the top of the sketch.
 
-## Gehäuse
+## Case
 
-Gemessene Teile: Screenkey-Platine 25,94 x 35,29 mm, Tastenkappe 22,00 x
-25,30 mm mit 8,6 mm Überstand, sichtbares Bild nur **15,21 x 15,21 mm**.
-Lautsprecher 40,3 x 40,3 x 25,3 mm.
+Measured parts: ScreenKey board 25.94 x 35.29 mm, key cap 22.00 x 25.30 mm with
+8.6 mm overhang, visible picture only **15.21 x 15.21 mm**. Speaker
+40.3 x 40.3 x 25.3 mm.
 
-| | Maß |
+| | Dimension |
 |---|---|
-| Raster der vier Sprechtasten | 37,0 x 45,3 mm |
-| Spalt zwischen den Kappen | 15 mm seitlich, 20 mm zwischen den Reihen |
-| Abstand Set-Taste zum Viererblock | 25 mm |
-| Spalt Lautsprecher zur Set-Taste | 5 mm |
-| Bauteile insgesamt | 117 x 81 mm |
-| Gehäuse außen | etwa 131 x 95 x 36 mm |
+| Grid of the four speech keys | 37.0 x 45.3 mm |
+| Gap between the caps | 15 mm sideways, 20 mm between the rows |
+| Distance set key to the block of four | 25 mm |
+| Gap speaker to set key | 5 mm |
+| Components in total | 117 x 81 mm |
+| Case outside | roughly 131 x 95 x 36 mm |
 
-Anordnung: Lautsprecher oben links, darunter die Set-Taste, rechts daneben die
-vier Sprechtasten als 2x2-Block. Set-Taste und untere Tastenreihe schließen
-unten bündig ab - das geht genau auf, weil Lautsprecher + 5 mm + Set-Platine
-zusammen 80,6 mm ergeben und der Block bei diesem Raster ebenfalls 80,6 mm hoch
-ist.
+Arrangement: speaker top left, the set key below it, the four speech keys to
+the right as a 2x2 block. The set key and the lower key row finish flush at the
+bottom — that works out exactly, because speaker + 5 mm + set board come to
+80.6 mm and the block is also 80.6 mm high at this grid.
 
-**Wichtig:** Die Platinen dürfen sich nicht berühren. Dann blieben seitlich
-nur 25,94 - 22,00 = 3,9 mm zwischen den Kappen, und eine Kinderhand träfe zwei
-Tasten auf einmal.
+**Important:** the boards must not touch. There would then be only
+25.94 - 22.00 = 3.9 mm sideways between the caps, and a child's hand would hit
+two keys at once.
 
-### Was hinter die Front passt
+### What fits behind the front
 
-Die ScreenKeys brauchen hinter der Frontplatte nur **15,4 mm** (24,0 gesamt
-minus 8,6 Kappenüberstand), der Lautsprecher **25,3 mm**. Den Rest bestimmen
-Akku und Feather.
+The ScreenKeys need only **15.4 mm** behind the front plate (24.0 total minus
+8.6 cap overhang), the speaker **25.3 mm**. The rest is decided by the battery
+and the Feather.
 
-Der Akku ist **63 × 50,3 × 8,1 mm**. Hinter den Tastenblock (62,9 × 80,6 mm)
-passt er nur **quer gedreht** - längs fehlt ein Zehntelmillimeter. Quer bleiben
-seitlich 12,6 mm und oben 17,6 mm frei.
+The battery is **63 × 50.3 × 8.1 mm**. Behind the key block (62.9 × 80.6 mm) it
+fits only **turned sideways** — lengthwise it misses by a tenth of a
+millimetre. Sideways it leaves 12.6 mm free at the side and 17.6 mm at the top.
 
-Der Feather ist 22,8 mm breit und passt damit **nicht** in die 12,6 mm neben
-den Akku. Er muss darüber, also gestapelt:
+The Feather is 22.8 mm wide and therefore does **not** fit into the 12.6 mm
+next to the battery. It has to go above it, so stacked:
 
 ```
-Taste 15,4  +  Akku 8,1  +  Feather 8,0  =  31,5 mm
-Lautsprecher allein:                        25,3 mm
+key 15.4  +  battery 8.1  +  Feather 8.0  =  31.5 mm
+speaker alone:                               25.3 mm
 ```
 
-Damit bestimmt nicht mehr der Lautsprecher die Tiefe, sondern der Stapel:
-**innen etwa 32 mm, außen rund 36 mm.**
+That means the depth is no longer set by the speaker but by the stack:
+**about 32 mm inside, roughly 36 mm outside.**
 
-Beim Stapeln daran denken, dass die USB-C-Buchse des Feathers eine
-Gehäusekante erreichen muss - sonst lässt sich nicht laden.
+When stacking, remember that the Feather's USB-C socket has to reach an edge of
+the case — otherwise it cannot be charged.
 
-Der Akku wiegt **52 g** und ist damit das schwerste Einzelteil. Wo er sitzt,
-entscheidet, wie sich das Gerät in der Hand anfühlt.
+The battery weighs **52 g** and is thus the heaviest single part. Where it sits
+decides how the device feels in the hand.
 
-Noch zu prüfen, wenn die Teile da sind: ob die Tastenkappe mittig auf der
-Platine sitzt. Auf den Bildern liegen FPC- und Stiftleistenanschluss im unteren
-Bereich - falls die Kappe nach oben versetzt ist, verschieben sich alle
-Senkrechtmaße und damit die Frontausschnitte.
+Still to check once the parts arrive: whether the key cap sits centred on the
+board. In the photos the FPC and pin header connectors are in the lower area —
+if the cap is offset upwards, all vertical dimensions shift and with them the
+front cutouts.
 
 ---
