@@ -16,6 +16,8 @@ import os
 import json
 import re
 import sys
+import threading
+import time
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -223,6 +225,182 @@ def arasaac_download(pictogram_id: int, label: str) -> str:
     filename = f"{slugify(label)}-{int(pictogram_id)}.png"
     (SYMBOLS_DIR / filename).write_bytes(data)
     return filename
+
+
+# --- Fetching voices ---------------------------------------------------------
+# About 130 MB over somebody else's network - too long to answer a request
+# with. So it runs in a thread and the page asks how far it has got. Only one
+# at a time: two of them would write the same files.
+
+_fetch_lock = threading.Lock()
+_fetch = {"running": False, "done": 0, "total": 0, "name": "",
+          "error": "", "params": {}}
+
+
+def fetch_state() -> dict:
+    with _fetch_lock:
+        return dict(_fetch)
+
+
+def fetch_voices(lang: str) -> bool:
+    """Starts the download. False when one is already running."""
+    missing = tts.missing_voices(lang)
+    with _fetch_lock:
+        if _fetch["running"]:
+            return False
+        _fetch.update(running=True, done=0, total=len(missing), name="",
+                      error="", params={})
+
+    def work() -> None:
+        try:
+            for entry in missing:
+                name = entry.rsplit("/", 1)[-1]
+                with _fetch_lock:
+                    _fetch["name"] = tts.pretty_piper(name)
+                tts.download_voice(entry)
+                with _fetch_lock:
+                    _fetch["done"] += 1
+        except tts.TTSError as exc:
+            # The message, not the exception: this is read in the browser, in
+            # the language of the page.
+            with _fetch_lock:
+                _fetch["error"] = exc.key
+                _fetch["params"] = exc.params
+        finally:
+            with _fetch_lock:
+                _fetch["running"] = False
+                _fetch["name"] = ""
+
+    threading.Thread(target=work, daemon=True).start()
+    return True
+
+
+# --- Pairing -----------------------------------------------------------------
+# How the key gets onto the device without anybody typing it: the device shows
+# five digits, one per display, and whoever stands in front of it types them
+# in here. A device that has never been paired holds no shared secret, so it
+# cannot prove anything - but being able to read its displays is proof enough
+# of standing in the room with it. The protocol is in docs/software.md.
+
+PAIR_LIFETIME = 180      # seconds a code is good for
+PAIR_INTERVAL = 3        # how often the device should ask, in seconds
+PAIR_ATTEMPTS = 5        # wrong codes before a pairing gives up
+PAIR_MAX_PENDING = 8     # more than this at once is not a household
+
+_pair_lock = threading.Lock()
+_pairings: dict[str, dict] = {}
+
+HEX12 = re.compile(r"^[0-9a-f]{12}$")
+HEX32 = re.compile(r"^[0-9a-f]{32}$")
+DIGITS5 = re.compile(r"^[0-9]{5}$")
+
+
+def parse_lines(body: str) -> dict[str, str]:
+    """"keyword value" lines into a dictionary.
+
+    The device speaks this instead of JSON - a parser on the ESP32 means a
+    library, a heap and a class of failure a fixed line format does not have.
+    Unknown keywords are ignored on both sides, so either can gain a field
+    without the other falling over.
+    """
+    values: dict[str, str] = {}
+    for line in body.replace("\r\n", "\n").split("\n"):
+        keyword, _, value = line.strip().partition(" ")
+        if keyword and value:
+            values[keyword] = value.strip()
+    return values
+
+
+def pair_expired(entry: dict, now: float) -> bool:
+    return now - entry["since"] > PAIR_LIFETIME
+
+
+def pair_sweep(now: float) -> None:
+    """Drops what is too old. Called from every pairing route rather than by a
+    timer: nothing here is urgent enough to keep a thread awake for."""
+    for device in [d for d, e in _pairings.items()
+                   if pair_expired(e, now) and not e["ready"]]:
+        del _pairings[device]
+
+
+def pair_start(device: str, code: str, secret: str) -> str:
+    """Remembers a device that is showing a code. The answer is the state to
+    send back: "ok" or why not."""
+    now = time.time()
+    with _pair_lock:
+        pair_sweep(now)
+        # A device that starts again replaces its own pairing - it may have
+        # been restarted, and its old code is gone from the displays anyway.
+        if device not in _pairings and len(_pairings) >= PAIR_MAX_PENDING:
+            return "busy"
+        _pairings[device] = {
+            "code": code,
+            "secret": secret,
+            "since": now,
+            "left": PAIR_ATTEMPTS,
+            "ready": False,
+        }
+    return "ok"
+
+
+def pair_poll(device: str, secret: str) -> tuple[str, str]:
+    """(state, token) for a device asking whether somebody typed its code.
+
+    An unknown device and a wrong secret answer the same way on purpose: the
+    id is the Wi-Fi MAC and anybody on the network can read it, so a wrong
+    secret must not be distinguishable from a pairing that was never started.
+    """
+    now = time.time()
+    with _pair_lock:
+        entry = _pairings.get(device)
+        if entry is None or not hmac.compare_digest(entry["secret"], secret):
+            return ("unknown", "")
+        if entry["ready"]:
+            # Handed over once. From here the device carries the token itself.
+            del _pairings[device]
+            return ("ready", device_token())
+        if entry["left"] <= 0:
+            del _pairings[device]
+            return ("denied", "")
+        if pair_expired(entry, now):
+            del _pairings[device]
+            return ("expired", "")
+        return ("waiting", "")
+
+
+def pair_waiting() -> list[dict]:
+    """What the interface offers boxes for. Without this it would have to show
+    five empty fields to somebody who has no device on the table."""
+    now = time.time()
+    with _pair_lock:
+        pair_sweep(now)
+        return [{"device": device, "since": int(now - entry["since"])}
+                for device, entry in _pairings.items() if not entry["ready"]]
+
+
+def pair_confirm(code: str) -> tuple[str, str, int]:
+    """(result, device, attempts left) for five digits somebody typed.
+
+    A code matching nothing counts against every pairing currently waiting.
+    With one device on the table that is exactly right, and with two it is
+    still the only thing that can be meant - the person is typing at one of
+    them and getting it wrong.
+    """
+    now = time.time()
+    with _pair_lock:
+        pair_sweep(now)
+        pending = {d: e for d, e in _pairings.items() if not e["ready"]}
+        if not pending:
+            return ("none", "", 0)
+        for device, entry in pending.items():
+            if hmac.compare_digest(entry["code"], code):
+                entry["ready"] = True
+                return ("ok", device, entry["left"])
+        left = 0
+        for entry in pending.values():
+            entry["left"] -= 1
+            left = max(left, entry["left"])
+        return ("wrong", "", left)
 
 
 # --- HTTP --------------------------------------------------------------------
@@ -435,6 +613,31 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if path == "/api/pair":
+            # So the page can offer the five boxes only when a device is
+            # actually waiting. "since" is seconds, so it can also say how
+            # much of the code's life is left.
+            self._json({"waiting": pair_waiting()})
+            return
+
+        if path == "/api/voices/fetch":
+            # How far the download has got. The error is rendered here, where
+            # the language of the page is known - the thread only kept the key.
+            state = fetch_state()
+            self._json({
+                "running": state["running"],
+                "done": state["done"],
+                "total": state["total"],
+                "name": state["name"],
+                "error": (texts.t(state["error"], self._language(),
+                                  **state["params"])
+                          if state["error"] else ""),
+                # So the page knows whether there is anything left to offer.
+                # A look at the folder, not at the network.
+                "missing": len(tts.missing_voices("")),
+            })
+            return
+
         if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
             file = ASSETS / Path(path).name
             if not file.exists():
@@ -498,6 +701,58 @@ class Handler(BaseHTTPRequestHandler):
 
         self._error("err.not_found", 404)
 
+    # -- Pairing --
+
+    def _lines_body(self) -> dict[str, str]:
+        length = int(self.headers.get("Content-Length") or 0)
+        if length <= 0 or length > 4096:
+            return {}
+        return parse_lines(self.rfile.read(length).decode("utf-8", "replace"))
+
+    def _pair_answer(self, lines: list[str], code: int = 200) -> None:
+        self._send(code, ("\n".join(lines) + "\n").encode("utf-8"),
+                   "text/plain; charset=utf-8")
+
+    def _device_pair(self) -> None:
+        """A device announcing the code it is showing. No key here - this is
+        where a device that has none comes to get one."""
+        if not device_token():
+            self._pair_answer(["error no_token"], 503)
+            return
+        sent = self._lines_body()
+        device = sent.get("device", "").lower()
+        code = sent.get("code", "")
+        secret = sent.get("secret", "").lower()
+        if not (HEX12.match(device) and DIGITS5.match(code)
+                and HEX32.match(secret)):
+            self._pair_answer(["error bad_request"], 400)
+            return
+        if pair_start(device, code, secret) == "busy":
+            self._pair_answer(["error too_many"], 429)
+            return
+        self._pair_answer(["ok 1", f"expires {PAIR_LIFETIME}",
+                           f"interval {PAIR_INTERVAL}"])
+
+    def _device_pair_poll(self) -> None:
+        """Has anybody typed it yet - and if so, here is the key."""
+        if not device_token():
+            self._pair_answer(["error no_token"], 503)
+            return
+        sent = self._lines_body()
+        device = sent.get("device", "").lower()
+        secret = sent.get("secret", "").lower()
+        if not (HEX12.match(device) and HEX32.match(secret)):
+            self._pair_answer(["error bad_request"], 400)
+            return
+        state, token = pair_poll(device, secret)
+        if state == "unknown":
+            self._pair_answer(["error unknown"], 404)
+            return
+        if state == "ready":
+            self._pair_answer(["state ready", f"token {token}"])
+            return
+        self._pair_answer([f"state {state}"])
+
     def do_POST(self):
         route = urllib.parse.urlparse(self.path)
         path = route.path
@@ -505,6 +760,14 @@ class Handler(BaseHTTPRequestHandler):
         # The upload sends raw image data, not JSON - so it leaves early.
         if path == "/api/upload":
             self._upload(urllib.parse.parse_qs(route.query))
+            return
+
+        # The device speaks lines, not JSON - so these leave early too.
+        if path == "/api/device/pair":
+            self._device_pair()
+            return
+        if path == "/api/device/pair/poll":
+            self._device_pair_poll()
             return
 
         try:
@@ -555,6 +818,35 @@ class Handler(BaseHTTPRequestHandler):
                 self._error("err.download_failed", 502, reason=str(exc))
                 return
             self._json({"symbol": filename, "label": label})
+            return
+
+        if path == "/api/pair/confirm":
+            # Five digits and nothing else - no device is picked. The server
+            # looks for the pairing carrying that code.
+            code = str(body.get("code") or "").strip()
+            if not DIGITS5.match(code):
+                self._error("err.pair_wrong_code")
+                return
+            result, device, left = pair_confirm(code)
+            if result == "none":
+                self._error("err.pair_expired", 410)
+                return
+            if result == "wrong":
+                self._json({"error": texts.t("err.pair_wrong_code",
+                                             self._language()),
+                            "left": left}, 400)
+                return
+            self._json({"ok": True, "device": device})
+            return
+
+        if path == "/api/voices/fetch":
+            # Without a language, everything that is missing. The answer says
+            # only whether it started - how it goes is asked for separately.
+            lang = (body.get("lang") or "").strip()
+            if lang and lang not in tts.VOICE_CATALOGUE:
+                self._error("err.not_found", 404)
+                return
+            self._json({"started": fetch_voices(lang)})
             return
 
         if path == "/api/speak":
@@ -811,8 +1103,9 @@ PAGE = r"""<!doctype html>
        set tile, and an auto margin sent that one to the right edge too. */
     header .status { order: 1; margin-left: 0; }
     header .schalter { order: 2; margin-left: auto; }
-    header #langPick { order: 3; }
-    header #releaseBtn { order: 4; }
+    header #voiceBtn { order: 3; }
+    header #langPick { order: 4; }
+    header #releaseBtn { order: 5; }
 
     /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
        sets past the edge with nothing to say they are there - and the sets
@@ -881,6 +1174,57 @@ PAGE = r"""<!doctype html>
   }
   .activeRow .note { color: var(--muted); font-size: 12px; }
   .hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
+
+  /* Pairing. Shown only while a talker is actually waiting - see openPair. */
+  .pairing {
+    display: none; background: var(--panel); border: 1px solid var(--accent);
+    border-radius: 12px; padding: 14px; margin-bottom: 14px;
+  }
+  .pairing.show { display: block; }
+  .pairHead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .pairing .note { color: var(--muted); font-size: 12px; }
+  /* The five boxes stand where the keys stand: the set key on the left under
+     the speaker, 1 and 2 above, 3 and 4 below - the same grid as the editor
+     above, so nobody has to be told which digit goes where. */
+  .pairKeys {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    max-width: 300px; margin: 12px 0;
+  }
+  .pairKeys input {
+    width: 100%; text-align: center; font-size: 22px; padding: 10px 0;
+    font-family: ui-monospace, monospace;
+    /* The general rule for text fields pins them to the top of their line;
+       here they should fill the box they are in. */
+    align-self: stretch;
+  }
+  /* The set key sits under the speaker, beside both rows of keys - so its box
+     spans both and its digit sits level with the gap between them. */
+  .pairKeys .setBox { grid-row: span 2; display: flex; align-items: center; }
+  .pairKeys .setBox input { align-self: center; }
+  .pairFoot { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  /* The voice list. Two buttons per row on purpose: hearing a voice and
+     choosing it are two different decisions, and the first should not commit
+     to the second. */
+  .dlgHead strong { flex: 1 1 auto; font-weight: 600; }
+  .voiceList {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 16px; max-height: 60vh; overflow: auto;
+  }
+  .voiceRow {
+    display: flex; align-items: center; gap: 10px; padding: 6px;
+    border-radius: 10px; border: 2px solid transparent; background: var(--panel-2);
+  }
+  .voiceRow.on { border-color: var(--accent); }
+  /* Looks like a row, behaves like a button - so it can be reached with the
+     keyboard like everything else. */
+  .voiceRow .pick {
+    flex: 1 1 auto; min-width: 0; text-align: left; background: none;
+    border: none; padding: 4px 2px; color: var(--text);
+  }
+  .voiceRow .pick:hover { background: none; color: var(--accent); }
+  .voiceRow .note { color: var(--muted); font-size: 12px; }
+  .voiceRow.empty { background: none; color: var(--muted); display: block; }
 </style>
 </head>
 <body>
@@ -893,6 +1237,7 @@ PAGE = r"""<!doctype html>
     <span class="pille"></span>
     <span id="previewText"></span>
   </label>
+  <button id="voiceBtn"></button>
   <select id="langPick"></select>
   <button class="primary" id="releaseBtn"></button>
 </header>
@@ -902,6 +1247,17 @@ PAGE = r"""<!doctype html>
     <span id="conflictText"></span>
     <button id="overwriteBtn"></button>
     <button id="reloadBtn"></button>
+  </div>
+  <div class="pairing" id="pairing">
+    <div class="pairHead">
+      <strong id="pairTitle"></strong>
+      <span class="note" id="pairNote"></span>
+    </div>
+    <div class="pairKeys" id="pairKeys"></div>
+    <div class="pairFoot">
+      <button class="primary" id="pairConfirm"></button>
+      <span class="note" id="pairError"></span>
+    </div>
   </div>
   <div class="tabs" id="tabs"></div>
   <div class="slots" id="slots"></div>
@@ -921,6 +1277,15 @@ PAGE = r"""<!doctype html>
   </div>
   <div class="results" id="results"></div>
   <div class="hint" id="quellen"></div>
+</dialog>
+
+<dialog id="voices">
+  <div class="dlgHead">
+    <strong id="voiceHeading"></strong>
+    <button id="voiceClose"></button>
+  </div>
+  <div class="voiceList" id="voiceList"></div>
+  <div class="hint" id="voiceHint"></div>
 </dialog>
 
 <script>
@@ -1122,6 +1487,13 @@ function applyTexts() {
   $("closeBtn").textContent = t("ui.close");
   $("q").placeholder = t("ui.search_arasaac");
   $("quellen").textContent = t("ui.credits_arasaac");
+  $("voiceBtn").title = t("ui.voice_title");
+  $("voiceBtn").textContent = t("ui.voice");
+  $("voiceHeading").textContent = t("ui.voice");
+  $("voiceClose").textContent = t("ui.close");
+  $("pairTitle").textContent = t("ui.pair_title");
+  $("pairNote").textContent = t("ui.pair_note");
+  $("pairConfirm").textContent = t("ui.pair_confirm");
 
   // Just the code. "Deutsch" and "English" read nicer but cost a third of
   // the header on a phone, and a two-letter language code is the one label
@@ -1436,7 +1808,9 @@ function renderTabsOnly() {
   });
 }
 
-async function speak(text, button) {
+// A voice given here is listened to instead of the saved one - that is what
+// lets the picker play a voice before it is chosen.
+async function speak(text, button, voice) {
   if (!text.trim()) { status(t("ui.need_text")); return; }
   const before = button.textContent;
   button.textContent = "···";
@@ -1444,7 +1818,7 @@ async function speak(text, button) {
     const response = await api("/api/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, voice: voice || "" }),
     });
     const url = URL.createObjectURL(await response.blob());
     const audio = new Audio(url);
@@ -1456,6 +1830,343 @@ async function speak(text, button) {
   } finally {
     button.textContent = before;
   }
+}
+
+// --- Pairing -----------------------------------------------------------------
+// A talker showing five digits wants its key. The boxes stand where the keys
+// stand - set key on the left under the speaker, 1 and 2 above it, 3 and 4
+// below - so nobody has to be told an order. As one string the code runs
+// key1 key2 key3 key4 setkey; that order is the whole agreement with the
+// device, and it is written down in docs/software.md.
+
+const PAIR_ORDER = ["1", "2", "3", "4", "S"];
+let pairBoxes = [];
+let pairShown = false;
+
+function buildPairKeys() {
+  const grid = $("pairKeys");
+  grid.innerHTML = "";
+  pairBoxes = PAIR_ORDER.map(() => {
+    const box = document.createElement("input");
+    box.type = "text";
+    box.inputMode = "numeric";
+    box.maxLength = 1;
+    box.autocomplete = "off";
+    // Typing runs on by itself, and a backspace on an empty box steps back -
+    // five separate fields should not mean five separate clicks.
+    box.oninput = () => {
+      box.value = box.value.replace(/[^0-9]/g, "").slice(0, 1);
+      if (box.value) {
+        const next = pairBoxes[pairBoxes.indexOf(box) + 1];
+        if (next) next.focus();
+      }
+    };
+    box.onkeydown = (event) => {
+      if (event.key === "Backspace" && !box.value) {
+        const previous = pairBoxes[pairBoxes.indexOf(box) - 1];
+        if (previous) { previous.focus(); event.preventDefault(); }
+      }
+      if (event.key === "Enter") confirmPair();
+    };
+    return box;
+  });
+
+  // The set key first: it is the left-hand column and spans both rows, the
+  // same shape the editor draws above.
+  const setBox = document.createElement("div");
+  setBox.className = "setBox";
+  setBox.appendChild(pairBoxes[4]);
+  grid.appendChild(setBox);
+  for (let i = 0; i < 4; i++) grid.appendChild(pairBoxes[i]);
+}
+
+function pairCode() {
+  return pairBoxes.map((box) => box.value).join("");
+}
+
+async function confirmPair() {
+  const code = pairCode();
+  if (code.length !== PAIR_ORDER.length) return;
+  $("pairError").textContent = "";
+  try {
+    const response = await fetch("/api/pair/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const answer = await response.json();
+    if (!response.ok) {
+      $("pairError").textContent = answer.left
+        ? answer.error + " (" + t("ui.pair_left", { left: answer.left }) + ")"
+        : answer.error;
+      pairBoxes.forEach((box) => { box.value = ""; });
+      pairBoxes[0].focus();
+      return;
+    }
+    hidePair();
+    status(t("ui.pair_done"));
+  } catch (error) {
+    $("pairError").textContent = t("ui.pair_failed", { error: error.message });
+  }
+}
+
+function hidePair() {
+  pairShown = false;
+  $("pairing").classList.remove("show");
+}
+
+// Asked for regularly, because nobody tells the page that somebody has just
+// walked up to the talker and started a pairing.
+//
+// Deliberately without a check on document.hidden. It would save a few bytes
+// on a local network and buy a failure that looks like nothing at all: a page
+// the browser considers hidden - a second window, another desktop - would sit
+// there while somebody stands at the device reading out digits.
+async function watchPair() {
+  try {
+    const answer = await (await api("/api/pair")).json();
+    const waiting = (answer.waiting || []).length > 0;
+    if (waiting && !pairShown) {
+      pairShown = true;
+      buildPairKeys();
+      $("pairError").textContent = "";
+      $("pairing").classList.add("show");
+      pairBoxes[0].focus();
+    } else if (!waiting && pairShown) {
+      // Gave up at the device, or the code ran out.
+      hidePair();
+    }
+  } catch (error) {
+    // A pairing nobody can ask about is not worth an error on screen.
+  }
+  setTimeout(watchPair, 5000);
+}
+
+// --- The voice ---------------------------------------------------------------
+// The chosen voice stands in layout.json next to the language and is saved
+// with everything else. What can be spoken with here is a different question,
+// answered by the server on every open: a key entered in the meantime, or a
+// model that has arrived, should show up without reloading the page.
+
+let voices = { voices: [], active: "", chosen: "" };
+
+// "Thorsten · piper · de" is right in the list, where the backend and the
+// language tell voices apart. In the header there is room for the name only.
+const shortVoice = (label) => (label || "").split(" · ")[0];
+
+// Empty for a voice this installation does not have. That happens on a fresh
+// machine, where the answer is a name nothing can speak yet, and after a key
+// was withdrawn. Either way the raw id is not a label - it would put
+// "azure:de-DE-GiselaNeural" in the header.
+function labelOf(id) {
+  const hit = voices.voices.find((voice) => voice.id === id);
+  return hit ? hit.label : "";
+}
+
+function markVoiceButton() {
+  $("voiceBtn").textContent = shortVoice(labelOf(voices.active)) || t("ui.voice");
+}
+
+async function loadVoices() {
+  try {
+    voices = await (await api("/api/voices")).json();
+    markVoiceButton();
+  } catch (error) {
+    status(t("ui.voice_failed", { error: error.message }));
+  }
+}
+
+// What a voice is tried out on: a sentence from the set being worked on, so
+// one hears the actual content rather than a specimen. Only if there is none
+// does the sample step in.
+function sampleText() {
+  const set = layout.sets[current];
+  const slot = (set ? set.slots || [] : []).find((entry) => (entry.text || "").trim());
+  return slot ? slot.text.trim() : t("ui.voice_sample");
+}
+
+function voiceRow(id, name, note, mute) {
+  const row = document.createElement("div");
+  row.className = "voiceRow" + (id === voices.chosen ? " on" : "");
+
+  const play = document.createElement("button");
+  play.className = "play";
+  play.textContent = "▶";
+  play.title = t("ui.play_title");
+  // Nothing to listen to for a voice that is not here. The button stays, so
+  // the row keeps its shape, but it cannot be pressed.
+  play.disabled = !!mute;
+  // The voice of this row, not the saved one - otherwise trying one out would
+  // mean committing to it first.
+  play.onclick = () => speak(sampleText(), play, id || voices.active);
+
+  const pick = document.createElement("button");
+  pick.className = "pick";
+  const naming = document.createElement("span");
+  naming.textContent = name;
+  pick.appendChild(naming);
+  if (note) {
+    const extra = document.createElement("span");
+    extra.className = "note";
+    extra.textContent = " " + note;
+    pick.appendChild(extra);
+  }
+  pick.onclick = () => chooseVoice(id);
+
+  row.appendChild(play);
+  row.appendChild(pick);
+  return row;
+}
+
+// The button that fetches what is missing. Sits under the list when there is
+// one and in place of it when there is not - a machine that cannot speak at
+// all should not have to be told about a command line.
+function fetchRow() {
+  const row = document.createElement("div");
+  row.className = "voiceRow empty";
+  const button = document.createElement("button");
+  button.textContent = t("ui.voice_fetch");
+  button.disabled = fetching.running;
+  button.onclick = startFetch;
+  row.appendChild(button);
+  return row;
+}
+
+function renderVoices() {
+  const list = $("voiceList");
+  list.innerHTML = "";
+  if (!voices.voices.length) {
+    const empty = document.createElement("div");
+    empty.className = "voiceRow empty";
+    empty.textContent = t("ui.voice_none");
+    list.appendChild(empty);
+    if (fetching.missing) list.appendChild(fetchRow());
+    $("voiceHint").textContent = fetchNote() || t("ui.voice_none_hint");
+    return;
+  }
+  // An empty entry in the layout means "whatever works here". That is a real
+  // choice and stays selectable - but it has to say what it currently comes
+  // out as, or the list shows nothing as chosen.
+  //
+  // Only while it is in force, though: "active" is the voice being spoken,
+  // and as soon as one was picked by hand that is the picked one. Naming it
+  // here would promise that automatic leads back to it, which it does not -
+  // it would go to whichever voice this machine chooses for the language.
+  list.appendChild(voiceRow(
+    "", t("ui.voice_auto"),
+    voices.chosen ? "" : t("ui.voice_auto_note",
+                           { voice: labelOf(voices.active) })));
+  for (const voice of voices.voices) {
+    list.appendChild(voiceRow(voice.id, voice.label, ""));
+  }
+  // A voice can be chosen and not be here: a key withdrawn, a model deleted,
+  // a layout carried over from another machine. It stays chosen on purpose -
+  // so it has to be visible, or the list would show nothing as chosen and the
+  // next save would quietly drop a deliberate decision.
+  if (voices.chosen && !voices.voices.some((v) => v.id === voices.chosen)) {
+    list.appendChild(voiceRow(voices.chosen, voices.chosen,
+                              t("ui.voice_gone"), true));
+  }
+  if (fetching.missing) list.appendChild(fetchRow());
+  $("voiceHint").textContent = fetchNote() || t("ui.voice_rebuild");
+}
+
+// --- Fetching the offline voices ---------------------------------------------
+// About 130 MB, so the server downloads in the background and is asked how far
+// it has got. Polling rather than a held-open request: this server answers one
+// request per thread, and the interface should stay usable meanwhile.
+
+let fetching = { running: false, done: 0, total: 0, name: "", error: "",
+                 missing: 0 };
+let fetchDone = false;   // finished in this dialog - worth saying so
+
+// What the hint line says while a download runs, or "" when it has nothing
+// to add and the usual note applies.
+function fetchNote() {
+  if (fetching.error) return fetching.error;
+  if (fetching.running) {
+    return t("ui.voice_fetching", {
+      name: fetching.name,
+      done: fetching.done + 1,
+      total: fetching.total,
+    });
+  }
+  return fetchDone ? t("ui.voice_fetch_done") : "";
+}
+
+async function readFetch() {
+  try {
+    fetching = await (await api("/api/voices/fetch")).json();
+  } catch (error) {
+    fetching = { running: false, done: 0, total: 0, name: "",
+                 error: error.message, missing: 0 };
+  }
+}
+
+async function startFetch() {
+  fetchDone = false;
+  try {
+    await api("/api/voices/fetch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  } catch (error) {
+    fetching.error = error.message;
+    renderVoices();
+    return;
+  }
+  await readFetch();
+  renderVoices();
+  pollFetch();
+}
+
+// Stops by itself when the download is over. Two seconds is plenty: this is
+// minutes of downloading, not milliseconds.
+//
+// One loop at a time: closing the dialog does not stop it, so opening it again
+// would otherwise leave two of them polling and rendering over each other.
+let polling = false;
+
+function pollFetch() {
+  if (polling) return;
+  polling = true;
+  setTimeout(async () => {
+    polling = false;
+    await readFetch();
+    if (fetching.running) {
+      renderVoices();
+      pollFetch();
+      return;
+    }
+    fetchDone = !fetching.error;
+    // The voices themselves have to be asked for again - the list was empty
+    // when the dialog opened.
+    await loadVoices();
+    renderVoices();
+  }, 2000);
+}
+
+async function chooseVoice(id) {
+  layout.voice = id;
+  voices.chosen = id;
+  await save();
+  // The server decides what an empty entry resolves to, so ask rather than
+  // guess - and the release button has to light up, which save() already did.
+  await loadVoices();
+  renderVoices();
+}
+
+async function openVoices() {
+  $("voiceList").innerHTML = "";
+  $("voiceHint").textContent = "";
+  fetchDone = false;
+  $("voices").showModal();
+  await Promise.all([loadVoices(), readFetch()]);
+  renderVoices();
+  // A download started before this dialog was opened - in another tab, or
+  // before a reload - still has something to report.
+  if (fetching.running) pollFetch();
 }
 
 function openPicker(target, seed) {
@@ -1647,10 +2358,18 @@ async function loadSources() {
   }
 }
 
+$("pairConfirm").onclick = confirmPair;
+$("voiceBtn").onclick = openVoices;
+$("voiceClose").onclick = () => $("voices").close();
+
 // Labels first: without them the page shows empty buttons for as long as
 // the first request takes.
 applyTexts();
 loadSources();
+// Only to write the name into the header - the list itself is fetched again
+// when the dialog opens.
+loadVoices();
+watchPair();
 load().catch((error) => status(t("ui.load_failed", { error: error.message })));
 </script>
 </body>

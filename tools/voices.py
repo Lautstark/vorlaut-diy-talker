@@ -11,76 +11,18 @@ inside the image, where every new voice would mean building it again.
 
 Deliberately not in the repository: together they are about 130 MB, and they
 are somebody else's files, downloaded fresh rather than copied along.
+
+The catalogue itself and the downloading live in tts.py, because the page
+fetches voices too - one list, one place.
 """
 
 from __future__ import annotations
 
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import tts  # noqa: E402
-
-BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
-
-# Two German and two English voices, one male and one female each. All four
-# are public domain - which is what lets them be handed on. Most of piper's
-# better known English voices are not; before adding one, read its MODEL_CARD
-# next to the model, not the file name.
-#
-# ljspeech would be the obvious English pick and is public domain too, but it
-# is the name of a dataset, and in a list of first names it reads like an
-# error. Kristin is just as free and sits better among the others.
-VOICES = {
-    "de": [
-        "de/de_DE/thorsten/medium/de_DE-thorsten-medium",
-        "de/de_DE/kerstin/low/de_DE-kerstin-low",
-    ],
-    "en": [
-        "en/en_US/kristin/medium/en_US-kristin-medium",
-        "en/en_US/john/medium/en_US-john-medium",
-    ],
-}
-
-# A model is only usable together with its .onnx.json - that file is piper's
-# own description of the voice, and without it the model is just a blob.
-PARTS = (".onnx", ".onnx.json")
-
-TRIES = 5
-
-
-def target_dir() -> Path:
-    """Where a fetched voice belongs.
-
-    The first entry of VOICE_DIRS is where tts.py looks first, so a voice put
-    there is the one that gets found.
-    """
-    return tts.VOICE_DIRS[0]
-
-
-def fetch(url: str, target: Path) -> None:
-    """Downloads one file, and does not give up on the first hiccup.
-
-    This hangs off somebody else's server. A single failed request used to be
-    enough to leave half a voice on the disk.
-    """
-    last: Exception | None = None
-    for attempt in range(1, TRIES + 1):
-        try:
-            with urllib.request.urlopen(url, timeout=60) as response:
-                data = response.read()
-            # Write only once it is complete: a half file next to a whole
-            # .onnx.json looks like a usable voice and is not one.
-            part = target.with_suffix(target.suffix + ".part")
-            part.write_bytes(data)
-            part.replace(target)
-            return
-        except (urllib.error.URLError, OSError) as exc:
-            last = exc
-            print(f"    attempt {attempt} of {TRIES} failed: {exc}")
-    raise SystemExit(f"  {target.name} could not be fetched: {last}")
 
 
 def main(argv: list[str]) -> int:
@@ -93,25 +35,28 @@ def main(argv: list[str]) -> int:
             print(f"  {stem:28} {path}")
         return 0
 
-    wanted = [a for a in argv if not a.startswith("-")] or list(VOICES)
-    unknown = [w for w in wanted if w not in VOICES]
+    wanted = [a for a in argv if not a.startswith("-")] or list(tts.VOICE_CATALOGUE)
+    unknown = [w for w in wanted if w not in tts.VOICE_CATALOGUE]
     if unknown:
-        print(f"Unknown: {', '.join(unknown)}. Available: {', '.join(VOICES)}")
+        print(f"Unknown: {', '.join(unknown)}. "
+              f"Available: {', '.join(tts.VOICE_CATALOGUE)}")
         return 2
 
-    folder = target_dir()
-    folder.mkdir(parents=True, exist_ok=True)
     for language in wanted:
-        for voice in VOICES[language]:
-            name = voice.rsplit("/", 1)[-1]
-            if all((folder / f"{name}{part}").exists() for part in PARTS):
+        missing = set(tts.missing_voices(language))
+        for entry in tts.VOICE_CATALOGUE[language]:
+            name = entry.rsplit("/", 1)[-1]
+            if entry not in missing:
                 print(f"  {name} is already there")
                 continue
             print(f"  {name}")
-            for part in PARTS:
-                fetch(f"{BASE}/{voice}{part}", folder / f"{name}{part}")
+            try:
+                tts.download_voice(entry, note=lambda line: print(f"    {line}"))
+            except tts.TTSError as exc:
+                print(f"  {exc}")
+                return 1
 
-    print(f"\nIn {folder}:")
+    print(f"\nIn {tts.voice_target()}:")
     for stem in tts.piper_models():
         print(f"  {stem}")
     print("\nPick one on the page, or with:  python3 tts.py --voices")

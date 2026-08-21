@@ -56,7 +56,8 @@ editing**. Without a voice the interface works and the build works — only new
 sentences stay silent and say so.
 
 **Offline, free, no account** — two German and two English voices, all four
-public domain:
+public domain. The interface fetches them itself: open the voice picker in the
+header and press "Fetch voices". From the command line it also works:
 
 ```bash
 pip install piper-tts
