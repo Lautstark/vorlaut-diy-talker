@@ -52,6 +52,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
+#include "discover.h"
 #include "sync.h"
 
 // How long the setup portal stays open before the device gives up and goes
@@ -334,18 +335,18 @@ static void fetchContent() {
   showOnAll(text().wifi, nullptr);
 
   settings.begin("vorlaut", false);
-  String host = settings.getString("host", "");
-  const uint16_t port = settings.getUShort("port", 8771);
+  // Normally empty: the device finds the computer by itself, see discover.h.
+  // This is for the networks where that cannot work - a guest network that
+  // drops broadcasts, or two subnets with a router in between.
+  String fixed = settings.getString("fixed", "");
   String token = settings.getString("token", "");
 
   WiFiManager wm;
-  WiFiManagerParameter hostField("host", "Computer (IP or name)",
-                                 host.c_str(), 40);
-  WiFiManagerParameter portField("port", "Port", String(port).c_str(), 6);
+  WiFiManagerParameter fixedField("server", "Computer (only if it is not found)",
+                                  fixed.c_str(), 46);
   WiFiManagerParameter tokenField("token", "Key (VORLAUT_DEVICE_TOKEN)",
                                   token.c_str(), 64);
-  wm.addParameter(&hostField);
-  wm.addParameter(&portField);
+  wm.addParameter(&fixedField);
   wm.addParameter(&tokenField);
   wm.setConfigPortalTimeout(PORTAL_TIMEOUT_S);
 
@@ -357,21 +358,42 @@ static void fetchContent() {
     return;
   }
   // Only write what changed - NVS has a limited number of erase cycles.
-  if (host != hostField.getValue()) {
-    host = hostField.getValue();
-    settings.putString("host", host);
-  }
-  if (port != (uint16_t)atoi(portField.getValue())) {
-    settings.putUShort("port", (uint16_t)atoi(portField.getValue()));
+  if (fixed != fixedField.getValue()) {
+    fixed = fixedField.getValue();
+    settings.putString("fixed", fixed);
   }
   if (token != tokenField.getValue()) {
     token = tokenField.getValue();
     settings.putString("token", token);
   }
 
+  // Where the content is: typed in beats found, and found beats remembered.
+  // The search takes about a second and can come back with nothing - that is
+  // a network without broadcasts, not a fault.
+  String host;
+  uint16_t port = 8771;
+  if (fixed.length()) {
+    parseAddress(fixed, host, port);
+    Serial.printf("address typed in: %s:%u\n", host.c_str(), port);
+  } else {
+    showOnAll(text().searching, nullptr);
+    if (discoverServer(host, port)) {
+      // Remember it, so a network that swallows the next broadcast still has
+      // somewhere to go. Only on a change - NVS again.
+      if (host != settings.getString("host", "")) settings.putString("host", host);
+      if (port != settings.getUShort("port", 0)) settings.putUShort("port", port);
+      Serial.printf("found: %s:%u\n", host.c_str(), port);
+    } else {
+      host = settings.getString("host", "");
+      port = settings.getUShort("port", 8771);
+      Serial.printf("nobody answered the search. Trying the last one: %s:%u\n",
+                    host.length() ? host.c_str() : "(none yet)", port);
+    }
+  }
+
   Serial.printf("Wi-Fi %s, fetching from %s:%u\n", WiFi.SSID().c_str(),
-                host.c_str(), settings.getUShort("port", 8771));
-  Sync sync(host, settings.getUShort("port", 8771), token);
+                host.c_str(), port);
+  Sync sync(host, port, token);
   const SyncStatus status = sync.run(syncProgress);
   WiFi.mode(WIFI_OFF);   // straight back off, it costs power
 

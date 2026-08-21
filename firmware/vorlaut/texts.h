@@ -46,6 +46,7 @@ struct Strings {
   const char *fetch1;        // key 2: fetch content over Wi-Fi, line 1
   const char *fetch2;        //                                 line 2
   const char *wifi;          // ... looking for the network
+  const char *searching;     // ... and then for the computer that has the content
   const char *loading;       // ... transferring, with a count underneath
   const char *done;          // ... and it worked
   const char *failed;        // ... and it did not, with a reason below
@@ -72,6 +73,7 @@ static const Strings LANGUAGES[] = {
     /* fetch1          */ "Fetch",
     /* fetch2          */ "content",
     /* wifi            */ "Wi-Fi",
+    /* searching       */ "searching",
     /* loading         */ "loading",
     /* done            */ "done",
     /* failed          */ "failed",
@@ -94,6 +96,7 @@ static const Strings LANGUAGES[] = {
     /* fetch1          */ "Inhalte",
     /* fetch2          */ "holen",
     /* wifi            */ "WLAN",
+    /* searching       */ "suchen",
     /* loading         */ "lädt",
     /* done            */ "fertig",
     /* failed          */ "Fehler",

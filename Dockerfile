@@ -28,6 +28,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8771
+# UDP as well: that is where the device asks who has the content. Whether a
+# broadcast reaches a container is a question for the network it is given -
+# see docker-compose.yml.
+EXPOSE 8771/udp
 # Inside a container it has to listen on every address, otherwise the port
 # forwarding does not get through. Outwards the published port limits it.
 CMD ["python", "app.py", "--host", "0.0.0.0"]

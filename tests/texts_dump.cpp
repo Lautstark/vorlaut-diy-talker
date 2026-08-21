@@ -30,6 +30,7 @@ int main(void) {
     dump(i, "fetch1", s.fetch1);
     dump(i, "fetch2", s.fetch2);
     dump(i, "wifi", s.wifi);
+    dump(i, "searching", s.searching);
     dump(i, "loading", s.loading);
     dump(i, "done", s.done);
     dump(i, "failed", s.failed);

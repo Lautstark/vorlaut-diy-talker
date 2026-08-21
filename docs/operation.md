@@ -13,6 +13,11 @@ At start-up it prints the address to put into the phone, something like
 `http://192.168.0.25:8771`. The interface reflows on narrow screens: the set
 tile across the full width on top, the four speech keys as a 2x2 below it.
 
+It prints <http://vorlaut.local:8771> as well, and that is the one worth
+bookmarking: it still points at the right machine after the router has handed
+out a different number. Not every phone looks a name like that up — Android is
+the usual disappointment — and then the address above still works.
+
 **Putting it on the home screen.** The page ships a web manifest, so it can be
 placed like an app: in Safari *Share → Add to Home Screen*, in Chrome through
 the menu. After that it starts full screen without an address bar.
@@ -53,6 +58,30 @@ therefore stay on the NAS and are covered by its backup.
 
 Verified: Azure speech, ffmpeg (7.1.5 in the image), ARASAAC search and
 `build.py` all run inside the container.
+
+#### Being found by the device
+
+The device is not told where the server is — it asks the network and takes the
+answer, see [software.md](software.md). A container makes that harder than a
+plain install does: the question arrives as a broadcast, and whether Docker
+carries one through a published port into a bridge network depends on the
+host. On the Mac it was written on it did; on a Synology it may not.
+
+`docker-compose.yml` publishes the UDP port for it and passes
+`VORLAUT_PUBLIC_PORT`, so the answer names the port the NAS publishes and not
+the one inside the container. If the device still does not find it, there are
+two ways on, and the first is usually enough:
+
+1. **Type the address of the NAS into the setup portal.** That field is there
+   for exactly this case and beats the search. Nothing else changes — the sync
+   runs over the published port as before.
+2. **Give the container the host's network** — `network_mode: host`, commented
+   out in `docker-compose.yml`. Then it is found like anything else on the
+   network. In exchange the published ports stop applying: the interface sits
+   on port 8771 of the NAS itself, and `VORLAUT_PORT` does nothing.
+
+For `vorlaut.local` it has to be the second one. Multicast is not something a
+published port carries.
 
 #### Starting
 

@@ -205,10 +205,17 @@ comes up only when somebody asks for it here, and goes off again straight
 afterwards.
 
 On the first use a setup portal opens: join the network **"vorlaut einrichten"**
-with a phone and enter the Wi-Fi, the address of the computer running `app.py`,
-and the key from `VORLAUT_DEVICE_TOKEN`. All three are kept in NVS and survive
-a reflash. The portal gives up after three minutes — a device stuck in a portal
-no longer speaks.
+with a phone and enter the Wi-Fi and the key from `VORLAUT_DEVICE_TOKEN`. Both
+are kept in NVS and survive a reflash. The portal gives up after three minutes
+— a device stuck in a portal no longer speaks.
+
+**The address of the computer is not asked for.** Once the Wi-Fi is up the
+device shouts one UDP packet into the network and takes the answer, so a new
+address from the router changes nothing and the same device works in another
+household. That takes about a second, with `searching` on the displays. The
+portal keeps a field for an address anyway, for the networks that swallow
+broadcasts — filled in, it beats the search. The whole of it is in
+[software.md](software.md).
 
 While it runs, all five displays show the same thing: `Wi-Fi`, then `loading`
 with a count, then `done` with the number of files. On failure they show
@@ -217,7 +224,7 @@ with a count, then `done` with the number of files. On failure they show
 | | |
 |---|---|
 | `no Wi-Fi` | the network was not reached, or the portal timed out |
-| `no server` | no address entered |
+| `no server` | nobody answered the search, and nothing was remembered or typed in |
 | `wrong key` | the key does not match `VORLAUT_DEVICE_TOKEN` |
 | `shut` | no key set on the server, so the endpoints answer 503 |
 
