@@ -45,14 +45,19 @@ struct Strings {
   const char *empty2;        //                            line 2
   const char *fetch1;        // key 2: fetch content over Wi-Fi, line 1
   const char *fetch2;        //                                 line 2
+  const char *pairMenu;      // key 3: pair with the web interface
   const char *wifi;          // ... looking for the network
   const char *loading;       // ... transferring, with a count underneath
   const char *done;          // ... and it worked
   const char *failed;        // ... and it did not, with a reason below
+  const char *pairing;       // ... asking the server for a code
+  const char *paired;        // ... and the token arrived
   const char *noWifi;        // reasons, each one word
   const char *noServer;
   const char *badKey;
   const char *switchedOff;
+  const char *tooLate;       // ... the pairing code expired unused
+  const char *denied;        // ... too many wrong attempts at the code
 };
 
 // The order has to match LANGUAGE_CODES in build.py - the file stores the
@@ -71,14 +76,19 @@ static const Strings LANGUAGES[] = {
     /* empty2          */ "content",
     /* fetch1          */ "Fetch",
     /* fetch2          */ "content",
+    /* pairMenu        */ "Pair",
     /* wifi            */ "Wi-Fi",
     /* loading         */ "loading",
     /* done            */ "done",
     /* failed          */ "failed",
+    /* pairing         */ "pairing",
+    /* paired          */ "paired",
     /* noWifi          */ "no Wi-Fi",
     /* noServer        */ "no server",
     /* badKey          */ "wrong key",
     /* switchedOff     */ "shut",
+    /* tooLate         */ "too late",
+    /* denied          */ "denied",
   },
   {  // 1 - German
     /* back            */ "zurück",
@@ -93,14 +103,19 @@ static const Strings LANGUAGES[] = {
     /* empty2          */ "Inhalte",
     /* fetch1          */ "Inhalte",
     /* fetch2          */ "holen",
+    /* pairMenu        */ "Koppeln",
     /* wifi            */ "WLAN",
     /* loading         */ "lädt",
     /* done            */ "fertig",
     /* failed          */ "Fehler",
+    /* pairing         */ "koppeln",
+    /* paired          */ "gekoppelt",
     /* noWifi          */ "kein WLAN",
     /* noServer        */ "kein Ziel",
     /* badKey          */ "Schlüssel",
     /* switchedOff     */ "zu",
+    /* tooLate         */ "zu spät",
+    /* denied          */ "abgelehnt",
   },
 };
 

@@ -106,9 +106,18 @@ up — a talker that hangs during setup no longer speaks.
 `test7_sync` — the sync and nothing else. No displays, no sound, no sleep, so
 that a problem here is this one problem and not one of six at the same time.
 
-It needs the address of the computer running `app.py` and the key from
-`VORLAUT_DEVICE_TOKEN` in `.env`. Both are asked for in the same portal as the
-Wi-Fi and are kept afterwards.
+It needs the address of the computer running `app.py`. That is asked for in the
+same portal as the Wi-Fi and is kept afterwards.
+
+**The key is not typed in.** The sketch pairs by itself: it makes up five
+digits and prints them in the monitor, laid out the way they will later sit on
+the displays — 1 and 2 on top, the set key on the left, 3 and 4 below. Type
+those five into the web interface and the sketch is handed
+`VORLAUT_DEVICE_TOKEN` and stores it. The code is good for about three minutes.
+How the whole exchange works is in [software.md](software.md#pairing).
+
+The second run does not ask again: the key is in NVS and stays valid even if
+the computer turns up at a different address later.
 
 What should happen: **the first run fetches everything, the second fetches
 `layout.bin` only.** That difference is the whole point of the design — the
@@ -129,7 +138,12 @@ At the very first start the file system is empty — the device then shows
 **"keine Inhalte"** on all five displays. That is correct and not a fault.
 Through the menu (hold the set key and key 2 for five seconds), **Info** shows
 whether LittleFS is mounted, and **Inhalte holen** does what stage 7 did, this
-time with the displays showing progress.
+time with the displays showing progress — including the pairing, with one digit
+on each of the five displays instead of a line in the monitor. **Koppeln** on
+key 3 does only that part, for when the key on the server has been replaced.
+
+A device that was set up before pairing existed has its key in the same place
+and goes straight past all of this.
 
 ---
 

@@ -29,14 +29,19 @@ int main(void) {
     dump(i, "empty2", s.empty2);
     dump(i, "fetch1", s.fetch1);
     dump(i, "fetch2", s.fetch2);
+    dump(i, "pairMenu", s.pairMenu);
     dump(i, "wifi", s.wifi);
     dump(i, "loading", s.loading);
     dump(i, "done", s.done);
     dump(i, "failed", s.failed);
+    dump(i, "pairing", s.pairing);
+    dump(i, "paired", s.paired);
     dump(i, "noWifi", s.noWifi);
     dump(i, "noServer", s.noServer);
     dump(i, "badKey", s.badKey);
     dump(i, "switchedOff", s.switchedOff);
+    dump(i, "tooLate", s.tooLate);
+    dump(i, "denied", s.denied);
   }
   printf("max %d\n", MENU_MAX_CHARS);
   printf("count %u\n", (unsigned)LANGUAGE_COUNT);

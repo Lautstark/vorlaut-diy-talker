@@ -70,6 +70,13 @@ jobs:
         # nothing says words to the user from outside the table.
         run: python tests/test_ui_texts.py
 
+      - name: The pairing format reads the way the device reads it
+        # Compiles pair_format.h from the sketch and checks the five-digit
+        # code and the line answers against what app.py is supposed to send.
+        # Both sides of the pairing are written from docs/software.md, and
+        # neither can notice on its own that the other moved.
+        run: python tests/test_pair_format.py
+
       - name: Menu labels fit on a display
         # Compiles texts.h and panel_text.h the same way. A translation that
         # is too long, or uses a letter the built-in font does not have, would
