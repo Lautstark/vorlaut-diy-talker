@@ -134,12 +134,12 @@ export async function loadSources() {
   }
   $("q").placeholder = t(sources.metacom ? "ui.search_both" : "ui.search_arasaac");
   if (sources.metacom) {
-    $("quellen").textContent = t("ui.credits_both");
+    $("credits").textContent = t("ui.credits_both");
   } else {
     // Where somebody is standing when they wish the pictograms were better.
     // Nobody opens settings to find out that a licence they own would be
     // searched too.
-    $("quellen").textContent =
+    $("credits").textContent =
       t("ui.metacom_offer") + " " + t("ui.credits_arasaac");
   }
 }

@@ -42,13 +42,13 @@ function emptySet(index, active) {
 //
 // The large tile above deliberately stays the source image. It is there for
 // picking and should be sharp.
-function echtgross(symbol, colour) {
+function actualSize(symbol, colour) {
   const line = document.createElement("div");
-  line.className = "echtgross";
-  const bild = document.createElement("img");
-  bild.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
+  line.className = "actualSize";
+  const image = document.createElement("img");
+  image.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
            + "&color=" + encodeURIComponent(colour || "#000000");
-  line.append(bild, document.createTextNode(t("ui.device_size")));
+  line.append(image, document.createTextNode(t("ui.device_size")));
   return line;
 }
 
@@ -174,7 +174,7 @@ export function render() {
   setTile.appendChild(setLabel);
   setTile.appendChild(thumb(entry.symbol, () => openPicker({ kind: "set" }, entry.name)));
 
-  if (preview) setTile.appendChild(echtgross(entry.symbol, color));
+  if (preview) setTile.appendChild(actualSize(entry.symbol, color));
 
   const nameInput = document.createElement("input");
   nameInput.type = "text";
@@ -186,7 +186,7 @@ export function render() {
   // Only five sets fit onto the device - creating more is allowed. This
   // switch decides which of them come along.
   const activeToggle = document.createElement("label");
-  activeToggle.className = "schalter onDevice";
+  activeToggle.className = "toggle onDevice";
   // Short, because the device-preview switch sits right next to it - the same
   // word twice in one view reads like the same thing. The title says what it
   // means.
@@ -195,7 +195,7 @@ export function render() {
   activeBox.type = "checkbox";
   activeBox.checked = entry.active !== false;
   const activePill = document.createElement("span");
-  activePill.className = "pille";
+  activePill.className = "pill";
   activeToggle.append(activeBox, activePill, document.createTextNode(t("ui.active")));
   activeBox.onchange = async () => {
     if (activeBox.checked && activeCount() >= limits.maxActive) {
@@ -231,13 +231,13 @@ export function render() {
   const swatches = document.createElement("div");
   swatches.className = "swatches";
   palette.forEach((hex) => {
-    const feld = document.createElement("span");
-    const aktiv = hex.toUpperCase() === (color || "").toUpperCase();
-    feld.className = "swatch" + (aktiv ? " active" : "");
-    feld.style.background = hex;
-    feld.title = hex;
-    feld.onclick = () => applyColor(hex);
-    swatches.appendChild(feld);
+    const swatch = document.createElement("span");
+    const isActive = hex.toUpperCase() === (color || "").toUpperCase();
+    swatch.className = "swatch" + (isActive ? " active" : "");
+    swatch.style.background = hex;
+    swatch.title = hex;
+    swatch.onclick = () => applyColor(hex);
+    swatches.appendChild(swatch);
   });
   // Directly below the name field: the quick picks are the normal case, the
   // colour picker below them the exception.
@@ -320,7 +320,7 @@ export function render() {
     row.append(textInput, playBtn);
     tile.appendChild(row);
 
-    if (preview) tile.appendChild(echtgross(slot.symbol, color));
+    if (preview) tile.appendChild(actualSize(slot.symbol, color));
     device.appendChild(tile);
   });
 }

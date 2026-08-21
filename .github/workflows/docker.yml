@@ -34,7 +34,7 @@ jobs:
             | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
       # amd64 and arm64, so that NAS models with ARM can pull it too,
-      # statt es selbst zu bauen.
+      # rather than having to build it themselves.
       - name: Build and push
         uses: docker/build-push-action@v6
         with:

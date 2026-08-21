@@ -24,7 +24,7 @@ FS_IMAGE = config.SKETCH_DIR / "littlefs.bin"
 
 
 def find_tool(name: str) -> Path | None:
-    """Sucht ein Werkzeug im ESP32-Core der Arduino-IDE."""
+    """Looks for a tool in the Arduino IDE's ESP32 core."""
     for base in (
         Path.home() / "Library/Arduino15/packages/esp32/tools",
         Path.home() / ".arduino15/packages/esp32/tools",

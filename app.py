@@ -191,7 +191,7 @@ def preview_png(symbol: str, color: str) -> bytes:
 
 
 def save_upload(data: bytes, original_name: str) -> str:
-    """Nimmt ein hochgeladenes Bild an und legt es als PNG in symbols/ ab."""
+    """Takes an uploaded image and stores it as a PNG in symbols/."""
     Image, _ = build._require_pillow()
     try:
         with Image.open(io.BytesIO(data)) as opened:
@@ -243,7 +243,7 @@ def arasaac_fetch(pictogram_id: int) -> bytes:
     with urllib.request.urlopen(request, timeout=30) as response:
         data = response.read()
     if not data.startswith(b"\x89PNG"):
-        raise ValueError("ARASAAC hat kein PNG geliefert.")
+        raise ValueError("ARASAAC did not return a PNG.")
     cached.write_bytes(data)
     return data
 
@@ -1254,7 +1254,7 @@ def local_addresses() -> list[str]:
     addresses = set()
     try:
         # No connection is made - the kernel only reveals which
-        # Schnittstelle er hinauswollte.
+        # interface it would have sent the packet out of.
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("192.0.2.1", 9))
             addresses.add(s.getsockname()[0])

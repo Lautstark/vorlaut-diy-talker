@@ -116,8 +116,8 @@ static Panel *display[DISPLAY_COUNT];
 static I2SClass i2s;
 
 struct ButtonState {
-  uint32_t downSince;  // 0 = losgelassen
-  bool reported;       // Druck wurde schon behandelt
+  uint32_t downSince;  // 0 = not pressed
+  bool reported;       // this press has already been handled
 };
 static ButtonState button[DISPLAY_COUNT];
 

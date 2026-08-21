@@ -22,7 +22,7 @@
 
 #include "../../vorlaut/pins.h"
 
-static const uint32_t ABTASTRATE = 16000;   // wie build.py die WAVs schreibt
+static const uint32_t ABTASTRATE = 16000;   // the rate build.py writes the WAVs at
 static const size_t BLOCK = 512;
 
 static I2SClass i2s;

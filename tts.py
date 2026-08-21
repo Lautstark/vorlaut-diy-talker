@@ -119,7 +119,7 @@ SILENCE_THRESHOLD = "-45dB"
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
 # Do not trim down to the last audible sample: a little room tone stays, or
 # short words like "Ja" end up sounding clipped.
-KEEP_HEAD = 0.06   # Sekunden Stille vor dem Wort
+KEEP_HEAD = 0.06   # seconds of silence before the word
 KEEP_TAIL = 0.10   # seconds after the word, so it can ring out
 FADE = 0.012       # short fade at both ends against clicks
 TAIL_PAD = 0.06    # quiet at the end, before the amplifier switches off

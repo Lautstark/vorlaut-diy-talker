@@ -24,8 +24,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
+import german  # noqa: E402
 import app  # noqa: E402
 import build  # noqa: E402
 import texts  # noqa: E402
@@ -113,9 +116,12 @@ def harmless(rest: str) -> bool:
 def check_no_leftovers() -> int:
     """Nothing may say words to the user from outside the table.
 
-    Two passes, because either alone misses things. Umlauts catch German that
-    was never keyed; the second pass catches a label that happens to have no
-    umlaut in it - "Set deleted" would sail straight through the first.
+    Two passes, because either alone misses things. The first is German left
+    in the front end, recognised by tests/german.py rather than by a look for
+    umlauts - most German has none, which is how a half-translated comment sat
+    in ui.css for a whole release. The second catches a label that is not
+    German at all but is still a literal - "Set deleted" is English and still
+    a string that will never be translated.
     """
     sources = frontend_sources()
     # The page is a stylesheet and a dozen modules; anything close to none of
@@ -126,26 +132,22 @@ def check_no_leftovers() -> int:
               f"{app.STATIC} - the scan is looking in the wrong place")
         return 1
 
-    watched = []
+    failures = 0
     for path in sources:
         text = path.read_text(encoding="utf-8")
-        watched += [(path.name, n, l)
-                    for n, l in enumerate(text.split("\n"), start=1)]
-    failures = 0
-    for name, number, line in watched:
-        stripped = line.strip()
-        # The transliteration table in slugify is data, not a message.
-        if "replacement" in line:
-            continue
-        if re.search(r"[äöüßÄÖÜ]", line):
-            print(f"  FAIL  {name}:{number} still holds German: {stripped[:60]}")
-            failures += 1
-            continue
-        match = SHOWS_TEXT.search(line)
-        if match and not harmless(line[match.end() - 1:]):
-            print(f"  FAIL  {name}:{number} shows a literal instead of a "
-                  f"key: {stripped[:60]}")
-            failures += 1
+        german_lines = {n for n, _, _ in german.findings(path, text)}
+        for number, line in enumerate(text.split("\n"), start=1):
+            stripped = line.strip()
+            if number in german_lines:
+                print(f"  FAIL  {path.name}:{number} still holds German: "
+                      f"{stripped[:60]}")
+                failures += 1
+                continue
+            match = SHOWS_TEXT.search(line)
+            if match and not harmless(line[match.end() - 1:]):
+                print(f"  FAIL  {path.name}:{number} shows a literal instead "
+                      f"of a key: {stripped[:60]}")
+                failures += 1
     return failures
 
 
@@ -289,10 +291,10 @@ def check_cli_stays_english() -> int:
     try:
         raise build.BuildError("build.err.too_many_sets", max=25, found=30)
     except build.BuildError as exc:
-        if re.search(r"[äöüßÄÖÜ]", str(exc)):
+        if german.looks_german(str(exc)):
             print(f"  FAIL  str(BuildError) is not English: {exc}")
             failures += 1
-        if not re.search(r"[äöüß]", exc.message("de")):
+        if not german.looks_german(exc.message("de")):
             print(f"  FAIL  BuildError.message('de') is not German: "
                   f"{exc.message('de')}")
             failures += 1

@@ -86,11 +86,11 @@ static void rahmenBild() {
 
 void loop() {
   switch (schritt) {
-    case 0: tft->fillScreen(ST77XX_RED);   Serial.println("ROT");   break;
+    case 0: tft->fillScreen(ST77XX_RED);   Serial.println("RED");   break;
     case 1: tft->fillScreen(ST77XX_GREEN); Serial.println("GREEN"); break;
-    case 2: tft->fillScreen(ST77XX_BLUE);  Serial.println("BLAU");  break;
+    case 2: tft->fillScreen(ST77XX_BLUE);  Serial.println("BLUE");  break;
     case 3: rahmenBild();
-            Serial.println("Rahmen: ringsum gleich breit? Alle vier Ecken ganz?");
+            Serial.println("Frame: same width all round? All four corners whole?");
             break;
   }
   schritt = (schritt + 1) % 4;

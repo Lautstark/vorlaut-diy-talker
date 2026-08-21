@@ -30,7 +30,7 @@ export function applyTexts() {
   $("uploadBtn").textContent = t("ui.own_image");
   $("closeBtn").textContent = t("ui.close");
   $("q").placeholder = t("ui.search_arasaac");
-  $("quellen").textContent = t("ui.credits_arasaac");
+  $("credits").textContent = t("ui.credits_arasaac");
   $("settingsHeading").textContent = t("ui.settings");
   $("voiceSection").textContent = t("ui.voice");
   $("azureSection").textContent = t("ui.azure");
