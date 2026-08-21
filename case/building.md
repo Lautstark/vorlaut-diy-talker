@@ -52,6 +52,23 @@ That catches mistakes which stay invisible at parameter level: a cutout with
 the wrong depth, say, or a boss that another solid has cut away. Both scripts
 need nothing but Python 3.
 
+> **Read what OpenSCAD says, not just its exit code.** A misspelled module is
+> not an error:
+>
+> ```
+> WARNING: Ignoring unknown module 'carrier_umriss' in file vorlaut-case.scad
+> ```
+>
+> It leaves that part out, warns, and writes an STL anyway. Renaming a module
+> and missing one call site cost the tub 12400 of its 30990 triangles once,
+> and the exit code stayed 0. So after every rename, compare the geometry -
+> triangle count, volume and bounding box - against the previous render.
+>
+> Byte comparison does not work for that: OpenSCAD does not order the
+> triangles deterministically, and two runs of the same file give different
+> checksums. Volume via the divergence theorem and the bounding box are
+> independent of the order.
+
 ## Printing
 
 Simple FDM printer, one colour, **no support material**. The design does

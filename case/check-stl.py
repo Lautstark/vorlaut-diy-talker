@@ -6,7 +6,7 @@ Checks the exported STL files against the dimensions from the .scad.
 `verify.py` checks the numbers before OpenSCAD touches them. This script
 checks what OpenSCAD made of them: outer dimensions and whether the decisive
 places really hold material or air. That catches mistakes
-die auf Parameterebene unsichtbar sind — ein Ausschnitt, der die falsche
+that stay invisible at parameter level - a cutout with the wrong
 depth, or a boss cut away by another solid.
 
     openscad -o /tmp/tub.stl   -D 'part="tub"'   case/vorlaut-case.scad
@@ -14,8 +14,8 @@ depth, or a boss cut away by another solid.
     openscad -o /tmp/lid.stl  -D 'part="lid"'  case/vorlaut-case.scad
     python3 case/check-stl.py /tmp/tub.stl /tmp/carrier.stl /tmp/lid.stl
 
-Zu den Punktproben: getestet wird per Strahlensatz nach oben (+z). Punkte
-genau auf einer Zylinderachse oder auf einer Tessellierungsnaht liefern
+About the point probes: they are tested by casting a ray upwards (+z).
+Points exactly on a cylinder axis or on a tessellation seam give
 random results there - so every probe shoots three slightly offset rays and
 lets the majority decide. Whoever adds a new probe should for the same reason
 avoid round coordinates.
@@ -110,31 +110,31 @@ def main():
     p = load_parameters(SCAD)
     G = p.get
     L = Run()
-    teile = {}
+    parts = {}
     for path in sys.argv[1:]:
         name = os.path.splitext(os.path.basename(path))[0].lower()
         for k in ('tub', 'carrier', 'lid'):
             if k in name:
-                teile[k] = load_stl(path)
+                parts[k] = load_stl(path)
 
-    print('\nAussenmasse')
-    print('-----------')
-    if 'tub' in teile:
-        b = bbox(teile['tub'])
+    print('\nOuter dimensions')
+    print('----------------')
+    if 'tub' in parts:
+        b = bbox(parts['tub'])
         # Das Logo an der Unterkante steht 0,6 mm vor die Wand — es gehoert
         # zum Bauteil, aber nicht zum Gehaeusemass.
         L.measure('tub width', b[3] - b[0], G('outer_b'))
         L.measure('tub height (with logo at the bottom edge)', b[4] - b[1],
                G('outer_h') + G('logo_side_h'))
         L.measure('tub depth', b[5] - b[2], G('outer_t'))
-    if 'carrier' in teile:
-        b = bbox(teile['carrier'])
+    if 'carrier' in parts:
+        b = bbox(parts['carrier'])
         L.measure('carrier width', b[3] - b[0],
                G('inner_b') - G('carrier_play'))
         L.measure('carrier height', b[4] - b[1], G('inner_h') - G('carrier_play'))
         L.measure('carrier build height', b[5] - b[2], G('carrier_d') + G('battery_d') + 0.2)
-    if 'lid' in teile:
-        b = bbox(teile['lid'])
+    if 'lid' in parts:
+        b = bbox(parts['lid'])
         L.measure('lid width', b[3] - b[0],
                G('outer_b') - 2 * G('lip') - G('lid_play'))
         L.measure('lid height', b[4] - b[1],
@@ -142,10 +142,10 @@ def main():
         L.measure('lid build height', b[5] - b[2],
                G('lid_d') + G('logo_lid_h'))
 
-    if 'tub' in teile:
-        w = teile['tub']
-        print('\nPunktproben in der Wanne')
-        print('------------------------')
+    if 'tub' in parts:
+        w = parts['tub']
+        print('\nPoint probes in the tub')
+        print('----------------------')
         zf = G('front_d') / 2
         sk = [(G('set_mx'), G('set_my')),
               (G('blk_mx1'), G('blk_my1')), (G('blk_mx2'), G('blk_my1')),

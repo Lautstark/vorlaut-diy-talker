@@ -41,12 +41,12 @@ $fs = 0.4;
    ===================================================================== */
 
 /* --- Waveshare ScreenKey (5x) --- */
-sk_board_b        = 25.94;  // [M] Platine breit
-sk_board_h        = 35.29;  // [M] Platine hoch
-sk_board_d        = 1.60;   // [A] Platinendicke, typisch FR4
-sk_cap_b          = 22.00;  // [M] Tastenkappe breit
-sk_cap_h          = 25.30;  // [M] Tastenkappe hoch
-sk_cap_overhang =  8.60;  // [M] wie weit die Kappe vor der Front steht
+sk_board_b        = 25.94;  // [M] board width
+sk_board_h        = 35.29;  // [M] board height
+sk_board_d        = 1.60;   // [A] board thickness, typical FR4
+sk_cap_b          = 22.00;  // [M] key cap width
+sk_cap_h          = 25.30;  // [M] key cap height
+sk_cap_overhang =  8.60;  // [M] how far the cap stands proud of the front
 sk_total_depth      = 24.00;  // [M] cap front face to module back
 // How far the MOVING cap body reaches behind the front plate. That space has
 // to stay clear over its whole depth, otherwise the key jams. When in doubt
@@ -54,20 +54,20 @@ sk_total_depth      = 24.00;  // [M] cap front face to module back
 sk_cap_depth      = 15.40;  // [A] = sk_total_depth - sk_cap_overhang
 sk_image             = 15.21;  // [M] visible display area (for reference only)
 
-// >>> DIE Zahl, die nach dem Auspacken wahrscheinlich falsch ist. <<<
+// >>> THE number that is most likely wrong once the parts are unpacked. <<<
 // Offset of the cap centre against the board centre, positive = upwards.
-// Auf den Produktbildern liegen Stiftleiste und FPC-Stecker unten; wenn die
-// Kappe deshalb nach oben versetzt sitzt, hier den gemessenen Wert eintragen.
-// All front cutouts, the logo and the checks follow along automatically.
-cap_offset_y     =  0.00;  // [A] 0 = Kappe sitzt mittig
-cap_offset_x     =  0.00;  // [A] dito waagerecht
+// In the product photos the pin header and the FPC connector sit at the
+// bottom; if the cap is therefore offset upwards, enter the measured value
+// here. All front cutouts, the logo and the checks follow along automatically.
+cap_offset_y     =  0.00;  // [A] 0 = the cap sits centred
+cap_offset_x     =  0.00;  // [A] the same sideways
 
 // Mounting holes in the four board corners
-sk_hole_margin        =  2.00;  // [A] Lochmitte von der Platinenkante
-sk_hole_d           =  2.20;  // [A] Lochdurchmesser (M2)
+sk_hole_margin        =  2.00;  // [A] hole centre from the board edge
+sk_hole_d           =  2.20;  // [A] hole diameter (M2)
 
-/* --- Lautsprecher 40 mm --- */
-spk_frame           = 40.30;  // [M] quadratischer Rahmen
+/* --- Speaker 40 mm --- */
+spk_frame           = 40.30;  // [M] square frame
 spk_depth            = 25.30;  // [M]
 spk_cone_d        = 32.70;  // [M]
 spk_hole_diagonal   = 46.20;  // [M] diagonal across the four mounting holes
@@ -93,7 +93,7 @@ usb_centre_above_pcb =  1.60;  // [A] socket centre above the board top
 battery_b              = 63.00;  // [M]
 battery_h              = 50.30;  // [M]
 battery_d              =  8.10;  // [M]
-// 52 g — das schwerste Einzelteil. Position siehe Abschnitt 3.
+// 52 g — das schwerste Einzelteil. Position siehe section 3.
 
 /* --- Amplifier MAX98357A (Adafruit 3006) --- */
 amp_b               = 19.40;  // [R] adafruit.com/product/3006
@@ -112,12 +112,12 @@ gap_spk_set        =  5.00;  // [M] Lautsprecher bis Set-Platine
 
 /* --- daraus folgt das Bauteil-Rechteck --- */
 env_h  = spk_frame + gap_spk_set + sk_board_h;             // [G] 80,59
-// Set-Platine sitzt waagerecht mittig unter dem Lautsprecher
+// The set board sits sideways centred under the speaker
 set_mx = spk_frame/2;                                          // [G] 20,15
 set_my = sk_board_h/2;                                       // [G] 17,645
-// Linke Spalte des Viererblocks: Kappenspalt 25 mm zur Set-Kappe
-// Kappenspalt 25 mm zur Set-Kappe. Ein waagerechter Kappenversatz hebt sich
-// heraus, weil ALLE Kappen gleich versetzt sind — der Abstand bleibt gleich.
+// Left column of the block of four: 25 mm cap gap to the set cap. A sideways
+// cap offset cancels out, because ALL caps are offset the same way - the
+// distance stays as it is.
 blk_mx1 = set_mx + sk_cap_b + gap_set_block;                // [G] 67,15
 blk_mx2 = blk_mx1 + pitch_x;                                  // [G] 104,15
 blk_my1 = sk_board_h/2;                                      // [G] 17.645  (flush at the bottom)
@@ -169,20 +169,20 @@ boss_clearance  = 1.00;   // [K] Abstand Domkante zum Bauteil-Rechteck
 
 // Clearance between the component rectangle and the inner wall at carrier
 // height. The value is NOT freely chosen but set by the lid bosses: they sit
-// against the inner wall and must not touch a board. Lower limit 7.0 mm,
-// damit in der Platinenebene noch inner_margin - standoff = 5,0 mm bleiben —
-// der Wert aus docs/hardware.md.
-inner_margin    = max(7.00, boss_d + boss_clearance);   // [G] 7,0 bzw. 9,0
+// against the inner wall and must not touch a board. Lower limit 7.0 mm, so
+// that inner_margin - standoff = 5.0 mm is left in the board plane - the
+// value from docs/hardware.md.
+inner_margin    = max(7.00, boss_d + boss_clearance);   // [G] 7.0 or 9.0
 
-/* --- Tiefenaufbau --- */
+/* --- Depth budget --- */
 sk_behind_front = sk_total_depth - sk_cap_overhang;   // [G] 15,40
 cable_space       = 6.00;   // [K] behind the ScreenKey back: header,
-                          //     FPC-Stecker und Litzen. Ohne diesen Abstand
+                          //     FPC connector and wires. Without this gap
                           //     the battery presses on the connector pins.
 part_clearance    = 0.60;   // [K] clearance between the tallest part and the lid
-feather_support = 2.00;   // [K] Distanzsockel unter dem Feather. Nicht kleiner
-                          //     make: the solder pins of the
-                          //     Stiftleisten ab.
+feather_support = 2.00;   // [K] standoff under the Feather. Do not make it
+                          //     smaller: the solder pins of the headers
+                          //     stick out that far underneath.
 amp_support     = 2.00;   // [K] same under the amplifier
 
 sk_board_z_v  = sk_behind_front - sk_board_d;         // [G] 13,80 Vorderseite
@@ -190,15 +190,15 @@ carrier_z_bottom     = sk_behind_front + cable_space;            // [G] 21.40 ca
 carrier_z_top     = carrier_z_bottom + carrier_d;                // [G] 23.80 carrier top side
 
 // How high the inner space above the carrier has to be is set by the TALLEST
-// part on the carrier — and that is not the battery but the Feather
-// auf seinen Distanzsockeln. Genau das war im ersten Entwurf falsch: dort
-// stand nur der Akku im Budget, der Feather ragte 1,3 mm in den Deckel.
-stapel_battery     = battery_d;                       // [G]  8,10
+// part on the carrier - and that is not the battery but the Feather on its
+// standoffs. Exactly that was wrong in the first draft: only the battery was
+// in the budget there, and the Feather reached 1.3 mm into the lid.
+stack_battery  = battery_d;                    // [G]  8.10
 stack_feather  = feather_support + feather_h;  // [G] 10.00  <- the governing one
-stapel_amp      = amp_support + amp_d;          // [G]  5,00
-stapel_max      = max(stapel_battery, stack_feather, stapel_amp);   // [G] 10,00
+stack_amp      = amp_support + amp_d;          // [G]  5.00
+stack_max      = max(stack_battery, stack_feather, stack_amp);   // [G] 10.00
 
-inner_z_h       = carrier_z_top + stapel_max + part_clearance;  // [G] 34,40
+inner_z_h       = carrier_z_top + stack_max + part_clearance;  // [G] 34,40
 outer_t        = inner_z_h + lid_d;                     // [G] 37,40 Gesamttiefe
 
 /* --- Outer dimensions --- */
@@ -222,9 +222,9 @@ carrier_play = 0.40;   // [K] total play of the carrier
 sk_boss_d    = 4.50;  // [K] ScreenKey boss outer diameter
 sk_boss_core = 1.60;  // [K] pilot hole for self-tapping M2
 sk_boss_foot = 1.50;  // [K] 45° foot cone, so the boss does not snap off
-sk_boss_wall = 1.00;  // [K] minimum wall around the pilot hole. If a boss fails
-                     //     den Kappen-Freiraum darunter, wird er weggelassen
-                     //     statt angeschnitten — siehe sk_dome().
+sk_boss_wall = 1.00;  // [K] minimum wall around the pilot hole. A boss that
+                     //     would fall below it next to the cap clearance is
+                     //     left out instead of cut into - see sk_boss().
 sk_boss_h    = sk_board_z_v - front_d;   // [G] 11,40
 
 /* --- Lautsprecherkammer --- */
@@ -232,7 +232,7 @@ sk_boss_h    = sk_board_z_v - front_d;   // [G] 11,40
 // the front plate, two inset walls, two outer walls and the
 // Deckel gebildet.
 chamber_wall  = 2.00;   // [K]
-chamber_clearance  = 2.00;   // [K] Luft zwischen Chassis und Kammerwand
+chamber_clearance  = 2.00;   // [K] clearance between driver and chamber wall
 chamber_x     = spk_frame + chamber_clearance;              // [G] 42.30 inner face on the right
 chamber_y     = env_h - spk_frame - chamber_clearance - 1.0;// [G] 37.29 inner face at the bottom
                                                       //     (1,0 mm extra Abstand
@@ -241,12 +241,12 @@ grille_hole_d = 4.00;  // [K] sound outlet: holes, no child can get in
 grille_pitch = 6.00;  // [K]
 grille_field_d = 34.50; // [K] slightly larger than the cone
 
-/* --- Positionen im Innenraum (linke untere Ecke der Bauteile) --- */
+/* --- Positions inside (bottom left corner of the components) --- */
 // All in component coordinates. The checks in section 4 verify that nothing
-// overlaps — whoever moves something here gets
-// beim Rendern sofort eine Fehlermeldung statt eines kaputten Drucks.
-// Akku: rechts der Lautsprecherkammer. Waagerecht wiegt er den Lautsprecher
-// (oben links) auf; senkrecht sitzt er so tief, wie der untere Mitteldom es
+// overlaps - whoever moves something here gets an error message while
+// rendering instead of a ruined print.
+// Battery: to the right of the speaker chamber. Sideways it balances the
+// speaker (top left); vertically it sits as low as the lower middle boss
 // allows — its retaining ribs must not touch the boss. Result: centre of
 // gravity practically at the middle of the case, see the echo in section 4.
 battery_x    =  52.00;  // [K]
@@ -266,20 +266,20 @@ amp_x     =  49.00;  // [K]
 amp_y     =  58.50;  // [K]
 
 // Retaining ribs on the carrier. The same numbers are used by the checks in
-// Abschnitt 4 und die Module in Abschnitt 8 — sonst laufen sie auseinander.
-rib_b       = 2.00;  // [K] Dicke einer Halterippe
-part_play = 0.40;  // [K] Luft zwischen Bauteil und Rippe
-bed_margin          = rib_b + part_play;   // [G] 2,40 Zuschlag ringsum
+// section 4 and by the modules in section 8 - otherwise they drift apart.
+rib_b     = 2.00;  // [K] thickness of one retaining rib
+part_play = 0.40;  // [K] clearance between the component and the rib
+bed_margin = rib_b + part_play;   // [G] 2.40 added all round
 
-/* --- Deckeldome: 4 Ecken + Mitte oben + Mitte unten --- */
-boss_e = inner_margin - boss_d/2;   // [G] 4,0 — Domachse von der Innenwand weg
+/* --- Lid bosses: 4 corners + middle top + middle bottom --- */
+boss_e = inner_margin - boss_d/2;   // [G] 4.0 - boss axis away from the inner wall
 boss_pos = [
-  [ -boss_e        , -boss_e        ],   // links unten
-  [ env_b + boss_e , -boss_e        ],   // rechts unten
-  [ -boss_e        , env_h + boss_e ],   // links oben (liegt in der Kammer)
-  [ env_b + boss_e , env_h + boss_e ],   // rechts oben
-  [ env_b/2       , -boss_e        ],   // Mitte unten
-  [ env_b/2       , env_h + boss_e ]    // Mitte oben
+  [ -boss_e        , -boss_e        ],   // bottom left
+  [ env_b + boss_e , -boss_e        ],   // bottom right
+  [ -boss_e        , env_h + boss_e ],   // top left (sits inside the chamber)
+  [ env_b + boss_e , env_h + boss_e ],   // top right
+  [ env_b/2       , -boss_e        ],   // middle bottom
+  [ env_b/2       , env_h + boss_e ]    // middle top
 ];
 
 /* --- Carrier supports: short posts with locating pegs --- */
@@ -292,94 +292,93 @@ support_pos = [
   [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 85,65 / 17,645
   [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 85,65 / 40,295
   [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 85,65 / 62,945
-  // In der Luecke zwischen Set-Platine und Viererblock. Nicht hoeher
-  // legen: bei y = 8 lag das Zapfenloch im Traeger 0,73 mm unter einem
-  // Distanzsockel des Feathers, der Sockel haette ueber der Lochkante
-  // angefangen zu drucken.
+  // In the gap between the set board and the block of four. Do not put it
+  // higher: at y = 8 the peg hole in the carrier sat 0.73 mm under one of the
+  // Feather's standoffs, and the standoff would have started printing over
+  // the edge of the hole.
   [ (set_mx + blk_mx1)/2, 4.0 ]                        // 43,65 / 4
 ];
 
 /* --- Logo --- */
 // Speech bubble with two eyes and a smile, rebuilt from assets/icon.svg
-// nachgebaut (nicht importiert — siehe building.md).
-logo_lid_b   = 70.00;  // [K] Breite der Sprechblase auf dem Deckel
+// (not imported - see building.md).
+logo_lid_b   = 70.00;  // [K] width of the speech bubble on the lid
 logo_lid_h   =  0.80;  // [K] embossing height, 4 layers at 0.2 mm
-logo_side_on   = true;   // [K] kleines Logo an der Unterkante
+logo_side_on   = true;   // [K] small logo on the bottom edge
 logo_side_b    = 20.00;  // [K]
 logo_side_h    =  0.60;  // [K]
 
 
 /* =====================================================================
-   4.  NACHRECHNEN
-   Wenn hier etwas rot wird, stimmt die Geometrie nicht — dann nicht
-   drucken, sondern erst die Zahl finden, die schuld ist.
+   4.  CHECKS
+   If anything here turns red the geometry is wrong - then do not print,
+   but find the number that is to blame first.
    ===================================================================== */
 
 /* --- Cap spacing in the plane --- */
 gap_cap_x = pitch_x - sk_cap_b;      // soll 15,0
 gap_cap_y = pitch_y - sk_cap_h;      // soll 20,0
 gap_pcb_x   = pitch_x - sk_board_b;    // soll 11,06 > 0
-gap_pcb_y   = pitch_y - sk_board_h;    // soll 10,01 > 0
+gap_pcb_y   = pitch_y - sk_board_h;    // should be 10.01 > 0
 
 assert(gap_cap_x > 8,
-  "Sprechtasten stehen seitlich zu eng - eine Kinderhand trifft zwei auf einmal.");
+  "Speech keys sit too close sideways - a child's hand hits two at once.");
 assert(gap_cap_y > 8,
-  "Sprechtasten stehen senkrecht zu eng.");
+  "Speech keys sit too close vertically.");
 assert(gap_pcb_x > 2 && gap_pcb_y > 2,
-  "Die ScreenKey-Platinen beruehren sich. Raster vergroessern.");
+  "The ScreenKey boards touch each other. Widen the grid.");
 
-/* --- Kappen-Freiraum gegen ScreenKey-Dome ---------------------------
-   Das ist die empfindlichste Stelle des ganzen Entwurfs.
+/* --- Cap clearance against the ScreenKey bosses ---------------------
+   This is the most delicate place in the whole design.
 
-   Die Tastenkappe ist 22,00 x 25,30 mm, die Platine 25,94 x 35,29 mm.
-   Senkrecht liegen zwischen Kappenkante (12,65 von der Mitte) und
-   Lochmitte (15,645) nur 2,995 mm. Ein Dom mit Kernloch 1,6 und 1,0 mm
-   Wand braucht davon 1,8 mm, der Luftspalt um die Kappe 0,6 mm.
-   About 0.6 mm remain — that is the ENTIRE budget by which the
-   Kappe aus der Platinenmitte wandern darf, bevor die Ecken-Dome
-   nicht mehr passen.
+   The key cap is 22.00 x 25.30 mm, the board 25.94 x 35.29 mm. Vertically
+   there are only 2.995 mm between the cap edge (12.65 from the centre) and
+   the hole centre (15.645). A boss with a 1.6 pilot hole and 1.0 mm of wall
+   needs 1.8 mm of that, and the air gap around the cap 0.6 mm.
+   About 0.6 mm remain - that is the ENTIRE budget by which the cap may sit
+   off the board centre before the corner bosses no longer fit.
 
    The design catches that without anyone having to recalculate:
-   `cap_clearance()` schneidet die Kappenbahn frei, und `sk_dome()`
-   drops every boss that would be cut into. If a key pair ends up
-   ein Tastenpaar ohne Halt da, meldet sich der Assert weiter unten.   */
+   `cap_clearance()` cuts the cap's path free, and `sk_boss()` drops every
+   boss that would be cut into. If a key pair ends up with nothing holding
+   it, the assert below says so.                                        */
 
-clear_hb = (sk_cap_b + 2*gap_cap)/2;      // [G] 11,60
-clear_hh = (sk_cap_h + 2*gap_cap)/2;      // [G] 13,25
-sk_hole_dx  = sk_board_b/2 - sk_hole_margin;       // [G] 10,97
-sk_hole_dy  = sk_board_h/2 - sk_hole_margin;       // [G] 15,645
-boss_noetig  = sk_boss_core/2 + sk_boss_wall;         // [G]  1,80
+clear_hb = (sk_cap_b + 2*gap_cap)/2;      // [G] 11.60
+clear_hh = (sk_cap_h + 2*gap_cap)/2;      // [G] 13.25
+sk_hole_dx  = sk_board_b/2 - sk_hole_margin;       // [G] 10.97
+sk_hole_dy  = sk_board_h/2 - sk_hole_margin;       // [G] 15.645
+boss_needed = sk_boss_core/2 + sk_boss_wall;         // [G]  1.80
 
-// Wie weit steht ein Dom vom Freiraum ab? Der Dom bleibt stehen, sobald er
-// in EINER Achse aus dem Rechteck herausragt — deshalb max() statt min().
-function boss_frei(sx, sy) =
+// How far does a boss stand clear of the cap's path? It survives as soon as
+// it sticks out of the rectangle in ONE axis - hence max() and not min().
+function boss_clear(sx, sy) =
   max(abs(sk_hole_dx*sx - cap_offset_x) - clear_hb,
       abs(sk_hole_dy*sy - cap_offset_y) - clear_hh);
 
-boss_da      = [ for (sx=[-1,1], sy=[-1,1]) if (boss_frei(sx,sy) >= boss_noetig) 1 ];
-dome_pro_key = len(boss_da);
+boss_kept      = [ for (sx=[-1,1], sy=[-1,1]) if (boss_clear(sx,sy) >= boss_needed) 1 ];
+bosses_per_key = len(boss_kept);
 
 // Budget for cap_offset_y before the first boss is dropped
-offset_y_max = sk_hole_dy - clear_hh - boss_noetig;   // [G] 0,595
+offset_y_max = sk_hole_dy - clear_hh - boss_needed;   // [G] 0.595
 
-assert(dome_pro_key >= 2,
-  str("Bei cap_offset_y = ", cap_offset_y, " mm bleiben nur ",
-      dome_pro_key, " von 4 Domen je ScreenKey stehen. Zulaessig sind ",
-      round(offset_y_max*100)/100, " mm. Mehr Versatz heisst: die Ecken-",
-      "loecher der Platine liegen zu dicht an der Kappe. Dann NICHT die ",
-      "Zahl kleinerreden, sondern sk_hole_margin am echten Modul nachmessen ",
-      "- vielleicht sitzen die Loecher ganz woanders."));
+assert(bosses_per_key >= 2,
+  str("At cap_offset_y = ", cap_offset_y, " mm only ", bosses_per_key,
+      " of 4 bosses per ScreenKey are left. Allowed are ",
+      round(offset_y_max*100)/100, " mm. More offset means the corner holes ",
+      "of the board sit too close to the cap. Then do NOT talk the number ",
+      "down, but measure sk_hole_margin on the real module - the holes may ",
+      "sit somewhere else entirely."));
 
-/* --- Tiefenbudget --- */
-inner_t = inner_z_h - front_d;    // nutzbare Innentiefe
+/* --- Depth budget --- */
+inner_t = inner_z_h - front_d;    // usable inner depth
 assert(inner_t >= spk_depth + 0.5,
-  str("Innentiefe ", inner_t, " mm reicht nicht fuer den Lautsprecher (",
+  str("Inner depth ", inner_t, " mm is not enough for the speaker (",
       spk_depth, " mm)."));
 assert(inner_z_h - carrier_z_top >= battery_d,
   "No room above the carrier for the battery.");
-// Der Feather steht auf Distanzsockeln - die gehoeren mit ins Budget.
-// Genau diese Zeile fehlte im ersten Entwurf; der Feather ragte 1,3 mm
-// in den Deckel, ohne dass ein Assert angeschlagen haette.
+// The Feather stands on standoffs - those belong in the budget. Exactly this
+// line was missing in the first draft; the Feather reached 1.3 mm into the
+// lid without any assert going off.
 assert(inner_z_h - carrier_z_top >= feather_support + feather_h,
   str("No room above the carrier for the Feather: ",
       inner_z_h - carrier_z_top, " mm free, ",
@@ -388,18 +387,17 @@ assert(inner_z_h - carrier_z_top >= amp_support + amp_d,
   "No room above the carrier for the amplifier.");
 
 /* --- What sits on the carrier must not get in each other's way --------
-   Instead of individual hand checks ("battery left of the amp?") there is
-   Liste von Rechtecken - Bauteil samt Halterippen - und ein stumpfer
-   Paarvergleich. Wer eine Position verschiebt, bekommt die Kollision
-   beim Rendern genannt, mit Namen, statt sie im Druck zu finden.
-   Die Lautsprecherkammer und die Deckeldome stehen als feste Hindernisse
-   mit in derselben Liste.                                              */
+   Instead of individual hand checks ("battery left of the amp?") there is a
+   list of rectangles - component plus retaining ribs - and a blunt pairwise
+   comparison. Whoever moves a position gets the collision named while
+   rendering, by name, instead of finding it in the print. The speaker
+   chamber and the lid bosses are in the same list as fixed obstacles. */
 
 function overlaps(a, b) =
   a[0] < b[2] - 0.001 && b[0] < a[2] - 0.001 &&
   a[1] < b[3] - 0.001 && b[1] < a[3] - 0.001;
 
-// beweglich = frei platzierbar, jede Zahl davon steht in Abschnitt 3
+// beweglich = frei platzierbar, jede Zahl davon steht in section 3
 carrier_items = [
   ["battery",        [battery_x - bed_margin,    battery_y - bed_margin,
                    battery_x + battery_b + bed_margin,    battery_y + battery_h + bed_margin]],
@@ -408,32 +406,32 @@ carrier_items = [
   ["amplifier", [amp_x - bed_margin,     amp_y - bed_margin,
                    amp_x + amp_b + bed_margin,      amp_y + amp_h + bed_margin]] ];
 
-// fixed = follows from the case itself. That the top left lid boss
-// INNERHALB der Lautsprecherkammer steht, ist Absicht (dort ist ohnehin nur
-// clearance), so the fixed obstacles are not checked against each other.
-hindernisse = concat(
+// fixed = follows from the case itself. The top left lid boss standing
+// INSIDE the speaker chamber is intended (there is nothing but clearance
+// there anyway), so the fixed obstacles are not checked against each other.
+obstacles = concat(
   [ ["chamber",  [-inner_margin, chamber_y, chamber_x + chamber_wall, env_h + inner_margin]] ],
   [ for (i = [0:len(boss_pos)-1])
-      [ str("Deckeldom ", i), [boss_pos[i][0] - boss_d/2, boss_pos[i][1] - boss_d/2,
+      [ str("lid boss ", i), [boss_pos[i][0] - boss_d/2, boss_pos[i][1] - boss_d/2,
                                boss_pos[i][0] + boss_d/2, boss_pos[i][1] + boss_d/2] ] ]);
 
 collisions = concat(
   [ for (i = [0:len(carrier_items)-2], j = [i+1:len(carrier_items)-1])
       if (overlaps(carrier_items[i][1], carrier_items[j][1]))
         str(carrier_items[i][0], " <-> ", carrier_items[j][0]) ],
-  [ for (b = carrier_items, h = hindernisse)
+  [ for (b = carrier_items, h = obstacles)
       if (overlaps(b[1], h[1])) str(b[0], " <-> ", h[0]) ]);
 
 assert(len(collisions) == 0,
   str("On the carrier these overlap: ", collisions));
 
-// ... und alles muss innerhalb der Innenwand bleiben.
-draussen = [ for (b = carrier_items)
+// ... and everything has to stay inside the inner wall.
+outside = [ for (b = carrier_items)
                if (b[1][0] < -inner_margin - 0.001 || b[1][1] < -inner_margin - 0.001 ||
                    b[1][2] > env_b + inner_margin + 0.001 ||
                    b[1][3] > env_h + inner_margin + 0.001) b[0] ];
-assert(len(draussen) == 0,
-  str("Ragt ueber die Innenwand hinaus: ", draussen));
+assert(len(outside) == 0,
+  str("Sticks out past the inner wall: ", outside));
 
 /* --- USB-C window has to fit between carrier and lid --- */
 usb_z    = carrier_z_top + feather_support + feather_pcb_d + usb_centre_above_pcb;
@@ -450,52 +448,52 @@ boss_spacing_min = min([ for (p = boss_pos)
                                    abs(p[1]-s[1]) - sk_board_h/2 )
                               - boss_d/2 ]) ]);
 assert(boss_spacing_min > 0,
-  str("Ein Deckeldom beruehrt eine ScreenKey-Platine (", boss_spacing_min, " mm)."));
+  str("A lid boss touches a ScreenKey board (", boss_spacing_min, " mm)."));
 
-/* --- Schwerpunkt in der Ebene (nur Akku + Lautsprecher, die zwei Brocken) --- */
+/* --- Centre of gravity in the plane (battery + speaker, the two lumps) --- */
 m_battery = 52;   // [M] g
 m_spk   = 35;   // [A] g, estimated
 sp_x = (m_battery*(battery_x+battery_b/2) + m_spk*spk_mx) / (m_battery + m_spk);
 sp_y = (m_battery*(battery_y+battery_h/2) + m_spk*spk_my) / (m_battery + m_spk);
 
-echo(str("--- vorlaut Gehaeuse ------------------------------------"));
-echo(str("Bauteil-Rechteck : ", env_b, " x ", env_h, " mm"));
-echo(str("Gehaeuse outer  : ", outer_b, " x ", outer_h, " x ", outer_t, " mm"));
-echo(str("Innenraum        : ", inner_b, " x ", inner_h, " x ", inner_t, " mm"));
-echo(str("Kappenspalt      : ", gap_cap_x, " mm quer / ",
-         gap_cap_y, " mm hoch"));
-echo(str("Platinenspalt    : ", gap_pcb_x, " / ", gap_pcb_y, " mm"));
-echo(str("Carrier sits at z = ", carrier_z_bottom, " .. ", carrier_z_top));
-echo(str("USB-C-Mitte bei z = ", usb_z));
-echo(str("Kammervolumen brutto ca. ",
+echo(str("--- vorlaut case ----------------------------------------"));
+echo(str("component rectangle : ", env_b, " x ", env_h, " mm"));
+echo(str("case outside        : ", outer_b, " x ", outer_h, " x ", outer_t, " mm"));
+echo(str("inner space         : ", inner_b, " x ", inner_h, " x ", inner_t, " mm"));
+echo(str("cap gap             : ", gap_cap_x, " mm across / ",
+         gap_cap_y, " mm up"));
+echo(str("board gap           : ", gap_pcb_x, " / ", gap_pcb_y, " mm"));
+echo(str("carrier sits at z = ", carrier_z_bottom, " .. ", carrier_z_top));
+echo(str("USB-C centre at z = ", usb_z));
+echo(str("chamber volume gross approx. ",
          round((chamber_x+inner_margin)*(env_h+inner_margin-chamber_y)*inner_t/100)/10,
-         " cm3, abzueglich Chassis ca. ",
+         " cm3, less the driver approx. ",
          round(((chamber_x+inner_margin)*(env_h+inner_margin-chamber_y)*inner_t
                 - spk_frame*spk_frame*spk_depth)/100)/10, " cm3"));
-echo(str("Schwerpunkt Akku+Lautsprecher: x=", round(sp_x*10)/10,
-         " (Mitte ", round(centre_x*10)/10, "), y=", round(sp_y*10)/10,
-         " (Mitte ", round(centre_y*10)/10, ")"));
-echo(str("Kappenversatz    : ", cap_offset_y, " mm eingetragen, ",
-         round(offset_y_max*1000)/1000, " mm sind das Budget -> ",
-         dome_pro_key, " von 4 Domen je ScreenKey"));
-if (dome_pro_key < 4)
-  echo(str("!! ACHTUNG: nur ", dome_pro_key, " Dome je ScreenKey. Die Platine ",
-           "haengt dann an EINER Kante und kann kippeln. Vor dem Drucken ",
-           "pruefen, ob sk_hole_margin wirklich stimmt."));
-echo(str("Schrauben        : ", threaded_insert ? "M3-Gewindeeinsaetze" :
-         "M3 selbstschneidend", ", Dom ", boss_d, " mm, Kernloch ", boss_core));
-echo(str("Wand ", wall, " mm = ", wall/0.4, " Bahnen bei 0,4er Duese"));
-echo(str("Druckbett noetig : Wanne ", outer_b, " x ", outer_h,
-         " mm, hoch ", outer_t, " mm"));
-echo(str("Hoechster Stapel auf dem Traeger: ",
-         stapel_max == stack_feather ? "Feather" :
-         stapel_max == stapel_battery ? "Akku" : "Verstaerker",
-         " mit ", stapel_max, " mm, frei sind ", inner_z_h - carrier_z_top));
+echo(str("centre of gravity battery+speaker: x=", round(sp_x*10)/10,
+         " (middle ", round(centre_x*10)/10, "), y=", round(sp_y*10)/10,
+         " (middle ", round(centre_y*10)/10, ")"));
+echo(str("cap offset          : ", cap_offset_y, " mm entered, ",
+         round(offset_y_max*1000)/1000, " mm is the budget -> ",
+         bosses_per_key, " of 4 bosses per ScreenKey"));
+if (bosses_per_key < 4)
+  echo(str("!! CAREFUL: only ", bosses_per_key, " bosses per ScreenKey. The ",
+           "board then hangs off ONE edge and can wobble. Check whether ",
+           "sk_hole_margin is really right before printing."));
+echo(str("screws              : ", threaded_insert ? "M3 threaded inserts" :
+         "M3 self-tapping", ", boss ", boss_d, " mm, pilot hole ", boss_core));
+echo(str("wall ", wall, " mm = ", wall/0.4, " passes with a 0.4 nozzle"));
+echo(str("print bed needed    : tub ", outer_b, " x ", outer_h,
+         " mm, ", outer_t, " mm tall"));
+echo(str("tallest stack on the carrier: ",
+         stack_max == stack_feather ? "Feather" :
+         stack_max == stack_battery ? "battery" : "amplifier",
+         " with ", stack_max, " mm, free are ", inner_z_h - carrier_z_top));
 echo(str("---------------------------------------------------------"));
 
 
 /* =====================================================================
-   5.  HILFSMODULE
+   5.  HELPER MODULES
    ===================================================================== */
 
 module rrect(b, h, r) {            // 2D, um den Ursprung zentriert
@@ -515,7 +513,7 @@ module rprism_chamfer_u(b, h, r, t, f) {
   translate([0, 0, f]) rprism(b, h, r, t - f);
 }
 
-// Prisma mit 45°-Fase an der Oberseite
+// Prism with a 45 degree chamfer on the top face
 module rprism_chamfer_o(b, h, r, t, f) {
   rprism(b, h, r, t - f);
   translate([0, 0, t - f]) hull() {
@@ -557,13 +555,13 @@ module logo_2d(breite) {
   }
 }
 
-// Erhabenes Logo, zweistufig: die obere Stufe ist 0,4 mm schmaler.
-// This is a printed chamfer — the edge does not break out and does not feel
-// sharp to a child's hands.
-module logo_3d(breite, hoehe) {
-  st = min(0.4, hoehe/2);
-  linear_extrude(hoehe - st) logo_2d(breite);
-  translate([0,0,hoehe - st]) linear_extrude(st) offset(r = -0.4) logo_2d(breite);
+// Raised logo in two steps: the upper step is 0.4 mm narrower. That is a
+// printed chamfer - the edge does not break out and does not feel sharp to a
+// child's hands.
+module logo_3d(width, height) {
+  step = min(0.4, height/2);
+  linear_extrude(height - step) logo_2d(width);
+  translate([0,0,height - step]) linear_extrude(step) offset(r = -0.4) logo_2d(width);
 }
 
 
@@ -609,14 +607,14 @@ module hohlraum() {
    the front opening, breaks its outer edge and clears the path behind it over
    the full cap depth.
 
-   Der erste Entwurf hatte hier nur ein flaches Loch durch die Frontplatte
-   und liess die Dom-Fusskegel stehen. Nachgerechnet ragten die 0,755 mm in
-   die Kappe hinein - die Taste haette geklemmt, und zwar an allen fuenf
-   Stellen gleichzeitig.
+   The first draft had only a flat hole through the front plate here and left
+   the boss foot cones standing. Recalculated, those reached 0.755 mm into the
+   cap - the key would have jammed, and at all five places at once.
 
-   Weil dieser Koerper mit cap_offset_y mitwandert, bleibt die Bahn frei,
-   egal was dort eingetragen wird. Das ist die halbe Miete fuer die "eine
-   Zahl"; die andere Haelfte ist sk_dome(), das weichende Dome weglaesst. */
+   Because this solid moves along with cap_offset_y, the path stays clear
+   whatever is entered there. That is half of what makes the "one number"
+   work; the other half is sk_boss(), which leaves out the bosses that would
+   be in the way.                                                        */
 module cap_clearance() {
   ob = sk_cap_b + 2*gap_cap;
   oh = sk_cap_h + 2*gap_cap;
@@ -631,14 +629,14 @@ module cap_clearance() {
   }
 }
 
-/* --- ScreenKey-Befestigungsdome --- */
-// Ein Dom entsteht nur, wenn er neben dem Kappen-Freiraum genug Fleisch
-// behaelt. Angeschnittene Dome mit 0,3 mm Restwand sind schlimmer als gar
-// keine: sie brechen beim ersten Schrauben ab und liegen dann lose im Geraet.
-module sk_dome() {
+/* --- ScreenKey mounting bosses --- */
+// A boss only appears if it keeps enough material next to the cap clearance.
+// Bosses cut into with a 0.3 mm remaining wall are worse than none: they snap
+// off at the first screw and then lie loose inside the device.
+module sk_boss() {
   for (p = sk_pos) translate([p[0], p[1], front_d])
     for (sx = [-1,1], sy = [-1,1])
-      if (boss_frei(sx, sy) >= boss_noetig)
+      if (boss_clear(sx, sy) >= boss_needed)
         translate([sx*sk_hole_dx, sy*sk_hole_dy, 0]) {
           cylinder(d = sk_boss_d, h = sk_boss_h);
           cylinder(d1 = sk_boss_d + 2*sk_boss_foot, d2 = sk_boss_d, h = sk_boss_foot);
@@ -648,7 +646,7 @@ module sk_dome() {
 module sk_dome_core() {
   for (p = sk_pos) translate([p[0], p[1], 0])
     for (sx = [-1,1], sy = [-1,1])
-      if (boss_frei(sx, sy) >= boss_noetig)
+      if (boss_clear(sx, sy) >= boss_needed)
         translate([sx*sk_hole_dx, sy*sk_hole_dy, front_d + 1.0])
           cylinder(d = sk_boss_core, h = sk_boss_h);
 }
@@ -671,7 +669,7 @@ module spk_schrauben() {
   for (sx = [-1,1], sy = [-1,1])
     translate([spk_mx + sx*spk_hole_a/2, spk_my + sy*spk_hole_a/2, 0]) {
       translate([0,0,-1]) cylinder(d = spk_screw_d, h = front_d + 2);
-      // Senkung von front: Loch unten weit, nach hinten enger — druckbar
+      // Countersink from the front: wide at the face, narrower towards the
       translate([0,0,-0.01]) cylinder(d1 = csink_d, d2 = spk_screw_d,
                                       h = (csink_d - spk_screw_d)/2 + 0.01);
     }
@@ -752,7 +750,7 @@ module tub() {
     difference() {
       union() {
         difference() { outer_body(); hohlraum(); }
-        sk_dome();
+        sk_boss();
         lid_dome();
         carrier_stuetzen();
         chamber_waende();
@@ -772,11 +770,11 @@ module tub() {
 
 /* =====================================================================
    8.  CARRIER  (intermediate floor)
-   Trennt die Verkabelung der ScreenKeys vom Akku — ein LiPo darf nie
+   Separates the ScreenKey wiring from the battery - a LiPo must never
    press on connector pins. Prints flat, ribs upwards.
    ===================================================================== */
 
-module carrier_umriss() {
+module carrier_outline() {
   difference() {
     translate([centre_x, centre_y])
       rrect(inner_b - carrier_play, inner_h - carrier_play, corner_r - wall);
@@ -796,13 +794,13 @@ module carrier_umriss() {
   }
 }
 
-// Four corner brackets holding the battery in the plane. No lid over it —
-// der Akku soll sich zum Tauschen nach oben herausnehmen lassen.
+// Four corner brackets holding the battery in the plane. No lid over it -
+// the battery should lift straight out when it needs replacing.
 //
-// Jeder Winkel ist EIN Polygon. Vorher waren es zwei Quader, die sich nur
+// Each bracket is ONE polygon. Before, they were two cuboids that only
 // touched along one edge; on export that became a non-two-manifold solid,
 // which a slicer silently repairs the wrong way.
-module battery_rippen() {
+module battery_ribs() {
   h  = battery_d + 0.2;              // slightly taller than the battery
   l  = 14;                        // leg length
   b  = rib_b;
@@ -830,22 +828,22 @@ module feather_standoff() {
 module amp_bed() {
   h = amp_support + 2.5;  b = rib_b;  s = part_play;
   // three ribs: the amplifier is slid in and secured with a strip of
-  // double-sided tape. Two holes would be guesswork,
-  // solange die Lochlage nicht nachgemessen ist.
+  // double-sided tape. Two holes would be guesswork as long as the hole
+  // positions have not been measured.
   translate([amp_x - s - b, amp_y - s - b, 0]) cube([b, amp_h + 2*s + 2*b, h]);
   translate([amp_x - s - b, amp_y - s - b, 0]) cube([amp_b + 2*s + 2*b, b, h]);
   translate([amp_x + amp_b + s, amp_y - s - b, 0]) cube([b, amp_h + 2*s + 2*b, h]);
 }
 
-// Everything standing on top of the carrier is clipped to its outer contour
-// beschnitten. Ohne das ragten die Distanzsockel des Feathers 0,16 mm
-// beyond the edge — the carrier would have caught on the case wall while
-// being inserted, and the standoff would have printed in mid-air over the
-// edge. Clipping happens on the OUTER contour only, not on the holes in it.
-module carrier_aufbauten() {
+// Everything standing on top of the carrier is clipped to its outer contour.
+// Without that the Feather's standoffs stuck out 0.16 mm beyond the edge -
+// the carrier would have caught on the case wall while being inserted, and
+// the standoff would have printed in mid-air over the edge. Clipping happens
+// on the OUTER contour only, not on the holes in it.
+module carrier_additions() {
   intersection() {
     union() {
-      battery_rippen();
+      battery_ribs();
       feather_standoff();
       amp_bed();
     }
@@ -856,8 +854,8 @@ module carrier_aufbauten() {
 
 module carrier() {
   translate([0, 0, carrier_z_bottom]) {
-    linear_extrude(carrier_d) carrier_umriss();
-    translate([0, 0, carrier_d]) carrier_aufbauten();
+    linear_extrude(carrier_d) carrier_outline();
+    translate([0, 0, carrier_d]) carrier_additions();
   }
 }
 
@@ -889,10 +887,10 @@ module lid() {
 
 
 /* =====================================================================
-   10.  ATTRAPPEN  (nur zur Anschauung, nicht drucken)
+   10.  DUMMIES  (for looking at only, not for printing)
    ===================================================================== */
 
-module attrappen() {
+module dummies() {
   color("#333") for (p = sk_pos) {
     translate([p[0], p[1], sk_board_z_v])
       linear_extrude(sk_board_d) square([sk_board_b, sk_board_h], center=true);
@@ -921,11 +919,11 @@ else if (part == "assembly") {
   color("#dcd8e8") tub();
   color("#c8c0e0") carrier();
   color("#b8aed8") lid();
-  if (show_parts) attrappen();
+  if (show_parts) dummies();
 }
 else if (part == "exploded") {
   color("#dcd8e8") tub();
-  if (show_parts) attrappen();
+  if (show_parts) dummies();
   color("#c8c0e0") translate([0,0,28]) carrier();
   color("#b8aed8") translate([0,0,60]) lid();
 }

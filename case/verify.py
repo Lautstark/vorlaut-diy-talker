@@ -3,14 +3,14 @@
 """
 Recalculation for vorlaut-case.scad.
 
-Why this exists: OpenSCAD shows a preview, but a preview lies
-freundlich. Ob ein Ausschnitt 0,4 mm daneben sitzt oder eine Rippe 1,9 mm
-protrudes past an edge does not show there — recalculating does.
+Why this exists: OpenSCAD shows a preview, and a preview lies kindly.
+Whether a cutout sits 0.4 mm off, or a rib protrudes 1.9 mm past an edge,
+does not show there - recalculating does.
 
 The script reads the dimensions FROM the .scad file (sections 0 to 3) and
 recalculates independently. So it does not duplicate the numbers, it checks
-them. Whoever changes a number in the .scad gets the
-Ergebnis — ohne OpenSCAD zu starten.
+them. Whoever changes a number in the .scad gets the result without having to
+start OpenSCAD.
 
     python3 case/verify.py
     python3 case/verify.py --offset 1.5    # cap offset by 1.5 mm
@@ -132,11 +132,11 @@ def overlaps(a, b, eps=1e-3):
 # ---------------------------------------------------------- Recalculation
 
 def compute(p, bed_x, bed_y):
-    """p ist der Namensraum aus der .scad. Alles hier wird daraus neu
-    hergeleitet — die Listen (sk_pos, boss_pos) stehen in der .scad als
-    Listenliteral und werden deshalb hier gespiegelt. Wer dort etwas
-    moves it has to do so here too; the 'pitch' check below catches
-    ein Auseinanderlaufen der Rasterwerte ab."""
+    """p is the namespace out of the .scad. Everything here is derived from
+    it again - the lists (sk_pos, boss_pos) are list literals in the .scad and
+    are therefore mirrored here. Whoever moves something there has to do so
+    here too; the 'pitch' check below catches the grid values drifting
+    apart."""
     b = Report()
     G = lambda n: p[n]
 
@@ -159,7 +159,7 @@ def compute(p, bed_x, bed_y):
              '>=', 12, note='two keys hit at once')
     b.check(g, 'set key to the block of four',
              G('blk_mx1') - G('set_mx') - G('sk_cap_b'), '>=', 20)
-    # Spalt um die Kappe: gross genug zum Nichtklemmen, zu schmal fuer Finger
+    # Gap around the cap: wide enough not to jam, too narrow for a finger
     b.check(g, 'clearance around the cap (must not jam)', G('gap_cap'),
              '>=', 0.4)
     b.check(g, "clearance around the cap (no child finger)", G('gap_cap'),
@@ -169,7 +169,7 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'outer corner radius', G('corner_r'), '>=', 3.0)
     b.check(g, 'chamfer on the front edge', G('chamfer_front'), '>=', 0.8)
 
-    # --- 2. Die eine Stellschraube ----------------------------------------
+    # --- 2. The one adjustment --------------------------------------------
     g = '2. cap_offset_y - the biggest open unknown'
     clear_hb = (G('sk_cap_b') + 2 * G('gap_cap')) / 2
     clear_hh = (G('sk_cap_h') + 2 * G('gap_cap')) / 2
@@ -177,31 +177,31 @@ def compute(p, bed_x, bed_y):
     hole_dy = G('sk_board_h') / 2 - G('sk_hole_margin')
     noetig = G('sk_boss_core') / 2 + G('sk_boss_wall')
 
-    dome = []
+    bosses = []
     for sx in (-1, 1):
         for sy in (-1, 1):
             frei = max(abs(hole_dx * sx - offset_x) - clear_hb,
                        abs(hole_dy * sy - offset_y) - clear_hh)
             if frei >= noetig:
-                dome.append((sx, sy))
+                bosses.append((sx, sy))
     budget = hole_dy - clear_hh - noetig
 
     b.info(g, 'configured offset', '%.3f mm' % offset_y)
     b.info(g, 'budget until the first boss drops', '%.3f mm' % budget)
-    b.check(g, 'bosses per ScreenKey', len(dome), '>=', 2, unit='pcs',
+    b.check(g, 'bosses per ScreenKey', len(bosses), '>=', 2, unit='pcs',
              note='board has nothing left holding it')
-    if len(dome) == 4:
+    if len(bosses) == 4:
         b.info(g, 'board support', 'vier Dome, allseitig')
     else:
         b.info(g, 'board support',
-               '%d Dome — nur EINE Kante, kann kippeln!' % len(dome))
-    # Der Freiraum muss tiefer sein als der Kappenkoerper, sonst steht
-    # hinter der Frontplatte wieder etwas in der Bahn.
+               '%d bosses - only ONE edge, it can wobble!' % len(bosses))
+    # The clearance has to be deeper than the cap body, otherwise something
+    # is back in the way behind the front plate.
     b.check(g, 'clearance reaches behind the cap body',
              G('sk_cap_depth'), '>=',
              G('sk_total_depth') - G('sk_cap_overhang'),
              note='cap hits something behind the front')
-    # Kappe darf nicht ueber die Platine hinauswandern
+    # The cap must not wander out past the board
     b.check(g, 'cap stays over the board (y)',
              G('sk_board_h') / 2 - (G('sk_cap_h') / 2 + abs(offset_y)),
              '>=', 0.5, note='cap protrudes past the board')
@@ -209,7 +209,7 @@ def compute(p, bed_x, bed_y):
              G('sk_board_b') / 2 - (G('sk_cap_b') / 2 + abs(offset_x)),
              '>=', 0.5)
 
-    # --- 3. Platinen und Dome in der Ebene --------------------------------
+    # --- 3. Boards and bosses in the plane --------------------------------
     g = '3. Boards do not touch'
     b.check(g, 'board gap horizontal',
              G('pitch_x') - G('sk_board_b'), '>', 2)
@@ -290,7 +290,7 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'protrudes past the inner wall', len(raus), '==', 0,
              unit='pcs', note=', '.join(raus))
 
-    # Der Traeger ist unter der Kammer ausgeschnitten — dort darf nichts stehen
+    # The carrier is cut away under the chamber - nothing may stand there
     schnitt_x = G('chamber_x') + G('chamber_wall') + G('inner_margin') + 1.8
     for name, r in teile:
         if r[3] > G('chamber_y') + G('chamber_wall'):
@@ -298,8 +298,8 @@ def compute(p, bed_x, bed_y):
                      schnitt_x - G('inner_margin') - 1.0,
                      note='sits over the chamber cutout')
 
-    # Zapfenloecher im Traeger duerfen nicht unter einem Feather-Sockel
-    # liegen — sonst faengt der Sockel ueber einer Lochkante an zu drucken.
+    # Peg holes in the carrier must not sit under a Feather standoff -
+    # otherwise the standoff starts printing over the edge of a hole.
     support_pos = [((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my1')),
                    ((G('blk_mx1') + G('blk_mx2')) / 2, env_h / 2),
                    ((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my2')),
@@ -319,7 +319,7 @@ def compute(p, bed_x, bed_y):
     g = '6. USB-C - the only connection to the outside'
     b.check(g, 'Feather edge at the inner wall',
              abs(G('feather_x') + G('inner_margin')), '<=', 0.01,
-             note='Buchse erreicht die Gehaeusekante nicht')
+             note='the socket does not reach the case edge')
     b.check(g, 'socket reaches into the wall',
              G('usb_overhang'), '>=', 0.5)
     fen_h = G('usb_fen_h')
@@ -360,10 +360,10 @@ def compute(p, bed_x, bed_y):
     # --- 8. Gehaeuse, Druck ----------------------------------------------
     g = '8. Printing - simple FDM, one colour, no supports'
     # Zwei verschiedene Kriterien, die man leicht verwechselt:
-    #   senkrechte Waende werden aus BAHNEN gebaut (Breite 0,4 mm),
+    #   vertical walls are built out of PASSES (0.4 mm wide),
     #   flach liegende Platten aus LAGEN (Hoehe 0,2 mm).
-    # In der Drucklage der Wanne (Front unten) ist die Frontplatte eine
-    # Platte und nur die Seitenwand eine Wand.
+    # In the tub's print orientation (front face down) the front plate is a
+    # plate and only the side wall is a wall.
     bahn, lage = 0.4, 0.2
     for name, value in (('Seitenwand', G('wall')),
                        ('Kammerwand', G('chamber_wall')),
@@ -371,7 +371,7 @@ def compute(p, bed_x, bed_y):
         n = value / bahn
         b.check(g, '%s = whole passes (%.1f x 0.4)' % (name, n),
                  abs(n - round(n)), '<=', 0.001, unit='',
-                 note='Slicer laesst eine Luecke oder ueberextrudiert')
+                 note='the slicer leaves a gap or over-extrudes')
     for name, value in (('Frontplatte', G('front_d')),
                        ('Deckel', G('lid_d')),
                        ('carrier', G('carrier_d'))):
@@ -381,13 +381,13 @@ def compute(p, bed_x, bed_y):
                  note='letzte Lage wird angeschnitten')
     b.check(g, 'wall thickness load-bearing', G('wall'), '>=', 1.6)
     b.check(g, 'logo embossing high enough', G('logo_lid_h'), '>=', 0.6,
-             note='auf einem muedem Drucker nicht mehr zu sehen')
+             note='no longer visible on a tired printer')
     b.check(g, 'logo embossing = whole layers at 0.2 mm',
              abs(G('logo_lid_h') / 0.2 - round(G('logo_lid_h') / 0.2)),
              '<=', 0.001, unit='')
 
-    # Der Innenraum wird nach hinten stufenweise weiter. Jede Stufe ist damit
-    # eine nach oben zeigende Auflage statt eines Ueberhangs.
+    # The inner space gets wider towards the back in steps. Every step is
+    # therefore an upward-facing bearing surface instead of an overhang.
     stufe_a = G('inner_b') - 2 * G('standoff')
     stufe_b = G('inner_b')
     stufe_c = G('outer_b') - 2 * G('lip') + G('lid_play')
@@ -422,7 +422,7 @@ def compute(p, bed_x, bed_y):
              G('lid_d') - G('csink_t'), '>=', 1.0,
              note='Schraubenkopf bricht durch')
     b.check(g, 'screw head smaller than the boss', G('csink_d'), '<=',
-             G('boss_d') + 0.4, note='Kopf steht ueber den Dom hinaus')
+             G('boss_d') + 0.4, note='the head stands proud of the boss')
     b.info(g, 'screw fixing', '6 x M3 %s'
            % ('Gewindeeinsatz' if G('threaded_insert') else 'selbstschneidend'))
 
