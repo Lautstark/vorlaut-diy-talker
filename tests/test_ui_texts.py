@@ -30,8 +30,8 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT))
 import german  # noqa: E402
 import app  # noqa: E402
-import build  # noqa: E402
 import texts  # noqa: E402
+from buildbase import BuildError  # noqa: E402
 
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
@@ -289,8 +289,8 @@ def check_cli_stays_english() -> int:
     """A build error reads English on the command line, whatever the layout says."""
     failures = 0
     try:
-        raise build.BuildError("build.err.too_many_sets", max=25, found=30)
-    except build.BuildError as exc:
+        raise BuildError("build.err.too_many_sets", max=25, found=30)
+    except BuildError as exc:
         if german.looks_german(str(exc)):
             print(f"  FAIL  str(BuildError) is not English: {exc}")
             failures += 1

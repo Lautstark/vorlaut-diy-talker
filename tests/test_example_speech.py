@@ -32,8 +32,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(ROOT))
-import build  # noqa: E402
 import tts  # noqa: E402
+from layout import (EXAMPLE, EXAMPLE_SPEECH, example_voice,  # noqa: E402
+                    load_layout)
 
 # What the device plays: 16 kHz mono 16 bit. The firmware feeds I2S from it
 # without converting, so a stray 44.1 kHz file would come out at the wrong
@@ -44,13 +45,13 @@ EXPECTED_WIDTH = 2
 
 
 def sentences() -> list[str]:
-    layout = build.load_layout(build.EXAMPLE / "layout.json")
+    layout = load_layout(EXAMPLE / "layout.json")
     return [slot["text"] for entry in layout["sets"]
             for slot in entry["slots"] if slot["text"]]
 
 
 def main() -> int:
-    speech = build.EXAMPLE_SPEECH
+    speech = EXAMPLE_SPEECH
     failures: list[str] = []
 
     # First, so that everything after it can be read in the right light: if
@@ -60,7 +61,7 @@ def main() -> int:
     # Which voice these were made with is derived from the recording
     # itself - since piper there is more than one backend, and the id
     # decides the shape of the configuration.
-    voice = build.example_voice() or (
+    voice = example_voice() or (
         f"piper:{recorded.get('model', '')}"
         if recorded.get("backend") == "piper"
         else f"azure:{recorded.get('voice', '')}")

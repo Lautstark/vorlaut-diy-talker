@@ -5,7 +5,8 @@
 // Strides and byte order are exactly the places one gets wrong, and on the
 // device it only shows once it has been flashed.
 //
-// The file is produced by build.py - the same structure is written down there.
+// The file is produced by build.py - the same structure is written down in
+// layout_format.py.
 
 #pragma once
 #include <stdint.h>
@@ -17,7 +18,7 @@
 #define NAME_BYTES 32
 #define LAYOUT_VERSION 1
 
-// Fixed strides. Have to agree with build.py.
+// Fixed strides. Have to agree with layout_format.py.
 #define LAYOUT_HEADER_BYTES 12
 #define LAYOUT_SLOT_BYTES (HASH_BYTES + HASH_BYTES + 1 + 1)          // 34
 #define LAYOUT_SET_BYTES (2 + NAME_BYTES + HASH_BYTES + SLOT_COUNT * LAYOUT_SLOT_BYTES)  // 186

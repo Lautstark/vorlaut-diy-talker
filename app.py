@@ -31,12 +31,26 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-import build
+import builder
 import config
 import discovery
+import manifest
 import metacom
 import texts
+import tiles
 import tts
+from buildbase import BuildError
+from layout import (
+    DEFAULT_PALETTE,
+    LAYOUT_FILE,
+    MAX_ACTIVE_SETS,
+    MAX_SETS,
+    chosen_voice,
+    ensure_content,
+    hex_to_rgb,
+    load_layout,
+    save_layout,
+)
 
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
@@ -49,8 +63,8 @@ STATIC_TYPES = {
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
 }
-SYMBOLS_DIR = build.SYMBOLS_DIR
-THUMB_CACHE = build.CONTENT / "cache" / "thumbs"
+SYMBOLS_DIR = tiles.SYMBOLS_DIR
+THUMB_CACHE = config.CONTENT / "cache" / "thumbs"
 PORT = 8771
 HOST = "127.0.0.1"   # default: this machine only
 MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB is plenty for any symbol
@@ -89,7 +103,7 @@ def build_current_flag() -> str:
     not disturb loading and saving, so when in doubt it answers "0".
     """
     try:
-        return "1" if build.build_is_current() else "0"
+        return "1" if manifest.build_is_current() else "0"
     except Exception:
         return "0"
 
@@ -97,9 +111,9 @@ def build_current_flag() -> str:
 def layout_version() -> str:
     """Identifier of the current file state, so that a stale tab does not
     silently overwrite someone else's work."""
-    if not build.LAYOUT_FILE.exists():
+    if not LAYOUT_FILE.exists():
         return "empty"
-    return hashlib.sha256(build.LAYOUT_FILE.read_bytes()).hexdigest()[:16]
+    return hashlib.sha256(LAYOUT_FILE.read_bytes()).hexdigest()[:16]
 
 
 # The version above is read, compared and written in one go in do_POST, and
@@ -169,9 +183,9 @@ def preview_png(symbol: str, color: str) -> bytes:
     quantisation to RGB565 and the border the firmware draws. On 15.21 mm of
     visible area that makes a difference.
     """
-    Image, _ = build._require_pillow()
-    raw = build.tile_bytes(symbol)          # 116x116, RGB565 big-endian
-    kante = build.TILE_SIZE
+    Image, _ = tiles.require_pillow()
+    raw = tiles.tile_bytes(symbol)          # 116x116, RGB565 big-endian
+    kante = tiles.TILE_SIZE
     innen = Image.new("RGB", (kante, kante))
     px = innen.load()
     for i in range(kante * kante):
@@ -182,9 +196,9 @@ def preview_png(symbol: str, color: str) -> bytes:
         # Pad the low bits the way a panel does
         px[i % kante, i // kante] = (r | r >> 5, g | g >> 6, b | b >> 5)
 
-    tile = Image.new("RGB", (build.IMG_SIZE, build.IMG_SIZE),
-                       build.hex_to_rgb(color))
-    tile.paste(innen, (build.BORDER, build.BORDER))
+    tile = Image.new("RGB", (tiles.IMG_SIZE, tiles.IMG_SIZE),
+                     hex_to_rgb(color))
+    tile.paste(innen, (tiles.BORDER, tiles.BORDER))
     buffer = io.BytesIO()
     tile.save(buffer, "PNG")
     return buffer.getvalue()
@@ -192,13 +206,13 @@ def preview_png(symbol: str, color: str) -> bytes:
 
 def save_upload(data: bytes, original_name: str) -> str:
     """Takes an uploaded image and stores it as a PNG in symbols/."""
-    Image, _ = build._require_pillow()
+    Image, _ = tiles.require_pillow()
     try:
         with Image.open(io.BytesIO(data)) as opened:
             opened.load()
             picture = opened.convert("RGBA")
     except Exception as exc:  # Pillow raises different things per format
-        raise build.BuildError("err.not_an_image") from exc
+        raise BuildError("err.not_an_image") from exc
 
     # Crop to square, centred. The tile is square - without this a white bar
     # would remain on two sides and the picture would be smaller than needed.
@@ -595,8 +609,8 @@ class Handler(BaseHTTPRequestHandler):
         layout.json must not itself depend on layout.json.
         """
         try:
-            return build.load_layout().get("language", texts.DEFAULT)
-        except (build.BuildError, OSError):
+            return load_layout().get("language", texts.DEFAULT)
+        except (BuildError, OSError):
             return texts.DEFAULT
 
     def _error(self, key: str, code: int = 400, **params) -> None:
@@ -795,13 +809,13 @@ def static_file(handler, query) -> None:
 def get_layout(handler, query) -> None:
     try:
         handler._json(
-            build.load_layout(),
+            load_layout(),
             extra={
                 "X-Layout-Version": layout_version(),
                 "X-Build-Current": build_current_flag(),
             },
         )
-    except build.BuildError as exc:
+    except BuildError as exc:
         handler._failed(exc, 500)
 
 
@@ -841,9 +855,9 @@ def device_manifest(handler, query) -> None:
         return
     try:
         # Lines, not JSON - the device has no parser, see
-        # build.manifest_text(). Also nicer with curl.
-        body = build.manifest_text(build.device_manifest())
-    except build.BuildError as exc:
+        # manifest.manifest_text(). Also nicer with curl.
+        body = manifest.manifest_text(manifest.device_manifest())
+    except BuildError as exc:
         handler._failed(exc, 500)
         return
     handler._send(200, body.encode("utf-8"), "text/plain; charset=utf-8")
@@ -855,7 +869,7 @@ def device_file(handler, query) -> None:
         return
     # The file name only, nothing before it - the request comes from outside.
     name = Path((query.get("name") or [""])[0]).name
-    target = build.DATA_DIR / name
+    target = config.DATA_DIR / name
     if not name or not target.is_file():
         handler._error("err.file_not_found", 404)
         return
@@ -881,11 +895,11 @@ def voices(handler, query) -> None:
     # stands in it, or, for an empty entry, what was picked for it. Labels are
     # names and are not translated.
     try:
-        layout = build.load_layout()
-    except build.BuildError as exc:
+        layout = load_layout()
+    except BuildError as exc:
         handler._failed(exc, 500)
         return
-    active = build.chosen_voice(layout)
+    active = chosen_voice(layout)
     handler._json({
         "voices": [dict(voice, active=voice["id"] == active)
                    for voice in tts.available_voices()],
@@ -968,7 +982,7 @@ def preview(handler, query) -> None:
     colour = (query.get("color") or ["#000000"])[0]
     try:
         handler._send(200, preview_png(symbol, colour), "image/png")
-    except build.BuildError as exc:
+    except BuildError as exc:
         handler._failed(exc, 500)
 
 
@@ -984,9 +998,9 @@ def thumb(handler, query) -> None:
 @route("GET", "/symbols/", prefix=True)
 def symbol_file(handler, query) -> None:
     # The reference can be "bild.png" or "metacom:name" - which file is meant
-    # is decided by build.symbol_path.
+    # is decided by tiles.symbol_path.
     reference = urllib.parse.unquote(handler.route_path[len("/symbols/"):])
-    target = build.symbol_path(reference)
+    target = tiles.symbol_path(reference)
     if target is None:
         handler._error("err.symbol_not_found", 404)
         return
@@ -1009,7 +1023,7 @@ def upload(handler, query) -> None:
     name = (query.get("name") or ["bild"])[0]
     try:
         handler._json({"symbol": save_upload(data, name)})
-    except (ValueError, build.BuildError) as exc:
+    except (ValueError, BuildError) as exc:
         handler._failed(exc)
 
 
@@ -1067,8 +1081,8 @@ def post_layout(handler, body) -> None:
         stale = bool(sent) and sent != layout_version()
         if not stale:
             try:
-                saved = build.save_layout(body)
-            except build.BuildError as exc:
+                saved = save_layout(body)
+            except BuildError as exc:
                 handler._failed(exc)
                 return
             extra = {
@@ -1094,10 +1108,10 @@ def pick(handler, body) -> None:
     # licensed collection, the layout only holds the reference.
     if (body.get("source") or "") == "metacom":
         reference = str(body.get("ref") or "")
-        if build.symbol_path(reference) is None:
+        if tiles.symbol_path(reference) is None:
             handler._error("err.no_such_metacom", 404)
             return
-        name = reference[len(build.METACOM_PREFIX):]
+        name = reference[len(tiles.METACOM_PREFIX):]
         handler._json({"symbol": reference, "label": metacom.label_for(name)})
         return
     label = body.get("label") or "symbol"
@@ -1172,9 +1186,9 @@ def speak(handler, body) -> None:
     voice = (body.get("voice") or "").strip()
     try:
         if not voice:
-            voice = build.chosen_voice(build.load_layout())
+            voice = chosen_voice(load_layout())
         wav = tts.synthesize(text, voice)
-    except (build.BuildError, tts.TTSError) as exc:
+    except (BuildError, tts.TTSError) as exc:
         handler._failed(exc)
         return
     handler._send(200, wav.read_bytes(), "audio/wav")
@@ -1185,8 +1199,8 @@ def run_build(handler, body) -> None:
     # One at a time: data/ is emptied and refilled in there.
     with _build_lock:
         try:
-            log = build.build(lang=handler._language())
-        except (build.BuildError, tts.TTSError) as exc:
+            log = builder.build(lang=handler._language())
+        except (BuildError, tts.TTSError) as exc:
             handler._failed(exc, 500)
             return
     handler._json({"log": log})
@@ -1234,10 +1248,10 @@ def bootstrap(lang: str) -> str:
         "lang": lang,
         "texts": texts.ui_texts(lang),
         "languages": sorted(texts.TEXTS),
-        "palette": build.DEFAULT_PALETTE,
+        "palette": DEFAULT_PALETTE,
         "limits": {
-            "maxSets": build.MAX_SETS,
-            "maxActive": build.MAX_ACTIVE_SETS,
+            "maxSets": MAX_SETS,
+            "maxActive": MAX_ACTIVE_SETS,
         },
     }
     return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
@@ -1274,7 +1288,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=PORT)
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
-    build.ensure_content()
+    ensure_content()
     server = Server((args.host, args.port), Handler)
     finder = None
     if args.host in ("0.0.0.0", "::"):

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Checks that the firmware reads layout.bin exactly as build.py writes it.
+"""Checks that the firmware reads layout.bin exactly as the build writes it.
 
 Compiles the C reader from the sketch on this machine and compares its output
-field by field with what build.py wrote in. Finds mistakes in strides, byte
-order and alignment without a device having to be connected.
+field by field with what layout_format.py wrote in. Finds mistakes in strides,
+byte order and alignment without a device having to be connected.
 """
 
 from __future__ import annotations
@@ -15,24 +15,28 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-import build  # noqa: E402
+from layout import (LANGUAGE_CODES, SLOTS_PER_SET, hex_to_rgb,  # noqa: E402
+                    normalize_layout)
+from layout_format import (HEADER_BYTES, NAME_BYTES, SET_BYTES,  # noqa: E402
+                           _hash_bytes, render_layout_bin)
+from tiles import rgb_to_565  # noqa: E402
 
 
 def expected(layout, label, images, sounds) -> list[str]:
     """The same fields the C reader prints, seen from Python."""
     lines = [f"sets {len(layout['sets'])}",
-             f"language {build.LANGUAGE_CODES[layout['language']]}",
+             f"language {LANGUAGE_CODES[layout['language']]}",
              f"sleep {layout['sleep_timeout_seconds']}"]
     for i, entry in enumerate(layout["sets"]):
-        colour = build.rgb_to_565(*build.hex_to_rgb(entry["color"]))
-        name = entry["name"].encode("utf-8")[:build.NAME_BYTES].decode("utf-8", "ignore")
+        colour = rgb_to_565(*hex_to_rgb(entry["color"]))
+        name = entry["name"].encode("utf-8")[:NAME_BYTES].decode("utf-8", "ignore")
         lines.append(f"set {i} color {colour:04x} name {name} "
-                     f"label {build._hash_bytes(label[i]).hex()}")
-        for j in range(build.SLOTS_PER_SET):
+                     f"label {_hash_bytes(label[i]).hex()}")
+        for j in range(SLOTS_PER_SET):
             sound = sounds[i][j]
             lines.append(
-                f"slot {i} {j} image {build._hash_bytes(images[i][j]).hex()} "
-                f"audio {build._hash_bytes(sound).hex()} has {1 if sound else 0}")
+                f"slot {i} {j} image {_hash_bytes(images[i][j]).hex()} "
+                f"audio {_hash_bytes(sound).hex()} has {1 if sound else 0}")
     return lines
 
 
@@ -64,10 +68,10 @@ def cases():
                             for j in range(4)]}
                  for i, c in enumerate(["#000000", "#FFFFFF", "#FF0000",
                                         "#00FF00", "#0000FF"])]}
-    # The language rides in a single byte of the header. Every value build.py
+    # The language rides in a single byte of the header. Every value the build
     # can write has to arrive, and something it cannot write has to end up as
     # the default rather than as a wrong index.
-    for name in build.LANGUAGE_CODES:
+    for name in LANGUAGE_CODES:
         yield f"language {name}", {"sleep_timeout_seconds": 600,
                                    "language": name, "sets": []}
     yield "unknown language", {"sleep_timeout_seconds": 600,
@@ -81,7 +85,7 @@ def main() -> int:
         build_reader(reader)
         failures = 0
         for name, raw in cases():
-            layout = build.normalize_layout(raw)
+            layout = normalize_layout(raw)
             n = len(layout["sets"])
             label = [f"t{'%032x' % (i + 1)}.bin" for i in range(n)]
             images = [[f"t{'%032x' % (i * 10 + j + 100)}.bin" for j in range(4)]
@@ -91,7 +95,7 @@ def main() -> int:
                        for j in range(4)] for i in range(n)]
 
             path = Path(tmp) / "layout.bin"
-            path.write_bytes(build.render_layout_bin(layout, label, images, sounds))
+            path.write_bytes(render_layout_bin(layout, label, images, sounds))
 
             result = subprocess.run([str(reader), str(path)],
                                     capture_output=True, text=True)
@@ -117,8 +121,8 @@ def main() -> int:
 
         # A layout.bin from before the language byte existed still has to
         # read, and has to come out as the default rather than as garbage.
-        old = bytearray(build.render_layout_bin(
-            build.normalize_layout({"sleep_timeout_seconds": 600, "sets": []}),
+        old = bytearray(render_layout_bin(
+            normalize_layout({"sleep_timeout_seconds": 600, "sets": []}),
             [], [], []))
         old[7] = 0                      # what the reserved byte always held
         path = Path(tmp) / "old.bin"
@@ -134,12 +138,12 @@ def main() -> int:
 
         # And the size has to match the calculated structure
         for n in range(6):
-            want_size = build.HEADER_BYTES + n * build.SET_BYTES
-            layout = build.normalize_layout({"sleep_timeout_seconds": 600, "sets": [
+            want_size = HEADER_BYTES + n * SET_BYTES
+            layout = normalize_layout({"sleep_timeout_seconds": 600, "sets": [
                 {"name": "x", "symbol": "", "color": "#000000",
                  "slots": [{"text": "", "symbol": ""}] * 4} for _ in range(n)]})
-            data = build.render_layout_bin(layout, [""] * n, [[""] * 4] * n,
-                                           [[""] * 4] * n)
+            data = render_layout_bin(layout, [""] * n, [[""] * 4] * n,
+                                     [[""] * 4] * n)
             if len(data) != want_size:
                 print(f"  size at {n} sets: {len(data)}, expected {want_size}")
                 failures += 1

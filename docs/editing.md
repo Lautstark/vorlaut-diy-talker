@@ -178,16 +178,16 @@ speaks every language.
 Adding a language is one block in [`texts.py`](../texts.py) and, if the device
 is to speak it too, one in
 [`firmware/vorlaut/texts.h`](../firmware/vorlaut/texts.h) plus an entry in
-`LANGUAGE_CODES` in `build.py`. `tests/test_ui_texts.py` and
+`LANGUAGE_CODES` in [`layout.py`](../layout.py). `tests/test_ui_texts.py` and
 `tests/test_texts.py` check that the tables stay in step.
 
 `active` decides whether a set goes onto the device. If the field is absent it
 counts as active — that keeps older layouts valid unchanged.
 
-Up to 25 sets may be created (`MAX_SETS` in `build.py`), **at most 5 active at
-once** (`MAX_ACTIVE_SETS` there, the same number as `MAX_SETS` in
-`firmware/vorlaut/layout_format.h`). The 5 is not arbitrary: a fully filled set
-costs around 300 KiB and the file area on the ESP32 holds 1536 KiB.
+Up to 25 sets may be created (`MAX_SETS` in [`layout.py`](../layout.py)), **at
+most 5 active at once** (`MAX_ACTIVE_SETS` there, the same number as `MAX_SETS`
+in `firmware/vorlaut/layout_format.h`). The 5 is not arbitrary: a fully filled
+set costs around 300 KiB and the file area on the ESP32 holds 1536 KiB.
 
 The point: sets for the holidays, for grandma, for the swimming pool can be
 prepared and left lying around without anything getting lost. Switching happens
@@ -200,7 +200,7 @@ neither compute time nor an Azure call.
 
 `color` is the colour rendered as a border around all five images — so that she
 recognises from the colour impression which set she is currently in. New sets
-get a colour from `DEFAULT_PALETTE` in `build.py` in turn; the web interface
+get a colour from `DEFAULT_PALETTE` in [`layout.py`](../layout.py) in turn; the web interface
 fetches the same list from there.
 
 An empty `text` means: this key stays silent. An empty `symbol` yields a

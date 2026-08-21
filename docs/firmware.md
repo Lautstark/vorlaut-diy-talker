@@ -124,7 +124,7 @@ The image itself is gitignored: it is recreated from `data/` in seconds.
 whole-flash image at `0x670000`, which is what the release workflow does with
 `vorlaut.ino.merged.bin`. It works because `arduino-cli` already pads that file
 out to the full 8 MB — the file area is in there, as 1536 KiB of `0xFF`, and
-filling it in changes nothing around it. The offset lives in `build.py` next to
+filling it in changes nothing around it. The offset lives in [`flashing.py`](../flashing.py) next to
 `FS_SIZE`, so it is written down once and both paths use the same number.
 
 It refuses if that range is not blank. Then either the partition scheme is a

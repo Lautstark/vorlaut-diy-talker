@@ -9,7 +9,7 @@
 // because the language is chosen by the content and an empty device has none.
 //
 // Which language is used comes from layout.bin - see LANGUAGE_CODES below and
-// the header description in build.py. The tables are all compiled in; together
+// the header description in layout_format.py. The tables are all compiled in; together
 // they cost a few hundred bytes, and that way one and the same firmware image
 // works for every language.
 
@@ -65,7 +65,7 @@ struct Strings {
   const char *denied;        // ... too many wrong attempts at the code
 };
 
-// The order has to match LANGUAGE_CODES in build.py - the file stores the
+// The order has to match LANGUAGE_CODES in layout.py - the file stores the
 // index, not the name.
 static const Strings LANGUAGES[] = {
   {  // 0 - English

@@ -104,12 +104,6 @@ def main() -> int:
     check("empty_set() matches SetEntry",
           set(layout.empty_set(0)) == keys_of(layout.SetEntry))
 
-    # --- and the facade hands the types on --------------------------------
-    import build
-    check("build re-exports the three types",
-          all(hasattr(build, n) for n in ("Layout", "SetEntry", "Slot"))
-          and all(n in build.__all__ for n in ("Layout", "SetEntry", "Slot")))
-
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")
         return 1

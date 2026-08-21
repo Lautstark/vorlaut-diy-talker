@@ -23,7 +23,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-import build  # noqa: E402
+from layout import LANGUAGE_CODES  # noqa: E402
 
 
 def dump() -> list[str]:
@@ -76,13 +76,13 @@ def main() -> int:
 
     # The two tables have to agree on how many languages there are - the file
     # carries an index into one of them and is written by the other.
-    if languages != len(build.LANGUAGE_CODES):
-        print(f"  FAIL  texts.h knows {languages} languages, build.py "
-              f"{len(build.LANGUAGE_CODES)}")
+    if languages != len(LANGUAGE_CODES):
+        print(f"  FAIL  texts.h knows {languages} languages, layout.py "
+              f"{len(LANGUAGE_CODES)}")
         failures += 1
-    for name, code in build.LANGUAGE_CODES.items():
+    for name, code in LANGUAGE_CODES.items():
         if code >= languages:
-            print(f"  FAIL  build.py maps {name!r} to {code}, and texts.h "
+            print(f"  FAIL  layout.py maps {name!r} to {code}, and texts.h "
                   f"has no table for it")
             failures += 1
 

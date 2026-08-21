@@ -70,7 +70,13 @@ def missing_hint(symbol: str) -> str:
     return "build.missing_symbol"
 
 
-def _require_pillow():
+def require_pillow():
+    """Pillow, or a BuildError saying it is missing.
+
+    Public because app.py needs it too: the web interface draws its own
+    previews and accepts uploads, and both want the same failure - a message
+    key the page can translate rather than an ImportError.
+    """
     try:
         from PIL import Image, ImageDraw  # noqa: F401
     except ImportError as exc:
@@ -111,7 +117,7 @@ def render_symbol(symbol: str) -> bytes:
     Returns raw RGB565 data, big-endian, in the form the ST7735 panel
     expected_size.
     """
-    Image, ImageDraw = _require_pillow()
+    Image, ImageDraw = require_pillow()
 
     inner_size = TILE_SIZE
     inner = Image.new("RGB", (inner_size, inner_size), (255, 255, 255))

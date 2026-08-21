@@ -140,7 +140,7 @@ every time.
 To be precise, the names are hashes of the **input** - source image plus
 pipeline version, or text plus voice configuration - not of the output bytes.
 Same input, same name, so a file is transferred once no matter how many sets
-it appears in. `TILE_PIPELINE` in `build.py` is what keeps that honest: bump it
+it appears in. `TILE_PIPELINE` in [`tiles.py`](../tiles.py) is what keeps that honest: bump it
 when the rendering changes, and every name changes with it.
 
 **The version stamp describes the files, not the layout.** That distinction
@@ -510,7 +510,7 @@ to throughout this document:
 ```
 
 What a test is for is in its own docstring. A few of them compile C from the
-sketch to check that the firmware reads a format the way `build.py` writes it,
+sketch to check that the firmware reads a format the way the build writes it,
 so those need a compiler; the rest need only what the web interface needs
 anyway.
 
