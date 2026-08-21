@@ -1077,12 +1077,16 @@ function render() {
   // entscheidet, welche davon gerade mitkommen.
   const anSchalter = document.createElement("label");
   anSchalter.className = "schalter aufGeraet";
+  // Kurz, weil daneben schon "Gerätevorschau" steht - zweimal "Gerät" in
+  // einer Ansicht liest sich wie dasselbe. Was es bedeutet, sagt der Titel.
+  anSchalter.title = "Aktive Sets gehen aufs Gerät - höchstens "
+                   + limits.maxActive + " gleichzeitig";
   const anBox = document.createElement("input");
   anBox.type = "checkbox";
   anBox.checked = entry.active !== false;
   const anPille = document.createElement("span");
   anPille.className = "pille";
-  anSchalter.append(anBox, anPille, document.createTextNode("Auf dem Gerät"));
+  anSchalter.append(anBox, anPille, document.createTextNode("Aktiv"));
   anBox.onchange = async () => {
     if (anBox.checked && activeCount() >= limits.maxActive) {
       anBox.checked = false;
