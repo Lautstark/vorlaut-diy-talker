@@ -1,9 +1,9 @@
 name: Release
 
-# Ein Artefakt am Workflow-Lauf läuft nach 90 Tagen ab und braucht eine
-# GitHub-Anmeldung zum Herunterladen. Für ein Projekt zum Nachbauen ist das
-# nichts. Eine Release bleibt liegen und lässt sich mit einem
-# gewöhnlichen Link ohne Konto herunterladen.
+# An artifact on a workflow run expires after 90 days and needs a GitHub
+# login to download. For a project meant to be rebuilt that is no good. A
+# release stays put and can be downloaded with an ordinary link, without an
+# account.
 #
 #   git tag v0.1  &&  git push origin v0.1
 on:
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Dieselbe Board-Einstellung wie in der CI - sie steht nur an einer
+      # The same board setting as in CI - it is written down in only one
       # Stelle, siehe .github/actions/firmware.
       - uses: ./.github/actions/firmware
 
@@ -30,8 +30,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           kern=$(arduino-cli core list | awk '/^esp32:esp32/ {print $2}')
-          # Auf den Stand des Tags zeigen, nicht auf main: eine
-          # Release soll auch in einem Jahr noch das beschreiben,
+          # Point at the state of the tag, not at main: a release should
+          # still describe, a year from now, what
           # was in ihr steckt.
           doku="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}"
           summen=$(cd build/vorlaut && sha256sum vorlaut.ino.merged.bin \
@@ -41,7 +41,7 @@ jobs:
           > **Diese Firmware ist noch nie auf echter Hardware gelaufen.**
           > Sie übersetzt sauber, mehr ist bisher nicht geprüft. Vor dem ersten
           > Flashen die Pinbelegung gegen die eigenen Boards halten und die
-          > [Inbetriebnahme in Stufen](${doku}/docs/inbetriebnahme.md) durchgehen -
+          > [Inbetriebnahme in Stufen](${doku}/docs/bring-up.md) durchgehen -
           > sie findet Verdrahtungsfehler einzeln statt alle auf einmal.
 
           ## Aufspielen

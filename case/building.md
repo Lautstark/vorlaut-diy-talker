@@ -1,7 +1,7 @@
 # Gehäuse bauen
 
 Drei gedruckte Teile, sechs Schrauben, ein Abend Arbeit. Die Maße stehen
-alle in [`vorlaut-gehaeuse.scad`](vorlaut-gehaeuse.scad); diese Datei
+alle in [`vorlaut-case.scad`](vorlaut-case.scad); diese Datei
 erklärt, was man damit macht.
 
 > **Ungetestet.** Zum Zeitpunkt dieser Zeilen war noch kein Bauteil in der
@@ -22,7 +22,7 @@ Der Platzbedarf der Wanne auf dem Bett ist 136,0 × 100,0 mm — das Logo an
 der Unterkante steht 0,6 mm vor die Wand.
 
 ```bash
-openscad -o wanne.stl -D 'teil="wanne"' gehaeuse/vorlaut-gehaeuse.scad
+openscad -o wanne.stl -D 'teil="wanne"' case/vorlaut-case.scad
 ```
 
 Dasselbe mit `traeger` und `deckel`. `teil="montage"` zeigt alles
@@ -34,7 +34,7 @@ Start aus dem Finder —, hilft einmaliges Öffnen über *Rechtsklick →
 Öffnen*. Für die Maßkontrolle braucht man OpenSCAD aber gar nicht:
 
 ```bash
-python3 gehaeuse/nachrechnen.py
+python3 case/verify.py
 ```
 
 Das Skript liest die Maße aus der `.scad` und prüft sie unabhängig nach —
@@ -46,7 +46,7 @@ tatsächlich gebaut hat — Außenmaße und ob an den entscheidenden Stellen
 Material bzw. Luft ist:
 
 ```bash
-python3 gehaeuse/pruefe-stl.py wanne.stl traeger.stl deckel.stl
+python3 case/check-stl.py wanne.stl traeger.stl deckel.stl
 ```
 
 Das fängt Fehler, die auf Parameterebene unsichtbar bleiben: einen
@@ -236,7 +236,7 @@ Ist der Versatz wirklich groß, ist die Antwort nicht, die Zahl
 kleinerzureden, sondern:
 
 ```bash
-python3 gehaeuse/nachrechnen.py --versatz 2.0
+python3 case/verify.py --versatz 2.0
 ```
 
 anzusehen und dann `sk_loch_rand` am echten Modul nachzumessen. Womöglich
@@ -260,7 +260,7 @@ Budget wieder.
 Nach dem Nachmessen einmal
 
 ```bash
-python3 gehaeuse/nachrechnen.py
+python3 case/verify.py
 ```
 
 laufen lassen. Was nicht mehr aufgeht, steht dann als `FEHL` da — mit Ist-

@@ -31,13 +31,13 @@ the normalisation during the build.
 
 ## Wiring
 
-![Wiring](verdrahtung.png)
+![Wiring](wiring.png)
 
-Drawn by `tools/verdrahtung.py` from the assignment below — if something turns
+Drawn by `tools/wiring.py` from the assignment below — if something turns
 out differently on the real modules, change it there and run the script again:
 
 ```bash
-python3 tools/verdrahtung.py
+python3 tools/wiring.py
 ```
 
 ## Pin assignment (proposed)

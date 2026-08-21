@@ -3,13 +3,13 @@ description: >
   Richtet arduino-cli mit ESP32-Core und den Adafruit-Bibliotheken ein und
   übersetzt die angegebenen Sketche.
 
-# Warum ein eigener Schritt und nicht zweimal derselbe Text: CI und
-# Release müssen dieselbe Board-Einstellung benutzen. Ein Abbild mit
-# einem anderen Partitionsschema bootet mit schwarzen Displays - das darf nicht
-# davon abhängen, ob jemand beide Dateien nachzieht.
+# Why a step of its own instead of the same text twice: CI and release have
+# to use the same board setting. An image with a different partition scheme
+# boots with black displays - that must not depend on whether someone keeps
+# both files in sync.
 
 inputs:
-  sketche:
+  sketches:
     description: Sketch-Ordner, einer je Zeile.
     required: false
     default: firmware/vorlaut
@@ -23,8 +23,8 @@ runs:
   steps:
     - uses: arduino/setup-arduino-cli@v2
 
-    # Bewusst von Hand statt über arduino/compile-sketches: nur so lässt sich
-    # --output-dir setzen und das fertige Abbild einsammeln.
+    # Deliberately by hand instead of through arduino/compile-sketches: only
+    # that way can --output-dir be set and the finished image collected.
     - name: ESP32 core and libraries
       shell: bash
       run: |
@@ -42,7 +42,7 @@ runs:
     - name: Compile
       shell: bash
       env:
-        SKETCHE: ${{ inputs.sketche }}
+        SKETCHES: ${{ inputs.sketches }}
         FQBN: ${{ inputs.fqbn }}
       run: |
         while IFS= read -r sketch; do
@@ -54,5 +54,5 @@ runs:
             --output-dir "build/$(basename "$sketch")" \
             "$sketch" < /dev/null
           echo "::endgroup::"
-        done <<< "$SKETCHE"
+        done <<< "$SKETCHES"
         ls -lh build/*/

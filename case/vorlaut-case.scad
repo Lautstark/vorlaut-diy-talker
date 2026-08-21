@@ -154,7 +154,7 @@ fase_hinten   = 0.60;   // [K]
 fase_deckel   = 0.80;   // [K] Fase an der Deckeloberkante
 
 /* --- Verschraubung des Deckels --- */
-// Schrauben statt Schnapphaken. Begründung steht in bauanleitung.md.
+// Schrauben statt Schnapphaken. Begründung steht in building.md.
 // false = selbstschneidende M3 direkt ins Plastik (braucht kein Werkzeug
 //         außer einem Schraubendreher, hält ein Prototypenleben lang)
 // true  = M3-Gewindeeinsätze zum Einschmelzen (Ø4,0 x 5 mm). Nur nötig,
@@ -301,7 +301,7 @@ stuetze_pos = [
 
 /* --- Logo --- */
 // Sprechblase mit zwei Augen und einem Lächeln, aus assets/icon.svg
-// nachgebaut (nicht importiert — siehe bauanleitung.md).
+// nachgebaut (nicht importiert — siehe building.md).
 logo_deckel_b   = 70.00;  // [K] Breite der Sprechblase auf dem Deckel
 logo_deckel_h   =  0.80;  // [K] Prägehöhe, 4 Lagen bei 0,2 mm
 logo_seite_an   = true;   // [K] kleines Logo an der Unterkante

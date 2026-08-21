@@ -64,7 +64,7 @@ If it does not match, the CS lines are swapped. Resolder or change the order in
 
 ## Stage 4 — Buttons
 
-`test4_tasten` — each display shows its own button: dark = open, green =
+`test4_buttons` — each display shows its own button: dark = open, green =
 pressed.
 
 - Does pressing light up the display of **that same** key? If another one
@@ -76,7 +76,7 @@ pressed.
 
 ## Stage 5 — Sound
 
-`test5_ton` — 440 Hz for two seconds, then a sweep from 200 to 2000 Hz.
+`test5_sound` — 440 Hz for two seconds, then a sweep from 200 to 2000 Hz.
 
 - Does anything come out at all? Otherwise check BCLK, LRC, DIN, the supply
   and especially **SD** — if that sits LOW it stays silent.
@@ -121,4 +121,4 @@ stages 2 to 5 belongs back in the repo:
 |---|---|
 | Panel profile and offset | `firmware/vorlaut/pins.h` |
 | Order of the CS and KEY lines | `firmware/vorlaut/pins.h` |
-| Actual component dimensions | `docs/hardware.md`, `tools/verdrahtung.py` |
+| Actual component dimensions | `docs/hardware.md`, `tools/wiring.py` |

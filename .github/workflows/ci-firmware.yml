@@ -1,7 +1,7 @@
 name: Firmware build
 
-# Nur bei Änderungen an der Firmware selbst - der ESP32-Core braucht knapp
-# eine Minute zum Installieren, die muss eine Doku-Änderung nicht bezahlen.
+# Only on changes to the firmware itself - the ESP32 core takes close to a
+# minute to install, and a documentation change should not have to pay for it.
 on:
   push:
     branches: [main]
@@ -22,26 +22,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Die Testsketche kommen mit: sie benutzen dieselbe pins.h wie die
-      # richtige Firmware. Wer sie nicht mit übersetzt, merkt eine kaputte
-      # pins.h erst, wenn jemand mit dem Lötkolben davorsitzt.
+      # The test sketches come along: they use the same pins.h as the real
+      # firmware. Whoever does not compile them too notices a broken pins.h
+      # only once someone is sitting there with a soldering iron.
       - uses: ./.github/actions/firmware
         with:
-          sketche: |
+          sketches: |
             firmware/vorlaut
             firmware/tests/test1_board
             firmware/tests/test2_display
             firmware/tests/test3_displays
-            firmware/tests/test4_tasten
-            firmware/tests/test5_ton
+            firmware/tests/test4_buttons
+            firmware/tests/test5_sound
+            firmware/tests/test6_wlan
 
-      # Fertiges Abbild, damit niemand Arduino installieren muss, um zu
-      # flashen. merged.bin enthält Bootloader, Partitionstabelle und
-      # Programm und wird an Adresse 0 geschrieben. Die Inhalte kommen
+      # Ready-made image, so nobody has to install Arduino just to flash.
+      # merged.bin contains bootloader, partition table and program and gets
+      # written at address 0. The content comes
       # getrennt dazu.
       #
-      # Artefakte laufen nach 90 Tagen ab und brauchen eine Anmeldung. Wer
-      # nur flashen will, nimmt besser die Release zum Tag - siehe
+      # Artifacts expire after 90 days and need a login. Whoever only wants
+      # to flash is better off with the release for the tag - see
       # release.yml.
       - name: Upload firmware image
         uses: actions/upload-artifact@v4

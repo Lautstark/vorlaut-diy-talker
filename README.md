@@ -52,7 +52,20 @@ Für die Sprachausgabe braucht es einen eigenen **Azure-Speech-Schlüssel** —
 ein kostenloses Konto genügt, die Stufe F0 enthält 0,5 Mio. Zeichen im
 Monat. Schlüssel und Region kommen in `.env`, Vorlage ist `.env.example`.
 Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
-`.venv/bin/python tts.py --stimmen` zeigt, was zur Auswahl steht.
+`.venv/bin/python tts.py --voices` zeigt, was zur Auswahl steht.
+
+## Sprachen im Projekt
+
+Das **Produkt** ist vorerst deutsch: die Weboberfläche, die Texte auf dem
+Talker und alles, was gesprochen wird. Mehrsprachig ist es noch nicht.
+
+**Code und Dokumentation sind englisch** — Bezeichner, Kommentare,
+Commit-Nachrichten, `docs/` und die CLI. Nur diese README bleibt deutsch, als
+Einstieg ins Projekt.
+
+Die Trennung verläuft also nicht nach Datei, sondern danach, wer es liest:
+was auf einem Bildschirm des Geräts oder in der Oberfläche steht, ist deutsch;
+was beim Weiterentwickeln gelesen wird, ist englisch.
 
 ## Weiter
 
@@ -60,9 +73,9 @@ Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
 |---|---|
 | [docs/hardware.md](docs/hardware.md) | Bauteile, Pinbelegung, Gehäusemaße |
 | [docs/software.md](docs/software.md) | Weboberfläche, layout.json, Build, Sprachausgabe |
-| [docs/inbetriebnahme.md](docs/inbetriebnahme.md) | Erstaufbau in Stufen, mit kleinen Testsketchen |
+| [docs/bring-up.md](docs/bring-up.md) | Erstaufbau in Stufen, mit kleinen Testsketchen |
 | [docs/firmware.md](docs/firmware.md) | Fertiges Image oder selbst übersetzen, Partition Scheme, Flashen |
-| [docs/betrieb.md](docs/betrieb.md) | Im Container starten, vom Handy bearbeiten, Betrieb auf einem NAS |
+| [docs/operation.md](docs/operation.md) | Im Container starten, vom Handy bearbeiten, Betrieb auf einem NAS |
 
 ## Lizenz
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Zeichnet docs/verdrahtung.png aus der Pinbelegung.
+"""Zeichnet docs/wiring.png aus der Pinbelegung.
 
-    python3 tools/verdrahtung.py
+    python3 tools/wiring.py
 
 Liegt als Skript im Repo, damit sich das Bild korrigieren lässt, sobald die
 echten Module etwas anderes sagen - ein PNG allein könnte niemand ändern.
@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-ZIEL = Path(__file__).resolve().parent.parent / "docs" / "verdrahtung.png"
+ZIEL = Path(__file__).resolve().parent.parent / "docs" / "wiring.png"
 
 BG = (252, 252, 252); TXT = (28, 30, 36); GRAU = (125, 131, 142)
 KASTEN = (240, 242, 246); RAHMEN = (200, 204, 212)

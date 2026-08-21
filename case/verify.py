@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Nachrechnung für vorlaut-gehaeuse.scad.
+Nachrechnung für vorlaut-case.scad.
 
 Warum es das gibt: OpenSCAD zeigt eine Vorschau, aber eine Vorschau lügt
 freundlich. Ob ein Ausschnitt 0,4 mm daneben sitzt oder eine Rippe 1,9 mm
@@ -12,9 +12,9 @@ rechnet unabhängig davon nach. Es dupliziert die Zahlen also nicht, es
 prüft sie. Wer eine Zahl in der .scad ändert, bekommt hier sofort das
 Ergebnis — ohne OpenSCAD zu starten.
 
-    python3 gehaeuse/nachrechnen.py
-    python3 gehaeuse/nachrechnen.py --versatz 1.5    # Kappe 1,5 mm versetzt
-    python3 gehaeuse/nachrechnen.py --bett 200 200    # kleineres Druckbett
+    python3 case/verify.py
+    python3 case/verify.py --versatz 1.5    # Kappe 1,5 mm versetzt
+    python3 case/verify.py --bett 200 200    # kleineres Druckbett
 
 Rückgabewert 0 = alles in Ordnung, 1 = mindestens eine Prüfung gefallen.
 """
@@ -26,7 +26,7 @@ import re
 import sys
 
 SCAD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                    'vorlaut-gehaeuse.scad')
+                    'vorlaut-case.scad')
 
 
 # ---------------------------------------------------------------- Parser
