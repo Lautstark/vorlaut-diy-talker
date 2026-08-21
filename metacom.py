@@ -26,6 +26,7 @@ import json
 import re
 import struct
 import sys
+import threading
 import urllib.parse
 import unicodedata
 import zipfile
@@ -40,7 +41,7 @@ CACHE_FILE = config.CONTENT / "cache" / "metacom-index.json"
 SYMBOL_SUBDIR = Path("METACOM_Symbole") / "Symbole_PNG" / "PNG_ohne_Rahmen"
 DB_IN_ASAR = ["assets", "db", "metacom-db.json"]
 LANGUAGE = "deutsch"
-CACHE_VERSION = 1        # bump when the cache layout changes
+CACHE_VERSION = 2        # bump when the cache layout changes
 
 # SW = black and white, FB and _dh = further renditions of the same symbol,
 # digits = alternatives. About half of the 17,114 files are such variants;
@@ -181,20 +182,40 @@ def _load_database() -> list[dict] | None:
 
 
 def _fingerprint() -> str:
-    """Identifier of the source, so the cache does not go stale."""
+    """Identifier of the source, so the cache does not go stale.
+
+    What the collection is, deliberately not where it is mounted. The same
+    download is /Users/you/METACOM_9_Desktop from a terminal and /metacom
+    inside the container, and both write the same content/cache - so with the
+    path in here, every hop between the two threw two megabytes away and spent
+    half a minute rebuilding an index that came out identical. Everything
+    below is therefore relative to the collection: the archive's place inside
+    it, its size and its mtime. Those say when METACOM itself changed, which
+    is the question this is actually asking.
+
+    Without MetaSearch there is no archive to name and the index is the file
+    names alone. Then the symbol folder's own mtime stands in: it moves when
+    symbols are added or removed, which is the case that would go stale.
+    """
     folder = symbols_dir()
     if folder is None:
         return ""
     found = _asar_source()
-    parts = [str(folder)]
     if found is not None:
         container, member = found
         try:
             stat = container.stat()
-            parts += [str(container), member or "", str(stat.st_size), str(int(stat.st_mtime))]
-        except OSError:
+            # relative_to cannot fail - _asar_source() only ever looks below
+            # root() - but a fingerprint is not worth an exception either way.
+            where = container.relative_to(root())
+            return "|".join([str(where), member or "",
+                             str(stat.st_size), str(int(stat.st_mtime))])
+        except (OSError, ValueError):
             pass
-    return "|".join(parts)
+    try:
+        return f"names|{int(folder.stat().st_mtime)}"
+    except OSError:
+        return "names"
 
 
 def _scan_files() -> dict[str, str]:
@@ -240,6 +261,15 @@ def _build_index() -> dict:
 
 
 _cache: dict | None = None
+# Held across the whole build, not just around the assignment. _cache is only
+# set once _build_index() returns, so without this the first page load starts
+# six of them: the layout's five keys each resolve a metacom: symbol through
+# here, and /api/sources and /api/settings ask as well. Every one of those
+# would walk 17,114 files and open the MetaSearch archive, and all six would
+# then write the same file. Waiting is what they want anyway - they cannot
+# answer until the index is there - so they queue behind the one build and
+# take its result. Nothing under this lock calls index() again.
+_lock = threading.Lock()
 
 
 def index() -> dict:
@@ -249,28 +279,29 @@ def index() -> dict:
         return {"version": CACHE_VERSION, "fingerprint": "", "keywords": False,
                 "files": {}, "entries": []}
 
-    want = _fingerprint()
-    if _cache is not None and _cache.get("fingerprint") == want:
-        return _cache
+    with _lock:
+        want = _fingerprint()
+        if _cache is not None and _cache.get("fingerprint") == want:
+            return _cache
 
-    if CACHE_FILE.exists():
+        if CACHE_FILE.exists():
+            try:
+                stored = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+                if (stored.get("version") == CACHE_VERSION
+                        and stored.get("fingerprint") == want):
+                    _cache = stored
+                    return _cache
+            except (OSError, json.JSONDecodeError):
+                pass
+
+        _cache = _build_index()
         try:
-            stored = json.loads(CACHE_FILE.read_text(encoding="utf-8"))
-            if (stored.get("version") == CACHE_VERSION
-                    and stored.get("fingerprint") == want):
-                _cache = stored
-                return _cache
-        except (OSError, json.JSONDecodeError):
-            pass
-
-    _cache = _build_index()
-    try:
-        CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE_FILE.write_text(
-            json.dumps(_cache, ensure_ascii=False), encoding="utf-8")
-    except OSError:
-        pass   # without a cache the start takes longer, nothing worse
-    return _cache
+            CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            CACHE_FILE.write_text(
+                json.dumps(_cache, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass   # without a cache the start takes longer, nothing worse
+        return _cache
 
 
 def has_keywords() -> bool:

@@ -225,7 +225,14 @@ Expected underneath it are `METACOM_Symbole/Symbole_PNG/PNG_ohne_Rahmen`
 (without a border, because the firmware draws one itself) and the MetaSearch
 application, which the keywords come from. On the first start a search index is
 built from that under `content/cache/metacom-index.json`; it is rebuilt as soon
-as the path or the MetaSearch file changes.
+as the MetaSearch file changes.
+
+Not when the path changes, deliberately: the collection is
+`/Users/you/METACOM_9_Desktop` from a terminal and `/metacom` in the container,
+and the two share one `content/cache`. Keying the index on where it is mounted
+meant every switch between them threw two megabytes away and spent half a
+minute rebuilding it — with the page already answering, so the keys came up
+blank and the gear showed no collection until it was through.
 
 In the layout, METACOM symbols appear as `"symbol": "metacom:trinken"`. The name
 is the file name without extension.
