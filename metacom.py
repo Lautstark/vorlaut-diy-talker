@@ -132,7 +132,7 @@ def _read_asar_entry(stream, parts: list[str]) -> bytes:
     """
     head = stream.read(16)
     if len(head) < 16:
-        raise ValueError("asar-Kopf unvollständig.")
+        raise ValueError("asar header incomplete.")
     json_len = struct.unpack("<I", head[12:16])[0]
     header = json.loads(stream.read(json_len).decode("utf-8"))
 
@@ -152,7 +152,7 @@ def _read_asar_entry(stream, parts: list[str]) -> bytes:
         while position < target:
             chunk = stream.read(min(1 << 20, target - position))
             if not chunk:
-                raise ValueError("asar endet vor der gesuchten Datei.")
+                raise ValueError("asar ends before the requested file.")
             position += len(chunk)
 
     data = b""

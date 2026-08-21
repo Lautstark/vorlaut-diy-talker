@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Prüft, dass die Firmware layout.bin genau so liest, wie build.py sie schreibt.
+"""Checks that the firmware reads layout.bin exactly as build.py writes it.
 
-Übersetzt den C-Leser aus dem Sketch auf diesem Rechner und vergleicht seine
-Ausgabe Feld für Feld mit dem, was build.py hineingeschrieben hat. Findet
-Fehler bei Schrittweiten, Byte-Reihenfolge und Ausrichtung, ohne dass ein
-Gerät angeschlossen sein muss.
+Compiles the C reader from the sketch on this machine and compares its output
+field by field with what build.py wrote in. Finds mistakes in strides, byte
+order and alignment without a device having to be connected.
 """
 
 from __future__ import annotations
@@ -107,7 +106,7 @@ def main() -> int:
                 if len(soll) != len(gelesen):
                     print(f"    Zeilen: Python {len(soll)}, C {len(gelesen)}")
 
-        # Und die Größe muss zur gerechneten Struktur passen
+        # And the size has to match the calculated structure
         for n in range(6):
             erwartet = build.HEADER_BYTES + n * build.SET_BYTES
             leer = build.normalize_layout({"sleep_timeout_seconds": 600, "sets": [

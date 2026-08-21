@@ -708,19 +708,19 @@ def find_tool(name: str) -> Path | None:
 
 
 def build_fs_image() -> list[str]:
-    """Packt firmware/vorlaut/data/ in ein LittleFS-Image zum Flashen."""
+    """Packs firmware/vorlaut/data/ into a LittleFS image for flashing."""
     log: list[str] = []
     tool = find_tool("mklittlefs")
     if not tool:
         raise BuildError(
-            "mklittlefs nicht gefunden. Es kommt mit dem ESP32-Core der "
-            "Arduino-IDE; ohne den lässt sich kein Image bauen."
+            "mklittlefs not found. It comes with the ESP32 core of the "
+            "Arduino IDE; without it no image can be built."
         )
     used = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
     if used > FS_SIZE:
         raise BuildError(
-            f"Die Daten sind {used / 1024:.0f} KiB groß, der Dateibereich "
-            f"fasst nur {FS_SIZE / 1024:.0f} KiB."
+            f"The data is {used / 1024:.0f} KiB, the file area holds only "
+            f"{FS_SIZE / 1024:.0f} KiB."
         )
     result = subprocess.run(
         [str(tool), "-c", str(DATA_DIR), "-b", "4096", "-p", "256",
@@ -728,14 +728,14 @@ def build_fs_image() -> list[str]:
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        raise BuildError(f"mklittlefs fehlgeschlagen: {result.stderr.strip()[:300]}")
+        raise BuildError(f"mklittlefs failed: {result.stderr.strip()[:300]}")
     esptool = find_tool("esptool")
     call = str(esptool) if esptool else "esptool"
     for line in [
         f"Image: {FS_IMAGE.relative_to(ROOT)}  "
-        f"({used / 1024:.0f} von {FS_SIZE / 1024:.0f} KiB used)",
-        "Port suchen mit:  arduino-cli board list",
-        "Schreiben mit:",
+        f"({used / 1024:.0f} of {FS_SIZE / 1024:.0f} KiB used)",
+        "Find the port with:  arduino-cli board list",
+        "Write it with:",
         f"  {call} \\",
         f"    --chip esp32s3 --port /dev/cu.usbmodemXXXX \\",
         f"    write-flash 0x{FS_OFFSET:X} {FS_IMAGE.relative_to(ROOT)}",
@@ -800,22 +800,22 @@ def prune_cache() -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description="vorlaut: firmware/data bauen")
+    parser = argparse.ArgumentParser(description="vorlaut: build firmware/data")
     parser.add_argument(
-        "--no-audio", action="store_true", help="nur Bilder und layout.h bauen"
+        "--no-audio", action="store_true", help="build images and layout only"
     )
     parser.add_argument(
-        "--force-audio", action="store_true", help="alle WAVs neu rendern"
+        "--force-audio", action="store_true", help="re-render all WAVs"
     )
     parser.add_argument(
         "--fs-image",
         action="store_true",
-        help="zusätzlich ein LittleFS-Image zum Flashen bauen",
+        help="also build a LittleFS image for flashing",
     )
     parser.add_argument(
         "--prune-cache",
         action="store_true",
-        help="Sprachdateien löschen, die in layout.json nicht mehr vorkommen",
+        help="delete speech files no longer referenced by layout.json",
     )
     args = parser.parse_args(argv[1:])
     if args.prune_cache:

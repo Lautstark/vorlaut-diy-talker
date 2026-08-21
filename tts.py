@@ -87,9 +87,9 @@ LOUDNORM = "I=-16:TP=-1.5:LRA=11"
 # Do not trim down to the last audible sample: a little room tone stays, or
 # short words like "Ja" end up sounding clipped.
 KEEP_HEAD = 0.06   # Sekunden Stille vor dem Wort
-KEEP_TAIL = 0.10   # Sekunden nach dem Wort, damit es ausklingen darf
-FADE = 0.012       # kurze Blende an beiden Rändern gegen Knackser
-TAIL_PAD = 0.06    # Ruhe am Ende, bevor der Verstärker abschaltet
+KEEP_TAIL = 0.10   # seconds after the word, so it can ring out
+FADE = 0.012       # short fade at both ends against clicks
+TAIL_PAD = 0.06    # quiet at the end, before the amplifier switches off
 
 AZURE_ENDPOINT = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
 AZURE_FORMAT = "riff-16khz-16bit-mono-pcm"
@@ -324,17 +324,17 @@ def list_voices() -> int:
         with urllib.request.urlopen(request, timeout=30) as antwort:
             voices = json.loads(antwort.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        print(f"Azure antwortet mit {exc.code}. Passen Schlüssel und Region "
-              f"({REGION}) zusammen?", file=sys.stderr)
+        print(f"Azure answers with {exc.code}. Do the key and the region "
+              f"({REGION}) match?", file=sys.stderr)
         return 1
     language = LOCALE.split("-")[0]
     matching = [v for v in voices if v.get("Locale", "").startswith(language)]
-    print(f"Region {REGION}, Sprache {language}: {len(matching)} Stimmen")
+    print(f"Region {REGION}, language {language}: {len(matching)} voices")
     for v in sorted(matching, key=lambda x: x["ShortName"]):
         styles = ", ".join(v.get("StyleList") or []) or "-"
-        marker = " <- eingestellt" if v["ShortName"] == VOICE else ""
-        print(f"  {v['ShortName']:32} {v.get('Gender',''):7} Stile: {styles}{marker}")
-    print("\nAndere wählen: AZURE_SPEECH_VOICE in .env eintragen.")
+        marker = " <- configured" if v["ShortName"] == VOICE else ""
+        print(f"  {v['ShortName']:32} {v.get('Gender',''):7} styles: {styles}{marker}")
+    print("\nTo pick another: set AZURE_SPEECH_VOICE in .env.")
     return 0
 
 
@@ -343,11 +343,11 @@ def main(argv: list[str]) -> int:
         try:
             return list_voices()
         except TTSError as exc:
-            print(f"Fehler: {exc}", file=sys.stderr)
+            print(f"Error: {exc}", file=sys.stderr)
             return 1
     if len(argv) < 2:
-        print("Aufruf: python3 tts.py \"Der Satz\" [target.wav]\n"
-              "        python3 tts.py --voices", file=sys.stderr)
+        print("Usage: python3 tts.py \"the sentence\" [target.wav]\n"
+              "       python3 tts.py --voices", file=sys.stderr)
         return 2
     text = argv[1]
     try:

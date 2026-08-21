@@ -66,8 +66,8 @@ def version_of(programm: str, *args: str) -> str:
 
 def check_python() -> None:
     v = sys.version_info
-    report("Python 3.9 oder neuer", v >= (3, 9), f"{v.major}.{v.minor}.{v.micro}",
-          "Ohne das läuft hier nichts. python.org oder der Paketverwalter.")
+    report("Python 3.9 or newer", v >= (3, 9), f"{v.major}.{v.minor}.{v.micro}",
+          "Nothing here runs without it. python.org or your package manager.")
 
 
 def check_pillow() -> None:
@@ -98,10 +98,10 @@ def check_azure_key() -> None:
             if line.startswith("AZURE_SPEECH_KEY="):
                 key = line.split("=", 1)[1].strip()
                 source = ".env"
-    report("Azure-Schlüssel", bool(key),
+    report("Azure key", bool(key),
           f"aus {source}" if key else "",
-          "Ohne Schlüssel bleibt das Gerät stumm, alles andere geht.\n"
-          "cp .env.example .env  und den eigenen Schlüssel eintragen.\n"
+          "Without a key the device stays silent, everything else works.\n"
+          "cp .env.example .env  and enter your own key.\n"
           "Ein kostenloses Konto reicht (Stufe F0).",
           required=False)
 
@@ -110,19 +110,19 @@ def check_arduino() -> None:
     path = shutil.which("arduino-cli")
     report("arduino-cli", bool(path),
           version_of("arduino-cli", "version") if path else "",
-          "Nur zum Übersetzen der Firmware nötig. Wer das fertige Image aus\n"
-          "CI nimmt, braucht nur esptool.\n"
+          "Only needed for compiling the firmware. Whoever takes the ready-made\n"
+          "image from CI needs esptool only.\n"
           + hint_for("brew install arduino-cli",
-                     "siehe arduino.github.io/arduino-cli"),
+                     "see arduino.github.io/arduino-cli"),
           required=False)
     if not path:
         return
     cores = version_of("arduino-cli", "core", "list")
     hat = subprocess.run(["arduino-cli", "core", "list"], capture_output=True,
                          text=True).stdout
-    report("  ESP32-Core", "esp32:esp32" in hat, "",
+    report("  ESP32 core", "esp32:esp32" in hat, "",
           "arduino-cli core install esp32:esp32\n"
-          "(vorher die Paketquelle eintragen, siehe docs/firmware.md)",
+          "(add the package source first, see docs/firmware.md)",
           required=False)
     libs = subprocess.run(["arduino-cli", "lib", "list"], capture_output=True,
                           text=True).stdout
@@ -132,24 +132,24 @@ def check_arduino() -> None:
 
 
 def tool_in_core(name: str) -> Path | None:
-    for basis in (Path.home() / "Library/Arduino15/packages/esp32/tools",
+    for base in (Path.home() / "Library/Arduino15/packages/esp32/tools",
                   Path.home() / ".arduino15/packages/esp32/tools"):
-        ordner = basis / ("esptool_py" if name == "esptool" else name)
-        if ordner.exists():
-            hits = sorted(ordner.glob(f"*/{name}"))
+        folder = base / ("esptool_py" if name == "esptool" else name)
+        if folder.exists():
+            hits = sorted(folder.glob(f"*/{name}"))
             if hits:
                 return hits[-1]
     return None
 
 
 def check_flash_tools() -> None:
-    for name, wofuer in (("esptool", "zum Flashen"),
-                         ("mklittlefs", "für das Filesystem-Image")):
+    for name, purpose in (("esptool", "for flashing"),
+                          ("mklittlefs", "for the file system image")):
         im_pfad = shutil.which(name)
         im_core = tool_in_core(name)
-        ort = "im PATH" if im_pfad else (f"im ESP32-Core" if im_core else "")
-        report(f"{name} ({wofuer})", bool(im_pfad or im_core), ort,
-              "Kommt mit dem ESP32-Core der Arduino-IDE.\n"
+        ort = "im PATH" if im_pfad else (f"in the ESP32 core" if im_core else "")
+        report(f"{name} ({purpose})", bool(im_pfad or im_core), ort,
+              "Comes with the ESP32 core of the Arduino IDE.\n"
               + (hint_for("brew install esptool", "pip install esptool")
                  if name == "esptool" else ""),
               required=False)
@@ -158,8 +158,8 @@ def check_flash_tools() -> None:
 def check_docker() -> None:
     path = shutil.which("docker")
     report("Docker", bool(path), version_of("docker", "--version") if path else "",
-          "Nur nötig, wenn die Oberfläche im Container laufen soll.\n"
-          "Ohne Docker geht auch:  python app.py",
+          "Only needed if the interface is meant to run in a container.\n"
+          "Without Docker this works too:  python app.py",
           required=False)
 
 
@@ -168,37 +168,37 @@ def check_metacom() -> None:
     interface searches ARASAAC only."""
     configured = metacom.configured()
     if not configured:
-        report("METACOM-Sammlung", False, "VORLAUT_METACOM_DIR nicht gesetzt",
-               "Nur nötig, wenn du eine METACOM-Lizenz hast.\n"
-               "Pfad auf den entpackten Download zeigen lassen - in .env\n"
-               "oder als Umgebungsvariable:\n"
+        report("METACOM collection", False, "VORLAUT_METACOM_DIR not set",
+               "Only needed if you have a METACOM licence.\n"
+               "Point it at the unpacked download - in .env\n"
+               "or as an environment variable:\n"
                "  VORLAUT_METACOM_DIR=~/METACOM_9_Desktop",
                required=False)
         return
     if not metacom.available():
-        report("METACOM-Sammlung", False, "Ordner nicht lesbar",
+        report("METACOM collection", False, "folder not readable",
                f"VORLAUT_METACOM_DIR zeigt auf {configured},\n"
-               f"darunter fehlt {metacom.SYMBOL_SUBDIR}.",
+               f"{metacom.SYMBOL_SUBDIR} is missing underneath it.",
                required=False)
         return
-    art = "mit Stichwörtern" if metacom.has_keywords() else "nur Dateinamen"
-    report("METACOM-Sammlung", True, f"{metacom.count()} Symbole, {art}",
+    art = "with keywords" if metacom.has_keywords() else "file names only"
+    report("METACOM collection", True, f"{metacom.count()} symbols, {art}",
            required=False)
     if not metacom.has_keywords():
-        print("         Die Datenbank von MetaSearch wurde nicht gefunden -")
-        print("         die Suche läuft über Dateinamen und findet weniger.")
+        print("         The MetaSearch database was not found -")
+        print("         search falls back to file names and finds less.")
 
 
 def check_device_token() -> None:
     """Without a key the talker cannot fetch any content."""
     import app
     if app.device_token():
-        report("Schluessel fuer den Talker", True, "aus der Umgebung oder .env",
+        report("Key for the talker", True, "from the environment or .env",
                required=False)
     else:
-        report("Schluessel fuer den Talker", False, "VORLAUT_DEVICE_TOKEN nicht gesetzt",
-               "Nur noetig, wenn sich das Geraet die Inhalte selbst holen soll.\n"
-               "Einen erzeugen und in .env eintragen:\n"
+        report("Key for the talker", False, "VORLAUT_DEVICE_TOKEN not set",
+               "Only needed if the device is meant to fetch content by itself.\n"
+               "Generate one and put it into .env:\n"
                "  python -c \"import secrets; print(secrets.token_urlsafe(24))\"",
                required=False)
 
@@ -210,40 +210,40 @@ def check_content() -> None:
         try:
             import json
             sets = len(json.loads(layout.read_text(encoding="utf-8")).get("sets", []))
-            report("Inhalte", True, f"{content.name}/, {sets} Set(s)")
+            report("Content", True, f"{content.name}/, {sets} set(s)")
         except Exception as exc:
-            report("Inhalte", False, "", f"layout.json ist nicht lesbar: {exc}")
+            report("Content", False, "", f"layout.json ist nicht lesbar: {exc}")
     else:
-        report("Inhalte", True, "noch keine - werden beim ersten Start angelegt")
+        report("Content", True, "none yet - created on the first start")
 
 
 def main() -> int:
     print(f"\nvorlaut – {platform.system()} {platform.release()}, "
           f"{platform.machine()}\n")
-    print(" Für die Weboberfläche und den Build")
+    print(" For the web interface and the build")
     check_python()
     check_pillow()
     check_ffmpeg()
     check_content()
-    print("\n Für die Sprachausgabe")
+    print("\n For the speech output")
     check_azure_key()
-    print("\n Für die Firmware")
+    print("\n For the firmware")
     check_arduino()
     check_flash_tools()
-    print("\n Wahlweise")
+    print("\n Optional")
     check_docker()
     check_metacom()
     check_device_token()
 
     print()
     if missing_required:
-        print(f"  {ROT}{missing_required} Sache(n) fehlen{AUS}, ohne die es nicht läuft.")
+        print(f"  {ROT}{missing_required} thing(s) missing{AUS} that it cannot run without.")
         return 1
     if missing_optional:
-        print(f"  Alles Nötige ist da. {missing_optional} Sache(n) fehlen für "
-              f"Teilbereiche – siehe oben.")
+        print(f"  Everything essential is here. {missing_optional} thing(s) missing for "
+              f"some areas - see above.")
     else:
-        print(f"  {GRUEN}Alles da.{AUS}")
+        print(f"  {GRUEN}Everything is here.{AUS}")
     return 0
 
 

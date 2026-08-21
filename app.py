@@ -164,7 +164,7 @@ def save_upload(data: bytes, original_name: str) -> str:
         with Image.open(io.BytesIO(data)) as opened:
             opened.load()
             picture = opened.convert("RGBA")
-    except Exception as exc:  # Pillow wirft je nach Format Verschiedenes
+    except Exception as exc:  # Pillow raises different things per format
         raise ValueError("Das ist kein lesbares Bild.") from exc
 
     # Crop to square, centred. The tile is square - without this a white bar
@@ -1526,12 +1526,12 @@ def local_addresses() -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="vorlaut: Weboberfläche")
+    parser = argparse.ArgumentParser(description="vorlaut: web interface")
     parser.add_argument(
         "--host",
         default=HOST,
-        help='Voreinstellung 127.0.0.1 (nur dieser Rechner). Für Zugriff vom '
-             'Handy im selben WLAN: --host 0.0.0.0',
+        help="default 127.0.0.1 (this machine only). For access from a "
+             "phone on the same Wi-Fi: --host 0.0.0.0",
     )
     parser.add_argument("--port", type=int, default=PORT)
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
