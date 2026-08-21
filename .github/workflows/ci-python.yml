@@ -82,6 +82,13 @@ jobs:
         # announcing its code, somebody typing it, the key handed over once.
         run: python tests/test_pairing.py
 
+      - name: No other site can write anything here
+        # The interface has no sign-in, which is the deal - but the browser of
+        # whoever opened some other page must not be usable as a way in. This
+        # one sends the exploit that worked and checks .env is untouched, and
+        # it saves from six threads at once to hold the layout lock in place.
+        run: python tests/test_csrf.py
+
       - name: Interface texts are complete in every language
         # Both languages carry the same keys and the same placeholders, and
         # nothing says words to the user from outside the table.

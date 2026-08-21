@@ -39,6 +39,11 @@ THUMB_CACHE = build.CONTENT / "cache" / "thumbs"
 PORT = 8771
 HOST = "127.0.0.1"   # default: this machine only
 MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB is plenty for any symbol
+# Everything that arrives as JSON. A layout with all 25 sets in it is a few
+# kilobytes, so this is roomy. It exists because Content-Length is believed
+# before the body is read, and an unchecked number is memory somebody else
+# gets to spend.
+MAX_BODY = 256 * 1024
 
 ARASAAC_SEARCH = "https://api.arasaac.org/api/pictograms/de/search/"
 ARASAAC_IMAGE = "https://api.arasaac.org/api/pictograms/"
@@ -80,6 +85,20 @@ def layout_version() -> str:
     if not build.LAYOUT_FILE.exists():
         return "empty"
     return hashlib.sha256(build.LAYOUT_FILE.read_bytes()).hexdigest()[:16]
+
+
+# The version above is read, compared and written in one go in do_POST, and
+# this server answers in threads. Without the lock two tabs saving in the same
+# moment both find the version current, both write, and one of the two is
+# gone - the exact loss the version was put there to catch. The page
+# serialises its own saves, which helps only within that one page.
+_save_lock = threading.Lock()
+
+# A second one for the build, which empties data/ before it fills it again:
+# two at once and one deletes what the other has just written. Deliberately
+# not the lock above - a build takes minutes, and a tab's autosave has no
+# business waiting behind one.
+_build_lock = threading.Lock()
 
 
 def slugify(value: str) -> str:
@@ -496,10 +515,68 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": message(self._language()) if message else str(exc)},
                    code)
 
-    def _body(self) -> dict:
-        length = int(self.headers.get("Content-Length") or 0)
-        if not length:
+    def _from_here(self, origin: str) -> bool:
+        """Whether that Origin is this server.
+
+        Compared against the request's own Host header rather than a list of
+        addresses: with --host 0.0.0.0 the page is opened at whatever address
+        the phone in the kitchen can reach, and none of those are knowable
+        here. The scheme is not compared for the same reason - behind a proxy
+        the page is https and this server never learns of it.
+        """
+        host = self.headers.get("Host", "")
+        sent = urllib.parse.urlsplit(origin)
+        return bool(host) and sent.scheme in ("http", "https") and sent.netloc == host
+
+    def _refused(self, reason: str, code: int) -> None:
+        """A request the interface itself never sends, and the answer says so.
+
+        These reasons are not in texts.py on purpose. Every one of them means
+        the request did not come from this page, so there is nobody reading
+        the interface's language at the other end to translate for.
+        """
+        self._json({"error": reason}, code)
+        # Whatever body was announced is still in the socket unread, so this
+        # connection must not carry a second request after this one.
+        self.close_connection = True
+
+    def _body(self) -> dict | None:
+        """The JSON body - or None, and then the request is already answered.
+
+        Three checks before a byte is read, because everything behind here
+        writes something: a layout, a build, and .env with the Azure key in
+        it. A page on another site can POST to this server without asking
+        anybody first, and the gear answers from 127.0.0.1 - which is exactly
+        where the browser of whoever opened that page is sitting.
+
+        The content type is what closes that door. A cross-origin POST that
+        needs no permission first may carry three content types, all of them
+        ones a form could have sent; application/json is not among them, so
+        the browser has to ask, and this server answers no such ask at all.
+        The Origin check is the second lock on the same door, and the size cap
+        keeps a made-up Content-Length from being believed.
+
+        The device endpoints and the upload never come through here - they
+        speak lines and raw bytes, and are checked where they are read.
+        """
+        origin = self.headers.get("Origin")
+        if origin and not self._from_here(origin):
+            self._refused("This request came from another site.", 403)
+            return None
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            self._refused("Content-Length is not a number.", 400)
+            return None
+        if length <= 0:
             return {}
+        if length > MAX_BODY:
+            self._refused(f"The body is longer than {MAX_BODY} bytes.", 413)
+            return None
+        kind = (self.headers.get("Content-Type") or "").split(";")[0].strip()
+        if kind.lower() != "application/json":
+            self._refused("This endpoint reads application/json.", 415)
+            return None
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
     def _upload(self, query) -> None:
@@ -818,12 +895,28 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             self._error("err.bad_json")
             return
+        if body is None:
+            return                      # refused, and already answered
 
         if path == "/api/layout":
             sent = self.headers.get("X-Layout-Version")
-            current = layout_version()
-            if sent and sent != current:
-                # This page knows an older state. Do not overwrite.
+            with _save_lock:
+                # Reading the version, comparing it and writing belong
+                # together: another tab getting in between is the whole thing
+                # the comparison exists to notice.
+                stale = bool(sent) and sent != layout_version()
+                if not stale:
+                    try:
+                        saved = build.save_layout(body)
+                    except build.BuildError as exc:
+                        self._failed(exc)
+                        return
+                    extra = {
+                        "X-Layout-Version": layout_version(),
+                        "X-Build-Current": build_current_flag(),
+                    }
+            if stale:
+                # This page knows an older state. Nothing was written.
                 self._json(
                     {
                         "error": texts.t("err.stale_page", self._language()),
@@ -832,15 +925,7 @@ class Handler(BaseHTTPRequestHandler):
                     409,
                 )
                 return
-            try:
-                saved = build.save_layout(body)
-            except build.BuildError as exc:
-                self._failed(exc)
-                return
-            self._json(saved, extra={
-                "X-Layout-Version": layout_version(),
-                "X-Build-Current": build_current_flag(),
-            })
+            self._json(saved, extra=extra)
             return
 
         if path == "/api/pick":
@@ -931,11 +1016,13 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/build":
-            try:
-                log = build.build(lang=self._language())
-            except (build.BuildError, tts.TTSError) as exc:
-                self._failed(exc, 500)
-                return
+            # One at a time: data/ is emptied and refilled in there.
+            with _build_lock:
+                try:
+                    log = build.build(lang=self._language())
+                except (build.BuildError, tts.TTSError) as exc:
+                    self._failed(exc, 500)
+                    return
             self._json({"log": log})
             return
 
