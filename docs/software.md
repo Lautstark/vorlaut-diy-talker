@@ -1,83 +1,79 @@
-# Inhalte bearbeiten und bauen
+# Editing and building content
 
-## Auf dem Rechner
+## On the computer
 
-| | wofür |
+| | what for |
 |---|---|
-| Python 3.9 oder neuer | Weboberfläche und Build |
-| ffmpeg | Sprachdateien zuschneiden und normalisieren |
-| Pillow | Bilder umrechnen (`requirements.txt`) |
-| arduino-cli oder Arduino IDE | Firmware übersetzen und flashen |
-| ESP32-Core 3.x | für den Feather |
+| Python 3.9 or newer | web interface and build |
+| ffmpeg | trimming and normalising speech files |
+| Pillow | converting images (`requirements.txt`) |
+| arduino-cli or Arduino IDE | compiling and flashing the firmware |
+| ESP32 core 3.x | for the Feather |
 
-Alternativ läuft die Weboberfläche im mitgelieferten Docker-Image — dann
-braucht es lokal nur noch die Arduino-Werkzeuge fürs Flashen.
+Alternatively the web interface runs in the included Docker image — then only
+the Arduino tools for flashing are needed locally.
 
-## Für die Sprachausgabe
+## For the speech output
 
-Zurzeit **Azure Speech** mit der Stimme `de-DE-GiselaNeural`. Dafür wird ein
-eigener Schlüssel gebraucht; die kostenlose Stufe F0 enthält 0,5 Mio.
-Zeichen im Monat, was für einen Talker reichlich ist.
+Currently **Azure Speech** with the voice `de-DE-GiselaNeural`. That needs a key
+of your own; the free F0 tier includes 0.5 million characters a month, which is
+plenty for a talker.
 
-> Eine Variante ohne Cloud-Konto ist geplant (offline-TTS), damit das
-> Projekt auch ohne Microsoft-Konto nachbaubar ist. Noch nicht umgesetzt.
+> A variant without a cloud account is planned (offline TTS), so the project
+> can be rebuilt without a Microsoft account. Not implemented yet.
 
-## Weboberfläche
+## Web interface
 
-`app.py` startet auf <http://localhost:8771> und sieht aus wie das Gerät:
-oben die Reiter für die Sets, darunter die Set-Kachel und die vier
-Sprechtasten im 2x2-Raster. Der Rahmen jeder Kachel hat die Farbe des Sets.
+`app.py` starts on <http://localhost:8771> and looks like the device: tabs for
+the sets on top, below them the set tile and the four speech keys in a 2x2
+grid. The border of each tile has the colour of the set.
 
-- **Auf ein Symbol klicken** öffnet die ARASAAC-Suche. Ein Klick auf ein
-  Ergebnis lädt das PNG nach `content/symbols/` und trägt es in `content/layout.json` ein.
-  Im selben Dialog liegt **Eigenes Bild** - damit lässt sich ein Foto oder
-  eine eigene Zeichnung hochladen. Alles, was Pillow lesen kann (PNG, JPG,
-  HEIC-Export, GIF ...), wird nach PNG gewandelt und in `content/symbols/` abgelegt.
-  Bestehende Dateien werden nie überschrieben, gleiche Namen bekommen `-2`
-  angehängt. Höchstens 10 MB pro Bild.
+- **Clicking a symbol** opens the search. Clicking a result loads the PNG into
+  `content/symbols/` and enters it into `content/layout.json`. The same dialog
+  holds **Eigenes Bild** — that lets you upload a photo or a drawing of your
+  own. Anything Pillow can read (PNG, JPG, HEIC export, GIF …) is converted to
+  PNG and put into `content/symbols/`. Existing files are never overwritten,
+  identical names get `-2` appended. At most 10 MB per image.
 
-  Nicht-quadratische Bilder werden **mittig auf quadratisch beschnitten**, damit
-  sie die Kachel randlos füllen - sonst bliebe an zwei Seiten ein weißer
-  Balken. Bei einem Hochformat fällt dabei oben und unten je ein Stück weg.
-  Wenn es auf den Bildausschnitt ankommt, das Foto vorher in der Fotos-App
-  quadratisch zuschneiden; dann bleibt es unangetastet.
+  Non-square images are **cropped to square, centred**, so they fill the tile
+  edge to edge — otherwise a white bar would remain on two sides. With a
+  portrait image a piece is lost at the top and bottom. If the framing matters,
+  crop the photo to square in the Photos app first; then it stays untouched.
 
-  Große Bilder werden beim Annehmen auf **500 Pixel lange Kante** verkleinert
-  (`SYMBOL_MAX_PX` in `app.py`) - dasselbe Maß, in dem ARASAAC seine
-  Piktogramme liefert. Ein Handyfoto mit 3024x4032 wiegt danach ein paar
-  Kilobyte statt mehrerer Megabyte. Das ist Absicht: `content/symbols/` liegt im Repo,
-  und das Gerät rendert ohnehin nur 116x116 Pixel.
-- **Textfeld**: was Gisela sagt. Das darf vom Symbolwort abweichen - das
-  Symbol zeigt "anhalten", gesagt wird "Stopp".
-- **▶** hört den Satz vorher ab (geht über Azure, braucht also den Key).
-- **Bauen** oben rechts ruft `build.py` und zeigt das Protokoll an.
+  Large images are scaled down to a **500 pixel long edge** on acceptance
+  (`SYMBOL_MAX_PX` in `app.py`) — the same size in which ARASAAC delivers its
+  pictograms. A phone photo at 3024x4032 then weighs a few kilobytes instead of
+  several megabytes. That is intentional, and the device renders only 116x116
+  pixels anyway.
+- **Text field**: what Gisela says. It may differ from the symbol's word — the
+  symbol shows "anhalten", what gets said is "Stopp".
+- **▶** previews the sentence (goes through Azure, so it needs the key).
+- **Bauen** at the top right calls `build.py` and shows the log.
 
-**Gerätevorschau:** der Schiebeschalter oben zeigt unter jeder Kachel zusätzlich
-an, wie es auf dem Gerät ankommt — auf 116x116 verkleinert, auf RGB565
-gerundet, mit dem Rahmen den die Firmware zeichnet, und in der Größe der
-tatsächlich sichtbaren Fläche von **15,21 x 15,21 mm**. Ein detailreiches
-Piktogramm kann darauf unlesbar werden; besser vor dem Aussuchen sehen als
-hinterher.
+**Device preview:** the toggle at the top additionally shows below each tile how
+it arrives on the device — scaled to 116x116, rounded to RGB565, with the border
+the firmware draws, and at the size of the actually visible area of
+**15.21 x 15.21 mm**. A detailed pictogram can become unreadable at that size;
+better to see it before picking than afterwards.
 
-Die große Kachel bleibt dabei das Quellbild in voller Schärfe — sie ist zum
-Aussuchen da.
+The large tile stays the source image in full sharpness — it is there for
+picking.
 
-**Umsortieren per Ziehen:** jede Sprechtaste hat oben rechts einen Griff (⠿).
-Zieht man ihn auf eine andere Taste, **tauschen** die beiden die Plätze - im
-festen 2x2-Raster ist das eindeutiger als Einsortieren. Die Reiter oben lassen
-sich ebenfalls ziehen; deren Reihenfolge bestimmt, wie die Set-Taste am Gerät
-durchschaltet.
+**Reordering by dragging:** every speech key has a grip (⠿) at the top right.
+Drag it onto another key and the two **swap** places — in the fixed 2x2 grid
+that is less ambiguous than inserting. The tabs at the top can be dragged as
+well; their order determines how the set key cycles on the device.
 
-Umsortieren kostet nichts: die Sprachdateien hängen im Cache am Text, nicht an
-der Position. Es wird also nichts neu gesprochen.
+Reordering costs nothing: the speech files hang off the text in the cache, not
+off the position. So nothing gets re-spoken.
 
-Änderungen werden automatisch in `content/layout.json` gespeichert.
+Changes are saved to `content/layout.json` automatically.
 
 ---
 
 ## layout.json
 
-Die einzige Quelle der Wahrheit. Höchstens 5 Sets, genau 4 Slots pro Set.
+The single source of truth. Exactly 4 slots per set.
 
 ```json
 {
@@ -85,6 +81,7 @@ Die einzige Quelle der Wahrheit. Höchstens 5 Sets, genau 4 Slots pro Set.
   "sets": [
     {
       "name": "Grundset",
+      "active": true,
       "symbol": "start.png",
       "color": "#4A90D9",
       "slots": [
@@ -98,164 +95,160 @@ Die einzige Quelle der Wahrheit. Höchstens 5 Sets, genau 4 Slots pro Set.
 }
 ```
 
-`active` entscheidet, ob ein Set aufs Gerät geht. Fehlt das Feld, gilt es als
-aktiv - ältere Layouts bleiben damit unverändert gültig.
+`active` decides whether a set goes onto the device. If the field is absent it
+counts as active — that keeps older layouts valid unchanged.
 
-Angelegt werden dürfen bis zu 25 Sets, **gleichzeitig aktiv höchstens 5**. Die
-5 ist keine willkürliche Zahl: ein voll befülltes Set kostet rund 300 KiB, der
-Dateibereich auf dem ESP32 fasst 1536 KiB. Dieselbe Grenze steht als
-`MAX_SETS` in `firmware/vorlaut/layout_format.h`.
+Up to 25 sets may be created (`MAX_SETS` in `build.py`), **at most 5 active at
+once** (`MAX_ACTIVE_SETS` there, the same number as `MAX_SETS` in
+`firmware/vorlaut/layout_format.h`). The 5 is not arbitrary: a fully filled set
+costs around 300 KiB and the file area on the ESP32 holds 1536 KiB.
 
-Der Sinn: Sets für den Urlaub, für Oma, fürs Schwimmbad lassen sich vorbereiten
-und liegenlassen, ohne dass etwas verlorengeht. Umgeschaltet wird am Rechner,
-danach neu bauen und aufspielen - das Gerät selbst kann die Auswahl nicht
-ändern.
+The point: sets for the holidays, for grandma, for the swimming pool can be
+prepared and left lying around without anything getting lost. Switching happens
+on the computer, followed by a rebuild and a flash — the device itself cannot
+change the selection.
 
-Beim Umschalten fällt kein Aufwand doppelt an: Kacheln und Tonspuren liegen
-inhaltsadressiert im Zwischenspeicher unter `content/cache/`. Ein Set nach
-Wochen wieder anzuschalten kostet deshalb weder Rechenzeit noch einen
-Azure-Aufruf.
+Switching costs no duplicated work: tiles and audio sit content-addressed in the
+cache under `content/cache/`. Turning a set back on weeks later therefore costs
+neither compute time nor an Azure call.
 
-`color` ist die Farbe, die als Rahmen um alle fünf Bilder gerendert wird -
-damit sie am Farbeindruck erkennt, in welchem Set sie gerade ist. Neue Sets
-bekommen der Reihe nach eine Farbe aus `DEFAULT_PALETTE` in `build.py`; die
-Weboberfläche holt sich dieselbe Liste von dort.
+`color` is the colour rendered as a border around all five images — so that she
+recognises from the colour impression which set she is currently in. New sets
+get a colour from `DEFAULT_PALETTE` in `build.py` in turn; the web interface
+fetches the same list from there.
 
-Ein leerer `text` bedeutet: diese Taste bleibt stumm. Ein leeres `symbol`
-ergibt eine Platzhalter-Kachel mit grauem Kreuz.
+An empty `text` means: this key stays silent. An empty `symbol` yields a
+placeholder tile with a grey cross.
 
-Ein `symbol` ist entweder ein Dateiname aus `content/symbols/` oder ein Verweis
-der Form `metacom:<name>` - siehe den nächsten Abschnitt.
-
----
-
-## METACOM (wahlweise)
-
-Wer eine METACOM-Lizenz hat, kann die Sammlung dazuschalten. Sie wird **nicht**
-ins Projekt kopiert und nicht versioniert; gesetzt wird nur der Pfad auf den
-entpackten Download:
-
-```
-VORLAUT_METACOM_DIR=/Users/du/METACOM_9_Desktop
-```
-
-Erwartet werden darunter `METACOM_Symbole/Symbole_PNG/PNG_ohne_Rahmen` (ohne
-Rahmen, denn den zeichnet die Firmware selbst) und die MetaSearch-Anwendung,
-aus der die Stichwörter kommen. Beim ersten Start entsteht daraus ein
-Suchindex unter `content/cache/metacom-index.json`; er wird neu gebaut, sobald
-sich der Pfad oder die MetaSearch-Datei ändert.
-
-Im Layout stehen METACOM-Symbole als `"symbol": "metacom:trinken"`. Der Name
-ist der Dateiname ohne Endung.
-
-Ist die Variable nicht gesetzt, läuft alles wie vorher: Die Suche liefert nur
-ARASAAC, und `metacom:`-Verweise ergeben die Platzhalter-Kachel statt eines
-Abbruchs. So bleibt dasselbe `layout.json` auf einem Rechner ohne Lizenz
-benutzbar.
-
-Für den Container ist das schon eingerichtet: `docker-compose.yml` hängt den
-Pfad aus `.env` lesend unter `/metacom` ein und setzt `VORLAUT_METACOM_DIR`
-dort hin. Es genügt also dieselbe Zeile in `.env` wie beim Start ohne Container.
-Auf einem NAS trägst du dort den NAS-Pfad ein - im Container heißt er immer
-`/metacom`, der Rest bleibt gleich.
-
-Ist nichts gesetzt, zeigt die Einhängung ersatzweise auf `example/`; dort fehlt
-die METACOM-Struktur, und die Anbindung schaltet sich von selbst ab.
-
-`python doctor.py` zeigt unter „Wahlweise", ob die Sammlung gefunden wurde und
-ob die Stichwörter gelesen werden konnten.
+A `symbol` is either a file name from `content/symbols/` or a reference of the
+form `metacom:<name>` — see the next section.
 
 ---
 
-## Abgleich mit dem Talker
+## METACOM (optional)
 
-Damit sich das Gerät seine Inhalte selbst holen kann, gibt der Server zwei
-Endpunkte heraus. Beide verlangen einen Schlüssel:
+Whoever has a METACOM licence can add the collection. It is **not** copied into
+the project and not versioned; all that gets configured is the path to the
+unpacked download:
 
 ```
-GET /api/device/manifest          Versionsstempel und Dateiliste
-GET /api/device/file?name=<n>    eine Datei aus data/
+VORLAUT_METACOM_DIR=/Users/you/METACOM_9_Desktop
 ```
 
-Der Schlüssel steht in `.env` als `VORLAUT_DEVICE_TOKEN` und wird als
-Kopfzeile `X-Vorlaut-Token` mitgeschickt - **nicht** im Adressteil, denn
-Adressen landen in Protokollen. Verglichen wird mit `hmac.compare_digest`,
-damit die Antwortzeit nichts über den Schlüssel verrät.
+Expected underneath it are `METACOM_Symbole/Symbole_PNG/PNG_ohne_Rahmen`
+(without a border, because the firmware draws one itself) and the MetaSearch
+application, which the keywords come from. On the first start a search index is
+built from that under `content/cache/metacom-index.json`; it is rebuilt as soon
+as the path or the MetaSearch file changes.
 
-**Ohne gesetzten Schlüssel antworten beide Endpunkte mit 503.** Absichtlich so
-herum: in `data/` liegen die Tonaufnahmen und Bilder deines Kindes, und ein
-Abgleich, den niemand eingerichtet hat, soll auch nichts herausgeben. Einen
-Schlüssel erzeugen:
+In the layout, METACOM symbols appear as `"symbol": "metacom:trinken"`. The name
+is the file name without extension.
+
+If the variable is not set, everything runs as before: search returns ARASAAC
+only, and `metacom:` references yield the placeholder tile instead of an abort.
+That keeps the same `layout.json` usable on a computer without a licence.
+
+For the container this is already set up: `docker-compose.yml` mounts the path
+from `.env` read-only under `/metacom` and points `VORLAUT_METACOM_DIR` there.
+So the same line in `.env` as for running without a container is enough. On a
+NAS you enter the NAS path there — inside the container it is always
+`/metacom`, the rest stays the same.
+
+If nothing is set, the mount points at `example/` instead; the METACOM
+structure is missing there and the integration switches itself off.
+
+`python doctor.py` shows under "Wahlweise" whether the collection was found and
+whether the keywords could be read.
+
+---
+
+## Sync with the talker
+
+So the device can fetch its content by itself, the server exposes two
+endpoints. Both require a key:
+
+```
+GET /api/device/manifest        version stamp and file list
+GET /api/device/file?name=<n>   one file from data/
+```
+
+The key sits in `.env` as `VORLAUT_DEVICE_TOKEN` and is sent as the header
+`X-Vorlaut-Token` — **not** in the URL, because URLs end up in logs. Comparison
+uses `hmac.compare_digest`, so the response time gives nothing away about the
+key.
+
+**Without a key set, both endpoints answer with 503.** Deliberately that way
+round: what lies in `data/` are the recordings and pictures of your child, and a
+sync nobody set up should not hand anything out. Generating a key:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(24))"
 ```
 
-Der Abgleich ist einfach, weil die Dateinamen Prüfsummen ihres Inhalts sind:
-Das Gerät holt das Manifest, vergleicht den Versionsstempel mit dem
-gespeicherten, holt bei Abweichung nur die Dateien, die es nicht hat, und
-wirft weg, was nicht mehr in der Liste steht. `layout.bin` heißt immer gleich
-und wird jedes Mal geholt.
+The sync is simple because the file names are hashes of their content: the
+device fetches the manifest, compares the version stamp with the stored one,
+and on a mismatch fetches only the files it does not have and throws away what
+is no longer in the list. `layout.bin` always has the same name and is fetched
+every time.
 
 ---
 
-## Bauen
+## Building
 
 ```bash
 .venv/bin/python build.py
 ```
 
-Schreibt nach `firmware/vorlaut/data/` (gitignored, wird auf das Gerät
-hochgeladen):
+Writes into `firmware/vorlaut/data/` (gitignored, uploaded to the device):
 
-| Datei              | Inhalt                                          |
-|--------------------|-------------------------------------------------|
-| `a<Hash>.wav` | gesprochener Satz, 16 kHz mono 16 bit          |
-| `t<Hash>.bin` | 116x116 Symbolfläche, RGB565 big-endian       |
+| File            | Content                                     |
+|-----------------|---------------------------------------------|
+| `a<hash>.wav`   | spoken sentence, 16 kHz mono 16 bit         |
+| `t<hash>.bin`   | 116x116 symbol area, RGB565 big-endian      |
 
-und dazu `layout.bin` — eine kompakte Tabelle mit Anzahl der Sets, Farben,
-Schlafzeit und den Hashes, welche Datei zu welcher Taste gehört.
+plus `layout.bin` — a compact table with the number of sets, colours, sleep
+timeout and the hashes saying which file belongs to which key.
 
-**Diese Tabelle liegt beim Inhalt, nicht in der Firmware.** Ein Set anlegen,
-umbenennen oder umfärben ändert damit nichts am Programm — es muss nichts
-neu übersetzt und nichts mit Kabel aufgespielt werden. Die Firmware ist für
-alle dieselbe.
+**That table sits with the content, not in the firmware.** Creating, renaming
+or recolouring a set therefore changes nothing about the program — nothing has
+to be recompiled and nothing flashed over a cable. The firmware is the same for
+everyone.
 
-**Die Dateinamen sind Hashes des Inhalts, nicht der Position.** Das hat
-zwei Folgen:
+**The file names are hashes of the content, not of the position.** That has two
+consequences:
 
-- Kommt dasselbe Symbol oder derselbe Satz in mehreren Sets vor, liegt er auf
-  dem Gerät trotzdem nur **einmal**. `layout.h` lässt dann einfach mehrere
-  Einträge auf dieselbe Datei zeigen.
-- Eine Datei kann nicht veralten, ohne dass sich ihr Name mitändert. Ein
-  Name kann also nie auf einen falschen Inhalt zeigen.
+- If the same symbol or the same sentence appears in several sets, it still
+  sits on the device only **once**. Several entries simply point at the same
+  file.
+- A file cannot go stale without its name changing along with it. So a name can
+  never point at the wrong content.
 
-**Der farbige Rahmen steckt nicht im Bild.** Die Datei enthält nur die
-116x116 Symbolfläche; die sechs Pixel Rahmen zeichnet die Firmware selbst aus
-`SET_COLORS`. Sonst hänge das Bild am Set, in dem es gerade liegt - dasselbe
-Symbol wäre in einem blauen und einem grünen Set zwei verschiedene Dateien,
-und eine Farbänderung würde sämtliche Bilder eines Sets neu schreiben. So
-kostet ein Farbwechsel **null** Bilddaten.
+**The coloured border is not in the image.** The file contains only the 116x116
+symbol area; the six pixels of border are drawn by the firmware itself from
+`SET_COLORS`. Otherwise the image would depend on the set it currently sits in
+— the same symbol would be two different files in a blue and in a green set,
+and a colour change would rewrite every image of a set. This way a colour change
+costs **zero** image data.
 
-Dateien aus früheren Läufen, die nicht mehr gebraucht werden, räumt
-`build.py` selbst weg.
+Files from earlier runs that are no longer needed are cleared away by `build.py`
+itself.
 
-Nützliche Schalter:
+Useful switches:
 
 ```bash
-.venv/bin/python build.py --no-audio      # nur Bilder und layout.h
-.venv/bin/python build.py --force-audio   # alle WAVs neu rendern
+.venv/bin/python build.py --no-audio      # images and layout only
+.venv/bin/python build.py --force-audio   # re-render all WAVs
 ```
 
 ---
 
-## Sprachausgabe
+## Speech output
 
-`tts.py` spricht über die Azure Speech REST API. Voreingestellt ist
-**de-DE-GiselaNeural** in der Region **germanywestcentral** mit Sprechtempo
-**-5 %**.
+`tts.py` speaks through the Azure Speech REST API. The defaults are
+**de-DE-GiselaNeural** in the region **germanywestcentral** at a speaking rate
+of **-5 %**.
 
-Alles drei lässt sich in `.env` ändern:
+All three can be changed in `.env`:
 
 ```
 AZURE_SPEECH_REGION=westeurope
@@ -263,34 +256,33 @@ AZURE_SPEECH_VOICE=de-DE-KatjaNeural
 AZURE_SPEECH_RATE=-10%
 ```
 
-**Die Region ist keine Geschmacksfrage** - sie muss zu der passen, in der
-der Schlüssel angelegt wurde, sonst antwortet Azure mit 401. Welche Stimmen
-der eigene Schlüssel anbietet, zeigt:
+**The region is not a matter of taste** — it has to match the one the key was
+created in, otherwise Azure answers with 401. Which voices your own key offers
+is shown by:
 
 ```bash
-.venv/bin/python tts.py --stimmen
+.venv/bin/python tts.py --voices
 ```
 
-Die Sprache wird aus dem Stimmnamen abgeleitet, `de-DE-GiselaNeural` ergibt
-also `de-DE`. Eine englische Stimme funktioniert damit genauso.
+The language is derived from the voice name, so `de-DE-GiselaNeural` yields
+`de-DE`. An English voice works just the same.
 
-Ein Stimmwechsel ändert den Fingerprint, also wird beim nächsten Bauen
-automatisch alles neu gesprochen.
+Changing the voice changes the fingerprint, so on the next build everything is
+re-spoken automatically.
 
-Danach durch ffmpeg: Stille am Anfang und Ende weg, dann
-`loudnorm I=-16:TP=-1.5:LRA=11`, Ausgabe als 16 kHz mono 16 bit WAV. Dadurch
-sind alle Tasten gleich laut - wichtig, weil es am Gerät keinen
-Lautstärkeregler gibt.
+After that through ffmpeg: silence at the beginning and end removed, then
+`loudnorm I=-16:TP=-1.5:LRA=11`, output as a 16 kHz mono 16 bit WAV. That makes
+all keys equally loud — important, because the device has no volume control.
 
-Der Key kommt aus der Umgebungsvariablen `AZURE_SPEECH_KEY`, ersatzweise aus
-`.env`. Eine gesetzte Umgebungsvariable gewinnt.
+The key comes from the environment variable `AZURE_SPEECH_KEY`, alternatively
+from `.env`. A set environment variable wins.
 
-Gerendert wird nur, was sich geändert hat: über Text und Stimm-Konfiguration
-wird ein Fingerprint gebildet, fertige Dateien liegen unter `content/cache/tts/`.
-Wer die Stimme oder die ffmpeg-Kette ändert, ändert damit auch den
-Fingerprint - dann wird automatisch alles neu gerendert.
+Only what changed gets rendered: a fingerprint is formed over the text and the
+voice configuration, finished files sit under `content/cache/tts/`. Whoever
+changes the voice or the ffmpeg chain changes the fingerprint too — then
+everything is re-rendered automatically.
 
-Einzeln testen geht auch:
+Testing a single sentence works as well:
 
 ```bash
 .venv/bin/python tts.py "Ich moechte nach draussen" probe.wav
@@ -298,41 +290,41 @@ Einzeln testen geht auch:
 
 ---
 
-## Was im Repo liegt und was nicht
+## What is in the repo and what is not
 
-Im Repo liegt **nur Code und Dokumentation**. Alles, was ein Kind betrifft -
-Layout, Symbole, Fotos, gesprochene Sätze - liegt unter `content/` und ist
-bewusst nicht versioniert.
+The repo holds **code and documentation only**. Everything concerning a child —
+layout, symbols, photos, spoken sentences — sits under `content/` and is
+deliberately not versioned.
 
 ```
-content/                 eigene Inhalte, gitignored
+content/                 your own content, gitignored
 ├── layout.json
 ├── symbols/
 └── cache/
-    ├── tts/             gesprochene Sätze
-    ├── tiles/           gerenderte Symbolflächen
-    ├── thumbs/          Suchvorschauen
-    └── layout-backups/  die letzten 60 Stände von layout.json
+    ├── tts/             spoken sentences
+    ├── tiles/           rendered symbol areas
+    ├── thumbs/          search previews
+    └── layout-backups/  the last 60 states of layout.json
 
-example/                 neutrale Beispielinhalte, im Repo
+example/                 neutral sample content, in the repo
 ├── layout.json
 └── symbols/
 ```
 
-Beim ersten Start wird `content/` aus `example/` gefüllt. Ein frisch
-geklontes Projekt zeigt also sofort ein Set mit vier Tasten an, ohne dass
-jemand etwas anlegen muss.
+On the first start `content/` is filled from `example/`. A freshly cloned
+project therefore shows a set with four keys right away, without anyone having
+to create anything.
 
-Der Ort lässt sich verlegen, etwa auf eine Netzfreigabe:
+The location can be moved, onto a network share for instance:
 
 ```bash
 VORLAUT_CONTENT=/volume1/talker/inhalte .venv/bin/python app.py
 ```
 
-**`content/` muss selbst gesichert werden.** Da steckt die ganze Arbeit
-drin, und Git fängt sie absichtlich nicht mehr auf. Auf einem NAS läuft sie in dessen
-Sicherung mit; auf einem Rechner gehört sie in dein übliches Backup.
+**`content/` has to be backed up separately.** All the work is in there, and git
+deliberately no longer catches it. On a NAS it is covered by the NAS backup; on
+a computer it belongs in your usual backup.
 
-Nicht im Repo sind ausserdem `firmware/vorlaut/data/`, `layout.h` und das
-LittleFS-Image - die entstehen in Sekunden neu aus `content/`. Und `.env`
-mit dem Azure-Schlüssel.
+Also not in the repo: `firmware/vorlaut/data/`, `layout.h` and the LittleFS
+image — those are recreated from `content/` in seconds. And `.env` with the
+Azure key.

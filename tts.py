@@ -339,7 +339,7 @@ def list_voices() -> int:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) >= 2 and argv[1] in ("--voices", "--voices"):
+    if len(argv) >= 2 and argv[1] == "--voices":
         try:
             return list_voices()
         except TTSError as exc:
