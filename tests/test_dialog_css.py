@@ -20,6 +20,10 @@ Nothing about it looks wrong in the file, which is why it is checked here.
 Only the dialog itself is the subject. Rules for things inside one - the head,
 the foot, the scrolling body - are free to set display however they like,
 since a closed dialog hides its children with it.
+
+The rules are read from static/*.css and from any <style> left in ui.html -
+see stylesheet(). Both halves of the input are checked for being empty, so
+that a stylesheet this can no longer find fails instead of passing.
 """
 
 from __future__ import annotations
@@ -40,7 +44,24 @@ DECLARES_DISPLAY = re.compile(r"(?:^|;)\s*display\s*:", re.M)
 
 
 def stylesheet() -> str:
-    return "\n".join(re.findall(r"<style>(.*?)</style>", app.read_ui(), re.S))
+    """Every rule the page carries, from wherever the page now keeps them.
+
+    This used to pull the CSS out of the served page with a regex over
+    <style>...</style>. When the stylesheet moved to static/ui.css that regex
+    matched nothing, and this test went on checking zero rules and printing
+    "All good" - the settings-dialog bug it exists to catch would have come
+    back with the suite still green.
+
+    So it follows the files instead of naming them: every .css in static/,
+    plus anything still inline in ui.html. Add a second stylesheet and it is
+    checked without this line being touched. check_dialogs_stay_closed()
+    refuses to pass on an empty result, which is what makes the difference
+    between finding no problems and finding nothing.
+    """
+    parts = [path.read_text(encoding="utf-8")
+             for path in sorted(app.STATIC.glob("*.css"))]
+    parts += re.findall(r"<style>(.*?)</style>", app.read_ui(), re.S)
+    return "\n".join(parts)
 
 
 def dialog_handles() -> tuple[set[str], set[str]]:
@@ -70,8 +91,17 @@ def check_dialogs_stay_closed() -> int:
         print("  FAIL  no <dialog> found in the page at all")
         return 1
 
+    rules = RULE.findall(COMMENT.sub("", stylesheet()))
+    # The same guard as the one above, for the other half of the input. A
+    # stylesheet this cannot find is not a stylesheet without problems, and
+    # the two are indistinguishable from the exit code alone.
+    if not rules:
+        print("  FAIL  no CSS rule found at all - stylesheet() is looking in "
+              "the wrong place, not the page in the clear")
+        return 1
+
     failures = 0
-    for selectors, body in RULE.findall(COMMENT.sub("", stylesheet())):
+    for selectors, body in rules:
         if not DECLARES_DISPLAY.search(body):
             continue
         for selector in selectors.split(","):
@@ -97,8 +127,14 @@ def main() -> int:
         print(f"\n  {failures} problem(s)")
         return 1
     ids, classes = dialog_handles()
+    rules = RULE.findall(COMMENT.sub("", stylesheet()))
     print(f"  {len(ids)} dialog(s) in the page: "
           f"{', '.join('#' + name for name in sorted(ids))}")
+    # The rule count is printed so that a run which found nothing to look at
+    # says so on its face, rather than only in the exit code.
+    print(f"  {len(rules)} rule(s) read from "
+          f"{', '.join(p.name for p in sorted(app.STATIC.glob('*.css')))}"
+          f" and ui.html")
     print("  none of them is displayed by a rule that does not ask for [open]")
     print("\n  All good.")
     return 0

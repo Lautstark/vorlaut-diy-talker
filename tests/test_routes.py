@@ -82,6 +82,7 @@ EXPECTED = {
     ("GET", "/icon-512.png"),
     ("GET", "/manifest.webmanifest"),
     ("GET", "/symbols/"),               # by prefix - the rest is the reference
+    ("GET", "/static/"),                # likewise - the stylesheet and the modules
     # The layout, and what goes into it
     ("GET", "/api/layout"),
     ("POST", "/api/layout"),
@@ -121,7 +122,7 @@ EXPECTED_RAW = {
     ("POST", "/api/device/pair/poll"),
 }
 
-EXPECTED_PREFIX = {("GET", "/symbols/")}
+EXPECTED_PREFIX = {("GET", "/symbols/"), ("GET", "/static/")}
 
 
 def check_table() -> None:
@@ -138,7 +139,7 @@ def check_table() -> None:
           ", ".join(f"{m} {p}" for m, p in sorted(raw)))
 
     prefix = {key for key, entry in app.ROUTES.items() if entry.prefix}
-    check("and exactly one is matched by prefix", prefix == EXPECTED_PREFIX,
+    check("and exactly two are matched by prefix", prefix == EXPECTED_PREFIX,
           ", ".join(f"{m} {p}" for m, p in sorted(prefix)))
 
 
@@ -424,6 +425,62 @@ def check_plain_routes() -> None:
           f"HTTP {gone.code}")
 
 
+def check_static() -> None:
+    """The stylesheet and the modules, and the ways out of static/.
+
+    One prefix route serves a whole directory, so what it refuses matters as
+    much as what it serves. resolve() follows ".." and symlinks alike, and the
+    question asked afterwards is whether the answer is still inside static/ -
+    not whether the name looked suspicious on the way in.
+    """
+    css = Recorder(route_path="/static/ui.css")
+    app.static_file(css, {})
+    check("the stylesheet is served as CSS",
+          css.content_type == "text/css; charset=utf-8", css.content_type)
+    check("and is the file on disk",
+          css.raw == (app.STATIC / "ui.css").read_bytes())
+
+    module = Recorder(route_path="/static/main.js")
+    app.static_file(module, {})
+    check("a module is served as JavaScript",
+          module.content_type == "text/javascript; charset=utf-8",
+          module.content_type)
+
+    # Every module, not just main.js: one that 404s is a page that loads and
+    # then does nothing, which no other check here would notice.
+    served = []
+    for module in sorted(app.STATIC.glob("*.js")):
+        out = Recorder(route_path=f"/static/{module.name}")
+        app.static_file(out, {})
+        served.append((module.name, out.code, out.content_type))
+    check(f"all {len(served)} modules are served as JavaScript",
+          served and all(code == 200 and kind == "text/javascript; charset=utf-8"
+                         for _, code, kind in served),
+          ", ".join(f"{n} HTTP {c}" for n, c, k in served
+                    if c != 200 or k != "text/javascript; charset=utf-8"))
+
+    for path in ("/static/../app.py",
+                 "/static/..%2fapp.py",
+                 "/static/../../etc/passwd",
+                 "/static/nope.js",
+                 "/static/"):
+        out = Recorder(route_path=path)
+        app.static_file(out, {})
+        check(f"{path} is refused", out.code == 404, f"HTTP {out.code}")
+
+    # Not a whitelisted suffix. An editor backup next to a module must not be
+    # handed out just because it is in the folder.
+    stray = app.STATIC / "scratch.txt"
+    stray.write_text("not for serving", encoding="utf-8")
+    try:
+        out = Recorder(route_path="/static/scratch.txt")
+        app.static_file(out, {})
+        check("a file with an unknown suffix is refused", out.code == 404,
+              f"HTTP {out.code}")
+    finally:
+        stray.unlink()
+
+
 def main() -> int:
     try:
         check_table()
@@ -433,6 +490,7 @@ def main() -> int:
         check_upload()
         check_pairing()
         check_plain_routes()
+        check_static()
     finally:
         # Not a TemporaryDirectory: it has to outlive the import above, which
         # is where config reads the paths out of the environment.

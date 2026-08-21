@@ -4,6 +4,11 @@
 Deliberately without a framework: the Python standard library only. The page
 looks like the device - tabs for the sets on top, below them the four speech
 keys in a 2x2 grid with the set tile next to them.
+
+The front end holds to the same line. ui.html is the markup, static/ui.css the
+stylesheet, and static/*.js a dozen ES modules that the browser loads by
+itself - no bundler, no build step, nothing to install. Clone this and run
+python app.py.
 """
 
 from __future__ import annotations
@@ -36,6 +41,14 @@ import tts
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 UI = ROOT / "ui.html"    # the page itself, part of the program
+STATIC = ROOT / "static"  # its stylesheet and its JavaScript, likewise
+# What may be served out of static/, and as what. A whitelist rather than
+# mimetypes.guess_type: this decides what a browser will execute, and that is
+# not a question to answer from the system's file associations.
+STATIC_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+}
 SYMBOLS_DIR = build.SYMBOLS_DIR
 THUMB_CACHE = build.CONTENT / "cache" / "thumbs"
 PORT = 8771
@@ -515,10 +528,10 @@ def find_route(method: str, path: str) -> Route | None:
     """The route for this request, or None - and then it is a 404.
 
     Exact first and only then by prefix, so a path registered both ways gets
-    the exact one. /symbols/ is the only prefix route there is, and the loop
-    runs over the whole table rather than a second dictionary kept alongside
-    it: with one entry in it, that dictionary would be more machinery than the
-    thing it indexes.
+    the exact one. There are two prefix routes - /symbols/ and /static/ - and
+    the loop runs over the whole table rather than a second dictionary kept
+    alongside it: with two entries in it, that dictionary would be more
+    machinery than the thing it indexes.
     """
     found = ROUTES.get((method, path))
     if found is not None:
@@ -746,18 +759,36 @@ class Handler(BaseHTTPRequestHandler):
 @route("GET", "/")
 @route("GET", "/index.html")
 def index(handler, query) -> None:
-    lang = handler._language()
-    page = (read_ui()
-            .replace("__LANG__", lang)
-            .replace("__TEXTS__", json.dumps(texts.ui_texts(lang),
-                                             ensure_ascii=False))
-            .replace("__LANGUAGES__", json.dumps(sorted(texts.TEXTS)))
-            .replace("__PALETTE__", json.dumps(build.DEFAULT_PALETTE))
-            .replace("__LIMITS__", json.dumps({
-                "maxSets": build.MAX_SETS,
-                "maxActive": build.MAX_ACTIVE_SETS,
-            })))
+    page = read_ui().replace("__BOOTSTRAP__", bootstrap(handler._language()))
     handler._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+
+
+@route("GET", "/static/", prefix=True)
+def static_file(handler, query) -> None:
+    """The stylesheet and the JavaScript modules, straight off the disk.
+
+    One prefix route rather than one route per file, so that adding a module
+    is a matter of writing it: static/ is the list, the way tests/ is for
+    tests/run.py. Read fresh on every request for the same reason read_ui()
+    is - editing the interface should not need a restart.
+    """
+    name = urllib.parse.unquote(handler.route_path[len("/static/"):])
+    here = STATIC.resolve()
+    target = (here / name).resolve()
+    # Not "does the name look harmless" but "is the answer inside static/".
+    # ".." is only the obvious way out; a symlink is the other, and resolve()
+    # has already followed both by the time this asks. Both sides are resolved
+    # so that a static/ which is itself a symlink still compares equal.
+    if not target.is_file() or here not in target.parents:
+        handler._error("err.not_found", 404)
+        return
+    kind = STATIC_TYPES.get(target.suffix)
+    if kind is None:
+        # Nothing else belongs here yet. An editor backup or a stray .map
+        # should 404 rather than be served as something a browser will run.
+        handler._error("err.not_found", 404)
+        return
+    handler._send(200, target.read_bytes(), kind)
 
 
 @route("GET", "/api/layout")
@@ -1162,12 +1193,14 @@ def run_build(handler, body) -> None:
 
 
 def read_ui() -> str:
-    """The interface, read fresh so that editing ui.html needs no restart.
+    """The markup, read fresh so that editing ui.html needs no restart.
 
     It lives beside the program the way assets/ does: it is part of vorlaut,
     not of what you build with it. As a string in this file it was 1666 lines
     of HTML, CSS and JavaScript that no editor could colour, check or indent,
-    and that every search through this file had to be scrolled past.
+    and that every search through this file had to be scrolled past. It is
+    now the markup alone; the stylesheet and the modules are in static/ and
+    are served by static_file().
 
     Not called page(): the route already has a local of that name, and a
     function shadowed by it fails only when somebody asks for the page.
@@ -1177,6 +1210,37 @@ def read_ui() -> str:
     except FileNotFoundError:
         raise RuntimeError(f"ui.html is missing from {ROOT}. It belongs next "
                            f"to app.py, like assets/ does.")
+
+
+def bootstrap(lang: str) -> str:
+    """What the page needs to know before it can draw anything, as JSON.
+
+    This replaced five separate holes in the page - __LANG__, __TEXTS__,
+    __LANGUAGES__, __PALETTE__ and __LIMITS__ - each of which was substituted
+    into live script. json.dumps does not escape </script>, so any value
+    holding that string would have closed the script element early and left
+    the rest of the page to be parsed as markup. Everything that went through
+    those holes happened to be trusted, and nothing anywhere said that it had
+    to be.
+
+    Two things fix it rather than document it. The block is
+    type="application/json", so the parser is looking for the end of an
+    element and not for JavaScript; and < is escaped, so it never finds one.
+    \\u003c is the same character to any JSON reader, which is why this is an
+    escape and not a rejection: a text that genuinely wants to say "<script>"
+    still arrives saying it.
+    """
+    payload = {
+        "lang": lang,
+        "texts": texts.ui_texts(lang),
+        "languages": sorted(texts.TEXTS),
+        "palette": build.DEFAULT_PALETTE,
+        "limits": {
+            "maxSets": build.MAX_SETS,
+            "maxActive": build.MAX_ACTIVE_SETS,
+        },
+    }
+    return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
 
 
 class Server(ThreadingHTTPServer):

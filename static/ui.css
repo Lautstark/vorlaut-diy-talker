@@ -1,0 +1,387 @@
+:root {
+  --bg: #16181d;
+  --panel: #1f2229;
+  --panel-2: #262a33;
+  --line: #343a45;
+  --text: #eceff4;
+  --muted: #9aa3b2;
+  --accent: #9B7BFF;   /* the purple from the icon */
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 24px; border-bottom: 1px solid var(--line);
+}
+/* "vorlaut" is the name of the thing, not a label: it stays this word in
+   every language and therefore stands in the markup, not in texts.py. */
+header h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+.logo { width: 26px; height: 26px; flex: none; }
+header .status { margin-left: auto; }
+main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
+
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tab {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-radius: 10px; cursor: pointer;
+  background: var(--panel); border: 2px solid transparent; color: var(--muted);
+  font-size: 14px;
+}
+.tab .dot { width: 12px; height: 12px; border-radius: 3px; }
+.tab.active { color: var(--text); background: var(--panel-2); }
+.tab.add { border: 1px dashed var(--line); }
+
+.device { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.tile {
+  background: var(--panel); border-radius: 14px; padding: 10px;
+  display: flex; flex-direction: column; gap: 8px; justify-content: flex-start;
+  border: 3px solid var(--accent);
+}
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatch {
+  width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
+  border: 2px solid transparent; box-sizing: border-box;
+}
+.swatch:hover { border-color: var(--muted); }
+.swatch.active { border-color: var(--text); }
+.thumb {
+  aspect-ratio: 1/1; flex: 0 0 auto; background: #fff; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  position: relative;
+}
+.thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+.thumb .empty { color: #b9bfc9; font-size: 13px; text-align: center; padding: 8px; }
+.thumb:hover::after {
+  content: var(--pick-label); position: absolute; inset: auto 0 0 0;
+  background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 4px;
+  text-align: center;
+}
+.row { display: flex; gap: 8px; }
+input[type=text], input[type=password] {
+  width: 100%; min-width: 0; background: var(--panel-2); border: 1px solid var(--line);
+  color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 14px;
+  flex: 0 1 auto; align-self: flex-start;
+}
+.row input[type=text] { flex: 1 1 auto; }
+.colorRow { display: flex; gap: 8px; }
+input[type=color] {
+  width: 42px; height: 36px; flex: none; padding: 2px; background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+}
+input[type=color]:hover { border-color: var(--muted); }
+/* Set slightly narrower so that "#4A90D9" fits in completely. */
+.colorRow input[type=text] {
+  flex: 1 1 auto; padding: 8px 6px; font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px;
+}
+button:hover { background: #303540; }
+/* The language picker looks like the buttons next to it. Left to itself a
+   select brings the operating system's own look, which on a dark header is
+   a white rectangle. */
+/* Form elements do not inherit the page font by themselves - without this
+   the header sits in the browser's default face while everything around it
+   is the system font. */
+button, select, input, textarea { font-family: inherit; }
+
+/* appearance: none, because otherwise the operating system draws its own
+   arrow and imposes its own height: 35.5 px next to 34 px buttons, and a
+   chevron sitting wherever macOS likes. Everything below matches the
+   buttons - same padding, same radius, same border. */
+#langPick {
+  appearance: none; -webkit-appearance: none;
+  /* The chevron only, on nothing. Box and border appear when the thing is
+     pointed at - see below. Note the order: the background shorthand resets
+     background-color, so transparent has to come after it, not before. */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa3b2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 11px center;
+  background-color: transparent;
+  color: var(--muted); border: 1px solid transparent;
+  border-radius: 8px; padding: 8px 30px 8px 12px; cursor: pointer;
+  font-size: 14px; line-height: normal;   /* like the button next to it */
+  transition: background-color .12s, border-color .12s, color .12s;
+}
+#langPick:hover, #langPick:focus-visible {
+  background-color: var(--panel-2); border-color: var(--line);
+  color: var(--text);
+}
+/* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. */
+button.primary {
+  background: var(--accent); border-color: transparent; color: #1b1b20;
+  font-weight: 600;
+}
+button.primary:hover { background: #ac91ff; }
+button.danger { color: #e88; }
+.play { width: 40px; flex: none; }
+.slotNr {
+  color: var(--muted); font-size: 12px; letter-spacing: .5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.grip {
+  margin-left: auto; cursor: grab; font-size: 15px; line-height: 1;
+  color: var(--muted); opacity: .55; padding: 0 2px;
+}
+.grip:hover { opacity: 1; }
+.grip:active { cursor: grabbing; }
+.tile.dragover { border-style: dashed; }
+.tab.dragover { outline: 2px dashed var(--muted); outline-offset: 2px; }
+.tab[draggable=true] { cursor: grab; }
+
+.status { color: var(--muted); font-size: 13px; }
+/* Toggle switch. HTML has no such thing - Safari 17.4 renders
+   <input type="checkbox" switch> natively that way, elsewhere there is only
+   the box. So it is built from the box: that stays underneath, and with it
+   keyboard operation and screen readers. */
+.schalter {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  color: var(--muted); font-size: 13px; white-space: nowrap;
+}
+.schalter input { position: absolute; opacity: 0; width: 0; height: 0; }
+.pille {
+  width: 38px; height: 22px; border-radius: 11px; flex: none;
+  background: var(--line); position: relative; transition: background .15s;
+}
+.pille::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .45); transition: transform .15s;
+}
+.schalter input:checked + .pille { background: var(--accent); }
+.schalter input:checked + .pille::after { transform: translateX(16px); }
+.schalter input:focus-visible + .pille {
+  outline: 2px solid var(--muted); outline-offset: 2px;
+}
+header .status { margin-left: auto; }
+/* Original size: 15.21 mm are visible on the device. Roughly life-size on
+   screen, so one can judge whether a symbol is recognisable on it at all. */
+.echtgross {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--muted); font-size: 11px;
+}
+.echtgross img {
+  width: 15.21mm; height: 15.21mm; image-rendering: pixelated;
+  border-radius: 2px;
+}
+.conflict {
+  display: none; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: #3a2224; border: 1px solid #7a3a3f; color: #f0d7d9;
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px;
+}
+.conflict.show { display: flex; }
+.conflict button { background: #4d2b2e; border-color: #7a3a3f; color: #f0d7d9; }
+/* Left column: set tile with the delete button below it. */
+.setCol {
+  grid-row: span 2; display: flex; flex-direction: column; gap: 10px;
+  justify-content: flex-start;
+}
+#removeSet { width: 100%; }
+pre.log {
+  margin-top: 12px; background: #101216; border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px; font-size: 12.5px; color: #c8d0dc;
+  max-height: 260px; overflow: auto; white-space: pre-wrap; display: none;
+}
+
+/* Three columns do not fit on a phone - then the set tile across the full
+   width and the four speech keys as a 2x2 below it. The spatial
+   correspondence is preserved that way. */
+@media (max-width: 620px) {
+  /* Side by side the header needs 493px - on a 375px wide display
+     "Speichern" and "Bauen" fell outside, with no way to scroll
+     scrollen liess. Also umbrechen statt stauchen:
+     Row 1  logo, name, the two buttons on the right
+     Row 2  device preview, status text on the right */
+  header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  /* Here the wordmark is hidden, not deleted: it costs 64px next to a
+     logo that carries the same brand, and the bar has to fit one line.
+     Screen readers and the page outline keep the heading. */
+  header h1 {
+    position: absolute; width: 1px; height: 1px; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  /* Same order as on a wide screen: settings first, the action last, and
+     the whole group against the right edge. On a wide screen the status
+     carries the auto margin that pushes them there; here it sits next to
+     the logo instead, so the margin moves to the first control. */
+  /* All scoped to the header: .schalter is also the "Aktiv" switch on the
+     set tile, and an auto margin sent that one to the right edge too. */
+  header .status { order: 1; margin-left: 0; }
+  header .schalter { order: 2; margin-left: auto; }
+  header #gear { order: 3; }
+  header #langPick { order: 4; }
+  header #releaseBtn { order: 5; }
+
+  /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
+     sets past the edge with nothing to say they are there - and the sets
+     are the navigation. Several lines cost height, but only as many lines
+     as there are actually sets. */
+  .tabs { flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .tabs .tab { flex: none; padding: 8px 12px; }
+
+  main { padding: 12px; }
+  .device { grid-template-columns: 1fr 1fr; }
+  .setCol { grid-row: auto; grid-column: 1 / -1; }
+  #removeSet { width: auto; align-self: flex-start; }
+}
+
+dialog {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  border-radius: 14px; padding: 0; width: min(760px, 92vw);
+}
+dialog::backdrop { background: rgba(0,0,0,.6); }
+.dlgHead {
+  display: flex; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+/* The buttons keep their width, the search field yields - otherwise the
+   labels wrap and get cut off. */
+.dlgHead button { flex: none; white-space: nowrap; }
+.dlgHead input[type=text] { flex: 1 1 auto; width: auto; min-width: 4rem; }
+.results {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px; padding: 16px; max-height: 60vh; overflow: auto;
+}
+/* Messages are not results - they should not be squeezed into a 96px
+   column. */
+.results p { grid-column: 1 / -1; margin: 4px 2px; color: var(--muted); }
+.results figure { margin: 0; cursor: pointer; text-align: center; }
+.results img {
+  width: 100%; aspect-ratio: 1/1; object-fit: contain; background: #fff;
+  border-radius: 8px; padding: 4px; border: 2px solid transparent;
+}
+.results figure:hover img { border-color: var(--accent); }
+.results figcaption { font-size: 11px; color: var(--muted); margin-top: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Separates the sources: the licensed collection on top, ARASAAC below. */
+.results .group { grid-column: 1 / -1; margin: 10px 2px 0; font-size: 11px;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.results .group:first-child { margin-top: 0; }
+/* Inactive sets stay visible but recede - one should be able to read off
+   Leiste ablesen koennen, was gerade aufs Geraet geht. */
+.tab.off { opacity: .45; }
+.tab.off .dot { box-shadow: inset 0 0 0 2px var(--panel); }
+.slots { color: var(--muted); font-size: 12px; margin: -8px 2px 14px; }
+/* No active set is allowed - the device catches it and shows a notice.
+   It is rarely intended though, hence the same warning colour as for the
+   save conflict, only as a narrow field instead of a banner. */
+.slots.empty {
+  color: #f0d7d9; background: #3a2224; border: 1px solid #7a3a3f;
+  border-radius: 8px; padding: 6px 10px; display: inline-block;
+}
+.schalter.onDevice { font-size: 13px; }
+/* Set apart from the rest of the tile: above it says how the set looks,
+   here it says whether it goes onto the device. */
+.activeRow {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.activeRow .note { color: var(--muted); font-size: 12px; }
+.hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
+
+/* Pairing. Shown only while a talker is actually waiting - see openPair. */
+.pairing {
+  display: none; background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 12px; padding: 14px; margin-bottom: 14px;
+}
+.pairing.show { display: block; }
+.pairHead { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.pairing .note { color: var(--muted); font-size: 12px; }
+/* The five boxes stand where the keys stand: the set key on the left under
+   the speaker, 1 and 2 above, 3 and 4 below - the same grid as the editor
+   above, so nobody has to be told which digit goes where. */
+.pairKeys {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  max-width: 300px; margin: 12px 0;
+}
+.pairKeys input {
+  width: 100%; text-align: center; font-size: 22px; padding: 10px 0;
+  font-family: ui-monospace, monospace;
+  /* The general rule for text fields pins them to the top of their line;
+     here they should fill the box they are in. */
+  align-self: stretch;
+}
+/* The set key sits under the speaker, beside both rows of keys - so its box
+   spans both and its digit sits level with the gap between them. */
+.pairKeys .setBox { grid-row: span 2; display: flex; align-items: center; }
+.pairKeys .setBox input { align-self: center; }
+.pairFoot { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* Beside the name, where a setting for the whole page belongs - and small,
+   because it is not something anybody comes here to do. mitreden has the
+   same gear in the same corner. */
+.gear {
+  font-size: 21px; line-height: 1; padding: 7px 13px; border-radius: 999px;
+  color: var(--muted); border-color: transparent; background: transparent;
+}
+.gear:hover, .gear:focus-visible {
+  color: var(--text); background: var(--panel-2); border-color: var(--line);
+}
+/* Narrower than the symbol picker: that one shows a grid of tiles, this one
+   reads as a list of settings. */
+dialog.sheet {
+  width: min(520px, 92vw); max-height: 88vh;
+}
+/* Only while it is open. An unqualified display here would beat the
+   browser's own dialog:not([open]) { display: none } - the sheet would then
+   sit in the page for good, below everything else, and closing it would
+   take the open attribute away without taking the sheet away. */
+dialog.sheet[open] { display: flex; flex-direction: column; }
+dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
+/* One scrolling area for the whole sheet, rather than a scrolling list
+   inside a scrolling dialog - two of them nested is a way to lose the Save
+   button without noticing it is there. */
+.sheetBody { overflow-y: auto; }
+.sheet .section {
+  padding: 16px 16px 0; font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.sheet .voiceList { padding-top: 10px; }
+.field { padding: 10px 16px 4px; display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; color: var(--muted); }
+.field .lead { margin: 0 0 6px; font-size: 13px; color: var(--muted); }
+.field .note { margin: 0; font-size: 12px; color: var(--muted); }
+.field input { width: 100%; }
+.field input[type=password] { font-family: ui-monospace, monospace; }
+.sheetFoot {
+  display: flex; gap: 8px; padding: 0 16px 16px; justify-content: flex-end;
+}
+/* A cross, not the word - it sits in the corner where one reaches for it,
+   and it needs no room for a translation. The word stays as the label for
+   anything that reads the page out. */
+.closeX {
+  font-size: 20px; line-height: 1; padding: 4px 10px; border-radius: 999px;
+  color: var(--muted); border-color: transparent; background: transparent;
+}
+.closeX:hover, .closeX:focus-visible {
+  color: var(--text); background: var(--panel-2); border-color: var(--line);
+}
+
+/* The voice list. Two buttons per row on purpose: hearing a voice and
+   choosing it are two different decisions, and the first should not commit
+   to the second. */
+.dlgHead strong { flex: 1 1 auto; font-weight: 600; }
+.voiceList {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 16px; max-height: 60vh; overflow: auto;
+}
+.voiceRow {
+  display: flex; align-items: center; gap: 10px; padding: 6px;
+  border-radius: 10px; border: 2px solid transparent; background: var(--panel-2);
+}
+.voiceRow.on { border-color: var(--accent); }
+/* Looks like a row, behaves like a button - so it can be reached with the
+   keyboard like everything else. */
+.voiceRow .pick {
+  flex: 1 1 auto; min-width: 0; text-align: left; background: none;
+  border: none; padding: 4px 2px; color: var(--text);
+}
+.voiceRow .pick:hover { background: none; color: var(--accent); }
+.voiceRow .note { color: var(--muted); font-size: 12px; }
+.voiceRow.empty { background: none; color: var(--muted); display: block; }

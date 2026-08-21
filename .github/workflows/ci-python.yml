@@ -18,6 +18,7 @@ on:
     paths:
       - '**.py'
       - ui.html
+      - static/**
       - requirements.txt
       - tests/**
       - example/**
@@ -29,6 +30,7 @@ on:
     paths:
       - '**.py'
       - ui.html
+      - static/**
       - requirements.txt
       - tests/**
       - example/**
