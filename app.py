@@ -713,7 +713,14 @@ PAGE = r"""<!doctype html>
     color: #f0d7d9; background: #3a2224; border: 1px solid #7a3a3f;
     border-radius: 8px; padding: 6px 10px; display: inline-block;
   }
-  .schalter.aufGeraet { margin-top: 10px; font-size: 13px; }
+  .schalter.aufGeraet { font-size: 13px; }
+  /* Abgesetzt vom Rest der Kachel: darueber steht, wie das Set aussieht,
+     hier steht, ob es aufs Geraet geht. */
+  .aktivZeile {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+  }
+  .aktivZeile .hinweis { color: var(--muted); font-size: 12px; }
   .hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -1098,7 +1105,6 @@ function render() {
     status("");
     render();
   };
-  setTile.appendChild(anSchalter);
 
   const colorRow = document.createElement("div");
   colorRow.className = "colorRow";
@@ -1133,6 +1139,20 @@ function render() {
   // Direkt unter das Namensfeld: die Schnellauswahl ist der Normalfall,
   // der Farbwähler darunter die Ausnahme.
   setTile.insertBefore(swatches, colorRow);
+
+  // Ganz unten und abgesetzt: Name und Farbe beschreiben das Set, "Aktiv"
+  // entscheidet, was damit geschieht - dieselbe Ecke wie das Loeschen
+  // darunter. Bewusst nicht in dessen Rot: abschalten ist umkehrbar.
+  const aktivZeile = document.createElement("div");
+  aktivZeile.className = "aktivZeile";
+  aktivZeile.appendChild(anSchalter);
+  if (entry.active === false) {
+    const hinweis = document.createElement("span");
+    hinweis.className = "hinweis";
+    hinweis.textContent = "liegt bereit, nicht auf dem Gerät";
+    aktivZeile.appendChild(hinweis);
+  }
+  setTile.appendChild(aktivZeile);
 
   setCol.append(setTile, removeSetBtn);
   device.appendChild(setCol);
