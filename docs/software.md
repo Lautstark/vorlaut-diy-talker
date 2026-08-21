@@ -167,6 +167,38 @@ ob die Stichwörter gelesen werden konnten.
 
 ---
 
+## Abgleich mit dem Talker
+
+Damit sich das Gerät seine Inhalte selbst holen kann, gibt der Server zwei
+Endpunkte heraus. Beide verlangen einen Schlüssel:
+
+```
+GET /api/geraet/manifest          Versionsstempel und Dateiliste
+GET /api/geraet/datei?name=<n>    eine Datei aus data/
+```
+
+Der Schlüssel steht in `.env` als `VORLAUT_GERAET_TOKEN` und wird als
+Kopfzeile `X-Vorlaut-Token` mitgeschickt - **nicht** im Adressteil, denn
+Adressen landen in Protokollen. Verglichen wird mit `hmac.compare_digest`,
+damit die Antwortzeit nichts über den Schlüssel verrät.
+
+**Ohne gesetzten Schlüssel antworten beide Endpunkte mit 503.** Absichtlich so
+herum: in `data/` liegen die Tonaufnahmen und Bilder deines Kindes, und ein
+Abgleich, den niemand eingerichtet hat, soll auch nichts herausgeben. Einen
+Schlüssel erzeugen:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(24))"
+```
+
+Der Abgleich ist einfach, weil die Dateinamen Prüfsummen ihres Inhalts sind:
+Das Gerät holt das Manifest, vergleicht den Versionsstempel mit dem
+gespeicherten, holt bei Abweichung nur die Dateien, die es nicht hat, und
+wirft weg, was nicht mehr in der Liste steht. `layout.bin` heißt immer gleich
+und wird jedes Mal geholt.
+
+---
+
 ## Bauen
 
 ```bash

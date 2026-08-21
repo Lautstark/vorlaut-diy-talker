@@ -189,6 +189,20 @@ def check_metacom() -> None:
         print("         die Suche läuft über Dateinamen und findet weniger.")
 
 
+def check_geraet_token() -> None:
+    """Ohne Schluessel kann sich der Talker keine Inhalte holen."""
+    import app
+    if app.device_token():
+        report("Schluessel fuer den Talker", True, "aus der Umgebung oder .env",
+               required=False)
+    else:
+        report("Schluessel fuer den Talker", False, "VORLAUT_GERAET_TOKEN nicht gesetzt",
+               "Nur noetig, wenn sich das Geraet die Inhalte selbst holen soll.\n"
+               "Einen erzeugen und in .env eintragen:\n"
+               "  python -c \"import secrets; print(secrets.token_urlsafe(24))\"",
+               required=False)
+
+
 def check_content() -> None:
     content = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content")
     layout = content / "layout.json"
@@ -219,6 +233,7 @@ def main() -> int:
     print("\n Wahlweise")
     check_docker()
     check_metacom()
+    check_geraet_token()
 
     print()
     if missing_required:

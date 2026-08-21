@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import io
+import os
 import json
 import re
 import sys
@@ -44,6 +46,22 @@ SEARCH_LIMIT = 40
 
 
 # --- Hilfsfunktionen ---------------------------------------------------------
+
+def device_token() -> str:
+    """Schlüssel für die Geräte-Endpunkte: erst Umgebung, dann .env.
+
+    Ohne gesetzten Schlüssel bleiben die Endpunkte zu. Absichtlich so
+    herum: dort liegen die Tonaufnahmen und Bilder deines Kindes, und ein
+    Abgleich, den niemand eingerichtet hat, soll auch nichts herausgeben.
+    """
+    value = (os.environ.get("VORLAUT_GERAET_TOKEN") or "").strip()
+    if value:
+        return value
+    try:
+        return (tts.load_env_file().get("VORLAUT_GERAET_TOKEN") or "").strip()
+    except Exception:
+        return ""
+
 
 def build_current_flag() -> str:
     """"1", wenn data/ zum aktuellen Layout passt - sonst "0".
@@ -215,6 +233,25 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/api/"):
             print(f"  {self.command} {self.path}", flush=True)
 
+    # -- Geräte-Abgleich --
+
+    def _geraet_erlaubt(self) -> bool:
+        """Schlüssel prüfen. Antwortet selbst, wenn etwas nicht stimmt."""
+        token = device_token()
+        if not token:
+            self._error(
+                "Der Geräte-Abgleich ist nicht eingerichtet - "
+                "VORLAUT_GERAET_TOKEN fehlt.", 503)
+            return False
+        # Nur als Kopfzeile, nie im Adressteil: Adressen landen in
+        # Protokollen, Kopfzeilen nicht.
+        gesendet = self.headers.get("X-Vorlaut-Token", "")
+        # compare_digest statt ==, damit die Antwortzeit nichts verrät.
+        if not hmac.compare_digest(gesendet, token):
+            self._error("Falscher oder fehlender Schlüssel.", 401)
+            return False
+        return True
+
     # -- Antworten --
 
     def _send(self, code: int, body: bytes, content_type: str, extra=None) -> None:
@@ -313,6 +350,27 @@ class Handler(BaseHTTPRequestHandler):
                         self._error(f"ARASAAC nicht erreichbar: {exc}", 502)
                         return
             self._json(results)
+            return
+
+        if path == "/api/geraet/manifest":
+            if not self._geraet_erlaubt():
+                return
+            try:
+                self._json(build.device_manifest())
+            except build.BuildError as exc:
+                self._error(str(exc), 500)
+            return
+
+        if path == "/api/geraet/datei":
+            if not self._geraet_erlaubt():
+                return
+            # Nur der Dateiname, nichts davor - der Wunsch kommt von aussen.
+            name = Path((query.get("name") or [""])[0]).name
+            ziel = build.DATA_DIR / name
+            if not name or not ziel.is_file():
+                self._error("Datei nicht gefunden.", 404)
+                return
+            self._send(200, ziel.read_bytes(), "application/octet-stream")
             return
 
         if path == "/api/sources":

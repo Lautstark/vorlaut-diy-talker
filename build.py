@@ -258,6 +258,26 @@ def built_fingerprint(layout: dict) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
+def device_manifest() -> dict:
+    """Was auf dem Gerät liegen soll: Versionsstempel und Dateiliste.
+
+    Die Dateinamen sind Prüfsummen ihres Inhalts - deshalb genügt dem Gerät
+    diese Liste, um zu wissen, was ihm fehlt und was es wegwerfen kann. Nur
+    layout.bin heißt immer gleich und wird jedes Mal geholt.
+    """
+    layout = load_layout()
+    dateien = [
+        {"name": f.name, "size": f.stat().st_size}
+        for f in sorted(DATA_DIR.iterdir()) if f.is_file()
+    ] if DATA_DIR.is_dir() else []
+    return {
+        "version": built_fingerprint(layout),
+        "sets": len(active_sets(layout)),
+        "files": dateien,
+        "bytes": sum(d["size"] for d in dateien),
+    }
+
+
 def _remember_build(layout: dict) -> None:
     """Haelt fest, welcher Stand gerade nach data/ gebaut wurde."""
     try:
