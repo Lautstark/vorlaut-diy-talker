@@ -772,13 +772,16 @@ PAGE = r"""<!doctype html>
        Row 2  device preview, status text on the right */
     header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
     header h1 { margin-right: auto; }
-    /* Same order as on a wide screen: settings first, the action last. The
-       flex order only has to be set because the status sits in between and
-       pushes with margin-left: auto. */
-    .schalter { order: 1; }
-    #langPick { order: 2; }
-    #releaseBtn { order: 3; }
-    header .status { order: 4; margin-left: auto; }
+    /* Same order as on a wide screen: settings first, the action last, and
+       the whole group against the right edge. On a wide screen the status
+       carries the auto margin that pushes them there; here it sits next to
+       the logo instead, so the margin moves to the first control. */
+    /* All scoped to the header: .schalter is also the "Aktiv" switch on the
+       set tile, and an auto margin sent that one to the right edge too. */
+    header .status { order: 1; margin-left: 0; }
+    header .schalter { order: 2; margin-left: auto; }
+    header #langPick { order: 3; }
+    header #releaseBtn { order: 4; }
 
     /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
        sets past the edge with nothing to say they are there - and the sets
