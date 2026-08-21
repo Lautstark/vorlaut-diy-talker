@@ -137,6 +137,42 @@ the case — otherwise it cannot be charged.
 The battery weighs **52 g** and is thus the heaviest single part. Where it sits
 decides how the device feels in the hand.
 
+### How the speaker is held
+
+The driver is **not screwed down**. Four guide ribs on the front plate locate
+it, a strip of foam or sealing tape goes between its rim and the plate, and a
+block of **open-cell** foam fills the 6.7 mm of chamber left behind the magnet.
+The lid compresses that block when its six M3 are tightened, and that is what
+holds the driver.
+
+Bolting it through the front plate would have cost three things at once: four
+countersunk heads on the face of a device that otherwise shows no hardware, a
+nut inside a chamber that can only be reopened by taking the driver out again —
+2.4 mm of PLA holds no thread — and four 2.9 mm holes straight through into a
+volume that is supposed to be sealed. Pressing the rim onto its seal was the
+only real job those screws had, and the lid does that already.
+
+Open-cell foam only: acoustically that is stuffing. A closed-cell block would
+take roughly 11 cm³ out of a 41.5 cm³ chamber and lift the resonance with it.
+
+The four holes come back with `spk_front_screws = true` in the model, for which
+you then need four M2.5 × 8 with nuts.
+
+### Feet
+
+Four pads, 10 mm across and 1.6 mm proud, near the corners of the lid — and the
+lid is the back of the device. The logo is embossed 0.8 mm proud there, so
+without feet the device lies on a 70 mm speech bubble and nothing else: it
+rocks on a table, and the embossing is the first thing to wear through. The
+pads clear the logo by 0.8 mm and stand on 81 % of the case width. That is
+where the 39.0 mm in the table above comes from.
+
+Bare PLA slides. A self-adhesive 10 mm rubber disc on each pad lands on it
+exactly.
+
+Both decisions, and everything else needed to print and assemble the three
+parts, are in [case/building.md](../case/building.md).
+
 Still to check once the parts arrive: whether the key cap sits centred on the
 board. In the photos the FPC and pin header connectors are in the lower area —
 if the cap is offset upwards, all vertical dimensions shift and with them the
