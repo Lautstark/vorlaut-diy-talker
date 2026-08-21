@@ -731,6 +731,29 @@ VORLAUT_VOICE=piper:en_US-john-medium .venv/bin/python tts.py "Let us go out"
 
 ---
 
+## Tests
+
+```bash
+.venv/bin/python tests/run.py            # all of them
+.venv/bin/python tests/run.py pairing    # only the matching ones
+```
+
+Every file called `tests/test_*.py` runs, and that is the whole rule — the
+folder is the list, so a test that was just written runs without being entered
+anywhere. Each one also still works on its own, which is how they are referred
+to throughout this document:
+
+```bash
+.venv/bin/python tests/test_language.py
+```
+
+What a test is for is in its own docstring. A few of them compile C from the
+sketch to check that the firmware reads a format the way `build.py` writes it,
+so those need a compiler; the rest need only what the web interface needs
+anyway.
+
+---
+
 ## What is in the repo and what is not
 
 The repo holds **code and documentation only**. Everything concerning a child —
