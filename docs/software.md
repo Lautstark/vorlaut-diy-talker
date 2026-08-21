@@ -45,10 +45,22 @@ only new sentences stay silent and say so.
 the sets on top, below them the set tile and the four speech keys in a 2x2
 grid. The border of each tile has the colour of the set.
 
-The page itself is `ui.html`, beside `app.py`. It is read on every request, so
-a change to it shows on a reload without restarting the server. `app.py` fills
-in five placeholders as it serves it: the language, the text table for that
-language, the list of languages, the palette and the set limits.
+The page itself is `ui.html`, beside `app.py`, with its stylesheet and its
+JavaScript in `static/`. All of it is read on every request, so a change shows
+on a reload without restarting the server.
+
+`static/main.js` is the only script `ui.html` names; everything else arrives
+because something imports it. They are plain ES modules, loaded by the browser
+itself — there is no bundler and no build step, and there is not meant to be
+one. `static/state.js` says which values are shared between them and why the
+rest are not.
+
+The one thing `app.py` puts into the page is a JSON block, `#bootstrap`: the
+language, the text table for that language, the list of languages, the palette
+and the set limits. It used to be five placeholders substituted into live
+script, which was safe only for as long as every value happened to be trusted
+— `json.dumps` does not escape `</script>`. It is now data rather than script,
+and `<` is escaped on the way in. See `app.bootstrap()` and `static/boot.js`.
 
 - **Clicking a symbol** opens the search. Clicking a result loads the PNG into
   `content/symbols/` and enters it into `content/layout.json`. The same dialog

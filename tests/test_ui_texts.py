@@ -32,6 +32,27 @@ import texts  # noqa: E402
 
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
+
+def scripts() -> list[Path]:
+    """Every JavaScript module the page loads."""
+    return sorted(app.STATIC.glob("*.js"))
+
+
+def frontend_sources() -> list[Path]:
+    """Everything that can put a word in front of somebody.
+
+    Named by shape rather than one by one. This used to be the literal list
+    ("app.py", "ui.html"), with a comment saying that scanning app.py alone
+    would let the check pass while looking at none of the page - which came
+    true about ui.html the moment the script moved into static/. A glob cannot
+    go stale that way: a module added tomorrow is scanned tomorrow.
+
+    check_no_leftovers() refuses to run on a short list, so a glob that stops
+    matching fails rather than quietly narrowing what is looked at.
+    """
+    return [ROOT / "app.py", ROOT / "ui.html",
+            *sorted(app.STATIC.glob("*.css")), *scripts()]
+
 # The page is served in one language at a time; these are the only words in it
 # that belong to no language. Everything else has to come from the table.
 ALLOWED = {"vorlaut", "ARASAAC", "METACOM", "SET", "KEY"}
@@ -96,13 +117,19 @@ def check_no_leftovers() -> int:
     was never keyed; the second pass catches a label that happens to have no
     umlaut in it - "Set deleted" would sail straight through the first.
     """
-    # Both files. The interface moved to ui.html, and that is where nearly
-    # every string a user reads now lives - scanning app.py alone would let
-    # this check pass while looking at none of the page.
+    sources = frontend_sources()
+    # The page is a stylesheet and a dozen modules; anything close to none of
+    # them means the glob is looking somewhere the front end no longer is.
+    # Without this the check would still pass, having read almost nothing.
+    if len(scripts()) < 2:
+        print(f"  FAIL  only {len(scripts())} script(s) found in "
+              f"{app.STATIC} - the scan is looking in the wrong place")
+        return 1
+
     watched = []
-    for name in ("app.py", "ui.html"):
-        text = (ROOT / name).read_text(encoding="utf-8")
-        watched += [(name, n, l)
+    for path in sources:
+        text = path.read_text(encoding="utf-8")
+        watched += [(path.name, n, l)
                     for n, l in enumerate(text.split("\n"), start=1)]
     failures = 0
     for name, number, line in watched:
@@ -123,47 +150,136 @@ def check_no_leftovers() -> int:
 
 
 def check_page_renders() -> int:
-    """The page has to come out complete in every language, and stay valid JS."""
-    failures = 0
-    for lang in sorted(texts.TEXTS):
-        page = (app.read_ui()
-                .replace("__LANG__", lang)
-                .replace("__TEXTS__", json.dumps(texts.ui_texts(lang),
-                                                 ensure_ascii=False))
-                .replace("__LANGUAGES__", json.dumps(sorted(texts.TEXTS)))
-                .replace("__PALETTE__", json.dumps(build.DEFAULT_PALETTE))
-                .replace("__LIMITS__", json.dumps({"maxSets": build.MAX_SETS,
-                                                   "maxActive": build.MAX_ACTIVE_SETS})))
-        if "__" in re.sub(r"__[a-z]", "", page):
-            leftover = [m for m in re.findall(r"__[A-Z_]+__", page)]
-            if leftover:
-                print(f"  FAIL  {lang}: placeholders left in the page: {leftover}")
-                failures += 1
+    """The page has to come out complete in every language.
 
-        # Every key the JS asks for has to exist in what was handed over.
-        script = re.search(r"<script>(.*)</script>", page, re.S).group(1)
-        handed = texts.ui_texts(lang)
-        for key in sorted(set(re.findall(r't\("(ui\.[\w.]+)"', script))):
-            if key not in handed:
+    What the page needs from the server now arrives as one JSON block rather
+    than as five substitutions into live script, so this asks app.bootstrap()
+    for it and reads it back the way static/boot.js does.
+    """
+    failures = 0
+    served = app.read_ui().replace("__BOOTSTRAP__", app.bootstrap(texts.DEFAULT))
+    leftover = re.findall(r"__[A-Z_]+__", served)
+    if leftover:
+        print(f"  FAIL  placeholders left in the page: {leftover}")
+        failures += 1
+
+    # Every key the modules ask for has to exist in what was handed over.
+    # Read from the files rather than out of the page: the script is no longer
+    # in it, and a regex over <script> would find nothing and check nothing.
+    asked = set()
+    for path in scripts():
+        asked |= set(re.findall(r't\("(ui\.[\w.]+)"',
+                                path.read_text(encoding="utf-8")))
+    if not asked:
+        print("  FAIL  no t() call found in any module - the scan is looking "
+              "in the wrong place")
+        return failures + 1
+
+    for lang in sorted(texts.TEXTS):
+        handed = json.loads(app.bootstrap(lang).replace("\\u003c", "<"))
+        if handed["lang"] != lang:
+            print(f"  FAIL  {lang}: the bootstrap block says "
+                  f"{handed['lang']!r}")
+            failures += 1
+        for key in sorted(asked):
+            if key not in handed["texts"]:
                 print(f"  FAIL  {lang}: the page asks for {key}, which is not "
                       f"in the table")
                 failures += 1
+    return failures
 
-        # Whether the page is still valid JavaScript. Only if node is around:
-        # it is not a dependency of this project, and everything else in this
-        # file is worth running without it.
-        if shutil.which("node"):
-            with tempfile.NamedTemporaryFile("w", suffix=".js",
-                                             delete=False) as tmp:
-                tmp.write(script)
-                name = tmp.name
-            result = subprocess.run(["node", "--check", name],
-                                    capture_output=True, text=True)
-            Path(name).unlink()
-            if result.returncode != 0:
-                print(f"  FAIL  {lang}: the page is not valid JavaScript\n"
-                      f"{result.stderr}")
-                failures += 1
+
+def check_bootstrap_cannot_escape() -> int:
+    """A text holding </script> must not be able to end the block early.
+
+    json.dumps does not escape it, and the five holes this replaced fed
+    straight into live script.
+
+    The hostile value is put through the real bootstrap(), because no text in
+    texts.py contains a < today: checking the payload as it stands would pass
+    just as happily with the escaping deleted, which is the failure this whole
+    task was about. The table is swapped for one sentence and put back.
+    """
+    hostile = "</script><script>alert(1)</script>"
+    original = texts.ui_texts
+
+    def poisoned(lang):
+        table = dict(original(lang))
+        table["ui.close"] = hostile
+        return table
+
+    texts.ui_texts = poisoned
+    try:
+        payload = app.bootstrap(texts.DEFAULT)
+    finally:
+        texts.ui_texts = original
+
+    if "<" in payload:
+        where = payload.index("<")
+        print(f"  FAIL  a text holding </script> reaches the page with a raw "
+              f"<, so it can close the block: "
+              f"{payload[max(0, where - 20):where + 40]!r}")
+        return 1
+    # Escaped, and still the same sentence: \\u003c is a < to any JSON reader,
+    # so this is an escape rather than a rejection.
+    if json.loads(payload)["texts"]["ui.close"] != hostile:
+        print("  FAIL  escaping < changed what the value says")
+        return 1
+    return 0
+
+
+def check_modules_are_valid_js() -> int:
+    """Every module has to parse, as a module.
+
+    Only if node is around: it is not a dependency of this project, and
+    everything else in this file is worth running without it.
+
+    Checked one file at a time now, and as .mjs - `import` at the top of a
+    plain .js is not something `node --check` will accept.
+    """
+    if not shutil.which("node"):
+        return 0
+    failures = 0
+    for path in scripts():
+        with tempfile.NamedTemporaryFile("w", suffix=".mjs",
+                                         delete=False) as tmp:
+            tmp.write(path.read_text(encoding="utf-8"))
+            name = tmp.name
+        result = subprocess.run(["node", "--check", name],
+                                capture_output=True, text=True)
+        Path(name).unlink()
+        if result.returncode != 0:
+            print(f"  FAIL  {path.name} is not valid JavaScript\n"
+                  f"{result.stderr}")
+            failures += 1
+    return failures
+
+
+def check_every_module_is_reachable() -> int:
+    """No module may sit in static/ without the page ever loading it.
+
+    ui.html names main.js and nothing else; everything else arrives because
+    something imports it. A file that nothing imports is dead code that looks
+    exactly like working code - and, the other way round, a typo in an import
+    path is a module that silently never loads. The browser shows that as a
+    button that does nothing, which no test above would notice.
+    """
+    imported = {"main.js"}
+    for path in scripts():
+        for target in re.findall(r'from\s+"\./([\w.-]+\.js)"',
+                                 path.read_text(encoding="utf-8")):
+            imported.add(target)
+    failures = 0
+    for path in scripts():
+        if path.name not in imported:
+            print(f"  FAIL  nothing imports {path.name}, so the page never "
+                  f"loads it")
+            failures += 1
+    for name in sorted(imported):
+        if not (app.STATIC / name).is_file():
+            print(f"  FAIL  something imports {name}, which is not in "
+                  f"{app.STATIC}")
+            failures += 1
     return failures
 
 
@@ -185,7 +301,10 @@ def check_cli_stays_english() -> int:
 
 def main() -> int:
     failures = (check_keys() + check_placeholders() + check_no_leftovers()
-                + check_page_renders() + check_cli_stays_english())
+                + check_page_renders() + check_bootstrap_cannot_escape()
+                + check_modules_are_valid_js()
+                + check_every_module_is_reachable()
+                + check_cli_stays_english())
     if failures:
         print(f"\n  {failures} problem(s)")
         return 1
@@ -193,6 +312,12 @@ def main() -> int:
           f"{len(texts.TEXTS)} languages, in step")
     print(f"  the page renders in {', '.join(sorted(texts.TEXTS))} and asks "
           f"for no key that is missing")
+    # Counted out loud: a run that scanned nothing would otherwise look
+    # exactly like a run that found nothing wrong.
+    print(f"  {len(frontend_sources())} front-end file(s) scanned, "
+          f"{len(scripts())} of them modules, and every one of them reached "
+          f"from main.js")
+    print("  the bootstrap block cannot be closed by anything inside it")
     print("  the command line stays English, the interface does not")
     if not shutil.which("node"):
         print("  (node is not here, so the page was not syntax-checked)")
