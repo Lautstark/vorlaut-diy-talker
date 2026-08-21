@@ -1,7 +1,7 @@
 name: Firmware build
 description: >
-  Richtet arduino-cli mit ESP32-Core und den Adafruit-Bibliotheken ein und
-  übersetzt die angegebenen Sketche.
+  Sets up arduino-cli with the ESP32 core and the Adafruit libraries and
+  compiles the given sketches.
 
 # Why a step of its own instead of the same text twice: CI and release have
 # to use the same board setting. An image with a different partition scheme
