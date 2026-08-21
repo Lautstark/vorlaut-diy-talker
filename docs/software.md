@@ -15,12 +15,23 @@ the Arduino tools for flashing are needed locally.
 
 ## For the speech output
 
-Currently **Azure Speech** with the voice `de-DE-GiselaNeural`. That needs a key
-of your own; the free F0 tier includes 0.5 million characters a month, which is
-plenty for a talker.
+Two routes, and the choice is made per installation:
 
-> A variant without a cloud account is planned (offline TTS), so the project
-> can be rebuilt without a Microsoft account. Not implemented yet.
+**piper** — local, offline, free, no account anywhere. Two German and two
+English voices, all four public domain. Once:
+
+```bash
+pip install piper-tts
+python3 tools/voices.py
+```
+
+**Azure Speech** — needs a key of your own; the free F0 tier includes 0.5
+million characters a month, which is plenty for a talker. More voices and
+better ones, at the price of an account and a network.
+
+Neither is required for editing. Without any voice the interface works, the
+build works, and what is already in the cache still goes onto the device —
+only new sentences stay silent and say so.
 
 ## Web interface
 
@@ -45,12 +56,13 @@ grid. The border of each tile has the colour of the set.
   pictograms. A phone photo at 3024x4032 then weighs a few kilobytes instead of
   several megabytes. That is intentional, and the device renders only 116x116
   pixels anyway.
-- **Text field**: what Gisela says. It may differ from the symbol's word — the
+- **Text field**: what gets spoken. It may differ from the symbol's word — the
   symbol shows "anhalten", what gets said is "Stopp".
-- **▶** previews the sentence (goes through Azure, so it needs the key).
+- **▶** previews the sentence in the chosen voice. With piper that costs
+  nothing; with Azure it is a request like any other.
 - **Freigeben** at the top right runs the build and shows the log. It is
-  the only button in the header, and it is the only moment that costs
-  anything: this is where new sentences go to Azure.
+  the only button in the header, and with an Azure voice it is the only
+  moment that costs anything: this is where new sentences go to Azure.
 
 **Device preview:** the toggle at the top additionally shows below each tile how
 it arrives on the device — scaled to 116x116, rounded to RGB565, with the border
@@ -123,8 +135,8 @@ step for no gain.
 
 What it does **not** touch is the content. Set names, the words on the keys and
 what gets spoken are whatever somebody typed - switching the interface to
-English leaves a German set German. The voice is picked separately in `.env`
-(`AZURE_SPEECH_VOICE`).
+English leaves a German set German. The voice is picked separately and stands
+as `"voice"` in `layout.json`.
 
 For the device it travels in `layout.bin`, so a change needs a rebuild and an
 upload - but no reflashing of the program. One and the same firmware image
@@ -327,33 +339,76 @@ Useful switches:
 
 ## Speech output
 
-`tts.py` speaks through the Azure Speech REST API. The defaults are
-**de-DE-GiselaNeural** in the region **germanywestcentral** at a speaking rate
-of **-5 %**.
+`tts.py` speaks either locally through **piper** or through the **Azure Speech
+REST API**. Which one is not a setting of its own: it follows from the voice.
 
-All three can be changed in `.env`:
+### One voice has one name
+
+A voice is named by one string, and that string says which of the two speaks
+it:
 
 ```
-AZURE_SPEECH_REGION=westeurope
-AZURE_SPEECH_VOICE=de-DE-KatjaNeural
-AZURE_SPEECH_RATE=-10%
+piper:de_DE-thorsten-medium
+azure:de-DE-GiselaNeural
 ```
 
-**The region is not a matter of taste** — it has to match the one the key was
-created in, otherwise Azure answers with 401. Which voices your own key offers
-is shown by:
+It stands as `"voice"` in `layout.json`, next to the menu language, and is
+chosen on the page. An empty entry is the normal case for a fresh layout —
+then whatever is on offer here answers, a local voice first, and among equals
+one that speaks the language the device is set to.
+
+What is on offer:
 
 ```bash
 .venv/bin/python tts.py --voices
 ```
 
-The language is derived from the voice name, so `de-DE-GiselaNeural` yields
-`de-DE`. An English voice works just the same.
+Only voices that actually work show up there. An Azure voice appears once the
+key is there, a piper voice once its model lies on disk — a voice that would
+turn into a silent key at build time is worse than no choice at all.
 
-Changing the voice changes the fingerprint, so on the next build everything is
-re-spoken automatically.
+### piper
 
-After that through ffmpeg: silence at the beginning and end removed, then
+The models sit in `content/voices/`, two files each: `de_DE-thorsten-medium.onnx`
+and the `.onnx.json` beside it, which is piper's own description of the voice.
+A lone `.onnx` is not a usable voice and is not offered.
+
+They are deliberately not in the repository — together about 130 MB, and they
+are somebody else's files. `python3 tools/voices.py` fetches them; `de` or `en`
+as an argument narrows it down. All four shipped ones are public domain, which
+is what lets them be handed on. Most of piper's better known English voices are
+not, so read the MODEL_CARD next to a model before adding one.
+
+In the container `piper-tts` is installed but the voices are not: the project
+is handed in as a directory anyway, so they live in `content/voices/` on the
+NAS, get backed up with the rest of the content, and a fifth voice does not
+mean building the image again.
+
+### Azure
+
+Key and region go into `.env`. **The region is not a matter of taste** — it has
+to match the one the key was created in, otherwise Azure answers with 401.
+
+```
+AZURE_SPEECH_REGION=westeurope
+AZURE_SPEECH_RATE=-10%
+AZURE_SPEECH_LANGUAGES=de-DE,en-US
+```
+
+The last one decides which voices the picker offers. Azure has 556, and a list
+of all of them is not a picker; German and English are what it stays at. The
+answer is asked of Azure itself rather than written down here — a typed list
+goes stale — and cached for a week under `content/cache/azure-voices.json`.
+
+`AZURE_SPEECH_VOICE` is from the time before the voice stood in `layout.json`.
+It still decides which voice an existing installation carries over on the first
+start; after that the page answers the question.
+
+### Both the same way afterwards
+
+Piper writes at the sample rate of its model, Azure answers at 16 kHz — what
+comes back goes through the same ffmpeg chain either way: silence at the
+beginning and end removed, then
 `loudnorm I=-16:TP=-1.5:LRA=11`, output as a 16 kHz mono 16 bit WAV. That makes
 all keys equally loud — important, because the device has no volume control.
 
@@ -361,14 +416,20 @@ The key comes from the environment variable `AZURE_SPEECH_KEY`, alternatively
 from `.env`. A set environment variable wins.
 
 Only what changed gets rendered: a fingerprint is formed over the text and the
-voice configuration, finished files sit under `content/cache/tts/`. Whoever
-changes the voice or the ffmpeg chain changes the fingerprint too — then
-everything is re-rendered automatically.
+voice, finished files sit under `content/cache/tts/`. Whoever changes the voice
+or the ffmpeg chain changes the fingerprint too — then everything is re-spoken
+automatically.
+
+That fingerprint is derived from the voice **name** alone, never from the path
+of a model: the same voice sits at `/voices` in a container and in
+`content/voices` on a laptop, and both have to arrive at the same file name, or
+the device re-downloads a cache it already has.
 
 Testing a single sentence works as well:
 
 ```bash
 .venv/bin/python tts.py "Ich moechte nach draussen" probe.wav
+VORLAUT_VOICE=piper:en_US-john-medium .venv/bin/python tts.py "Let us go out"
 ```
 
 ---
@@ -416,4 +477,6 @@ a computer it belongs in your usual backup.
 
 Also not in the repo: `firmware/vorlaut/data/`, `layout.h` and the LittleFS
 image — those are recreated from `content/` in seconds. And `.env` with the
-Azure key.
+Azure key. The piper models under `content/voices/` are not in it either, for
+a different reason: they are 130 MB of somebody else's files, fetched rather
+than copied along.

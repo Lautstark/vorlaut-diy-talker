@@ -413,6 +413,28 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if path == "/api/voices":
+            # The voices this installation can actually speak with. Read-only:
+            # a chosen voice is written to layout.json like the menu language,
+            # through /api/layout, so one save covers both.
+            #
+            # "active" is the one the layout is spoken in right now - either
+            # what stands in it, or, for an empty entry, what was picked for
+            # it. Labels are names and are not translated.
+            try:
+                layout = build.load_layout()
+            except build.BuildError as exc:
+                self._failed(exc, 500)
+                return
+            active = build.chosen_voice(layout)
+            self._json({
+                "voices": [dict(voice, active=voice["id"] == active)
+                           for voice in tts.available_voices()],
+                "active": active,
+                "chosen": layout.get("voice", ""),
+            })
+            return
+
         if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
             file = ASSETS / Path(path).name
             if not file.exists():
@@ -537,9 +559,14 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/speak":
             text = (body.get("text") or "").strip()
+            # A voice sent along is listened to, so the page can play a voice
+            # before it is saved. Without one it is the layout's.
+            voice = (body.get("voice") or "").strip()
             try:
-                wav = tts.synthesize(text)
-            except tts.TTSError as exc:
+                if not voice:
+                    voice = build.chosen_voice(build.load_layout())
+                wav = tts.synthesize(text, voice)
+            except (build.BuildError, tts.TTSError) as exc:
                 self._failed(exc)
                 return
             self._send(200, wav.read_bytes(), "audio/wav")

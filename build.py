@@ -223,6 +223,16 @@ def normalize_layout(raw: dict) -> dict:
         # better to say so than to stop a build over it.
         language = DEFAULT_LANGUAGE
 
+    # Which voice speaks. Only the shape is checked here, not whether this
+    # machine has that voice: a key that is gone for an afternoon, or a model
+    # on the other computer, must not quietly overwrite a choice that was
+    # made deliberately. What is missing shows up at build time, per slot.
+    voice = str(raw.get("voice") or "").strip()
+    if not voice.startswith(("piper:", "azure:")):
+        # Empty means "whatever works here" - that is what a fresh layout
+        # says, and it is answered in tts.default_voice().
+        voice = ""
+
     sets = raw.get("sets") or []
     if not isinstance(sets, list):
         raise BuildError("build.err.sets_not_list")
@@ -271,6 +281,7 @@ def normalize_layout(raw: dict) -> dict:
     return {
         "sleep_timeout_seconds": timeout,
         "language": language,
+        "voice": voice,
         "sets": clean_sets,
     }
 
@@ -278,6 +289,17 @@ def normalize_layout(raw: dict) -> dict:
 def active_sets(layout: dict) -> list[dict]:
     """The sets that go onto the device, in the order of the layout."""
     return [entry for entry in layout["sets"] if entry.get("active", True)]
+
+
+def chosen_voice(layout: dict) -> str:
+    """The voice this layout is spoken in.
+
+    An empty entry is not an error but the normal case for a fresh layout:
+    then whatever is on offer here answers, and the device language decides
+    which of several equal voices it is.
+    """
+    return (layout.get("voice")
+            or tts.default_voice(layout.get("language", DEFAULT_LANGUAGE)))
 
 
 def built_fingerprint(layout: dict) -> str:
@@ -289,6 +311,10 @@ def built_fingerprint(layout: dict) -> str:
     payload = {
         "sleep": layout["sleep_timeout_seconds"],
         "language": layout.get("language", DEFAULT_LANGUAGE),
+        # Another voice means other WAVs, even though not a letter of the
+        # text changed. Without this the page would claim the device was up
+        # to date while it still speaks in the old one.
+        "voice": chosen_voice(layout),
         "sets": active_sets(layout),
         "pipeline": TILE_PIPELINE,
         "format": LAYOUT_VERSION,
@@ -703,10 +729,11 @@ def build(with_audio: bool = True, force_audio: bool = False,
     expected: set[str] = set()
     audio_ok = True
 
-    # Without a key nothing new can be spoken - but everything already in
+    # Without a voice nothing new can be spoken - but everything already in
     # the cache can still be used. That is exactly what makes a
     # fresh clone of the repo usable without Azure access.
-    no_key = with_audio and not tts.have_key()
+    voice = chosen_voice(layout)
+    silent = with_audio and not tts.can_speak()
 
     # The file names on the device are hashes of the content. That means the
     # same symbol or the same sentence sits there exactly once, no matter how
@@ -758,16 +785,16 @@ def build(with_audio: bool = True, force_audio: bool = False,
                 audio_names.append("")
                 continue
 
-            in_cache = tts.cache_path(slot["text"]).exists()
-            if no_key and (not in_cache or force_audio):
+            in_cache = tts.cache_path(slot["text"], voice).exists()
+            if silent and (not in_cache or force_audio):
                 audio_ok = False
-                note("build.slot_no_key", label=label, slot=slot_index,
-                     text=slot["text"], reason=texts.t("build.err.no_key", lang))
+                note("build.slot_no_voice", label=label, slot=slot_index,
+                     text=slot["text"], reason=texts.t("build.err.no_voice", lang))
                 audio_names.append("")
                 continue
 
             try:
-                cached = tts.synthesize(slot["text"], force=force_audio)
+                cached = tts.synthesize(slot["text"], voice, force=force_audio)
             except tts.TTSError as exc:
                 audio_ok = False
                 note("build.tts_failed", text=slot["text"],
@@ -775,7 +802,7 @@ def build(with_audio: bool = True, force_audio: bool = False,
                 audio_names.append("")
                 continue
 
-            name = f"a{tts.fingerprint(slot['text'])}.wav"
+            name = f"a{tts.fingerprint(slot['text'], voice)}.wav"
             expected.add(name)
             target = DATA_DIR / name
             if not target.exists() or target.stat().st_size != cached.stat().st_size:
@@ -897,8 +924,9 @@ def prune_cache() -> list[str]:
             encoding="utf-8",
         )
 
+    voice = chosen_voice(layout)
     needed = {
-        tts.fingerprint(slot["text"])
+        tts.fingerprint(slot["text"], voice)
         for entry in layout["sets"]
         for slot in entry["slots"]
         if slot["text"]

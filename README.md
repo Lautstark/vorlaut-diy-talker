@@ -25,7 +25,8 @@ from a LiPo charged over USB-C on the Feather. The firmware is an Arduino
 sketch.
 
 Editing happens on a computer: a web interface built from the Python standard
-library, pictograms from [ARASAAC](https://arasaac.org), speech from Azure.
+library, pictograms from [ARASAAC](https://arasaac.org), speech from piper
+or Azure.
 The build turns those into RGB565 images and 16 kHz WAVs and packs them into
 a LittleFS image for the flash.
 
@@ -50,11 +51,25 @@ right away.
 
 `ffmpeg` is needed as well (`brew install ffmpeg` or `apt install ffmpeg`).
 
-For the speech output you need an **Azure Speech key** of your own — a free
-account is enough, the F0 tier includes 0.5 million characters a month. Key
-and region go into `.env`, the template is `.env.example`. Voice and speaking
-rate can be set there too; `.venv/bin/python tts.py --voices` shows what is on
-offer.
+For the speech output there are two routes, and **neither is needed to start
+editing**. Without a voice the interface works and the build works — only new
+sentences stay silent and say so.
+
+**Offline, free, no account** — two German and two English voices, all four
+public domain:
+
+```bash
+pip install piper-tts
+.venv/bin/python tools/voices.py
+```
+
+**Azure Speech** — more voices and better ones, at the price of a key of your
+own. A free account is enough, the F0 tier includes 0.5 million characters a
+month. Key and region go into `.env`, the template is `.env.example`.
+
+Either way, `.venv/bin/python tts.py --voices` shows what this installation can
+speak with. The voice is picked in the interface and stands as `"voice"` in
+`layout.json`.
 
 ## Languages
 
@@ -68,7 +83,8 @@ keep in step.
 
 The **content** is untouched by it: set names, the words on the keys and
 everything spoken are whatever somebody typed. Switching the interface to
-English leaves a German set German. The voice is chosen separately in `.env`.
+English leaves a German set German. The voice is chosen separately and can
+speak a different language than the menu.
 
 The texts live as one table per language in [`texts.py`](texts.py) for the
 computer and the interface, and in

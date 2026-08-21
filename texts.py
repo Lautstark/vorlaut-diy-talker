@@ -168,11 +168,12 @@ TEXTS: dict[str, dict[str, str]] = {
                                      "the device.",
         "build.err.no_pillow": "Pillow is missing. Install it with:  pip "
                                "install -r requirements.txt",
-        "build.err.no_key": "not in the cache and without AZURE_SPEECH_KEY it "
-                            "cannot be spoken",
+        "build.err.no_voice": "not in the cache, and there is no voice here to "
+                              "speak it with - neither a piper model nor an "
+                              "AZURE_SPEECH_KEY",
         "build.err.mklittlefs": "mklittlefs failed: {reason}",
         "build.slot_text": "{label} slot {slot}: \"{text}\"",
-        "build.slot_no_key": "{label} slot {slot}: \"{text}\" {reason}.",
+        "build.slot_no_voice": "{label} slot {slot}: \"{text}\" {reason}.",
         "build.missing_metacom_off": "Symbol {symbol} comes from the METACOM "
                                      "collection, but VORLAUT_METACOM_DIR is "
                                      "not set.",
@@ -198,6 +199,11 @@ TEXTS: dict[str, dict[str, str]] = {
                           "(template: .env.example).",
         "tts.err.rejected": "Azure rejects the key (401). Do the key and the "
                             "region ({region}) match?",
+        "tts.err.no_piper": "piper not found. It comes with the piper-tts "
+                            "package:  pip install piper-tts",
+        "tts.err.no_model": "The voice {model} is not on this computer. Fetch "
+                            "the voices with:  python3 tools/voices.py",
+        "tts.err.piper": "piper failed: {reason}",
     },
 
     "de": {
@@ -348,11 +354,12 @@ TEXTS: dict[str, dict[str, str]] = {
                                      "aufs Gerät.",
         "build.err.no_pillow": "Pillow fehlt. Installieren mit:  pip install "
                                "-r requirements.txt",
-        "build.err.no_key": "nicht im Cache und ohne AZURE_SPEECH_KEY lässt es "
-                            "sich nicht sprechen",
+        "build.err.no_voice": "nicht im Cache, und hier ist keine Stimme, die "
+                              "es sprechen könnte - weder ein Piper-Modell "
+                              "noch ein AZURE_SPEECH_KEY",
         "build.err.mklittlefs": "mklittlefs fehlgeschlagen: {reason}",
         "build.slot_text": "{label} Slot {slot}: \"{text}\"",
-        "build.slot_no_key": "{label} Slot {slot}: \"{text}\" {reason}.",
+        "build.slot_no_voice": "{label} Slot {slot}: \"{text}\" {reason}.",
         "build.missing_metacom_off": "Symbol {symbol} kommt aus der "
                                      "METACOM-Sammlung, aber "
                                      "VORLAUT_METACOM_DIR ist nicht gesetzt.",
@@ -379,6 +386,12 @@ TEXTS: dict[str, dict[str, str]] = {
                           "schreiben (Vorlage: .env.example).",
         "tts.err.rejected": "Azure lehnt den Key ab (401). Stimmen Key und "
                             "Region ({region}) zusammen?",
+        "tts.err.no_piper": "piper nicht gefunden. Es kommt mit dem Paket "
+                            "piper-tts:  pip install piper-tts",
+        "tts.err.no_model": "Die Stimme {model} liegt nicht auf diesem "
+                            "Rechner. Stimmen holen mit:  python3 "
+                            "tools/voices.py",
+        "tts.err.piper": "piper fehlgeschlagen: {reason}",
     },
 }
 

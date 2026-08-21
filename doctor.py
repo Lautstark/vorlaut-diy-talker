@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 import metacom
+import tts
 
 ROOT = Path(__file__).resolve().parent
 SYSTEM = platform.system()
@@ -89,6 +90,23 @@ def check_ffmpeg() -> None:
                    "winget install ffmpeg"))
 
 
+def check_piper() -> None:
+    """The offline route. With a model on disk the device speaks without an
+    account anywhere, so this is checked before the key."""
+    program = shutil.which(tts.PIPER_BINARY)
+    models = tts.piper_models()
+    detail = ""
+    if program and models:
+        detail = ", ".join(sorted(models))
+    elif program:
+        detail = "program present, no voice"
+    report("piper", bool(program and models), detail,
+          "Local voices, German and English, no key and no network.\n"
+          "  pip install piper-tts\n"
+          "  python3 tools/voices.py",
+          required=False)
+
+
 def check_azure_key() -> None:
     key = os.environ.get("AZURE_SPEECH_KEY", "").strip()
     source = "Umgebungsvariable"
@@ -100,8 +118,8 @@ def check_azure_key() -> None:
                 source = ".env"
     report("Azure key", bool(key),
           f"aus {source}" if key else "",
-          "Without a key the device stays silent, everything else works.\n"
-          "cp .env.example .env  and enter your own key.\n"
+          "Only needed for the Azure voices - with a piper voice the device\n"
+          "speaks without one. cp .env.example .env  and enter your own key.\n"
           "Ein kostenloses Konto reicht (Stufe F0).",
           required=False)
 
@@ -226,6 +244,7 @@ def main() -> int:
     check_ffmpeg()
     check_content()
     print("\n For the speech output")
+    check_piper()
     check_azure_key()
     print("\n For the firmware")
     check_arduino()

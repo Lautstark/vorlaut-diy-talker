@@ -11,6 +11,16 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg \
  && rm -rf /var/lib/apt/lists/*
 
+# piper speaks without an account anywhere. It brings onnxruntime along and
+# grows the image by roughly 200 MB - which is the whole price of a talker
+# that needs no key.
+#
+# The voices themselves are not in here. The project is handed in as a
+# directory anyway, so they live in content/voices/ on the NAS, are backed up
+# with the rest of the content, and a fifth voice does not mean building the
+# image again. Fetch them once with:  python3 tools/voices.py
+RUN pip install --no-cache-dir piper-tts
+
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

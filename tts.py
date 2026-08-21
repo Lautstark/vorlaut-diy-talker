@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import tempfile
 import urllib.error
 import urllib.request
@@ -65,20 +66,50 @@ def setting(name: str, standard: str) -> str:
 
 
 # --- Voice configuration -----------------------------------------------------
-# Everything here feeds into the fingerprint: change one value and the
-# affected WAVs get re-rendered on the next build.
+# Which voice speaks is not settled here: it stands in layout.json next to the
+# menu language, so the page can change it and the next sentence is already
+# spoken differently. Everything in this file is what stays the same no matter
+# which voice was chosen.
 #
 # Configurable through .env or environment variables:
 #   AZURE_SPEECH_REGION   must match the region of the key
-#   AZURE_SPEECH_VOICE    e.g. de-DE-KatjaNeural, list them with --voices
 #   AZURE_SPEECH_RATE     speaking rate, e.g. -5% or +10%
 REGION = setting("AZURE_SPEECH_REGION", "germanywestcentral")
-VOICE = setting("AZURE_SPEECH_VOICE", "de-DE-GiselaNeural")
 RATE = setting("AZURE_SPEECH_RATE", "-5%")
 
-# The language sits inside the voice name: de-DE-GiselaNeural -> de-DE
-_teile = VOICE.split("-")
-LOCALE = "-".join(_teile[:2]) if len(_teile) >= 3 else "de-DE"
+# From the time before layout.json knew about voices. An entry here decides
+# which voice an existing installation carries over on the first start; after
+# that layout.json answers the question and this is not read again.
+SEED_VOICE = setting("AZURE_SPEECH_VOICE", "")
+
+# Piper models are looked for here, first match wins. The container points
+# VORLAUT_VOICES at its own folder; otherwise they sit next to the rest of the
+# content, where they are backed up along with it and survive every rebuild.
+VOICE_DIRS = [d for d in dict.fromkeys(
+    [Path(os.environ["VORLAUT_VOICES"]) if os.environ.get("VORLAUT_VOICES") else None,
+     CONTENT / "voices", ROOT / "voices"]) if d is not None]
+
+# Which languages the Azure catalogue is trimmed to. Azure offers 556 voices,
+# and a picker holding all of them is not a picker. German and English are
+# what this is for; "de" would take every German locale, "de-DE" only that one.
+AZURE_LANGUAGES = tuple(
+    part.strip() for part in setting("AZURE_SPEECH_LANGUAGES", "de-DE,en-US").split(",")
+    if part.strip()
+)
+
+# The list is asked of Azure rather than written down here: a hand-typed one
+# goes stale, and it costs a request on every page load otherwise.
+AZURE_CACHE_DAYS = 7
+AZURE_VOICE_CACHE = CONTENT / "cache" / "azure-voices.json"
+
+# The program that reads a piper model. Comes with the piper-tts package.
+PIPER_BINARY = setting("VORLAUT_PIPER_BINARY", "piper")
+
+# What a voice is called when there is none to be had: no model on disk, no
+# key. Nothing can be spoken with it - but the sentences that were spoken
+# before this project could choose a voice were fingerprinted under exactly
+# this name, and they stay usable from the cache.
+FALLBACK_VOICE = f"azure:{SEED_VOICE or 'de-DE-GiselaNeural'}"
 
 SAMPLE_RATE = 16000
 
@@ -94,6 +125,8 @@ FADE = 0.012       # short fade at both ends against clicks
 TAIL_PAD = 0.06    # quiet at the end, before the amplifier switches off
 
 AZURE_ENDPOINT = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
+AZURE_VOICE_LIST = (f"https://{REGION}.tts.speech.microsoft.com"
+                    "/cognitiveservices/voices/list")
 AZURE_FORMAT = "riff-16khz-16bit-mono-pcm"
 
 
@@ -134,33 +167,248 @@ def have_key() -> bool:
         return False
 
 
+# --- The catalogue -----------------------------------------------------------
+# A voice is named by one string: "piper:de_DE-thorsten-medium" or
+# "azure:de-DE-GiselaNeural". That is what stands in layout.json, and
+# everything else about the voice is derived from it.
+
+def piper_models() -> dict[str, Path]:
+    """Every piper model on this machine, by name.
+
+    The .onnx.json next to a model is piper's own description of it and has to
+    be there, so a lone .onnx is not a usable voice.
+    """
+    found: dict[str, Path] = {}
+    for directory in VOICE_DIRS:
+        if not directory.is_dir():
+            continue
+        for file in sorted(directory.glob("*.onnx")):
+            if file.with_suffix(".onnx.json").exists() and file.stem not in found:
+                found[file.stem] = file
+    return found
+
+
+def pretty_piper(stem: str) -> str:
+    """de_DE-thorsten-medium -> Thorsten.
+
+    The quality tier belongs to the file, not to the voice - whoever picks a
+    voice does not need to know it.
+    """
+    rest = stem.split("-", 1)[1] if "-" in stem else stem
+    return rest.partition("-")[0].replace("_", " ").title()
+
+
+def short_azure(name: str) -> str:
+    """de-DE-GiselaNeural -> Gisela, de-DE-FlorianMultilingualNeural ->
+    Florian Multilingual. The locale is in every entry already, and so is the
+    word Neural."""
+    if name.count("-") < 2:
+        return name
+    base = name.split("-")[-1]
+    if base.endswith("Neural"):
+        base = base[: -len("Neural")]
+    out = ""
+    for index, char in enumerate(base):
+        if index and char.isupper() and base[index - 1].islower():
+            out += " "
+        out += char
+    return out
+
+
+def lang_of(tag: str) -> str:
+    """de_DE-thorsten-medium, de-DE-GiselaNeural, de-DE -> de"""
+    return tag.replace("_", "-").split("-")[0].lower() if tag else ""
+
+
+def locale_of(name: str) -> str:
+    """The language Azure is told to read in: de-DE-GiselaNeural -> de-DE."""
+    parts = name.split("-")
+    return "-".join(parts[:2]) if len(parts) >= 3 else "de-DE"
+
+
+def label_of(name: str, backend: str, lang: str = "") -> str:
+    """Name, where it comes from, which language it speaks - the three things
+    that tell two entries in a picker apart."""
+    return " \u00b7 ".join(part for part in (name, backend, lang) if part)
+
+
+def piper_voices() -> list[dict]:
+    """The local voices. Needs no key and no network.
+
+    A model without the program that reads it is a voice nobody can use, so
+    it is not offered either.
+    """
+    if not shutil.which(PIPER_BINARY):
+        return []
+    return [
+        {
+            "id": f"piper:{stem}",
+            "label": label_of(pretty_piper(stem), "piper", lang_of(stem)),
+            "backend": "piper",
+            "lang": lang_of(stem),
+        }
+        for stem in piper_models()
+    ]
+
+
+def azure_voice_names() -> list[str]:
+    """The Azure voices for the configured languages.
+
+    Asked of Azure rather than written down here: a typed list goes stale, and
+    it would offer German voices to someone who set up French. The answer is
+    cached for a week - this runs on every page load, and a slightly old list
+    is better than a request each time.
+    """
+    want = [w.lower() for w in AZURE_LANGUAGES]
+    try:
+        age = time.time() - AZURE_VOICE_CACHE.stat().st_mtime
+        if age < AZURE_CACHE_DAYS * 86400:
+            known = json.loads(AZURE_VOICE_CACHE.read_text(encoding="utf-8"))
+            if known.get("want") == want:
+                return known["voices"]
+    except (OSError, ValueError, KeyError):
+        pass
+    request = urllib.request.Request(
+        AZURE_VOICE_LIST, headers={"Ocp-Apim-Subscription-Key": get_speech_key()})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            catalogue = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError):
+        # No list is not an error: the configured voice keeps working, only
+        # the choice of others is missing until Azure answers again.
+        return []
+    names = sorted(
+        entry["ShortName"] for entry in catalogue
+        if any(entry.get("Locale", "").lower() == w
+               or entry.get("Locale", "").lower().startswith(w + "-")
+               for w in want)
+    )
+    try:
+        AZURE_VOICE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        AZURE_VOICE_CACHE.write_text(
+            json.dumps({"want": want, "voices": names}), encoding="utf-8")
+    except OSError:
+        pass
+    return names
+
+
+def available_voices() -> list[dict]:
+    """What this installation can speak with, right now.
+
+    A voice nobody can use is worse than no choice at all: it turns into a
+    silent slot at build time. So an Azure voice appears only once the key is
+    there, and a piper voice only once its model lies on disk.
+    """
+    voices = piper_voices()
+    if have_key():
+        voices += [
+            {
+                "id": f"azure:{name}",
+                "label": label_of(short_azure(name), "azure", lang_of(name)),
+                "backend": "azure",
+                "lang": lang_of(name),
+            }
+            for name in azure_voice_names()
+        ]
+    return voices
+
+
+def voice_name(vid: str) -> str:
+    """The label of one voice.
+
+    A voice can be gone from here and still be the one a sentence was spoken
+    with - another machine, a key that was withdrawn, a deleted model. The
+    name is then built from the id, because nobody should have to read
+    "azure:de-DE-GiselaNeural".
+    """
+    for voice in available_voices():
+        if voice["id"] == vid:
+            return voice["label"]
+    kind, _, rest = vid.partition(":")
+    if kind == "piper" and rest:
+        return label_of(pretty_piper(rest), "piper", lang_of(rest))
+    if kind == "azure" and rest:
+        return label_of(short_azure(rest), "azure", lang_of(rest))
+    return vid
+
+
+def default_voice(lang: str = "") -> str:
+    """The voice for a layout that names none.
+
+    Deliberately without asking Azure for its catalogue. This answer goes into
+    the fingerprint of the build, and a list that is there on one page load and
+    gone on the next would make the interface announce a release that nobody
+    caused.
+
+    An installation that already named a voice keeps it - an update must not
+    quietly change how a device in use sounds. Otherwise a local voice, it
+    speaks without a key and without a network, and among several the one that
+    speaks the language the device is set to. And if there is nothing at all,
+    still the voice this project spoke with before it could choose, so that
+    everything recorded back then stays findable in the cache.
+    """
+    if SEED_VOICE and have_key():
+        return f"azure:{SEED_VOICE}"
+    local = piper_voices()
+    if local:
+        wanted = lang_of(lang)
+        return sorted(local, key=lambda v: v["lang"] != wanted)[0]["id"]
+    return FALLBACK_VOICE
+
+
+def can_speak() -> bool:
+    """Whether anything new can be spoken here at all.
+
+    Deliberately without asking Azure for its catalogue: a key and a network
+    hiccup should not read as "no voice".
+    """
+    return bool(piper_voices()) or have_key()
+
+
 # --- Fingerprint -------------------------------------------------------------
 
-def voice_config() -> dict:
-    return {
-        "voice": VOICE,
-        "locale": LOCALE,
-        "region": REGION,
-        "rate": RATE,
+def voice_config(vid: str) -> dict:
+    """Everything about a voice that changes how a sentence comes out.
+
+    Derived from the id alone - no disk, no network. A WAV that was rendered
+    once has to keep its name on a machine that could not render it, or a
+    device re-downloads a cache it already has.
+    """
+    shared = {
         "sample_rate": SAMPLE_RATE,
-        "azure_format": AZURE_FORMAT,
         "pipeline": PIPELINE_VERSION,
         "silence_threshold": SILENCE_THRESHOLD,
         "loudnorm": LOUDNORM,
     }
+    kind, _, rest = vid.partition(":")
+    if kind == "piper":
+        # The name of the model, never its path: the same voice sits at
+        # /voices in the container and in content/voices on a laptop, and both
+        # have to arrive at the same fingerprint.
+        return {"backend": "piper", "model": rest, **shared}
+    # Azure keeps exactly the shape it had before there was anything to
+    # choose. Adding a key here would rename every WAV ever spoken.
+    return {
+        "voice": rest,
+        "locale": locale_of(rest),
+        "region": REGION,
+        "rate": RATE,
+        "azure_format": AZURE_FORMAT,
+        **shared,
+    }
 
 
-def fingerprint(text: str) -> str:
+def fingerprint(text: str, vid: str) -> str:
     payload = json.dumps(
-        {"text": text.strip(), **voice_config()},
+        {"text": text.strip(), **voice_config(vid)},
         sort_keys=True,
         ensure_ascii=False,
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
 
-def cache_path(text: str) -> Path:
-    return CACHE_DIR / f"{fingerprint(text)}.wav"
+def cache_path(text: str, vid: str) -> Path:
+    return CACHE_DIR / f"{fingerprint(text, vid)}.wav"
 
 
 def load_index() -> dict:
@@ -179,8 +427,8 @@ def load_index() -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def remember(text: str) -> None:
-    key = fingerprint(text)
+def remember(text: str, vid: str) -> None:
+    key = fingerprint(text, vid)
     with _index_lock:
         index = load_index()
         if index.get(key) == text:
@@ -204,21 +452,21 @@ def _xml_escape(text: str) -> str:
     )
 
 
-def build_ssml(text: str) -> str:
+def build_ssml(text: str, voice: str) -> str:
     return (
         '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
-        f'xml:lang="{LOCALE}">'
-        f'<voice name="{VOICE}">'
+        f'xml:lang="{locale_of(voice)}">'
+        f'<voice name="{voice}">'
         f'<prosody rate="{RATE}">{_xml_escape(text.strip())}</prosody>'
         "</voice></speak>"
     )
 
 
-def azure_synthesize(text: str) -> bytes:
+def azure_synthesize(text: str, voice: str) -> bytes:
     """Calls the Azure Speech REST API and returns raw WAV bytes."""
     request = urllib.request.Request(
         AZURE_ENDPOINT,
-        data=build_ssml(text).encode("utf-8"),
+        data=build_ssml(text, voice).encode("utf-8"),
         method="POST",
         headers={
             "Ocp-Apim-Subscription-Key": get_speech_key(),
@@ -237,6 +485,35 @@ def azure_synthesize(text: str) -> bytes:
         raise TTSError("tts.err.azure", code=exc.code, detail=detail) from exc
     except urllib.error.URLError as exc:
         raise TTSError("tts.err.unreachable", reason=exc.reason) from exc
+
+
+# --- piper -------------------------------------------------------------------
+
+def piper_synthesize(text: str, model: str) -> bytes:
+    """Renders on this machine - offline, free, and without an account
+    anywhere. Piper writes at the sample rate of its model; what comes out of
+    here is handed to ffmpeg like Azure's answer and ends up at 16 kHz mono
+    either way.
+    """
+    path = piper_models().get(model)
+    if path is None:
+        raise TTSError("tts.err.no_model", model=model)
+    binary = shutil.which(PIPER_BINARY)
+    if not binary:
+        raise TTSError("tts.err.no_piper")
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "piper.wav"
+        result = subprocess.run(
+            [binary, "-m", str(path), "-f", str(target)],
+            input=text.strip().encode("utf-8"),
+            capture_output=True,
+        )
+        if result.returncode != 0 or not target.exists():
+            raise TTSError(
+                "tts.err.piper",
+                reason=result.stderr.decode("utf-8", "replace").strip()[:400],
+            )
+        return target.read_bytes()
 
 
 # --- ffmpeg ------------------------------------------------------------------
@@ -306,43 +583,45 @@ def postprocess(raw_wav: bytes, target: Path) -> None:
 
 # --- Public interface --------------------------------------------------------
 
-def synthesize(text: str, force: bool = False) -> Path:
-    """Returns the path to a finished WAV for this text.
+def synthesize(text: str, vid: str = "", force: bool = False) -> Path:
+    """Returns the path to a finished WAV for this text in this voice.
 
-    Renders only when no file for that fingerprint exists in the cache yet.
+    Renders only when no file for that fingerprint exists in the cache yet -
+    and the voice is part of the fingerprint, so switching it re-records
+    everything instead of leaving the old recordings lying around.
     """
     text = (text or "").strip()
     if not text:
         raise TTSError("tts.err.empty")
-    target = cache_path(text)
-    remember(text)
+    vid = vid or default_voice()
+    target = cache_path(text, vid)
+    remember(text, vid)
     if target.exists() and not force:
         return target
-    raw = azure_synthesize(text)
+    kind, _, rest = vid.partition(":")
+    raw = (piper_synthesize(text, rest) if kind == "piper"
+           else azure_synthesize(text, rest))
     postprocess(raw, target)
     return target
 
 
 def list_voices() -> int:
-    """Shows which voices one's own key offers in this region."""
-    url = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices/voices/list"
-    request = urllib.request.Request(
-        url, headers={"Ocp-Apim-Subscription-Key": get_speech_key()})
-    try:
-        with urllib.request.urlopen(request, timeout=30) as antwort:
-            voices = json.loads(antwort.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        print(f"Azure answers with {exc.code}. Do the key and the region "
-              f"({REGION}) match?", file=sys.stderr)
+    """Shows every voice this installation can speak with.
+
+    Piper needs nothing but its model; the Azure part of the list stays empty
+    until a key is there.
+    """
+    catalogue = available_voices()
+    if not catalogue:
+        print("No voice available here. Either fetch a piper voice with\n"
+              "  python3 tools/voices.py\n"
+              "or put an AZURE_SPEECH_KEY into .env (template: .env.example).")
         return 1
-    language = LOCALE.split("-")[0]
-    matching = [v for v in voices if v.get("Locale", "").startswith(language)]
-    print(f"Region {REGION}, language {language}: {len(matching)} voices")
-    for v in sorted(matching, key=lambda x: x["ShortName"]):
-        styles = ", ".join(v.get("StyleList") or []) or "-"
-        marker = " <- configured" if v["ShortName"] == VOICE else ""
-        print(f"  {v['ShortName']:32} {v.get('Gender',''):7} styles: {styles}{marker}")
-    print("\nTo pick another: set AZURE_SPEECH_VOICE in .env.")
+    print(f"{len(catalogue)} voices:")
+    for voice in catalogue:
+        print(f"  {voice['id']:36} {voice['label']}")
+    print("\nThe voice is chosen on the page, or written into layout.json:\n"
+          f'  "voice": "{catalogue[0]["id"]}"')
     return 0
 
 
@@ -355,13 +634,15 @@ def main(argv: list[str]) -> int:
             return 1
     if len(argv) < 2:
         print("Usage: python3 tts.py \"the sentence\" [target.wav]\n"
-              "       python3 tts.py --voices", file=sys.stderr)
+              "       python3 tts.py --voices\n"
+              "The voice comes from layout.json; VORLAUT_VOICE overrules it "
+              "for one run.", file=sys.stderr)
         return 2
     text = argv[1]
     try:
-        path = synthesize(text)
+        path = synthesize(text, os.environ.get("VORLAUT_VOICE", "").strip())
     except TTSError as exc:
-        print(f"Fehler: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
     if len(argv) >= 3:
         destination = Path(argv[2])
