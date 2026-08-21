@@ -1,174 +1,171 @@
-# Betrieb: vom Handy, auf einem NAS
+# Running it: from a phone, on a NAS
 
-### Vom Handy aus bearbeiten
+### Editing from a phone
 
-Voreingestellt hört der Server nur auf diesem Rechner. Für den Zugriff aus
-dem eigenen WLAN:
+By default the server listens on this machine only. For access from your own
+Wi-Fi:
 
 ```bash
 .venv/bin/python app.py --host 0.0.0.0
 ```
 
-Beim Start nennt er die Adresse, die ins Handy gehört, etwa
-`http://192.168.0.25:8771`. Die Oberfläche bricht auf schmalen Bildschirmen
-um: Set-Kachel oben über die volle Breite, die vier Sprechtasten als 2x2
-darunter.
+At start-up it prints the address to put into the phone, something like
+`http://192.168.0.25:8771`. The interface reflows on narrow screens: the set
+tile across the full width on top, the four speech keys as a 2x2 below it.
 
-**Auf den Startbildschirm legen.** Die Seite bringt ein Web-Manifest mit, sie
-lässt sich also wie eine App ablegen: in Safari *Teilen → Zum Home-Bildschirm*,
-in Chrome über das Menü. Danach startet sie ohne Adressleiste im
-Vollbild.
+**Putting it on the home screen.** The page ships a web manifest, so it can be
+placed like an app: in Safari *Share → Add to Home Screen*, in Chrome through
+the menu. After that it starts full screen without an address bar.
 
-Bewusst **ohne Service Worker**, also ohne Offline-Cache. Ohne
-Server kann die Oberfläche ohnehin nichts - weder speichern noch vorhören noch
-bauen. Ein Cache würde nur alte Fassungen ausliefern und wäre eher
-Fehlerquelle als Nutzen.
+Deliberately **without a service worker**, so without an offline cache. Without
+the server the interface can do nothing anyway — neither save nor preview nor
+build. A cache would only serve up stale versions and be more of a fault source
+than a benefit.
 
-**Das ist ohne Anmeldung.** Wer im selben WLAN ist, kann die Inhalte ändern
-und über die Vorhör-Taste Azure-Guthaben verbrauchen. Für zuhause in
-Ordnung, in einem fremden oder öffentlichen Netz nicht.
+**This has no authentication.** Anyone on the same Wi-Fi can change the content
+and spend Azure quota through the preview button. Fine at home, not in a
+foreign or public network.
 
-### Auf einem NAS betreiben
+### Running it on a NAS
 
-Sinnvoller als ein Rechner, der nur manchmal an ist. Es liegt ein `Dockerfile` und
-eine `docker-compose.yml` bei:
+More sensible than a computer that is only sometimes on. A `Dockerfile` and a
+`docker-compose.yml` are included:
 
 ```bash
 docker compose up -d
 ```
 
-Wer nicht selbst bauen will, zieht das fertige Image — es wird bei jeder
-Änderung an `Dockerfile` oder `requirements.txt` für amd64 und arm64 gebaut:
+Whoever does not want to build it themselves pulls the ready-made image — it is
+built for amd64 and arm64 on every change to `Dockerfile` or
+`requirements.txt`:
 
 ```
 ghcr.io/steffipetaffy/vorlaut:latest
 ```
 
-Dafür in der `docker-compose.yml` `build: .` durch
-`image: ghcr.io/steffipetaffy/vorlaut:latest` ersetzen. Auf einem NAS mit
-ARM spart das mehrere Minuten Bauzeit.
+For that, replace `build: .` in `docker-compose.yml` with
+`image: ghcr.io/steffipetaffy/vorlaut:latest`. On a NAS with ARM that saves
+several minutes of build time.
 
-Das Image bringt nur Python, ffmpeg und Pillow mit. Das Projektverzeichnis
-selbst wird hineingereicht - `content/layout.json`, `content/symbols/` und `content/cache/` bleiben
-damit auf dem NAS und laufen in dessen Sicherung mit.
+The image brings only Python, ffmpeg and Pillow. The project directory itself
+is passed in — `content/layout.json`, `content/symbols/` and `content/cache/`
+therefore stay on the NAS and are covered by its backup.
 
-Geprüft: Azure-Sprachausgabe, ffmpeg (7.1.5 im Image), ARASAAC-Suche und
-`build.py` laufen im Container durch.
+Verified: Azure speech, ffmpeg (7.1.5 in the image), ARASAAC search and
+`build.py` all run inside the container.
 
-#### Starten
+#### Starting
 
 ```bash
 ./start.sh
 ```
 
-Baut neu falls nötig, ersetzt einen laufenden Container, wartet bis die
-Oberfläche wirklich antwortet und nennt die Adresse. Ein anderer Port geht
-mit `./start.sh 8798`.
+Rebuilds if needed, replaces a running container, waits until the interface
+really answers and prints the address. A different port works with
+`./start.sh 8798`.
 
-Dahinter steckt im Kern ein einziger Befehl - das Skript nimmt nur die
-Handgriffe drumherum ab:
+At heart there is a single command behind it — the script only takes care of
+the handling around it:
 
 ```bash
 docker compose up -d --build
 ```
 
-#### Beenden
+#### Stopping
 
 ```bash
 ./stop.sh
 ```
 
-Beendet den Container und sagt, ob daneben noch ein direkt gestartetes
-`app.py` auf dem Port hängt - das kennt Docker nämlich nicht und beendet es
-auch nicht.
+Stops the container and says whether a directly started `app.py` is still
+sitting on the port next to it — Docker does not know about that one and will
+not stop it either.
 
-Wo läuft überhaupt etwas?
+Where is anything running at all?
 
 ```bash
-docker ps                 # laufende Container
-pgrep -fl app.py          # direkt gestartete Server
+docker ps                 # running containers
+pgrep -fl app.py          # directly started servers
 ```
 
-`docker compose down` und `docker compose logs` funktionieren nur aus dem
-Projektordner heraus. Von überall geht:
+`docker compose down` and `docker compose logs` only work from inside the
+project folder. From anywhere:
 
 ```bash
 docker stop vorlaut
 docker logs -f vorlaut
 ```
 
-#### Vorher lokal ausprobieren
+#### Trying it locally first
 
-Sinnvoll, bevor du dich mit DSM herumschlägst - dieselbe Datei, derselbe
-Container:
+Worth doing before wrestling with DSM — same file, same container:
 
 ```bash
 docker compose up -d --build
-docker compose logs -f          # was der Container sagt
-docker compose down             # wieder weg
+docker compose logs -f          # what the container says
+docker compose down             # gone again
 ```
 
-Läuft schon ein `app.py` auf 8771, kann der Container einen anderen Port am
-Rechner bekommen:
+If an `app.py` is already running on 8771, the container can take a different
+port on the machine:
 
 ```bash
 VORLAUT_PORT=8798 docker compose up -d --build
 ```
 
-Achtung: Container und `app.py` arbeiten auf **denselben Dateien**. Beide
-gleichzeitig laufen zu lassen ist möglich, aber es sollte immer nur einer
-davon bedient werden.
+Careful: the container and `app.py` work on the **same files**. Running both at
+once is possible, but only one of them should ever be operated.
 
-Geprüft mit `docker compose` 2.x und dem älteren `docker-compose` 1.29 -
-beide nehmen die Datei an.
+Verified with `docker compose` 2.x and the older `docker-compose` 1.29 — both
+accept the file.
 
-> Stolperstein: `docker compose` liest die `.env` im Projektordner für
-> Variablen mit. Steht darin etwas anderes als `SCHLUESSEL=WERT`, bricht es
-> mit *"Can't separate key from value"* ab. Die `.env` gehört also nur dem
-> Azure-Schlüssel.
+> Pitfall: `docker compose` reads the `.env` in the project folder for its own
+> variables. If anything other than `KEY=VALUE` is in there, it aborts with
+> *"Can't separate key from value"*.
 
-#### Auf einer Synology
+#### On a Synology
 
-1. Gemeinsamen Ordner anlegen, üblich ist `docker`, darin `vorlaut` -
-   der Pfad ist dann `/volume1/docker/vorlaut`.
-2. Das Projekt dorthin kopieren, am einfachsten über die Netzfreigabe im
-   Finder. **Die `.env` gehört nicht ins Repo und muss von Hand mit.**
-3. **Container Manager** öffnen (DSM 7.2 und neuer; davor heißt das Paket
-   *Docker*) -> *Projekt* -> *Anlegen* -> als Pfad den Ordner wählen. Die
-   `docker-compose.yml` wird erkannt, das Image baut er selbst.
-4. Aufrufen unter `http://<NAS>:8771`.
+1. Create a shared folder, `docker` is customary, with `vorlaut` inside — the
+   path is then `/volume1/docker/vorlaut`.
+2. Copy the project there, easiest over the network share in Finder. **The
+   `.env` does not belong in the repo and has to come along by hand.**
+3. Open **Container Manager** (DSM 7.2 and newer; before that the package is
+   called *Docker*) -> *Project* -> *Create* -> pick the folder as the path.
+   The `docker-compose.yml` is recognised, the image is built there.
+4. Reach it at `http://<NAS>:8771`.
 
-Damit liegt der ganze Bestand auf dem NAS und läuft in dessen Sicherung mit.
-Am Rechner dieselbe Freigabe einhängen und dort mit git weiterarbeiten -
-es ist ein einziger Ordner, keine zweite Kopie.
+That puts the whole set of content on the NAS, covered by its backup. Mount the
+same share on the computer and carry on there with git — it is a single folder,
+not a second copy.
 
-Was dabei erfahrungsgemäß zuerst klemmt:
+What tends to go wrong first, from experience:
 
-- **Dateirechte.** Der Container läuft als root, alles was er anlegt gehört
-  danach root, und über die Netzfreigabe kommst du nicht mehr dran. In der
-  `docker-compose.yml` steht eine auskommentierte `user:`-Zeile dafür; die
-  eigene Kennung liefert `id` über SSH.
-- **Aelteres DSM.** Das alte *Docker*-Paket bringt Compose 1 mit und will eine
-  Zeile `version: "3.8"` ganz oben in der `docker-compose.yml`. Container
-  Manager braucht sie nicht.
-- **ARM-Modelle** bauen das Image spürbar langsamer als die Intel-Modelle.
-  Einmalig, danach läuft es.
+- **File permissions.** The container runs as root, everything it creates
+  belongs to root afterwards, and over the network share you cannot get at it
+  any more. There is a commented-out `user:` line in `docker-compose.yml` for
+  that; `id` over SSH gives you your own.
+- **Older DSM.** The old *Docker* package ships Compose 1 and wants a line
+  `version: "3.8"` at the very top of `docker-compose.yml`. Container Manager
+  does not need it.
+- **ARM models** build the image noticeably more slowly than the Intel ones.
+  Once, then it runs.
 
-Zu bedenken:
+Things to bear in mind:
 
-- **Keine Anmeldung.** Wer den Port erreicht, kann die Inhalte ändern. Im
-  Heimnetz in Ordnung, aber **nicht im Router freigeben**. Für unterwegs
-  lieber ein privates Netz wie Tailscale, dann braucht es keine Anmeldung.
-- Der Azure-Schlüssel steckt bewusst **nicht** im Image - `.dockerignore`
-  schließt `.env` aus. Zur Laufzeit kommt er aus dem eingehängten Ordner.
-- Geflasht wird weiter vom Rechner aus - dafür braucht es USB.
+- **No authentication.** Anyone who reaches the port can change the content.
+  Fine on a home network, but **do not forward it in the router**. For being
+  out and about, a private network such as Tailscale is the better answer —
+  then no authentication is needed.
+- The Azure key deliberately is **not** in the image — `.dockerignore` excludes
+  `.env`. At run time it comes from the mounted folder.
+- Flashing still happens from the computer — that needs USB.
 
-Ins offene Internet gehört die Oberfläche nicht: sie braucht einen
-laufenden Python-Prozess, schreibt Dateien und hat den Azure-Schlüssel. Auf
-GitHub Pages läuft sie deshalb nicht - das ist reines Ausliefern fertiger
-Dateien, ohne Server dahinter.
+The interface does not belong on the open internet: it needs a running Python
+process, writes files and holds the Azure key. That is also why it does not run
+on GitHub Pages — that is pure delivery of finished files, with no server
+behind it.
 
-Ohne Azure-Key lässt sich schon alles außer dem Ton benutzen: Symbole
-suchen, Layout bearbeiten, Bilder bauen.
+Without an Azure key everything except the sound can already be used: searching
+symbols, editing the layout, building images.
 
 ---

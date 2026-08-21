@@ -1,77 +1,77 @@
-# Firmware übersetzen und aufs Gerät bringen
+# Compiling the firmware and getting it onto the device
 
 ## Firmware
 
-`firmware/vorlaut/vorlaut.ino`, Arduino-Framework.
+`firmware/vorlaut/vorlaut.ino`, Arduino framework.
 
-Der Sketch liegt in einem eigenen Unterordner, weil Arduino verlangt, dass der
-Ordner so heißt wie die `.ino`-Datei - und weil der LittleFS-Uploader `data/`
-direkt daneben sucht. Beides zeigt auf dieselbe Struktur.
+The sketch lives in a subfolder of its own, because Arduino requires the folder
+to have the same name as the `.ino` file — and because the LittleFS uploader
+looks for `data/` right next to it. Both point at the same structure.
 
-### Was gebraucht wird
+### What is needed
 
-- **Arduino ESP32 Core 3.x** (Board: *Adafruit Feather ESP32-S3 No PSRAM*)
-- Bibliotheken: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`
-- `mklittlefs` und `esptool` für den Dateibereich - beide kommen mit dem
-  ESP32-Core, `build.py --fs-image` findet sie von selbst
+- **Arduino ESP32 Core 3.x** (board: *Adafruit Feather ESP32-S3 No PSRAM*)
+- Libraries: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`
+- `mklittlefs` and `esptool` for the file area — both come with the ESP32
+  core, `build.py --fs-image` finds them by itself
 
-Board-Einstellung: USB CDC On Boot **an**.
+Board setting: USB CDC On Boot **enabled**.
 
-### Aufs Gerät bringen
+### Getting it onto the device
 
-Es sind zwei getrennte Dinge, die in getrennte Flash-Bereiche gehen: das
-**Programm** (der Sketch) und die **Daten** (Bilder und Töne). Aendert sich nur
-ein Wort oder ein Symbol, muss das Programm nicht neu drauf - dann reichen die
-Schritte 3 und 4.
+These are two separate things that go into separate flash areas: the
+**program** (the sketch) and the **data** (images and sounds). If only a word
+or a symbol changes, the program does not have to be reflashed — steps 3 and 4
+are enough then.
 
-**1. Port finden.** Feather per USB-C anstecken, dann:
+**1. Find the port.** Plug in the Feather over USB-C, then:
 
 ```bash
 arduino-cli board list
 ```
 
-Gesucht ist etwas wie `/dev/cu.usbmodem1101`. Diesen Port unten überall
-statt `/dev/cu.usbmodemXXXX` einsetzen.
+You are looking for something like `/dev/cu.usbmodem1101`. Use that port below
+wherever `/dev/cu.usbmodemXXXX` appears.
 
-**2a. Ohne Arduino: fertiges Image nehmen.**
+**2a. Without Arduino: take a ready-made image.**
 
-Unter [Releases](https://github.com/SteffiPeTaffy/vorlaut/releases) hängt an
-jedem Tag ein fertiges `vorlaut.ino.merged.bin`. Das ist der bequeme Weg: ein
-gewöhnlicher Link, kein GitHub-Konto nötig, und es bleibt liegen.
+Under [Releases](https://github.com/SteffiPeTaffy/vorlaut/releases) every tag
+carries a finished `vorlaut.ino.merged.bin`. That is the convenient route: an
+ordinary link, no GitHub account needed, and it stays put.
 
-Wer den allerneuesten Stand von `main` braucht, holt ihn aus *Actions*: der
-Workflow *Firmware build* hängt das Image als Artifact `firmware` an. Dafür
-braucht es eine Anmeldung, und nach 90 Tagen ist es weg.
+Whoever needs the very latest state of `main` gets it from *Actions*: the
+*Firmware build* workflow attaches the image as the artifact `firmware`. That
+requires signing in, and after 90 days it is gone.
 
-`vorlaut.ino.merged.bin` enthält Bootloader, Partition Table und Programm in
-einer Datei, geschrieben an Adresse 0:
+`vorlaut.ino.merged.bin` contains bootloader, partition table and program in a
+single file, written at address 0:
 
 ```bash
 esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 vorlaut.ino.merged.bin
 ```
 
-Damit braucht es weder Arduino-Core noch Bibliotheken - nur esptool. Das
-Partition Scheme steckt schon im Image, es lässt sich also auch nicht falsch
-einstellen.
+That needs neither the Arduino core nor the libraries — only esptool. The
+partition scheme is already inside the image, so it cannot be set wrongly
+either.
 
-**2b. Selbst übersetzen und schreiben:**
+**2b. Compile and write it yourself:**
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
 arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
 ```
 
-Meldet der Upload, dass er das Board nicht findet: **BOOT** gedrückt halten,
-kurz **RESET** tippen, **BOOT** loslassen. Dann hängt der Feather im
-Bootloader und der Befehl geht durch. Danach einmal RESET drücken.
+If the upload reports that it cannot find the board: hold **BOOT**, tap
+**RESET** briefly, release **BOOT**. The Feather then sits in the bootloader
+and the command goes through. Press RESET once afterwards.
 
-**3. Daten packen:**
+**3. Pack the data:**
 
 ```bash
 .venv/bin/python build.py --fs-image
 ```
 
-**4. Daten schreiben** - den Befehl gibt Schritt 3 mit vollem Pfad aus:
+**4. Write the data** — step 3 prints the command with the full path:
 
 ```bash
 ~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool \
@@ -79,96 +79,95 @@ Bootloader und der Befehl geht durch. Danach einmal RESET drücken.
   write-flash 0x670000 firmware/vorlaut/littlefs.bin
 ```
 
-Die Adresse `0x670000` ist der Anfang der `spiffs`-Partition aus
-`default_8MB.csv`. Sie gilt nur für dieses Partition Scheme - mit einem
-anderen landen die Daten an der falschen Stelle.
+The address `0x670000` is the start of the `spiffs` partition from
+`default_8MB.csv`. It holds for this partition scheme only — with a different
+one the data lands in the wrong place.
 
-**Mitlesen, was das Gerät sagt:**
+**Reading along with what the device says:**
 
 ```bash
 arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 ```
 
-Dort steht beim Start, welches Set geladen wurde, welche Taste gedrückt wurde
-und ob LittleFS sich einhängen ließ.
+At start-up it says which set was loaded, which key was pressed and whether
+LittleFS could be mounted.
 
-### Wie das Image entsteht
+### How the image comes about
 
-`build.py --fs-image` packt `firmware/vorlaut/data/` mit `mklittlefs` in ein
-Image von 1536 KiB - genau die Größe der `spiffs`-Partition. Passen die
-Daten nicht hinein, bricht es mit einer klaren Meldung ab, statt ein zu großes
-Image zu erzeugen.
+`build.py --fs-image` packs `firmware/vorlaut/data/` with `mklittlefs` into an
+image of 1536 KiB — exactly the size of the `spiffs` partition. If the data
+does not fit, it stops with a clear message instead of producing an oversized
+image.
 
-Das Image selbst ist gitignored: es entsteht in Sekunden neu aus `data/`.
+The image itself is gitignored: it is recreated from `data/` in seconds.
 
-Übersetzen:
+Compiling:
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
 ```
 
-> **Das Partition Scheme ist nicht optional.** Die Voreinstellung des Boards
-> heißt *tinyuf2* und legt den Datenbereich als `ffat` an - `LittleFS.begin()`
-> sucht aber eine Partition namens `spiffs` und scheitert daran. Das Gerät
-> bootet dann mit schwarzen Displays. In der Arduino-IDE unter
-> *Werkzeuge > Partition Scheme* auf **"Default (3MB APP/1.5MB SPIFFS)"**
-> stellen, auf der Kommandozeile `PartitionScheme=default_8MB` anhängen.
+> **The partition scheme is not optional.** The board's default is called
+> *tinyuf2* and creates the data area as `ffat` — but `LittleFS.begin()` looks
+> for a partition named `spiffs` and fails on it. The device then boots with
+> black displays. In the Arduino IDE set *Tools > Partition Scheme* to
+> **"Default (3MB APP/1.5MB SPIFFS)"**, on the command line append
+> `PartitionScheme=default_8MB`.
 
-Getestet mit ESP32-Core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0:
-470 KB Programm (14 % von 3 MB), 57 KB RAM (17 %).
+Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0: 470 KB
+program (14 % of 3 MB), 57 KB RAM (17 %).
 
-Der Dateibereich fasst 1536 KiB. Ein volles Layout mit fünf Sets belegt
-davon rund 630 KiB, also gut 40 %.
+The file area holds 1536 KiB. A full layout with five sets takes around
+630 KiB of that, so a good 40 %.
 
-> Der Sketch **compiliert**, ist aber noch nie auf echter Hardware gelaufen.
-> Vor dem ersten Flashen die Pinbelegung gegen die echten Boards prüfen.
+> The sketch **compiles** but has never run on real hardware. Check the pin
+> assignment against the actual boards before the first flash.
 
-### Verhalten
+### Behaviour
 
-- **Wach:** alle fünf Displays sind durchgehend an. Sie muss sehen können,
-  was zur Auswahl steht.
-- **Taste 1-4:** das zugehörige WAV wird abgespielt.
-- **Taste 5:** nächstes Set (1→2→3→4→5→1), alle Displays werden neu gezeichnet.
-  Das aktuelle Set überlebt den Schlaf.
-- **Nach `sleep_timeout_seconds` ohne Eingabe:** Displays aus, Deep Sleep.
+- **Awake:** all five displays are on continuously. She has to be able to see
+  what is on offer.
+- **Keys 1-4:** the corresponding WAV is played.
+- **Key 5:** next set (1→2→3→4→5→1), all displays are redrawn. The current set
+  survives sleep.
+- **After `sleep_timeout_seconds` without input:** displays off, deep sleep.
 
-### Menü
+### Menu
 
-**Set-Taste und Taste 2 fünf Sekunden gleichzeitig halten.** Die beiden liegen
-diagonal am weitesten auseinander - mit einer Kinderhand kaum gleichzeitig zu
-treffen. Während des Haltens zählen alle Displays herunter; wer loslässt,
-bricht ab, ohne dass etwas passiert.
+**Hold the set key and key 2 together for five seconds.** Those two sit
+diagonally furthest apart — hard to hit at the same time with a child's hand.
+While holding, all displays count down; letting go cancels without anything
+happening.
 
-Im Menü beschriften sich die Tasten selbst. Derzeit:
+In the menu the keys label themselves. Currently:
 
-| Taste | |
+| Key | |
 |---|---|
-| 1 | **Info** - Anzahl der Sets, ist das Dateisystem da |
-| Set | **zurück** in den Normalbetrieb |
+| 1 | **Info** — number of sets, is the file system there |
+| Set | **zurück** to normal operation |
 
-Die übrigen bleiben leer. Einträge kommen dazu, wenn es die Funktion dahinter
-gibt - WLAN einrichten und Inhalte holen, sobald der Abgleich steht.
+The rest stay empty. Entries appear once the function behind them exists —
+setting up Wi-Fi and fetching content, as soon as the sync is in place.
 
-Das Menü zeichnet sich ohne Dateien, aus Text und Rechtecken. Es funktioniert
-also auch auf einem frisch geflashten Gerät, auf dem noch nichts liegt - und
-genau dort braucht man es zuerst. Der Rahmen ist grau statt in der Set-Farbe,
-damit man auf einen Blick sieht, dass das nicht der Talker ist.
+The menu draws itself without files, from text and rectangles. So it works on a
+freshly flashed device with nothing on it yet — and that is exactly where it is
+needed first. The frame is grey instead of the set colour, so one sees at a
+glance that this is not the talker.
 
-**Nach 30 Sekunden ohne Eingabe geht es von selbst zurück.** Ein Gerät, das im
-Menü hängenbleibt, spricht nicht mehr - das darf nicht passieren.
+**After 30 seconds without input it returns by itself.** A device stuck in the
+menu no longer speaks — that must not happen.
 
-### Aufwachen
+### Waking up
 
-Jede der fünf Tasten weckt das Gerät (EXT1 auf allen Taster-Pins).
+Any of the five keys wakes the device (EXT1 on all button pins).
 
-**Der Druck, der aufweckt, löst nichts aus** - kein Wort, kein Umschalten.
-Er holt nur die Displays zurück. Danach wartet die Firmware, bis die Taste
-losgelassen wurde, bevor wieder auf Eingaben reagiert wird. Sonst spräche das
-Gerät ein Wort, das sie gar nicht sagen wollte: bei dunklen Displays drückt
-sie ja blind.
+**The press that wakes it triggers nothing** — no word, no switching. It only
+brings the displays back. After that the firmware waits until the key has been
+released before reacting to input again. Otherwise the device would speak a
+word she never meant to say: with dark displays she is pressing blind.
 
-Entprellt wird über eine Mindest-Druckdauer: **80 ms** für die Sprechtasten,
-**400 ms** für die Set-Taste (`DEBOUNCE_MS` und `SET_HOLD_MS` im Sketch). Die
-Set-Taste braucht länger, weil ein versehentlicher Wechsel ihr das Wort
-wegnimmt, das sie gerade sagen wollte - sie muss dann erst wiederfinden, wo sie
-ist. Das ist ärgerlicher als ein falsch getroffenes Wort.
+Debouncing works through a minimum press duration: **80 ms** for the speech
+keys, **400 ms** for the set key (`DEBOUNCE_MS` and `SET_HOLD_MS` in the
+sketch). The set key needs longer because an accidental switch takes away the
+word she was about to say — she then has to find her way back first. That is
+more annoying than hitting the wrong word.
