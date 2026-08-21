@@ -1,23 +1,23 @@
-// Stufe 3: Alle fünf Displays.
+// Stage 3: all five displays.
 //
-// Erst machen, wenn Stufe 2 mit einem Display sauber lief. Hier klärt sich,
-// ob die CS-Leitungen in der richtigen Reihenfolge liegen - und ob das
-// gemeinsame RST funktioniert.
+// Only do this once stage 2 ran cleanly with a single display. What gets
+// settled here is whether the CS lines are in the right order - and whether
+// the shared RST works.
 //
-// Jedes Display zeigt dauerhaft seine Nummer auf eigener Farbe:
+// Each display permanently shows its number on its own colour:
 //
-//   1 rot        oben links im Viererblock
-//   2 grün       oben rechts
-//   3 blau       unten links
-//   4 gelb       unten rechts
-//   S violett    die Set-Taste, links unter dem Lautsprecher
+//   1 red        top left in the block of four
+//   2 green      top right
+//   3 blue       bottom left
+//   4 yellow     bottom right
+//   S violet     the set key, left below the speaker
 //
-// Stimmt die Anordnung nicht mit der Zeichnung in docs/hardware.md überein,
-// sind die CS-Leitungen vertauscht. Entweder umlöten oder die Reihenfolge in
-// pins.h ändern - beides ist richtig, aber es muss zusammenpassen.
+// If the arrangement does not match the drawing in docs/hardware.md, the CS
+// lines are swapped. Either resolder or change the order in pins.h - both are
+// right, but they have to agree.
 //
-// Bleibt ein Display schwarz: dessen CS-Leitung prüfen.
-// Bleiben ALLE schwarz, obwohl Stufe 2 lief: meist RST oder die Versorgung.
+// If one display stays black: check its CS line.
+// If ALL stay black although stage 2 ran: usually RST or the power supply.
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -46,9 +46,8 @@ void setup() {
   pinMode(PIN_BL, OUTPUT);
   digitalWrite(PIN_BL, HIGH);
 
-  // RST liegt an allen fünf: einmal von Hand pulsen, danach den Treibern -1
-  // geben. Sonst würde die Initialisierung von Display 3 die Displays 1 und 2
-  // wieder zurücksetzen.
+  // RST is common to all five: pulse it once by hand, then hand the drivers
+  // -1. Otherwise initialising display 3 would reset displays 1 and 2 again.
   pinMode(PIN_RST, OUTPUT);
   digitalWrite(PIN_RST, HIGH); delay(10);
   digitalWrite(PIN_RST, LOW);  delay(20);

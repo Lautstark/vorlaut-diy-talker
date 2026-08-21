@@ -1,18 +1,17 @@
-// Stufe 4: Die Taster.
+// Stage 4: the buttons.
 //
-// Zeigt auf jedem Display, ob sein eigener Taster gerade gedrückt ist:
-// dunkel = offen, hell mit Häkchen = gedrückt. Dazu eine Zeile im seriellen
-// Monitor bei jeder Änderung.
+// Shows on each display whether its own button is currently pressed: dark =
+// open, bright with a check mark = pressed. Plus a line in the serial monitor
+// on every change.
 //
-// Zu prüfen:
-//   - Leuchtet beim Drücken das Display AUF DERSELBEN Taste auf? Wenn ein
-//     anderes reagiert, sind KEY-Leitungen und CS-Leitungen unterschiedlich
-//     sortiert.
-//   - Reagiert eine Taste gar nicht: KEY-Leitung und GND prüfen.
-//   - Reagieren alle gleichzeitig: vermutlich liegt GND nicht an.
+// What to check:
+//   - Does pressing light up the display ON THAT SAME key? If another one
+//     reacts, KEY lines and CS lines are sorted differently.
+//   - Does a key not react at all: check the KEY line and GND.
+//   - Do all react at once: GND is probably not connected.
 //
-// Der Ruhezustand muss "offen" sein. Zeigt eine Taste dauerhaft "gedrückt",
-// ohne dass jemand sie berührt, liegt der Eingang fest auf GND.
+// The resting state has to be "open". If a key permanently shows "pressed"
+// without anyone touching it, the input sits hard on GND.
 
 #include <Arduino.h>
 #include <SPI.h>

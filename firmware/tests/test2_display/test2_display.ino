@@ -1,22 +1,22 @@
-// Stufe 2: Ein einzelnes Display.
+// Stage 2: a single display.
 //
-// Hier klären sich die zwei Unbekannten, die sich nicht ausrechnen lassen:
-// das richtige Panel-Profil und der Pixelversatz.
+// This is where the two unknowns get settled that cannot be worked out on
+// paper: the right panel profile and the pixel offset.
 //
-// Nur Display 1 anschließen (CS an D11). Die anderen kommen in Stufe 3.
+// Connect display 1 only (CS on D11). The others follow in stage 3.
 //
-// Was zu sehen sein sollte, im Wechsel alle drei Sekunden:
-//   1. ROT      - ist das Bild wirklich rot? Erscheint es blau, sind die
-//                 Farbkanäle vertauscht: initR(INITR_144GREENTAB) gegen eine
-//                 andere Variante tauschen oder invertDisplay setzen.
-//   2. GRÜN
-//   3. BLAU
-//   4. Rahmen   - ein weißer Rahmen genau am äußersten Bildrand, dazu in
-//                 jeder Ecke ein Quadrat. Sind alle vier Ecken vollständig
-//                 und der Rahmen ringsum gleich breit, stimmt der Versatz.
-//                 Fehlt oben oder links etwas und unten oder rechts bleibt
-//                 ein Streifen: PANEL_COL_OFFSET / PANEL_ROW_OFFSET in
-//                 pins.h anpassen.
+// What should be visible, alternating every three seconds:
+//   1. RED      - is the picture really red? If it looks blue, the colour
+//                 channels are swapped: exchange initR(INITR_144GREENTAB) for
+//                 another variant or set invertDisplay.
+//   2. GREEN
+//   3. BLUE
+//   4. Border   - a white border exactly at the outermost edge, plus a square
+//                 in every corner. If all four corners are complete and the
+//                 border is equally wide all round, the offset is right.
+//                 If something is missing at the top or left and a strip
+//                 remains at the bottom or right: adjust PANEL_COL_OFFSET /
+//                 PANEL_ROW_OFFSET in pins.h.
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -28,7 +28,7 @@
 #define BREITE 128
 #define HOEHE  128
 
-// Panel-Profil. Voreinstellung ist die Variante der echten Screenkeys
+// Panel profile. The default is the variant of the real Screenkeys
 // (128x128). Zum Ausprobieren ohne Codeaenderung ueberschreibbar, etwa
 //   arduino-cli compile --build-property \
 //     "compiler.cpp.extra_flags=-DPANEL_INITR=INITR_BLACKTAB" ...
@@ -71,15 +71,15 @@ void setup() {
 
 static void rahmenBild() {
   tft->fillScreen(ST77XX_BLACK);
-  // Rahmen genau auf dem äußersten Pixel
+  // Border exactly on the outermost pixel
   tft->drawRect(0, 0, BREITE, HOEHE, ST77XX_WHITE);
-  // Ecken, damit man sieht ob wirklich alles da ist
+  // Corners, so one sees whether everything is really there
   const int16_t e = 12;
   tft->fillRect(0, 0, e, e, ST77XX_RED);
   tft->fillRect(BREITE - e, 0, e, e, ST77XX_GREEN);
   tft->fillRect(0, HOEHE - e, e, e, ST77XX_BLUE);
   tft->fillRect(BREITE - e, HOEHE - e, e, e, ST77XX_YELLOW);
-  // Fadenkreuz durch die Mitte
+  // Crosshair through the centre
   tft->drawFastHLine(0, HOEHE / 2, BREITE, 0x7BEF);
   tft->drawFastVLine(BREITE / 2, 0, HOEHE, 0x7BEF);
 }

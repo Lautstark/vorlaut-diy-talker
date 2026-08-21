@@ -1,14 +1,14 @@
-// Stufe 1: Lebt das Board?
+// Stage 1: is the board alive?
 //
-// Prüft nur den Feather selbst - keine Displays, keine Taster, kein Ton.
-// Wenn das hier nicht läuft, muss man an der Verkabelung gar nicht suchen.
+// Checks the Feather itself only - no displays, no buttons, no sound. If this
+// does not run, there is no point looking at the wiring yet.
 //
-// Erwartetes Verhalten:
-//   - die rote LED neben der USB-Buchse blinkt im Sekundentakt
-//   - im seriellen Monitor (115200) läuft alle zwei Sekunden eine Zeile durch
+// Expected behaviour:
+//   - the red LED next to the USB socket blinks once a second
+//   - a line runs through the serial monitor (115200) every two seconds
 //
-// Werkzeuge > USB CDC On Boot muss "Enabled" sein, sonst bleibt der Monitor
-// stumm.
+// Tools > USB CDC On Boot has to be "Enabled", otherwise the monitor stays
+// silent.
 
 #include <Arduino.h>
 

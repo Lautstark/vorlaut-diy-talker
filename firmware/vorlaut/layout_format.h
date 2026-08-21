@@ -1,11 +1,11 @@
-// Aufbau von layout.bin - gemeinsam genutzt von der Firmware und vom Test.
+// Structure of layout.bin - shared by the firmware and the test.
 //
-// Absichtlich ohne jede Arduino-Abhängigkeit: so lässt sich derselbe Code auf
-// dem Rechner übersetzen und gegen eine von build.py erzeugte Datei prüfen.
-// Schrittweiten und Byte-Reihenfolge sind genau die Stellen, an denen man sich
-// vertut, und auf dem Gerät merkt man es erst beim Flashen.
+// Deliberately without any Arduino dependency: that way the same code can be
+// compiled on the computer and checked against a file produced by build.py.
+// Strides and byte order are exactly the places one gets wrong, and on the
+// device it only shows once it has been flashed.
 //
-// Erzeugt wird die Datei von build.py - dort steht dieselbe Struktur.
+// The file is produced by build.py - the same structure is written down there.
 
 #pragma once
 #include <stdint.h>
@@ -17,7 +17,7 @@
 #define NAME_BYTES 32
 #define LAYOUT_VERSION 1
 
-// Feste Schrittweiten. Müssen mit build.py übereinstimmen.
+// Fixed strides. Have to agree with build.py.
 #define LAYOUT_HEADER_BYTES 12
 #define LAYOUT_SLOT_BYTES (HASH_BYTES + HASH_BYTES + 1 + 1)          // 34
 #define LAYOUT_SET_BYTES (2 + NAME_BYTES + HASH_BYTES + SLOT_COUNT * LAYOUT_SLOT_BYTES)  // 186
@@ -51,8 +51,8 @@ enum LayoutResult {
   LAYOUT_LAENGE,
 };
 
-// Kleine Helfer statt memcpy auf Strukturen: die Datei ist little-endian,
-// unabhängig davon, wie der Übersetzer Strukturen ausrichtet.
+// Small helpers instead of memcpy onto structs: the file is little-endian,
+// regardless of how the compiler aligns structs.
 static inline uint16_t layoutU16(const uint8_t *p) {
   return (uint16_t)(p[0] | (p[1] << 8));
 }

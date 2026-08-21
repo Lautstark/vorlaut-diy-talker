@@ -1,11 +1,11 @@
-// vorlaut - kleiner Talker mit fünf Screenkey-Tasten
+// vorlaut - small talker with five Screenkey buttons
 //
-// Vier Tasten sprechen, die fünfte schaltet das Set um. Solange das Gerät
-// wach ist, sind alle fünf Displays an. Nach der eingestellten Zeit ohne
-// Eingabe geht es in den Deep Sleep und wacht durch jede der fünf Tasten
-// wieder auf - dieser erste Druck löst bewusst nichts aus.
+// Four keys speak, the fifth switches the set. While the device is awake all
+// five displays are on. After the configured idle time it goes into deep
+// sleep and wakes on any of the five keys - that first press deliberately
+// triggers nothing.
 //
-// layout.h und der Inhalt von data/ werden von build.py erzeugt.
+// layout.h and the contents of data/ are produced by build.py.
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -17,22 +17,22 @@
 #include <esp_sleep.h>
 
 // --- Anzeige ----------------------------------------------------------------
-// Die Bilddateien enthalten nur die Symbolfläche; den Rahmen in der Set-Farbe
-// zeichnet die Firmware selbst.
+// The image files contain the symbol area only; the border in the set colour
+// is drawn by the firmware itself.
 #define DISPLAY_W 128
 #define DISPLAY_H 128
 #define TILE_BORDER 6
 #define TILE_W (DISPLAY_W - 2 * TILE_BORDER)
 #define TILE_H (DISPLAY_H - 2 * TILE_BORDER)
 
-// --- Aufbau der Inhalte -----------------------------------------------------
-// Wie viele Sets es gibt, welche Farben und welche Datei zu welcher Taste
-// gehört, steht NICHT in der Firmware, sondern in /layout.bin auf dem
-// Dateisystem. Sonst müsste man ein neues Set mit Kabel aufspielen.
+// --- Structure of the content ------------------------------------------------
+// How many sets there are, which colours and which file belongs to which key
+// is NOT in the firmware but in /layout.bin on the file system. Otherwise a
+// new set would have to be flashed over a cable.
 //
-// Struktur und Leselogik liegen in layout_format.h - dieselbe Datei wird von
-// tests/test_layout_format.py auf dem Rechner übersetzt und gegen eine echte
-// layout.bin geprüft.
+// Structure and read logic live in layout_format.h - the same file gets
+// compiled on the computer by tests/test_layout_format.py and checked against
+// a real layout.bin.
 #include "layout_format.h"
 #define LAYOUT_FILE "/layout.bin"
 
@@ -41,27 +41,27 @@
 // --- Verhalten ---------------------------------------------------------------
 
 static const uint32_t DEBOUNCE_MS = 80;    // so lange muss gedrückt bleiben
-// Die Set-Taste braucht länger. Ein versehentlicher Wechsel nimmt ihr das
-// Wort weg, das sie gerade sagen wollte, und sie muss erst wiederfinden, wo
-// sie ist - das ist ärgerlicher als ein falsch getroffenes Wort.
+// The set key needs longer. An accidental switch takes away the word she was
+// about to say, and she first has to find her way back - that is more annoying
+// than hitting the wrong word.
 static const uint32_t SET_HOLD_MS = 400;
-// Ins Menü kommt man nur über zwei Tasten gleichzeitig, fünf Sekunden lang.
-// Die beiden liegen diagonal am weitesten auseinander - mit einer Kinderhand
-// kaum zu treffen. Während des Haltens läuft ein Countdown; wer loslässt,
+// The menu is reached only by two keys at once, held for five seconds. Those
+// two sit diagonally furthest apart - hard to hit with a child's hand. While
+// holding, a countdown runs; whoever lets go
 // bricht ab.
 static const uint32_t MENU_HOLD_MS = 5000;
 static const uint8_t MENU_KEY_A = SET_BUTTON;   // Set-Taste
 static const uint8_t MENU_KEY_B = 1;            // Taste 2, diagonal gegenüber
-// Ohne Eingabe zurück in den Normalbetrieb. Ein Gerät, das im Menü
-// hängenbleibt, spricht nicht mehr - das darf nicht passieren.
+// Back to normal operation without input. A device stuck in the menu no
+// longer speaks - that must not happen.
 static const uint32_t MENU_IDLE_MS = 30000;
 static const uint32_t SAMPLE_RATE = 16000; // wie build.py die WAVs schreibt
 static const size_t AUDIO_CHUNK = 1024;
 
 // --- Zustand -----------------------------------------------------------------
 
-// setColRowStart ist in der Bibliothek protected. Diese Ableitung macht den
-// Panel-Versatz zugänglich, ohne die Bibliothek anzufassen.
+// setColRowStart is protected in the library. This subclass makes the panel
+// offset reachable without touching the library.
 class Panel : public Adafruit_ST7735 {
  public:
   using Adafruit_ST7735::Adafruit_ST7735;
@@ -80,7 +80,7 @@ static void hashPath(char *out, char kind, const uint8_t *hash, const char *ext)
   strcpy(out + 2 + HASH_BYTES * 2, ext);
 }
 
-// Überlebt den Deep Sleep: sie soll im selben Set aufwachen.
+// Survives deep sleep: she should wake up in the same set.
 RTC_DATA_ATTR static uint8_t rtcCurrentSet = 0;
 
 static Panel *display[DISPLAY_COUNT];
@@ -104,9 +104,9 @@ static int8_t countdownShown = -1;
 
 // --- Inhalte laden -----------------------------------------------------------
 
-// Liest /layout.bin und übergibt sie an parseLayout aus layout_format.h.
-// Fehlt die Datei oder passt sie nicht, gibt es schlicht noch keine Inhalte -
-// das ist kein Fehler, sondern der Zustand nach dem ersten Flashen.
+// Reads /layout.bin and hands it to parseLayout from layout_format.h. If the
+// file is missing or does not fit, there simply is no content yet - that is
+// not an error but the state after the first flash.
 static bool loadLayout() {
   if (!filesystemReady) return false;
   File file = LittleFS.open(LAYOUT_FILE, "r");
@@ -132,9 +132,9 @@ static bool loadLayout() {
 // --- Displays ----------------------------------------------------------------
 
 static void setupDisplays() {
-  // RST hängt an allen fünf Panels. Deshalb einmal von Hand pulsen und den
-  // Treibern -1 geben - sonst würde die Initialisierung von Display 3 die
-  // Displays 1 und 2 wieder zurücksetzen.
+  // RST is common to all five panels. So pulse it once by hand and hand the
+  // drivers -1 - otherwise initialising display 3 would reset displays 1 and
+  // 2 again.
   pinMode(PIN_RST, OUTPUT);
   digitalWrite(PIN_RST, HIGH);
   delay(10);
@@ -154,12 +154,12 @@ static void setupDisplays() {
   }
 }
 
-// Zeichnet den Rahmen in der Set-Farbe und darin die Symbolfläche aus der
+// Draws the border in the set colour and inside it the symbol area from the
 // Datei (TILE_W x TILE_H, RGB565 big-endian).
 //
-// Der Rahmen steht bewusst nicht in der Datei: so hängt eine Bilddatei nur am
-// Symbol und nicht am Set. Dasselbe Symbol in einem blauen und einem grünen
-// Set ist damit eine Datei statt zweien.
+// The border deliberately is not in the file: that way an image file depends
+// on the symbol alone and not on the set. The same symbol in a blue and in a
+// green set is therefore one file instead of two.
 static void drawTile(Panel *tft, const char *path, uint16_t frame) {
   tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, frame);
   tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, frame);
@@ -182,17 +182,17 @@ static void drawTile(Panel *tft, const char *path, uint16_t frame) {
     if (got < sizeof(line)) {
       memset((uint8_t *)line + got, 0, sizeof(line) - got);
     }
-    // bigEndian = true: die Bytes gehen genau so raus, wie sie in der Datei
-    // stehen. build.py schreibt sie bereits in Panel-Reihenfolge.
+    // bigEndian = true: the bytes go out exactly as they stand in the file.
+    // build.py already writes them in panel order.
     tft->writePixels(line, TILE_W, true, true);
   }
   tft->endWrite();
   file.close();
 }
 
-// Zwei Zeilen mittig auf ein Display, ohne Datei. Für Zustände, in denen es
-// noch nichts anzuzeigen gibt - beim allerersten Start etwa, wenn die
-// Firmware drauf ist, aber noch keine Inhalte.
+// Two lines centred on a display, without a file. For states where there is
+// nothing to show yet - at the very first start for instance, when the
+// firmware is on but no content is.
 static void drawMessage(Panel *tft, const char *zeile1, const char *zeile2) {
   tft->fillScreen(ST77XX_BLACK);
   tft->setTextColor(ST77XX_WHITE);
@@ -209,7 +209,7 @@ static void drawMessage(Panel *tft, const char *zeile1, const char *zeile2) {
   }
 }
 
-// Alle fünf Displays mit demselben Hinweis, damit man ihn nicht übersieht.
+// All five displays with the same notice, so it cannot be missed.
 static void showNoContent() {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     drawMessage(display[i], "keine", "Inhalte");
@@ -234,14 +234,14 @@ static void drawCurrentSet() {
   Serial.printf("Set %u: %s\n", (unsigned)(rtcCurrentSet + 1), e.name);
 }
 
-// --- Menü --------------------------------------------------------------------
+// --- Menu --------------------------------------------------------------------
 //
-// Absichtlich ohne Dateien: Text und Rahmen werden gezeichnet. So funktioniert
-// das Menü auch auf einem frisch geflashten Gerät, auf dem noch gar nichts
-// liegt - und genau dort braucht man es zuerst.
+// Deliberately without files: text and frame are drawn. That way the menu
+// works on a freshly flashed device with nothing on it yet - and that is
+// exactly where it is needed first.
 //
-// Grauer Rahmen statt Set-Farbe: man sieht auf einen Blick, dass das hier
-// nicht der Talker ist.
+// Grey frame instead of the set colour: one sees at a glance that this is not
+// the talker.
 static const uint16_t MENU_FRAME = 0x8410;   // mittleres Grau in RGB565
 
 static void drawMenuKey(Panel *tft, const char *zeile1, const char *zeile2) {
@@ -266,8 +266,8 @@ static void drawMenuKey(Panel *tft, const char *zeile1, const char *zeile2) {
   }
 }
 
-// Nur zeigen, was es wirklich gibt. Einträge kommen dazu, wenn die Funktion
-// dahinter existiert - nicht vorher.
+// Only show what actually exists. Entries appear once the function behind
+// them exists - not before.
 static void drawMenu() {
   drawMenuKey(display[0], "Info", nullptr);
   drawMenuKey(display[1], nullptr, nullptr);
@@ -324,7 +324,7 @@ static void setupAudio() {
   }
 }
 
-// Sucht den data-Chunk im WAV. Liefert false, wenn die Datei nicht passt.
+// Finds the data chunk in the WAV. Returns false if the file does not fit.
 static bool seekToWavData(File &file, uint32_t &dataBytes) {
   char header[12];
   if (file.read((uint8_t *)header, 12) != 12) return false;
@@ -346,7 +346,7 @@ static bool seekToWavData(File &file, uint32_t &dataBytes) {
 }
 
 static void playWav(const char *path) {
-  // Ein Slot ohne Text hat keine Tondatei - dann bleibt es still.
+  // A slot without text has no audio file - then it stays silent.
   if (!filesystemReady || !path) return;
   File file = LittleFS.open(path, "r");
   if (!file) {
@@ -372,7 +372,7 @@ static void playWav(const char *path) {
     remaining -= got;
   }
 
-  // Etwas Stille nachschieben, sonst knackt es beim Abschalten.
+  // Push a little silence after it, otherwise it clicks on switch-off.
   memset(chunk, 0, AUDIO_CHUNK);
   for (uint8_t i = 0; i < 8; i++) i2s.write(chunk, AUDIO_CHUNK);
   digitalWrite(PIN_AMP_SD, LOW);
@@ -399,26 +399,26 @@ static void clearButtonStates() {
   }
 }
 
-// Nach dem Aufwachen: warten, bis wirklich keine Taste mehr gedrückt ist.
-// Der Druck, der geweckt hat, darf nichts auslösen - sie drückt ja blind.
+// After waking: wait until no key is really pressed any more. The press that
+// woke the device must not trigger anything - she is pressing blind.
 static void waitForRelease() {
   while (anyDown()) delay(10);
   delay(DEBOUNCE_MS);
   clearButtonStates();
 }
 
-// Wie lange diese Taste gehalten werden muss, bevor sie auslöst.
+// How long this key has to be held before it triggers.
 static uint32_t holdTime(uint8_t index) {
   return index == SET_BUTTON ? SET_HOLD_MS : DEBOUNCE_MS;
 }
 
-// Beide Menütasten gehalten? Zeigt den Countdown und meldet, wenn die fünf
+// Both menu keys held? Shows the countdown and reports when the five
 // Sekunden voll sind. Loslassen bricht ab, ohne dass etwas passiert.
 static bool menuComboReady() {
   const uint32_t jetzt = millis();
   if (!(isDown(MENU_KEY_A) && isDown(MENU_KEY_B))) {
     if (comboSince != 0 && countdownShown >= 0) {
-      // Abgebrochen: zurück zu dem, was vorher zu sehen war.
+      // Cancelled: back to whatever was on screen before.
       countdownShown = -1;
       if (mode == MODE_MENU) drawMenu(); else drawCurrentSet();
     }
@@ -478,7 +478,7 @@ static void goToSleep() {
   digitalWrite(PIN_AMP_SD, LOW);
   i2s.end();
 
-  // Pull-ups müssen im Schlaf aktiv bleiben, sonst floaten die Eingänge.
+  // Pull-ups have to stay active during sleep, otherwise the inputs float.
   uint64_t mask = 0;
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     gpio_num_t pin = (gpio_num_t)PIN_BUTTON[i];
@@ -509,15 +509,15 @@ void setup() {
 
   filesystemReady = LittleFS.begin(false);
   if (!filesystemReady) {
-    // Häufigste Ursache: falsches Partition Scheme. Die Voreinstellung des
+    // Most common cause: the wrong partition scheme. The default of the
     // Boards (tinyuf2) legt den Datenbereich als "ffat" an, LittleFS sucht
-    // aber eine Partition namens "spiffs". Richtig ist "Default 8MB".
+    // but a partition called "spiffs". The right one is "Default 8MB".
     Serial.println("LittleFS ließ sich nicht einhängen.");
     Serial.println("  1. Partition Scheme \"Default (3MB APP/1.5MB SPIFFS)\"?");
     Serial.println("  2. firmware/vorlaut/data/ schon hochgeladen?");
   }
 
-  // Erst hier, weil dafür das Dateisystem stehen muss.
+  // Only here, because the file system has to be up for it.
   contentReady = loadLayout();
   if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
 
@@ -526,7 +526,7 @@ void setup() {
 
   clearButtonStates();
   if (wokeFromSleep) {
-    // Weckdruck verfällt: nur die Displays gehen an, sonst nichts.
+    // The waking press expires: only the displays come on, nothing else.
     waitForRelease();
   }
 
@@ -534,11 +534,11 @@ void setup() {
 }
 
 void loop() {
-  // Die Geste hat Vorrang - sonst würde das Loslassen als Tastendruck gelten.
+  // The gesture takes precedence - otherwise letting go would count as a press.
   if (menuComboReady()) {
     if (mode == MODE_MENU) leaveMenu(); else enterMenu();
-    // Beide Tasten werden ja noch gehalten. Ohne das Warten würde die
-    // Set-Taste 400 ms später gleich wieder umschalten.
+    // Both keys are still being held. Without the wait, the set key would
+    // switch again 400 ms later.
     waitForRelease();
     lastActivity = millis();
     menuSince = millis();
@@ -563,7 +563,7 @@ void loop() {
       lastActivity = millis();
       menuSince = millis();
     }
-    // Nicht im Menü hängenbleiben: nach einer Weile ohne Eingabe zurück.
+    // Do not get stuck in the menu: back after a while without input.
     if (millis() - menuSince >= MENU_IDLE_MS) leaveMenu();
     delay(5);
     return;
@@ -572,9 +572,9 @@ void loop() {
   if (pressed >= 0) {
     lastActivity = millis();
     if (!contentReady) {
-      // Ohne Inhalte gibt es nichts umzuschalten und nichts zu sagen.
-      // Der Hinweis bleibt stehen, das Gerät reagiert aber - es ist nicht
-      // kaputt, es ist nur leer.
+      // Without content there is nothing to switch and nothing to say. The
+      // notice stays up, but the device does respond - it is not broken, it
+      // is just empty.
       showNoContent();
       return;
     }

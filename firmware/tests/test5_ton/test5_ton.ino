@@ -1,20 +1,20 @@
-// Stufe 5: Ton.
+// Stage 5: sound.
 //
-// Spielt abwechselnd einen Ton bei 440 Hz und einen langsamen Durchlauf von
-// 200 bis 2000 Hz. Dazwischen wird der Verstärker stummgeschaltet.
+// Alternates between a tone at 440 Hz and a slow sweep from 200 to 2000 Hz.
+// In between the amplifier is muted.
 //
-// Zu prüfen:
-//   - Kommt überhaupt etwas? Wenn nicht: BCLK, LRC, DIN und die Versorgung
-//     des MAX98357A prüfen, dazu SD - liegt der auf LOW, bleibt es still.
-//   - Ist es sauber oder verzerrt? Verzerrung deutet auf zu hohen Pegel oder
-//     eine zu schwache Versorgung hin.
-//   - Knackt es beim Ein- und Ausschalten des Verstärkers? Dann in der
-//     Firmware die Ruhe vor dem Abschalten verlängern.
-//   - Trägt der Lautsprecher im Gehäuse? Der Durchlauf zeigt, wo er dünn
-//     wird - kleine Lautsprecher können unten herum wenig.
+// What to check:
+//   - Does anything come out at all? If not: check BCLK, LRC, DIN and the
+//     supply of the MAX98357A, plus SD - if that sits LOW it stays silent.
+//   - Is it clean or distorted? Distortion points to too high a level or too
+//     weak a supply.
+//   - Does it click when the amplifier is switched on and off? Then lengthen
+//     the quiet before switching off in the firmware.
+//   - Does the speaker carry inside the case? The sweep shows where it gets
+//     thin - small speakers can do little at the bottom end.
 //
-// Die Lautstärke lässt sich hier nicht regeln, das Gerät hat keinen Regler.
-// Was ankommt, ist was ankommt - deshalb ist dieser Test wichtig.
+// The volume cannot be adjusted here, the device has no control. What comes
+// out is what comes out - which is why this test matters.
 
 #include <Arduino.h>
 #include <ESP_I2S.h>
@@ -28,7 +28,7 @@ static const size_t BLOCK = 512;
 static I2SClass i2s;
 static int16_t puffer[BLOCK];
 
-// Erzeugt eine Sinuswelle und schiebt sie heraus. amplitude 0..1
+// Generates a sine wave and pushes it out. amplitude 0..1
 static void ton(float frequenz, uint32_t dauer_ms, float amplitude = 0.5f) {
   static float phase = 0.0f;
   const float schritt = 2.0f * (float)M_PI * frequenz / (float)ABTASTRATE;

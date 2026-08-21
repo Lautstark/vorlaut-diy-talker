@@ -1,38 +1,38 @@
-// Stufe 6: WLAN.
+// Stage 6: Wi-Fi.
 //
-// Bringt das Geraet ins Netz - Voraussetzung dafuer, dass es sich spaeter
-// Inhalte selbst holen kann. Noch ohne Displays und ohne Ton, nur serielle
-// Ausgabe: was hier schiefgeht, soll man lesen koennen und nicht raten.
+// Gets the device onto the network - the prerequisite for it fetching content
+// by itself later. Still without displays and without sound, serial output
+// only: whatever goes wrong here should be readable and not guessed at.
 //
-// Sind keine Zugangsdaten gespeichert, macht das Geraet einen eigenen
-// Zugangspunkt auf ("vorlaut einrichten"). Wer sich mit dem Handy verbindet,
-// bekommt eine Seite zum Eintragen von WLAN und Passwort. Getippt wird also
-// auf dem Handy - auf 15 mm Display waere das nichts. Danach merkt sich der
-// ESP32 die Daten selbst, das Portal kommt nicht wieder.
+// If no credentials are stored, the device opens an access point of its own
+// ("vorlaut einrichten"). Whoever connects with a phone gets a page for
+// entering network and password. So the typing happens on the phone - on a
+// 15 mm display it would be hopeless. Afterwards the ESP32 remembers the
+// details itself and the portal does not come back.
 //
-// WAS ZU SEHEN SEIN SOLLTE
+// WHAT SHOULD BE VISIBLE
 //
-//   - "verbunden" mit IP-Adresse und Signalstaerke
-//   - danach alle fuenf Sekunden eine Statuszeile
-//   - Netz abschalten: es meldet den Verlust und versucht es weiter
+//   - "verbunden" with IP address and signal strength
+//   - a status line every five seconds after that
+//   - switch the network off: it reports the loss and keeps trying
 //
-// Das Portal laeuft in eine Zeitgrenze und gibt danach auf. Ein Talker, der
-// beim Einrichten haengenbleibt, spricht nicht mehr - das darf nicht passieren.
+// The portal runs into a time limit and then gives up. A talker that hangs
+// during setup no longer speaks - that must not happen.
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
 
-// Wie lange das Einrichtungsportal offen bleibt, bevor es aufgibt.
+// How long the setup portal stays open before it gives up.
 static const unsigned long PORTAL_SECONDS = 180;
 static const char *AP_NAME = "vorlaut einrichten";
 
 static uint32_t lastReport = 0;
 static bool wasConnected = false;
 
-// Das Portal traegt sonst das Aussehen der Bibliothek. Es ist aber das
-// Erste, was jemand von vorlaut zu sehen bekommt - also dieselben Farben
-// wie die Weboberflaeche, derselbe Ton.
+// Otherwise the portal wears the library's looks. But it is the first thing
+// anyone sees of vorlaut - so the same colours as the web interface, the same
+// tone of voice.
 static const char PORTAL_STYLE[] PROGMEM = R"(
 <style>
   :root { --bg:#16181d; --panel:#1f2229; --line:#343a45;
@@ -78,8 +78,8 @@ void setup() {
   WiFiManager wm;
   wm.setTitle("vorlaut");
   wm.setCustomHeadElement(PORTAL_STYLE);
-  // Nur was gebraucht wird: Netz aussuchen, Daten eintragen, fertig.
-  // static, weil setMenu die Liste per Referenz nimmt und behaelt.
+  // Only what is needed: pick a network, enter the details, done.
+  // static, because setMenu takes and keeps the list by reference.
   static std::vector<const char *> menu = {"wifi", "info", "restart"};
   wm.setMenu(menu);
   wm.setConfigPortalTimeout(PORTAL_SECONDS);
