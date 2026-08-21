@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -39,12 +40,33 @@ ENV_FILE = Path(os.environ.get("VORLAUT_ENV_FILE") or ROOT / ".env")
 # allowed because people indent things.
 LINE = re.compile(r"^(\s*)(#\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$")
 
+# Writing is: read the whole file, change a line, put it back. The interface
+# answers on a threading server, so two settings dialogs saving at the same
+# moment would both start from the file as it was before either of them, and
+# one of the two saves would vanish without anything to show for it. One lock
+# for the one writer there is - nothing outside this process writes .env while
+# the server is running.
+LOCK = threading.Lock()
+
 
 def unquote(value: str) -> str:
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
         return value[1:-1]
     return value
+
+
+def one_line(value: str) -> str:
+    """A value that cannot break the line it is written on.
+
+    read() takes the file apart with splitlines(), so a break anywhere in a
+    value would leave the rest of it standing as a line of its own - a line
+    that belongs to no entry and that nothing reads again. Values arrive from
+    a form now, which is exactly where a stray break comes from: a key pasted
+    across two lines is stored as the one key it is, and since the interface
+    shows the file back afterwards, whoever saved it sees what was stored.
+    """
+    return "".join(value.splitlines())
 
 
 def read(path: Path | None = None) -> dict[str, str]:
@@ -77,7 +99,11 @@ def value(name: str, standard: str = "") -> str:
 
 def needs_quotes(value: str) -> bool:
     """A value that would not survive being read back plainly."""
-    return value != value.strip() or (value[:1] in "\"'" and value[-1:] in "\"'")
+    if not value:
+        # Spelled out because "" is in every string: without this, an empty
+        # value would ask for quotes it has no ends to put them on.
+        return False
+    return value != value.strip() or (value[0] in "\"'" and value[-1] in "\"'")
 
 
 def render(name: str, value: str) -> str:
@@ -92,48 +118,80 @@ def write(updates: dict[str, str], path: Path | None = None) -> None:
     Anything genuinely new goes at the end. A value of "" removes the entry
     rather than writing an empty one, because empty and absent mean the same
     thing everywhere this file is read, and an empty line reads like a mistake.
+
+    A key can stand in the file more than once - people were told to add live
+    entries by hand, and the example above theirs is still in .env.example.
+    The value goes on the last live one, because that is the one read()
+    answers with, and any earlier live one goes back to being an example.
+    Writing the first while reading the last would mean a save that quietly
+    does nothing: the interface reads the file back instead of echoing, so it
+    would show the old value with no error anywhere.
     """
     file = path or ENV_FILE
-    try:
-        lines = file.read_text(encoding="utf-8").splitlines()
-    except OSError:
-        # A file written by the interface holds only what the interface set.
-        # Deliberately not copied from .env.example: the entries there carry
-        # placeholder values, and a copied "put-your-own-key-here" would read
-        # back as a key that is set. A line pointing at the example does the
-        # same job without that.
-        lines = ["# Written by the vorlaut interface. Every setting there is,",
-                 "# with the paragraph explaining it, is in .env.example.",
-                 ""]
+    updates = {name: one_line(wanted) for name, wanted in updates.items()}
 
-    remaining = dict(updates)
-    out: list[str] = []
-    for line in lines:
-        found = LINE.match(line)
-        name = found.group(3) if found else None
-        if name is None or name not in remaining:
-            out.append(line)
-            continue
-        wanted = remaining.pop(name)
-        commented = bool(found.group(2))
-        if not wanted:
-            # Removing: a line that was live goes back to being an example,
-            # so the paragraph above it still has something to point at.
-            out.append(line if commented else f"#{render(name, found.group(4).strip())}")
-            continue
-        out.append(found.group(1) + render(name, wanted))
+    with LOCK:
+        try:
+            lines = file.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            # A file written by the interface holds only what the interface set.
+            # Deliberately not copied from .env.example: the entries there carry
+            # placeholder values, and a copied "put-your-own-key-here" would read
+            # back as a key that is set. A line pointing at the example does the
+            # same job without that.
+            lines = ["# Written by the vorlaut interface. Every setting there is,",
+                     "# with the paragraph explaining it, is in .env.example.",
+                     ""]
 
-    # Whatever the file did not already know about.
-    fresh = [(name, wanted) for name, wanted in remaining.items() if wanted]
-    if fresh:
-        if out and out[-1].strip():
-            out.append("")
-        for name, wanted in fresh:
-            out.append(render(name, wanted))
+        # Where each key already stands, live and commented out kept apart.
+        live: dict[str, list[int]] = {}
+        commented: dict[str, list[int]] = {}
+        for index, line in enumerate(lines):
+            found = LINE.match(line)
+            if found and found.group(3) in updates:
+                where = commented if found.group(2) else live
+                where.setdefault(found.group(3), []).append(index)
 
-    file.parent.mkdir(parents=True, exist_ok=True)
-    # Written whole and moved into place: a half-written .env would take the
-    # Azure key with it, and the next start would blame the key.
-    interim = file.with_suffix(file.suffix + ".part")
-    interim.write_text("\n".join(out).rstrip("\n") + "\n", encoding="utf-8")
-    interim.replace(file)
+        # Decided before anything is written: which line carries the value
+        # afterwards, and which lines stop being live.
+        carries: dict[int, str] = {}
+        retire: set[int] = set()
+        for name, wanted in updates.items():
+            here = live.get(name, [])
+            if not wanted:
+                # Every copy, or the key is still set after being removed.
+                retire.update(here)
+            elif here:
+                carries[here[-1]] = name
+                retire.update(here[:-1])
+            elif name in commented:
+                carries[commented[name][0]] = name
+
+        out: list[str] = []
+        for index, line in enumerate(lines):
+            found = LINE.match(line)
+            if index in carries:
+                name = carries[index]
+                out.append(found.group(1) + render(name, updates[name]))
+            elif index in retire:
+                # A line that was live goes back to being an example, so the
+                # paragraph above it still has something to point at.
+                out.append(f"#{render(found.group(3), unquote(found.group(4)))}")
+            else:
+                out.append(line)
+
+        # Whatever the file did not already know about.
+        fresh = [(name, wanted) for name, wanted in updates.items()
+                 if wanted and name not in live and name not in commented]
+        if fresh:
+            if out and out[-1].strip():
+                out.append("")
+            for name, wanted in fresh:
+                out.append(render(name, wanted))
+
+        file.parent.mkdir(parents=True, exist_ok=True)
+        # Written whole and moved into place: a half-written .env would take the
+        # Azure key with it, and the next start would blame the key.
+        interim = file.with_suffix(file.suffix + ".part")
+        interim.write_text("\n".join(out).rstrip("\n") + "\n", encoding="utf-8")
+        interim.replace(file)
