@@ -249,7 +249,30 @@ carries `current`, which says whether what lies there is still what the layout
 asks for.
 
 `tests/test_device_sync.py` plays the whole thing through against a real
-server, so the protocol is settled before the firmware side of it exists.
+server. It was written before the firmware side existed, which is how the
+version-stamp mistake above was found.
+
+The manifest comes as **lines, not JSON**:
+
+```
+version 3f2a...
+current 1
+sets 5
+bytes 949888
+file t3bd7....bin 26912
+file a8c1....wav 41008
+```
+
+Same reason `layout.bin` is binary: a JSON parser on the ESP32 means a
+library, a heap and a class of failure that a fixed line format does not have.
+A reader is meant to skip keywords it does not know, so a field can be added
+later without a device already in the field falling over.
+
+The device side is `firmware/vorlaut/sync.h`, shared by the real firmware and
+by `firmware/tests/test7_sync`, which does nothing but this. Files land under
+`/.part` first and are renamed only once they are complete — a transfer that
+breaks off leaves a fragment behind, not half a file under a name that
+promises whole content.
 
 ---
 

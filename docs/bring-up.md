@@ -101,14 +101,35 @@ Switch the network off for a moment: it should report the loss and keep
 trying. The setup portal runs into a time limit after three minutes and gives
 up — a talker that hangs during setup no longer speaks.
 
-## Stage 7 — The real firmware
+## Stage 7 — Fetching content
+
+`test7_sync` — the sync and nothing else. No displays, no sound, no sleep, so
+that a problem here is this one problem and not one of six at the same time.
+
+It needs the address of the computer running `app.py` and the key from
+`VORLAUT_DEVICE_TOKEN` in `.env`. Both are asked for in the same portal as the
+Wi-Fi and are kept afterwards.
+
+What should happen: **the first run fetches everything, the second fetches
+`layout.bin` only.** That difference is the whole point of the design — the
+file names are hashes of their input, so anything already there can stay. If
+the second run fetches everything again, the fault is on the device side; the
+server side has been played through by `tests/test_device_sync.py` since before
+this sketch existed.
+
+Worth trying while you are here: switch a set off in the web interface,
+release, sync again. The device should delete the files that fell out of the
+manifest and say so.
+
+## Stage 8 — The real firmware
 
 Only now. The procedure is in [firmware.md](firmware.md).
 
 At the very first start the file system is empty — the device then shows
 **"keine Inhalte"** on all five displays. That is correct and not a fault.
 Through the menu (hold the set key and key 2 for five seconds), **Info** shows
-whether LittleFS is mounted.
+whether LittleFS is mounted, and **Inhalte holen** does what stage 7 did, this
+time with the displays showing progress.
 
 ---
 
