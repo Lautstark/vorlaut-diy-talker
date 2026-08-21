@@ -1,7 +1,13 @@
 services:
   vorlaut:
-    build: .
-    image: vorlaut
+    # The ready-made image, built for amd64 and arm64 on every change to the
+    # Dockerfile or requirements.txt. Pulling is the default because that is
+    # the shorter way for everybody who only wants to run this - and on a NAS
+    # with ARM it saves several minutes of building.
+    #
+    # Building it yourself is one file further along: docker-compose.build.yml
+    # adds the "build:" back. See docs/operation.md.
+    image: ghcr.io/steffipetaffy/vorlaut:latest
     container_name: vorlaut
     ports:
       # Another port on the computer, in case something already runs there:
@@ -28,6 +34,10 @@ services:
       # live on the NAS and survive every rebuild of the image. The Azure key
       # comes through the .env from exactly this folder - deliberately not
       # baked into the image.
+      #
+      # Careful: this replaces /app wholesale, image contents and all. It is
+      # why the baked-in voices sit at /voices and not under /app - see the
+      # Dockerfile. Whatever has to survive the mount belongs outside /app.
       - ./:/app
       # Read only - the collection is never changed. With no path set, the
       # mount points at example/ instead; the METACOM structure is missing

@@ -189,9 +189,22 @@ def check_metacom() -> None:
                "  VORLAUT_METACOM_DIR=~/METACOM_9_Desktop",
                required=False)
         return
+    # Two different faults, and the difference is the whole point: a path
+    # that is not there at all used to be reported as a missing subfolder,
+    # which sends somebody looking inside a folder that does not exist.
+    if metacom.root() is None:
+        report("METACOM collection", False, "no folder at that path",
+               f"VORLAUT_METACOM_DIR points at {configured},\n"
+               "and there is nothing there. It has to be a path on this\n"
+               "machine even when the interface runs in the container:\n"
+               "docker-compose.yml mounts what this names, and /metacom is\n"
+               "only where it arrives on the inside.\n"
+               "  VORLAUT_METACOM_DIR=~/METACOM_9_Desktop",
+               required=False)
+        return
     if not metacom.available():
         report("METACOM collection", False, "folder not readable",
-               f"VORLAUT_METACOM_DIR zeigt auf {configured},\n"
+               f"VORLAUT_METACOM_DIR points at {configured},\n"
                f"{metacom.SYMBOL_SUBDIR} is missing underneath it.",
                required=False)
         return

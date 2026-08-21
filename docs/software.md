@@ -426,11 +426,17 @@ The models sit in `content/voices/`, two files each: `de_DE-thorsten-medium.onnx
 and the `.onnx.json` beside it, which is piper's own description of the voice.
 A lone `.onnx` is not a usable voice and is not offered.
 
-They are deliberately not in the repository — together about 130 MB, and they
-are somebody else's files. `python3 tools/voices.py` fetches them; `de` or `en`
-as an argument narrows it down. All four shipped ones are public domain, which
-is what lets them be handed on. Most of piper's better known English voices are
-not, so read the MODEL_CARD next to a model before adding one.
+Three places are searched, in this order, and the first match wins:
+`$VORLAUT_VOICES`, then `content/voices/`, then `voices/` next to the code.
+
+They are deliberately not in the repository — together about 250 MB, 63 MB
+apiece with the `low` one no smaller than the rest, and they are somebody
+else's files. `python3 tools/voices.py` fetches them; `de` or `en` as an
+argument narrows it down. All four shipped ones are public domain, which is
+what lets them be handed on. Most of piper's better known English voices are
+not, so read the MODEL_CARD next to a model before adding one. Which licence
+each of the four carries, and what sits underneath it, is written out in
+[`voices/LIZENZ.md`](../voices/LIZENZ.md).
 
 Which voices exist and where they come from stands in `tts.py`
 (`VOICE_CATALOGUE`, `download_voice`), not in the tool — the page fetches them
@@ -438,10 +444,21 @@ too, and one list in two places would go out of step. `tools/voices.py` is the
 command line over it, `POST /api/voices/fetch` the interface; both write the
 same files into the same folder, and both skip what is already there.
 
-In the container `piper-tts` is installed but the voices are not: the project
-is handed in as a directory anyway, so they live in `content/voices/` on the
-NAS, get backed up with the rest of the content, and a fifth voice does not
-mean building the image again.
+**In the container they are already there.** The image bakes all four in at
+`/voices` and sets `VORLAUT_VOICES` to it, so a fresh container speaks the
+moment it starts instead of waiting for somebody to press Fetch voices. They
+are fetched during the build by `tools/voices.py` itself, so the catalogue
+stays the one place that says where a voice comes from.
+
+Deliberately not under `/app`: `docker-compose.yml` mounts the project over
+that path, and the mount replaces the directory wholesale. A voice baked into
+`/app/voices` would be invisible the moment the container ran, and would look
+exactly like a download that never happened. `/voices` is outside the mount.
+
+None of that closes the folder on the NAS. The search carries on into
+`content/voices/`, so a fifth voice still drops in there, is still found, is
+still backed up with the rest of the content, and still does not mean building
+the image again.
 
 ### Azure
 
@@ -560,5 +577,6 @@ a computer it belongs in your usual backup.
 Also not in the repo: `firmware/vorlaut/data/`, `layout.h` and the LittleFS
 image — those are recreated from `content/` in seconds. And `.env` with the
 Azure key. The piper models under `content/voices/` are not in it either, for
-a different reason: they are 130 MB of somebody else's files, fetched rather
-than copied along.
+a different reason: they are 250 MB of somebody else's files, fetched rather
+than copied along — by you, or by the image build, which puts the same four at
+`/voices`.

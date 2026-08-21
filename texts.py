@@ -39,13 +39,22 @@ TEXTS: dict[str, dict[str, str]] = {
                              "device",
         "ui.voice": "Voice",
         "ui.voice_auto_note": "picked for this installation",
+        # The list is one row until somebody asks for the rest - see
+        # static/voices.js. The count is in the label so that asking for it is
+        # a decision about a known number, not about an unknown one.
+        "ui.voice_show_all": "Show all {n} voices",
+        "ui.voice_show_less": "Show fewer",
         "ui.voice_sample": "This is what I sound like",
         "ui.voice_rebuild": "A different voice means every recording is "
                             "spoken again on the next release.",
         "ui.voice_none": "Nothing here can speak yet.",
-        "ui.voice_none_hint": "The offline voices need no account and, once they "
-                              "are here, no network. About 130 MB.",
-        "ui.voice_fetch": "Fetch voices",
+        # Under the button, and not only when the list is empty: "Fetch
+        # voices" said nothing about what arrives, from where, or how big it
+        # is, and that is the whole question anybody has about that button.
+        "ui.voice_fetch_note": "The offline voices need no account and, once "
+                               "they are here, no network. About 130 MB, "
+                               "fetched once.",
+        "ui.voice_fetch": "Download offline voices",
         "ui.voice_fetching": "fetching {name} ... ({done} of {total})",
         "ui.voice_fetch_done": "The voices are here.",
         "ui.voice_gone": "not available here",
@@ -61,7 +70,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.azure_link_url":
             "https://azure.microsoft.com/products/ai-foundry/tools/speech",
         "ui.azure_key": "Key",
-        "ui.azure_key_set": "stored, ends in {hint}",
+        # Beside the folded-up heading. What a stored key ends in is in the
+        # field itself, as its placeholder - see static/settings.js.
+        "ui.azure_key_stored": "stored",
         "ui.azure_key_none": "not stored",
         "ui.azure_key_placeholder": "paste the key here",
         "ui.azure_region": "Region",
@@ -83,6 +94,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_fixed": "set by docker-compose.yml, not here. That is the "
                             "path inside the container; the folder on the "
                             "machine stands in .env.",
+        # The same thing in the width of a heading.
+        "ui.metacom_short_none": "not set",
         "ui.settings_saved": "saved",
         "ui.metacom_offer": "Have a METACOM licence? Add the folder under the gear, and it is searched alongside this.",
         "ui.voice_failed": "The list of voices could not be loaded: {error}",
@@ -310,13 +323,16 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.language_title": "Sprache dieser Seite und des Menüs auf dem Gerät",
         "ui.voice": "Stimme",
         "ui.voice_auto_note": "für diese Installation gewählt",
+        "ui.voice_show_all": "Alle {n} Stimmen zeigen",
+        "ui.voice_show_less": "Weniger zeigen",
         "ui.voice_sample": "So klinge ich",
         "ui.voice_rebuild": "Eine andere Stimme heißt: Beim nächsten "
                             "Freigeben wird jede Aufnahme neu gesprochen.",
         "ui.voice_none": "Hier kann noch nichts sprechen.",
-        "ui.voice_none_hint": "Die Stimmen für offline brauchen kein Konto und, "
-                              "wenn sie da sind, kein Netz. Etwa 130 MB.",
-        "ui.voice_fetch": "Stimmen holen",
+        "ui.voice_fetch_note": "Die Stimmen für offline brauchen kein Konto "
+                               "und, wenn sie da sind, kein Netz. Etwa 130 MB, "
+                               "einmalig geladen.",
+        "ui.voice_fetch": "Offline-Stimmen herunterladen",
         "ui.voice_fetching": "holt {name} ... ({done} von {total})",
         "ui.voice_fetch_done": "Die Stimmen sind da.",
         "ui.voice_gone": "hier nicht verfügbar",
@@ -327,7 +343,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.azure_link_url":
             "https://azure.microsoft.com/products/ai-foundry/tools/speech",
         "ui.azure_key": "Schlüssel",
-        "ui.azure_key_set": "hinterlegt, endet auf {hint}",
+        "ui.azure_key_stored": "hinterlegt",
         "ui.azure_key_none": "nicht hinterlegt",
         "ui.azure_key_placeholder": "Schlüssel hier einfügen",
         "ui.azure_region": "Region",
@@ -350,6 +366,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_fixed": "kommt aus docker-compose.yml, nicht von hier. Das "
                             "ist der Pfad im Container; der Ordner auf dem "
                             "Rechner steht in der .env.",
+        "ui.metacom_short_none": "nicht gesetzt",
         "ui.settings_saved": "gespeichert",
         "ui.metacom_offer": "Du hast eine METACOM-Lizenz? Trag den Ordner beim Zahnrad ein, dann wird er hier mit durchsucht.",
         "ui.voice_failed": "Die Liste der Stimmen kam nicht an: {error}",

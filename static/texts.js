@@ -50,7 +50,10 @@ export function applyTexts() {
   $("azureKey").placeholder = t("ui.azure_key_placeholder");
   $("azureRegionLabel").textContent = t("ui.azure_region");
   $("languageSection").textContent = t("ui.language");
-  $("languageIntro").textContent = t("ui.language_title");
+  // Under the picker, in the size of a footnote, because that is what it is:
+  // the heading above already says Language. What it adds is the half nobody
+  // guesses - that this switch reaches the device as well.
+  $("languageNote").textContent = t("ui.language_title");
   $("symbolsSection").textContent = t("ui.symbols");
   $("metacomIntro").textContent = t("ui.metacom_intro");
   outward("metacomLink", "ui.metacom_link", "ui.metacom_link_url");

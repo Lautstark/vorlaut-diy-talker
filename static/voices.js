@@ -37,6 +37,13 @@ let fetchDone = false;   // finished in this dialog - worth saying so
 // would otherwise leave two of them polling and rendering over each other.
 let polling = false;
 
+// Whether the whole list is unfolded. A key of your own brings twenty voices
+// and more, and all of them at once pushed everything below the voice section
+// out of the sheet - the panel that holds the key among them, which is the one
+// thing somebody with no voices has come here to find. So the list shows the
+// one voice that is chosen, and says how many others there are.
+let showAll = false;
+
 async function loadVoices() {
   try {
     voices = await (await api("/api/voices")).json();
@@ -87,16 +94,40 @@ function voiceRow(id, name, note, mute, on) {
   return row;
 }
 
-// The button that fetches what is missing. Sits under the list when there is
-// one and in place of it when there is not - a machine that cannot speak at
-// all should not have to be told about a command line.
+// The button that fetches what is missing. Under the voice section whether or
+// not that section has anything in it - a machine that cannot speak at all
+// should not have to be told about a command line.
+//
+// With the note under it, always: the button used to be the word "Fetch"
+// beside a list of voices, which left what it would fetch, from where, and
+// how long it would take to a hint at the bottom that only appeared when
+// there were no voices at all.
 function fetchRow() {
   const row = document.createElement("div");
-  row.className = "voiceRow empty";
+  row.className = "offer";
   const button = document.createElement("button");
   button.textContent = t("ui.voice_fetch");
   button.disabled = fetching.running;
   button.onclick = startFetch;
+  const note = document.createElement("p");
+  note.className = "note";
+  note.textContent = t("ui.voice_fetch_note");
+  row.appendChild(button);
+  row.appendChild(note);
+  return row;
+}
+
+// Unfolds the list, and folds it back. Only worth showing when there is more
+// than the one row underneath it.
+function moreRow() {
+  const row = document.createElement("div");
+  row.className = "voiceMore";
+  const button = document.createElement("button");
+  button.className = "linkish";
+  button.textContent = showAll
+    ? t("ui.voice_show_less")
+    : t("ui.voice_show_all", { n: voices.voices.length });
+  button.onclick = () => { showAll = !showAll; renderVoices(); };
   row.appendChild(button);
   return row;
 }
@@ -109,8 +140,8 @@ function renderVoices() {
     empty.className = "voiceRow empty";
     empty.textContent = t("ui.voice_none");
     list.appendChild(empty);
-    if (fetching.missing) list.appendChild(fetchRow());
-    $("voiceHint").textContent = fetchNote() || t("ui.voice_none_hint");
+    renderOffer();
+    $("voiceHint").textContent = fetchNote();
     return;
   }
   // An empty entry in layout.json means "whatever works here", and that is
@@ -121,6 +152,10 @@ function renderVoices() {
   // and from then on the layout carries a decision instead of a default.
   const marked = pendingVoice || voices.active;
   for (const voice of voices.voices) {
+    // Folded up, the chosen one is the list. Which is what the section is
+    // asked for nine times out of ten: not "which voices are there" but
+    // "which one is it speaking in".
+    if (!showAll && voice.id !== marked) continue;
     list.appendChild(voiceRow(
       voice.id, voice.label,
       !pendingVoice && voice.id === voices.active ? t("ui.voice_auto_note") : "",
@@ -134,8 +169,18 @@ function renderVoices() {
     list.appendChild(voiceRow(pendingVoice, pendingVoice,
                               t("ui.voice_gone"), true, true));
   }
-  if (fetching.missing) list.appendChild(fetchRow());
+  if (voices.voices.length > 1) list.appendChild(moreRow());
+  renderOffer();
+  // The standing rule, whether or not anything was just ticked: a voice is
+  // part of what every sentence is spoken with, so changing it re-records all
+  // of them rather than only the ones edited afterwards.
   $("voiceHint").textContent = fetchNote() || t("ui.voice_rebuild");
+}
+
+function renderOffer() {
+  const box = $("voiceOffer");
+  box.innerHTML = "";
+  if (fetching.missing) box.appendChild(fetchRow());
 }
 
 // What the hint line says while a download runs, or "" when it has nothing
@@ -268,7 +313,16 @@ export function wireLanguage() {
 export async function openVoices() {
   $("voiceList").innerHTML = "";
   $("voiceHint").textContent = "";
+  $("voiceOffer").innerHTML = "";
   fetchDone = false;
+  // Folded again on every open, all three of them. Somebody who unfolded one
+  // last time was after a single thing in it, not after a preference. The
+  // headings say what is inside, so nothing is hidden by folding them - and
+  // loadSettings() below unfolds the symbols panel again if what is in there
+  // is broken.
+  showAll = false;
+  $("azurePanel").open = false;
+  $("symbolsPanel").open = false;
   $("voices").showModal();
   await Promise.all([loadVoices(), readFetch(), loadSettings()]);
   pendingVoice = voices.chosen;

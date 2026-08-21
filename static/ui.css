@@ -1,4 +1,10 @@
 :root {
+  /* This page is dark and only dark. Without this the browser still draws its
+     own furniture light: the scrollbar in the settings sheet came out as a
+     white bar against the panels, and so did the drop-down of the language
+     picker. One declaration covers every control the page does not paint
+     itself. */
+  color-scheme: dark;
   --bg: #16181d;
   --panel: #1f2229;
   --panel-2: #262a33;
@@ -299,6 +305,9 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 }
 .activeRow .note { color: var(--muted); font-size: 12px; }
 .hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
+/* Nothing to say, no room taken. The voice hint is empty whenever there is no
+   download running, and its padding was a gap in the middle of the sheet. */
+.hint:empty { padding: 0; }
 
 /* Pairing. Shown only while a talker is actually waiting - see openPair. */
 .pairing {
@@ -353,6 +362,10 @@ dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
    inside a scrolling dialog - two of them nested is a way to lose the Save
    button without noticing it is there. */
 .sheetBody { overflow-y: auto; }
+/* Firefox draws a wide bar even in a dark scheme; Chrome and Safari read the
+   two properties as well now. The track stays out of it - a line of colour
+   down the edge of the sheet is not part of the sheet. */
+.sheetBody, .results { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 .sheet .section {
   padding: 16px 16px 0; font-size: 12px; letter-spacing: .08em;
   text-transform: uppercase; color: var(--muted);
@@ -366,8 +379,10 @@ dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
 .field .note { margin: 0; font-size: 12px; color: var(--muted); }
 .field input { width: 100%; }
 .field input[type=password] { font-family: ui-monospace, monospace; }
+/* A little air above the buttons: what now ends the body is the edge of a
+   folded panel, which would otherwise sit straight on top of Save. */
 .sheetFoot {
-  display: flex; gap: 8px; padding: 0 16px 16px; justify-content: flex-end;
+  display: flex; gap: 8px; padding: 12px 16px 16px; justify-content: flex-end;
 }
 /* A cross, not the word - it sits in the corner where one reaches for it,
    and it needs no room for a translation. The word stays as the label for
@@ -384,9 +399,12 @@ dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
    choosing it are two different decisions, and the first should not commit
    to the second. */
 .dlgHead strong { flex: 1 1 auto; font-weight: 600; }
+/* No scrolling of its own any more. It used to be twenty rows deep and
+   carried a scrollbar inside the sheet's scrollbar; folded up it is one row,
+   and unfolded it is something that was asked for, so it may take the space
+   and let the sheet do the scrolling. */
 .voiceList {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 16px; max-height: 60vh; overflow: auto;
+  display: flex; flex-direction: column; gap: 6px; padding: 16px;
 }
 .voiceRow {
   display: flex; align-items: center; gap: 10px; padding: 6px;
@@ -402,3 +420,42 @@ dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
 .voiceRow .pick:hover { background: none; color: var(--accent); }
 .voiceRow .note { color: var(--muted); font-size: 12px; }
 .voiceRow.empty { background: none; color: var(--muted); display: block; }
+/* The button and, under it, what it will fetch. Set off by a line, because
+   it is an errand of its own and not one of the voices. */
+.voiceOffer:not(:empty) { border-top: 1px solid var(--line); margin: 4px 16px 0; }
+.offer { padding: 14px 0 4px; }
+.offer .note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.voiceMore { display: flex; }
+/* Reads as a link, behaves as a button: it reveals the rest of the list, it
+   does not settle anything. So it does not carry a box that would make it
+   look like a second choice next to the voice above it. */
+.linkish {
+  background: none; border: none; padding: 4px 2px; color: var(--accent);
+  font-size: 13px;
+}
+.linkish:hover, .linkish:focus-visible { background: none; text-decoration: underline; }
+
+/* The two folded panels at the foot of the sheet. The heading is the handle,
+   and it carries the state, so that what is inside can stay inside. */
+.panel { border-top: 1px solid var(--line); margin-top: 16px; }
+.panel:first-of-type { margin-top: 8px; }
+.panel > summary {
+  display: flex; align-items: baseline; gap: 10px; cursor: pointer;
+  padding: 14px 16px; list-style: none;
+}
+/* Safari puts its own triangle in front of the row, on top of the one drawn
+   below. */
+.panel > summary::-webkit-details-marker { display: none; }
+.panel > summary:hover { background: var(--panel-2); }
+.panel > summary .section { padding: 0; flex: none; }
+.panel > summary .state {
+  color: var(--muted); font-size: 12px; flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The chevron, in the corner and pointing the way the panel will move. */
+.panel > summary::after {
+  content: ""; flex: none; width: 7px; height: 7px; margin-left: auto;
+  border-right: 1.6px solid var(--muted); border-bottom: 1.6px solid var(--muted);
+  transform: translateY(-2px) rotate(45deg); transition: transform .12s;
+}
+.panel[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
