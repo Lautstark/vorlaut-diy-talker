@@ -27,7 +27,7 @@ import tts
 
 ROOT = Path(__file__).resolve().parent
 
-# Alles, was dir gehört - Layout, Symbole, gesprochene Sätze - liegt unter
+# Everything that belongs to you - layout, symbols, spoken sentences - sits
 # content/ and is deliberately not versioned. The location can be moved,
 # for instance onto a network share:  VORLAUT_CONTENT=/volume1/talker
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
@@ -55,7 +55,7 @@ MAX_ACTIVE_SETS = 5
 # niemand mehr ueberblickt.
 MAX_SETS = 25
 SLOTS_PER_SET = 4
-IMG_SIZE = 128           # Displayfläche
+IMG_SIZE = 128           # display area
 BORDER = 6               # border width, drawn by the firmware
 TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, what actually ends up as a file
 TILE_CACHE = CONTENT / "cache" / "tiles"
@@ -242,7 +242,7 @@ def active_sets(layout: dict) -> list[dict]:
 
 
 def built_fingerprint(layout: dict) -> str:
-    """Kennung dessen, was tatsächlich in data/ landet.
+    """Identifier of what actually ends up in data/.
 
     Deliberately the active sets only: working on a switched-off set changes
     nothing on the device and should therefore not be reported as a rebuild.
@@ -376,7 +376,7 @@ def fill_colour(picture) -> tuple[int, int, int]:
     Hence: no alpha channel and all four corners the same colour means
     edge-to-edge coloured, and that colour continues into the strip.
     Otherwise it stays white - dark line art needs the light ground, and a
-    Untergrund würde den Kontrast nehmen.
+    colourful ground would take the contrast away.
     """
     if picture.getchannel("A").getextrema()[0] < 255:
         return (255, 255, 255)
@@ -387,7 +387,7 @@ def fill_colour(picture) -> tuple[int, int, int]:
 
 
 def render_symbol(symbol: str) -> bytes:
-    """116x116 Symbolfläche auf Weiß, ohne Rahmen.
+    """116x116 symbol area on white, without a border.
 
     The coloured border does not go into the image - the firmware draws it
     from SET_COLORS. That makes this file depend on the symbol alone: the same
@@ -489,25 +489,25 @@ def to_rgb565_be(image) -> bytes:
 #
 # The table - how many sets, which colours, which file per key - sits with
 # the content and not in the firmware. Otherwise a new set would mean
-# Kabel aufspielen.
+# reflashing over a cable.
 #
 # Deliberately a fixed binary structure and not JSON: it lets the firmware
-# Feld für Feld, ohne Parser.
+# read field by field, without a parser.
 #
-#   Kopf   4  Kennung "MTRD"
-#          1  Version
-#          1  Anzahl Sets
-#          1  Tasten je Set
-#          1  frei
-#          4  Schlafzeit in Sekunden
-#   je Set 2  Farbe als RGB565
-#         32  Name, mit Nullbytes aufgefüllt
-#         16  hash of the set tile
-#            je Taste (4x):
-#         16     Hash des Bildes
-#         16     Hash des Tons
-#          1     1 = Ton vorhanden
-#          1     frei
+#   header  4  magic "MTRD"
+#           1  version
+#           1  number of sets
+#           1  keys per set
+#           1  reserved
+#           4  sleep timeout in seconds
+#   per set 2  colour as RGB565
+#          32  name, padded with null bytes
+#          16  hash of the set tile
+#             per key (4x):
+#          16     hash of the image
+#          16     hash of the audio
+#           1     1 = audio present
+#           1     reserved
 LAYOUT_BIN = "layout.bin"
 LAYOUT_MAGIC = b"MTRD"
 LAYOUT_VERSION = 1
@@ -519,11 +519,11 @@ SET_BYTES = 2 + NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES   # 186
 HEADER_BYTES = 4 + 4 + 4                            # 12
 
 
-def _hash_bytes(dateiname: str) -> bytes:
+def _hash_bytes(filename: str) -> bytes:
     """Aus "t3bd7a62….bin" die 16 rohen Hash-Bytes."""
-    if not dateiname:
+    if not filename:
         return b"\x00" * HASH_BYTES
-    core = Path(dateiname).stem[1:]          # führendes t oder a weg
+    core = Path(filename).stem[1:]           # drop the leading t or a
     return bytes.fromhex(core)[:HASH_BYTES].ljust(HASH_BYTES, b"\x00")
 
 
@@ -695,13 +695,13 @@ FS_IMAGE = SKETCH_DIR / "littlefs.bin"
 
 def find_tool(name: str) -> Path | None:
     """Sucht ein Werkzeug im ESP32-Core der Arduino-IDE."""
-    for basis in (
+    for base in (
         Path.home() / "Library/Arduino15/packages/esp32/tools",
         Path.home() / ".arduino15/packages/esp32/tools",
     ):
-        ordner = basis / ("esptool_py" if name == "esptool" else name)
-        if ordner.exists():
-            hits = sorted(ordner.glob(f"*/{name}"))
+        folder = base / ("esptool_py" if name == "esptool" else name)
+        if folder.exists():
+            hits = sorted(folder.glob(f"*/{name}"))
             if hits:
                 return hits[-1]
     return None
