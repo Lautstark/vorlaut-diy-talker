@@ -24,6 +24,7 @@ import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Callable, NamedTuple
 
 import build
 import config
@@ -428,11 +429,28 @@ def secret_hint(value: str) -> str:
     return value[-4:] if len(value) >= 8 else ""
 
 
-def settings_state() -> dict:
+def settings_state(local: bool) -> dict:
+    """What the gear shows - with the key's last four left out for anyone who
+    may not set it anyway.
+
+    The read used to hand the hint to whoever reached the port while the write
+    was gated, which is the wrong way round for the one field here that is
+    somebody's bill. Nothing on screen changes: to a client that is not local
+    the page replaces that line with "set at the machine itself" regardless,
+    so it never showed the hint to those clients in the first place.
+
+    Only the hint. Whether a key is set at all stays in for everyone, because
+    the page has to say so, and knowing that one is configured is not the
+    secret. The METACOM path stays in too: it is a setting these same clients
+    are allowed to write, and gating the read of a field you may write would
+    be an odd sort of lock - the dialog also needs the path to tell a
+    configured collection from none at all.
+    """
     key = config.value("AZURE_SPEECH_KEY")
     where = metacom.configured()
     return {
-        "azureKey": {"set": bool(key), "hint": secret_hint(key)},
+        "azureKey": {"set": bool(key),
+                     "hint": secret_hint(key) if local else ""},
         "azureRegion": config.value("AZURE_SPEECH_REGION", "germanywestcentral"),
         "metacom": {
             "path": where,
@@ -444,11 +462,77 @@ def settings_state() -> dict:
 
 
 # --- HTTP --------------------------------------------------------------------
+# One table instead of the chain of "if path == ..." that do_GET and do_POST
+# used to be. What that buys beyond the line count: the table is an
+# enumeration of this server's API, which nothing here used to be, and a route
+# is a plain function rather than a method, so a test can call one with a
+# stand-in for the handler instead of a live socket - tests/test_routes.py
+# does exactly that.
+#
+# A route is called as fn(handler, data), and what "data" is depends on the
+# kind of route:
+#
+#   GET              the parsed query string, {"name": ["value"]}
+#   POST             the decoded JSON body, already through Handler._body()
+#   POST, raw=True   the parsed query string - the route reads the body itself
+#
+# raw is the exception and has to be spelled out at the call site. Three
+# endpoints carry it: the upload, which takes raw image bytes, and the two
+# device endpoints, which speak the line format of parse_lines(). None of the
+# three can be read as JSON. It defaults to False because the default has to
+# be the safe one - _body() is where the content-type and Origin checks live,
+# and a JSON endpoint that quietly went around them is precisely the hole
+# tests/test_csrf.py exists to catch.
+#
+# handler.route_path is the path with the query string cut off - what the
+# route was matched on. Two routes need it: the icons, which share one
+# function between three paths, and /symbols/, which is matched by prefix and
+# reads the rest of the path itself.
+
+
+class Route(NamedTuple):
+    handler: Callable[["Handler", dict], None]
+    raw: bool = False       # reads its own body, rather than through _body()
+    prefix: bool = False    # the path starts with this, rather than equals it
+
+
+ROUTES: dict[tuple[str, str], Route] = {}
+
+
+def route(method: str, path: str, *, raw: bool = False, prefix: bool = False):
+    """Registers one route.
+
+    Stacks, for a handler that answers to more than one path - the page and
+    the three icons are each one function and several decorators.
+    """
+    def register(fn):
+        ROUTES[(method, path)] = Route(fn, raw, prefix)
+        return fn
+    return register
+
+
+def find_route(method: str, path: str) -> Route | None:
+    """The route for this request, or None - and then it is a 404.
+
+    Exact first and only then by prefix, so a path registered both ways gets
+    the exact one. /symbols/ is the only prefix route there is, and the loop
+    runs over the whole table rather than a second dictionary kept alongside
+    it: with one entry in it, that dictionary would be more machinery than the
+    thing it indexes.
+    """
+    found = ROUTES.get((method, path))
+    if found is not None:
+        return found
+    for (its_method, its_path), entry in ROUTES.items():
+        if entry.prefix and its_method == method and path.startswith(its_path):
+            return entry
+    return None
+
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "vorlaut"
 
-    def log_message(self, fmt, *args):  # ruhiger Log
+    def log_message(self, fmt, *args):  # a quieter log
         if self.path.startswith("/api/"):
             print(f"  {self.command} {self.path}", flush=True)
 
@@ -460,8 +544,8 @@ class Handler(BaseHTTPRequestHandler):
         if not token:
             self._error("err.no_device_sync", 503)
             return False
-        # Nur als Kopfzeile, nie im Adressteil: Adressen landen in
-        # logs, headers do not.
+        # As a header only, never in the address: addresses land in logs,
+        # headers do not.
         sent = self.headers.get("X-Vorlaut-Token", "")
         # compare_digest instead of ==, so the response time gives nothing away.
         if not hmac.compare_digest(sent, token):
@@ -469,7 +553,7 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
-    # -- Antworten --
+    # -- Answers --
 
     def _send(self, code: int, body: bytes, content_type: str, extra=None) -> None:
         self.send_response(code)
@@ -558,7 +642,9 @@ class Handler(BaseHTTPRequestHandler):
         keeps a made-up Content-Length from being believed.
 
         The device endpoints and the upload never come through here - they
-        speak lines and raw bytes, and are checked where they are read.
+        speak lines and raw bytes, and are checked where they are read. They
+        are the routes registered with raw=True, and that is the only way past
+        this method.
         """
         origin = self.headers.get("Origin")
         if origin and not self._from_here(origin):
@@ -579,229 +665,6 @@ class Handler(BaseHTTPRequestHandler):
             self._refused("This endpoint reads application/json.", 415)
             return None
         return json.loads(self.rfile.read(length).decode("utf-8"))
-
-    def _upload(self, query) -> None:
-        length = int(self.headers.get("Content-Length") or 0)
-        if length <= 0:
-            self._error("err.no_image_data")
-            return
-        if length > MAX_UPLOAD:
-            self._error("err.image_too_big", mb=MAX_UPLOAD // 1048576)
-            return
-        data = self.rfile.read(length)
-        name = (query.get("name") or ["bild"])[0]
-        try:
-            self._json({"symbol": save_upload(data, name)})
-        except (ValueError, build.BuildError) as exc:
-            self._failed(exc)
-
-    # -- Routen --
-
-    def do_GET(self):
-        route = urllib.parse.urlparse(self.path)
-        path = route.path
-        query = urllib.parse.parse_qs(route.query)
-
-        if path in ("/", "/index.html"):
-            lang = self._language()
-            page = (read_ui()
-                    .replace("__LANG__", lang)
-                    .replace("__TEXTS__", json.dumps(texts.ui_texts(lang),
-                                                     ensure_ascii=False))
-                    .replace("__LANGUAGES__", json.dumps(sorted(texts.TEXTS)))
-                    .replace("__PALETTE__", json.dumps(build.DEFAULT_PALETTE))
-                    .replace("__LIMITS__", json.dumps({
-                        "maxSets": build.MAX_SETS,
-                        "maxActive": build.MAX_ACTIVE_SETS,
-                    })))
-            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
-            return
-
-        if path == "/api/layout":
-            try:
-                self._json(
-                    build.load_layout(),
-                    extra={
-                        "X-Layout-Version": layout_version(),
-                        "X-Build-Current": build_current_flag(),
-                    },
-                )
-            except build.BuildError as exc:
-                self._failed(exc, 500)
-            return
-
-        if path == "/api/search":
-            word = (query.get("q") or [""])[0].strip()
-            # Without a value, both sources. The interface asks for them
-            # separately so the licensed collection is there at once
-            # instead of waiting for an answer from the network.
-            source = (query.get("source") or [""])[0].strip()
-            if not word:
-                self._json([])
-                return
-
-            results: list[dict] = []
-            if source in ("", "metacom"):
-                results.extend(metacom.search(word, limit=SEARCH_LIMIT))
-            if source in ("", "arasaac"):
-                try:
-                    results.extend(arasaac_search(word)[:SEARCH_LIMIT])
-                except (urllib.error.URLError, json.JSONDecodeError,
-                        TimeoutError) as exc:
-                    # Hits from one's own collection are worth more than an
-                    # error message - that comes only when nothing else is there.
-                    if not results:
-                        self._error("err.arasaac_unreachable", 502, reason=str(exc))
-                        return
-            self._json(results)
-            return
-
-        if path == "/api/device/manifest":
-            if not self._device_allowed():
-                return
-            try:
-                # Lines, not JSON - the device has no parser, see
-                # build.manifest_text(). Also nicer with curl.
-                body = build.manifest_text(build.device_manifest())
-            except build.BuildError as exc:
-                self._failed(exc, 500)
-                return
-            self._send(200, body.encode("utf-8"), "text/plain; charset=utf-8")
-            return
-
-        if path == "/api/device/file":
-            if not self._device_allowed():
-                return
-            # The file name only, nothing before it - the request comes from outside.
-            name = Path((query.get("name") or [""])[0]).name
-            target = build.DATA_DIR / name
-            if not name or not target.is_file():
-                self._error("err.file_not_found", 404)
-                return
-            self._send(200, target.read_bytes(), "application/octet-stream")
-            return
-
-        if path == "/api/sources":
-            self._json({
-                "metacom": metacom.available(),
-                "metacomKeywords": metacom.has_keywords(),
-                "metacomCount": metacom.count(),
-            })
-            return
-
-        if path == "/api/voices":
-            # The voices this installation can actually speak with. Read-only:
-            # a chosen voice is written to layout.json like the menu language,
-            # through /api/layout, so one save covers both.
-            #
-            # "active" is the one the layout is spoken in right now - either
-            # what stands in it, or, for an empty entry, what was picked for
-            # it. Labels are names and are not translated.
-            try:
-                layout = build.load_layout()
-            except build.BuildError as exc:
-                self._failed(exc, 500)
-                return
-            active = build.chosen_voice(layout)
-            self._json({
-                "voices": [dict(voice, active=voice["id"] == active)
-                           for voice in tts.available_voices()],
-                "active": active,
-                "chosen": layout.get("voice", ""),
-            })
-            return
-
-        if path == "/api/settings":
-            self._json(dict(settings_state(), local=self._may_set_secrets()))
-            return
-
-        if path == "/api/pair":
-            # So the page can offer the five boxes only when a device is
-            # actually waiting. "since" is seconds, so it can also say how
-            # much of the code's life is left.
-            self._json({"waiting": pair_waiting()})
-            return
-
-        if path == "/api/voices/fetch":
-            # How far the download has got. The error is rendered here, where
-            # the language of the page is known - the thread only kept the key.
-            state = fetch_state()
-            self._json({
-                "running": state["running"],
-                "done": state["done"],
-                "total": state["total"],
-                "name": state["name"],
-                "error": (texts.t(state["error"], self._language(),
-                                  **state["params"])
-                          if state["error"] else ""),
-                # So the page knows whether there is anything left to offer.
-                # A look at the folder, not at the network.
-                "missing": len(tts.missing_voices("")),
-            })
-            return
-
-        if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
-            file = ASSETS / Path(path).name
-            if not file.exists():
-                self._error("err.symbol_not_found", 404)
-                return
-            art = "image/svg+xml" if path.endswith(".svg") else "image/png"
-            self._send(200, file.read_bytes(), art)
-            return
-
-        if path == "/manifest.webmanifest":
-            # So the page can be placed on the home screen as an app.
-            # Deliberately without a service worker: the interface is useless
-            # without the server anyway, and cached JavaScript has caused
-            # enough trouble already.
-            self._json({
-                "name": "vorlaut",
-                "short_name": "vorlaut",
-                "description": texts.t("ui.app_description",
-                                       self._language()),
-                "start_url": "/",
-                "display": "standalone",
-                "orientation": "portrait",
-                "background_color": "#16181d",
-                "theme_color": "#16181d",
-                "icons": [
-                    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
-                    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
-                    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png",
-                     "purpose": "maskable"},
-                ],
-            })
-            return
-
-        if path == "/api/preview":
-            symbol = (query.get("symbol") or [""])[0]
-            colour = (query.get("color") or ["#000000"])[0]
-            try:
-                self._send(200, preview_png(symbol, colour), "image/png")
-            except build.BuildError as exc:
-                self._failed(exc, 500)
-            return
-
-        if path == "/api/thumb":
-            try:
-                identifier = int((query.get("id") or ["0"])[0])
-                self._send(200, arasaac_fetch(identifier), "image/png")
-            except (urllib.error.URLError, ValueError, TimeoutError) as exc:
-                self._error("err.preview_failed", 502, reason=str(exc))
-            return
-
-        if path.startswith("/symbols/"):
-            # The reference can be "bild.png" or "metacom:name" - which file
-            # is meant is decided by build.symbol_path.
-            reference = urllib.parse.unquote(path[len("/symbols/"):])
-            target = build.symbol_path(reference)
-            if target is None:
-                self._error("err.symbol_not_found", 404)
-                return
-            self._send(200, target.read_bytes(), "image/png")
-            return
-
-        self._error("err.not_found", 404)
 
     # -- Settings --
 
@@ -834,63 +697,40 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, ("\n".join(lines) + "\n").encode("utf-8"),
                    "text/plain; charset=utf-8")
 
-    def _device_pair(self) -> None:
-        """A device announcing the code it is showing. No key here - this is
-        where a device that has none comes to get one."""
-        if not device_token():
-            self._pair_answer(["error no_token"], 503)
-            return
-        sent = self._lines_body()
-        device = sent.get("device", "").lower()
-        code = sent.get("code", "")
-        secret = sent.get("secret", "").lower()
-        if not (HEX12.match(device) and DIGITS5.match(code)
-                and HEX32.match(secret)):
-            self._pair_answer(["error bad_request"], 400)
-            return
-        if pair_start(device, code, secret) == "busy":
-            self._pair_answer(["error too_many"], 429)
-            return
-        self._pair_answer(["ok 1", f"expires {PAIR_LIFETIME}",
-                           f"interval {PAIR_INTERVAL}"])
+    # -- Dispatch --
 
-    def _device_pair_poll(self) -> None:
-        """Has anybody typed it yet - and if so, here is the key."""
-        if not device_token():
-            self._pair_answer(["error no_token"], 503)
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        found = find_route("GET", parsed.path)
+        if found is None:
+            self._error("err.not_found", 404)
             return
-        sent = self._lines_body()
-        device = sent.get("device", "").lower()
-        secret = sent.get("secret", "").lower()
-        if not (HEX12.match(device) and HEX32.match(secret)):
-            self._pair_answer(["error bad_request"], 400)
-            return
-        state, token = pair_poll(device, secret)
-        if state == "unknown":
-            self._pair_answer(["error unknown"], 404)
-            return
-        if state == "ready":
-            self._pair_answer(["state ready", f"token {token}"])
-            return
-        self._pair_answer([f"state {state}"])
+        self.route_path = parsed.path
+        found.handler(self, urllib.parse.parse_qs(parsed.query))
 
     def do_POST(self):
-        route = urllib.parse.urlparse(self.path)
-        path = route.path
-
-        # The upload sends raw image data, not JSON - so it leaves early.
-        if path == "/api/upload":
-            self._upload(urllib.parse.parse_qs(route.query))
+        parsed = urllib.parse.urlparse(self.path)
+        found = find_route("POST", parsed.path)
+        if found is None:
+            self._error("err.not_found", 404)
+            # Whatever body was announced is still in the socket unread: the
+            # table answers an unknown path before _body(), where the chain
+            # this replaced reached its 404 only after it. Nothing can come of
+            # that today - protocol_version is HTTP/1.0, so this server closes
+            # after every response and never reads a second request off a
+            # connection. The line is here for the day somebody sets
+            # protocol_version to HTTP/1.1, which would turn the leftover body
+            # into the next request line without anything else changing.
+            # _refused() carries the same line for the same reason.
+            self.close_connection = True
             return
-
-        # The device speaks lines, not JSON - so these leave early too.
-        if path == "/api/device/pair":
-            self._device_pair()
+        self.route_path = parsed.path
+        if found.raw:
+            # Reads its own body - raw image bytes, or the device's lines.
+            # Deliberately not through _body(), which would refuse both for
+            # having the wrong content type. See the note above route().
+            found.handler(self, urllib.parse.parse_qs(parsed.query))
             return
-        if path == "/api/device/pair/poll":
-            self._device_pair_poll()
-            return
-
         try:
             body = self._body()
         except json.JSONDecodeError:
@@ -898,136 +738,427 @@ class Handler(BaseHTTPRequestHandler):
             return
         if body is None:
             return                      # refused, and already answered
+        found.handler(self, body)
 
-        if path == "/api/layout":
-            sent = self.headers.get("X-Layout-Version")
-            with _save_lock:
-                # Reading the version, comparing it and writing belong
-                # together: another tab getting in between is the whole thing
-                # the comparison exists to notice.
-                stale = bool(sent) and sent != layout_version()
-                if not stale:
-                    try:
-                        saved = build.save_layout(body)
-                    except build.BuildError as exc:
-                        self._failed(exc)
-                        return
-                    extra = {
-                        "X-Layout-Version": layout_version(),
-                        "X-Build-Current": build_current_flag(),
-                    }
-            if stale:
-                # This page knows an older state. Nothing was written.
-                self._json(
-                    {
-                        "error": texts.t("err.stale_page", self._language()),
-                        "conflict": True,
-                    },
-                    409,
-                )
-                return
-            self._json(saved, extra=extra)
-            return
 
-        if path == "/api/pick":
-            # METACOM symbols are neither downloaded nor copied: they stay in
-            # the licensed collection, the layout only holds the reference.
-            if (body.get("source") or "") == "metacom":
-                reference = str(body.get("ref") or "")
-                if build.symbol_path(reference) is None:
-                    self._error("err.no_such_metacom", 404)
-                    return
-                name = reference[len(build.METACOM_PREFIX):]
-                self._json({"symbol": reference, "label": metacom.label_for(name)})
+# --- The routes: GET ---------------------------------------------------------
+
+@route("GET", "/")
+@route("GET", "/index.html")
+def index(handler, query) -> None:
+    lang = handler._language()
+    page = (read_ui()
+            .replace("__LANG__", lang)
+            .replace("__TEXTS__", json.dumps(texts.ui_texts(lang),
+                                             ensure_ascii=False))
+            .replace("__LANGUAGES__", json.dumps(sorted(texts.TEXTS)))
+            .replace("__PALETTE__", json.dumps(build.DEFAULT_PALETTE))
+            .replace("__LIMITS__", json.dumps({
+                "maxSets": build.MAX_SETS,
+                "maxActive": build.MAX_ACTIVE_SETS,
+            })))
+    handler._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
+
+
+@route("GET", "/api/layout")
+def get_layout(handler, query) -> None:
+    try:
+        handler._json(
+            build.load_layout(),
+            extra={
+                "X-Layout-Version": layout_version(),
+                "X-Build-Current": build_current_flag(),
+            },
+        )
+    except build.BuildError as exc:
+        handler._failed(exc, 500)
+
+
+@route("GET", "/api/search")
+def search(handler, query) -> None:
+    word = (query.get("q") or [""])[0].strip()
+    # Without a value, both sources. The interface asks for them separately
+    # so the licensed collection is there at once instead of waiting for an
+    # answer from the network.
+    source = (query.get("source") or [""])[0].strip()
+    if not word:
+        handler._json([])
+        return
+
+    results: list[dict] = []
+    if source in ("", "metacom"):
+        results.extend(metacom.search(word, limit=SEARCH_LIMIT))
+    if source in ("", "arasaac"):
+        try:
+            results.extend(arasaac_search(word)[:SEARCH_LIMIT])
+        except (urllib.error.URLError, json.JSONDecodeError,
+                TimeoutError) as exc:
+            # Hits from one's own collection are worth more than an error
+            # message - that comes only when nothing else is there.
+            if not results:
+                handler._error("err.arasaac_unreachable", 502, reason=str(exc))
                 return
-            label = body.get("label") or "symbol"
+    handler._json(results)
+
+
+@route("GET", "/api/device/manifest")
+def device_manifest(handler, query) -> None:
+    # The gate stays the first thing in the route rather than becoming a flag
+    # on it: a flag would move the decision into the dispatcher, and this one
+    # is worth having to walk past on the way to the code it guards.
+    if not handler._device_allowed():
+        return
+    try:
+        # Lines, not JSON - the device has no parser, see
+        # build.manifest_text(). Also nicer with curl.
+        body = build.manifest_text(build.device_manifest())
+    except build.BuildError as exc:
+        handler._failed(exc, 500)
+        return
+    handler._send(200, body.encode("utf-8"), "text/plain; charset=utf-8")
+
+
+@route("GET", "/api/device/file")
+def device_file(handler, query) -> None:
+    if not handler._device_allowed():
+        return
+    # The file name only, nothing before it - the request comes from outside.
+    name = Path((query.get("name") or [""])[0]).name
+    target = build.DATA_DIR / name
+    if not name or not target.is_file():
+        handler._error("err.file_not_found", 404)
+        return
+    handler._send(200, target.read_bytes(), "application/octet-stream")
+
+
+@route("GET", "/api/sources")
+def sources(handler, query) -> None:
+    handler._json({
+        "metacom": metacom.available(),
+        "metacomKeywords": metacom.has_keywords(),
+        "metacomCount": metacom.count(),
+    })
+
+
+@route("GET", "/api/voices")
+def voices(handler, query) -> None:
+    # The voices this installation can actually speak with. Read-only: a
+    # chosen voice is written to layout.json like the menu language, through
+    # /api/layout, so one save covers both.
+    #
+    # "active" is the one the layout is spoken in right now - either what
+    # stands in it, or, for an empty entry, what was picked for it. Labels are
+    # names and are not translated.
+    try:
+        layout = build.load_layout()
+    except build.BuildError as exc:
+        handler._failed(exc, 500)
+        return
+    active = build.chosen_voice(layout)
+    handler._json({
+        "voices": [dict(voice, active=voice["id"] == active)
+                   for voice in tts.available_voices()],
+        "active": active,
+        "chosen": layout.get("voice", ""),
+    })
+
+
+@route("GET", "/api/settings")
+def get_settings(handler, query) -> None:
+    local = handler._may_set_secrets()
+    handler._json(dict(settings_state(local), local=local))
+
+
+@route("GET", "/api/pair")
+def get_pair(handler, query) -> None:
+    # So the page can offer the five boxes only when a device is actually
+    # waiting. "since" is seconds, so it can also say how much of the code's
+    # life is left.
+    handler._json({"waiting": pair_waiting()})
+
+
+@route("GET", "/api/voices/fetch")
+def get_voice_fetch(handler, query) -> None:
+    # How far the download has got. The error is rendered here, where the
+    # language of the page is known - the thread only kept the key.
+    state = fetch_state()
+    handler._json({
+        "running": state["running"],
+        "done": state["done"],
+        "total": state["total"],
+        "name": state["name"],
+        "error": (texts.t(state["error"], handler._language(),
+                          **state["params"])
+                  if state["error"] else ""),
+        # So the page knows whether there is anything left to offer. A look
+        # at the folder, not at the network.
+        "missing": len(tts.missing_voices("")),
+    })
+
+
+@route("GET", "/icon.svg")
+@route("GET", "/icon-192.png")
+@route("GET", "/icon-512.png")
+def icon(handler, query) -> None:
+    file = ASSETS / Path(handler.route_path).name
+    if not file.exists():
+        handler._error("err.symbol_not_found", 404)
+        return
+    art = "image/svg+xml" if handler.route_path.endswith(".svg") else "image/png"
+    handler._send(200, file.read_bytes(), art)
+
+
+@route("GET", "/manifest.webmanifest")
+def webmanifest(handler, query) -> None:
+    # So the page can be placed on the home screen as an app. Deliberately
+    # without a service worker: the interface is useless without the server
+    # anyway, and cached JavaScript has caused enough trouble already.
+    handler._json({
+        "name": "vorlaut",
+        "short_name": "vorlaut",
+        "description": texts.t("ui.app_description", handler._language()),
+        "start_url": "/",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": "#16181d",
+        "theme_color": "#16181d",
+        "icons": [
+            {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png",
+             "purpose": "maskable"},
+        ],
+    })
+
+
+@route("GET", "/api/preview")
+def preview(handler, query) -> None:
+    symbol = (query.get("symbol") or [""])[0]
+    colour = (query.get("color") or ["#000000"])[0]
+    try:
+        handler._send(200, preview_png(symbol, colour), "image/png")
+    except build.BuildError as exc:
+        handler._failed(exc, 500)
+
+
+@route("GET", "/api/thumb")
+def thumb(handler, query) -> None:
+    try:
+        identifier = int((query.get("id") or ["0"])[0])
+        handler._send(200, arasaac_fetch(identifier), "image/png")
+    except (urllib.error.URLError, ValueError, TimeoutError) as exc:
+        handler._error("err.preview_failed", 502, reason=str(exc))
+
+
+@route("GET", "/symbols/", prefix=True)
+def symbol_file(handler, query) -> None:
+    # The reference can be "bild.png" or "metacom:name" - which file is meant
+    # is decided by build.symbol_path.
+    reference = urllib.parse.unquote(handler.route_path[len("/symbols/"):])
+    target = build.symbol_path(reference)
+    if target is None:
+        handler._error("err.symbol_not_found", 404)
+        return
+    handler._send(200, target.read_bytes(), "image/png")
+
+
+# --- The routes: POST --------------------------------------------------------
+
+@route("POST", "/api/upload", raw=True)
+def upload(handler, query) -> None:
+    """Raw image bytes, so this one reads its own body."""
+    length = int(handler.headers.get("Content-Length") or 0)
+    if length <= 0:
+        handler._error("err.no_image_data")
+        return
+    if length > MAX_UPLOAD:
+        handler._error("err.image_too_big", mb=MAX_UPLOAD // 1048576)
+        return
+    data = handler.rfile.read(length)
+    name = (query.get("name") or ["bild"])[0]
+    try:
+        handler._json({"symbol": save_upload(data, name)})
+    except (ValueError, build.BuildError) as exc:
+        handler._failed(exc)
+
+
+@route("POST", "/api/device/pair", raw=True)
+def device_pair(handler, query) -> None:
+    """A device announcing the code it is showing. No key here - this is
+    where a device that has none comes to get one."""
+    if not device_token():
+        handler._pair_answer(["error no_token"], 503)
+        return
+    sent = handler._lines_body()
+    device = sent.get("device", "").lower()
+    code = sent.get("code", "")
+    secret = sent.get("secret", "").lower()
+    if not (HEX12.match(device) and DIGITS5.match(code)
+            and HEX32.match(secret)):
+        handler._pair_answer(["error bad_request"], 400)
+        return
+    if pair_start(device, code, secret) == "busy":
+        handler._pair_answer(["error too_many"], 429)
+        return
+    handler._pair_answer(["ok 1", f"expires {PAIR_LIFETIME}",
+                          f"interval {PAIR_INTERVAL}"])
+
+
+@route("POST", "/api/device/pair/poll", raw=True)
+def device_pair_poll(handler, query) -> None:
+    """Has anybody typed it yet - and if so, here is the key."""
+    if not device_token():
+        handler._pair_answer(["error no_token"], 503)
+        return
+    sent = handler._lines_body()
+    device = sent.get("device", "").lower()
+    secret = sent.get("secret", "").lower()
+    if not (HEX12.match(device) and HEX32.match(secret)):
+        handler._pair_answer(["error bad_request"], 400)
+        return
+    state, token = pair_poll(device, secret)
+    if state == "unknown":
+        handler._pair_answer(["error unknown"], 404)
+        return
+    if state == "ready":
+        handler._pair_answer(["state ready", f"token {token}"])
+        return
+    handler._pair_answer([f"state {state}"])
+
+
+@route("POST", "/api/layout")
+def post_layout(handler, body) -> None:
+    sent = handler.headers.get("X-Layout-Version")
+    with _save_lock:
+        # Reading the version, comparing it and writing belong together:
+        # another tab getting in between is the whole thing the comparison
+        # exists to notice.
+        stale = bool(sent) and sent != layout_version()
+        if not stale:
             try:
-                filename = arasaac_download(body.get("id"), label)
-            except (urllib.error.URLError, ValueError, TypeError, TimeoutError) as exc:
-                self._error("err.download_failed", 502, reason=str(exc))
+                saved = build.save_layout(body)
+            except build.BuildError as exc:
+                handler._failed(exc)
                 return
-            self._json({"symbol": filename, "label": label})
-            return
+            extra = {
+                "X-Layout-Version": layout_version(),
+                "X-Build-Current": build_current_flag(),
+            }
+    if stale:
+        # This page knows an older state. Nothing was written.
+        handler._json(
+            {
+                "error": texts.t("err.stale_page", handler._language()),
+                "conflict": True,
+            },
+            409,
+        )
+        return
+    handler._json(saved, extra=extra)
 
-        if path == "/api/settings":
-            updates: dict[str, str] = {}
-            if "azureKey" in body:
-                if not self._may_set_secrets():
-                    self._error("err.settings_local_only", 403)
-                    return
-                updates["AZURE_SPEECH_KEY"] = str(body.get("azureKey") or "").strip()
-            if "azureRegion" in body:
-                updates["AZURE_SPEECH_REGION"] = str(
-                    body.get("azureRegion") or "").strip()
-            if "metacom" in body:
-                updates["VORLAUT_METACOM_DIR"] = str(body.get("metacom") or "").strip()
-            try:
-                config.write(updates)
-            except OSError as exc:
-                self._error("err.settings_write", 500, reason=str(exc))
-                return
-            # Read back rather than echo: what the file says is the truth, and
-            # a path that turned out unusable should say so here and not on
-            # the next build.
-            self._json(dict(settings_state(), local=self._may_set_secrets()))
-            return
 
-        if path == "/api/pair/confirm":
-            # Five digits and nothing else - no device is picked. The server
-            # looks for the pairing carrying that code.
-            code = str(body.get("code") or "").strip()
-            if not DIGITS5.match(code):
-                self._error("err.pair_wrong_code")
-                return
-            result, device, left = pair_confirm(code)
-            if result == "none":
-                self._error("err.pair_expired", 410)
-                return
-            if result == "wrong":
-                self._json({"error": texts.t("err.pair_wrong_code",
-                                             self._language()),
-                            "left": left}, 400)
-                return
-            self._json({"ok": True, "device": device})
+@route("POST", "/api/pick")
+def pick(handler, body) -> None:
+    # METACOM symbols are neither downloaded nor copied: they stay in the
+    # licensed collection, the layout only holds the reference.
+    if (body.get("source") or "") == "metacom":
+        reference = str(body.get("ref") or "")
+        if build.symbol_path(reference) is None:
+            handler._error("err.no_such_metacom", 404)
             return
+        name = reference[len(build.METACOM_PREFIX):]
+        handler._json({"symbol": reference, "label": metacom.label_for(name)})
+        return
+    label = body.get("label") or "symbol"
+    try:
+        filename = arasaac_download(body.get("id"), label)
+    except (urllib.error.URLError, ValueError, TypeError, TimeoutError) as exc:
+        handler._error("err.download_failed", 502, reason=str(exc))
+        return
+    handler._json({"symbol": filename, "label": label})
 
-        if path == "/api/voices/fetch":
-            # Without a language, everything that is missing. The answer says
-            # only whether it started - how it goes is asked for separately.
-            lang = (body.get("lang") or "").strip()
-            if lang and lang not in tts.VOICE_CATALOGUE:
-                self._error("err.not_found", 404)
-                return
-            self._json({"started": fetch_voices(lang)})
+
+@route("POST", "/api/settings")
+def post_settings(handler, body) -> None:
+    local = handler._may_set_secrets()
+    updates: dict[str, str] = {}
+    if "azureKey" in body:
+        if not local:
+            handler._error("err.settings_local_only", 403)
             return
+        updates["AZURE_SPEECH_KEY"] = str(body.get("azureKey") or "").strip()
+    if "azureRegion" in body:
+        updates["AZURE_SPEECH_REGION"] = str(
+            body.get("azureRegion") or "").strip()
+    if "metacom" in body:
+        updates["VORLAUT_METACOM_DIR"] = str(body.get("metacom") or "").strip()
+    try:
+        config.write(updates)
+    except OSError as exc:
+        handler._error("err.settings_write", 500, reason=str(exc))
+        return
+    # Read back rather than echo: what the file says is the truth, and a path
+    # that turned out unusable should say so here and not on the next build.
+    handler._json(dict(settings_state(local), local=local))
 
-        if path == "/api/speak":
-            text = (body.get("text") or "").strip()
-            # A voice sent along is listened to, so the page can play a voice
-            # before it is saved. Without one it is the layout's.
-            voice = (body.get("voice") or "").strip()
-            try:
-                if not voice:
-                    voice = build.chosen_voice(build.load_layout())
-                wav = tts.synthesize(text, voice)
-            except (build.BuildError, tts.TTSError) as exc:
-                self._failed(exc)
-                return
-            self._send(200, wav.read_bytes(), "audio/wav")
+
+@route("POST", "/api/pair/confirm")
+def post_pair_confirm(handler, body) -> None:
+    # Five digits and nothing else - no device is picked. The server looks
+    # for the pairing carrying that code.
+    code = str(body.get("code") or "").strip()
+    if not DIGITS5.match(code):
+        handler._error("err.pair_wrong_code")
+        return
+    result, device, left = pair_confirm(code)
+    if result == "none":
+        handler._error("err.pair_expired", 410)
+        return
+    if result == "wrong":
+        handler._json({"error": texts.t("err.pair_wrong_code",
+                                        handler._language()),
+                       "left": left}, 400)
+        return
+    handler._json({"ok": True, "device": device})
+
+
+@route("POST", "/api/voices/fetch")
+def post_voice_fetch(handler, body) -> None:
+    # Without a language, everything that is missing. The answer says only
+    # whether it started - how it goes is asked for separately.
+    lang = (body.get("lang") or "").strip()
+    if lang and lang not in tts.VOICE_CATALOGUE:
+        handler._error("err.not_found", 404)
+        return
+    handler._json({"started": fetch_voices(lang)})
+
+
+@route("POST", "/api/speak")
+def speak(handler, body) -> None:
+    text = (body.get("text") or "").strip()
+    # A voice sent along is listened to, so the page can play a voice before
+    # it is saved. Without one it is the layout's.
+    voice = (body.get("voice") or "").strip()
+    try:
+        if not voice:
+            voice = build.chosen_voice(build.load_layout())
+        wav = tts.synthesize(text, voice)
+    except (build.BuildError, tts.TTSError) as exc:
+        handler._failed(exc)
+        return
+    handler._send(200, wav.read_bytes(), "audio/wav")
+
+
+@route("POST", "/api/build")
+def run_build(handler, body) -> None:
+    # One at a time: data/ is emptied and refilled in there.
+    with _build_lock:
+        try:
+            log = build.build(lang=handler._language())
+        except (build.BuildError, tts.TTSError) as exc:
+            handler._failed(exc, 500)
             return
-
-        if path == "/api/build":
-            # One at a time: data/ is emptied and refilled in there.
-            with _build_lock:
-                try:
-                    log = build.build(lang=self._language())
-                except (build.BuildError, tts.TTSError) as exc:
-                    self._failed(exc, 500)
-                    return
-            self._json({"log": log})
-            return
-
-        self._error("err.not_found", 404)
+    handler._json({"log": log})
 
 
 def read_ui() -> str:
