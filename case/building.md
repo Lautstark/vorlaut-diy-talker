@@ -13,12 +13,12 @@ them.
 
 | Part | What it does | Outer size |
 |---|---|---|
-| **Tub** | front plate, walls, speaker chamber, all bosses | 135.9 × 99.4 × 37.4 mm |
-| **Carrier** | intermediate floor, separates wiring from battery | 130.7 × 94.2 × 10.7 mm |
-| **Lid** | back panel with logo | 133.1 × 96.6 × 3.8 mm |
+| **Tub** | front plate, walls, speaker chamber, all bosses | 145.9 × 99.4 × 37.4 mm |
+| **Carrier** | intermediate floor, separates wiring from battery | 140.7 × 94.2 × 10.7 mm |
+| **Lid** | back panel with logo and feet | 143.1 × 96.6 × 4.6 mm |
 
 All three sizes are measured on the exported STL, not merely calculated. The
-tub's footprint on the bed is 136.0 × 100.0 mm — the logo at the bottom edge
+tub's footprint on the bed is 145.9 × 100.0 mm — the logo at the bottom edge
 stands 0.6 mm proud of the wall.
 
 ```bash
@@ -84,7 +84,7 @@ an upward-facing bearing surface instead of an overhang. All chamfers are 45°.
 | Infill | 25 % grid | more gains nothing, less flexes |
 | Material | PLA or PETG | PETG is tougher, PLA holds size better |
 | Supports | **off** | not needed |
-| Brim | 5 mm on the tub | 136 mm of flat surface tends to lift |
+| Brim | 5 mm on the tub | 146 mm of flat surface tends to lift |
 
 No ABS: the device lies around near a small child, and ABS edges splinter when
 something is dropped.
@@ -100,7 +100,8 @@ shows it. Do not rotate them, that is no accident:
 - **Carrier**: flat, ribs upwards.
 - **Lid**: **inside on the bed, logo upwards.** The embossing is then pure
   upward geometry and succeeds even on a tired printer. The other way round it
-  would be an overhang and would smear.
+  would be an overhang and would smear. The four feet sit on that same face and
+  print the same way.
 
 The only unsupported span is the top edge of the USB window: an **8.4 mm
 bridge** in a vertical wall. Every printer manages that; if the first layer
@@ -116,6 +117,15 @@ above it sags, turn the fan up.
   to 0.2 mm in the slicer.
 - **Bosses break off.** Only if you insist on pre-drilling. Do not pre-drill,
   the pilot holes are already there.
+- **Speaker grille.** 37 holes of 3.0 mm at a 4.6 mm pitch — 1.6 mm of web, four
+  passes with a 0.4 nozzle, and about 31 % open area over the cone. Do not make
+  the holes bigger to "let more through": 31 % is already far more than a voice
+  needs, and from about 4 mm a child's pencil reaches the cone. The cone is the
+  one part of this device that cannot be repaired. `verify.py` holds both ends
+  of that — the web and the open area.
+  Only whole holes are placed, never part-holes cut off at the rim: those come
+  out as slivers a fraction of a millimetre wide and stay behind on the print
+  bed, because the front face is the face that lies on it.
 
 ## Tolerances
 
@@ -136,8 +146,8 @@ corrections.
 ## Screws instead of snap fits
 
 Six **M3 × 12 countersunk**, from the back through the lid into the bosses of
-the tub. Plus four **M2 × 6** per ScreenKey (20 pieces) and four **M2.5 × 8**
-for the speaker.
+the tub. Plus four **M2 × 6** per ScreenKey (20 pieces). **Nothing for the speaker** —
+see below.
 
 Why no snap hooks:
 
@@ -161,8 +171,65 @@ threaded_insert = true;
 
 and gets bosses for **M3 heat-set threaded inserts** (Ø 4.0 × 5 mm). The bosses
 grow to 8 instead of 6 mm, and because they sit against the inner wall the case
-grows along with them to 139.9 × 103.4 mm. That is not an oversight but
+grows along with them to 149.9 × 103.4 mm. That is not an oversight but
 derived: `inner_margin` follows the boss size.
+
+## The speaker is not screwed down
+
+`spk_front_screws = false` in the `.scad`. The driver is located sideways by
+the four guide ribs, sealed against the front plate with tape or foam, and
+pressed onto that seal by a block of open-cell foam behind it that the lid
+compresses. No fastener, and nothing visible on the face of the device.
+
+That is not laziness. Bolting through the front plate costs three things at
+once:
+
+- Four countersunk heads sit on the front, next to the grille, and they are the
+  only visible hardware on an otherwise plain face.
+- The front plate is 2.4 mm of PLA and holds no thread, so each screw needs a
+  **nut inside the chamber** — a chamber that can only be reopened by taking
+  the driver out again. A nut that works loose in there rattles against the
+  cone.
+- Four 2.9 mm holes go straight through the front plate into the sealed volume.
+  The chamber is meant to be closed; those are four leaks that no amount of
+  hot glue on the cable passage makes up for.
+
+Pressing the rim onto the seal was the only real job those screws had, and the
+lid already does that — its six M3 pull the whole stack together, which is the
+same reasoning that ruled out snap hooks.
+
+**Open-cell foam only.** That is stuffing, and acoustically it behaves like
+slightly more volume, not less. A closed-cell block would take 11 cm³ out of a
+41.5 cm³ box and lift the resonance with it.
+
+If the driver rattles once it is playing, set
+
+```
+spk_front_screws = true;
+```
+
+and the four countersunk holes come back, along with `verify.py` checking the
+countersink depth against the front plate. You then need four **M2.5 × 8** with
+nuts — and it is worth checking first whether the driver's own frame holes
+carry a thread, in which case the nuts are spare.
+
+## Feet on the lid
+
+Four pads, 10 mm across and **1.6 mm proud**, near the corners of the lid.
+
+The lid is the back of the device, and the logo stands 0.8 mm proud of it. So
+without feet the device lies on a 70 mm speech bubble and nothing else: it
+rocks on a table, and the embossing is the first thing to wear through. The
+feet clear the logo by 0.8 mm and stand on 81 % of the case width, which is
+enough that pressing a corner key does not tip it.
+
+They sit on the same face as the logo, so in the lid's print orientation
+(inside on the bed, logo up) they are pure upward geometry — no support, no
+second setup. They do make the lid 4.6 mm tall on the bed instead of 3.8.
+
+Bare PLA slides on a table. A self-adhesive rubber disc on each pad fixes that
+and costs nothing; the pads are flat and 10 mm across so a standard 10 mm
+bumper lands on them exactly.
 
 ## Assembly
 
@@ -173,11 +240,14 @@ one beneath it.
    chamfer, the key cutouts 0.8 mm; if a string is still hanging, remove it.
 
 2. **Speaker into the tub.** From the inside against the front plate, into the
-   four guide ribs. Four M2.5 through the front plate, the countersink is
-   provided from the outside. **First put a strip of sealing tape or foam
-   between the driver rim and the front plate** — otherwise air whistles around
-   the driver and the closed volume is not one. Lead the wires out to the right
-   through the passage in the chamber wall.
+   four guide ribs — they locate it, nothing is screwed. **First put a strip of
+   sealing tape or foam between the driver rim and the front plate** —
+   otherwise air whistles around the driver and the closed volume is not one.
+   Then cut a block of **open-cell** foam to roughly 40 × 40 × 8 mm and lay it
+   in behind the magnet: 6.7 mm of chamber depth are free there, so it goes in
+   with a little compression. That block is what holds the driver — the lid
+   presses on it in step 10. Lead the wires out to the right through the
+   passage in the chamber wall.
 
 3. **Seal the chamber passage.** The cable passage is deliberately generous
    (7 × 5 mm). After threading, close it with hot glue — that is the only
@@ -210,7 +280,9 @@ one beneath it.
    Feather. The battery is **not** glued — it is the part the case can be
    opened for. Do not lay cables under the battery.
 
-10. **Lid on, tighten six M3.** Crosswise and hand tight only.
+10. **Lid on, tighten six M3.** Crosswise and hand tight only. Going down, the
+    lid meets the foam block behind the driver first — that resistance is
+    expected, it is what clamps the speaker.
 
 ## Measure first
 
@@ -267,7 +339,8 @@ after all.
 | `usb_overhang` | 1.50 mm | how far does the socket protrude past the board edge? |
 | `usb_centre_above_pcb` | 1.60 mm | height of the socket centre above the board |
 | `amp_b`, `amp_h` | 19.4 × 17.8 | dimensions of the MAX98357A breakout |
-| `spk_hole_diagonal` | 46.20 mm | bolt circle of the speaker |
+| `spk_hole_diagonal` | 46.20 mm | bolt circle of the speaker — only matters with `spk_front_screws = true` |
+| `spk_depth` | 25.30 mm | sets how much foam fits behind the driver (6.7 mm at this figure) |
 
 After measuring, run
 

@@ -159,6 +159,16 @@ def compute(p, bed_x, bed_y):
              '>=', 12, note='two keys hit at once')
     b.check(g, 'set key to the block of four',
              G('blk_mx1') - G('set_mx') - G('sk_cap_b'), '>=', 20)
+    # The four speech keys have to read as one group. Two things do that:
+    # the same air on all four sides inside the block, and a clearly bigger
+    # step out to the set key. Neither is a strength - both are legibility,
+    # and for a child who cannot read they are what the layout says.
+    b.check(g, 'block of four is square (across = up)',
+             abs((G('pitch_x') - G('sk_cap_b')) - (G('pitch_y') - G('sk_cap_h'))),
+             '<=', 0.01, note='reads as two rows, not as one block')
+    b.check(g, 'step out to the set key against the air inside',
+             G('gap_set_block') / G('gap_block'), '>=', 1.3, unit='x',
+             note='the five keys read as one row of five')
     # Gap around the cap: wide enough not to jam, too narrow for a finger
     b.check(g, 'clearance around the cap (must not jam)', G('gap_cap'),
              '>=', 0.4)
@@ -216,9 +226,9 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'board gap vertical',
              G('pitch_y') - G('sk_board_h'), '>', 2)
     b.check(g, 'pitch matches the cap gap (x)',
-             G('pitch_x'), '==', G('sk_cap_b') + 15.0)
+             G('pitch_x'), '==', G('sk_cap_b') + G('gap_block'))
     b.check(g, 'pitch matches the cap gap (y)',
-             G('pitch_y'), '==', G('sk_cap_h') + 20.0)
+             G('pitch_y'), '==', G('sk_cap_h') + G('gap_block'))
 
     dmin = min(max(abs(dp[0] - sp[0]) - G('sk_board_b') / 2,
                    abs(dp[1] - sp[1]) - G('sk_board_h') / 2) - G('boss_d') / 2
@@ -348,6 +358,22 @@ def compute(p, bed_x, bed_y):
              G('spk_depth') + 0.5)
     b.check(g, 'clearance between driver and chamber wall', G('chamber_clearance'),
              '>=', 1.0)
+    # How the driver is held. Without front screws the lid does it, through a
+    # block of foam - so the space behind the driver stops being spare room
+    # and becomes a dimension.
+    if G('spk_front_screws'):
+        b.info(g, 'driver fixing', '4 x M2.5 through the front, '
+               'heads visible, nut inside the chamber')
+        b.check(g, 'countersink stays inside the front plate',
+                 (G('csink_d') - G('spk_screw_d')) / 2, '<=', G('front_d') - 0.6,
+                 note='the countersink breaks through')
+    else:
+        b.info(g, 'driver fixing', 'foam behind the driver, the lid clamps it')
+        b.check(g, 'room behind the driver for the clamping foam',
+                 kam_t - G('spk_depth'), '>=', 4.0,
+                 note='nothing left to compress')
+        b.check(g, 'front plate has no screw holes into the chamber',
+                 0.0, '==', 0.0, unit='pcs')
     b.check(g, 'sound outlet covers the cone',
              G('grille_field_d'), '>=', G('spk_cone_d'))
     b.check(g, "grille hole too large for a child finger",
@@ -356,6 +382,42 @@ def compute(p, bed_x, bed_y):
     steg = G('grille_pitch') - G('grille_hole_d')
     b.check(g, 'web between the grille holes', steg, '>=', 1.2,
              note='bricht heraus')
+    # A hole small enough to keep a pencil out only helps while enough of them
+    # remain. So count the holes the way spk_grille() places them - hex grid,
+    # and only holes that fit inside the field COMPLETELY - and hold the open
+    # area over the cone against it. Below about 25 % the driver is choked and
+    # the voice goes nasal; a slit grille in a shop product manages 30 to 40 %.
+    pitch, hole = G('grille_pitch'), G('grille_hole_d')
+    r_max = G('grille_field_d') / 2 - hole / 2
+    n = int(math.ceil(G('grille_field_d') / pitch)) + 1
+    loecher = [(i * pitch + (abs(j) % 2) * pitch / 2, j * pitch * 0.866)
+               for i in range(-n, n + 1) for j in range(-n, n + 1)]
+    loecher = [q for q in loecher if math.hypot(*q) <= r_max + 1e-9]
+    offen = len(loecher) * math.pi * (hole / 2) ** 2
+    # Not hole area against cone area - part of the outermost ring sits past
+    # the cone rim and does not count. So sample the cone disc and ask, point
+    # by point, whether a hole stands over it.
+    r_kegel, r_loch, schritt = G('spk_cone_d') / 2, hole / 2, 0.15
+    innen = frei = 0
+    y = -r_kegel
+    while y <= r_kegel:
+        x = -r_kegel
+        while x <= r_kegel:
+            if math.hypot(x, y) <= r_kegel:
+                innen += 1
+                if any(math.hypot(x - q[0], y - q[1]) <= r_loch for q in loecher):
+                    frei += 1
+            x += schritt
+        y += schritt
+    b.info(g, 'grille', '%d whole holes of %.1f mm, %.0f mm2 open in total'
+           % (len(loecher), hole, offen))
+    b.check(g, 'open area over the cone', 100.0 * frei / innen, '>=', 25.0,
+             unit='%', note='the driver is choked')
+    # The rim of the field must not carry any part-holes: those come out as
+    # slivers a fraction of a millimetre wide and tear off the print bed.
+    ganz = min((r_max - math.hypot(*q)) for q in loecher)
+    b.check(g, 'no part-holes at the rim of the field', ganz, '>=', 0.0,
+             note='the slivers tear off the bed')
 
     # --- 8. Gehaeuse, Druck ----------------------------------------------
     g = '8. Printing - simple FDM, one colour, no supports'
@@ -406,8 +468,9 @@ def compute(p, bed_x, bed_y):
            % G('outer_t'))
     b.info(g, 'build height carrier', '%.1f mm' % (G('carrier_d') + G('battery_d')
                                                + 0.2))
+    lid_auf = max(G('logo_lid_h'), G('feet_h') if G('feet_on') else 0.0)
     b.info(g, 'build height lid', '%.1f mm (Innenseite unten, Logo oben)'
-           % (G('lid_d') + G('logo_lid_h')))
+           % (G('lid_d') + lid_auf))
 
     # --- 9. Oeffnen und Schliessen ---------------------------------------
     g = '9. Opening it - battery and prototype'
@@ -442,6 +505,38 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'centre of gravity off centre, vertical',
              abs(sp_y - env_h / 2), '<=', 8.0,
              note='kopflastig')
+
+    # The lid is the back of the device. Whatever stands proudest of it is what
+    # the device rests on - and until there were feet, that was the logo.
+    if not G('feet_on'):
+        b.check(g, 'the device rests on its feet, not on the logo',
+                 0.0, '>=', 1.0, unit='pcs',
+                 note='it rocks on the speech bubble and wears it through')
+    else:
+        b.check(g, 'feet stand clear of the logo',
+                 G('feet_h') - G('logo_lid_h'), '>=', 0.4,
+                 note='it goes on rocking on the bubble')
+        naechste = min(math.hypot(abs(dp[0] - env_b / 2) - G('feet_x'),
+                                  abs(dp[1] - env_h / 2) - G('feet_y'))
+                       for dp in boss_pos)
+        b.check(g, 'foot clear of the nearest countersink',
+                 naechste - G('feet_d') / 2 - G('csink_d') / 2, '>=', 1.0,
+                 note='the screw no longer sits flush')
+        db = G('outer_b') - 2 * G('lip') - G('lid_play')
+        dh = G('outer_h') - 2 * G('lip') - G('lid_play')
+        b.check(g, 'foot stays on the flat of the lid (X)',
+                 G('feet_x') + G('feet_d') / 2,
+                 '<=', db / 2 - G('chamfer_lid'), note='sits on the chamfer')
+        b.check(g, 'foot stays on the flat of the lid (Y)',
+                 G('feet_y') + G('feet_d') / 2,
+                 '<=', dh / 2 - G('chamfer_lid'), note='sits on the chamfer')
+        # A narrow stance rocks even with feet on it.
+        b.check(g, 'stance width against the case', 200.0 * G('feet_x') / db,
+                 '>=', 60.0, unit='%', note='it rocks even on its feet')
+        b.check(g, 'stance depth against the case', 200.0 * G('feet_y') / dh,
+                 '>=', 60.0, unit='%', note='it rocks even on its feet')
+        b.info(g, 'device standing on its feet', '%.1f mm tall'
+               % (G('outer_t') + G('feet_h')))
     return b
 
 

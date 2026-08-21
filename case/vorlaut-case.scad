@@ -18,7 +18,7 @@
 //  it. Nothing else.
 //
 //  Coordinates: origin = lower left corner of the component rectangle
-//  (117.12 x 80.59 mm), seen from the front, y points up. z = 0 is the
+//  (127.12 x 80.59 mm), seen from the front, y points up. z = 0 is the
 //  OUTSIDE of the front plate, +z points backwards. All three parts are
 //  printed in that orientation too.
 // =====================================================================
@@ -73,6 +73,21 @@ spk_cone_d        = 32.70;  // [M]
 spk_hole_diagonal   = 46.20;  // [M] diagonal across the four mounting holes
 spk_hole_a           = spk_hole_diagonal / sqrt(2);  // [G] = 32.67 mm edge dimension
 spk_screw_d       =  2.90;  // [A] clearance hole for M2.5
+// Does the driver get bolted through the front plate? Four countersunk heads
+// are then visible on the face, the front plate carries four 2.9 mm holes
+// straight into the sealed chamber, and because the plate holds no thread
+// every screw needs a nut INSIDE that chamber - a chamber that can only be
+// reopened by taking the driver out again.
+// Off instead: the four guide ribs locate the driver, sealing foam goes in
+// front of its rim, a block of open-cell foam fills the space behind it, and
+// the lid clamps the lot when its six M3 are pulled down. That is the same job
+// the four screws were doing - pressing the rim onto the seal - only without
+// visible hardware and without a loose nut in a closed volume. It also drops
+// the question of whether the driver's own frame holes carry a thread, which
+// nobody can answer until the part is unpacked.
+// One word turns them back on if the driver rattles. Open-cell foam only:
+// that is stuffing, closed-cell would eat real volume out of the box.
+spk_front_screws  = false;  // [K]
 
 /* --- Adafruit ESP32-S3 Feather --- */
 feather_l           = 50.80;  // [R] 2,0"
@@ -105,9 +120,16 @@ amp_d               =  3.00;  // [R] ohne Stiftleiste
    2.  ANORDNUNG DER BEDIENTEILE  (festgelegt, siehe docs/hardware.md)
    ===================================================================== */
 
-pitch_x            = 37.00;  // [M] Mittenabstand der Sprechtasten waagerecht
-pitch_y            = 45.30;  // [M] Mittenabstand senkrecht
-gap_set_block     = 25.00;  // [M] set key cap to the nearest speech cap
+// The four speech keys are ONE group, the set key is not part of it. What
+// makes that legible is not a single spacing but the RATIO between two: inside
+// the block the air is gap_block, from the block to the set key it is 1.5
+// times as much. Both pitches come from the same number, so the block has
+// equal air on all four sides and reads as a square. Before, it was 15 mm
+// across and 20 mm up - four keys that read as two rows, not as one block.
+gap_block     = 20.00;  // [K] air between two speech caps, both directions
+gap_set_block = 1.5 * gap_block;      // [G] 30.0  set cap to the nearest speech cap
+pitch_x       = sk_cap_b + gap_block; // [G] 42.0  centre spacing across
+pitch_y       = sk_cap_h + gap_block; // [G] 45.3  centre spacing up
 gap_spk_set        =  5.00;  // [M] Lautsprecher bis Set-Platine
 
 /* --- daraus folgt das Bauteil-Rechteck --- */
@@ -115,14 +137,14 @@ env_h  = spk_frame + gap_spk_set + sk_board_h;             // [G] 80,59
 // The set board sits sideways centred under the speaker
 set_mx = spk_frame/2;                                          // [G] 20,15
 set_my = sk_board_h/2;                                       // [G] 17,645
-// Left column of the block of four: 25 mm cap gap to the set cap. A sideways
-// cap offset cancels out, because ALL caps are offset the same way - the
-// distance stays as it is.
-blk_mx1 = set_mx + sk_cap_b + gap_set_block;                // [G] 67,15
-blk_mx2 = blk_mx1 + pitch_x;                                  // [G] 104,15
+// Left column of the block of four: gap_set_block of cap gap to the set cap.
+// A sideways cap offset cancels out, because ALL caps are offset the same way
+// - the distance stays as it is.
+blk_mx1 = set_mx + sk_cap_b + gap_set_block;                // [G] 72,15
+blk_mx2 = blk_mx1 + pitch_x;                                  // [G] 114,15
 blk_my1 = sk_board_h/2;                                      // [G] 17.645  (flush at the bottom)
 blk_my2 = blk_my1 + pitch_y;                                  // [G] 62,945
-env_b   = blk_mx2 + sk_board_b/2;                            // [G] 117,12
+env_b   = blk_mx2 + sk_board_b/2;                            // [G] 127,12
 
 // Lautsprecher oben links
 spk_mx = spk_frame/2;                                           // [G] 20,15
@@ -202,9 +224,9 @@ inner_z_h       = carrier_z_top + stack_max + part_clearance;  // [G] 34,40
 outer_t        = inner_z_h + lid_d;                     // [G] 37,40 Gesamttiefe
 
 /* --- Outer dimensions --- */
-inner_b  = env_b + 2*inner_margin;      // [G] 131,12
+inner_b  = env_b + 2*inner_margin;      // [G] 141,12
 inner_h  = env_h + 2*inner_margin;      // [G]  94,59
-outer_b = inner_b + 2*wall;          // [G] 135,92
+outer_b = inner_b + 2*wall;          // [G] 145,92
 outer_h = inner_h + 2*wall;          // [G]  99,39
 centre_x  = env_b/2;                   // [G]
 centre_y  = env_h/2;                   // [G]
@@ -237,8 +259,14 @@ chamber_x     = spk_frame + chamber_clearance;              // [G] 42.30 inner f
 chamber_y     = env_h - spk_frame - chamber_clearance - 1.0;// [G] 37.29 inner face at the bottom
                                                       //     (1,0 mm extra Abstand
                                                       //      zur Set-Platine)
-grille_hole_d = 4.00;  // [K] sound outlet: holes, no child can get in
-grille_pitch = 6.00;  // [K]
+// Sound outlet. Three things pull against each other here: open enough that
+// the driver is not choked, fine enough that nothing gets poked through onto
+// the cone, and printable. 3.0 mm at a 4.6 mm pitch leaves 1.6 mm of web
+// (4 passes with a 0.4 nozzle) and 31 % open area over the cone - far
+// more than a voice needs. The earlier 4.0 mm let a child's pencil reach the
+// cone, and the cone is the one part of this device that cannot be repaired.
+grille_hole_d = 3.00;  // [K] sound outlet: holes, no child can get in
+grille_pitch = 4.60;  // [K]
 grille_field_d = 34.50; // [K] slightly larger than the cone
 
 /* --- Positions inside (bottom left corner of the components) --- */
@@ -249,7 +277,9 @@ grille_field_d = 34.50; // [K] slightly larger than the cone
 // speaker (top left); vertically it sits as low as the lower middle boss
 // allows — its retaining ribs must not touch the boss. Result: centre of
 // gravity practically at the middle of the case, see the echo in section 4.
-battery_x    =  52.00;  // [K]
+battery_x    =  61.00;  // [K] follows the wider block of four - the battery
+                     //     is the counterweight to the speaker, and 9 mm of
+                     //     case width has to be balanced out again
 battery_y    =   2.50;  // [K]
 
 // Feather: board edge flush against the left inner wall, so the USB-C socket
@@ -289,15 +319,28 @@ peg_h     = carrier_d - 0.40;  // [G] ends just below the carrier top side,
                                   //     so nothing presses on the battery
 // Positions: in the gaps between the boards, that is where there is room.
 support_pos = [
-  [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 85,65 / 17,645
-  [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 85,65 / 40,295
-  [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 85,65 / 62,945
+  [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 93,15 / 17,645
+  [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 93,15 / 40,295
+  [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 93,15 / 62,945
   // In the gap between the set board and the block of four. Do not put it
   // higher: at y = 8 the peg hole in the carrier sat 0.73 mm under one of the
   // Feather's standoffs, and the standoff would have started printing over
   // the edge of the hole.
-  [ (set_mx + blk_mx1)/2, 4.0 ]                        // 43,65 / 4
+  [ (set_mx + blk_mx1)/2, 4.0 ]                        // 46,15 / 4
 ];
+
+/* --- Feet on the lid --- */
+// The lid is the BACK of the device, and the logo stands 0.8 mm proud of it.
+// Without feet the thing lies on its speech bubble and nothing else: it rocks,
+// and the logo is the first thing to wear through. Four pads, taller than the
+// logo, on the SAME face - so they print upward in the lid's print orientation
+// (inside on the bed, logo up) and need no support.
+feet_on      = true;    // [K]
+feet_d       = 10.00;   // [K]
+feet_h       =  1.60;   // [K] 8 layers - leaves 0.8 mm of air under the logo
+feet_x       = 58.00;   // [K] from the lid centre. Clear of the corner screws
+feet_y       = 38.00;   // [K] and clear of the logo - checked in section 4.
+feet_chamfer =  0.40;   // [K] broken edge, so the pad does not peel
 
 /* --- Logo --- */
 // Speech bubble with two eyes and a smile, rebuilt from assets/icon.svg
@@ -316,9 +359,9 @@ logo_side_h    =  0.60;  // [K]
    ===================================================================== */
 
 /* --- Cap spacing in the plane --- */
-gap_cap_x = pitch_x - sk_cap_b;      // soll 15,0
+gap_cap_x = pitch_x - sk_cap_b;      // soll 20,0
 gap_cap_y = pitch_y - sk_cap_h;      // soll 20,0
-gap_pcb_x   = pitch_x - sk_board_b;    // soll 11,06 > 0
+gap_pcb_x   = pitch_x - sk_board_b;    // soll 16,06 > 0
 gap_pcb_y   = pitch_y - sk_board_h;    // should be 10.01 > 0
 
 assert(gap_cap_x > 8,
@@ -327,6 +370,18 @@ assert(gap_cap_y > 8,
   "Speech keys sit too close vertically.");
 assert(gap_pcb_x > 2 && gap_pcb_y > 2,
   "The ScreenKey boards touch each other. Widen the grid.");
+// The block only reads as a block while the air inside it is the same in both
+// directions. Whoever changes one pitch without the other gets told here.
+assert(abs(gap_cap_x - gap_cap_y) < 0.01,
+  str("The block of four is not square: ", gap_cap_x, " mm across, ",
+      gap_cap_y, " mm up. Both pitches come from gap_block - do not set them ",
+      "by hand."));
+// ... and while the step out to the set key is clearly bigger than the air
+// inside the block. Below about 1.3x the five keys read as one field.
+assert(gap_set_block >= 1.3 * gap_block,
+  str("Set key too close to the block: ", gap_set_block, " mm against ",
+      gap_block, " mm inside the block. The five keys then read as one row ",
+      "of five instead of one plus a group of four."));
 
 /* --- Cap clearance against the ScreenKey bosses ---------------------
    This is the most delicate place in the whole design.
@@ -450,6 +505,19 @@ boss_spacing_min = min([ for (p = boss_pos)
 assert(boss_spacing_min > 0,
   str("A lid boss touches a ScreenKey board (", boss_spacing_min, " mm)."));
 
+/* --- Feet clear of the screws, and taller than the logo --- */
+// A foot no taller than the logo does nothing at all, and one that grows into
+// a countersink stops the screw sitting flush.
+feet_to_screw = min([ for (p = boss_pos)
+                      norm([abs(p[0] - centre_x) - feet_x,
+                            abs(p[1] - centre_y) - feet_y]) ])
+                - feet_d/2 - csink_d/2;
+assert(!feet_on || feet_h > logo_lid_h + 0.3,
+  str("The feet (", feet_h, " mm) do not stand clear of the logo (",
+      logo_lid_h, " mm) - the device would go on rocking on the bubble."));
+assert(!feet_on || feet_to_screw > 0,
+  str("A lid foot runs into a countersink (", feet_to_screw, " mm)."));
+
 /* --- Centre of gravity in the plane (battery + speaker, the two lumps) --- */
 m_battery = 52;   // [M] g
 m_spk   = 35;   // [A] g, estimated
@@ -480,6 +548,12 @@ if (bosses_per_key < 4)
   echo(str("!! CAREFUL: only ", bosses_per_key, " bosses per ScreenKey. The ",
            "board then hangs off ONE edge and can wobble. Check whether ",
            "sk_hole_margin is really right before printing."));
+echo(str("speaker fixing      : ", spk_front_screws ?
+         "4 x M2.5 through the front, heads visible, nut in the chamber" :
+         "none - foam behind the driver, the lid clamps it"));
+echo(str("lid feet            : ", feet_on ?
+         str(feet_h, " mm proud, ", feet_h - logo_lid_h, " mm clear of the logo")
+         : "none - the device rests on its logo"));
 echo(str("screws              : ", threaded_insert ? "M3 threaded inserts" :
          "M3 self-tapping", ", boss ", boss_d, " mm, pilot hole ", boss_core));
 echo(str("wall ", wall, " mm = ", wall/0.4, " passes with a 0.4 nozzle"));
@@ -652,20 +726,26 @@ module sk_dome_core() {
 }
 
 /* --- Lautsprecher: Gitter, Schrauben, Positionierrippen --- */
+// Only WHOLE holes. The first draft cut the hex field with a cylinder
+// (intersection), and at the rim that left crescent-shaped slivers a fraction
+// of a millimetre wide: ugly, and at the front face - the face that lies on
+// the print bed - the thin ones tear off and stay on the sheet. Keeping a hole
+// only when it fits inside the field completely costs three or four holes and
+// gives a clean, even grille.
 module spk_grille() {
   n = ceil(grille_field_d / grille_pitch) + 1;
+  r_max = grille_field_d/2 - grille_hole_d/2;
   translate([spk_mx, spk_my, -1])
-    intersection() {
-      cylinder(d = grille_field_d, h = front_d + 2);
-      union() for (i = [-n:n], j = [-n:n]) {
-        x = i * grille_pitch + (abs(j) % 2) * grille_pitch/2;
-        y = j * grille_pitch * 0.866;
+    for (i = [-n:n], j = [-n:n]) {
+      x = i * grille_pitch + (abs(j) % 2) * grille_pitch/2;
+      y = j * grille_pitch * 0.866;
+      if (sqrt(x*x + y*y) <= r_max)
         translate([x, y, 0]) cylinder(d = grille_hole_d, h = front_d + 2);
-      }
     }
 }
 
 module spk_schrauben() {
+  if (spk_front_screws)
   for (sx = [-1,1], sy = [-1,1])
     translate([spk_mx + sx*spk_hole_a/2, spk_my + sy*spk_hole_a/2, 0]) {
       translate([0,0,-1]) cylinder(d = spk_screw_d, h = front_d + 2);
@@ -867,6 +947,17 @@ module carrier() {
    and succeeds even on a tired printer.
    ===================================================================== */
 
+// Four pads on the outside of the lid, chamfered at the top edge.
+module lid_feet() {
+  if (feet_on)
+    for (sx = [-1,1], sy = [-1,1])
+      translate([sx*feet_x, sy*feet_y, lid_d]) {
+        cylinder(d = feet_d, h = feet_h - feet_chamfer);
+        translate([0, 0, feet_h - feet_chamfer])
+          cylinder(d1 = feet_d, d2 = feet_d - 2*feet_chamfer, h = feet_chamfer);
+      }
+}
+
 module lid() {
   db = outer_b - 2*lip - lid_play;
   dh = outer_h - 2*lip - lid_play;
@@ -874,6 +965,7 @@ module lid() {
     union() {
       rprism_chamfer_o(db, dh, corner_r - lip, lid_d, chamfer_lid);
       translate([0, 0, lid_d]) logo_3d(logo_lid_b, logo_lid_h);
+      lid_feet();
     }
     for (p = boss_pos) translate([p[0] - centre_x, p[1] - centre_y, 0]) {
       translate([0,0,-1]) cylinder(d = boss_core + 0.9, h = lid_d + 2);

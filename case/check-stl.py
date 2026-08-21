@@ -139,8 +139,11 @@ def main():
                G('outer_b') - 2 * G('lip') - G('lid_play'))
         L.measure('lid height', b[4] - b[1],
                G('outer_h') - 2 * G('lip') - G('lid_play'))
+        # Whichever stands proudest of the lid sets its build height - the
+        # logo, or the feet if there are any.
         L.measure('lid build height', b[5] - b[2],
-               G('lid_d') + G('logo_lid_h'))
+               G('lid_d') + max(G('logo_lid_h'),
+                                G('feet_h') if G('feet_on') else 0.0))
 
     if 'tub' in parts:
         w = parts['tub']

@@ -94,12 +94,12 @@ Measured parts: ScreenKey board 25.94 x 35.29 mm, key cap 22.00 x 25.30 mm with
 
 | | Dimension |
 |---|---|
-| Grid of the four speech keys | 37.0 x 45.3 mm |
-| Gap between the caps | 15 mm sideways, 20 mm between the rows |
-| Distance set key to the block of four | 25 mm |
+| Grid of the four speech keys | 42.0 x 45.3 mm |
+| Gap between the caps | 20 mm, the same on all four sides |
+| Distance set key to the block of four | 30 mm = 1.5 x the gap inside the block |
 | Gap speaker to set key | 5 mm |
-| Components in total | 117 x 81 mm |
-| Case outside | roughly 131 x 95 x 36 mm |
+| Components in total | 127 x 81 mm |
+| Case outside | 145.9 x 99.4 x 37.4 mm, 39.0 mm standing on its feet |
 
 Arrangement: speaker top left, the set key below it, the four speech keys to
 the right as a 2x2 block. The set key and the lower key row finish flush at the
