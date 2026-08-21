@@ -749,6 +749,7 @@ module spk_screws() {
     translate([spk_mx + sx*spk_hole_a/2, spk_my + sy*spk_hole_a/2, 0]) {
       translate([0,0,-1]) cylinder(d = spk_screw_d, h = front_d + 2);
       // Countersink from the front: wide at the face, narrower towards the
+      // back - printable that way round.
       translate([0,0,-0.01]) cylinder(d1 = csink_d, d2 = spk_screw_d,
                                       h = (csink_d - spk_screw_d)/2 + 0.01);
     }
