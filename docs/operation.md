@@ -48,10 +48,10 @@ which is built for amd64 and arm64 on every change to `Dockerfile` or
 ghcr.io/steffipetaffy/vorlaut:latest
 ```
 
-The first start fetches it, which takes a few minutes; every one after that has
-it already. On a NAS with ARM that is where the several minutes of building
-used to go, and this is the whole reason the published image is built for two
-architectures.
+The first start fetches it, which takes a few minutes — it is about a
+gigabyte; every one after that has it already. On a NAS with ARM that is
+where the several minutes of building used to go, and this is the whole
+reason the published image is built for two architectures.
 
 ### Building the image yourself
 
@@ -80,9 +80,18 @@ called `docker-compose.override.yml` — Compose reads a file of that name
 without being asked, so building would quietly be the default again for anybody
 who has it lying around.
 
-The image brings only Python, ffmpeg and Pillow. The project directory itself
-is passed in — `content/layout.json`, `content/symbols/` and `content/cache/`
-therefore stay on the NAS and are covered by its backup.
+The image brings the runtime — Python, ffmpeg, Pillow — and the four piper
+voices along with it, so a fresh container speaks the moment it starts, without
+an Azure key and without fetching anything. The voices are most of the size.
+
+They sit at `/voices`, outside the mounted project folder, because the mount
+replaces `/app` wholesale and anything baked in underneath it would be gone the
+moment the container runs. A fifth voice still belongs in `content/voices/` on
+the NAS, where the backup covers it — that one needs no new image.
+
+The project directory itself is passed in — `content/layout.json`,
+`content/symbols/` and `content/cache/` therefore stay on the NAS and are
+covered by its backup.
 
 Verified: Azure speech, ffmpeg (7.1.5 in the image), ARASAAC search and
 `build.py` all run inside the container.
