@@ -12,6 +12,9 @@ content/
 firmware/vorlaut/build/
 # the same for the test stages
 firmware/tests/*/build/
+# where --output-dir collects the finished images, as CI and the release do.
+# An 8 MB merged.bin is easy to commit by accident and hard to get back out.
+build/
 
 # What the firmware gets is recreated from content/ in seconds
 firmware/vorlaut/data/

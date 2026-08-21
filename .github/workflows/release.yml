@@ -25,6 +25,32 @@ jobs:
       # Stelle, siehe .github/actions/firmware.
       - uses: ./.github/actions/firmware
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A device flashed from a release should speak, not show "keine Inhalte"
+      # on all five displays. So the example content goes into the image: the
+      # same content a fresh install copies into content/, built the same way
+      # build.py builds it on a laptop, written into the spiffs partition.
+      #
+      # No Azure key here and none needed - the four example sentences are
+      # already spoken and lie in example/speech/, so the build finds them in
+      # the cache instead of rendering them. --require-audio is what keeps
+      # that honest: if they ever stop matching, the release stops rather than
+      # shipping an image with four silent keys.
+      #
+      # VORLAUT_CONTENT into the runner's temp folder, not into the checkout:
+      # this way ensure_content() really does its first-run copy, which is the
+      # thing being shipped, and nothing lands next to the sources.
+      - name: Example content into the image
+        env:
+          VORLAUT_CONTENT: ${{ runner.temp }}/content
+        run: |
+          pip install -r requirements.txt
+          python build.py --require-audio \
+            --merge-into build/vorlaut/vorlaut.ino.merged.bin
+
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,7 +74,8 @@ jobs:
 
           All you need is \`esptool\`, no Arduino core and no libraries.
           \`vorlaut.ino.merged.bin\` contains the bootloader, the partition
-          table and the program, and is written at address 0:
+          table, the program **and** the example content, and is written at
+          address 0:
 
           \`\`\`bash
           esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\
@@ -59,10 +86,23 @@ jobs:
           it cannot find the board: hold **BOOT**, tap **RESET**, release
           **BOOT**.
 
-          That is the program only. Pictures and sounds are personal and are
-          not in the repo - they are produced by \`build.py --fs-image\` from
-          your own content and written separately, see
-          [docs/firmware.md](${docs}/docs/firmware.md).
+          After that the device talks: one set with **Ja!**, **Nein!**,
+          **Stopp** and **Hilf mir**, the same example that \`content/\` starts
+          out with. That is there so the first flash can be checked without
+          preparing anything - your own words and pictures are personal and are
+          not in the repo. They are produced by \`build.py --fs-image\` from
+          your own content and written separately, or fetched by the device
+          over Wi-Fi. See [docs/firmware.md](${docs}/docs/firmware.md).
+
+          > **This image is 8 MB and covers the whole flash.** It replaces
+          > whatever content is on the device with the example. To update the
+          > program of a device that already carries your content, write the
+          > app on its own instead:
+          >
+          > \`\`\`bash
+          > esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\
+          >   write-flash 0x10000 vorlaut.ino.bin
+          > \`\`\`
 
           ## Built from
 

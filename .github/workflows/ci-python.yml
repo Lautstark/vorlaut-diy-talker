@@ -76,10 +76,20 @@ jobs:
         # otherwise only show once a device is standing on the table.
         run: python tests/test_texts.py
 
+      - name: The example sentences still match their file names
+        # example/speech/ is found by fingerprint, and the fingerprint holds
+        # the voice configuration. Change the voice and the files stop
+        # matching - silently, with four silent keys as the result.
+        run: python tests/test_example_speech.py
+
       - name: Build with the example content
-        # Without an Azure key: images and layout are produced, audio is
-        # not. Checks that content/ fills itself from example/ and runs through.
+        # Without an Azure key, and with sound all the same: the four example
+        # sentences are already spoken and go into the cache, so this is the
+        # same path a fresh clone takes on somebody's laptop. --require-audio
+        # turns a silent key from a warning into a failure, which is the whole
+        # point of the step.
         run: |
-          python build.py --no-audio
+          python build.py --require-audio
           test -f firmware/vorlaut/data/layout.bin
           test -f content/layout.json
+          test "$(ls firmware/vorlaut/data/a*.wav | wc -l)" -eq 4

@@ -46,11 +46,12 @@ python3 doctor.py
 
 Then open [localhost:8771](http://localhost:8771). On the first start
 `content/` fills itself from `example/`, so a set with four keys is there
-right away.
+right away — spoken ones: the four example sentences come along as finished
+recordings, so the example can be built and flashed before any key is set up.
 
 `ffmpeg` is needed as well (`brew install ffmpeg` or `apt install ffmpeg`).
 
-For the speech output you need an **Azure Speech key** of your own — a free
+For speech of your own you need an **Azure Speech key** — a free
 account is enough, the F0 tier includes 0.5 million characters a month. Key
 and region go into `.env`, the template is `.env.example`. Voice and speaking
 rate can be set there too; `.venv/bin/python tts.py --voices` shows what is on
@@ -113,3 +114,10 @@ The pictograms in `example/symbols/` are not covered by it: they come from
 **CC BY-NC-SA**. The same holds for every symbol loaded through the search in
 the web interface. Details in
 [`example/symbols/LIZENZ.md`](example/symbols/LIZENZ.md).
+
+Neither are the recordings in `example/speech/`: they were made with Azure
+Speech, which allows the generated speech to be used but does not put it under
+MIT. For your own use and for the releases out of this repository that is
+uncontroversial; passing the files on further is worth a look at the current
+Azure terms first. Details in
+[`example/speech/LIZENZ.md`](example/speech/LIZENZ.md).

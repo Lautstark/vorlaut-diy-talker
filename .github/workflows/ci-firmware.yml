@@ -39,8 +39,13 @@ jobs:
 
       # Ready-made image, so nobody has to install Arduino just to flash.
       # merged.bin contains bootloader, partition table and program and gets
-      # written at address 0. The content comes
-      # getrennt dazu.
+      # written at address 0. The content comes separately.
+      #
+      # Program only, deliberately: the release merges the example content in
+      # so that a first flash speaks (see release.yml), but this workflow runs
+      # on firmware changes alone. An image built here would carry whatever
+      # example content happened to be in the tree at the last firmware
+      # change, which is a worse promise than making none.
       #
       # Artifacts expire after 90 days and need a login. Whoever only wants
       # to flash is better off with the release for the tag - see
