@@ -49,15 +49,22 @@
 // in the menu. The device wakes on a key press and has to speak immediately;
 // bringing up a radio on every wake would cost seconds and most of the
 // battery, for something that is needed once a week at most.
+//
+// It knows several networks, not one: the talker goes to kindergarten, to the
+// grandparents, on holiday, and re-entering a password on a phone at every
+// stop is not a thing anybody does. Which of them is in the air here is
+// decided by networks.h.
 #include <Preferences.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
 #include "discover.h"
+#include "networks.h"
 #include "sync.h"
 
 // How long the setup portal stays open before the device gives up and goes
 // back to being a talker. A device stuck in a portal no longer speaks.
 static const uint32_t PORTAL_TIMEOUT_S = 180;
+static const char *PORTAL_AP_NAME = "vorlaut einrichten";
 static Preferences settings;
 
 // --- Behaviour ---------------------------------------------------------------
@@ -297,7 +304,7 @@ static void drawMenuKey(Panel *tft, const char *first, const char *second) {
 static void drawMenu() {
   drawMenuKey(display[0], text().info, nullptr);
   drawMenuKey(display[1], text().fetch1, text().fetch2);
-  drawMenuKey(display[2], nullptr, nullptr);
+  drawMenuKey(display[2], text().wifiNew1, text().wifiNew2);
   drawMenuKey(display[3], nullptr, nullptr);
   drawMenuKey(display[SET_BUTTON], text().back, nullptr);
 }
@@ -327,6 +334,7 @@ static const char *reasonFor(SyncError code) {
     case SYNC_NO_SERVER:     return text().noServer;
     case SYNC_BAD_KEY:       return text().badKey;
     case SYNC_SWITCHED_OFF:  return text().switchedOff;
+    case SYNC_NO_ANSWER:     return text().noAnswer;
     default:                 return nullptr;
   }
 }
@@ -335,37 +343,26 @@ static void fetchContent() {
   showOnAll(text().wifi, nullptr);
 
   settings.begin("vorlaut", false);
-  // Normally empty: the device finds the computer by itself, see discover.h.
-  // This is for the networks where that cannot work - a guest network that
-  // drops broadcasts, or two subnets with a router in between.
-  String fixed = settings.getString("fixed", "");
-  String token = settings.getString("token", "");
 
-  WiFiManager wm;
-  WiFiManagerParameter fixedField("server", "Computer (only if it is not found)",
-                                  fixed.c_str(), 46);
-  WiFiManagerParameter tokenField("token", "Key (VORLAUT_DEVICE_TOKEN)",
-                                  token.c_str(), 64);
-  wm.addParameter(&fixedField);
-  wm.addParameter(&tokenField);
-  wm.setConfigPortalTimeout(PORTAL_TIMEOUT_S);
-
-  if (!wm.autoConnect("vorlaut einrichten")) {
-    Serial.println("no Wi-Fi, and the portal has timed out.");
+  // Only the networks that are already stored, and never the portal. Fetching
+  // content is not setting up: on a network the device does not know - a
+  // kindergarten, a holiday flat - this comes back in a few seconds and the
+  // device goes on being a talker. Putting up a three-minute access point
+  // there instead, because somebody pressed the wrong key, is the one thing
+  // it must not do. The portal has a key of its own, see wifiSetup().
+  if (!Networks::connect(settings)) {
+    Serial.println("no network the device knows - nothing fetched.");
     showOnAll(text().failed, text().noWifi);
-    delay(3000);
+    delay(2500);
     WiFi.mode(WIFI_OFF);
     return;
   }
-  // Only write what changed - NVS has a limited number of erase cycles.
-  if (fixed != fixedField.getValue()) {
-    fixed = fixedField.getValue();
-    settings.putString("fixed", fixed);
-  }
-  if (token != tokenField.getValue()) {
-    token = tokenField.getValue();
-    settings.putString("token", token);
-  }
+
+  // Typed into the portal, if anybody ever did: for the networks where the
+  // search cannot work - a guest network that drops broadcasts, or two
+  // subnets with a router in between.
+  const String fixed = settings.getString("fixed", "");
+  const String token = settings.getString("token", "");
 
   // Where the content is: typed in beats found, and found beats remembered.
   // The search takes about a second and can come back with nothing - that is
@@ -398,6 +395,9 @@ static void fetchContent() {
   WiFi.mode(WIFI_OFF);   // straight back off, it costs power
 
   if (!status.ok) {
+    // Every one of these is a few seconds and then the menu again. Nothing
+    // here waits for a key: the device is a talker first, and somewhere out
+    // in the world the sync not happening is the normal case.
     Serial.printf("sync failed: %s\n", status.error);
     showOnAll(text().failed, reasonFor(status.code));
     delay(4000);
@@ -416,6 +416,80 @@ static void fetchContent() {
   // out whether the sync worked.
   contentReady = loadLayout();
   if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
+}
+
+// --- Setting up --------------------------------------------------------------
+//
+// The portal is where a network, the address of the computer and the key get
+// typed in - on a phone, because on a 15 mm display they cannot be. It used
+// to open by itself whenever "fetch content" found no network, and while the
+// device stood in one place that was the same thing as setting it up. A
+// talker that travels needs the two apart: this is a key of its own, and it
+// is the only thing that opens the portal.
+//
+// What is entered here does not replace what is stored. The network joins the
+// list in networks.h, so home and the grandparents' both keep working.
+
+static void wifiSetup() {
+  showOnAll(text().wifi, text().portalHint);
+
+  settings.begin("vorlaut", false);
+  // "fixed", not "host": the device finds the computer by itself and files
+  // what it found under "host". What is typed here has to survive that and
+  // beat it, so it lives apart - see fetchContent().
+  String fixed = settings.getString("fixed", "");
+  String token = settings.getString("token", "");
+
+  WiFiManager wm;
+  WiFiManagerParameter fixedField("server", "Computer (only if it is not found)",
+                                  fixed.c_str(), 46);
+  WiFiManagerParameter tokenField("token", "Key (VORLAUT_DEVICE_TOKEN)",
+                                  token.c_str(), 64);
+  wm.addParameter(&fixedField);
+  wm.addParameter(&tokenField);
+  wm.setConfigPortalTimeout(PORTAL_TIMEOUT_S);
+
+  // startConfigPortal and not autoConnect: the point of this key is to add a
+  // network while the stored ones are perfectly fine. autoConnect would
+  // connect to one of them and never show a page.
+  const bool joined = wm.startConfigPortal(PORTAL_AP_NAME);
+
+  // The fields are worth keeping even if the network did not come up - they
+  // were typed in either way. Only write what changed, NVS has a limited
+  // number of erase cycles.
+  if (fixed != fixedField.getValue()) {
+    fixed = fixedField.getValue();
+    settings.putString("fixed", fixed);
+  }
+  if (token != tokenField.getValue()) {
+    token = tokenField.getValue();
+    settings.putString("token", token);
+  }
+
+  if (!joined) {
+    Serial.println("portal closed without a network.");
+    showOnAll(text().failed, text().noWifi);
+    delay(2500);
+    WiFi.mode(WIFI_OFF);
+    return;
+  }
+
+  // While the radio is still up: on the ESP32 the password can only be read
+  // back out of the running configuration.
+  const String ssid = wm.getWiFiSSID();
+  const String joinedName = ssid.length() ? ssid : WiFi.SSID();
+  Networks::remember(settings, joinedName, wm.getWiFiPass());
+  WiFi.mode(WIFI_OFF);
+
+  StoredNetwork known[NETWORK_MAX];
+  const uint8_t n = Networks::load(settings, known);
+  Serial.printf("\"%s\" stored, %u network(s) known:\n", joinedName.c_str(), n);
+  for (uint8_t i = 0; i < n; i++) Serial.printf("  %s\n", known[i].ssid.c_str());
+
+  char count[12];
+  snprintf(count, sizeof(count), "%u", n);
+  showOnAll(text().done, count);
+  delay(2500);
 }
 
 static void drawInfo() {
@@ -704,6 +778,11 @@ void loop() {
       menuSince = millis();
     } else if (pressed == 1) {
       fetchContent();
+      waitForRelease();
+      drawMenu();
+      menuSince = millis();
+    } else if (pressed == 2) {
+      wifiSetup();
       // Whatever happened, the menu is where we came from. Both keys may
       // still be held after minutes at the portal.
       waitForRelease();

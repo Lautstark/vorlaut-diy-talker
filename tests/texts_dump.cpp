@@ -29,6 +29,9 @@ int main(void) {
     dump(i, "empty2", s.empty2);
     dump(i, "fetch1", s.fetch1);
     dump(i, "fetch2", s.fetch2);
+    dump(i, "wifiNew1", s.wifiNew1);
+    dump(i, "wifiNew2", s.wifiNew2);
+    dump(i, "portalHint", s.portalHint);
     dump(i, "wifi", s.wifi);
     dump(i, "searching", s.searching);
     dump(i, "loading", s.loading);
@@ -38,6 +41,7 @@ int main(void) {
     dump(i, "noServer", s.noServer);
     dump(i, "badKey", s.badKey);
     dump(i, "switchedOff", s.switchedOff);
+    dump(i, "noAnswer", s.noAnswer);
   }
   printf("max %d\n", MENU_MAX_CHARS);
   printf("count %u\n", (unsigned)LANGUAGE_COUNT);

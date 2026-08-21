@@ -101,6 +101,11 @@ Switch the network off for a moment: it should report the loss and keep
 trying. The setup portal runs into a time limit after three minutes and gives
 up — a talker that hangs during setup no longer speaks.
 
+This stage stores one network, which is all it needs. The real firmware keeps
+four of them, so the device connects at home and at a second place without
+anybody entering anything again — see **Several networks** in
+[firmware.md](firmware.md).
+
 ## Stage 7 — Fetching content
 
 `test7_sync` — the sync and nothing else. No displays, no sound, no sleep, so
@@ -146,10 +151,17 @@ a formality — if the four keys speak and the fifth switches sets, then the
 partition scheme, the file system, the audio path and all five displays are
 right at once. Everything the earlier stages tested separately, now together.
 
-Your own content comes afterwards: through the menu (hold the set key and key 2
-for five seconds), **Inhalte holen** does what stage 7 did, this time with the
-displays showing progress. Or over USB, `build.py --fs-image` and step 4 in
-[firmware.md](firmware.md).
+Your own content comes afterwards, and **in this order:** first **neues WLAN**
+— that is the key that opens the portal from stages 6 and 7, for the network
+and the key. Then **Inhalte holen**, which does what stage 7 did, this time
+with the displays showing progress. Or over USB, `build.py --fs-image` and step
+4 in [firmware.md](firmware.md).
+
+The two are apart on purpose. **Inhalte holen** never opens a portal: where the
+device knows no network it says `kein WLAN` and is back in the menu in a few
+seconds, rather than putting up a three-minute access point somewhere out in
+the world. Press **neues WLAN** again at the next place — the networks add up,
+they do not replace each other.
 
 **"keine Inhalte" on all five displays** means the file area is empty. That is
 correct and not a fault after flashing a program-only image — the artifact from
@@ -158,6 +170,12 @@ and then it is worth looking: **Info** in the menu says whether LittleFS is
 mounted at all. If it is not, the partition scheme is the first suspect — the
 board default creates the data area as `ffat`, and `LittleFS.begin()` wants one
 called `spiffs`.
+
+Worth trying, and the whole point of the exercise: sync at home, then take the
+device to a network where `app.py` is not running and press **Inhalte holen**
+there. It should say `nicht da` after a few seconds and then go on speaking
+normally. Nothing hangs, and everything it could say before it can still say —
+the content is on the file system.
 
 ---
 
