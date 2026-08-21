@@ -1372,8 +1372,12 @@ PAGE = r"""<!doctype html>
      reads as a list of settings. */
   dialog.sheet {
     width: min(520px, 92vw); max-height: 88vh;
-    display: flex; flex-direction: column;
   }
+  /* Only while it is open. An unqualified display here would beat the
+     browser's own dialog:not([open]) { display: none } - the sheet would then
+     sit in the page for good, below everything else, and closing it would
+     take the open attribute away without taking the sheet away. */
+  dialog.sheet[open] { display: flex; flex-direction: column; }
   dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
   /* One scrolling area for the whole sheet, rather than a scrolling list
      inside a scrolling dialog - two of them nested is a way to lose the Save

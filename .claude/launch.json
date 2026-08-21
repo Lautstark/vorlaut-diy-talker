@@ -6,7 +6,7 @@
       "runtimeExecutable": ".venv/bin/python",
       "runtimeArgs": ["app.py", "--port", "8798"],
       "port": 8798,
-      "autoPort": false,
+      "autoPort": true,
       "env": { "VORLAUT_DEVICE_TOKEN": "test-token-abcdefghijklmnop" }
     }
   ]
