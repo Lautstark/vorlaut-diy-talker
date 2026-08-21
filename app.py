@@ -842,8 +842,7 @@ PAGE = r"""<!doctype html>
     <span id="previewText"></span>
   </label>
   <select id="langPick"></select>
-  <button id="saveBtn"></button>
-  <button class="primary" id="buildBtn"></button>
+  <button class="primary" id="releaseBtn"></button>
 </header>
 
 <main>
@@ -902,7 +901,7 @@ async function api(path, options) {
 async function load() {
   const response = await api("/api/layout");
   layoutVersion = response.headers.get("X-Layout-Version");
-  markBuildState(response.headers.get("X-Build-Current"));
+  markReleaseState(response.headers.get("X-Build-Current"));
   layout = await response.json();
   if (current >= layout.sets.length) current = Math.max(0, layout.sets.length - 1);
   $("conflict").classList.remove("show");
@@ -916,14 +915,14 @@ async function load() {
 // The build button says for itself whether it is due: highlighted while
 // data/ does not match the layout, subdued otherwise. That way nobody has to
 // remember when a build is needed.
-function markBuildState(flag) {
+function markReleaseState(flag) {
   if (flag === null || flag === undefined) return;
   const needed = flag !== "1";
-  const button = $("buildBtn");
+  const button = $("releaseBtn");
   button.classList.toggle("primary", needed);
   button.title = needed
-    ? t("ui.build_needed")
-    : t("ui.build_current");
+    ? t("ui.release_needed")
+    : t("ui.release_current");
 }
 
 function saveSoon() {
@@ -984,7 +983,7 @@ async function doSave() {
       throw new Error(message);
     }
     layoutVersion = response.headers.get("X-Layout-Version");
-  markBuildState(response.headers.get("X-Build-Current"));
+  markReleaseState(response.headers.get("X-Build-Current"));
     // Do NOT replace layout with the answer here. The input fields hang off
     // exactly these objects; a fresh graph from the server would leave their
     // handlers pointing at nothing, and everything typed afterwards would be
@@ -1013,7 +1012,7 @@ async function doSave() {
 $("overwriteBtn").onclick = async () => {
   const response = await api("/api/layout");
   layoutVersion = response.headers.get("X-Layout-Version");
-  markBuildState(response.headers.get("X-Build-Current"));
+  markReleaseState(response.headers.get("X-Build-Current"));
   await response.json();
   await save();
 };
@@ -1022,11 +1021,6 @@ $("reloadBtn").onclick = () => load();
 $("previewToggle").onchange = () => {
   preview = $("previewToggle").checked;
   render();
-};
-
-$("saveBtn").onclick = async () => {
-  clearTimeout(saveTimer);
-  await save();
 };
 
 // Whoever closes the window while something is outstanding should notice.
@@ -1067,8 +1061,7 @@ function applyTexts() {
     "--pick-label", JSON.stringify(t("ui.pick_symbol")));
   $("previewLabel").title = t("ui.preview_title");
   $("previewText").textContent = t("ui.preview");
-  $("saveBtn").textContent = t("ui.save");
-  $("buildBtn").textContent = t("ui.build");
+  $("releaseBtn").textContent = t("ui.release");
   $("overwriteBtn").textContent = t("ui.keep_mine");
   $("reloadBtn").textContent = t("ui.reload");
   $("removeSet").textContent = t("ui.remove_set");
@@ -1565,22 +1558,26 @@ removeSetBtn.onclick = async () => {
   render();
 };
 
-$("buildBtn").onclick = async () => {
+$("releaseBtn").onclick = async () => {
+  // Releasing what is on screen, not what the last debounce happened to
+  // catch: save now and cancel the pending one, otherwise it fires
+  // afterwards and writes the same thing a second time.
+  clearTimeout(saveTimer);
   await save();
-  $("buildBtn").disabled = true;
-  status(t("ui.building"));
+  $("releaseBtn").disabled = true;
+  status(t("ui.releasing"));
   $("log").style.display = "block";
   $("log").textContent = t("ui.running");
   try {
     const result = await (await api("/api/build", { method: "POST" })).json();
     $("log").textContent = result.log.join("\n");
-    markBuildState("1");
-    status(t("ui.built"));
+    markReleaseState("1");
+    status(t("ui.released"));
   } catch (error) {
     $("log").textContent = t("ui.log_error", { error: error.message });
-    status(t("ui.build_failed"));
+    status(t("ui.release_failed"));
   } finally {
-    $("buildBtn").disabled = false;
+    $("releaseBtn").disabled = false;
   }
 };
 

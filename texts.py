@@ -29,11 +29,10 @@ TEXTS: dict[str, dict[str, str]] = {
                             "the display",
         "ui.language_title": "Language of this page and of the menu on the "
                              "device",
-        "ui.save": "Save",
-        "ui.build": "Build",
-        "ui.build_needed": "The device only gets the new state through "
-                           "building and uploading",
-        "ui.build_current": "The files in data/ match the layout",
+        "ui.release": "Release",
+        "ui.release_needed": "There are changes the device cannot fetch yet - "
+                             "release them to make this state available",
+        "ui.release_current": "The device can fetch this state",
 
         # --- conflict banner ------------------------------------------------
         "ui.keep_mine": "Keep my version",
@@ -109,10 +108,10 @@ TEXTS: dict[str, dict[str, str]] = {
                            "author Sergio Palao, licence CC BY-NC-SA.",
 
         # --- building -------------------------------------------------------
-        "ui.building": "building ...",
+        "ui.releasing": "releasing ...",
         "ui.running": "running ...",
-        "ui.built": "build finished",
-        "ui.build_failed": "Build failed",
+        "ui.released": "released",
+        "ui.release_failed": "Release failed",
         "ui.log_error": "Error: {error}",
 
         # --- what the server answers ----------------------------------------
@@ -207,11 +206,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.preview_title": "Zeigt zusätzlich, wie groß und wie grob es auf "
                             "dem Display ankommt",
         "ui.language_title": "Sprache dieser Seite und des Menüs auf dem Gerät",
-        "ui.save": "Speichern",
-        "ui.build": "Bauen",
-        "ui.build_needed": "Das Gerät bekommt erst durch Bauen und Aufspielen "
-                           "den neuen Stand",
-        "ui.build_current": "Die Dateien in data/ entsprechen dem Layout",
+        "ui.release": "Freigeben",
+        "ui.release_needed": "Es gibt Änderungen, die das Gerät noch nicht "
+                             "holen kann - freigeben macht diesen Stand "
+                             "verfügbar",
+        "ui.release_current": "Diesen Stand kann das Gerät holen",
 
         # --- conflict banner ------------------------------------------------
         "ui.keep_mine": "Meinen Stand behalten",
@@ -287,10 +286,10 @@ TEXTS: dict[str, dict[str, str]] = {
                            "Urheber Sergio Palao, Lizenz CC BY-NC-SA.",
 
         # --- building -------------------------------------------------------
-        "ui.building": "baut ...",
+        "ui.releasing": "gibt frei ...",
         "ui.running": "läuft ...",
-        "ui.built": "fertig gebaut",
-        "ui.build_failed": "Bauen fehlgeschlagen",
+        "ui.released": "freigegeben",
+        "ui.release_failed": "Freigeben fehlgeschlagen",
         "ui.log_error": "Fehler: {error}",
 
         # --- what the server answers ----------------------------------------
