@@ -52,16 +52,29 @@ function echtgross(symbol, colour) {
   return line;
 }
 
+// Built rather than written out as markup. The parts handed in come from
+// layout.json, and a value out of there has no business being parsed as HTML -
+// the same reason picker.js gives its captions textContent.
+function placeholder(...parts) {
+  const line = document.createElement("div");
+  line.className = "empty";
+  line.append(...parts);
+  return line;
+}
+
 function thumb(symbol, onClick) {
   const box = document.createElement("div");
   box.className = "thumb";
   if (symbol) {
     const image = document.createElement("img");
     image.src = "/symbols/" + encodeURIComponent(symbol) + "?v=" + Date.now();
-    image.onerror = () => { box.innerHTML = '<div class="empty">' + symbol + '<br>' + t("ui.symbol_missing") + '</div>'; };
+    image.onerror = () => {
+      box.replaceChildren(placeholder(symbol, document.createElement("br"),
+                                      t("ui.symbol_missing")));
+    };
     box.appendChild(image);
   } else {
-    box.innerHTML = '<div class="empty">' + t("ui.no_symbol") + '</div>';
+    box.appendChild(placeholder(t("ui.no_symbol")));
   }
   box.onclick = onClick;
   return box;
@@ -76,7 +89,13 @@ export function render() {
                   + (entry.active === false ? " off" : "");
     tab.title = entry.active === false ? t("ui.tab_off") : t("ui.tab_on");
     tab.style.borderColor = index === state.current ? entry.color : "transparent";
-    tab.innerHTML = '<span class="dot" style="background:' + entry.color + '"></span>';
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    // A property, not a composed style="..." attribute: entry.color is
+    // whatever was last typed into the hex field. The line above already
+    // does it this way.
+    dot.style.background = entry.color;
+    tab.appendChild(dot);
     tab.append(entry.name || t("ui.set_n", { n: index + 1 }));
     tab.onclick = () => { state.current = index; render(); };
 
