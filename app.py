@@ -1106,7 +1106,7 @@ PAGE = r"""<!doctype html>
        set tile, and an auto margin sent that one to the right edge too. */
     header .status { order: 1; margin-left: 0; }
     header .schalter { order: 2; margin-left: auto; }
-    header #voiceBtn { order: 3; }
+    header #gear { order: 3; }
     header #langPick { order: 4; }
     header #releaseBtn { order: 5; }
 
@@ -1206,6 +1206,38 @@ PAGE = r"""<!doctype html>
   .pairKeys .setBox input { align-self: center; }
   .pairFoot { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
+  /* Beside the name, where a setting for the whole page belongs - and small,
+     because it is not something anybody comes here to do. mitreden has the
+     same gear in the same corner. */
+  .gear {
+    font-size: 21px; line-height: 1; padding: 7px 13px; border-radius: 999px;
+    color: var(--muted); border-color: transparent; background: transparent;
+  }
+  .gear:hover, .gear:focus-visible {
+    color: var(--text); background: var(--panel-2); border-color: var(--line);
+  }
+  /* Narrower than the symbol picker: that one shows a grid of tiles, this one
+     reads as a list of settings. */
+  dialog.sheet { width: min(520px, 92vw); }
+  .sheet .section {
+    padding: 16px 16px 0; font-size: 12px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .sheet .voiceList { padding-top: 10px; max-height: 50vh; }
+  .sheetFoot {
+    display: flex; gap: 8px; padding: 0 16px 16px; justify-content: flex-end;
+  }
+  /* A cross, not the word - it sits in the corner where one reaches for it,
+     and it needs no room for a translation. The word stays as the label for
+     anything that reads the page out. */
+  .closeX {
+    font-size: 20px; line-height: 1; padding: 4px 10px; border-radius: 999px;
+    color: var(--muted); border-color: transparent; background: transparent;
+  }
+  .closeX:hover, .closeX:focus-visible {
+    color: var(--text); background: var(--panel-2); border-color: var(--line);
+  }
+
   /* The voice list. Two buttons per row on purpose: hearing a voice and
      choosing it are two different decisions, and the first should not commit
      to the second. */
@@ -1234,13 +1266,13 @@ PAGE = r"""<!doctype html>
 <header>
   <img src="/icon.svg" alt="" class="logo">
   <h1>vorlaut</h1>
+  <button id="gear" class="gear">⚙</button>
   <span class="status" id="status"></span>
   <label class="schalter" id="previewLabel">
     <input type="checkbox" id="previewToggle">
     <span class="pille"></span>
     <span id="previewText"></span>
   </label>
-  <button id="voiceBtn"></button>
   <select id="langPick"></select>
   <button class="primary" id="releaseBtn"></button>
 </header>
@@ -1282,13 +1314,18 @@ PAGE = r"""<!doctype html>
   <div class="hint" id="quellen"></div>
 </dialog>
 
-<dialog id="voices">
+<dialog id="voices" class="sheet">
   <div class="dlgHead">
-    <strong id="voiceHeading"></strong>
-    <button id="voiceClose"></button>
+    <strong id="settingsHeading"></strong>
+    <button id="voiceClose" class="closeX">×</button>
   </div>
+  <div class="section" id="voiceSection"></div>
   <div class="voiceList" id="voiceList"></div>
   <div class="hint" id="voiceHint"></div>
+  <div class="sheetFoot">
+    <button class="primary" id="voiceSave"></button>
+    <button id="voiceCancel"></button>
+  </div>
 </dialog>
 
 <script>
@@ -1490,10 +1527,14 @@ function applyTexts() {
   $("closeBtn").textContent = t("ui.close");
   $("q").placeholder = t("ui.search_arasaac");
   $("quellen").textContent = t("ui.credits_arasaac");
-  $("voiceBtn").title = t("ui.voice_title");
-  $("voiceBtn").textContent = t("ui.voice");
-  $("voiceHeading").textContent = t("ui.voice");
-  $("voiceClose").textContent = t("ui.close");
+  $("settingsHeading").textContent = t("ui.settings");
+  $("voiceSection").textContent = t("ui.voice");
+  $("gear").title = t("ui.settings");
+  $("gear").setAttribute("aria-label", t("ui.settings"));
+  $("voiceSave").textContent = t("ui.save");
+  $("voiceCancel").textContent = t("ui.cancel");
+  $("voiceClose").setAttribute("aria-label", t("ui.close"));
+  $("voiceClose").title = t("ui.close");
   $("pairTitle").textContent = t("ui.pair_title");
   $("pairNote").textContent = t("ui.pair_note");
   $("pairConfirm").textContent = t("ui.pair_confirm");
@@ -1952,28 +1993,23 @@ async function watchPair() {
 // model that has arrived, should show up without reloading the page.
 
 let voices = { voices: [], active: "", chosen: "" };
-
-// "Thorsten · piper · de" is right in the list, where the backend and the
-// language tell voices apart. In the header there is room for the name only.
-const shortVoice = (label) => (label || "").split(" · ")[0];
+// What is ticked in the sheet. Separate from voices.chosen, which is what
+// stands in layout.json - between opening and pressing Save the two differ,
+// and that difference is the whole point of having a Save.
+let pendingVoice = "";
 
 // Empty for a voice this installation does not have. That happens on a fresh
 // machine, where the answer is a name nothing can speak yet, and after a key
-// was withdrawn. Either way the raw id is not a label - it would put
-// "azure:de-DE-GiselaNeural" in the header.
+// was withdrawn. Either way the raw id is not a label - nobody should have to
+// read "azure:de-DE-GiselaNeural".
 function labelOf(id) {
   const hit = voices.voices.find((voice) => voice.id === id);
   return hit ? hit.label : "";
 }
 
-function markVoiceButton() {
-  $("voiceBtn").textContent = shortVoice(labelOf(voices.active)) || t("ui.voice");
-}
-
 async function loadVoices() {
   try {
     voices = await (await api("/api/voices")).json();
-    markVoiceButton();
   } catch (error) {
     status(t("ui.voice_failed", { error: error.message }));
   }
@@ -1988,9 +2024,9 @@ function sampleText() {
   return slot ? slot.text.trim() : t("ui.voice_sample");
 }
 
-function voiceRow(id, name, note, mute) {
+function voiceRow(id, name, note, mute, on) {
   const row = document.createElement("div");
-  row.className = "voiceRow" + (id === voices.chosen ? " on" : "");
+  row.className = "voiceRow" + (on ? " on" : "");
 
   const play = document.createElement("button");
   play.className = "play";
@@ -2047,28 +2083,26 @@ function renderVoices() {
     $("voiceHint").textContent = fetchNote() || t("ui.voice_none_hint");
     return;
   }
-  // An empty entry in the layout means "whatever works here". That is a real
-  // choice and stays selectable - but it has to say what it currently comes
-  // out as, or the list shows nothing as chosen.
-  //
-  // Only while it is in force, though: "active" is the voice being spoken,
-  // and as soon as one was picked by hand that is the picked one. Naming it
-  // here would promise that automatic leads back to it, which it does not -
-  // it would go to whichever voice this machine chooses for the language.
-  list.appendChild(voiceRow(
-    "", t("ui.voice_auto"),
-    voices.chosen ? "" : t("ui.voice_auto_note",
-                           { voice: labelOf(voices.active) })));
+  // An empty entry in layout.json means "whatever works here", and that is
+  // the normal case for a fresh one. It is not shown as a choice of its own:
+  // "Automatic" tells nobody anything, and a row that has to explain itself
+  // is a row too many. Instead the voice it comes out as stands marked, with
+  // a word to say nobody picked it by hand. Choosing any row writes it down,
+  // and from then on the layout carries a decision instead of a default.
+  const marked = pendingVoice || voices.active;
   for (const voice of voices.voices) {
-    list.appendChild(voiceRow(voice.id, voice.label, ""));
+    list.appendChild(voiceRow(
+      voice.id, voice.label,
+      !pendingVoice && voice.id === voices.active ? t("ui.voice_auto_note") : "",
+      false, voice.id === marked));
   }
   // A voice can be chosen and not be here: a key withdrawn, a model deleted,
   // a layout carried over from another machine. It stays chosen on purpose -
   // so it has to be visible, or the list would show nothing as chosen and the
   // next save would quietly drop a deliberate decision.
-  if (voices.chosen && !voices.voices.some((v) => v.id === voices.chosen)) {
-    list.appendChild(voiceRow(voices.chosen, voices.chosen,
-                              t("ui.voice_gone"), true));
+  if (pendingVoice && !voices.voices.some((v) => v.id === pendingVoice)) {
+    list.appendChild(voiceRow(pendingVoice, pendingVoice,
+                              t("ui.voice_gone"), true, true));
   }
   if (fetching.missing) list.appendChild(fetchRow());
   $("voiceHint").textContent = fetchNote() || t("ui.voice_rebuild");
@@ -2150,14 +2184,22 @@ function pollFetch() {
   }, 2000);
 }
 
-async function chooseVoice(id) {
-  layout.voice = id;
-  voices.chosen = id;
-  await save();
-  // The server decides what an empty entry resolves to, so ask rather than
-  // guess - and the release button has to light up, which save() already did.
-  await loadVoices();
+// Ticks a row. Nothing is written until Save - a voice changed by accident
+// would mean every recording spoken again on the next release.
+function chooseVoice(id) {
+  pendingVoice = id;
   renderVoices();
+}
+
+async function saveVoice() {
+  if (pendingVoice && pendingVoice !== voices.chosen) {
+    layout.voice = pendingVoice;
+    await save();
+    // The server decides what the entry resolves to, so ask rather than guess -
+    // and the release button has to light up, which save() already did.
+    await loadVoices();
+  }
+  $("voices").close();
 }
 
 async function openVoices() {
@@ -2166,6 +2208,7 @@ async function openVoices() {
   fetchDone = false;
   $("voices").showModal();
   await Promise.all([loadVoices(), readFetch()]);
+  pendingVoice = voices.chosen;
   renderVoices();
   // A download started before this dialog was opened - in another tab, or
   // before a reload - still has something to report.
@@ -2362,16 +2405,17 @@ async function loadSources() {
 }
 
 $("pairConfirm").onclick = confirmPair;
-$("voiceBtn").onclick = openVoices;
+$("gear").onclick = openVoices;
 $("voiceClose").onclick = () => $("voices").close();
+$("voiceSave").onclick = saveVoice;
+$("voiceCancel").onclick = () => $("voices").close();
 
 // Labels first: without them the page shows empty buttons for as long as
 // the first request takes.
 applyTexts();
 loadSources();
-// Only to write the name into the header - the list itself is fetched again
-// when the dialog opens.
-loadVoices();
+// The voices are not asked for here: nothing outside the settings shows them,
+// and the sheet fetches them itself when it opens.
 watchPair();
 load().catch((error) => status(t("ui.load_failed", { error: error.message })));
 </script>

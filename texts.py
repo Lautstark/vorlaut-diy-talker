@@ -33,11 +33,9 @@ TEXTS: dict[str, dict[str, str]] = {
         # --- voice ----------------------------------------------------------
         # The names of the voices themselves are not in here: they are proper
         # nouns and come from the installation, not from a table.
+        "ui.settings": "Settings",
         "ui.voice": "Voice",
-        "ui.voice_title": "Which voice speaks the sentences",
-        "ui.voice_auto": "Automatic",
-        "ui.voice_auto_note": "whatever this installation can speak with - "
-                              "at the moment {voice}",
+        "ui.voice_auto_note": "picked for this installation",
         "ui.voice_sample": "This is what I sound like",
         "ui.voice_rebuild": "A different voice means every recording is "
                             "spoken again on the next release.",
@@ -119,6 +117,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.search": "Search",
         "ui.own_image": "Own picture",
         "ui.close": "Close",
+        "ui.save": "Save",
+        "ui.cancel": "Cancel",
         "ui.search_arasaac": "Search ARASAAC, e.g. drinking",
         "ui.search_both": "Search METACOM and ARASAAC, e.g. drinking",
         "ui.nothing_found": "Nothing found for „{word}“.",
@@ -262,11 +262,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.language_title": "Sprache dieser Seite und des Menüs auf dem Gerät",
 
         # --- Stimme ---------------------------------------------------------
+        "ui.settings": "Einstellungen",
         "ui.voice": "Stimme",
-        "ui.voice_title": "Welche Stimme die Sätze spricht",
-        "ui.voice_auto": "Automatisch",
-        "ui.voice_auto_note": "was diese Installation sprechen kann - "
-                              "im Moment {voice}",
+        "ui.voice_auto_note": "für diese Installation gewählt",
         "ui.voice_sample": "So klinge ich",
         "ui.voice_rebuild": "Eine andere Stimme heißt: Beim nächsten "
                             "Freigeben wird jede Aufnahme neu gesprochen.",
@@ -349,6 +347,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.search": "Suchen",
         "ui.own_image": "Eigenes Bild",
         "ui.close": "Schließen",
+        "ui.save": "Speichern",
+        "ui.cancel": "Abbrechen",
         "ui.search_arasaac": "ARASAAC durchsuchen, z.B. trinken",
         "ui.search_both": "METACOM und ARASAAC durchsuchen, z.B. trinken",
         "ui.nothing_found": "Nichts gefunden zu „{word}“.",
