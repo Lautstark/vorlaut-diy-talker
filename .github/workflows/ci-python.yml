@@ -55,6 +55,11 @@ jobs:
         # it reads with what build.py wrote.
         run: python tests/test_layout_format.py
 
+      - name: Interface texts are complete in every language
+        # Both languages carry the same keys and the same placeholders, and
+        # nothing says words to the user from outside the table.
+        run: python tests/test_ui_texts.py
+
       - name: Menu labels fit on a display
         # Compiles texts.h and panel_text.h the same way. A translation that
         # is too long, or uses a letter the built-in font does not have, would
