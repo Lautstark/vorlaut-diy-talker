@@ -32,6 +32,9 @@ pip install piper-tts
 python3 tools/voices.py
 ```
 
+In the Docker image all four are there already, and neither line above is
+needed — see [piper](software.md#piper).
+
 The models can also be fetched from the interface, which is the route that
 does not ask anybody to open a terminal: the voice picker in the header offers
 it whenever something from the catalogue is missing, and says how far it has

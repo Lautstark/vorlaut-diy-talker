@@ -5,12 +5,17 @@
     python3 tools/voices.py de         # German only
     python3 tools/voices.py --list     # what is already there
 
-The models land in content/voices/ next to the rest of the content, so they
-are backed up with it and survive every rebuild of the container - unlike
-inside the image, where every new voice would mean building it again.
+The models land wherever tts.voice_target() points - the first entry of
+tts.VOICE_DIRS, normally content/voices/ next to the rest of the content, so
+they are backed up with it and survive every rebuild. With VORLAUT_VOICES set
+they follow that instead, which is how the Dockerfile bakes the same four into
+the image at /voices: this file rather than a curl of its own, so that where a
+voice comes from is written down once.
 
-Deliberately not in the repository: together they are about 130 MB, and they
-are somebody else's files, downloaded fresh rather than copied along.
+Deliberately not in the repository: together they are about 250 MB - four
+times 63 MB, the "low" one no smaller than the others - and they are somebody
+else's files, downloaded fresh rather than copied along. Where they come from
+and under which licence is in voices/LIZENZ.md.
 
 The catalogue itself and the downloading live in tts.py, because the page
 fetches voices too - one list, one place.
