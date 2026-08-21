@@ -31,14 +31,29 @@ keys speak, the partition scheme, the file system, the audio path and the
 displays are all right. Your own content comes afterwards, through steps 3
 and 4 or over Wi-Fi.
 
-**1. Find the port.** Plug in the Feather over USB-C, then:
+**1. Find the port.** Plug in the Feather over USB-C, then look at what
+appeared:
+
+```bash
+ls /dev/cu.usbmodem*        # macOS
+ls /dev/ttyACM*             # Linux
+```
+
+You are looking for something like `/dev/cu.usbmodem1101`. Use that port below
+wherever `/dev/cu.usbmodemXXXX` appears. On Windows it is not a path at all:
+the Feather turns up in the Device Manager under *Ports (COM & LPT)* as `COM3`
+or some other number, and that is what goes in instead.
+
+On Linux the port belongs to the group `dialout` and a fresh account is not in
+it — that is the permission error on the first flash, not a broken cable. Add
+yourself once with `sudo usermod -aG dialout $USER`, then log out and back in.
+
+Whoever has `arduino-cli` gets the same list with the board name beside it,
+which settles which of several ports is the Feather:
 
 ```bash
 arduino-cli board list
 ```
-
-You are looking for something like `/dev/cu.usbmodem1101`. Use that port below
-wherever `/dev/cu.usbmodemXXXX` appears.
 
 **2a. Without Arduino: take a ready-made image.**
 
@@ -52,6 +67,16 @@ requires signing in, and after 90 days it is gone. **That one is the program
 only** — the example content is merged in by the release workflow, not by the
 CI build.
 
+**`esptool` is what writes it**, and on this route nothing else brings it
+along. It is a Python program and installs in one line:
+
+```bash
+pip install esptool
+```
+
+Inside the project's virtual environment that is
+`.venv/bin/pip install esptool`, and the command is then `.venv/bin/esptool`.
+
 `vorlaut.ino.merged.bin` from a release contains bootloader, partition table,
 program and the example content in a single file, written at address 0:
 
@@ -59,9 +84,9 @@ program and the example content in a single file, written at address 0:
 esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 vorlaut.ino.merged.bin
 ```
 
-That needs neither the Arduino core nor the libraries — only esptool. The
-partition scheme is already inside the image, so it cannot be set wrongly
-either.
+That needs neither the Arduino core nor the libraries — only the esptool from
+above. The partition scheme is already inside the image, so it cannot be set
+wrongly either.
 
 > **The image is 8 MB and covers the whole flash**, file area included. On a
 > device that already carries your content it replaces it with the example.

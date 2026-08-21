@@ -33,24 +33,52 @@ foreign or public network.
 
 ## Running it on a NAS
 
-More sensible than a computer that is only sometimes on. A `Dockerfile` and a
-`docker-compose.yml` are included:
+More sensible than a computer that is only sometimes on. A
+`docker-compose.yml` is included and one command is the whole of it:
 
 ```bash
 docker compose up -d
 ```
 
-Whoever does not want to build it themselves pulls the ready-made image — it is
-built for amd64 and arm64 on every change to `Dockerfile` or
+**Nothing is built for that.** `docker-compose.yml` names the ready-made image,
+which is built for amd64 and arm64 on every change to `Dockerfile` or
 `requirements.txt`:
 
 ```
 ghcr.io/steffipetaffy/vorlaut:latest
 ```
 
-For that, replace `build: .` in `docker-compose.yml` with
-`image: ghcr.io/steffipetaffy/vorlaut:latest`. On a NAS with ARM that saves
-several minutes of build time.
+The first start fetches it, which takes a few minutes; every one after that has
+it already. On a NAS with ARM that is where the several minutes of building
+used to go, and this is the whole reason the published image is built for two
+architectures.
+
+### Building the image yourself
+
+Only needed for working on the image itself — `Dockerfile` or
+`requirements.txt`. The project folder is mounted into the container, so
+changed Python is in there without any build; a restart picks it up.
+
+`docker-compose.build.yml` puts the `build:` back:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml build
+docker compose up -d
+```
+
+`./start.sh --build` is the same thing in one step.
+
+What is built carries the name of the published image, so the plain
+`docker compose up -d` afterwards runs what was just built rather than fetching
+anything. `docker compose pull` puts the published image back over it.
+
+It is a file of its own rather than a line in `docker-compose.yml`, because
+that file is the one everybody else runs: a `build:` in it means Compose builds
+whenever the image is not already there, which is exactly the wait on an ARM
+NAS that the published image exists to avoid. And it is deliberately **not**
+called `docker-compose.override.yml` — Compose reads a file of that name
+without being asked, so building would quietly be the default again for anybody
+who has it lying around.
 
 The image brings only Python, ffmpeg and Pillow. The project directory itself
 is passed in — `content/layout.json`, `content/symbols/` and `content/cache/`
@@ -90,15 +118,16 @@ published port carries.
 ./start.sh
 ```
 
-Rebuilds if needed, replaces a running container, waits until the interface
-really answers and prints the address. A different port works with
-`./start.sh 8798`.
+Fetches the image if it is not there yet, replaces a running container, waits
+until the interface really answers and prints the address. A different port
+works with `./start.sh 8798`, and `./start.sh --build` builds the image here
+instead of taking the published one.
 
 At heart there is a single command behind it — the script only takes care of
 the handling around it:
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 ### Stopping
@@ -131,7 +160,7 @@ docker logs -f vorlaut
 Worth doing before wrestling with DSM — same file, same container:
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 docker compose logs -f          # what the container says
 docker compose down             # gone again
 ```
@@ -140,7 +169,7 @@ If an `app.py` is already running on 8771, the container can take a different
 port on the machine:
 
 ```bash
-VORLAUT_PORT=8798 docker compose up -d --build
+VORLAUT_PORT=8798 docker compose up -d
 ```
 
 Careful: the container and `app.py` work on the **same files**. Running both at
@@ -161,7 +190,8 @@ accept the file.
    `.env` does not belong in the repo and has to come along by hand.**
 3. Open **Container Manager** (DSM 7.2 and newer; before that the package is
    called *Docker*) -> *Project* -> *Create* -> pick the folder as the path.
-   The `docker-compose.yml` is recognised, the image is built there.
+   The `docker-compose.yml` is recognised and the image is fetched — the NAS
+   builds nothing.
 4. Reach it at `http://<NAS>:8771`.
 
 That puts the whole set of content on the NAS, covered by its backup. Mount the
@@ -177,8 +207,9 @@ What tends to go wrong first, from experience:
 - **Older DSM.** The old *Docker* package ships Compose 1 and wants a line
   `version: "3.8"` at the very top of `docker-compose.yml`. Container Manager
   does not need it.
-- **ARM models** build the image noticeably more slowly than the Intel ones.
-  Once, then it runs.
+- **ARM models** used to build the image noticeably more slowly than the Intel
+  ones. They fetch it now, and the published one covers arm64 as well — the
+  slow build only comes back if you ask for one with `--build`.
 
 Things to bear in mind:
 

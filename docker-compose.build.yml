@@ -1,0 +1,26 @@
+# Building the image here instead of pulling it - for developing on it.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml build
+#   docker compose up -d
+#
+# or in one go with ./start.sh --build.
+#
+# This is a second file rather than a line in docker-compose.yml because that
+# file is the one everybody else runs: with a "build:" in it, Compose builds
+# whenever the image is not already there, which is exactly the several
+# minutes on an ARM NAS that the published image exists to save.
+#
+# It is deliberately not called docker-compose.override.yml. Compose reads a
+# file of that name by itself, without being asked - which would put the
+# building back as the default for anybody who has the file lying around.
+#
+# The build is tagged with the name from docker-compose.yml, so a plain
+# "docker compose up -d" afterwards uses what was built here. A
+# "docker compose pull" fetches the published image over it again.
+#
+# Python changes need none of this: the project folder is mounted into the
+# container, so the code comes from here and not from the image. Only the
+# Dockerfile and requirements.txt do.
+services:
+  vorlaut:
+    build: .
