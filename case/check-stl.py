@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Prüft die exportierten STL-Dateien gegen die Maße aus der .scad.
+Checks the exported STL files against the dimensions from the .scad.
 
-`verify.py` prüft die Zahlen, bevor OpenSCAD sie anfasst. Dieses
-Skript prüft, was OpenSCAD daraus gemacht hat: Außenmaße und ob an den
-entscheidenden Stellen wirklich Material bzw. Luft ist. Das fängt Fehler,
+`verify.py` checks the numbers before OpenSCAD touches them. This script
+checks what OpenSCAD made of them: outer dimensions and whether the decisive
+places really hold material or air. That catches mistakes
 die auf Parameterebene unsichtbar sind — ein Ausschnitt, der die falsche
-Tiefe hat, oder ein Dom, der von einem anderen Körper weggeschnitten wurde.
+depth, or a boss cut away by another solid.
 
-    openscad -o /tmp/wanne.stl   -D 'teil="wanne"'   case/vorlaut-case.scad
-    openscad -o /tmp/traeger.stl -D 'teil="traeger"' case/vorlaut-case.scad
-    openscad -o /tmp/deckel.stl  -D 'teil="deckel"'  case/vorlaut-case.scad
-    python3 case/check-stl.py /tmp/wanne.stl /tmp/traeger.stl /tmp/deckel.stl
+    openscad -o /tmp/tub.stl   -D 'part="tub"'   case/vorlaut-case.scad
+    openscad -o /tmp/carrier.stl -D 'part="carrier"' case/vorlaut-case.scad
+    openscad -o /tmp/lid.stl  -D 'part="lid"'  case/vorlaut-case.scad
+    python3 case/check-stl.py /tmp/tub.stl /tmp/carrier.stl /tmp/lid.stl
 
 Zu den Punktproben: getestet wird per Strahlensatz nach oben (+z). Punkte
 genau auf einer Zylinderachse oder auf einer Tessellierungsnaht liefern
-dabei Zufallsergebnisse — deshalb schießt jede Probe drei leicht versetzte
-Strahlen und lässt die Mehrheit entscheiden. Wer eine neue Probe ergänzt,
-sollte aus demselben Grund keine glatten Koordinaten wählen.
+random results there - so every probe shoots three slightly offset rays and
+lets the majority decide. Whoever adds a new probe should for the same reason
+avoid round coordinates.
 """
 
 import os
@@ -27,7 +27,7 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from nachrechnen import load_parameters, SCAD          # noqa: E402
+from verify import load_parameters, SCAD          # noqa: E402
 
 
 def load_stl(path):
@@ -78,29 +78,29 @@ def _inside(tris, pt):
 
 def material(tris, pt):
     """Drei leicht versetzte Strahlen, Mehrheit entscheidet."""
-    stimmen = [_inside(tris, (pt[0] + dx, pt[1] + dy, pt[2]))
+    votes = [_inside(tris, (pt[0] + dx, pt[1] + dy, pt[2]))
                for dx, dy in ((0.0, 0.0), (0.11, -0.07), (-0.09, 0.13))]
-    return sum(stimmen) >= 2
+    return sum(votes) >= 2
 
 
-class Lauf:
+class Run:
     def __init__(self):
-        self.fehl = 0
+        self.failed = 0
 
-    def measure(self, was, ist, soll, tol=0.05):
-        ok = abs(ist - soll) <= tol
-        self.fehl += 0 if ok else 1
-        print('  %s %-46s %9.3f  soll %9.3f'
-              % ('ok  ' if ok else 'FEHL', was, ist, soll))
+    def measure(self, what, actual, target, tol=0.05):
+        ok = abs(actual - target) <= tol
+        self.failed += 0 if ok else 1
+        print('  %s %-46s %9.3f  expected %9.3f'
+              % ('ok  ' if ok else 'FAIL', what, actual, target))
 
-    def probe(self, tris, was, pt, soll_material):
-        ist = material(tris, pt)
-        ok = ist == soll_material
-        self.fehl += 0 if ok else 1
-        print('  %s %-46s (%7.2f,%6.2f,%5.2f) %-8s soll %s'
-              % ('ok  ' if ok else 'FEHL', was, pt[0], pt[1], pt[2],
-                 'Material' if ist else 'Luft',
-                 'Material' if soll_material else 'Luft'))
+    def probe(self, tris, what, pt, expect_material):
+        actual = material(tris, pt)
+        ok = actual == expect_material
+        self.failed += 0 if ok else 1
+        print('  %s %-46s (%7.2f,%6.2f,%5.2f) %-8s expected %s'
+              % ('ok  ' if ok else 'FAIL', what, pt[0], pt[1], pt[2],
+                 'material' if actual else 'air',
+                 'material' if expect_material else 'air'))
 
 
 def main():
@@ -109,41 +109,41 @@ def main():
         return 2
     p = load_parameters(SCAD)
     G = p.get
-    L = Lauf()
+    L = Run()
     teile = {}
     for path in sys.argv[1:]:
         name = os.path.splitext(os.path.basename(path))[0].lower()
-        for k in ('wanne', 'traeger', 'deckel'):
+        for k in ('tub', 'carrier', 'lid'):
             if k in name:
                 teile[k] = load_stl(path)
 
     print('\nAussenmasse')
     print('-----------')
-    if 'wanne' in teile:
-        b = bbox(teile['wanne'])
+    if 'tub' in teile:
+        b = bbox(teile['tub'])
         # Das Logo an der Unterkante steht 0,6 mm vor die Wand — es gehoert
         # zum Bauteil, aber nicht zum Gehaeusemass.
-        L.measure('Wanne Breite', b[3] - b[0], G('aussen_b'))
-        L.measure('Wanne Hoehe (mit Logo an der Unterkante)', b[4] - b[1],
-               G('aussen_h') + G('logo_seite_h'))
-        L.measure('Wanne Tiefe', b[5] - b[2], G('aussen_t'))
-    if 'traeger' in teile:
-        b = bbox(teile['traeger'])
-        L.measure('Traeger Breite', b[3] - b[0],
-               G('innen_b') - G('traeger_spiel'))
-        L.measure('Traeger Hoehe', b[4] - b[1], G('innen_h') - G('traeger_spiel'))
-        L.measure('Traeger Bauhoehe', b[5] - b[2], G('traeger_d') + G('akku_d') + 0.2)
-    if 'deckel' in teile:
-        b = bbox(teile['deckel'])
-        L.measure('Deckel Breite', b[3] - b[0],
-               G('aussen_b') - 2 * G('lippe') - G('deckel_spiel'))
-        L.measure('Deckel Hoehe', b[4] - b[1],
-               G('aussen_h') - 2 * G('lippe') - G('deckel_spiel'))
-        L.measure('Deckel Bauhoehe', b[5] - b[2],
-               G('deckel_d') + G('logo_deckel_h'))
+        L.measure('tub width', b[3] - b[0], G('outer_b'))
+        L.measure('tub height (with logo at the bottom edge)', b[4] - b[1],
+               G('outer_h') + G('logo_side_h'))
+        L.measure('tub depth', b[5] - b[2], G('outer_t'))
+    if 'carrier' in teile:
+        b = bbox(teile['carrier'])
+        L.measure('carrier width', b[3] - b[0],
+               G('inner_b') - G('carrier_play'))
+        L.measure('carrier height', b[4] - b[1], G('inner_h') - G('carrier_play'))
+        L.measure('carrier build height', b[5] - b[2], G('carrier_d') + G('battery_d') + 0.2)
+    if 'lid' in teile:
+        b = bbox(teile['lid'])
+        L.measure('lid width', b[3] - b[0],
+               G('outer_b') - 2 * G('lip') - G('lid_play'))
+        L.measure('lid height', b[4] - b[1],
+               G('outer_h') - 2 * G('lip') - G('lid_play'))
+        L.measure('lid build height', b[5] - b[2],
+               G('lid_d') + G('logo_lid_h'))
 
-    if 'wanne' in teile:
-        w = teile['wanne']
+    if 'tub' in teile:
+        w = teile['tub']
         print('\nPunktproben in der Wanne')
         print('------------------------')
         zf = G('front_d') / 2
@@ -151,37 +151,37 @@ def main():
               (G('blk_mx1'), G('blk_my1')), (G('blk_mx2'), G('blk_my1')),
               (G('blk_mx1'), G('blk_my2')), (G('blk_mx2'), G('blk_my2'))]
         for i, (x, y) in enumerate(sk):
-            x += G('kappe_versatz_x')
-            y += G('kappe_versatz_y')
-            L.probe(w, 'Tastenausschnitt %d ist offen' % i, (x + .37, y + .29, zf), False)
-            L.probe(w, 'Front neben Ausschnitt %d ist massiv' % i,
-                    (x + G('sk_kappe_b') / 2 + G('spalt_kappe') + 1.5, y + .29, zf), True)
-        L.probe(w, 'Front zwischen den Tastenpaaren',
+            x += G('cap_offset_x')
+            y += G('cap_offset_y')
+            L.probe(w, 'key cutout %d is open' % i, (x + .37, y + .29, zf), False)
+            L.probe(w, 'front next to cutout %d is solid' % i,
+                    (x + G('sk_cap_b') / 2 + G('gap_cap') + 1.5, y + .29, zf), True)
+        L.probe(w, 'front between the key pairs',
                 ((G('blk_mx1') + G('blk_mx2')) / 2 + .37, G('blk_my1') + .37, zf), True)
-        L.probe(w, 'Lautsprecher-Gitterloch offen', (G('ls_mx') + .17, G('ls_my') + .11, zf), False)
-        L.probe(w, 'Steg neben dem Gitterloch',
-                (G('ls_mx') + G('gitter_raster') / 2 + .05, G('ls_my') + .11, zf), True)
+        L.probe(w, 'Lautsprecher-Gitterloch offen', (G('spk_mx') + .17, G('spk_my') + .11, zf), False)
+        L.probe(w, 'web next to the grille hole',
+                (G('spk_mx') + G('grille_pitch') / 2 + .05, G('spk_my') + .11, zf), True)
         yc = G('feather_y') + G('feather_b') / 2
-        xw = -G('innen_rand') - G('wand') / 2 + .11
+        xw = -G('inner_margin') - G('wall') / 2 + .11
         L.probe(w, 'USB-Fenster offen', (xw, yc + .37, G('usb_z')), False)
-        L.probe(w, 'Wand unter dem USB-Fenster', (xw, yc + .37, G('usb_z') - 4.5), True)
-        L.probe(w, 'Wand neben dem USB-Fenster', (xw, yc + 12, G('usb_z')), True)
-        d = (G('blk_mx1') + G('sk_loch_dx'), G('blk_my1') + G('sk_loch_dy'))
-        L.probe(w, 'ScreenKey-Dom hat Fleisch', (d[0] + 1.06, d[1] + 1.06, 8.0), True)
-        L.probe(w, 'neben dem ScreenKey-Dom ist Luft', (d[0] + 4.0, d[1] + 4.0, 8.0), False)
-        L.probe(w, 'Deckeldom Mitte unten steht',
-                (G('env_b') / 2 + 2.0, -G('dom_e') + 0.5, 10.0), True)
-        L.probe(w, 'Kammerwand steht',
-                (G('kammer_x') + G('kammer_wand') / 2, 60.11, 20.0), True)
-        L.probe(w, 'Kammer ist innen hohl', (20.11, 60.07, 30.0), False)
-        L.probe(w, 'Innenraum ist hohl', (G('env_b') / 2 + .37, G('env_h') / 2 + .29, 28.0), False)
+        L.probe(w, 'wall below the USB window', (xw, yc + .37, G('usb_z') - 4.5), True)
+        L.probe(w, 'wall next to the USB window', (xw, yc + 12, G('usb_z')), True)
+        d = (G('blk_mx1') + G('sk_hole_dx'), G('blk_my1') + G('sk_hole_dy'))
+        L.probe(w, 'ScreenKey boss has material', (d[0] + 1.06, d[1] + 1.06, 8.0), True)
+        L.probe(w, 'next to the ScreenKey boss is air', (d[0] + 4.0, d[1] + 4.0, 8.0), False)
+        L.probe(w, 'lid boss bottom centre stands',
+                (G('env_b') / 2 + 2.0, -G('boss_e') + 0.5, 10.0), True)
+        L.probe(w, 'chamber wall stands',
+                (G('chamber_x') + G('chamber_wall') / 2, 60.11, 20.0), True)
+        L.probe(w, 'chamber is hollow inside', (20.11, 60.07, 30.0), False)
+        L.probe(w, 'inner space is hollow', (G('env_b') / 2 + .37, G('env_h') / 2 + .29, 28.0), False)
 
     print()
-    if L.fehl:
-        print('%d Pruefung(en) gefallen.' % L.fehl)
+    if L.failed:
+        print('%d check(s) failed.' % L.failed)
     else:
-        print('Alle Pruefungen bestanden.')
-    return 1 if L.fehl else 0
+        print('All checks passed.')
+    return 1 if L.failed else 0
 
 
 if __name__ == '__main__':

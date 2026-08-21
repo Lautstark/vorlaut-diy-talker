@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Erzeugt die PNG-Symbole aus assets/icon.svg.
+"""Produces the PNG icons from assets/icon.svg.
 
     python3 tools/icons.py
 
-Braucht cairosvg (und damit die cairo-Bibliothek). Deshalb liegen die
-erzeugten PNGs mit im Repo: wer sie nur benutzt, braucht nichts davon.
-Nur wer das SVG ändert, lässt das hier einmal laufen.
+Needs cairosvg (and therefore the cairo library). That is why the generated
+PNGs are in the repo: whoever only uses them needs none of it. Only whoever
+changes the SVG runs this once.
 """
 
 from pathlib import Path
@@ -20,7 +20,7 @@ def main() -> None:
     except ImportError:
         raise SystemExit(
             "cairosvg fehlt.  pip install cairosvg\n"
-            "Unter macOS zusätzlich:  brew install cairo")
+            "On macOS additionally:  brew install cairo")
 
     quelle = ASSETS / "icon.svg"
     for groesse in GROESSEN:

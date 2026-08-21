@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Nachrechnung für vorlaut-case.scad.
+Recalculation for vorlaut-case.scad.
 
-Warum es das gibt: OpenSCAD zeigt eine Vorschau, aber eine Vorschau lügt
+Why this exists: OpenSCAD shows a preview, but a preview lies
 freundlich. Ob ein Ausschnitt 0,4 mm daneben sitzt oder eine Rippe 1,9 mm
-über eine Kante ragt, sieht man dort nicht — nachrechnen schon.
+protrudes past an edge does not show there — recalculating does.
 
-Das Skript liest die Maße AUS der .scad-Datei (Abschnitte 0 bis 3) und
-rechnet unabhängig davon nach. Es dupliziert die Zahlen also nicht, es
-prüft sie. Wer eine Zahl in der .scad ändert, bekommt hier sofort das
+The script reads the dimensions FROM the .scad file (sections 0 to 3) and
+recalculates independently. So it does not duplicate the numbers, it checks
+them. Whoever changes a number in the .scad gets the
 Ergebnis — ohne OpenSCAD zu starten.
 
     python3 case/verify.py
-    python3 case/verify.py --versatz 1.5    # Kappe 1,5 mm versetzt
-    python3 case/verify.py --bett 200 200    # kleineres Druckbett
+    python3 case/verify.py --offset 1.5    # cap offset by 1.5 mm
+    python3 case/verify.py --bed 200 200    # smaller print bed
 
-Rückgabewert 0 = alles in Ordnung, 1 = mindestens eine Prüfung gefallen.
+Exit code 0 = everything fine, 1 = at least one check failed.
 """
 
 import argparse
@@ -32,11 +32,11 @@ SCAD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # ---------------------------------------------------------------- Parser
 
 def load_parameters(path):
-    """Zieht die skalaren Zuweisungen aus der .scad-Datei.
+    """Pulls the scalar assignments out of the .scad file.
 
-    Nur bis zum ersten `module` — dahinter stehen lokale Variablen, die
-    hier nichts zu suchen haben. `function`-Zeilen stoeren nicht: die
-    Zuweisungs-Regex greift bei `function name(...) =` nicht.
+    Only up to the first `module` - beyond that are local variables that have
+    no business here. `function` lines do not get in the way: the assignment
+    regex does not match `function name(...) =`.
     """
     with open(path, encoding='utf-8') as f:
         txt = f.read()
@@ -52,8 +52,8 @@ def load_parameters(path):
     roh = {}
     for m in re.finditer(r'^\s*([a-zA-Z_]\w*)\s*=\s*([^;]+);', txt, re.M):
         name, expr = m.group(1), ' '.join(m.group(2).split())
-        # OpenSCAD-Eigenheiten, die Python nicht auswerten kann und die
-        # hier auch niemand braucht: Listen, Listen-Comprehensions, concat.
+        # OpenSCAD quirks Python cannot evaluate and nobody needs here:
+        # lists, list comprehensions, concat.
         if name in roh or expr.startswith('['):
             continue
         if any(k in expr for k in ('for (', 'concat(', 'len(', 'str(')):
@@ -64,64 +64,64 @@ def load_parameters(path):
                                                tern.group(3))
         roh[name] = expr
 
-    offen = dict(roh)
+    pending = dict(roh)
     for _ in range(60):
-        if not offen:
+        if not pending:
             break
-        vorher = len(offen)
-        for name, expr in list(offen.items()):
+        vorher = len(pending)
+        for name, expr in list(pending.items()):
             try:
                 ns[name] = eval(expr, {'__builtins__': {}}, ns)
-                del offen[name]
+                del pending[name]
             except Exception:
                 pass
-        if len(offen) == vorher:
+        if len(pending) == vorher:
             break
-    if offen:
-        raise SystemExit('Nicht auswertbar: %s' % ', '.join(sorted(offen)))
+    if pending:
+        raise SystemExit('Not evaluable: %s' % ', '.join(sorted(pending)))
     return ns
 
 
-# ------------------------------------------------------------ Prüfgerüst
+# ---------------------------------------------------------- Check harness
 
-class Bericht:
+class Report:
     def __init__(self):
         self.lines = []
-        self.gefallen = 0
+        self.failed = 0
 
-    def check(self, gruppe, was, ist, op, soll, einheit='mm', hinweis=''):
-        vgl = {'>=': lambda a, b: a >= b - 1e-9,
+    def check(self, group, what, actual, op, target, unit='mm', note=''):
+        cmp = {'>=': lambda a, b: a >= b - 1e-9,
                '<=': lambda a, b: a <= b + 1e-9,
                '>':  lambda a, b: a > b + 1e-9,
                '==': lambda a, b: abs(a - b) < 1e-6}[op]
-        ok = vgl(ist, soll)
+        ok = cmp(actual, target)
         if not ok:
-            self.gefallen += 1
-        self.lines.append((gruppe, was, ist, op, soll, einheit, ok, hinweis))
+            self.failed += 1
+        self.lines.append((group, what, actual, op, target, unit, ok, note))
 
-    def info(self, gruppe, was, text):
-        self.lines.append((gruppe, was, text, None, None, '', True, ''))
+    def info(self, group, what, text):
+        self.lines.append((group, what, text, None, None, '', True, ''))
 
     def emit(self):
-        letzte = None
-        for gruppe, was, ist, op, soll, einheit, ok, hinweis in self.lines:
-            if gruppe != letzte:
-                print('\n%s' % gruppe)
-                print('-' * len(gruppe))
-                letzte = gruppe
+        last = None
+        for group, what, actual, op, target, unit, ok, note in self.lines:
+            if group != last:
+                print('\n%s' % group)
+                print('-' * len(group))
+                last = group
             if op is None:
-                print('  ·    %-44s %s' % (was, ist))
+                print('  ·    %-44s %s' % (what, actual))
                 continue
-            zeichen = 'ok  ' if ok else 'FEHL'
+            mark = 'ok  ' if ok else 'FAIL'
             print('  %s %-44s %9.3f %-2s %9.3f %s%s'
-                  % (zeichen, was, ist, op, soll, einheit,
-                     '' if ok else '   <-- ' + hinweis if hinweis else ''))
+                  % (mark, what, actual, op, target, unit,
+                     '' if ok else '   <-- ' + note if note else ''))
         print()
-        if self.gefallen:
-            print('%d Pruefung(en) gefallen.' % self.gefallen)
+        if self.failed:
+            print('%d check(s) failed.' % self.failed)
         else:
-            print('Alle Pruefungen bestanden.')
-        return 1 if self.gefallen else 0
+            print('All checks passed.')
+        return 1 if self.failed else 0
 
 
 def overlaps(a, b, eps=1e-3):
@@ -129,147 +129,147 @@ def overlaps(a, b, eps=1e-3):
             a[1] < b[3] - eps and b[1] < a[3] - eps)
 
 
-# ------------------------------------------------------------ Nachrechnung
+# ---------------------------------------------------------- Recalculation
 
-def compute(p, bett_x, bett_y):
+def compute(p, bed_x, bed_y):
     """p ist der Namensraum aus der .scad. Alles hier wird daraus neu
-    hergeleitet — die Listen (sk_pos, dom_pos) stehen in der .scad als
+    hergeleitet — die Listen (sk_pos, boss_pos) stehen in der .scad als
     Listenliteral und werden deshalb hier gespiegelt. Wer dort etwas
-    verschiebt, muss es auch hier tun; die Prüfung 'Raster' unten fängt
+    moves it has to do so here too; the 'pitch' check below catches
     ein Auseinanderlaufen der Rasterwerte ab."""
-    b = Bericht()
+    b = Report()
     G = lambda n: p[n]
 
     env_b, env_h = G('env_b'), G('env_h')
-    versatz_y, versatz_x = G('kappe_versatz_y'), G('kappe_versatz_x')
+    offset_y, offset_x = G('cap_offset_y'), G('cap_offset_x')
 
     sk_pos = [(G('set_mx'), G('set_my')),
               (G('blk_mx1'), G('blk_my1')), (G('blk_mx2'), G('blk_my1')),
               (G('blk_mx1'), G('blk_my2')), (G('blk_mx2'), G('blk_my2'))]
-    dom_e = G('dom_e')
-    dom_pos = [(-dom_e, -dom_e), (env_b + dom_e, -dom_e),
-               (-dom_e, env_h + dom_e), (env_b + dom_e, env_h + dom_e),
-               (env_b / 2, -dom_e), (env_b / 2, env_h + dom_e)]
+    boss_e = G('boss_e')
+    boss_pos = [(-boss_e, -boss_e), (env_b + boss_e, -boss_e),
+               (-boss_e, env_h + boss_e), (env_b + boss_e, env_h + boss_e),
+               (env_b / 2, -boss_e), (env_b / 2, env_h + boss_e)]
 
     # --- 1. Bedienung durch ein Kleinkind ---------------------------------
-    g = '1. Bedienung — reicht der Abstand fuer eine Kinderhand?'
-    b.check(g, 'Kappenspalt waagerecht', G('raster_x') - G('sk_kappe_b'),
-             '>=', 12, hinweis='zwei Tasten auf einmal getroffen')
-    b.check(g, 'Kappenspalt senkrecht', G('raster_y') - G('sk_kappe_h'),
-             '>=', 12, hinweis='zwei Tasten auf einmal getroffen')
-    b.check(g, 'Set-Taste zum Viererblock',
-             G('blk_mx1') - G('set_mx') - G('sk_kappe_b'), '>=', 20)
+    g = '1. Operation - is the spacing enough for a child hand?'
+    b.check(g, 'cap gap horizontal', G('pitch_x') - G('sk_cap_b'),
+             '>=', 12, note='two keys hit at once')
+    b.check(g, 'cap gap vertical', G('pitch_y') - G('sk_cap_h'),
+             '>=', 12, note='two keys hit at once')
+    b.check(g, 'set key to the block of four',
+             G('blk_mx1') - G('set_mx') - G('sk_cap_b'), '>=', 20)
     # Spalt um die Kappe: gross genug zum Nichtklemmen, zu schmal fuer Finger
-    b.check(g, 'Luft um die Kappe (nicht klemmen)', G('spalt_kappe'),
+    b.check(g, 'clearance around the cap (must not jam)', G('gap_cap'),
              '>=', 0.4)
-    b.check(g, 'Luft um die Kappe (kein Kinderfinger)', G('spalt_kappe'),
-             '<=', 2.0, hinweis='Finger koennte hineingeraten')
-    b.check(g, 'Fase am Tastenausschnitt', G('fase_taste'), '>=', 0.4,
-             hinweis='scharfe Kante')
-    b.check(g, 'Eckenradius aussen', G('ecke_r'), '>=', 3.0)
-    b.check(g, 'Fase Frontkante', G('fase_vorn'), '>=', 0.8)
+    b.check(g, "clearance around the cap (no child finger)", G('gap_cap'),
+             '<=', 2.0, note='a finger could get in')
+    b.check(g, 'chamfer at the key cutout', G('chamfer_key'), '>=', 0.4,
+             note='sharp edge')
+    b.check(g, 'outer corner radius', G('corner_r'), '>=', 3.0)
+    b.check(g, 'chamfer on the front edge', G('chamfer_front'), '>=', 0.8)
 
     # --- 2. Die eine Stellschraube ----------------------------------------
-    g = '2. kappe_versatz_y — die groesste offene Unbekannte'
-    freiraum_hb = (G('sk_kappe_b') + 2 * G('spalt_kappe')) / 2
-    freiraum_hh = (G('sk_kappe_h') + 2 * G('spalt_kappe')) / 2
-    loch_dx = G('sk_platine_b') / 2 - G('sk_loch_rand')
-    loch_dy = G('sk_platine_h') / 2 - G('sk_loch_rand')
-    noetig = G('sk_dom_kern') / 2 + G('sk_dom_wand')
+    g = '2. cap_offset_y - the biggest open unknown'
+    clear_hb = (G('sk_cap_b') + 2 * G('gap_cap')) / 2
+    clear_hh = (G('sk_cap_h') + 2 * G('gap_cap')) / 2
+    hole_dx = G('sk_board_b') / 2 - G('sk_hole_margin')
+    hole_dy = G('sk_board_h') / 2 - G('sk_hole_margin')
+    noetig = G('sk_boss_core') / 2 + G('sk_boss_wall')
 
     dome = []
     for sx in (-1, 1):
         for sy in (-1, 1):
-            frei = max(abs(loch_dx * sx - versatz_x) - freiraum_hb,
-                       abs(loch_dy * sy - versatz_y) - freiraum_hh)
+            frei = max(abs(hole_dx * sx - offset_x) - clear_hb,
+                       abs(hole_dy * sy - offset_y) - clear_hh)
             if frei >= noetig:
                 dome.append((sx, sy))
-    budget = loch_dy - freiraum_hh - noetig
+    budget = hole_dy - clear_hh - noetig
 
-    b.info(g, 'eingetragener Versatz', '%.3f mm' % versatz_y)
-    b.info(g, 'Budget bis zum ersten Domausfall', '%.3f mm' % budget)
-    b.check(g, 'Dome je ScreenKey', len(dome), '>=', 2, einheit='St',
-             hinweis='Platine haengt an nichts mehr')
+    b.info(g, 'configured offset', '%.3f mm' % offset_y)
+    b.info(g, 'budget until the first boss drops', '%.3f mm' % budget)
+    b.check(g, 'bosses per ScreenKey', len(dome), '>=', 2, unit='pcs',
+             note='board has nothing left holding it')
     if len(dome) == 4:
-        b.info(g, 'Halt der Platine', 'vier Dome, allseitig')
+        b.info(g, 'board support', 'vier Dome, allseitig')
     else:
-        b.info(g, 'Halt der Platine',
+        b.info(g, 'board support',
                '%d Dome — nur EINE Kante, kann kippeln!' % len(dome))
     # Der Freiraum muss tiefer sein als der Kappenkoerper, sonst steht
     # hinter der Frontplatte wieder etwas in der Bahn.
-    b.check(g, 'Freiraum reicht hinter den Kappenkoerper',
-             G('sk_kappe_tiefe'), '>=',
-             G('sk_gesamttiefe') - G('sk_kappe_ueberstand'),
-             hinweis='Kappe stoesst hinter der Front an')
+    b.check(g, 'clearance reaches behind the cap body',
+             G('sk_cap_depth'), '>=',
+             G('sk_total_depth') - G('sk_cap_overhang'),
+             note='cap hits something behind the front')
     # Kappe darf nicht ueber die Platine hinauswandern
-    b.check(g, 'Kappe bleibt ueber der Platine (y)',
-             G('sk_platine_h') / 2 - (G('sk_kappe_h') / 2 + abs(versatz_y)),
-             '>=', 0.5, hinweis='Kappe steht ueber die Platine hinaus')
-    b.check(g, 'Kappe bleibt ueber der Platine (x)',
-             G('sk_platine_b') / 2 - (G('sk_kappe_b') / 2 + abs(versatz_x)),
+    b.check(g, 'cap stays over the board (y)',
+             G('sk_board_h') / 2 - (G('sk_cap_h') / 2 + abs(offset_y)),
+             '>=', 0.5, note='cap protrudes past the board')
+    b.check(g, 'cap stays over the board (x)',
+             G('sk_board_b') / 2 - (G('sk_cap_b') / 2 + abs(offset_x)),
              '>=', 0.5)
 
     # --- 3. Platinen und Dome in der Ebene --------------------------------
-    g = '3. Platinen beruehren sich nicht'
-    b.check(g, 'Platinenspalt waagerecht',
-             G('raster_x') - G('sk_platine_b'), '>', 2)
-    b.check(g, 'Platinenspalt senkrecht',
-             G('raster_y') - G('sk_platine_h'), '>', 2)
-    b.check(g, 'Raster passt zum Kappenspalt (x)',
-             G('raster_x'), '==', G('sk_kappe_b') + 15.0)
-    b.check(g, 'Raster passt zum Kappenspalt (y)',
-             G('raster_y'), '==', G('sk_kappe_h') + 20.0)
+    g = '3. Boards do not touch'
+    b.check(g, 'board gap horizontal',
+             G('pitch_x') - G('sk_board_b'), '>', 2)
+    b.check(g, 'board gap vertical',
+             G('pitch_y') - G('sk_board_h'), '>', 2)
+    b.check(g, 'pitch matches the cap gap (x)',
+             G('pitch_x'), '==', G('sk_cap_b') + 15.0)
+    b.check(g, 'pitch matches the cap gap (y)',
+             G('pitch_y'), '==', G('sk_cap_h') + 20.0)
 
-    dmin = min(max(abs(dp[0] - sp[0]) - G('sk_platine_b') / 2,
-                   abs(dp[1] - sp[1]) - G('sk_platine_h') / 2) - G('dom_d') / 2
-               for dp in dom_pos for sp in sk_pos)
-    b.check(g, 'Deckeldom zur naechsten Platine', dmin, '>', 0,
-             hinweis='Dom steht auf einer Platine')
+    dmin = min(max(abs(dp[0] - sp[0]) - G('sk_board_b') / 2,
+                   abs(dp[1] - sp[1]) - G('sk_board_h') / 2) - G('boss_d') / 2
+               for dp in boss_pos for sp in sk_pos)
+    b.check(g, 'lid boss to nearest board', dmin, '>', 0,
+             note='boss stands on a board')
 
     # --- 4. Tiefenbudget --------------------------------------------------
-    g = '4. Tiefe — was hinter der Front uebereinander liegt'
-    frei_ueber_traeger = G('innen_z_h') - G('traeger_z_o')
-    b.info(g, 'Aufbau', 'Front %.1f | ScreenKey %.1f | Kabel %.1f | '
-                        'Traeger %.1f | Bauteile %.1f | Deckel %.1f'
-           % (G('front_d'), G('sk_hinter_front'), G('kabelraum'),
-              G('traeger_d'), frei_ueber_traeger, G('deckel_d')))
-    b.check(g, 'Platz ueber dem Traeger fuer den Akku',
-             frei_ueber_traeger, '>=', G('akku_d') + G('bauteil_luft'))
-    b.check(g, 'Platz ueber dem Traeger fuer den Feather',
-             frei_ueber_traeger, '>=',
-             G('feather_stuetze') + G('feather_h') + 0.0,
-             hinweis='Feather stoesst gegen den Deckel')
-    b.check(g, 'Platz ueber dem Traeger fuer den Verstaerker',
-             frei_ueber_traeger, '>=', G('amp_stuetze') + G('amp_d'))
-    b.check(g, 'Innentiefe fuer den Lautsprecher',
-             G('innen_z_h') - G('front_d'), '>=', G('ls_tiefe') + 0.5)
-    b.check(g, 'ScreenKey passt hinter die Front',
-             G('sk_platine_z_v'), '>=', G('front_d') + 1.0)
-    b.check(g, 'Kabelraum hinter der ScreenKey-Platine',
-             G('kabelraum'), '>=', 4.0,
-             hinweis='Stecker und Litzen brauchen Platz')
+    g = '4. Depth - what stacks up behind the front'
+    frei_ueber_carrier = G('inner_z_h') - G('carrier_z_top')
+    b.info(g, 'stack-up', 'front %.1f | ScreenKey %.1f | cable %.1f | '
+                        'carrier %.1f | parts %.1f | lid %.1f'
+           % (G('front_d'), G('sk_behind_front'), G('cable_space'),
+              G('carrier_d'), frei_ueber_carrier, G('lid_d')))
+    b.check(g, 'room above the carrier for the battery',
+             frei_ueber_carrier, '>=', G('battery_d') + G('part_clearance'))
+    b.check(g, 'room above the carrier for the Feather',
+             frei_ueber_carrier, '>=',
+             G('feather_support') + G('feather_h') + 0.0,
+             note='Feather hits the lid')
+    b.check(g, 'room above the carrier for the amplifier',
+             frei_ueber_carrier, '>=', G('amp_support') + G('amp_d'))
+    b.check(g, 'inner depth for the speaker',
+             G('inner_z_h') - G('front_d'), '>=', G('spk_depth') + 0.5)
+    b.check(g, 'ScreenKey fits behind the front',
+             G('sk_board_z_v'), '>=', G('front_d') + 1.0)
+    b.check(g, 'cable space behind the ScreenKey board',
+             G('cable_space'), '>=', 4.0,
+             note='connector and wires need room')
 
     # --- 5. Kollisionen auf dem Traeger -----------------------------------
-    g = '5. Bauteile auf dem Traeger'
-    bett = G('bett')
+    g = '5. Parts on the carrier'
+    bed_margin = G('bed_margin')
     teile = [
-        ('Akku', (G('akku_x') - bett, G('akku_y') - bett,
-                  G('akku_x') + G('akku_b') + bett,
-                  G('akku_y') + G('akku_h') + bett)),
+        ('battery', (G('battery_x') - bed_margin, G('battery_y') - bed_margin,
+                  G('battery_x') + G('battery_b') + bed_margin,
+                  G('battery_y') + G('battery_h') + bed_margin)),
         ('Feather', (G('feather_x'), G('feather_y'),
                      G('feather_x') + G('feather_l'),
                      G('feather_y') + G('feather_b'))),
-        ('Verstaerker', (G('amp_x') - bett, G('amp_y') - bett,
-                         G('amp_x') + G('amp_b') + bett,
-                         G('amp_y') + G('amp_h') + bett)),
+        ('amplifier', (G('amp_x') - bed_margin, G('amp_y') - bed_margin,
+                         G('amp_x') + G('amp_b') + bed_margin,
+                         G('amp_y') + G('amp_h') + bed_margin)),
     ]
-    hindernisse = [('Kammer', (-G('innen_rand'), G('kammer_y'),
-                               G('kammer_x') + G('kammer_wand'),
-                               env_h + G('innen_rand')))]
+    hindernisse = [('chamber', (-G('inner_margin'), G('chamber_y'),
+                               G('chamber_x') + G('chamber_wall'),
+                               env_h + G('inner_margin')))]
     hindernisse += [('Deckeldom %d' % i,
-                     (d[0] - G('dom_d') / 2, d[1] - G('dom_d') / 2,
-                      d[0] + G('dom_d') / 2, d[1] + G('dom_d') / 2))
-                    for i, d in enumerate(dom_pos)]
+                     (d[0] - G('boss_d') / 2, d[1] - G('boss_d') / 2,
+                      d[0] + G('boss_d') / 2, d[1] + G('boss_d') / 2))
+                    for i, d in enumerate(boss_pos)]
 
     hits = []
     for i in range(len(teile)):
@@ -280,190 +280,190 @@ def compute(p, bett_x, bett_y):
         for nh, rh in hindernisse:
             if overlaps(ra, rh):
                 hits.append('%s/%s' % (na, nh))
-    b.check(g, 'Ueberschneidungen (mit Halterippen)', len(hits), '==', 0,
-             einheit='St', hinweis=', '.join(hits))
+    b.check(g, 'overlaps (with retaining ribs)', len(hits), '==', 0,
+             unit='pcs', note=', '.join(hits))
 
     raus = [n for n, r in teile
-            if r[0] < -G('innen_rand') - 1e-3 or r[1] < -G('innen_rand') - 1e-3
-            or r[2] > env_b + G('innen_rand') + 1e-3
-            or r[3] > env_h + G('innen_rand') + 1e-3]
-    b.check(g, 'ragt ueber die Innenwand hinaus', len(raus), '==', 0,
-             einheit='St', hinweis=', '.join(raus))
+            if r[0] < -G('inner_margin') - 1e-3 or r[1] < -G('inner_margin') - 1e-3
+            or r[2] > env_b + G('inner_margin') + 1e-3
+            or r[3] > env_h + G('inner_margin') + 1e-3]
+    b.check(g, 'protrudes past the inner wall', len(raus), '==', 0,
+             unit='pcs', note=', '.join(raus))
 
     # Der Traeger ist unter der Kammer ausgeschnitten — dort darf nichts stehen
-    schnitt_x = G('kammer_x') + G('kammer_wand') + G('innen_rand') + 1.8
+    schnitt_x = G('chamber_x') + G('chamber_wall') + G('inner_margin') + 1.8
     for name, r in teile:
-        if r[3] > G('kammer_y') + G('kammer_wand'):
-            b.check(g, '%s steht auf Traegermaterial' % name, r[0], '>=',
-                     schnitt_x - G('innen_rand') - 1.0,
-                     hinweis='steht ueber dem Kammerausschnitt')
+        if r[3] > G('chamber_y') + G('chamber_wall'):
+            b.check(g, '%s stands on carrier material' % name, r[0], '>=',
+                     schnitt_x - G('inner_margin') - 1.0,
+                     note='sits over the chamber cutout')
 
     # Zapfenloecher im Traeger duerfen nicht unter einem Feather-Sockel
     # liegen — sonst faengt der Sockel ueber einer Lochkante an zu drucken.
-    stuetze_pos = [((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my1')),
+    support_pos = [((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my1')),
                    ((G('blk_mx1') + G('blk_mx2')) / 2, env_h / 2),
                    ((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my2')),
                    ((G('set_mx') + G('blk_mx1')) / 2, 4.0)]
-    loch_r = (G('zapfen_d') + 0.4) / 2
+    hole_r = (G('peg_d') + 0.4) / 2
     naeh = 1e9
-    for sx, sy in stuetze_pos:
+    for sx, sy in support_pos:
         for ix in (-1, 1):
             for iy in (-1, 1):
-                px = G('feather_x') + G('feather_l') / 2 + ix * G('feather_loch_l') / 2
-                py = G('feather_y') + G('feather_b') / 2 + iy * G('feather_loch_b') / 2
-                naeh = min(naeh, math.hypot(px - sx, py - sy) - loch_r - 2.5)
-    b.check(g, 'Feather-Sockel zum naechsten Zapfenloch', naeh, '>=', 0.5,
-             hinweis='Sockel druckt ueber einer Lochkante')
+                px = G('feather_x') + G('feather_l') / 2 + ix * G('feather_hole_l') / 2
+                py = G('feather_y') + G('feather_b') / 2 + iy * G('feather_hole_b') / 2
+                naeh = min(naeh, math.hypot(px - sx, py - sy) - hole_r - 2.5)
+    b.check(g, 'Feather standoff to nearest peg hole', naeh, '>=', 0.5,
+             note='standoff prints over a hole edge')
 
     # --- 6. USB-C ---------------------------------------------------------
-    g = '6. USB-C — die einzige Verbindung nach aussen'
-    b.check(g, 'Feather-Kante an der Innenwand',
-             abs(G('feather_x') + G('innen_rand')), '<=', 0.01,
-             hinweis='Buchse erreicht die Gehaeusekante nicht')
-    b.check(g, 'Buchse ragt bis in die Wand',
-             G('usb_ueberstand'), '>=', 0.5)
+    g = '6. USB-C - the only connection to the outside'
+    b.check(g, 'Feather edge at the inner wall',
+             abs(G('feather_x') + G('inner_margin')), '<=', 0.01,
+             note='Buchse erreicht die Gehaeusekante nicht')
+    b.check(g, 'socket reaches into the wall',
+             G('usb_overhang'), '>=', 0.5)
     fen_h = G('usb_fen_h')
-    b.check(g, 'Fensterunterkante ueber der Traegerauflage',
-             G('usb_z') - fen_h / 2, '>=', G('traeger_z_o') + 1.0)
-    b.check(g, 'Fensteroberkante unter dem Deckelfalz',
-             G('usb_z') + fen_h / 2, '<=', G('innen_z_h') - 1.0)
-    b.check(g, 'Fenster breiter als die Buchse',
+    b.check(g, 'window bottom edge above the carrier ledge',
+             G('usb_z') - fen_h / 2, '>=', G('carrier_z_top') + 1.0)
+    b.check(g, 'window top edge below the lid rebate',
+             G('usb_z') + fen_h / 2, '<=', G('inner_z_h') - 1.0)
+    b.check(g, 'window wider than the socket',
              G('usb_buchse_b') + 1.4, '>=', G('usb_buchse_b') + 1.0)
-    b.info(g, 'Bruecke ueber dem Fenster',
+    b.info(g, 'bridge over the window',
            '%.1f mm frei ueberspannt (FDM schafft das)'
            % (G('usb_buchse_b') + 1.4 - 2 * 1.0))
 
     # --- 7. Lautsprecher --------------------------------------------------
-    g = '7. Lautsprecher — geschlossen hinten, offen nach vorn'
-    kam_b = G('kammer_x') + G('kammer_wand') + G('innen_rand')
-    kam_h = env_h + G('innen_rand') - G('kammer_y')
-    kam_t = G('innen_z_h') - G('front_d')
+    g = '7. Speaker - closed at the back, open to the front'
+    kam_b = G('chamber_x') + G('chamber_wall') + G('inner_margin')
+    kam_h = env_h + G('inner_margin') - G('chamber_y')
+    kam_t = G('inner_z_h') - G('front_d')
     brutto = kam_b * kam_h * kam_t / 1000.0
-    netto = brutto - (G('ls_rahmen') ** 2 * G('ls_tiefe')) / 1000.0
-    b.info(g, 'Kammervolumen', '%.1f cm3 brutto, %.1f cm3 netto'
+    netto = brutto - (G('spk_frame') ** 2 * G('spk_depth')) / 1000.0
+    b.info(g, 'chamber volume', '%.1f cm3 brutto, %.1f cm3 netto'
            % (brutto, netto))
-    b.check(g, 'Restvolumen hinter dem Chassis', netto, '>=', 20.0,
-             einheit='cm3', hinweis='klingt duenn und blechern')
-    b.check(g, 'Kammer tief genug fuer das Chassis', kam_t, '>=',
-             G('ls_tiefe') + 0.5)
-    b.check(g, 'Luft zwischen Chassis und Kammerwand', G('kammer_luft'),
+    b.check(g, 'remaining volume behind the driver', netto, '>=', 20.0,
+             unit='cm3', note='klingt duenn und blechern')
+    b.check(g, 'chamber deep enough for the driver', kam_t, '>=',
+             G('spk_depth') + 0.5)
+    b.check(g, 'clearance between driver and chamber wall', G('chamber_clearance'),
              '>=', 1.0)
-    b.check(g, 'Schallaustritt deckt die Membran',
-             G('gitter_feld_d'), '>=', G('ls_membran_d'))
-    b.check(g, 'Gitterloch zu gross fuer einen Kinderfinger',
-             G('gitter_loch_d'), '<=', 5.0,
-             hinweis='Finger passt hinein')
-    steg = G('gitter_raster') - G('gitter_loch_d')
-    b.check(g, 'Steg zwischen den Gitterloechern', steg, '>=', 1.2,
-             hinweis='bricht heraus')
+    b.check(g, 'sound outlet covers the cone',
+             G('grille_field_d'), '>=', G('spk_cone_d'))
+    b.check(g, "grille hole too large for a child finger",
+             G('grille_hole_d'), '<=', 5.0,
+             note='Finger passt hinein')
+    steg = G('grille_pitch') - G('grille_hole_d')
+    b.check(g, 'web between the grille holes', steg, '>=', 1.2,
+             note='bricht heraus')
 
     # --- 8. Gehaeuse, Druck ----------------------------------------------
-    g = '8. Drucken — einfacher FDM, eine Farbe, ohne Stuetzen'
+    g = '8. Printing - simple FDM, one colour, no supports'
     # Zwei verschiedene Kriterien, die man leicht verwechselt:
     #   senkrechte Waende werden aus BAHNEN gebaut (Breite 0,4 mm),
     #   flach liegende Platten aus LAGEN (Hoehe 0,2 mm).
     # In der Drucklage der Wanne (Front unten) ist die Frontplatte eine
     # Platte und nur die Seitenwand eine Wand.
     bahn, lage = 0.4, 0.2
-    for name, value in (('Seitenwand', G('wand')),
-                       ('Kammerwand', G('kammer_wand')),
-                       ('Halterippe', G('rippe_b'))):
+    for name, value in (('Seitenwand', G('wall')),
+                       ('Kammerwand', G('chamber_wall')),
+                       ('Halterippe', G('rib_b'))):
         n = value / bahn
-        b.check(g, '%s = ganze Bahnen (%.1f x 0,4)' % (name, n),
-                 abs(n - round(n)), '<=', 0.001, einheit='',
-                 hinweis='Slicer laesst eine Luecke oder ueberextrudiert')
+        b.check(g, '%s = whole passes (%.1f x 0.4)' % (name, n),
+                 abs(n - round(n)), '<=', 0.001, unit='',
+                 note='Slicer laesst eine Luecke oder ueberextrudiert')
     for name, value in (('Frontplatte', G('front_d')),
-                       ('Deckel', G('deckel_d')),
-                       ('Traeger', G('traeger_d'))):
+                       ('Deckel', G('lid_d')),
+                       ('carrier', G('carrier_d'))):
         n = value / lage
-        b.check(g, '%s = ganze Lagen (%.1f x 0,2)' % (name, n),
-                 abs(n - round(n)), '<=', 0.001, einheit='',
-                 hinweis='letzte Lage wird angeschnitten')
-    b.check(g, 'Wandstaerke tragfaehig', G('wand'), '>=', 1.6)
-    b.check(g, 'Logo-Praegung hoch genug', G('logo_deckel_h'), '>=', 0.6,
-             hinweis='auf einem muedem Drucker nicht mehr zu sehen')
-    b.check(g, 'Logo-Praegung = ganze Lagen bei 0,2 mm',
-             abs(G('logo_deckel_h') / 0.2 - round(G('logo_deckel_h') / 0.2)),
-             '<=', 0.001, einheit='')
+        b.check(g, '%s = whole layers (%.1f x 0.2)' % (name, n),
+                 abs(n - round(n)), '<=', 0.001, unit='',
+                 note='letzte Lage wird angeschnitten')
+    b.check(g, 'wall thickness load-bearing', G('wall'), '>=', 1.6)
+    b.check(g, 'logo embossing high enough', G('logo_lid_h'), '>=', 0.6,
+             note='auf einem muedem Drucker nicht mehr zu sehen')
+    b.check(g, 'logo embossing = whole layers at 0.2 mm',
+             abs(G('logo_lid_h') / 0.2 - round(G('logo_lid_h') / 0.2)),
+             '<=', 0.001, unit='')
 
     # Der Innenraum wird nach hinten stufenweise weiter. Jede Stufe ist damit
     # eine nach oben zeigende Auflage statt eines Ueberhangs.
-    stufe_a = G('innen_b') - 2 * G('sockel')
-    stufe_b = G('innen_b')
-    stufe_c = G('aussen_b') - 2 * G('lippe') + G('deckel_spiel')
-    b.check(g, 'Innenraum wird nach hinten weiter (a<b)', stufe_b, '>',
-             stufe_a, hinweis='diese Stufe waere ein Ueberhang')
-    b.check(g, 'Innenraum wird nach hinten weiter (b<c)', stufe_c, '>',
-             stufe_b, hinweis='diese Stufe waere ein Ueberhang')
-    b.check(g, 'Absatz als Traegerauflage', G('sockel'), '>=', 1.2)
-    b.check(g, 'Aussenhaut ueber dem Deckelfalz',
-             G('lippe') - G('deckel_spiel') / 2, '>=', 0.8,
-             hinweis='zu duenn, bricht')
+    stufe_a = G('inner_b') - 2 * G('standoff')
+    stufe_b = G('inner_b')
+    stufe_c = G('outer_b') - 2 * G('lip') + G('lid_play')
+    b.check(g, 'inner space widens towards the back (a<b)', stufe_b, '>',
+             stufe_a, note='diese Stufe waere ein Ueberhang')
+    b.check(g, 'inner space widens towards the back (b<c)', stufe_c, '>',
+             stufe_b, note='diese Stufe waere ein Ueberhang')
+    b.check(g, 'step as carrier ledge', G('standoff'), '>=', 1.2)
+    b.check(g, 'outer skin above the lid rebate',
+             G('lip') - G('lid_play') / 2, '>=', 0.8,
+             note='zu duenn, bricht')
 
-    b.check(g, 'Wanne aufs Bett (X)', G('aussen_b'), '<=', bett_x)
-    b.check(g, 'Wanne aufs Bett (Y)', G('aussen_h'), '<=', bett_y)
-    b.info(g, 'Bauhoehe Wanne', '%.1f mm (Front unten, Oeffnung nach oben)'
-           % G('aussen_t'))
-    b.info(g, 'Bauhoehe Traeger', '%.1f mm' % (G('traeger_d') + G('akku_d')
+    b.check(g, 'tub onto the bed (X)', G('outer_b'), '<=', bed_x)
+    b.check(g, 'tub onto the bed (Y)', G('outer_h'), '<=', bed_y)
+    b.info(g, 'build height tub', '%.1f mm (Front unten, Oeffnung nach oben)'
+           % G('outer_t'))
+    b.info(g, 'build height carrier', '%.1f mm' % (G('carrier_d') + G('battery_d')
                                                + 0.2))
-    b.info(g, 'Bauhoehe Deckel', '%.1f mm (Innenseite unten, Logo oben)'
-           % (G('deckel_d') + G('logo_deckel_h')))
+    b.info(g, 'build height lid', '%.1f mm (Innenseite unten, Logo oben)'
+           % (G('lid_d') + G('logo_lid_h')))
 
     # --- 9. Oeffnen und Schliessen ---------------------------------------
-    g = '9. Zu oeffnen — Akku und Prototyp'
-    b.check(g, 'Deckelspiel im Falz', G('deckel_spiel'), '>=', 0.2)
-    b.check(g, 'Deckelspiel nicht zu gross', G('deckel_spiel'), '<=', 0.6,
-             hinweis='Deckel klappert')
-    b.check(g, 'Traegerspiel', G('traeger_spiel'), '>=', 0.2)
-    b.check(g, 'Domwand um das Kernloch',
-             (G('dom_d') - G('dom_kern')) / 2, '>=', 1.0,
-             hinweis='Dom reisst beim Schrauben auf')
-    b.check(g, 'Senkung passt in den Deckel',
-             G('deckel_d') - G('senk_t'), '>=', 1.0,
-             hinweis='Schraubenkopf bricht durch')
-    b.check(g, 'Schraubenkopf kleiner als der Dom', G('senk_d'), '<=',
-             G('dom_d') + 0.4, hinweis='Kopf steht ueber den Dom hinaus')
-    b.info(g, 'Verschraubung', '6 x M3 %s'
-           % ('Gewindeeinsatz' if G('gewindeeinsatz') else 'selbstschneidend'))
+    g = '9. Opening it - battery and prototype'
+    b.check(g, 'lid play in the rebate', G('lid_play'), '>=', 0.2)
+    b.check(g, 'lid play not too large', G('lid_play'), '<=', 0.6,
+             note='Deckel klappert')
+    b.check(g, 'carrier play', G('carrier_play'), '>=', 0.2)
+    b.check(g, 'boss wall around the pilot hole',
+             (G('boss_d') - G('boss_core')) / 2, '>=', 1.0,
+             note='Dom reisst beim Schrauben auf')
+    b.check(g, 'countersink fits into the lid',
+             G('lid_d') - G('csink_t'), '>=', 1.0,
+             note='Schraubenkopf bricht durch')
+    b.check(g, 'screw head smaller than the boss', G('csink_d'), '<=',
+             G('boss_d') + 0.4, note='Kopf steht ueber den Dom hinaus')
+    b.info(g, 'screw fixing', '6 x M3 %s'
+           % ('Gewindeeinsatz' if G('threaded_insert') else 'selbstschneidend'))
 
     # --- 10. Gewicht und Schwerpunkt -------------------------------------
-    g = '10. Wie es in der Hand liegt'
-    m_akku, m_ls = 52.0, 35.0
-    sp_x = (m_akku * (G('akku_x') + G('akku_b') / 2)
-            + m_ls * G('ls_mx')) / (m_akku + m_ls)
-    sp_y = (m_akku * (G('akku_y') + G('akku_h') / 2)
-            + m_ls * G('ls_my')) / (m_akku + m_ls)
-    b.info(g, 'Schwerpunkt Akku+Lautsprecher',
+    g = '10. How it sits in the hand'
+    m_battery, m_spk = 52.0, 35.0
+    sp_x = (m_battery * (G('battery_x') + G('battery_b') / 2)
+            + m_spk * G('spk_mx')) / (m_battery + m_spk)
+    sp_y = (m_battery * (G('battery_y') + G('battery_h') / 2)
+            + m_spk * G('spk_my')) / (m_battery + m_spk)
+    b.info(g, 'centre of gravity battery+speaker',
            'x %.1f (Mitte %.1f), y %.1f (Mitte %.1f)'
            % (sp_x, env_b / 2, sp_y, env_h / 2))
-    b.check(g, 'Schwerpunkt waagerecht aus der Mitte',
+    b.check(g, 'centre of gravity off centre, horizontal',
              abs(sp_x - env_b / 2), '<=', 8.0,
-             hinweis='kippt zur Seite')
-    b.check(g, 'Schwerpunkt senkrecht aus der Mitte',
+             note='kippt zur Seite')
+    b.check(g, 'centre of gravity off centre, vertical',
              abs(sp_y - env_h / 2), '<=', 8.0,
-             hinweis='kopflastig')
+             note='kopflastig')
     return b
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--versatz', type=float, default=None,
-                    help='kappe_versatz_y ueberschreiben (mm)')
-    ap.add_argument('--bett', type=float, nargs=2, default=(220.0, 220.0),
+    ap.add_argument('--offset', type=float, default=None,
+                    help='cap_offset_y ueberschreiben (mm)')
+    ap.add_argument('--bed', type=float, nargs=2, default=(220.0, 220.0),
                     metavar=('X', 'Y'), help='Druckbett (Vorgabe 220 x 220)')
     ap.add_argument('--scad', default=SCAD)
     a = ap.parse_args()
 
     p = load_parameters(a.scad)
-    if a.versatz is not None:
-        p['kappe_versatz_y'] = a.versatz
+    if a.offset is not None:
+        p['cap_offset_y'] = a.offset
 
-    print('vorlaut — Gehaeuse, Nachrechnung')
-    print('Quelle: %s' % os.path.relpath(a.scad))
-    print('Aussen: %.2f x %.2f x %.2f mm   Bett: %.0f x %.0f mm'
-          % (p['aussen_b'], p['aussen_h'], p['aussen_t'], a.bett[0], a.bett[1]))
-    b = compute(p, a.bett[0], a.bett[1])
+    print('vorlaut - case, recalculation')
+    print('Source: %s' % os.path.relpath(a.scad))
+    print('Outer: %.2f x %.2f x %.2f mm   Bed: %.0f x %.0f mm'
+          % (p['outer_b'], p['outer_h'], p['outer_t'], a.bed[0], a.bed[1]))
+    b = compute(p, a.bed[0], a.bed[1])
     return b.emit()
 
 
