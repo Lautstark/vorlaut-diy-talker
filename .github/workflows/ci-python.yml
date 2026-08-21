@@ -107,6 +107,13 @@ jobs:
         # otherwise only show once a device is standing on the table.
         run: python tests/test_texts.py
 
+      - name: The fingerprint holds still, and the SSML stays XML
+        # The region is not part of the fingerprint and must not become part
+        # of it again: the settings page writes it live now, so a key that
+        # crept back in would rename the whole cache on one click. Also that a
+        # quotation mark in a voice id cannot break out of the SSML.
+        run: python tests/test_tts.py
+
       - name: The example sentences still match their file names
         # example/speech/ is found by fingerprint, and the fingerprint holds
         # the voice configuration. Change the voice and the files stop

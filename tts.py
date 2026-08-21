@@ -23,6 +23,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
+from xml.sax.saxutils import escape, quoteattr
 
 import config
 import texts
@@ -55,6 +56,12 @@ setting = config.value
 # wrong endpoint until somebody restarted the server.
 def region() -> str:
     return setting("AZURE_SPEECH_REGION", "germanywestcentral")
+
+# The rate stays frozen at import, deliberately the other way round: it does
+# change how a sentence sounds and so belongs in the fingerprint, and reading
+# it live would rename every cached WAV the moment somebody edited the file.
+# Nothing in the interface writes this one - it takes a hand edit and a
+# restart, and the restart is what keeps the cache and the setting in step.
 RATE = setting("AZURE_SPEECH_RATE", "-5%")
 
 # From the time before layout.json knew about voices. An entry here decides
@@ -476,10 +483,17 @@ def voice_config(vid: str) -> dict:
         return {"backend": "piper", "model": rest, **shared}
     # Azure keeps exactly the shape it had before there was anything to
     # choose. Adding a key here would rename every WAV ever spoken.
+    #
+    # Which is why the region is not in here. Azure hands back the same audio
+    # for the same voice whichever region synthesised it - the region is
+    # routing and billing, not rendering. It used to sit in this dictionary,
+    # where it cost an .env edit and a restart to move; now that the settings
+    # page writes it live, one click would rename the whole cache, unseat the
+    # recordings in example/speech/ and have every sentence synthesised - and
+    # billed - a second time to come out byte for byte the same.
     return {
         "voice": rest,
         "locale": locale_of(rest),
-        "region": region(),
         "rate": RATE,
         "azure_format": AZURE_FORMAT,
         **shared,
@@ -531,21 +545,21 @@ def remember(text: str, vid: str) -> None:
 
 # --- Azure -------------------------------------------------------------------
 
-def _xml_escape(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
-
-
 def build_ssml(text: str, voice: str) -> str:
+    """The request body Azure reads: text and voice wrapped in SSML.
+
+    Everything interpolated here comes from outside - the text from a slot,
+    the voice from layout.json, the rate from .env - and only the voice is
+    checked at all, for its piper:/azure: prefix. A quotation mark in any of
+    them would close the attribute it stands in and produce XML Azure rejects,
+    so quoteattr sets the quotes rather than the format string. It picks the
+    quote character itself, which is why there are none around it below.
+    """
     return (
         '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" '
-        f'xml:lang="{locale_of(voice)}">'
-        f'<voice name="{voice}">'
-        f'<prosody rate="{RATE}">{_xml_escape(text.strip())}</prosody>'
+        f"xml:lang={quoteattr(locale_of(voice))}>"
+        f"<voice name={quoteattr(voice)}>"
+        f"<prosody rate={quoteattr(RATE)}>{escape(text.strip())}</prosody>"
         "</voice></speak>"
     )
 

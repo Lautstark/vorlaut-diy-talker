@@ -4,7 +4,6 @@
   "loudnorm": "I=-16:TP=-1.5:LRA=11",
   "pipeline": 2,
   "rate": "-5%",
-  "region": "germanywestcentral",
   "sample_rate": 16000,
   "silence_threshold": "-45dB",
   "voice": "de-DE-GiselaNeural"
