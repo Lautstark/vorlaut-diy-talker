@@ -28,6 +28,14 @@
 #define BREITE 128
 #define HOEHE  128
 
+// Panel-Profil. Voreinstellung ist die Variante der echten Screenkeys
+// (128x128). Zum Ausprobieren ohne Codeaenderung ueberschreibbar, etwa
+//   arduino-cli compile --build-property \
+//     "compiler.cpp.extra_flags=-DPANEL_INITR=INITR_BLACKTAB" ...
+#ifndef PANEL_INITR
+#define PANEL_INITR INITR_144GREENTAB
+#endif
+
 class Panel : public Adafruit_ST7735 {
  public:
   using Adafruit_ST7735::Adafruit_ST7735;
@@ -55,7 +63,7 @@ void setup() {
 
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
   tft = new Panel(&SPI, PIN_CS[0], PIN_DC, -1);
-  tft->initR(INITR_144GREENTAB);
+  tft->initR(PANEL_INITR);
   tft->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
   tft->setRotation(PANEL_ROTATION);
   Serial.println("Bleibt es schwarz: Verkabelung von CLK, DIN, DC, RST und VCC prüfen.");

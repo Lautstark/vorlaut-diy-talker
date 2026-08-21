@@ -10,6 +10,8 @@ content/
 
 # arduino-cli legt sein Zwischenverzeichnis im Sketchordner an
 firmware/vorlaut/build/
+# dasselbe fuer die Teststufen, die im Simulator laufen
+firmware/tests/*/build/
 
 # Was die Firmware bekommt, entsteht in Sekunden neu aus content/
 firmware/vorlaut/data/

@@ -1,0 +1,53 @@
+# Wokwi-Simulator, gestartet aus VS Code: F1 > "Wokwi: Start Simulator".
+#
+# Die Erweiterung sucht diese Datei im Wurzelverzeichnis des geoeffneten
+# Ordners, deshalb liegt sie hier und nicht beim Sketch.
+#
+# Wozu das gut ist: WLAN, Dateisystem und der Abgleich mit der Weboberflaeche
+# lassen sich hier pruefen, bevor die Hardware da ist - und auch danach noch,
+# denn dafuer braeuchte man sonst Geraet, Netz und Server gleichzeitig. Die
+# VS-Code-Erweiterung bringt ein Gateway mit, ueber das der simulierte ESP32
+# an das lokale Netz kommt und damit an den Server auf diesem Rechner.
+#
+#
+# WAS HIER NICHT GEHT: die Displays.
+#
+# Wokwi hat keinen eingebauten ST7735. Der Gemeinschafts-Chip
+# github:martysweet/st7735-wokwi-chip meldet sich zwar ("Driver Chip
+# Initialized! W=128, H=160"), malt aber nichts - weder mit
+# INITR_144GREENTAB (unsere 128x128-Panels) noch mit INITR_BLACKTAB, mit dem
+# er laut eigener Doku getestet wurde. Beides am 2026-08-21 ausprobiert, in
+# beiden Faellen blieb die Flaeche schwarz, waehrend der Sketch nachweislich
+# durchlief.
+#
+# Deshalb steht im diagram.json nur noch das Board mit der seriellen
+# Verbindung. Ob die Symbole richtig aussehen, klaert die echte Hardware mit
+# firmware/tests/test2_display und test3_displays - dafuer sind die Stufen da.
+#
+#
+# ZWEI DINGE, DIE MAN WISSEN MUSS
+#
+# 1. Mit CDCOnBoot=default uebersetzen. Das Board hat "USB CDC On Boot"
+#    voreingestellt, dann geht Serial ueber USB - und Wokwis serieller
+#    Monitor haengt an UART0 (TX/RX). Ohne diese Option bleibt der Monitor
+#    stumm, obwohl der Sketch laeuft. Auf der echten Hardware bleibt es bei
+#    CDC, so wie in docs/firmware.md beschrieben.
+#
+# 2. Nach einer Aenderung an diagram.json den Simulator ganz beenden
+#    (Stop-Knopf) und neu starten. Der gruene Neustart-Knopf laedt nur die
+#    Firmware neu, nicht das Diagramm - sonst laeuft man in einen Bootloop,
+#    weil der simulierte Flash noch bei den voreingestellten 4 MB steht,
+#    unsere Partitionstabelle aber 8 MB braucht.
+#
+#
+# Welcher Sketch simuliert wird, steht in den beiden Pfaden unten:
+#
+#   arduino-cli compile \
+#     --fqbn "esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB,CDCOnBoot=default" \
+#     --output-dir firmware/tests/test2_display/build \
+#     firmware/tests/test2_display
+
+[wokwi]
+version = 1
+firmware = 'firmware/tests/test2_display/build/test2_display.ino.merged.bin'
+elf = 'firmware/tests/test2_display/build/test2_display.ino.elf'
