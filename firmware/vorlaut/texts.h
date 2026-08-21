@@ -45,6 +45,9 @@ struct Strings {
   const char *empty2;        //                            line 2
   const char *fetch1;        // key 2: fetch content over Wi-Fi, line 1
   const char *fetch2;        //                                 line 2
+  const char *wifiNew1;      // key 3: teach it another network, line 1
+  const char *wifiNew2;      //                                 line 2
+  const char *portalHint;    // ... the portal is open, go to the phone
   const char *wifi;          // ... looking for the network
   const char *loading;       // ... transferring, with a count underneath
   const char *done;          // ... and it worked
@@ -53,6 +56,7 @@ struct Strings {
   const char *noServer;
   const char *badKey;
   const char *switchedOff;
+  const char *noAnswer;      // ... nothing answered at that address
 };
 
 // The order has to match LANGUAGE_CODES in build.py - the file stores the
@@ -71,6 +75,9 @@ static const Strings LANGUAGES[] = {
     /* empty2          */ "content",
     /* fetch1          */ "Fetch",
     /* fetch2          */ "content",
+    /* wifiNew1        */ "new",
+    /* wifiNew2        */ "Wi-Fi",
+    /* portalHint      */ "on phone",
     /* wifi            */ "Wi-Fi",
     /* loading         */ "loading",
     /* done            */ "done",
@@ -79,6 +86,7 @@ static const Strings LANGUAGES[] = {
     /* noServer        */ "no server",
     /* badKey          */ "wrong key",
     /* switchedOff     */ "shut",
+    /* noAnswer        */ "no answer",
   },
   {  // 1 - German
     /* back            */ "zurück",
@@ -93,6 +101,9 @@ static const Strings LANGUAGES[] = {
     /* empty2          */ "Inhalte",
     /* fetch1          */ "Inhalte",
     /* fetch2          */ "holen",
+    /* wifiNew1        */ "neues",
+    /* wifiNew2        */ "WLAN",
+    /* portalHint      */ "am Handy",
     /* wifi            */ "WLAN",
     /* loading         */ "lädt",
     /* done            */ "fertig",
@@ -101,6 +112,7 @@ static const Strings LANGUAGES[] = {
     /* noServer        */ "kein Ziel",
     /* badKey          */ "Schlüssel",
     /* switchedOff     */ "zu",
+    /* noAnswer        */ "nicht da",
   },
 };
 

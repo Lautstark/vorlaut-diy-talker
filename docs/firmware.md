@@ -116,7 +116,7 @@ arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:Partitio
 > `PartitionScheme=default_8MB`.
 
 Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0,
-WiFiManager 2.0.17: 1285 KB program (38 % of 3 MB), 82 KB RAM (25 %).
+WiFiManager 2.0.17: 1288 KB program (39 % of 3 MB), 82 KB RAM (25 %).
 
 Wi-Fi is what makes that big — without it the sketch was 472 KB. The 3 MB app
 partition still has room to spare, but it is worth knowing where it went.
@@ -149,6 +149,7 @@ In the menu the keys label themselves. Currently:
 |---|---|
 | 1 | **Info** — number of sets, is the file system there |
 | 2 | **Fetch content** — bring up Wi-Fi and sync with the web interface |
+| 3 | **new Wi-Fi** — open the setup portal and teach it another network |
 | Set | **back** to normal operation |
 
 The rest stay empty. Entries appear once the function behind them exists.
@@ -161,11 +162,18 @@ most of the battery, for something that is needed once a week at most. So it
 comes up only when somebody asks for it here, and goes off again straight
 afterwards.
 
-On the first use a setup portal opens: join the network **"vorlaut einrichten"**
-with a phone and enter the Wi-Fi, the address of the computer running `app.py`,
-and the key from `VORLAUT_DEVICE_TOKEN`. All three are kept in NVS and survive
-a reflash. The portal gives up after three minutes — a device stuck in a portal
-no longer speaks.
+**Setting up is its own key.** `new Wi-Fi` opens the portal: join the network
+**"vorlaut einrichten"** with a phone and enter the Wi-Fi, the address of the
+computer running `app.py`, and the key from `VORLAUT_DEVICE_TOKEN`. All of it
+is kept in NVS and survives a reflash. The portal gives up after three minutes
+— a device stuck in a portal no longer speaks.
+
+`Fetch content` never opens the portal. It used to, whenever it found no
+network, and while the device stood in one place that was the same thing as
+setting it up. It is not the same thing for a talker that travels: an access
+point that stays up for three minutes in the middle of a kindergarten, because
+somebody pressed the wrong key, is exactly what must not happen. Without a
+known network it now says `no Wi-Fi` and is back in the menu in a few seconds.
 
 While it runs, all five displays show the same thing: `Wi-Fi`, then `loading`
 with a count, then `done` with the number of files. On failure they show
@@ -177,6 +185,7 @@ with a count, then `done` with the number of files. On failure they show
 | `no server` | no address entered |
 | `wrong key` | the key does not match `VORLAUT_DEVICE_TOKEN` |
 | `shut` | no key set on the server, so the endpoints answer 503 |
+| `no answer` | nothing at that address — usually the editor is not running, or this is a network it is not on |
 
 The serial monitor gets the same in a full sentence. The one-word version
 exists because the alternative is fetching a USB cable to find out that a
@@ -210,6 +219,31 @@ glance that this is not the talker.
 
 **After 30 seconds without input it returns by itself.** A device stuck in the
 menu no longer speaks — that must not happen.
+
+### Several networks
+
+The talker goes to kindergarten, to the grandparents, on holiday. It stores
+**four networks**, most recently used first; a fifth pushes out the one nobody
+has connected to for longest. Every trip through `new Wi-Fi` adds one, it does
+not replace what is there — home keeps working after the grandparents' has
+been added.
+
+The ESP32 itself remembers exactly one network and WiFiManager hands it
+exactly one, so the list lives in
+[`networks.h`](../firmware/vorlaut/networks.h), next to the address of the
+computer. Connecting scans first and takes the strongest network it knows out
+of the ones really in the air — at home that is home, at the grandparents'
+theirs, and neither needs a decision from anybody. A network that is somewhere
+else costs nothing: it is not in the scan.
+
+**Where the editor is not, nothing happens.** The address of the computer is
+one setting, not one per network, so away from home the sync usually finds
+nobody at it. That is a no-op and not a fault: the reason word appears for a
+few seconds, the device goes back to being a talker, and everything it can
+already say it can still say — the content is on the file system, not on the
+network. Connecting is bounded (a scan plus one attempt), and so is reaching
+the computer (four seconds), so the whole detour costs seconds rather than the
+minute the defaults would take.
 
 ### Waking up
 

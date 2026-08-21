@@ -29,6 +29,12 @@
 // not our server answering.
 #define SYNC_MAX_BYTES (2u * 1024u * 1024u)
 #define SYNC_TIMEOUT_MS 15000
+// Reaching the computer is a different wait from transferring a file. On a
+// network where the editor simply is not running - kindergarten, a holiday
+// flat - nothing answers, and the default wait is long enough that the device
+// looks broken while it happens. A connection on the same network either
+// comes about in a moment or not at all.
+#define SYNC_CONNECT_MS 4000
 
 // What went wrong, as something the caller can translate. The text next to
 // it is for the serial monitor, which is English like the rest of the
@@ -177,6 +183,7 @@ class Sync {
   bool fetch(const char *path, String *into, File *file) {
     HTTPClient http;
     http.setTimeout(SYNC_TIMEOUT_MS);
+    http.setConnectTimeout(SYNC_CONNECT_MS);
     if (!http.begin(url(path))) {
       lastCode_ = SYNC_NO_SERVER;
       lastError_ = "bad address";
