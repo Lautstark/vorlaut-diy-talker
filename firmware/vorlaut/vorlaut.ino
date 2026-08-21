@@ -16,7 +16,7 @@
 #include <driver/rtc_io.h>
 #include <esp_sleep.h>
 
-// --- Anzeige ----------------------------------------------------------------
+// --- Display ----------------------------------------------------------------
 // The image files contain the symbol area only; the border in the set colour
 // is drawn by the firmware itself.
 #define DISPLAY_W 128
@@ -38,24 +38,28 @@
 
 #include "pins.h"
 
-// --- Verhalten ---------------------------------------------------------------
+// Everything the device shows in words, and the way it gets onto a panel
+// that only knows code page 437.
+#include "texts.h"
+#include "panel_text.h"
 
-static const uint32_t DEBOUNCE_MS = 80;    // so lange muss gedrückt bleiben
+// --- Behaviour ---------------------------------------------------------------
+
+static const uint32_t DEBOUNCE_MS = 80;    // this long a key has to stay down
 // The set key needs longer. An accidental switch takes away the word she was
 // about to say, and she first has to find her way back - that is more annoying
 // than hitting the wrong word.
 static const uint32_t SET_HOLD_MS = 400;
 // The menu is reached only by two keys at once, held for five seconds. Those
 // two sit diagonally furthest apart - hard to hit with a child's hand. While
-// holding, a countdown runs; whoever lets go
-// bricht ab.
+// holding, a countdown runs; letting go cancels it.
 static const uint32_t MENU_HOLD_MS = 5000;
-static const uint8_t MENU_KEY_A = SET_BUTTON;   // Set-Taste
-static const uint8_t MENU_KEY_B = 1;            // Taste 2, diagonal gegenüber
+static const uint8_t MENU_KEY_A = SET_BUTTON;   // the set key
+static const uint8_t MENU_KEY_B = 1;            // key 2, diagonally opposite
 // Back to normal operation without input. A device stuck in the menu no
 // longer speaks - that must not happen.
 static const uint32_t MENU_IDLE_MS = 30000;
-static const uint32_t SAMPLE_RATE = 16000; // wie build.py die WAVs schreibt
+static const uint32_t SAMPLE_RATE = 16000; // the rate build.py writes the WAVs at
 static const size_t AUDIO_CHUNK = 1024;
 
 // --- Zustand -----------------------------------------------------------------
@@ -99,10 +103,10 @@ static bool contentReady = true;
 enum Mode { MODE_NORMAL, MODE_MENU };
 static Mode mode = MODE_NORMAL;
 static uint32_t menuSince = 0;
-static uint32_t comboSince = 0;   // seit wann beide Menütasten gehalten werden
+static uint32_t comboSince = 0;   // since when both menu keys have been held
 static int8_t countdownShown = -1;
 
-// --- Inhalte laden -----------------------------------------------------------
+// --- Loading the content -----------------------------------------------------------
 
 // Reads /layout.bin and hands it to parseLayout from layout_format.h. If the
 // file is missing or does not fit, there simply is no content yet - that is
@@ -111,21 +115,23 @@ static bool loadLayout() {
   if (!filesystemReady) return false;
   File file = LittleFS.open(LAYOUT_FILE, "r");
   if (!file) {
-    Serial.println("layout.bin fehlt - noch keine Inhalte auf dem Gerät.");
+    Serial.println("layout.bin missing - no content on the device yet.");
     return false;
   }
-  static uint8_t puffer[LAYOUT_MAX_BYTES];
-  const size_t gelesen = file.read(puffer, sizeof(puffer));
+  static uint8_t buffer[LAYOUT_MAX_BYTES];
+  const size_t got = file.read(buffer, sizeof(buffer));
   file.close();
 
-  const LayoutResult ergebnis = parseLayout(puffer, (uint32_t)gelesen, layout);
-  if (ergebnis != LAYOUT_OK) {
-    Serial.printf("layout.bin unbrauchbar (Grund %d, %u Byte)\n",
-                  (int)ergebnis, (unsigned)gelesen);
+  const LayoutResult result = parseLayout(buffer, (uint32_t)got, layout);
+  if (result != LAYOUT_OK) {
+    Serial.printf("layout.bin unusable (reason %d, %u bytes)\n",
+                  (int)result, (unsigned)got);
     return false;
   }
-  Serial.printf("layout.bin: %u Set(s), Schlafzeit %u s\n",
-                layout.setCount, layout.sleepSeconds);
+  // From here on the device talks in the language the content asks for.
+  setLanguage(layout.language);
+  Serial.printf("layout.bin: %u set(s), language %u, sleep %u s\n",
+                layout.setCount, layout.language, layout.sleepSeconds);
   return layout.setCount > 0;
 }
 
@@ -150,12 +156,16 @@ static void setupDisplays() {
     display[i]->initR(INITR_144GREENTAB);  // 128x128
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
     display[i]->setRotation(PANEL_ROTATION);
+    // Without this the font treats bytes above 0x7F as a legacy special case
+    // and draws the wrong glyph. With it they are code page 437, which is
+    // what panel_text.h converts to.
+    display[i]->cp437(true);
     display[i]->fillScreen(ST77XX_BLACK);
   }
 }
 
 // Draws the border in the set colour and inside it the symbol area from the
-// Datei (TILE_W x TILE_H, RGB565 big-endian).
+// file (TILE_W x TILE_H, RGB565 big-endian).
 //
 // The border deliberately is not in the file: that way an image file depends
 // on the symbol alone and not on the set. The same symbol in a blue and in a
@@ -170,7 +180,7 @@ static void drawTile(Panel *tft, const char *path, uint16_t frame) {
 
   File file = (filesystemReady && path) ? LittleFS.open(path, "r") : File();
   if (!file) {
-    if (path) Serial.printf("fehlt: %s\n", path);
+    if (path) Serial.printf("missing: %s\n", path);
     tft->fillRect(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H, ST77XX_BLACK);
     return;
   }
@@ -193,29 +203,38 @@ static void drawTile(Panel *tft, const char *path, uint16_t frame) {
 // Two lines centred on a display, without a file. For states where there is
 // nothing to show yet - at the very first start for instance, when the
 // firmware is on but no content is.
-static void drawMessage(Panel *tft, const char *zeile1, const char *zeile2) {
-  tft->fillScreen(ST77XX_BLACK);
+// Two lines, each centred. Both go through toPanelText: it hands back the
+// bytes the font draws and the number of glyphs, and the glyphs are what the
+// centring has to count. Counting bytes would push every line with an umlaut
+// in it off to the left.
+static void drawTwoLines(Panel *tft, const char *first, const char *second,
+                         int16_t width, uint8_t size) {
+  const int16_t glyphW = 6 * size, glyphH = 8 * size;
+  char panel[MENU_MAX_CHARS * 2 + 1];
   tft->setTextColor(ST77XX_WHITE);
-  const uint8_t groesse = 2;
-  tft->setTextSize(groesse);
-  const int16_t zeichen = 6 * groesse, hoehe = 8 * groesse;
+  tft->setTextSize(size);
   for (uint8_t i = 0; i < 2; i++) {
-    const char *text = i == 0 ? zeile1 : zeile2;
-    if (!text || !*text) continue;
-    int16_t breite = (int16_t)strlen(text) * zeichen;
-    tft->setCursor((DISPLAY_W - breite) / 2,
-                   DISPLAY_H / 2 - hoehe + i * (hoehe + 4));
-    tft->print(text);
+    const char *line = i == 0 ? first : second;
+    if (!line || !*line) continue;
+    const uint8_t glyphs = toPanelText(line, panel, sizeof(panel));
+    tft->setCursor((width - (int16_t)glyphs * glyphW) / 2,
+                   DISPLAY_H / 2 - glyphH + i * (glyphH + 4));
+    tft->print(panel);
   }
+}
+
+static void drawMessage(Panel *tft, const char *first, const char *second) {
+  tft->fillScreen(ST77XX_BLACK);
+  drawTwoLines(tft, first, second, DISPLAY_W, 2);
 }
 
 // All five displays with the same notice, so it cannot be missed.
 static void showNoContent() {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
-    drawMessage(display[i], "keine", "Inhalte");
+    drawMessage(display[i], text().empty1, text().empty2);
   }
-  Serial.println("Keine Inhalte auf dem Gerät.");
-  Serial.println("  Inhalte bauen und aufspielen - siehe docs/firmware.md");
+  Serial.println("No content on the device.");
+  Serial.println("  Build and upload it - see docs/firmware.md");
 }
 
 static void drawCurrentSet() {
@@ -224,14 +243,14 @@ static void drawCurrentSet() {
     return;
   }
   const SetEntry &e = layout.sets[rtcCurrentSet];
-  char pfad[2 + HASH_BYTES * 2 + 5];
+  char path[2 + HASH_BYTES * 2 + 5];
   for (uint8_t i = 0; i < SLOT_COUNT && i < DISPLAY_COUNT - 1; i++) {
-    hashPath(pfad, 't', e.slots[i].image, ".bin");
-    drawTile(display[i], pfad, e.color);
+    hashPath(path, 't', e.slots[i].image, ".bin");
+    drawTile(display[i], path, e.color);
   }
-  hashPath(pfad, 't', e.label, ".bin");
-  drawTile(display[SET_BUTTON], pfad, e.color);
-  Serial.printf("Set %u: %s\n", (unsigned)(rtcCurrentSet + 1), e.name);
+  hashPath(path, 't', e.label, ".bin");
+  drawTile(display[SET_BUTTON], path, e.color);
+  Serial.printf("set %u: %s\n", (unsigned)(rtcCurrentSet + 1), e.name);
 }
 
 // --- Menu --------------------------------------------------------------------
@@ -242,52 +261,44 @@ static void drawCurrentSet() {
 //
 // Grey frame instead of the set colour: one sees at a glance that this is not
 // the talker.
-static const uint16_t MENU_FRAME = 0x8410;   // mittleres Grau in RGB565
+static const uint16_t MENU_FRAME = 0x8410;   // mid grey in RGB565
 
-static void drawMenuKey(Panel *tft, const char *zeile1, const char *zeile2) {
+static void drawMenuKey(Panel *tft, const char *first, const char *second) {
   tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, MENU_FRAME);
   tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, MENU_FRAME);
   tft->fillRect(0, TILE_BORDER, TILE_BORDER, TILE_H, MENU_FRAME);
   tft->fillRect(DISPLAY_W - TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_H,
                 MENU_FRAME);
   tft->fillRect(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H, ST77XX_BLACK);
-  if (!zeile1 && !zeile2) return;   // unbelegte Taste bleibt leer
+  if (!first && !second) return;   // a key with nothing behind it stays dark
 
-  tft->setTextColor(ST77XX_WHITE);
-  tft->setTextSize(2);
-  const int16_t zeichen = 12, hoehe = 16;
-  for (uint8_t i = 0; i < 2; i++) {
-    const char *text = i == 0 ? zeile1 : zeile2;
-    if (!text || !*text) continue;
-    int16_t breite = (int16_t)strlen(text) * zeichen;
-    tft->setCursor((DISPLAY_W - breite) / 2,
-                   DISPLAY_H / 2 - hoehe + i * (hoehe + 4));
-    tft->print(text);
-  }
+  drawTwoLines(tft, first, second, DISPLAY_W, 2);
 }
 
 // Only show what actually exists. Entries appear once the function behind
 // them exists - not before.
 static void drawMenu() {
-  drawMenuKey(display[0], "Info", nullptr);
+  drawMenuKey(display[0], text().info, nullptr);
   drawMenuKey(display[1], nullptr, nullptr);
   drawMenuKey(display[2], nullptr, nullptr);
   drawMenuKey(display[3], nullptr, nullptr);
-  drawMenuKey(display[SET_BUTTON], "zurück", nullptr);
+  drawMenuKey(display[SET_BUTTON], text().back, nullptr);
 }
 
 static void drawInfo() {
-  char zeile[24];
-  drawMenuKey(display[0], "Sets", nullptr);
-  snprintf(zeile, sizeof(zeile), "%u", (unsigned)(contentReady ? layout.setCount : 0));
-  drawMenuKey(display[1], zeile, nullptr);
+  char count[8];
+  drawMenuKey(display[0], text().sets, nullptr);
+  snprintf(count, sizeof(count), "%u", (unsigned)(contentReady ? layout.setCount : 0));
+  drawMenuKey(display[1], count, nullptr);
 
-  drawMenuKey(display[2], "Datei-", "system");
-  drawMenuKey(display[3], filesystemReady ? "da" : "fehlt", nullptr);
-  drawMenuKey(display[SET_BUTTON], "zurück", nullptr);
+  drawMenuKey(display[2], text().storage1, text().storage2);
+  drawMenuKey(display[3],
+              filesystemReady ? text().storagePresent : text().storageMissing,
+              nullptr);
+  drawMenuKey(display[SET_BUTTON], text().back, nullptr);
 
   if (filesystemReady) {
-    Serial.printf("LittleFS: %u von %u Byte belegt\n",
+    Serial.printf("LittleFS: %u of %u bytes used\n",
                   (unsigned)LittleFS.usedBytes(), (unsigned)LittleFS.totalBytes());
   }
 }
@@ -296,14 +307,14 @@ static void enterMenu() {
   mode = MODE_MENU;
   menuSince = millis();
   countdownShown = -1;
-  Serial.println("Menü geöffnet");
+  Serial.println("menu opened");
   drawMenu();
 }
 
 static void leaveMenu() {
   mode = MODE_NORMAL;
   countdownShown = -1;
-  Serial.println("Menü verlassen");
+  Serial.println("menu left");
   drawCurrentSet();
 }
 
@@ -311,16 +322,16 @@ static void backlight(bool on) {
   digitalWrite(PIN_BL, on ? HIGH : LOW);
 }
 
-// --- Ton ---------------------------------------------------------------------
+// --- Sound ---------------------------------------------------------------------
 
 static void setupAudio() {
   pinMode(PIN_AMP_SD, OUTPUT);
-  digitalWrite(PIN_AMP_SD, LOW);  // Verstärker aus, bis wirklich etwas kommt
+  digitalWrite(PIN_AMP_SD, LOW);  // amplifier off until something actually plays
 
   i2s.setPins(PIN_I2S_BCLK, PIN_I2S_LRCK, PIN_I2S_DIN);
   if (!i2s.begin(I2S_MODE_STD, SAMPLE_RATE, I2S_DATA_BIT_WIDTH_16BIT,
                  I2S_SLOT_MODE_MONO)) {
-    Serial.println("I2S ließ sich nicht starten.");
+    Serial.println("I2S would not start.");
   }
 }
 
@@ -335,12 +346,12 @@ static bool seekToWavData(File &file, uint32_t &dataBytes) {
     char id[4];
     uint32_t size = 0;
     if (file.read((uint8_t *)id, 4) != 4) return false;
-    if (file.read((uint8_t *)&size, 4) != 4) return false;  // WAV ist little-endian
+    if (file.read((uint8_t *)&size, 4) != 4) return false;  // WAV is little-endian
     if (memcmp(id, "data", 4) == 0) {
       dataBytes = size;
       return true;
     }
-    file.seek(file.position() + size + (size & 1));  // Chunks sind gerade lang
+    file.seek(file.position() + size + (size & 1));  // chunks have an even length
   }
   return false;
 }
@@ -350,19 +361,19 @@ static void playWav(const char *path) {
   if (!filesystemReady || !path) return;
   File file = LittleFS.open(path, "r");
   if (!file) {
-    Serial.printf("kein Ton: %s\n", path);
+    Serial.printf("no sound: %s\n", path);
     return;
   }
   uint32_t remaining = 0;
   if (!seekToWavData(file, remaining)) {
-    Serial.printf("kein gültiges WAV: %s\n", path);
+    Serial.printf("not a valid WAV: %s\n", path);
     file.close();
     return;
   }
 
   static uint8_t chunk[AUDIO_CHUNK];
   digitalWrite(PIN_AMP_SD, HIGH);
-  delay(5);  // Verstärker kurz wach werden lassen
+  delay(5);  // let the amplifier wake up
 
   while (remaining > 0) {
     size_t want = remaining < AUDIO_CHUNK ? remaining : AUDIO_CHUNK;
@@ -379,10 +390,10 @@ static void playWav(const char *path) {
   file.close();
 }
 
-// --- Tasten ------------------------------------------------------------------
+// --- Keys ------------------------------------------------------------------
 
 static bool isDown(uint8_t index) {
-  return digitalRead(PIN_BUTTON[index]) == LOW;  // Taster gegen GND
+  return digitalRead(PIN_BUTTON[index]) == LOW;  // buttons go to GND
 }
 
 static bool anyDown() {
@@ -412,10 +423,10 @@ static uint32_t holdTime(uint8_t index) {
   return index == SET_BUTTON ? SET_HOLD_MS : DEBOUNCE_MS;
 }
 
-// Both menu keys held? Shows the countdown and reports when the five
-// Sekunden voll sind. Loslassen bricht ab, ohne dass etwas passiert.
+// Both menu keys held? Shows the countdown and reports once the five
+// seconds are full. Letting go cancels, and nothing happens.
 static bool menuComboReady() {
-  const uint32_t jetzt = millis();
+  const uint32_t now = millis();
   if (!(isDown(MENU_KEY_A) && isDown(MENU_KEY_B))) {
     if (comboSince != 0 && countdownShown >= 0) {
       // Cancelled: back to whatever was on screen before.
@@ -425,26 +436,26 @@ static bool menuComboReady() {
     comboSince = 0;
     return false;
   }
-  if (comboSince == 0) comboSince = jetzt;
-  const uint32_t gehalten = jetzt - comboSince;
-  if (gehalten >= MENU_HOLD_MS) {
+  if (comboSince == 0) comboSince = now;
+  const uint32_t held = now - comboSince;
+  if (held >= MENU_HOLD_MS) {
     comboSince = 0;
     countdownShown = -1;
     return true;
   }
-  const int8_t rest = (int8_t)((MENU_HOLD_MS - gehalten) / 1000) + 1;
-  if (rest != countdownShown) {
-    countdownShown = rest;
-    char zahl[4];
-    snprintf(zahl, sizeof(zahl), "%d", rest);
+  const int8_t left = (int8_t)((MENU_HOLD_MS - held) / 1000) + 1;
+  if (left != countdownShown) {
+    countdownShown = left;
+    char seconds[4];
+    snprintf(seconds, sizeof(seconds), "%d", left);
     for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
-      drawMenuKey(display[i], "Menü", zahl);
+      drawMenuKey(display[i], text().menu, seconds);
     }
   }
   return false;
 }
 
-// Liefert den Index einer frisch erkannten Taste oder -1.
+// Returns the index of a newly recognised key, or -1.
 static int8_t pollButtons() {
   const uint32_t now = millis();
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
@@ -462,10 +473,10 @@ static int8_t pollButtons() {
   return -1;
 }
 
-// --- Schlafen ----------------------------------------------------------------
+// --- Sleep ----------------------------------------------------------------
 
 static void goToSleep() {
-  Serial.println("schlafen");
+  Serial.println("going to sleep");
   Serial.flush();
 
   backlight(false);
@@ -499,7 +510,7 @@ void setup() {
     pinMode(PIN_BUTTON[i], INPUT_PULLUP);
   }
   pinMode(PIN_BL, OUTPUT);
-  backlight(false);  // erst einschalten, wenn wirklich ein Bild steht
+  backlight(false);  // switch on only once there is really a picture
 
   const bool wokeFromSleep =
       esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1;
@@ -509,12 +520,12 @@ void setup() {
 
   filesystemReady = LittleFS.begin(false);
   if (!filesystemReady) {
-    // Most common cause: the wrong partition scheme. The default of the
-    // Boards (tinyuf2) legt den Datenbereich als "ffat" an, LittleFS sucht
-    // but a partition called "spiffs". The right one is "Default 8MB".
-    Serial.println("LittleFS ließ sich nicht einhängen.");
-    Serial.println("  1. Partition Scheme \"Default (3MB APP/1.5MB SPIFFS)\"?");
-    Serial.println("  2. firmware/vorlaut/data/ schon hochgeladen?");
+    // Most common cause: the wrong partition scheme. The board's default
+    // (tinyuf2) creates the data area as "ffat", but LittleFS looks for a
+    // partition called "spiffs". The right one is "Default 8MB".
+    Serial.println("LittleFS would not mount.");
+    Serial.println("  1. partition scheme \"Default (3MB APP/1.5MB SPIFFS)\"?");
+    Serial.println("  2. firmware/vorlaut/data/ uploaded yet?");
   }
 
   // Only here, because the file system has to be up for it.
@@ -547,7 +558,7 @@ void loop() {
   if (comboSince != 0) {
     lastActivity = millis();
     delay(5);
-    return;   // während des Countdowns nichts anderes auslösen
+    return;   // while the countdown runs, nothing else may trigger
   }
 
   const int8_t pressed = pollButtons();
@@ -584,19 +595,19 @@ void loop() {
     } else {
       const Slot &slot = layout.sets[rtcCurrentSet].slots[pressed];
       if (slot.hasAudio) {
-        char pfad[2 + HASH_BYTES * 2 + 5];
-        hashPath(pfad, 'a', slot.audio, ".wav");
-        Serial.printf("Taste %d: %s\n", pressed + 1, pfad);
-        playWav(pfad);
+        char path[2 + HASH_BYTES * 2 + 5];
+        hashPath(path, 'a', slot.audio, ".wav");
+        Serial.printf("key %d: %s\n", pressed + 1, path);
+        playWav(path);
       } else {
-        Serial.printf("Taste %d: kein Ton hinterlegt\n", pressed + 1);
+        Serial.printf("key %d: nothing to say\n", pressed + 1);
       }
     }
-    lastActivity = millis();  // Spielzeit nicht auf den Timeout anrechnen
+    lastActivity = millis();  // do not count playing time against the timeout
   }
 
-  const uint32_t schlaf = layout.sleepSeconds ? layout.sleepSeconds : 600;
-  if (millis() - lastActivity >= schlaf * 1000UL) {
+  const uint32_t idle = layout.sleepSeconds ? layout.sleepSeconds : 600;
+  if (millis() - lastActivity >= idle * 1000UL) {
     goToSleep();
   }
 

@@ -23,7 +23,7 @@ static const uint8_t DISPLAY_COUNT = 5;
 // needed, the displays are only written to.
 static const int8_t PIN_CS[DISPLAY_COUNT]      = { 11, 12, 37, 5, 6 };
 static const uint8_t PIN_BUTTON[DISPLAY_COUNT] = { 18, 17, 16, 15, 14 };
-static const uint8_t SET_BUTTON = 4;  // Index der Set-Taste
+static const uint8_t SET_BUTTON = 4;  // index of the set key
 
 static const int8_t PIN_I2S_BCLK = 8;   // A5
 static const int8_t PIN_I2S_LRCK = 38;  // RX

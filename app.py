@@ -824,13 +824,13 @@ PAGE = r"""<!doctype html>
 <script>
 let layout = { sleep_timeout_seconds: 600, sets: [] };
 let current = 0;
-let pickTarget = null;      // {kind: "set"} oder {kind: "slot", index: n}
+let pickTarget = null;      // {kind: "set"} or {kind: "slot", index: n}
 let sources = { metacom: false };
 let searchToken = 0;        // so a slow answer cannot overtake a newer one
 let dragSet = null;         // index of the dragged set
 let dragSlot = null;        // index of the dragged key
 let saveTimer = null;
-let layoutVersion = null;   // Stand, den diese Seite geladen hat
+let layoutVersion = null;   // the state this page loaded
 let unsaved = false;        // there are changes not yet in the file
 let preview = false;       // show tiles the way the display shows them
 
