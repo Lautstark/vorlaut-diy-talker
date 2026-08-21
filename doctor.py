@@ -93,7 +93,7 @@ def check_ffmpeg() -> None:
 def check_piper() -> None:
     """The offline route. With a model on disk the device speaks without an
     account anywhere, so this is checked before the key."""
-    program = shutil.which(tts.PIPER_BINARY)
+    program = tts.piper_binary()
     models = tts.piper_models()
     detail = ""
     if program and models:

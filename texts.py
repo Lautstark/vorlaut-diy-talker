@@ -29,6 +29,35 @@ TEXTS: dict[str, dict[str, str]] = {
                             "the display",
         "ui.language_title": "Language of this page and of the menu on the "
                              "device",
+
+        # --- voice ----------------------------------------------------------
+        # The names of the voices themselves are not in here: they are proper
+        # nouns and come from the installation, not from a table.
+        "ui.voice": "Voice",
+        "ui.voice_title": "Which voice speaks the sentences",
+        "ui.voice_auto": "Automatic",
+        "ui.voice_auto_note": "whatever this installation can speak with - "
+                              "at the moment {voice}",
+        "ui.voice_sample": "This is what I sound like",
+        "ui.voice_rebuild": "A different voice means every recording is "
+                            "spoken again on the next release.",
+        "ui.voice_none": "Nothing here can speak yet.",
+        "ui.voice_none_hint": "The offline voices need no account and, once they "
+                              "are here, no network. About 130 MB.",
+        "ui.voice_fetch": "Fetch voices",
+        "ui.voice_fetching": "fetching {name} ... ({done} of {total})",
+        "ui.voice_fetch_done": "The voices are here.",
+        "ui.voice_gone": "not available here",
+        "ui.voice_failed": "The list of voices could not be loaded: {error}",
+
+        # --- pairing --------------------------------------------------------
+        "ui.pair_title": "A talker wants to be paired",
+        "ui.pair_note": "Type the five digits it is showing - each box sits "
+                        "where its display sits.",
+        "ui.pair_confirm": "Pair",
+        "ui.pair_left": "{left} tries left",
+        "ui.pair_done": "Paired. The talker can fetch content now.",
+        "ui.pair_failed": "Pairing failed: {error}",
         "ui.release": "Release",
         "ui.release_needed": "There are changes the device cannot fetch yet - "
                              "release them to make this state available",
@@ -129,6 +158,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "err.download_failed": "Download failed: {reason}",
         "err.no_device_sync": "Device sync is not set up - "
                               "VORLAUT_DEVICE_TOKEN is missing.",
+        "err.pair_wrong_code": "Those five digits do not match. Compare them "
+                                "with the displays.",
+        "err.pair_expired": "No device is waiting to be paired. Start it at the "
+                             "talker again.",
         "err.stale_page": "This page holds an older state - layout.json was "
                           "changed somewhere else in the meantime.",
         "ui.app_description": "Edit the content for the talker",
@@ -218,6 +251,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "tts.err.no_model": "The voice {model} is not on this computer. Fetch "
                             "the voices with:  python3 tools/voices.py",
         "tts.err.piper": "piper failed: {reason}",
+        "tts.err.voice_download": "The voice {name} could not be fetched: {reason}",
     },
 
     "de": {
@@ -226,6 +260,33 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.preview_title": "Zeigt zusätzlich, wie groß und wie grob es auf "
                             "dem Display ankommt",
         "ui.language_title": "Sprache dieser Seite und des Menüs auf dem Gerät",
+
+        # --- Stimme ---------------------------------------------------------
+        "ui.voice": "Stimme",
+        "ui.voice_title": "Welche Stimme die Sätze spricht",
+        "ui.voice_auto": "Automatisch",
+        "ui.voice_auto_note": "was diese Installation sprechen kann - "
+                              "im Moment {voice}",
+        "ui.voice_sample": "So klinge ich",
+        "ui.voice_rebuild": "Eine andere Stimme heißt: Beim nächsten "
+                            "Freigeben wird jede Aufnahme neu gesprochen.",
+        "ui.voice_none": "Hier kann noch nichts sprechen.",
+        "ui.voice_none_hint": "Die Stimmen für offline brauchen kein Konto und, "
+                              "wenn sie da sind, kein Netz. Etwa 130 MB.",
+        "ui.voice_fetch": "Stimmen holen",
+        "ui.voice_fetching": "holt {name} ... ({done} von {total})",
+        "ui.voice_fetch_done": "Die Stimmen sind da.",
+        "ui.voice_gone": "hier nicht verfügbar",
+        "ui.voice_failed": "Die Liste der Stimmen kam nicht an: {error}",
+
+        # --- Koppeln --------------------------------------------------------
+        "ui.pair_title": "Ein Talker möchte gekoppelt werden",
+        "ui.pair_note": "Tipp die fünf Ziffern ein, die er zeigt - jedes Feld "
+                        "steht da, wo sein Display steht.",
+        "ui.pair_confirm": "Koppeln",
+        "ui.pair_left": "noch {left} Versuche",
+        "ui.pair_done": "Gekoppelt. Der Talker kann jetzt Inhalte holen.",
+        "ui.pair_failed": "Koppeln fehlgeschlagen: {error}",
         "ui.release": "Freigeben",
         "ui.release_needed": "Es gibt Änderungen, die das Gerät noch nicht "
                              "holen kann - freigeben macht diesen Stand "
@@ -327,6 +388,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "err.download_failed": "Download fehlgeschlagen: {reason}",
         "err.no_device_sync": "Der Geräte-Abgleich ist nicht eingerichtet - "
                               "VORLAUT_DEVICE_TOKEN fehlt.",
+        "err.pair_wrong_code": "Diese fünf Ziffern passen nicht. Vergleich sie "
+                                "mit den Displays.",
+        "err.pair_expired": "Es wartet kein Gerät aufs Koppeln. Starte es am "
+                             "Talker noch einmal.",
         "err.stale_page": "Diese Seite hat einen veralteten Stand - "
                           "layout.json wurde zwischenzeitlich woanders "
                           "geändert.",
@@ -422,6 +487,7 @@ TEXTS: dict[str, dict[str, str]] = {
                             "Rechner. Stimmen holen mit:  python3 "
                             "tools/voices.py",
         "tts.err.piper": "piper fehlgeschlagen: {reason}",
+        "tts.err.voice_download": "Die Stimme {name} kam nicht an: {reason}",
     },
 }
 

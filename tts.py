@@ -105,6 +105,21 @@ AZURE_VOICE_CACHE = CONTENT / "cache" / "azure-voices.json"
 # The program that reads a piper model. Comes with the piper-tts package.
 PIPER_BINARY = setting("VORLAUT_PIPER_BINARY", "piper")
 
+
+def piper_binary() -> str:
+    """The piper program, or "" when there is none.
+
+    Not shutil.which() alone: pip puts the program next to the interpreter
+    that installed it, and the README starts the server as .venv/bin/python
+    app.py - without activating anything. Then .venv/bin is not in PATH, and
+    piper would be there and still count as missing.
+    """
+    beside = Path(sys.executable).parent / PIPER_BINARY
+    if beside.is_file() and os.access(beside, os.X_OK):
+        return str(beside)
+    return shutil.which(PIPER_BINARY) or ""
+
+
 # What a voice is called when there is none to be had: no model on disk, no
 # key. Nothing can be spoken with it - but the sentences that were spoken
 # before this project could choose a voice were fingerprinted under exactly
@@ -198,6 +213,94 @@ def pretty_piper(stem: str) -> str:
     return rest.partition("-")[0].replace("_", " ").title()
 
 
+# --- Fetching a voice --------------------------------------------------------
+# Which voices can be had and where they come from. Here rather than in
+# tools/voices.py because two things fetch them now: the command line and the
+# page, and a second copy of this list would go out of step with the first.
+
+VOICE_SOURCE = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
+
+# Two German and two English voices, one male and one female each. All four
+# are public domain - which is what lets them be handed on. Most of piper's
+# better known English voices are not; before adding one, read its MODEL_CARD
+# next to the model, not the file name.
+#
+# ljspeech would be the obvious English pick and is public domain too, but it
+# is the name of a dataset, and in a list of first names it reads like an
+# error. Kristin is just as free and sits better among the others.
+VOICE_CATALOGUE = {
+    "de": [
+        "de/de_DE/thorsten/medium/de_DE-thorsten-medium",
+        "de/de_DE/kerstin/low/de_DE-kerstin-low",
+    ],
+    "en": [
+        "en/en_US/kristin/medium/en_US-kristin-medium",
+        "en/en_US/john/medium/en_US-john-medium",
+    ],
+}
+
+# A model is only usable together with its .onnx.json - that file is piper's
+# own description of the voice, and without it the model is just a blob.
+MODEL_PARTS = (".onnx", ".onnx.json")
+
+DOWNLOAD_TRIES = 5
+
+
+def voice_target() -> Path:
+    """Where a fetched voice belongs.
+
+    The first entry of VOICE_DIRS is where the search looks first, so a voice
+    put there is the one that gets found.
+    """
+    return VOICE_DIRS[0]
+
+
+def missing_voices(lang: str = "") -> list[str]:
+    """The catalogue entries that are not on this machine yet."""
+    folder = voice_target()
+    wanted = VOICE_CATALOGUE.get(lang, []) if lang else [
+        entry for entries in VOICE_CATALOGUE.values() for entry in entries]
+    return [entry for entry in wanted
+            if not all((folder / f"{entry.rsplit('/', 1)[-1]}{part}").exists()
+                       for part in MODEL_PARTS)]
+
+
+def download_voice(entry: str, note=None) -> None:
+    """Fetches one voice - both its parts - into the voice folder.
+
+    This hangs off somebody else's server. A single failed request used to be
+    enough to leave half a voice on the disk, so it retries, and writes each
+    file only once it arrived whole.
+    """
+    folder = voice_target()
+    folder.mkdir(parents=True, exist_ok=True)
+    name = entry.rsplit("/", 1)[-1]
+    for part in MODEL_PARTS:
+        target = folder / f"{name}{part}"
+        if target.exists():
+            continue
+        last: Exception | None = None
+        for attempt in range(1, DOWNLOAD_TRIES + 1):
+            try:
+                with urllib.request.urlopen(
+                        f"{VOICE_SOURCE}/{entry}{part}", timeout=60) as response:
+                    data = response.read()
+                # A half file next to a whole .onnx.json looks like a usable
+                # voice and is not one.
+                interim = target.with_suffix(target.suffix + ".part")
+                interim.write_bytes(data)
+                interim.replace(target)
+                last = None
+                break
+            except (urllib.error.URLError, OSError) as exc:
+                last = exc
+                if note:
+                    note(f"{name}{part}: attempt {attempt} of "
+                         f"{DOWNLOAD_TRIES} failed")
+        if last is not None:
+            raise TTSError("tts.err.voice_download", name=name, reason=str(last))
+
+
 def short_azure(name: str) -> str:
     """de-DE-GiselaNeural -> Gisela, de-DE-FlorianMultilingualNeural ->
     Florian Multilingual. The locale is in every entry already, and so is the
@@ -238,7 +341,7 @@ def piper_voices() -> list[dict]:
     A model without the program that reads it is a voice nobody can use, so
     it is not offered either.
     """
-    if not shutil.which(PIPER_BINARY):
+    if not piper_binary():
         return []
     return [
         {
@@ -498,7 +601,7 @@ def piper_synthesize(text: str, model: str) -> bytes:
     path = piper_models().get(model)
     if path is None:
         raise TTSError("tts.err.no_model", model=model)
-    binary = shutil.which(PIPER_BINARY)
+    binary = piper_binary()
     if not binary:
         raise TTSError("tts.err.no_piper")
     with tempfile.TemporaryDirectory() as tmp:

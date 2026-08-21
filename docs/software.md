@@ -25,6 +25,12 @@ pip install piper-tts
 python3 tools/voices.py
 ```
 
+The models can also be fetched from the interface, which is the route that
+does not ask anybody to open a terminal: the voice picker in the header offers
+it whenever something from the catalogue is missing, and says how far it has
+got while it runs. Same catalogue, same files, same folder — see
+[piper](#piper) below.
+
 **Azure Speech** — needs a key of your own; the free F0 tier includes 0.5
 million characters a month, which is plenty for a talker. More voices and
 better ones, at the price of an account and a network.
@@ -283,6 +289,34 @@ portal takes the search out of the loop.
 
 The two sides are `firmware/vorlaut/discover.h` and `discovery.py`;
 `tests/test_discovery.py` plays the answers through.
+
+## Pairing on the server
+
+The device's half of this is in `firmware/vorlaut/pairing.h`, the wire format
+in `pair_format.h`, and the whole protocol under [Pairing](#pairing) below.
+The server's half sits in `app.py`:
+
+`pair_start`, `pair_poll`, `pair_waiting` and `pair_confirm` hold the pending
+pairings in memory behind one lock — deliberately not on disk. A pairing lives
+about three minutes; a server restart in the middle of one is rare, and
+starting again at the device is a shorter way back than any file would be.
+
+Two decisions worth keeping:
+
+**An unknown device and a wrong secret answer the same 404.** The device id is
+the Wi-Fi MAC, which anybody on the network can read out of an ARP table; if a
+wrong secret said something different, that would tell an attacker which ids
+are worth guessing at.
+
+**A wrong code counts against every pairing that is waiting.** The person is
+standing at one device typing what they see, so with one on the table that is
+exactly right, and it stops a wrong code from being retried against each
+pending pairing in turn.
+
+`tests/test_pairing.py` starts the real server and plays a pairing through
+from both ends, including the parts a mistake would be quiet in: the key
+handed over only once, leading zeros in a code surviving, and nothing being
+handed out at all while `VORLAUT_DEVICE_TOKEN` is unset.
 
 ## Sync with the talker
 
@@ -609,6 +643,12 @@ are somebody else's files. `python3 tools/voices.py` fetches them; `de` or `en`
 as an argument narrows it down. All four shipped ones are public domain, which
 is what lets them be handed on. Most of piper's better known English voices are
 not, so read the MODEL_CARD next to a model before adding one.
+
+Which voices exist and where they come from stands in `tts.py`
+(`VOICE_CATALOGUE`, `download_voice`), not in the tool — the page fetches them
+too, and one list in two places would go out of step. `tools/voices.py` is the
+command line over it, `POST /api/voices/fetch` the interface; both write the
+same files into the same folder, and both skip what is already there.
 
 In the container `piper-tts` is installed but the voices are not: the project
 is handed in as a directory anyway, so they live in `content/voices/` on the

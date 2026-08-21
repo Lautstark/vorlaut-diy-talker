@@ -71,6 +71,11 @@ jobs:
         # in docs/bring-up.md.
         run: python tests/test_discovery.py
 
+      - name: Pairing works from both sides
+        # Starts the real server and plays a pairing through: the device
+        # announcing its code, somebody typing it, the key handed over once.
+        run: python tests/test_pairing.py
+
       - name: Interface texts are complete in every language
         # Both languages carry the same keys and the same placeholders, and
         # nothing says words to the user from outside the table.
