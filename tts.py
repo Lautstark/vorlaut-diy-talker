@@ -68,8 +68,11 @@ RATE = setting("AZURE_SPEECH_RATE", "-5%")
 SEED_VOICE = setting("AZURE_SPEECH_VOICE", "")
 
 # Piper models are looked for here, first match wins. The container points
-# VORLAUT_VOICES at its own folder; otherwise they sit next to the rest of the
-# content, where they are backed up along with it and survive every rebuild.
+# VORLAUT_VOICES at /voices, where its four baked-in voices sit - outside
+# /app on purpose, because Compose mounts the project over that. The search
+# carries on afterwards regardless, so a voice put next to the rest of the
+# content is still found, is backed up along with it, and survives every
+# rebuild.
 VOICE_DIRS = [d for d in dict.fromkeys(
     [Path(os.environ["VORLAUT_VOICES"]) if os.environ.get("VORLAUT_VOICES") else None,
      config.CONTENT / "voices", ROOT / "voices"]) if d is not None]

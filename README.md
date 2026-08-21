@@ -66,6 +66,9 @@ pip install piper-tts
 .venv/bin/python tools/voices.py
 ```
 
+Running the Docker image, neither step is needed: it carries all four voices
+already and speaks the moment it starts.
+
 **Azure Speech** - more voices and better ones, at the price of a key of your
 own. A free account is enough, the F0 tier includes 0.5 million characters a
 month. Key and region go into `.env`, the template is `.env.example`.
@@ -151,3 +154,9 @@ MIT. For your own use and for the releases out of this repository that is
 uncontroversial; passing the files on further is worth a look at the current
 Azure terms first. Details in
 [`example/speech/LIZENZ.md`](example/speech/LIZENZ.md).
+
+The four piper voices are not covered by MIT either, and are not in this
+repository at all — the Docker image downloads them during the build. All four
+are published as public domain, which is what allows an image carrying them to
+be handed on. What each one rests on is in
+[`voices/LIZENZ.md`](voices/LIZENZ.md).

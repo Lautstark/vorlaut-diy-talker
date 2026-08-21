@@ -34,6 +34,10 @@ services:
       # live on the NAS and survive every rebuild of the image. The Azure key
       # comes through the .env from exactly this folder - deliberately not
       # baked into the image.
+      #
+      # Careful: this replaces /app wholesale, image contents and all. It is
+      # why the baked-in voices sit at /voices and not under /app - see the
+      # Dockerfile. Whatever has to survive the mount belongs outside /app.
       - ./:/app
       # Read only - the collection is never changed. With no path set, the
       # mount points at example/ instead; the METACOM structure is missing
