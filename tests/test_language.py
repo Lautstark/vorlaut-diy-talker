@@ -27,8 +27,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # German on purpose.
+# The repo is English throughout. What is left is the two translation tables
+# and this file, which is made of German by definition.
+#
+# The German introduction that used to be README.md is not gone, it is in the
+# history - it is the raw material for a landing page aimed at families rather
+# than at people rebuilding the device. Those are two different documents, so
+# there is deliberately no README.de.md to drift out of step.
 GERMAN_BY_DESIGN = {
-    "README.md",                      # the way into the project
     "texts.py",                       # holds the German interface texts
     "firmware/vorlaut/texts.h",       # holds the German device labels
     "tests/test_language.py",         # this file - it is made of German
@@ -68,6 +74,11 @@ ALLOWED = [
     # into texts.h when Wi-Fi lands in the main firmware.
     ("Damit der Talker neue Inhalte holen kann", "the captive portal"),
     ("Es bleibt gespeichert, diese Seite kommt", "the captive portal"),
+    # The README quotes the two German words that made the encoding bug
+    # visible. Explaining it without them would not explain it.
+    ("`zurück` would have ended", "the encoding bug, quoted"),
+    ("`back` while the computer next to it says `zurück`",
+     "why one setting, not two"),
     # Regular expressions that match German.
     ('re.search(r"[äöüßÄÖÜ]"', "a check for German"),
     ('re.search(r"[äöüß]"', "a check for German"),

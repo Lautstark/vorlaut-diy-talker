@@ -1,33 +1,35 @@
 # vorlaut
 
-Ein kleiner Talker zum Selberbauen. Fünf Tasten, die gleichzeitig Displays
-sind: vier sprechen einen hinterlegten Satz, die fünfte schaltet zwischen
-Sets um.
+A small talker to build yourself. Five keys that are displays at the same
+time: four speak a stored sentence, the fifth switches between sets.
 
-Ich baue das für meine dreieinhalbjährige Tochter, die noch nicht spricht.
+I am building it for my three-and-a-half-year-old daughter, who does not
+speak yet.
 
-> **In Arbeit.** Noch nicht auf echter Hardware gelaufen.
+> **Work in progress.** Has not run on real hardware yet.
 
-## Was es tut
+## What it does
 
-- Vier Sprechtasten pro Set, bis zu fünf Sets
-- Jedes Set hat eine Farbe, die als Rahmen um alle Displays läuft
-- Bearbeitet wird im Browser: Symbol suchen, Satz eintippen, vorhören
-- Ein Befehl macht daraus Bilder und Sprachdateien fürs Gerät
-- Schläft von selbst ein, wacht auf jeden Tastendruck auf
+- Four speech keys per set, up to five sets on the device
+- Every set has a colour, drawn as a border around all five displays
+- Editing happens in the browser: find a symbol, type a sentence, listen to it
+- One command turns that into pictures and speech files for the device
+- Falls asleep by itself, wakes on any key press
 
-## Woraus
+## What it is made of
 
-Ein **ESP32-S3 Feather** treibt fünf **Waveshare ScreenKeys** — 0,85-Zoll-Displays mit 128×128 Pixeln und eingebautem Taster — über einen gemeinsamen
-SPI-Bus. Der Ton geht über einen **MAX98357A** an einen 40-mm-Lautsprecher,
-Strom kommt aus einem LiPo, geladen über USB-C am Feather. Die Firmware ist
-ein Arduino-Sketch.
+An **ESP32-S3 Feather** drives five **Waveshare ScreenKeys** — 0.85 inch
+displays with 128×128 pixels and a built-in button — over a shared SPI bus.
+The sound goes through a **MAX98357A** to a 40 mm speaker, the power comes
+from a LiPo charged over USB-C on the Feather. The firmware is an Arduino
+sketch.
 
-Bearbeitet wird am Rechner: eine Weboberfläche aus der Python-Standardbibliothek, Piktogramme von [ARASAAC](https://arasaac.org), Sprachausgabe
-über Azure. Der Build rechnet daraus RGB565-Bilder und 16-kHz-WAVs und
-packt sie in ein LittleFS-Image für den Flash.
+Editing happens on a computer: a web interface built from the Python standard
+library, pictograms from [ARASAAC](https://arasaac.org), speech from Azure.
+The build turns those into RGB565 images and 16 kHz WAVs and packs them into
+a LittleFS image for the flash.
 
-## Schnellstart
+## Quick start
 
 ```bash
 git clone https://github.com/SteffiPeTaffy/vorlaut.git
@@ -36,78 +38,78 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python app.py
 ```
 
-Ob alles Nötige da ist, sagt:
+Whether everything needed is there is answered by:
 
 ```bash
 python3 doctor.py
 ```
 
-Dann [localhost:8771](http://localhost:8771) öffnen. Beim ersten Start füllt
-sich `content/` aus `example/`, es ist also gleich ein Set mit vier Tasten da.
+Then open [localhost:8771](http://localhost:8771). On the first start
+`content/` fills itself from `example/`, so a set with four keys is there
+right away.
 
-Zusätzlich wird `ffmpeg` gebraucht (`brew install ffmpeg` beziehungsweise
-`apt install ffmpeg`).
+`ffmpeg` is needed as well (`brew install ffmpeg` or `apt install ffmpeg`).
 
-Für die Sprachausgabe braucht es einen eigenen **Azure-Speech-Schlüssel** —
-ein kostenloses Konto genügt, die Stufe F0 enthält 0,5 Mio. Zeichen im
-Monat. Schlüssel und Region kommen in `.env`, Vorlage ist `.env.example`.
-Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
-`.venv/bin/python tts.py --voices` zeigt, was zur Auswahl steht.
+For the speech output you need an **Azure Speech key** of your own — a free
+account is enough, the F0 tier includes 0.5 million characters a month. Key
+and region go into `.env`, the template is `.env.example`. Voice and speaking
+rate can be set there too; `.venv/bin/python tts.py --voices` shows what is on
+offer.
 
-## Sprachen im Projekt
+## Languages
 
-Das **Produkt** gibt es auf Deutsch und auf Englisch — Oberfläche, Bauprotokoll
-und die Beschriftungen auf dem Gerät. Umgeschaltet wird oben rechts in der
-Oberfläche; gespeichert ist das als `"language"` in `layout.json`.
+The **product** comes in German and English — the interface, the build log and
+the labels on the device. It is switched at the top right of the interface and
+stored as `"language"` in `layout.json`.
 
-Es ist absichtlich **eine** Einstellung für alles. Ein Talker, dessen Menü
-`back` sagt, während der Rechner daneben `zurück` sagt, wäre nur eine weitere
-Sache, die man synchron halten muss.
+It is deliberately **one** setting for everything. A talker whose menu says
+`back` while the computer next to it says `zurück` would be one more thing to
+keep in step.
 
-Die **Inhalte** bleiben davon unberührt: Setnamen, die Wörter auf den Tasten
-und alles Gesprochene sind, was jemand eingetippt hat. Wer die Oberfläche auf
-Englisch stellt, behält ein deutsches Set. Die Stimme wird getrennt in `.env`
-gewählt.
+The **content** is untouched by it: set names, the words on the keys and
+everything spoken are whatever somebody typed. Switching the interface to
+English leaves a German set German. The voice is chosen separately in `.env`.
 
-Die Texte liegen als Tabelle pro Sprache in [`texts.py`](texts.py) für Rechner
-und Oberfläche und in
-[`firmware/vorlaut/texts.h`](firmware/vorlaut/texts.h) fürs Gerät. Standard ist
-Englisch.
+The texts live as one table per language in [`texts.py`](texts.py) for the
+computer and the interface, and in
+[`firmware/vorlaut/texts.h`](firmware/vorlaut/texts.h) for the device. English
+is the default.
 
-Der eingebaute Font ist dabei kein Unicode, sondern Codepage 437: `zurück` wäre
-als `zur├╝ck` auf dem Display gelandet. Was sich zeichnen lässt und was nicht,
-steht in [docs/firmware.md](docs/firmware.md); ein Test prüft jede Übersetzung
-gegen die Breite eines Displays.
+The built-in font is not Unicode but code page 437: `zurück` would have ended
+up as `zur├╝ck` on the display. What can be drawn and what cannot is in
+[docs/firmware.md](docs/firmware.md); a test checks every translation against
+the width of a display.
 
-**Code und Dokumentation sind englisch** — Bezeichner, Kommentare,
-Commit-Nachrichten, `docs/` und die Kommandozeile. Nur diese README bleibt
-deutsch, als Einstieg ins Projekt.
+**Code and documentation are English** — identifiers, comments, commit
+messages, `docs/` and the command line.
 
-Die Kommandozeile bleibt auch dann englisch, wenn die Oberfläche deutsch
-steht: `build.py` reicht Meldungen als Schlüssel weiter, und wer sie anzeigt,
-entscheidet über die Sprache. Derselbe Fehler steht im Terminal auf Englisch
-und im Browser auf Deutsch.
+The command line stays English even when the interface is set to German:
+`build.py` passes messages on as keys, and whoever displays them decides the
+language. The same error reads English in the terminal and German in the
+browser.
 
-Die Trennung verläuft also nicht nach Datei, sondern danach, wer es liest:
-was jemand benutzt, gibt es in seiner Sprache; was beim Weiterentwickeln
-gelesen wird, ist englisch.
+So the split does not run by file but by who reads it: what somebody uses
+comes in their language; what gets read while developing is English.
 
-## Weiter
+`python3 tests/test_language.py` checks that, and names the file and line for
+anything that got left behind.
+
+## Further
 
 | | |
 |---|---|
-| [docs/hardware.md](docs/hardware.md) | Bauteile, Pinbelegung, Gehäusemaße |
-| [docs/software.md](docs/software.md) | Weboberfläche, layout.json, Build, Sprachausgabe |
-| [docs/bring-up.md](docs/bring-up.md) | Erstaufbau in Stufen, mit kleinen Testsketchen |
-| [docs/firmware.md](docs/firmware.md) | Fertiges Image oder selbst übersetzen, Partition Scheme, Flashen |
-| [docs/operation.md](docs/operation.md) | Im Container starten, vom Handy bearbeiten, Betrieb auf einem NAS |
+| [docs/hardware.md](docs/hardware.md) | Parts, pin assignment, case dimensions |
+| [docs/software.md](docs/software.md) | Web interface, layout.json, build, speech |
+| [docs/bring-up.md](docs/bring-up.md) | First assembly in stages, with small test sketches |
+| [docs/firmware.md](docs/firmware.md) | Ready-made image or compile it yourself, partition scheme, flashing |
+| [docs/operation.md](docs/operation.md) | Running in a container, editing from a phone, on a NAS |
 
-## Lizenz
+## Licence
 
-Code unter [MIT](LICENSE).
+Code under [MIT](LICENSE).
 
-Die Piktogramme in `example/symbols/` fallen nicht darunter: sie stammen von
-[ARASAAC](https://arasaac.org), Urheber **Sergio Palao**, Lizenz
-**CC BY-NC-SA**. Dasselbe gilt für alle Symbole, die über die Suche in der
-Weboberfläche geladen werden. Einzelheiten in
+The pictograms in `example/symbols/` are not covered by it: they come from
+[ARASAAC](https://arasaac.org), author **Sergio Palao**, licence
+**CC BY-NC-SA**. The same holds for every symbol loaded through the search in
+the web interface. Details in
 [`example/symbols/LIZENZ.md`](example/symbols/LIZENZ.md).
