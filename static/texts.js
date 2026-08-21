@@ -1,9 +1,7 @@
 // Only the ui.* entries of the chosen language - see texts.py. Every label on
 // this page goes through t(), so no string sits in the markup twice.
 import { $ } from "./dom.js";
-import { LANG, LANGUAGES, TEXTS } from "./boot.js";
-import { state } from "./state.js";
-import { save } from "./save.js";
+import { LANG, TEXTS } from "./boot.js";
 
 export function t(key, params) {
   let out = TEXTS[key] || key;
@@ -38,6 +36,8 @@ export function applyTexts() {
   $("azureKeyLabel").textContent = t("ui.azure_key");
   $("azureKey").placeholder = t("ui.azure_key_placeholder");
   $("azureRegionLabel").textContent = t("ui.azure_region");
+  $("languageSection").textContent = t("ui.language");
+  $("languageIntro").textContent = t("ui.language_title");
   $("symbolsSection").textContent = t("ui.symbols");
   $("metacomIntro").textContent = t("ui.metacom_intro");
   $("metacomLabel").textContent = t("ui.metacom_path");
@@ -55,26 +55,4 @@ export function applyTexts() {
   // server hands over in the bootstrap block, and that block is now the only
   // thing it injects. An attribute in ui.html would mean a second hole.
   document.documentElement.lang = LANG;
-
-  // Just the code. "Deutsch" and "English" read nicer but cost a third of
-  // the header on a phone, and a two-letter language code is the one label
-  // that needs no translation. The title says what the thing is.
-  const names = { de: "DE", en: "EN" };
-  const pick = $("langPick");
-  pick.title = t("ui.language_title");
-  for (const code of LANGUAGES) {
-    const option = document.createElement("option");
-    option.value = code;
-    option.textContent = names[code] || code;
-    option.selected = code === LANG;
-    pick.appendChild(option);
-  }
-  // Saved like any other change, then reloaded: the labels are baked into the
-  // page by the server, so switching them in place would mean a second copy
-  // of every string in the browser.
-  pick.onchange = async () => {
-    state.layout.language = pick.value;
-    await save();
-    location.reload();
-  };
 }

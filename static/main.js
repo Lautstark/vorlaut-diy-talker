@@ -7,11 +7,12 @@ import { load, saveNow, markReleaseState, wireConflict } from "./save.js";
 import { wireEditor } from "./editor.js";
 import { loadSources, wirePicker } from "./picker.js";
 import { confirmPair, watchPair } from "./pairing.js";
-import { openVoices, saveVoice } from "./voices.js";
+import { openVoices, saveVoice, wireLanguage } from "./voices.js";
 
 wireConflict();
 wireEditor();
 wirePicker();
+wireLanguage();
 
 $("releaseBtn").onclick = async () => {
   // Releasing what is on screen, not what the last debounce happened to

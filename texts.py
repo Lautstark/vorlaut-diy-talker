@@ -27,13 +27,16 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.preview": "Preview",
         "ui.preview_title": "Also shows how big and how coarse it arrives on "
                             "the display",
-        "ui.language_title": "Language of this page and of the menu on the "
-                             "device",
 
         # --- voice ----------------------------------------------------------
         # The names of the voices themselves are not in here: they are proper
         # nouns and come from the installation, not from a table.
         "ui.settings": "Settings",
+        # The language names themselves are not in here - "Deutsch" is
+        # "Deutsch" in every language, which is the whole point of them.
+        "ui.language": "Language",
+        "ui.language_title": "Language of this page and of the menu on the "
+                             "device",
         "ui.voice": "Voice",
         "ui.voice_auto_note": "picked for this installation",
         "ui.voice_sample": "This is what I sound like",
@@ -286,10 +289,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.preview": "Vorschau",
         "ui.preview_title": "Zeigt zusätzlich, wie groß und wie grob es auf "
                             "dem Display ankommt",
-        "ui.language_title": "Sprache dieser Seite und des Menüs auf dem Gerät",
 
         # --- Stimme ---------------------------------------------------------
         "ui.settings": "Einstellungen",
+        "ui.language": "Sprache",
+        "ui.language_title": "Sprache dieser Seite und des Menüs auf dem Gerät",
         "ui.voice": "Stimme",
         "ui.voice_auto_note": "für diese Installation gewählt",
         "ui.voice_sample": "So klinge ich",

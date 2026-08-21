@@ -82,36 +82,35 @@ button {
   border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px;
 }
 button:hover { background: #303540; }
-/* The language picker looks like the buttons next to it. Left to itself a
-   select brings the operating system's own look, which on a dark header is
-   a white rectangle. */
 /* Form elements do not inherit the page font by themselves - without this
    the header sits in the browser's default face while everything around it
    is the system font. */
 button, select, input, textarea { font-family: inherit; }
 
-/* appearance: none, because otherwise the operating system draws its own
-   arrow and imposes its own height: 35.5 px next to 34 px buttons, and a
-   chevron sitting wherever macOS likes. Everything below matches the
-   buttons - same padding, same radius, same border. */
+/* The language picker sits in the settings sheet and looks like the fields
+   around it. It used to be in the header and was dressed as a button there:
+   transparent until pointed at, so that it did not compete with Release. In
+   a sheet full of labelled inputs that same treatment reads as something not
+   ready yet, so it carries its box the way they do.
+
+   appearance: none stays, and for the reason it always had: otherwise the
+   operating system draws its own arrow and imposes its own height, with a
+   chevron sitting wherever macOS likes. */
 #langPick {
   appearance: none; -webkit-appearance: none;
-  /* The chevron only, on nothing. Box and border appear when the thing is
-     pointed at - see below. Note the order: the background shorthand resets
-     background-color, so transparent has to come after it, not before. */
+  /* Note the order: the background shorthand resets background-color, so the
+     panel colour has to come after it, not before. */
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa3b2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     no-repeat right 11px center;
-  background-color: transparent;
-  color: var(--muted); border: 1px solid transparent;
+  background-color: var(--panel-2);
+  color: var(--text); border: 1px solid var(--line);
   border-radius: 8px; padding: 8px 30px 8px 12px; cursor: pointer;
-  font-size: 14px; line-height: normal;   /* like the button next to it */
-  transition: background-color .12s, border-color .12s, color .12s;
+  font-size: 14px; line-height: normal;   /* like the inputs below it */
+  align-self: flex-start;                 /* as wide as the longest name */
+  transition: border-color .12s;
 }
-#langPick:hover, #langPick:focus-visible {
-  background-color: var(--panel-2); border-color: var(--line);
-  color: var(--text);
-}
+#langPick:hover, #langPick:focus-visible { border-color: var(--muted); }
 /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. */
 button.primary {
   background: var(--accent); border-color: transparent; color: #1b1b20;
@@ -192,12 +191,15 @@ pre.log {
    width and the four speech keys as a 2x2 below it. The spatial
    correspondence is preserved that way. */
 @media (max-width: 620px) {
-  /* Side by side the header needs 493px - on a 375px wide display the
-     right-hand end of it fell outside, with no way to scroll to it. So it
-     wraps rather than being squeezed. On a 375px display that comes out
-     as two rows, and the wordmark is in neither - it is hidden just below:
-     Row 1  logo and gear at the left, preview and language at the right
-     Row 2  the release button */
+  /* Side by side the header used to need 493px - on a 375px wide display
+     the right-hand end of it fell outside, with no way to scroll to it. So
+     it wraps rather than being squeezed.
+
+     With the language picker moved into the settings sheet it needs 321px,
+     and a 375px phone gets one row: logo and gear at the left, the device
+     preview and Release at the right. The wordmark is in neither - it is
+     hidden just below. The wrapping stays because it still happens: at
+     320px Release drops onto a second row of its own. */
   header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
   /* Here the wordmark is hidden, not deleted: it costs 64px next to a
      logo that carries the same brand, and the bar has to fit one line.
@@ -222,8 +224,7 @@ pre.log {
   header #gear { order: 0; }
   header .status { order: 1; margin-left: 0; }
   header .toggle { order: 2; margin-left: auto; }
-  header #langPick { order: 3; }
-  header #releaseBtn { order: 4; }
+  header #releaseBtn { order: 3; }
 
   /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
      sets past the edge with nothing to say they are there - and the sets

@@ -24,7 +24,6 @@
     <span class="pill"></span>
     <span id="previewText"></span>
   </label>
-  <select id="langPick"></select>
   <button class="primary" id="releaseBtn"></button>
 </header>
 
@@ -71,6 +70,14 @@
     <button id="voiceClose" class="closeX">×</button>
   </div>
   <div class="sheetBody">
+  <!-- First, and deliberately: somebody who cannot read the page needs this
+       one before anything else. The options name themselves - see voices.js. -->
+  <div class="section" id="languageSection"></div>
+  <div class="field">
+    <p class="lead" id="languageIntro"></p>
+    <select id="langPick"></select>
+  </div>
+
   <div class="section" id="voiceSection"></div>
   <div class="voiceList" id="voiceList"></div>
   <div class="hint" id="voiceHint"></div>

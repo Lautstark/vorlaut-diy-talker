@@ -7,6 +7,7 @@
 // - because that Save is mostly about the voice. The Azure and METACOM panel
 // inside it is settings.js, which this calls into.
 import { $, api, status } from "./dom.js";
+import { LANG, LANGUAGES } from "./boot.js";
 import { state } from "./state.js";
 import { t } from "./texts.js";
 import { save } from "./save.js";
@@ -18,6 +19,12 @@ let voices = { voices: [], active: "", chosen: "" };
 // stands in layout.json - between opening and pressing Save the two differ,
 // and that difference is the whole point of having a Save.
 let pendingVoice = "";
+
+// Same rule as the voice below: nothing is written until Save. It matters
+// more here, because applying a language means reloading the page - doing
+// that on change would throw away an Azure key half typed into the field
+// underneath.
+let pendingLanguage = "";
 
 // About 130 MB, so the server downloads in the background and is asked how far
 // it has got. Polling rather than a held-open request: this server answers one
@@ -211,17 +218,51 @@ export async function saveVoice() {
     status(t("ui.save_failed", { error: error.message }));
     return;                       // stay open, the message is in the header
   }
+  let changed = false;
   if (pendingVoice && pendingVoice !== voices.chosen) {
     state.layout.voice = pendingVoice;
-    await save();
+    changed = true;
     // The server decides what the entry resolves to, so ask rather than guess -
-    // and the release button has to light up, which save() already did.
+    // and the release button has to light up, which save() already does.
+  }
+  const switching = pendingLanguage && pendingLanguage !== LANG;
+  if (switching) {
+    state.layout.language = pendingLanguage;
+    changed = true;
+  }
+  if (changed) await save();
+  // The labels are baked into the page by the server, so a new language is a
+  // reload rather than a re-render - anything else would mean a second copy
+  // of every string in the browser. Last, and only once the writing is done.
+  if (switching) {
+    location.reload();
+    return;
   }
   // A key that has just arrived can mean Azure voices that were not there
   // when the sheet opened.
   await loadVoices();
   status(t("ui.settings_saved"));
   $("voices").close();
+}
+
+// The options name themselves: "Deutsch" stays "Deutsch" whatever the page is
+// set to. That is the point of them here - this is the one control somebody
+// reaches for when they cannot read the interface around it, so it must not
+// depend on being able to read the interface around it. In the header it was
+// "DE"/"EN", because the full words cost a third of the bar on a phone; in a
+// dialog there is room to say it properly.
+export function wireLanguage() {
+  const pick = $("langPick");
+  const names = { de: "Deutsch", en: "English" };
+  for (const code of LANGUAGES) {
+    const option = document.createElement("option");
+    option.value = code;
+    option.textContent = names[code] || code;
+    pick.appendChild(option);
+  }
+  pick.value = LANG;
+  pendingLanguage = LANG;
+  pick.onchange = () => { pendingLanguage = pick.value; };
 }
 
 export async function openVoices() {
@@ -231,6 +272,10 @@ export async function openVoices() {
   $("voices").showModal();
   await Promise.all([loadVoices(), readFetch(), loadSettings()]);
   pendingVoice = voices.chosen;
+  // Reopening after Cancel has to show the language the page is actually in,
+  // not the one that was picked and then dropped.
+  pendingLanguage = LANG;
+  $("langPick").value = LANG;
   renderVoices();
   // A download started before this dialog was opened - in another tab, or
   // before a reload - still has something to report.
