@@ -60,6 +60,11 @@ jobs:
         # Three files are German on purpose and named in the test.
         run: python tests/test_language.py
 
+      - name: The device sync works end to end
+        # Starts the real server and pretends to be a device. The firmware
+        # side does not exist yet - this settles the protocol before it does.
+        run: python tests/test_device_sync.py
+
       - name: Interface texts are complete in every language
         # Both languages carry the same keys and the same placeholders, and
         # nothing says words to the user from outside the table.

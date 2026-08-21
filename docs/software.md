@@ -48,7 +48,9 @@ grid. The border of each tile has the colour of the set.
 - **Text field**: what Gisela says. It may differ from the symbol's word — the
   symbol shows "anhalten", what gets said is "Stopp".
 - **▶** previews the sentence (goes through Azure, so it needs the key).
-- **Bauen** at the top right calls `build.py` and shows the log.
+- **Freigeben** at the top right runs the build and shows the log. It is
+  the only button in the header, and it is the only moment that costs
+  anything: this is where new sentences go to Azure.
 
 **Device preview:** the toggle at the top additionally shows below each tile how
 it arrives on the device — scaled to 116x116, rounded to RGB565, with the border
@@ -67,7 +69,21 @@ well; their order determines how the set key cycles on the device.
 Reordering costs nothing: the speech files hang off the text in the cache, not
 off the position. So nothing gets re-spoken.
 
-Changes are saved to `content/layout.json` automatically.
+Changes are saved to `content/layout.json` automatically, a second after the
+last keystroke. There is no save button, and closing the tab with something
+outstanding asks first.
+
+**Saving and releasing are two different things**, and deliberately so.
+Saving is free and happens by itself. Releasing renders the tiles and sends
+new sentences to Azure, and that must not happen while somebody is still
+typing - with automatic releasing, "I want to go outside" would cost a call
+for `I`, one for `I want`, one for `I want to go`, for text nobody ever meant
+to say.
+
+So the button says what it does for the device, not what the computer does
+internally: it makes this state available. The device fetches it when it
+fetches. Until it can do that by itself, the same state also goes over the
+cable with `build.py --fs-image`.
 
 ---
 
@@ -210,11 +226,30 @@ sync nobody set up should not hand anything out. Generating a key:
 python -c "import secrets; print(secrets.token_urlsafe(24))"
 ```
 
-The sync is simple because the file names are hashes of their content: the
+The sync is simple because a file name always means the same content: the
 device fetches the manifest, compares the version stamp with the stored one,
 and on a mismatch fetches only the files it does not have and throws away what
 is no longer in the list. `layout.bin` always has the same name and is fetched
 every time.
+
+To be precise, the names are hashes of the **input** - source image plus
+pipeline version, or text plus voice configuration - not of the output bytes.
+Same input, same name, so a file is transferred once no matter how many sets
+it appears in. `TILE_PIPELINE` in `build.py` is what keeps that honest: bump it
+when the rendering changes, and every name changes with it.
+
+**The version stamp describes the files, not the layout.** That distinction
+matters more than it looks. It used to be derived from `layout.json`, and the
+effect only showed in use: edit without releasing, and the manifest advertised
+a new version over the old files. The device fetched them and stored the new
+stamp - and after the release the stamp did not move any more, because the
+layout had not changed since. From then on the device saw its own version,
+believed it was up to date, and never fetched anything again. The manifest also
+carries `current`, which says whether what lies there is still what the layout
+asks for.
+
+`tests/test_device_sync.py` plays the whole thing through against a real
+server, so the protocol is settled before the firmware side of it exists.
 
 ---
 

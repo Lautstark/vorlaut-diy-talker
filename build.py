@@ -76,7 +76,7 @@ BORDER = 6               # border width, drawn by the firmware
 TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, what actually ends up as a file
 TILE_CACHE = CONTENT / "cache" / "tiles"
 TILE_INDEX = TILE_CACHE / "index.json"
-# Haelt fest, welcher Stand zuletzt nach data/ gebaut wurde.
+# Records which state was last built into data/.
 BUILD_STATE = CONTENT / "cache" / "build-state.json"
 TILE_PIPELINE = 2        # bump when the rendering changes
 DEFAULT_COLOR = "#3B5BDB"
@@ -297,6 +297,28 @@ def built_fingerprint(layout: dict) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
+def built_version() -> str:
+    """The stamp of what is actually lying in data/ - empty if nothing is.
+
+    Deliberately read from BUILD_STATE and not derived from layout.json. The
+    stamp has to describe the FILES, because that is what the device compares
+    against and then stores.
+
+    It used to be built from the layout, and that was wrong in a way that only
+    showed up in use: edit without releasing, and the manifest advertised a new
+    version over the old files. The device fetched them, stored the new stamp -
+    and after the release the stamp did not change any more, because the layout
+    had not changed since. From then on the device saw its own version, thought
+    it was up to date, and never fetched anything again.
+    """
+    if not (DATA_DIR / LAYOUT_BIN).exists():
+        return ""
+    try:
+        return json.loads(BUILD_STATE.read_text(encoding="utf-8"))["fingerprint"]
+    except (OSError, json.JSONDecodeError, KeyError):
+        return ""
+
+
 def device_manifest() -> dict:
     """What should sit on the device: version stamp and file list.
 
@@ -310,7 +332,11 @@ def device_manifest() -> dict:
         for f in sorted(DATA_DIR.iterdir()) if f.is_file()
     ] if DATA_DIR.is_dir() else []
     return {
-        "version": built_fingerprint(layout),
+        "version": built_version(),
+        # Whether what lies here is still what the layout says. The device can
+        # use it to say "there is something newer" instead of silently
+        # fetching yesterday's state.
+        "current": build_is_current(layout),
         "sets": len(active_sets(layout)),
         "files": files,
         "bytes": sum(f["size"] for f in files),
@@ -318,7 +344,7 @@ def device_manifest() -> dict:
 
 
 def _remember_build(layout: dict) -> None:
-    """Haelt fest, welcher Stand gerade nach data/ gebaut wurde."""
+    """Records which state has just been built into data/."""
     try:
         BUILD_STATE.parent.mkdir(parents=True, exist_ok=True)
         BUILD_STATE.write_text(
@@ -330,7 +356,7 @@ def _remember_build(layout: dict) -> None:
 
 
 def build_is_current(layout: dict | None = None) -> bool:
-    """Entspricht data/ dem aktuellen Layout?
+    """Does data/ match the current layout?
 
     What goes undetected is a symbol file changing under the same name - that
     would mean hashing every image on every query.
