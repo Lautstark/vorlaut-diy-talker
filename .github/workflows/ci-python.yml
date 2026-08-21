@@ -50,82 +50,16 @@ jobs:
       - name: Modules import
         run: python -c "import app, build, tts"
 
-      - name: Cross-check layout.bin against the firmware reader
-        # Compiles the C code from the sketch on the runner and compares what
-        # it reads with what build.py wrote.
-        run: python tests/test_layout_format.py
-
-      - name: No German left where English belongs
-        # Counts German function words, not umlauts - most German has none.
-        # Three files are German on purpose and named in the test.
-        run: python tests/test_language.py
-
-      - name: The device sync works end to end
-        # Starts the real server and pretends to be a device. The firmware
-        # side does not exist yet - this settles the protocol before it does.
-        run: python tests/test_device_sync.py
-
-      - name: Writing .env leaves it readable
-        # The interface writes this file now. What matters is not that a value
-        # arrives but that the comments explaining it survive - .env is its
-        # own documentation.
-        run: python tests/test_config.py
-
-      - name: The tile index survives several threads
-        # The preview grid asks for five tiles at once and the server answers
-        # each in a thread of its own, all of them reading and rewriting one
-        # index.json. Losing it costs only readable names in the prune log -
-        # which is why nobody would notice it going.
-        run: python tests/test_tile_index.py
-
-      - name: The device can find the server
-        # The answers the device depends on, over a real socket. The broadcast
-        # itself needs a network a runner does not have - that one is stage 7
-        # in docs/bring-up.md.
-        run: python tests/test_discovery.py
-
-      - name: Pairing works from both sides
-        # Starts the real server and plays a pairing through: the device
-        # announcing its code, somebody typing it, the key handed over once.
-        run: python tests/test_pairing.py
-
-      - name: No other site can write anything here
-        # The interface has no sign-in, which is the deal - but the browser of
-        # whoever opened some other page must not be usable as a way in. This
-        # one sends the exploit that worked and checks .env is untouched, and
-        # it saves from six threads at once to hold the layout lock in place.
-        run: python tests/test_csrf.py
-
-      - name: Interface texts are complete in every language
-        # Both languages carry the same keys and the same placeholders, and
-        # nothing says words to the user from outside the table.
-        run: python tests/test_ui_texts.py
-
-      - name: The pairing format reads the way the device reads it
-        # Compiles pair_format.h from the sketch and checks the five-digit
-        # code and the line answers against what app.py is supposed to send.
-        # Both sides of the pairing are written from docs/software.md, and
-        # neither can notice on its own that the other moved.
-        run: python tests/test_pair_format.py
-
-      - name: Menu labels fit on a display
-        # Compiles texts.h and panel_text.h the same way. A translation that
-        # is too long, or uses a letter the built-in font does not have, would
-        # otherwise only show once a device is standing on the table.
-        run: python tests/test_texts.py
-
-      - name: The fingerprint holds still, and the SSML stays XML
-        # The region is not part of the fingerprint and must not become part
-        # of it again: the settings page writes it live now, so a key that
-        # crept back in would rename the whole cache on one click. Also that a
-        # quotation mark in a voice id cannot break out of the SSML.
-        run: python tests/test_tts.py
-
-      - name: The example sentences still match their file names
-        # example/speech/ is found by fingerprint, and the fingerprint holds
-        # the voice configuration. Change the voice and the files stop
-        # matching - silently, with four silent keys as the result.
-        run: python tests/test_example_speech.py
+      - name: Tests
+        # Every tests/test_*.py, and the folder is the list. This used to be
+        # one step per file, written out by hand - which meant a new test was
+        # only run if somebody remembered to add it here, and a test nobody
+        # added looked exactly like a test that passed.
+        #
+        # What each test is for is in its own docstring, which is the place
+        # that can keep it true. Run one on its own with:
+        #   python tests/run.py pairing
+        run: python tests/run.py
 
       - name: Build with the example content
         # Without an Azure key, and with sound all the same: the four example
