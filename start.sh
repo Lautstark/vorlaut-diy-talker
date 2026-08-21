@@ -5,17 +5,31 @@
 #
 #   ./start.sh              on port 8771
 #   ./start.sh 8798         on another port
+#   ./start.sh --build      build the image here first instead of pulling it
 #
 # At heart there is a single command behind it:
-#   docker compose up -d --build
-# That rebuilds if the Dockerfile or requirements.txt changed, and replaces a
-# running container. The Python code comes from this folder anyway, not from
-# the image - a restart is enough for that.
+#   docker compose up -d
+# That fetches the published image the first time, and replaces a running
+# container. The Python code comes from this folder anyway, not from the
+# image - a restart is enough for that. Only a changed Dockerfile or
+# requirements.txt needs a build, which is what --build is for; leaving it
+# out of the normal way saves everybody else the wait.
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
-PORT="${1:-8771}"
+# A port, --build, or both, in either order. An unknown option is refused
+# rather than taken for a port number - a mistyped --build would otherwise
+# end up being waited for on port "--biuld".
+PORT=8771
+BUILD=""
+for arg in "$@"; do
+  case "$arg" in
+    --build) BUILD=1 ;;
+    -*) echo "Unknown option: $arg" >&2; exit 1 ;;
+    *) PORT="$arg" ;;
+  esac
+done
 export VORLAUT_PORT="$PORT"
 
 if [ ! -f .env ]; then
@@ -45,8 +59,15 @@ if [ -n "$(docker ps -aq --filter name='^vorlaut$' 2>/dev/null)" ]; then
   docker rm -f vorlaut >/dev/null 2>&1 || true
 fi
 
-echo "Building and starting ..."
-docker compose up -d --build
+if [ -n "$BUILD" ]; then
+  echo "Building and starting ..."
+  docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+else
+  # The first start fetches the image and takes a few minutes over it; every
+  # one after that has it already.
+  echo "Starting ..."
+  docker compose up -d
+fi
 
 # Wait until the interface really answers - "started" does not yet mean
 # "ready".
