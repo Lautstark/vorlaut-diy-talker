@@ -706,6 +706,13 @@ PAGE = r"""<!doctype html>
   .tab.aus { opacity: .45; }
   .tab.aus .dot { box-shadow: inset 0 0 0 2px var(--panel); }
   .plaetze { color: var(--muted); font-size: 12px; margin: -8px 2px 14px; }
+  /* Kein aktives Set ist erlaubt - das Geraet faengt es ab und zeigt einen
+     Hinweis. Gewollt ist es aber selten, deshalb dieselbe Warnfarbe wie beim
+     Speicherkonflikt, nur als schmales Feld statt als Banner. */
+  .plaetze.leer {
+    color: #f0d7d9; background: #3a2224; border: 1px solid #7a3a3f;
+    border-radius: 8px; padding: 6px 10px; display: inline-block;
+  }
   .schalter.aufGeraet { margin-top: 10px; font-size: 13px; }
   .hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
 </style>
@@ -1026,10 +1033,14 @@ function render() {
     tabs.appendChild(add);
   }
 
-  $("plaetze").textContent =
-    activeCount() + " von " + limits.maxActive + " Plätzen auf dem Gerät belegt"
-    + (layout.sets.length > activeCount()
-       ? "  ·  " + layout.sets.length + " Sets angelegt" : "");
+  const belegt = activeCount();
+  $("plaetze").classList.toggle("leer", belegt === 0 && layout.sets.length > 0);
+  $("plaetze").textContent = belegt === 0 && layout.sets.length > 0
+    ? "Kein Set aktiv - das Gerät zeigt dann nur einen Hinweis an. "
+      + layout.sets.length + " Sets liegen bereit."
+    : belegt + " von " + limits.maxActive + " Plätzen auf dem Gerät belegt"
+      + (layout.sets.length > belegt
+         ? "  ·  " + layout.sets.length + " Sets angelegt" : "");
 
   const device = $("device");
   device.innerHTML = "";
