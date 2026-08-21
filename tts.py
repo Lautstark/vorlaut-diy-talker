@@ -24,6 +24,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import config
 import texts
 
 ROOT = Path(__file__).resolve().parent
@@ -31,42 +32,12 @@ ROOT = Path(__file__).resolve().parent
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
 CACHE_DIR = CONTENT / "cache" / "tts"
 INDEX_FILE = CACHE_DIR / "index.json"
-# Overridable so a test can run against a file that is not the developer's
-# own. Without that, whether a test passes depends on what happens to stand
-# in .env on the machine it runs on - and the one thing a test must not do is
-# read the key of the person running it.
-ENV_FILE = Path(os.environ.get("VORLAUT_ENV_FILE") or ROOT / ".env")
 
 _index_lock = threading.Lock()
 
-def load_env_file(path: Path = ENV_FILE) -> dict[str, str]:
-    """Reads .env as a plain KEY=VALUE file. Lines starting with # are ignored."""
-    values: dict[str, str] = {}
-    if not path.exists():
-        return values
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
-        values[key.strip()] = value
-    return values
-
-
-def setting(name: str, standard: str) -> str:
-    """Value from the environment, else from .env, else the default.
-
-    A set environment variable wins - that way a single run can try something
-    different without touching the file.
-    """
-    value = os.environ.get(name, "").strip()
-    if value:
-        return value
-    value = load_env_file().get(name, "").strip()
-    return value or standard
+# Reading .env lives in config.py, which also writes it - see there for why
+# that is one place and not four.
+setting = config.value
 
 
 # --- Voice configuration -----------------------------------------------------
@@ -172,7 +143,7 @@ def get_speech_key() -> str:
     key = os.environ.get("AZURE_SPEECH_KEY", "").strip()
     if key:
         return key
-    key = load_env_file().get("AZURE_SPEECH_KEY", "").strip()
+    key = config.value("AZURE_SPEECH_KEY")
     if not key:
         raise TTSError("tts.err.no_key")
     return key

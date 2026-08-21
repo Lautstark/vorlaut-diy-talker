@@ -30,6 +30,8 @@ import sys
 import urllib.parse
 import unicodedata
 import zipfile
+
+import config
 from pathlib import Path
 
 # Deliberately the same line as in build.py instead of importing build: build
@@ -60,14 +62,7 @@ def configured() -> str:
     variable wins, so that a single run can try something different without
     touching the file.
     """
-    value = (os.environ.get("VORLAUT_METACOM_DIR") or "").strip()
-    if value:
-        return value
-    try:
-        import tts   # only here, so the module stays usable without tts
-        return (tts.load_env_file().get("VORLAUT_METACOM_DIR") or "").strip()
-    except Exception:
-        return ""
+    return config.value("VORLAUT_METACOM_DIR")
 
 
 def root() -> Path | None:

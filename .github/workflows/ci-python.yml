@@ -65,6 +65,12 @@ jobs:
         # side does not exist yet - this settles the protocol before it does.
         run: python tests/test_device_sync.py
 
+      - name: Writing .env leaves it readable
+        # The interface writes this file now. What matters is not that a value
+        # arrives but that the comments explaining it survive - .env is its
+        # own documentation.
+        run: python tests/test_config.py
+
       - name: The device can find the server
         # The answers the device depends on, over a real socket. The broadcast
         # itself needs a network a runner does not have - that one is stage 7

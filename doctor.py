@@ -16,6 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import config
 import metacom
 import tts
 
@@ -108,14 +109,9 @@ def check_piper() -> None:
 
 
 def check_azure_key() -> None:
-    key = os.environ.get("AZURE_SPEECH_KEY", "").strip()
-    source = "Umgebungsvariable"
-    env = ROOT / ".env"
-    if not key and env.exists():
-        for line in env.read_text(encoding="utf-8").splitlines():
-            if line.startswith("AZURE_SPEECH_KEY="):
-                key = line.split("=", 1)[1].strip()
-                source = ".env"
+    key = config.value("AZURE_SPEECH_KEY")
+    source = ("Umgebungsvariable" if os.environ.get("AZURE_SPEECH_KEY", "").strip()
+              else ".env")
     report("Azure key", bool(key),
           f"aus {source}" if key else "",
           "Only needed for the Azure voices - with a piper voice the device\n"

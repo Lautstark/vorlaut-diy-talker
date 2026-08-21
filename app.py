@@ -26,6 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import build
+import config
 import discovery
 import metacom
 import texts
@@ -58,13 +59,7 @@ def device_token() -> str:
     lies behind them are the recordings and pictures of your child, and a sync
     nobody set up should not hand anything out either.
     """
-    value = (os.environ.get("VORLAUT_DEVICE_TOKEN") or "").strip()
-    if value:
-        return value
-    try:
-        return (tts.load_env_file().get("VORLAUT_DEVICE_TOKEN") or "").strip()
-    except Exception:
-        return ""
+    return config.value("VORLAUT_DEVICE_TOKEN")
 
 
 def build_current_flag() -> str:
