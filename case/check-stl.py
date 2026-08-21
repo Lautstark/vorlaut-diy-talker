@@ -77,7 +77,7 @@ def _inside(tris, pt):
 
 
 def material(tris, pt):
-    """Drei leicht versetzte Strahlen, Mehrheit entscheidet."""
+    """Three slightly offset rays, the majority decides."""
     votes = [_inside(tris, (pt[0] + dx, pt[1] + dy, pt[2]))
                for dx, dy in ((0.0, 0.0), (0.11, -0.07), (-0.09, 0.13))]
     return sum(votes) >= 2
@@ -161,12 +161,12 @@ def main():
                     (x + G('sk_cap_b') / 2 + G('gap_cap') + 1.5, y + .29, zf), True)
         L.probe(w, 'front between the key pairs',
                 ((G('blk_mx1') + G('blk_mx2')) / 2 + .37, G('blk_my1') + .37, zf), True)
-        L.probe(w, 'Lautsprecher-Gitterloch offen', (G('spk_mx') + .17, G('spk_my') + .11, zf), False)
+        L.probe(w, 'speaker grille hole is open', (G('spk_mx') + .17, G('spk_my') + .11, zf), False)
         L.probe(w, 'web next to the grille hole',
                 (G('spk_mx') + G('grille_pitch') / 2 + .05, G('spk_my') + .11, zf), True)
         yc = G('feather_y') + G('feather_b') / 2
         xw = -G('inner_margin') - G('wall') / 2 + .11
-        L.probe(w, 'USB-Fenster offen', (xw, yc + .37, G('usb_z')), False)
+        L.probe(w, 'USB window is open', (xw, yc + .37, G('usb_z')), False)
         L.probe(w, 'wall below the USB window', (xw, yc + .37, G('usb_z') - 4.5), True)
         L.probe(w, 'wall next to the USB window', (xw, yc + 12, G('usb_z')), True)
         d = (G('blk_mx1') + G('sk_hole_dx'), G('blk_my1') + G('sk_hole_dy'))

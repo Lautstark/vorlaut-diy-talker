@@ -42,19 +42,19 @@ def load_parameters(path):
         txt = f.read()
     txt = re.sub(r'/\*.*?\*/', '', txt, flags=re.S)
     txt = re.sub(r'//[^\n]*', '', txt)
-    schnitt = re.search(r'^\s*module\s', txt, re.M)
-    if schnitt:
-        txt = txt[:schnitt.start()]
+    cut = re.search(r'^\s*module\s', txt, re.M)
+    if cut:
+        txt = txt[:cut.start()]
 
     ns = {'sqrt': math.sqrt, 'min': min, 'max': max, 'abs': abs,
           'ceil': math.ceil, 'floor': math.floor, 'pow': pow,
           'true': True, 'false': False}
-    roh = {}
+    raw = {}
     for m in re.finditer(r'^\s*([a-zA-Z_]\w*)\s*=\s*([^;]+);', txt, re.M):
         name, expr = m.group(1), ' '.join(m.group(2).split())
         # OpenSCAD quirks Python cannot evaluate and nobody needs here:
         # lists, list comprehensions, concat.
-        if name in roh or expr.startswith('['):
+        if name in raw or expr.startswith('['):
             continue
         if any(k in expr for k in ('for (', 'concat(', 'len(', 'str(')):
             continue
@@ -62,20 +62,20 @@ def load_parameters(path):
         if tern:
             expr = '(%s) if (%s) else (%s)' % (tern.group(2), tern.group(1),
                                                tern.group(3))
-        roh[name] = expr
+        raw[name] = expr
 
-    pending = dict(roh)
+    pending = dict(raw)
     for _ in range(60):
         if not pending:
             break
-        vorher = len(pending)
+        before = len(pending)
         for name, expr in list(pending.items()):
             try:
                 ns[name] = eval(expr, {'__builtins__': {}}, ns)
                 del pending[name]
             except Exception:
                 pass
-        if len(pending) == vorher:
+        if len(pending) == before:
             break
     if pending:
         raise SystemExit('Not evaluable: %s' % ', '.join(sorted(pending)))
@@ -151,7 +151,7 @@ def compute(p, bed_x, bed_y):
                (-boss_e, env_h + boss_e), (env_b + boss_e, env_h + boss_e),
                (env_b / 2, -boss_e), (env_b / 2, env_h + boss_e)]
 
-    # --- 1. Bedienung durch ein Kleinkind ---------------------------------
+    # --- 1. Operation by a small child ------------------------------------
     g = '1. Operation - is the spacing enough for a child hand?'
     b.check(g, 'cap gap horizontal', G('pitch_x') - G('sk_cap_b'),
              '>=', 12, note='two keys hit at once')
@@ -185,23 +185,23 @@ def compute(p, bed_x, bed_y):
     clear_hh = (G('sk_cap_h') + 2 * G('gap_cap')) / 2
     hole_dx = G('sk_board_b') / 2 - G('sk_hole_margin')
     hole_dy = G('sk_board_h') / 2 - G('sk_hole_margin')
-    noetig = G('sk_boss_core') / 2 + G('sk_boss_wall')
+    needed = G('sk_boss_core') / 2 + G('sk_boss_wall')
 
     bosses = []
     for sx in (-1, 1):
         for sy in (-1, 1):
-            frei = max(abs(hole_dx * sx - offset_x) - clear_hb,
+            free = max(abs(hole_dx * sx - offset_x) - clear_hb,
                        abs(hole_dy * sy - offset_y) - clear_hh)
-            if frei >= noetig:
+            if free >= needed:
                 bosses.append((sx, sy))
-    budget = hole_dy - clear_hh - noetig
+    budget = hole_dy - clear_hh - needed
 
     b.info(g, 'configured offset', '%.3f mm' % offset_y)
     b.info(g, 'budget until the first boss drops', '%.3f mm' % budget)
     b.check(g, 'bosses per ScreenKey', len(bosses), '>=', 2, unit='pcs',
              note='board has nothing left holding it')
     if len(bosses) == 4:
-        b.info(g, 'board support', 'vier Dome, allseitig')
+        b.info(g, 'board support', 'four bosses, all round')
     else:
         b.info(g, 'board support',
                '%d bosses - only ONE edge, it can wobble!' % len(bosses))
@@ -236,21 +236,21 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'lid boss to nearest board', dmin, '>', 0,
              note='boss stands on a board')
 
-    # --- 4. Tiefenbudget --------------------------------------------------
+    # --- 4. Depth budget --------------------------------------------------
     g = '4. Depth - what stacks up behind the front'
-    frei_ueber_carrier = G('inner_z_h') - G('carrier_z_top')
+    free_above_carrier = G('inner_z_h') - G('carrier_z_top')
     b.info(g, 'stack-up', 'front %.1f | ScreenKey %.1f | cable %.1f | '
                         'carrier %.1f | parts %.1f | lid %.1f'
            % (G('front_d'), G('sk_behind_front'), G('cable_space'),
-              G('carrier_d'), frei_ueber_carrier, G('lid_d')))
+              G('carrier_d'), free_above_carrier, G('lid_d')))
     b.check(g, 'room above the carrier for the battery',
-             frei_ueber_carrier, '>=', G('battery_d') + G('part_clearance'))
+             free_above_carrier, '>=', G('battery_d') + G('part_clearance'))
     b.check(g, 'room above the carrier for the Feather',
-             frei_ueber_carrier, '>=',
+             free_above_carrier, '>=',
              G('feather_support') + G('feather_h') + 0.0,
              note='Feather hits the lid')
     b.check(g, 'room above the carrier for the amplifier',
-             frei_ueber_carrier, '>=', G('amp_support') + G('amp_d'))
+             free_above_carrier, '>=', G('amp_support') + G('amp_d'))
     b.check(g, 'inner depth for the speaker',
              G('inner_z_h') - G('front_d'), '>=', G('spk_depth') + 0.5)
     b.check(g, 'ScreenKey fits behind the front',
@@ -259,10 +259,10 @@ def compute(p, bed_x, bed_y):
              G('cable_space'), '>=', 4.0,
              note='connector and wires need room')
 
-    # --- 5. Kollisionen auf dem Traeger -----------------------------------
+    # --- 5. Collisions on the carrier -------------------------------------
     g = '5. Parts on the carrier'
     bed_margin = G('bed_margin')
-    teile = [
+    parts = [
         ('battery', (G('battery_x') - bed_margin, G('battery_y') - bed_margin,
                   G('battery_x') + G('battery_b') + bed_margin,
                   G('battery_y') + G('battery_h') + bed_margin)),
@@ -273,39 +273,40 @@ def compute(p, bed_x, bed_y):
                          G('amp_x') + G('amp_b') + bed_margin,
                          G('amp_y') + G('amp_h') + bed_margin)),
     ]
-    hindernisse = [('chamber', (-G('inner_margin'), G('chamber_y'),
+    obstacles = [('chamber', (-G('inner_margin'), G('chamber_y'),
                                G('chamber_x') + G('chamber_wall'),
                                env_h + G('inner_margin')))]
-    hindernisse += [('Deckeldom %d' % i,
+    obstacles += [('lid boss %d' % i,
                      (d[0] - G('boss_d') / 2, d[1] - G('boss_d') / 2,
                       d[0] + G('boss_d') / 2, d[1] + G('boss_d') / 2))
                     for i, d in enumerate(boss_pos)]
 
     hits = []
-    for i in range(len(teile)):
-        for j in range(i + 1, len(teile)):
-            if overlaps(teile[i][1], teile[j][1]):
-                hits.append('%s/%s' % (teile[i][0], teile[j][0]))
-    for na, ra in teile:
-        for nh, rh in hindernisse:
-            if overlaps(ra, rh):
-                hits.append('%s/%s' % (na, nh))
+    for i in range(len(parts)):
+        for j in range(i + 1, len(parts)):
+            if overlaps(parts[i][1], parts[j][1]):
+                hits.append('%s/%s' % (parts[i][0], parts[j][0]))
+    for n_part, r_part in parts:
+        for n_obs, r_obs in obstacles:
+            if overlaps(r_part, r_obs):
+                hits.append('%s/%s' % (n_part, n_obs))
     b.check(g, 'overlaps (with retaining ribs)', len(hits), '==', 0,
              unit='pcs', note=', '.join(hits))
 
-    raus = [n for n, r in teile
-            if r[0] < -G('inner_margin') - 1e-3 or r[1] < -G('inner_margin') - 1e-3
-            or r[2] > env_b + G('inner_margin') + 1e-3
-            or r[3] > env_h + G('inner_margin') + 1e-3]
-    b.check(g, 'protrudes past the inner wall', len(raus), '==', 0,
-             unit='pcs', note=', '.join(raus))
+    sticking_out = [n for n, r in parts
+                    if r[0] < -G('inner_margin') - 1e-3
+                    or r[1] < -G('inner_margin') - 1e-3
+                    or r[2] > env_b + G('inner_margin') + 1e-3
+                    or r[3] > env_h + G('inner_margin') + 1e-3]
+    b.check(g, 'protrudes past the inner wall', len(sticking_out), '==', 0,
+             unit='pcs', note=', '.join(sticking_out))
 
     # The carrier is cut away under the chamber - nothing may stand there
-    schnitt_x = G('chamber_x') + G('chamber_wall') + G('inner_margin') + 1.8
-    for name, r in teile:
+    cutout_x = G('chamber_x') + G('chamber_wall') + G('inner_margin') + 1.8
+    for name, r in parts:
         if r[3] > G('chamber_y') + G('chamber_wall'):
             b.check(g, '%s stands on carrier material' % name, r[0], '>=',
-                     schnitt_x - G('inner_margin') - 1.0,
+                     cutout_x - G('inner_margin') - 1.0,
                      note='sits over the chamber cutout')
 
     # Peg holes in the carrier must not sit under a Feather standoff -
@@ -315,14 +316,16 @@ def compute(p, bed_x, bed_y):
                    ((G('blk_mx1') + G('blk_mx2')) / 2, G('blk_my2')),
                    ((G('set_mx') + G('blk_mx1')) / 2, 4.0)]
     hole_r = (G('peg_d') + 0.4) / 2
-    naeh = 1e9
+    nearest_peg = 1e9
     for sx, sy in support_pos:
         for ix in (-1, 1):
             for iy in (-1, 1):
                 px = G('feather_x') + G('feather_l') / 2 + ix * G('feather_hole_l') / 2
                 py = G('feather_y') + G('feather_b') / 2 + iy * G('feather_hole_b') / 2
-                naeh = min(naeh, math.hypot(px - sx, py - sy) - hole_r - 2.5)
-    b.check(g, 'Feather standoff to nearest peg hole', naeh, '>=', 0.5,
+                nearest_peg = min(
+                    nearest_peg,
+                    math.hypot(px - sx, py - sy) - hole_r - 2.5)
+    b.check(g, 'Feather standoff to nearest peg hole', nearest_peg, '>=', 0.5,
              note='standoff prints over a hole edge')
 
     # --- 6. USB-C ---------------------------------------------------------
@@ -332,29 +335,29 @@ def compute(p, bed_x, bed_y):
              note='the socket does not reach the case edge')
     b.check(g, 'socket reaches into the wall',
              G('usb_overhang'), '>=', 0.5)
-    fen_h = G('usb_fen_h')
+    win_h = G('usb_win_h')
     b.check(g, 'window bottom edge above the carrier ledge',
-             G('usb_z') - fen_h / 2, '>=', G('carrier_z_top') + 1.0)
+             G('usb_z') - win_h / 2, '>=', G('carrier_z_top') + 1.0)
     b.check(g, 'window top edge below the lid rebate',
-             G('usb_z') + fen_h / 2, '<=', G('inner_z_h') - 1.0)
+             G('usb_z') + win_h / 2, '<=', G('inner_z_h') - 1.0)
     b.check(g, 'window wider than the socket',
-             G('usb_buchse_b') + 1.4, '>=', G('usb_buchse_b') + 1.0)
+             G('usb_socket_b') + 1.4, '>=', G('usb_socket_b') + 1.0)
     b.info(g, 'bridge over the window',
-           '%.1f mm frei ueberspannt (FDM schafft das)'
-           % (G('usb_buchse_b') + 1.4 - 2 * 1.0))
+           '%.1f mm spanned unsupported (FDM manages that)'
+           % (G('usb_socket_b') + 1.4 - 2 * 1.0))
 
-    # --- 7. Lautsprecher --------------------------------------------------
+    # --- 7. Speaker -------------------------------------------------------
     g = '7. Speaker - closed at the back, open to the front'
-    kam_b = G('chamber_x') + G('chamber_wall') + G('inner_margin')
-    kam_h = env_h + G('inner_margin') - G('chamber_y')
-    kam_t = G('inner_z_h') - G('front_d')
-    brutto = kam_b * kam_h * kam_t / 1000.0
-    netto = brutto - (G('spk_frame') ** 2 * G('spk_depth')) / 1000.0
-    b.info(g, 'chamber volume', '%.1f cm3 brutto, %.1f cm3 netto'
-           % (brutto, netto))
-    b.check(g, 'remaining volume behind the driver', netto, '>=', 20.0,
-             unit='cm3', note='klingt duenn und blechern')
-    b.check(g, 'chamber deep enough for the driver', kam_t, '>=',
+    chamber_b = G('chamber_x') + G('chamber_wall') + G('inner_margin')
+    chamber_h = env_h + G('inner_margin') - G('chamber_y')
+    chamber_t = G('inner_z_h') - G('front_d')
+    gross = chamber_b * chamber_h * chamber_t / 1000.0
+    net = gross - (G('spk_frame') ** 2 * G('spk_depth')) / 1000.0
+    b.info(g, 'chamber volume', '%.1f cm3 gross, %.1f cm3 net'
+           % (gross, net))
+    b.check(g, 'remaining volume behind the driver', net, '>=', 20.0,
+             unit='cm3', note='sounds thin and tinny')
+    b.check(g, 'chamber deep enough for the driver', chamber_t, '>=',
              G('spk_depth') + 0.5)
     b.check(g, 'clearance between driver and chamber wall', G('chamber_clearance'),
              '>=', 1.0)
@@ -370,7 +373,7 @@ def compute(p, bed_x, bed_y):
     else:
         b.info(g, 'driver fixing', 'foam behind the driver, the lid clamps it')
         b.check(g, 'room behind the driver for the clamping foam',
-                 kam_t - G('spk_depth'), '>=', 4.0,
+                 chamber_t - G('spk_depth'), '>=', 4.0,
                  note='nothing left to compress')
         b.check(g, 'front plate has no screw holes into the chamber',
                  0.0, '==', 0.0, unit='pcs')
@@ -378,10 +381,10 @@ def compute(p, bed_x, bed_y):
              G('grille_field_d'), '>=', G('spk_cone_d'))
     b.check(g, "grille hole too large for a child finger",
              G('grille_hole_d'), '<=', 5.0,
-             note='Finger passt hinein')
-    steg = G('grille_pitch') - G('grille_hole_d')
-    b.check(g, 'web between the grille holes', steg, '>=', 1.2,
-             note='bricht heraus')
+             note='a finger fits in')
+    web = G('grille_pitch') - G('grille_hole_d')
+    b.check(g, 'web between the grille holes', web, '>=', 1.2,
+             note='breaks out')
     # A hole small enough to keep a pencil out only helps while enough of them
     # remain. So count the holes the way spk_grille() places them - hex grid,
     # and only holes that fit inside the field COMPLETELY - and hold the open
@@ -390,57 +393,57 @@ def compute(p, bed_x, bed_y):
     pitch, hole = G('grille_pitch'), G('grille_hole_d')
     r_max = G('grille_field_d') / 2 - hole / 2
     n = int(math.ceil(G('grille_field_d') / pitch)) + 1
-    loecher = [(i * pitch + (abs(j) % 2) * pitch / 2, j * pitch * 0.866)
+    holes = [(i * pitch + (abs(j) % 2) * pitch / 2, j * pitch * 0.866)
                for i in range(-n, n + 1) for j in range(-n, n + 1)]
-    loecher = [q for q in loecher if math.hypot(*q) <= r_max + 1e-9]
-    offen = len(loecher) * math.pi * (hole / 2) ** 2
+    holes = [q for q in holes if math.hypot(*q) <= r_max + 1e-9]
+    open_area = len(holes) * math.pi * (hole / 2) ** 2
     # Not hole area against cone area - part of the outermost ring sits past
     # the cone rim and does not count. So sample the cone disc and ask, point
     # by point, whether a hole stands over it.
-    r_kegel, r_loch, schritt = G('spk_cone_d') / 2, hole / 2, 0.15
-    innen = frei = 0
-    y = -r_kegel
-    while y <= r_kegel:
-        x = -r_kegel
-        while x <= r_kegel:
-            if math.hypot(x, y) <= r_kegel:
-                innen += 1
-                if any(math.hypot(x - q[0], y - q[1]) <= r_loch for q in loecher):
-                    frei += 1
-            x += schritt
-        y += schritt
+    r_cone, r_hole, step = G('spk_cone_d') / 2, hole / 2, 0.15
+    inside = free = 0
+    y = -r_cone
+    while y <= r_cone:
+        x = -r_cone
+        while x <= r_cone:
+            if math.hypot(x, y) <= r_cone:
+                inside += 1
+                if any(math.hypot(x - q[0], y - q[1]) <= r_hole for q in holes):
+                    free += 1
+            x += step
+        y += step
     b.info(g, 'grille', '%d whole holes of %.1f mm, %.0f mm2 open in total'
-           % (len(loecher), hole, offen))
-    b.check(g, 'open area over the cone', 100.0 * frei / innen, '>=', 25.0,
+           % (len(holes), hole, open_area))
+    b.check(g, 'open area over the cone', 100.0 * free / inside, '>=', 25.0,
              unit='%', note='the driver is choked')
     # The rim of the field must not carry any part-holes: those come out as
     # slivers a fraction of a millimetre wide and tear off the print bed.
-    ganz = min((r_max - math.hypot(*q)) for q in loecher)
-    b.check(g, 'no part-holes at the rim of the field', ganz, '>=', 0.0,
+    whole = min((r_max - math.hypot(*q)) for q in holes)
+    b.check(g, 'no part-holes at the rim of the field', whole, '>=', 0.0,
              note='the slivers tear off the bed')
 
-    # --- 8. Gehaeuse, Druck ----------------------------------------------
+    # --- 8. Case, printing ------------------------------------------------
     g = '8. Printing - simple FDM, one colour, no supports'
-    # Zwei verschiedene Kriterien, die man leicht verwechselt:
+    # Two different criteria that are easy to mix up:
     #   vertical walls are built out of PASSES (0.4 mm wide),
-    #   flach liegende Platten aus LAGEN (Hoehe 0,2 mm).
+    #   flat-lying plates are built out of LAYERS (0.2 mm high).
     # In the tub's print orientation (front face down) the front plate is a
     # plate and only the side wall is a wall.
-    bahn, lage = 0.4, 0.2
-    for name, value in (('Seitenwand', G('wall')),
-                       ('Kammerwand', G('chamber_wall')),
-                       ('Halterippe', G('rib_b'))):
-        n = value / bahn
+    pass_w, layer = 0.4, 0.2
+    for name, value in (('side wall', G('wall')),
+                       ('chamber wall', G('chamber_wall')),
+                       ('retaining rib', G('rib_b'))):
+        n = value / pass_w
         b.check(g, '%s = whole passes (%.1f x 0.4)' % (name, n),
                  abs(n - round(n)), '<=', 0.001, unit='',
                  note='the slicer leaves a gap or over-extrudes')
-    for name, value in (('Frontplatte', G('front_d')),
-                       ('Deckel', G('lid_d')),
+    for name, value in (('front plate', G('front_d')),
+                       ('lid', G('lid_d')),
                        ('carrier', G('carrier_d'))):
-        n = value / lage
+        n = value / layer
         b.check(g, '%s = whole layers (%.1f x 0.2)' % (name, n),
                  abs(n - round(n)), '<=', 0.001, unit='',
-                 note='letzte Lage wird angeschnitten')
+                 note='the last layer gets cut into')
     b.check(g, 'wall thickness load-bearing', G('wall'), '>=', 1.6)
     b.check(g, 'logo embossing high enough', G('logo_lid_h'), '>=', 0.6,
              note='no longer visible on a tired printer')
@@ -450,46 +453,46 @@ def compute(p, bed_x, bed_y):
 
     # The inner space gets wider towards the back in steps. Every step is
     # therefore an upward-facing bearing surface instead of an overhang.
-    stufe_a = G('inner_b') - 2 * G('standoff')
-    stufe_b = G('inner_b')
-    stufe_c = G('outer_b') - 2 * G('lip') + G('lid_play')
-    b.check(g, 'inner space widens towards the back (a<b)', stufe_b, '>',
-             stufe_a, note='diese Stufe waere ein Ueberhang')
-    b.check(g, 'inner space widens towards the back (b<c)', stufe_c, '>',
-             stufe_b, note='diese Stufe waere ein Ueberhang')
+    step_a = G('inner_b') - 2 * G('standoff')
+    step_b = G('inner_b')
+    step_c = G('outer_b') - 2 * G('lip') + G('lid_play')
+    b.check(g, 'inner space widens towards the back (a<b)', step_b, '>',
+             step_a, note='this step would be an overhang')
+    b.check(g, 'inner space widens towards the back (b<c)', step_c, '>',
+             step_b, note='this step would be an overhang')
     b.check(g, 'step as carrier ledge', G('standoff'), '>=', 1.2)
     b.check(g, 'outer skin above the lid rebate',
              G('lip') - G('lid_play') / 2, '>=', 0.8,
-             note='zu duenn, bricht')
+             note='too thin, breaks')
 
     b.check(g, 'tub onto the bed (X)', G('outer_b'), '<=', bed_x)
     b.check(g, 'tub onto the bed (Y)', G('outer_h'), '<=', bed_y)
-    b.info(g, 'build height tub', '%.1f mm (Front unten, Oeffnung nach oben)'
+    b.info(g, 'build height tub', '%.1f mm (front face down, opening up)'
            % G('outer_t'))
     b.info(g, 'build height carrier', '%.1f mm' % (G('carrier_d') + G('battery_d')
                                                + 0.2))
-    lid_auf = max(G('logo_lid_h'), G('feet_h') if G('feet_on') else 0.0)
-    b.info(g, 'build height lid', '%.1f mm (Innenseite unten, Logo oben)'
-           % (G('lid_d') + lid_auf))
+    lid_proud = max(G('logo_lid_h'), G('feet_h') if G('feet_on') else 0.0)
+    b.info(g, 'build height lid', '%.1f mm (inside face down, logo up)'
+           % (G('lid_d') + lid_proud))
 
-    # --- 9. Oeffnen und Schliessen ---------------------------------------
+    # --- 9. Opening and closing -------------------------------------------
     g = '9. Opening it - battery and prototype'
     b.check(g, 'lid play in the rebate', G('lid_play'), '>=', 0.2)
     b.check(g, 'lid play not too large', G('lid_play'), '<=', 0.6,
-             note='Deckel klappert')
+             note='the lid rattles')
     b.check(g, 'carrier play', G('carrier_play'), '>=', 0.2)
     b.check(g, 'boss wall around the pilot hole',
              (G('boss_d') - G('boss_core')) / 2, '>=', 1.0,
-             note='Dom reisst beim Schrauben auf')
+             note='the boss splits when screwed')
     b.check(g, 'countersink fits into the lid',
              G('lid_d') - G('csink_t'), '>=', 1.0,
-             note='Schraubenkopf bricht durch')
+             note='the screw head breaks through')
     b.check(g, 'screw head smaller than the boss', G('csink_d'), '<=',
              G('boss_d') + 0.4, note='the head stands proud of the boss')
     b.info(g, 'screw fixing', '6 x M3 %s'
-           % ('Gewindeeinsatz' if G('threaded_insert') else 'selbstschneidend'))
+           % ('threaded insert' if G('threaded_insert') else 'self-tapping'))
 
-    # --- 10. Gewicht und Schwerpunkt -------------------------------------
+    # --- 10. Weight and centre of gravity ---------------------------------
     g = '10. How it sits in the hand'
     m_battery, m_spk = 52.0, 35.0
     sp_x = (m_battery * (G('battery_x') + G('battery_b') / 2)
@@ -497,14 +500,14 @@ def compute(p, bed_x, bed_y):
     sp_y = (m_battery * (G('battery_y') + G('battery_h') / 2)
             + m_spk * G('spk_my')) / (m_battery + m_spk)
     b.info(g, 'centre of gravity battery+speaker',
-           'x %.1f (Mitte %.1f), y %.1f (Mitte %.1f)'
+           'x %.1f (centre %.1f), y %.1f (centre %.1f)'
            % (sp_x, env_b / 2, sp_y, env_h / 2))
     b.check(g, 'centre of gravity off centre, horizontal',
              abs(sp_x - env_b / 2), '<=', 8.0,
-             note='kippt zur Seite')
+             note='tips sideways')
     b.check(g, 'centre of gravity off centre, vertical',
              abs(sp_y - env_h / 2), '<=', 8.0,
-             note='kopflastig')
+             note='top-heavy')
 
     # The lid is the back of the device. Whatever stands proudest of it is what
     # the device rests on - and until there were feet, that was the logo.
@@ -516,11 +519,11 @@ def compute(p, bed_x, bed_y):
         b.check(g, 'feet stand clear of the logo',
                  G('feet_h') - G('logo_lid_h'), '>=', 0.4,
                  note='it goes on rocking on the bubble')
-        naechste = min(math.hypot(abs(dp[0] - env_b / 2) - G('feet_x'),
-                                  abs(dp[1] - env_h / 2) - G('feet_y'))
-                       for dp in boss_pos)
+        nearest_csink = min(math.hypot(abs(dp[0] - env_b / 2) - G('feet_x'),
+                                       abs(dp[1] - env_h / 2) - G('feet_y'))
+                            for dp in boss_pos)
         b.check(g, 'foot clear of the nearest countersink',
-                 naechste - G('feet_d') / 2 - G('csink_d') / 2, '>=', 1.0,
+                 nearest_csink - G('feet_d') / 2 - G('csink_d') / 2, '>=', 1.0,
                  note='the screw no longer sits flush')
         db = G('outer_b') - 2 * G('lip') - G('lid_play')
         dh = G('outer_h') - 2 * G('lip') - G('lid_play')
@@ -544,9 +547,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--offset', type=float, default=None,
-                    help='cap_offset_y ueberschreiben (mm)')
+                    help='override cap_offset_y (mm)')
     ap.add_argument('--bed', type=float, nargs=2, default=(220.0, 220.0),
-                    metavar=('X', 'Y'), help='Druckbett (Vorgabe 220 x 220)')
+                    metavar=('X', 'Y'), help='print bed (default 220 x 220)')
     ap.add_argument('--scad', default=SCAD)
     a = ap.parse_args()
 

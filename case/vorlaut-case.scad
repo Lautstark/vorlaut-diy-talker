@@ -37,7 +37,7 @@ $fs = 0.4;
 
 
 /* =====================================================================
-   1.  BAUTEILMASSE
+   1.  COMPONENT DIMENSIONS
    ===================================================================== */
 
 /* --- Waveshare ScreenKey (5x) --- */
@@ -90,17 +90,17 @@ spk_screw_d       =  2.90;  // [A] clearance hole for M2.5
 spk_front_screws  = false;  // [K]
 
 /* --- Adafruit ESP32-S3 Feather --- */
-feather_l           = 50.80;  // [R] 2,0"
-feather_b           = 22.80;  // [R] 0,9"
+feather_l           = 50.80;  // [R] 2.0"
+feather_b           = 22.80;  // [R] 0.9"
 feather_h           =  8.00;  // [A] total height with soldered headers
-feather_pcb_d       =  1.60;  // [A] Platinendicke, typisch FR4
+feather_pcb_d       =  1.60;  // [A] board thickness, typical FR4
 feather_hole_l      = 45.72;  // [R] hole spacing lengthwise (Feather spec: 0.1" margin)
-feather_hole_b      = 17.78;  // [R] Lochabstand quer
+feather_hole_b      = 17.78;  // [R] hole spacing across
 feather_hole_d      =  2.50;  // [R]
 // USB-C socket: sits centred on one short side, body approx. 9.0 x 3.2 mm,
 // protrudes approx. 1.5 mm beyond the board edge.
-usb_buchse_b        =  9.00;  // [R]
-usb_buchse_h        =  3.20;  // [R]
+usb_socket_b        =  9.00;  // [R]
+usb_socket_h        =  3.20;  // [R]
 usb_overhang      =  1.50;  // [A] how far the socket protrudes past the edge
 usb_centre_above_pcb =  1.60;  // [A] socket centre above the board top
 
@@ -108,16 +108,16 @@ usb_centre_above_pcb =  1.60;  // [A] socket centre above the board top
 battery_b              = 63.00;  // [M]
 battery_h              = 50.30;  // [M]
 battery_d              =  8.10;  // [M]
-// 52 g — das schwerste Einzelteil. Position siehe section 3.
+// 52 g — the heaviest single part. Position: see section 3.
 
 /* --- Amplifier MAX98357A (Adafruit 3006) --- */
 amp_b               = 19.40;  // [R] adafruit.com/product/3006
 amp_h               = 17.80;  // [R]
-amp_d               =  3.00;  // [R] ohne Stiftleiste
+amp_d               =  3.00;  // [R] without the pin header
 
 
 /* =====================================================================
-   2.  ANORDNUNG DER BEDIENTEILE  (festgelegt, siehe docs/hardware.md)
+   2.  LAYOUT OF THE CONTROLS  (fixed, see docs/hardware.md)
    ===================================================================== */
 
 // The four speech keys are ONE group, the set key is not part of it. What
@@ -130,32 +130,32 @@ gap_block     = 20.00;  // [K] air between two speech caps, both directions
 gap_set_block = 1.5 * gap_block;      // [G] 30.0  set cap to the nearest speech cap
 pitch_x       = sk_cap_b + gap_block; // [G] 42.0  centre spacing across
 pitch_y       = sk_cap_h + gap_block; // [G] 45.3  centre spacing up
-gap_spk_set        =  5.00;  // [M] Lautsprecher bis Set-Platine
+gap_spk_set        =  5.00;  // [M] speaker to set board
 
-/* --- daraus folgt das Bauteil-Rechteck --- */
-env_h  = spk_frame + gap_spk_set + sk_board_h;             // [G] 80,59
+/* --- the component rectangle follows from that --- */
+env_h  = spk_frame + gap_spk_set + sk_board_h;             // [G] 80.59
 // The set board sits sideways centred under the speaker
-set_mx = spk_frame/2;                                          // [G] 20,15
-set_my = sk_board_h/2;                                       // [G] 17,645
+set_mx = spk_frame/2;                                          // [G] 20.15
+set_my = sk_board_h/2;                                       // [G] 17.645
 // Left column of the block of four: gap_set_block of cap gap to the set cap.
 // A sideways cap offset cancels out, because ALL caps are offset the same way
 // - the distance stays as it is.
-blk_mx1 = set_mx + sk_cap_b + gap_set_block;                // [G] 72,15
-blk_mx2 = blk_mx1 + pitch_x;                                  // [G] 114,15
+blk_mx1 = set_mx + sk_cap_b + gap_set_block;                // [G] 72.15
+blk_mx2 = blk_mx1 + pitch_x;                                  // [G] 114.15
 blk_my1 = sk_board_h/2;                                      // [G] 17.645  (flush at the bottom)
-blk_my2 = blk_my1 + pitch_y;                                  // [G] 62,945
-env_b   = blk_mx2 + sk_board_b/2;                            // [G] 127,12
+blk_my2 = blk_my1 + pitch_y;                                  // [G] 62.945
+env_b   = blk_mx2 + sk_board_b/2;                            // [G] 127.12
 
-// Lautsprecher oben links
-spk_mx = spk_frame/2;                                           // [G] 20,15
-spk_my = env_h - spk_frame/2;                                   // [G] 60,44
+// Speaker top left
+spk_mx = spk_frame/2;                                           // [G] 20.15
+spk_my = env_h - spk_frame/2;                                   // [G] 60.44
 
 // Centre points of all five boards
-sk_pos = [ [set_mx , set_my ],      // 0 = Set-Taste
-           [blk_mx1, blk_my1],      // 1 = unten links
-           [blk_mx2, blk_my1],      // 2 = unten rechts
-           [blk_mx1, blk_my2],      // 3 = oben links
-           [blk_mx2, blk_my2] ];    // 4 = oben rechts
+sk_pos = [ [set_mx , set_my ],      // 0 = set key
+           [blk_mx1, blk_my1],      // 1 = bottom left
+           [blk_mx2, blk_my1],      // 2 = bottom right
+           [blk_mx1, blk_my2],      // 3 = top left
+           [blk_mx2, blk_my2] ];    // 4 = top right
 
 
 /* =====================================================================
@@ -164,30 +164,30 @@ sk_pos = [ [set_mx , set_my ],      // 0 = Set-Taste
 
 /* --- Wall thicknesses and radii --- */
 wall          = 2.40;   // [K] 6 passes with a 0.4 nozzle — stiff, prints reliably
-front_d       = 2.40;   // [K] Frontplatte
+front_d       = 2.40;   // [K] front plate
 lid_d      = 3.00;   // [K] lid thicker: carries the countersunk screws
-carrier_d     = 2.40;   // [K] Zwischenboden
-standoff        = 2.00;   // [K] Wandverdickung in der Platinenebene.
+carrier_d     = 2.40;   // [K] carrier, the intermediate floor
+standoff        = 2.00;   // [K] wall thickening in the board plane.
                         //     Creates the surrounding ledge for the carrier.
 lip         = 1.20;   // [K] remaining outer skin above the lid rebate
 corner_r        = 6.00;   // [K] outer corner radius — nothing sharp for the child
-chamfer_front     = 1.20;   // [K] 45°-Fase rundum an der Frontkante
+chamfer_front     = 1.20;   // [K] 45° chamfer all round the front edge
 chamfer_rear   = 0.60;   // [K]
-chamfer_lid   = 0.80;   // [K] Fase an der Deckeloberkante
+chamfer_lid   = 0.80;   // [K] chamfer on the lid top edge
 
-/* --- Verschraubung des Deckels --- */
+/* --- Lid fixings --- */
 // Screws instead of snap hooks. The reasoning is in building.md.
-// false = selbstschneidende M3 direkt ins Plastik (braucht kein Werkzeug
+// false = self-tapping M3 straight into the plastic (needs no tooling
 //         but a screwdriver, lasts a prototype's lifetime)
 // true  = M3 heat-set threaded inserts (Ø4.0 x 5 mm). Only needed when the
 //         case gets opened often. The bosses and with them the whole case
 //         grow a little automatically.
 threaded_insert = false;  // [K]
 boss_d     = threaded_insert ? 8.00 : 6.00;   // [G] outer diameter of the lid boss
-boss_core  = threaded_insert ? 4.20 : 2.50;   // [G] Kernloch
-csink_d    = 6.20;   // [K] Kopfdurchmesser M3-Senkschraube
-csink_t    = 1.80;   // [K] Senktiefe
-boss_clearance  = 1.00;   // [K] Abstand Domkante zum Bauteil-Rechteck
+boss_core  = threaded_insert ? 4.20 : 2.50;   // [G] pilot hole
+csink_d    = 6.20;   // [K] head diameter, M3 countersunk screw
+csink_t    = 1.80;   // [K] countersink depth
+boss_clearance  = 1.00;   // [K] boss edge to the component rectangle
 
 // Clearance between the component rectangle and the inner wall at carrier
 // height. The value is NOT freely chosen but set by the lid bosses: they sit
@@ -197,7 +197,7 @@ boss_clearance  = 1.00;   // [K] Abstand Domkante zum Bauteil-Rechteck
 inner_margin    = max(7.00, boss_d + boss_clearance);   // [G] 7.0 or 9.0
 
 /* --- Depth budget --- */
-sk_behind_front = sk_total_depth - sk_cap_overhang;   // [G] 15,40
+sk_behind_front = sk_total_depth - sk_cap_overhang;   // [G] 15.40
 cable_space       = 6.00;   // [K] behind the ScreenKey back: header,
                           //     FPC connector and wires. Without this gap
                           //     the battery presses on the connector pins.
@@ -207,7 +207,7 @@ feather_support = 2.00;   // [K] standoff under the Feather. Do not make it
                           //     stick out that far underneath.
 amp_support     = 2.00;   // [K] same under the amplifier
 
-sk_board_z_v  = sk_behind_front - sk_board_d;         // [G] 13,80 Vorderseite
+sk_board_z_v  = sk_behind_front - sk_board_d;         // [G] 13.80 front face
 carrier_z_bottom     = sk_behind_front + cable_space;            // [G] 21.40 carrier underside
 carrier_z_top     = carrier_z_bottom + carrier_d;                // [G] 23.80 carrier top side
 
@@ -220,45 +220,44 @@ stack_feather  = feather_support + feather_h;  // [G] 10.00  <- the governing on
 stack_amp      = amp_support + amp_d;          // [G]  5.00
 stack_max      = max(stack_battery, stack_feather, stack_amp);   // [G] 10.00
 
-inner_z_h       = carrier_z_top + stack_max + part_clearance;  // [G] 34,40
-outer_t        = inner_z_h + lid_d;                     // [G] 37,40 Gesamttiefe
+inner_z_h       = carrier_z_top + stack_max + part_clearance;  // [G] 34.40
+outer_t        = inner_z_h + lid_d;                     // [G] 37.40 total depth
 
 /* --- Outer dimensions --- */
-inner_b  = env_b + 2*inner_margin;      // [G] 141,12
-inner_h  = env_h + 2*inner_margin;      // [G]  94,59
-outer_b = inner_b + 2*wall;          // [G] 145,92
-outer_h = inner_h + 2*wall;          // [G]  99,39
+inner_b  = env_b + 2*inner_margin;      // [G] 141.12
+inner_h  = env_h + 2*inner_margin;      // [G]  94.59
+outer_b = inner_b + 2*wall;          // [G] 145.92
+outer_h = inner_h + 2*wall;          // [G]  99.39
 centre_x  = env_b/2;                   // [G]
 centre_y  = env_h/2;                   // [G]
 
-/* --- Toleranzen --- */
-gap_cap   = 0.60;   // [K] Luft rundum um die Tastenkappe im Frontausschnitt.
+/* --- Tolerances --- */
+gap_cap   = 0.60;   // [K] air all round the key cap in the front cutout.
                         //     Large enough that the key never jams; too narrow
                         //     for a child's finger to get in.
-chamfer_key    = 0.80;   // [K] Fase am Rand des Tastenausschnitts
-cap_r       = 2.00;   // [K] Eckenradius des Tastenausschnitts
-lid_play  = 0.40;   // [K] Gesamtspiel des Deckels im Falz
+chamfer_key    = 0.80;   // [K] chamfer on the edge of the key cutout
+cap_r       = 2.00;   // [K] corner radius of the key cutout
+lid_play  = 0.40;   // [K] total play of the lid in the rebate
 carrier_play = 0.40;   // [K] total play of the carrier
 
-/* --- Befestigung der ScreenKeys --- */
+/* --- ScreenKey fixings --- */
 sk_boss_d    = 4.50;  // [K] ScreenKey boss outer diameter
 sk_boss_core = 1.60;  // [K] pilot hole for self-tapping M2
 sk_boss_foot = 1.50;  // [K] 45° foot cone, so the boss does not snap off
 sk_boss_wall = 1.00;  // [K] minimum wall around the pilot hole. A boss that
                      //     would fall below it next to the cap clearance is
                      //     left out instead of cut into - see sk_boss().
-sk_boss_h    = sk_board_z_v - front_d;   // [G] 11,40
+sk_boss_h    = sk_board_z_v - front_d;   // [G] 11.40
 
-/* --- Lautsprecherkammer --- */
+/* --- Speaker chamber --- */
 // As closed a volume as possible behind the driver. The chamber is formed by
-// the front plate, two inset walls, two outer walls and the
-// Deckel gebildet.
+// the front plate, two inset walls, two outer walls and the lid.
 chamber_wall  = 2.00;   // [K]
 chamber_clearance  = 2.00;   // [K] clearance between driver and chamber wall
 chamber_x     = spk_frame + chamber_clearance;              // [G] 42.30 inner face on the right
 chamber_y     = env_h - spk_frame - chamber_clearance - 1.0;// [G] 37.29 inner face at the bottom
-                                                      //     (1,0 mm extra Abstand
-                                                      //      zur Set-Platine)
+                                                      //     (1.0 mm extra clearance
+                                                      //      to the set board)
 // Sound outlet. Three things pull against each other here: open enough that
 // the driver is not choked, fine enough that nothing gets poked through onto
 // the cone, and printable. 3.0 mm at a 4.6 mm pitch leaves 1.6 mm of web
@@ -283,8 +282,8 @@ battery_x    =  61.00;  // [K] follows the wider block of four - the battery
 battery_y    =   2.50;  // [K]
 
 // Feather: board edge flush against the left inner wall, so the USB-C socket
-// reaches the case edge. Vertically into the lower
-// Streifen, unterhalb der Lautsprecherkammer.
+// reaches the case edge. Vertically into the lower strip, below the
+// speaker chamber.
 feather_x =  -inner_margin;   // [G]
 feather_y =   8.00;         // [K]
 
@@ -319,14 +318,14 @@ peg_h     = carrier_d - 0.40;  // [G] ends just below the carrier top side,
                                   //     so nothing presses on the battery
 // Positions: in the gaps between the boards, that is where there is room.
 support_pos = [
-  [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 93,15 / 17,645
-  [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 93,15 / 40,295
-  [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 93,15 / 62,945
+  [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 93.15 / 17.645
+  [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 93.15 / 40.295
+  [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 93.15 / 62.945
   // In the gap between the set board and the block of four. Do not put it
   // higher: at y = 8 the peg hole in the carrier sat 0.73 mm under one of the
   // Feather's standoffs, and the standoff would have started printing over
   // the edge of the hole.
-  [ (set_mx + blk_mx1)/2, 4.0 ]                        // 46,15 / 4
+  [ (set_mx + blk_mx1)/2, 4.0 ]                        // 46.15 / 4
 ];
 
 /* --- Feet on the lid --- */
@@ -359,9 +358,9 @@ logo_side_h    =  0.60;  // [K]
    ===================================================================== */
 
 /* --- Cap spacing in the plane --- */
-gap_cap_x = pitch_x - sk_cap_b;      // soll 20,0
-gap_cap_y = pitch_y - sk_cap_h;      // soll 20,0
-gap_pcb_x   = pitch_x - sk_board_b;    // soll 16,06 > 0
+gap_cap_x = pitch_x - sk_cap_b;      // should be 20.0
+gap_cap_y = pitch_y - sk_cap_h;      // should be 20.0
+gap_pcb_x   = pitch_x - sk_board_b;    // should be 16.06 > 0
 gap_pcb_y   = pitch_y - sk_board_h;    // should be 10.01 > 0
 
 assert(gap_cap_x > 8,
@@ -452,7 +451,7 @@ function overlaps(a, b) =
   a[0] < b[2] - 0.001 && b[0] < a[2] - 0.001 &&
   a[1] < b[3] - 0.001 && b[1] < a[3] - 0.001;
 
-// beweglich = frei platzierbar, jede Zahl davon steht in section 3
+// movable = freely placeable; every one of these numbers is in section 3
 carrier_items = [
   ["battery",        [battery_x - bed_margin,    battery_y - bed_margin,
                    battery_x + battery_b + bed_margin,    battery_y + battery_h + bed_margin]],
@@ -490,11 +489,11 @@ assert(len(outside) == 0,
 
 /* --- USB-C window has to fit between carrier and lid --- */
 usb_z    = carrier_z_top + feather_support + feather_pcb_d + usb_centre_above_pcb;
-usb_fen_h = usb_buchse_h + 1.4;
-assert(usb_z - usb_fen_h/2 > carrier_z_top + 1.0,
+usb_win_h = usb_socket_h + 1.4;
+assert(usb_z - usb_win_h/2 > carrier_z_top + 1.0,
   "USB window cuts into the carrier ledge.");
-assert(usb_z + usb_fen_h/2 < inner_z_h - 1.0,
-  "USB-Fenster schneidet in den Deckelfalz.");
+assert(usb_z + usb_win_h/2 < inner_z_h - 1.0,
+  "USB window cuts into the lid rebate.");
 
 /* --- Lid bosses must not touch a board --- */
 boss_spacing_min = min([ for (p = boss_pos)
@@ -570,16 +569,16 @@ echo(str("---------------------------------------------------------"));
    5.  HELPER MODULES
    ===================================================================== */
 
-module rrect(b, h, r) {            // 2D, um den Ursprung zentriert
+module rrect(b, h, r) {            // 2D, centred on the origin
   offset(r = r) square([b - 2*r, h - 2*r], center = true);
 }
 
-module rprism(b, h, r, t) {        // 3D, zentriert, z = 0 .. t
+module rprism(b, h, r, t) {        // 3D, centred, z = 0 .. t
   linear_extrude(height = t) rrect(b, h, r);
 }
 
 // Prism with a 45° chamfer underneath (prints without support)
-module rprism_chamfer_u(b, h, r, t, f) {
+module rprism_chamfer_bottom(b, h, r, t, f) {
   hull() {
     linear_extrude(0.02) rrect(b - 2*f, h - 2*f, max(0.4, r - f));
     translate([0, 0, f]) linear_extrude(0.02) rrect(b, h, r);
@@ -588,7 +587,7 @@ module rprism_chamfer_u(b, h, r, t, f) {
 }
 
 // Prism with a 45 degree chamfer on the top face
-module rprism_chamfer_o(b, h, r, t, f) {
+module rprism_chamfer_top(b, h, r, t, f) {
   rprism(b, h, r, t - f);
   translate([0, 0, t - f]) hull() {
     linear_extrude(0.02) rrect(b, h, r);
@@ -608,22 +607,22 @@ module rprism_chamfer_o(b, h, r, t, f) {
 function bezier(t, p0, p1, p2, p3) =
   pow(1-t,3)*p0 + 3*pow(1-t,2)*t*p1 + 3*(1-t)*t*t*p2 + t*t*t*p3;
 
-module logo_2d(breite) {
-  s = breite / 360;      // 360 = Blasenbreite in SVG-Einheiten (436 - 76)
-  laecheln = [[190,226],[190,288],[322,288],[322,226]];  // kubische Bezier
+module logo_2d(width) {
+  s = width / 360;      // 360 = bubble width in SVG units (436 - 76)
+  smile = [[190,226],[190,288],[322,288],[322,226]];  // cubic Bezier
   n = 14;
   mirror([0,1]) scale(s) translate([-256, -242]) difference() {
     union() {
       hull() for (p = [[128,128],[384,128],[384,272],[128,272]])
         translate(p) circle(52);
-      polygon([[314,310],[256,408],[198,310]]);        // Schwanz der Blase
+      polygon([[314,310],[256,408],[198,310]]);        // tail of the bubble
     }
-    translate([200,178]) circle(22);                    // Auge links
-    translate([312,178]) circle(22);                    // Auge rechts
+    translate([200,178]) circle(22);                    // left eye
+    translate([312,178]) circle(22);                    // right eye
     for (i = [0 : n-1]) hull() {                        // smile, stroke 26
-      translate(bezier(i/n,      laecheln[0],laecheln[1],laecheln[2],laecheln[3]))
+      translate(bezier(i/n,      smile[0],smile[1],smile[2],smile[3]))
         circle(13);
-      translate(bezier((i+1)/n,  laecheln[0],laecheln[1],laecheln[2],laecheln[3]))
+      translate(bezier((i+1)/n,  smile[0],smile[1],smile[2],smile[3]))
         circle(13);
     }
   }
@@ -647,7 +646,7 @@ module logo_3d(width, height) {
 
 module outer_body() {
   translate([centre_x, centre_y, 0]) {
-    rprism_chamfer_u(outer_b, outer_h, corner_r, outer_t - chamfer_rear, chamfer_front);
+    rprism_chamfer_bottom(outer_b, outer_h, corner_r, outer_t - chamfer_rear, chamfer_front);
     translate([0,0,outer_t - chamfer_rear]) hull() {
       linear_extrude(0.02) rrect(outer_b, outer_h, corner_r);
       translate([0,0,chamfer_rear - 0.02]) linear_extrude(0.02)
@@ -660,9 +659,9 @@ module outer_body() {
 // The inner space gets WIDER towards the back in steps. Every step leaves an
 // upward-facing bearing surface — that prints by itself. The other way round
 // (narrower towards the back) every step would be an overhang.
-module hohlraum() {
+module cavity() {
   translate([centre_x, centre_y, 0]) {
-    // a) Platinenebene, dicke Wand
+    // a) board plane, thick wall
     translate([0,0,front_d])
       rprism(inner_b - 2*standoff, inner_h - 2*standoff,
              corner_r - wall - standoff, carrier_z_bottom - front_d);
@@ -725,7 +724,7 @@ module sk_dome_core() {
           cylinder(d = sk_boss_core, h = sk_boss_h);
 }
 
-/* --- Lautsprecher: Gitter, Schrauben, Positionierrippen --- */
+/* --- Speaker: grille, screws, locating ribs --- */
 // Only WHOLE holes. The first draft cut the hex field with a cylinder
 // (intersection), and at the rim that left crescent-shaped slivers a fraction
 // of a millimetre wide: ugly, and at the front face - the face that lies on
@@ -744,7 +743,7 @@ module spk_grille() {
     }
 }
 
-module spk_schrauben() {
+module spk_screws() {
   if (spk_front_screws)
   for (sx = [-1,1], sy = [-1,1])
     translate([spk_mx + sx*spk_hole_a/2, spk_my + sy*spk_hole_a/2, 0]) {
@@ -766,8 +765,8 @@ module spk_ribs() {   // four short walls guiding the driver sideways
   }
 }
 
-/* --- Lautsprecherkammer --- */
-module chamber_waende() {
+/* --- Speaker chamber --- */
+module chamber_walls() {
   h = inner_z_h - front_d;
   // vertical wall right of the chamber, thickened at the bottom (carrier ledge)
   translate([chamber_x, chamber_y, front_d])
@@ -775,7 +774,7 @@ module chamber_waende() {
   translate([chamber_x, chamber_y, front_d])
     cube([chamber_wall + standoff, env_h + inner_margin - chamber_y,
           carrier_z_bottom - front_d]);
-  // waagerechte Wand unter dem Lautsprecher
+  // horizontal wall under the speaker
   translate([-inner_margin, chamber_y, front_d])
     cube([chamber_x + chamber_wall + inner_margin, chamber_wall, h]);
 }
@@ -785,7 +784,7 @@ module chamber_cable() {   // passage for the speaker wires
     cube([chamber_wall + standoff + 2, 7, 5]);
 }
 
-/* --- Deckeldome --- */
+/* --- Lid bosses --- */
 module lid_dome() {
   for (p = boss_pos) translate([p[0], p[1], front_d])
     cylinder(d = boss_d, h = inner_z_h - front_d);
@@ -796,19 +795,19 @@ module lid_dome_core() {
 }
 
 /* --- Carrier supports --- */
-module carrier_stuetzen() {
+module carrier_supports() {
   for (p = support_pos) translate([p[0], p[1], front_d]) {
     cylinder(d = support_d, h = carrier_z_bottom - front_d);
     translate([0,0,carrier_z_bottom - front_d]) cylinder(d = peg_d, h = peg_h);
   }
 }
 
-/* --- USB-C-Fenster in der linken Wand --- */
+/* --- USB-C window in the left wall --- */
 // Deliberately tight: the wall takes the side loads, not the soldered socket.
 // The cable bend rests on the outside, that is the strain relief.
-module usb_fenster() {
-  fb = usb_buchse_b + 1.4;
-  fh = usb_fen_h;
+module usb_window() {
+  fb = usb_socket_b + 1.4;
+  fh = usb_win_h;
   yc = feather_y + feather_b/2;
   translate([-inner_margin - wall - 2, yc, usb_z]) rotate([0,90,0])
     linear_extrude(wall + 4) rrect(fh, fb, 1.0);
@@ -817,7 +816,7 @@ module usb_fenster() {
     linear_extrude(1.4) rrect(fh + 4, fb + 5, 1.5);
 }
 
-/* --- Logo an der Unterkante --- */
+/* --- Logo on the bottom edge --- */
 module logo_bottom_edge() {
   if (logo_side_on)
     translate([centre_x, -inner_margin - wall, outer_t/2])
@@ -829,19 +828,19 @@ module tub() {
   union() {
     difference() {
       union() {
-        difference() { outer_body(); hohlraum(); }
+        difference() { outer_body(); cavity(); }
         sk_boss();
         lid_dome();
-        carrier_stuetzen();
-        chamber_waende();
+        carrier_supports();
+        chamber_walls();
         spk_ribs();
       }
       cap_clearance();
       spk_grille();
-      spk_schrauben();
+      spk_screws();
       sk_dome_core();
       lid_dome_core();
-      usb_fenster();
+      usb_window();
       chamber_cable();
     }
     logo_bottom_edge();
@@ -862,7 +861,7 @@ module carrier_outline() {
     translate([-inner_margin - 1, chamber_y + chamber_wall + 0.2])
       square([chamber_x + chamber_wall + inner_margin + 1 - 0.2 + 1,
               env_h + inner_margin - chamber_y + 2]);
-    // Freistiche um die Deckeldome
+    // reliefs around the lid bosses
     for (p = boss_pos) translate(p) circle(d = boss_d + 1.2);
     // holes over the locating pegs
     for (p = support_pos) translate(p) circle(d = peg_d + 0.4);
@@ -941,7 +940,7 @@ module carrier() {
 
 
 /* =====================================================================
-   9.  DECKEL
+   9.  LID
    Flat plate, completely smooth on the inside. Prints with the inside on the
    bed and the logo upwards — that way the embossing is pure upward geometry
    and succeeds even on a tired printer.
@@ -963,7 +962,7 @@ module lid() {
   dh = outer_h - 2*lip - lid_play;
   translate([centre_x, centre_y, inner_z_h]) difference() {
     union() {
-      rprism_chamfer_o(db, dh, corner_r - lip, lid_d, chamfer_lid);
+      rprism_chamfer_top(db, dh, corner_r - lip, lid_d, chamfer_lid);
       translate([0, 0, lid_d]) logo_3d(logo_lid_b, logo_lid_h);
       lid_feet();
     }
@@ -1001,7 +1000,7 @@ module dummies() {
 
 
 /* =====================================================================
-   11.  AUSGABE
+   11.  OUTPUT
    ===================================================================== */
 
 if (part == "tub")        tub();
@@ -1020,7 +1019,7 @@ else if (part == "exploded") {
   color("#b8aed8") translate([0,0,60]) lid();
 }
 else if (part == "printbed") {
-  // alle drei Teile nebeneinander, jedes in seiner Drucklage
+  // all three parts side by side, each in its print orientation
   tub();
   translate([0, outer_h + 8, -carrier_z_bottom]) carrier();
   translate([0, 2*outer_h + 16, -inner_z_h]) lid();
