@@ -25,6 +25,7 @@ from pathlib import Path
 
 import build
 import metacom
+import texts
 import tts
 
 ROOT = Path(__file__).resolve().parent
@@ -236,19 +237,17 @@ class Handler(BaseHTTPRequestHandler):
     # -- Device sync --
 
     def _device_allowed(self) -> bool:
-        """Schlüssel prüfen. Antwortet selbst, wenn etwas nicht stimmt."""
+        """Check the key. Answers by itself when something is wrong."""
         token = device_token()
         if not token:
-            self._error(
-                "Der Geräte-Abgleich ist nicht eingerichtet - "
-                "VORLAUT_DEVICE_TOKEN fehlt.", 503)
+            self._error("err.no_device_sync", 503)
             return False
         # Nur als Kopfzeile, nie im Adressteil: Adressen landen in
         # logs, headers do not.
         sent = self.headers.get("X-Vorlaut-Token", "")
         # compare_digest instead of ==, so the response time gives nothing away.
         if not hmac.compare_digest(sent, token):
-            self._error("Falscher oder fehlender Schlüssel.", 401)
+            self._error("err.bad_token", 401)
             return False
         return True
 
@@ -272,8 +271,32 @@ class Handler(BaseHTTPRequestHandler):
             extra,
         )
 
-    def _error(self, message: str, code: int = 400) -> None:
-        self._json({"error": message}, code)
+    def _language(self) -> str:
+        """The language for anything the browser is going to show.
+
+        Read per request rather than kept: the file is small, and a language
+        picked in one tab should reach the next one without a restart. If it
+        cannot be read at all, English - an error message about a broken
+        layout.json must not itself depend on layout.json.
+        """
+        try:
+            return build.load_layout().get("language", texts.DEFAULT)
+        except (build.BuildError, OSError):
+            return texts.DEFAULT
+
+    def _error(self, key: str, code: int = 400, **params) -> None:
+        self._json({"error": texts.t(key, self._language(), **params)}, code)
+
+    def _failed(self, exc: Exception, code: int = 400) -> None:
+        """An exception, in the language of the page.
+
+        BuildError and TTSError carry a key and can be translated; anything
+        else - a ValueError from a broken upload, say - only has the text it
+        was raised with.
+        """
+        message = getattr(exc, "message", None)
+        self._json({"error": message(self._language()) if message else str(exc)},
+                   code)
 
     def _body(self) -> dict:
         length = int(self.headers.get("Content-Length") or 0)
@@ -284,17 +307,17 @@ class Handler(BaseHTTPRequestHandler):
     def _upload(self, query) -> None:
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0:
-            self._error("Es kamen keine Bilddaten an.")
+            self._error("err.no_image_data")
             return
         if length > MAX_UPLOAD:
-            self._error(f"Das Bild ist zu groß (höchstens {MAX_UPLOAD // 1048576} MB).")
+            self._error("err.image_too_big", mb=MAX_UPLOAD // 1048576)
             return
         data = self.rfile.read(length)
         name = (query.get("name") or ["bild"])[0]
         try:
             self._json({"symbol": save_upload(data, name)})
         except (ValueError, build.BuildError) as exc:
-            self._error(str(exc))
+            self._failed(exc)
 
     # -- Routen --
 
@@ -304,7 +327,12 @@ class Handler(BaseHTTPRequestHandler):
         query = urllib.parse.parse_qs(route.query)
 
         if path in ("/", "/index.html"):
+            lang = self._language()
             page = (PAGE
+                    .replace("__LANG__", lang)
+                    .replace("__TEXTS__", json.dumps(texts.ui_texts(lang),
+                                                     ensure_ascii=False))
+                    .replace("__LANGUAGES__", json.dumps(sorted(texts.TEXTS)))
                     .replace("__PALETTE__", json.dumps(build.DEFAULT_PALETTE))
                     .replace("__LIMITS__", json.dumps({
                         "maxSets": build.MAX_SETS,
@@ -323,7 +351,7 @@ class Handler(BaseHTTPRequestHandler):
                     },
                 )
             except build.BuildError as exc:
-                self._error(str(exc), 500)
+                self._failed(exc, 500)
             return
 
         if path == "/api/search":
@@ -347,7 +375,7 @@ class Handler(BaseHTTPRequestHandler):
                     # Hits from one's own collection are worth more than an
                     # error message - that comes only when nothing else is there.
                     if not results:
-                        self._error(f"ARASAAC nicht erreichbar: {exc}", 502)
+                        self._error("err.arasaac_unreachable", 502, reason=str(exc))
                         return
             self._json(results)
             return
@@ -358,7 +386,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self._json(build.device_manifest())
             except build.BuildError as exc:
-                self._error(str(exc), 500)
+                self._failed(exc, 500)
             return
 
         if path == "/api/device/file":
@@ -368,7 +396,7 @@ class Handler(BaseHTTPRequestHandler):
             name = Path((query.get("name") or [""])[0]).name
             target = build.DATA_DIR / name
             if not name or not target.is_file():
-                self._error("Datei nicht gefunden.", 404)
+                self._error("err.file_not_found", 404)
                 return
             self._send(200, target.read_bytes(), "application/octet-stream")
             return
@@ -384,7 +412,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/icon.svg", "/icon-192.png", "/icon-512.png"):
             file = ASSETS / Path(path).name
             if not file.exists():
-                self._error("Symbol nicht gefunden.", 404)
+                self._error("err.symbol_not_found", 404)
                 return
             art = "image/svg+xml" if path.endswith(".svg") else "image/png"
             self._send(200, file.read_bytes(), art)
@@ -398,7 +426,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({
                 "name": "vorlaut",
                 "short_name": "vorlaut",
-                "description": "Inhalte für den Talker bearbeiten",
+                "description": texts.t("ui.app_description",
+                                       self._language()),
                 "start_url": "/",
                 "display": "standalone",
                 "orientation": "portrait",
@@ -419,7 +448,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self._send(200, preview_png(symbol, colour), "image/png")
             except build.BuildError as exc:
-                self._error(str(exc), 500)
+                self._failed(exc, 500)
             return
 
         if path == "/api/thumb":
@@ -427,7 +456,7 @@ class Handler(BaseHTTPRequestHandler):
                 identifier = int((query.get("id") or ["0"])[0])
                 self._send(200, arasaac_fetch(identifier), "image/png")
             except (urllib.error.URLError, ValueError, TimeoutError) as exc:
-                self._error(f"Vorschau nicht ladbar: {exc}", 502)
+                self._error("err.preview_failed", 502, reason=str(exc))
             return
 
         if path.startswith("/symbols/"):
@@ -436,12 +465,12 @@ class Handler(BaseHTTPRequestHandler):
             reference = urllib.parse.unquote(path[len("/symbols/"):])
             target = build.symbol_path(reference)
             if target is None:
-                self._error("Symbol nicht gefunden.", 404)
+                self._error("err.symbol_not_found", 404)
                 return
             self._send(200, target.read_bytes(), "image/png")
             return
 
-        self._error("Nicht gefunden.", 404)
+        self._error("err.not_found", 404)
 
     def do_POST(self):
         route = urllib.parse.urlparse(self.path)
@@ -455,7 +484,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = self._body()
         except json.JSONDecodeError:
-            self._error("Ungültiges JSON.")
+            self._error("err.bad_json")
             return
 
         if path == "/api/layout":
@@ -465,9 +494,7 @@ class Handler(BaseHTTPRequestHandler):
                 # This page knows an older state. Do not overwrite.
                 self._json(
                     {
-                        "error": "Diese Seite hat einen veralteten Stand - "
-                                 "layout.json wurde zwischenzeitlich woanders "
-                                 "geändert.",
+                        "error": texts.t("err.stale_page", self._language()),
                         "conflict": True,
                     },
                     409,
@@ -476,7 +503,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 saved = build.save_layout(body)
             except build.BuildError as exc:
-                self._error(str(exc))
+                self._failed(exc)
                 return
             self._json(saved, extra={
                 "X-Layout-Version": layout_version(),
@@ -490,7 +517,7 @@ class Handler(BaseHTTPRequestHandler):
             if (body.get("source") or "") == "metacom":
                 reference = str(body.get("ref") or "")
                 if build.symbol_path(reference) is None:
-                    self._error("Dieses METACOM-Symbol gibt es nicht.", 404)
+                    self._error("err.no_such_metacom", 404)
                     return
                 name = reference[len(build.METACOM_PREFIX):]
                 self._json({"symbol": reference, "label": metacom.label_for(name)})
@@ -499,7 +526,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 filename = arasaac_download(body.get("id"), label)
             except (urllib.error.URLError, ValueError, TypeError, TimeoutError) as exc:
-                self._error(f"Download fehlgeschlagen: {exc}", 502)
+                self._error("err.download_failed", 502, reason=str(exc))
                 return
             self._json({"symbol": filename, "label": label})
             return
@@ -509,25 +536,25 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 wav = tts.synthesize(text)
             except tts.TTSError as exc:
-                self._error(str(exc))
+                self._failed(exc)
                 return
             self._send(200, wav.read_bytes(), "audio/wav")
             return
 
         if path == "/api/build":
             try:
-                log = build.build()
+                log = build.build(lang=self._language())
             except (build.BuildError, tts.TTSError) as exc:
-                self._error(str(exc), 500)
+                self._failed(exc, 500)
                 return
             self._json({"log": log})
             return
 
-        self._error("Nicht gefunden.", 404)
+        self._error("err.not_found", 404)
 
 
 PAGE = r"""<!doctype html>
-<html lang="de">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -595,7 +622,7 @@ PAGE = r"""<!doctype html>
   .thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
   .thumb .empty { color: #b9bfc9; font-size: 13px; text-align: center; padding: 8px; }
   .thumb:hover::after {
-    content: "Symbol wählen"; position: absolute; inset: auto 0 0 0;
+    content: var(--pick-label); position: absolute; inset: auto 0 0 0;
     background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 4px;
     text-align: center;
   }
@@ -622,6 +649,14 @@ PAGE = r"""<!doctype html>
     border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px;
   }
   button:hover { background: #303540; }
+  /* The language picker looks like the buttons next to it. Left to itself a
+     select brings the operating system's own look, which on a dark header is
+     a white rectangle. */
+  #langPick {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 14px;
+  }
+  #langPick:hover { background: #303540; }
   /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. */
   button.primary {
     background: var(--accent); border-color: transparent; color: #1b1b20;
@@ -710,6 +745,7 @@ PAGE = r"""<!doctype html>
     header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
     header h1 { margin-right: auto; }
     .schalter { order: 1; }
+    #langPick { order: 1; }
     header .status { order: 2; margin-left: auto; }
 
     /* With 20 sets, wrapping tabs eat half the display before any content
@@ -785,40 +821,40 @@ PAGE = r"""<!doctype html>
   <img src="/icon.svg" alt="" class="logo">
   <h1>vorlaut</h1>
   <span class="status" id="status"></span>
-  <label class="schalter"
-         title="Zeigt zusätzlich, wie groß und wie grob es auf dem Display ankommt">
+  <label class="schalter" id="previewLabel">
     <input type="checkbox" id="previewToggle">
     <span class="pille"></span>
-    Gerätevorschau
+    <span id="previewText"></span>
   </label>
-  <button id="saveBtn">Speichern</button>
-  <button class="primary" id="buildBtn">Bauen</button>
+  <select id="langPick"></select>
+  <button id="saveBtn"></button>
+  <button class="primary" id="buildBtn"></button>
 </header>
 
 <main>
   <div class="conflict" id="conflict">
     <span id="conflictText"></span>
-    <button id="overwriteBtn">Meinen Stand behalten</button>
-    <button id="reloadBtn">Neu laden</button>
+    <button id="overwriteBtn"></button>
+    <button id="reloadBtn"></button>
   </div>
   <div class="tabs" id="tabs"></div>
   <div class="slots" id="slots"></div>
   <div class="device" id="device"></div>
 
-  <button id="removeSet" class="danger">Dieses Set löschen</button>
+  <button id="removeSet" class="danger"></button>
   <pre class="log" id="log"></pre>
 <input type="file" id="fileInput" accept="image/*" hidden>
 </main>
 
 <dialog id="picker">
   <div class="dlgHead">
-    <input type="text" id="q" placeholder="ARASAAC durchsuchen, z.B. trinken">
-    <button id="searchBtn">Suchen</button>
-    <button id="uploadBtn">Eigenes Bild</button>
-    <button id="closeBtn">Schließen</button>
+    <input type="text" id="q">
+    <button id="searchBtn"></button>
+    <button id="uploadBtn"></button>
+    <button id="closeBtn"></button>
   </div>
   <div class="results" id="results"></div>
-  <div class="hint" id="quellen">Piktogramme: ARASAAC, Urheber Sergio Palao, Lizenz CC BY-NC-SA.</div>
+  <div class="hint" id="quellen"></div>
 </dialog>
 
 <script>
@@ -871,20 +907,20 @@ function markBuildState(flag) {
   const button = $("buildBtn");
   button.classList.toggle("primary", needed);
   button.title = needed
-    ? "Das Gerät bekommt erst durch Bauen und Aufspielen den neuen Stand"
-    : "Die Dateien in data/ entsprechen dem Layout";
+    ? t("ui.build_needed")
+    : t("ui.build_current");
 }
 
 function saveSoon() {
   clearTimeout(saveTimer);
   unsaved = true;
-  status("noch nicht gespeichert");
+  status(t("ui.unsaved"));
   saveTimer = setTimeout(save, 1000);
 }
 
 // Brings layout into the same shape the server makes of it. Only then can
 // the two states be compared meaningfully.
-function vergleichbar(l) {
+function comparable(l) {
   return JSON.stringify({
     sets: (l.sets || []).map((entry) => ({
       name: (entry.name || "").trim(),
@@ -922,10 +958,9 @@ async function doSave() {
     if (response.status === 409) {
       // Nichts geschrieben. Sie entscheidet, welcher Stand gilt.
       $("conflictText").textContent =
-        "Nicht gespeichert: layout.json wurde zwischenzeitlich woanders " +
-        "geändert. Was hier auf dem Bildschirm steht, ist noch da.";
+        t("ui.conflict_elsewhere");
       $("conflict").classList.add("show");
-      status("nicht gespeichert");
+      status(t("ui.not_saved"));
       return;
     }
     if (!response.ok) {
@@ -943,20 +978,19 @@ async function doSave() {
 
     // Verify instead of trust: does the file really hold what is on screen?
     // If not, better to say so loudly than to lose it quietly.
-    if (vergleichbar(gespeichert) !== vergleichbar(layout)) {
+    if (comparable(gespeichert) !== comparable(layout)) {
       $("conflictText").textContent =
-        "Achtung: Die Datei enthält nicht das, was hier steht. Bitte den " +
-        "Text prüfen und melden - das ist ein Fehler im Programm.";
+        t("ui.conflict_mismatch");
       $("conflict").classList.add("show");
-      status("NICHT richtig gespeichert");
+      status(t("ui.saved_wrong"));
       return;
     }
 
     unsaved = false;
     $("conflict").classList.remove("show");
-    status("gespeichert");
+    status(t("ui.saved"));
   } catch (error) {
-    status("Fehler beim Speichern: " + error.message);
+    status(t("ui.save_failed", { error: error.message }));
   }
 }
 
@@ -991,9 +1025,65 @@ function clearDragMarks() {
   document.querySelectorAll(".dragover").forEach((el) => el.classList.remove("dragover"));
 }
 
-// Injected by the server, so the list is maintained in build.py only.
+// Injected by the server, so the lists are maintained in Python only.
 const palette = __PALETTE__;
 const limits = __LIMITS__;
+
+// Only the ui.* entries of the chosen language - see texts.py. Every label on
+// this page goes through t(), so no string sits in the markup twice.
+const TEXTS = __TEXTS__;
+const LANGUAGES = __LANGUAGES__;
+const LANG = "__LANG__";
+
+function t(key, params) {
+  let out = TEXTS[key] || key;
+  if (params) {
+    for (const name in params) {
+      out = out.split("{" + name + "}").join(params[name]);
+    }
+  }
+  return out;
+}
+
+// Fills in every fixed label. Runs once - the page is served in one language
+// and reloads when it changes, so nothing here has to react later.
+function applyTexts() {
+  document.documentElement.style.setProperty(
+    "--pick-label", JSON.stringify(t("ui.pick_symbol")));
+  $("previewLabel").title = t("ui.preview_title");
+  $("previewText").textContent = t("ui.preview");
+  $("saveBtn").textContent = t("ui.save");
+  $("buildBtn").textContent = t("ui.build");
+  $("overwriteBtn").textContent = t("ui.keep_mine");
+  $("reloadBtn").textContent = t("ui.reload");
+  $("removeSet").textContent = t("ui.remove_set");
+  $("searchBtn").textContent = t("ui.search");
+  $("uploadBtn").textContent = t("ui.own_image");
+  $("closeBtn").textContent = t("ui.close");
+  $("q").placeholder = t("ui.search_arasaac");
+  $("quellen").textContent = t("ui.credits_arasaac");
+
+  // The picker carries the language names in their own language - somebody
+  // looking for English cannot be expected to recognise "Englisch".
+  const names = { de: "Deutsch", en: "English" };
+  const pick = $("langPick");
+  pick.title = t("ui.language_title");
+  for (const code of LANGUAGES) {
+    const option = document.createElement("option");
+    option.value = code;
+    option.textContent = names[code] || code;
+    option.selected = code === LANG;
+    pick.appendChild(option);
+  }
+  // Saved like any other change, then reloaded: the labels are baked into the
+  // page by the server, so switching them in place would mean a second copy
+  // of every string in the browser.
+  pick.onchange = async () => {
+    layout.language = pick.value;
+    await save();
+    location.reload();
+  };
+}
 
 function activeCount() {
   return layout.sets.filter((s) => s.active !== false).length;
@@ -1021,7 +1111,7 @@ function echtgross(symbol, colour) {
   const bild = document.createElement("img");
   bild.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
            + "&color=" + encodeURIComponent(colour || "#000000");
-  line.append(bild, document.createTextNode("so groß auf dem Gerät"));
+  line.append(bild, document.createTextNode(t("ui.device_size")));
   return line;
 }
 
@@ -1031,10 +1121,10 @@ function thumb(symbol, onClick) {
   if (symbol) {
     const image = document.createElement("img");
     image.src = "/symbols/" + encodeURIComponent(symbol) + "?v=" + Date.now();
-    image.onerror = () => { box.innerHTML = '<div class="empty">' + symbol + '<br>fehlt in symbols/</div>'; };
+    image.onerror = () => { box.innerHTML = '<div class="empty">' + symbol + '<br>' + t("ui.symbol_missing") + '</div>'; };
     box.appendChild(image);
   } else {
-    box.innerHTML = '<div class="empty">kein Symbol</div>';
+    box.innerHTML = '<div class="empty">' + t("ui.no_symbol") + '</div>';
   }
   box.onclick = onClick;
   return box;
@@ -1047,10 +1137,10 @@ function render() {
     const tab = document.createElement("div");
     tab.className = "tab" + (index === current ? " active" : "")
                   + (entry.active === false ? " off" : "");
-    tab.title = entry.active === false ? "Nicht auf dem Gerät" : "Geht aufs Gerät";
+    tab.title = entry.active === false ? t("ui.tab_off") : t("ui.tab_on");
     tab.style.borderColor = index === current ? entry.color : "transparent";
     tab.innerHTML = '<span class="dot" style="background:' + entry.color + '"></span>';
-    tab.append(entry.name || "Set " + (index + 1));
+    tab.append(entry.name || t("ui.set_n", { n: index + 1 }));
     tab.onclick = () => { current = index; render(); };
 
     // Reorder sets: the order determines how the set key cycles through.
@@ -1084,7 +1174,7 @@ function render() {
   if (layout.sets.length < limits.maxSets) {
     const add = document.createElement("div");
     add.className = "tab add";
-    add.textContent = "+ Set";
+    add.textContent = t("ui.add_set");
     add.onclick = async () => {
       // A new set is active straight away only when a slot is still free -
       // otherwise the layout could not be saved at all.
@@ -1099,18 +1189,18 @@ function render() {
   const used = activeCount();
   $("slots").classList.toggle("empty", used === 0 && layout.sets.length > 0);
   $("slots").textContent = used === 0 && layout.sets.length > 0
-    ? "Kein Set aktiv - das Gerät zeigt dann nur einen Hinweis an. "
-      + layout.sets.length + " Sets liegen bereit."
-    : used + " von " + limits.maxActive + " Plätzen auf dem Gerät belegt"
+    ? t("ui.none_active", { n: layout.sets.length })
+    : t("ui.slots_used", { used: used, max: limits.maxActive })
       + (layout.sets.length > used
-         ? "  ·  " + layout.sets.length + " Sets angelegt" : "");
+         ? "  ·  " + t("ui.sets_created", { n: layout.sets.length }) : "");
 
   const device = $("device");
   device.innerHTML = "";
   removeSetBtn.style.display = layout.sets.length ? "" : "none";
   const entry = layout.sets[current];
   if (!entry) {
-    device.innerHTML = '<p style="color:var(--muted)">Noch keine Sets. Oben auf "+ Set" klicken.</p>';
+    device.innerHTML = '<p style="color:var(--muted)"></p>';
+    device.firstChild.textContent = t("ui.no_sets");
     return;
   }
   const color = entry.color;
@@ -1123,7 +1213,7 @@ function render() {
   setTile.style.borderColor = color;
   const setLabel = document.createElement("div");
   setLabel.className = "slotNr";
-  setLabel.textContent = "SET-TASTE";
+  setLabel.textContent = t("ui.set_key");
   setTile.appendChild(setLabel);
   setTile.appendChild(thumb(entry.symbol, () => openPicker({ kind: "set" }, entry.name)));
 
@@ -1132,7 +1222,7 @@ function render() {
   const nameInput = document.createElement("input");
   nameInput.type = "text";
   nameInput.value = entry.name;
-  nameInput.placeholder = "Name des Sets";
+  nameInput.placeholder = t("ui.set_name");
   nameInput.oninput = () => { entry.name = nameInput.value; saveSoon(); renderTabsOnly(); };
   setTile.appendChild(nameInput);
 
@@ -1140,20 +1230,20 @@ function render() {
   // entscheidet, welche davon gerade mitkommen.
   const activeToggle = document.createElement("label");
   activeToggle.className = "schalter onDevice";
-  // Short, because "Gerätevorschau" already sits next to it - twice "Gerät"
-  // in one view reads like the same thing. The title says what it means.
-  activeToggle.title = "Aktive Sets gehen aufs Gerät - höchstens "
-                   + limits.maxActive + " gleichzeitig";
+  // Short, because the device-preview switch sits right next to it - the same
+  // word twice in one view reads like the same thing. The title says what it
+  // means.
+  activeToggle.title = t("ui.active_title", { max: limits.maxActive });
   const activeBox = document.createElement("input");
   activeBox.type = "checkbox";
   activeBox.checked = entry.active !== false;
   const activePill = document.createElement("span");
   activePill.className = "pille";
-  activeToggle.append(activeBox, activePill, document.createTextNode("Aktiv"));
+  activeToggle.append(activeBox, activePill, document.createTextNode(t("ui.active")));
   activeBox.onchange = async () => {
     if (activeBox.checked && activeCount() >= limits.maxActive) {
       activeBox.checked = false;
-      status("Es sind schon " + limits.maxActive + " Sets aktiv - erst eins abschalten.");
+      status(t("ui.active_full", { max: limits.maxActive }));
       return;
     }
     entry.active = activeBox.checked;
@@ -1167,7 +1257,7 @@ function render() {
   const colorInput = document.createElement("input");
   colorInput.type = "color";
   colorInput.value = color;
-  colorInput.title = "Farbe des Sets wählen";
+  colorInput.title = t("ui.colour_title");
   const hexInput = document.createElement("input");
   hexInput.type = "text";
   hexInput.value = color;
@@ -1205,7 +1295,7 @@ function render() {
   if (entry.active === false) {
     const note = document.createElement("span");
     note.className = "note";
-    note.textContent = "liegt bereit, nicht auf dem Gerät";
+    note.textContent = t("ui.ready_not_on_device");
     activeRow.appendChild(note);
   }
   setTile.appendChild(activeRow);
@@ -1220,14 +1310,14 @@ function render() {
 
     const caption = document.createElement("div");
     caption.className = "slotNr";
-    caption.textContent = "TASTE " + (index + 1);
+    caption.textContent = t("ui.key_n", { n: index + 1 });
 
     // Swap keys: in the fixed 2x2 grid swapping is less ambiguous than
     // inserting - the other key moves exactly where this one came from.
     const grip = document.createElement("span");
     grip.className = "grip";
     grip.textContent = "\u283F";
-    grip.title = "Ziehen, um mit einer anderen Taste zu tauschen";
+    grip.title = t("ui.grip_title");
     grip.draggable = true;
     grip.ondragstart = (event) => {
       dragSlot = index;
@@ -1263,12 +1353,12 @@ function render() {
     const textInput = document.createElement("input");
     textInput.type = "text";
     textInput.value = slot.text;
-    textInput.placeholder = "Was gesagt wird";
+    textInput.placeholder = t("ui.text_placeholder");
     textInput.oninput = () => { slot.text = textInput.value; saveSoon(); };
     const playBtn = document.createElement("button");
     playBtn.className = "play";
     playBtn.textContent = "▶";
-    playBtn.title = "Vorhören";
+    playBtn.title = t("ui.play_title");
     playBtn.onclick = () => speak(slot.text, playBtn);
     row.append(textInput, playBtn);
     tile.appendChild(row);
@@ -1281,12 +1371,12 @@ function render() {
 function renderTabsOnly() {
   layout.sets.forEach((entry, index) => {
     const tab = $("tabs").children[index];
-    if (tab) { tab.lastChild.textContent = entry.name || "Set " + (index + 1); }
+    if (tab) { tab.lastChild.textContent = entry.name || t("ui.set_n", { n: index + 1 }); }
   });
 }
 
 async function speak(text, button) {
-  if (!text.trim()) { status("Erst einen Text eintragen."); return; }
+  if (!text.trim()) { status(t("ui.need_text")); return; }
   const before = button.textContent;
   button.textContent = "···";
   try {
@@ -1301,7 +1391,7 @@ async function speak(text, button) {
     await audio.play();
     status("");
   } catch (error) {
-    status("Vorhören nicht möglich: " + error.message);
+    status(t("ui.play_failed", { error: error.message }));
   } finally {
     button.textContent = before;
   }
@@ -1373,12 +1463,12 @@ async function doSearch() {
     const remote = await ask(word, "arasaac");
     if (mine !== searchToken) return;
     show("ARASAAC", remote);
-    if (!total) say(box, "Nichts gefunden zu „" + word + "“.");
+    if (!total) say(box, t("ui.nothing_found", { word: word }));
   } catch (error) {
     if (mine !== searchToken) return;
     if (total) {
       const note = document.createElement("p");
-      note.textContent = "ARASAAC nicht erreichbar - nur METACOM-Treffer.";
+      note.textContent = t("ui.arasaac_down");
       box.appendChild(note);
     } else {
       say(box, error.message);
@@ -1407,7 +1497,7 @@ async function applySymbol(filename, label) {
 }
 
 async function pick(item) {
-  status(item.source === "metacom" ? "übernimmt Symbol ..." : "lädt Symbol ...");
+  status(t(item.source === "metacom" ? "ui.taking_symbol" : "ui.loading_symbol"));
   try {
     const result = await (await api("/api/pick", {
       method: "POST",
@@ -1422,7 +1512,7 @@ async function pick(item) {
     await applySymbol(result.symbol, result.label);
     status("");
   } catch (error) {
-    status("Symbol konnte nicht geladen werden: " + error.message);
+    status(t("ui.symbol_failed", { error: error.message }));
   }
 }
 
@@ -1433,16 +1523,16 @@ $("fileInput").onchange = async () => {
   const file = $("fileInput").files[0];
   $("fileInput").value = "";
   if (!file) return;
-  status("lädt Bild hoch ...");
+  status(t("ui.uploading"));
   try {
     const result = await (await api(
       "/api/upload?name=" + encodeURIComponent(file.name),
       { method: "POST", body: file }
     )).json();
     await applySymbol(result.symbol);
-    status("Bild übernommen");
+    status(t("ui.upload_done"));
   } catch (error) {
-    status("Upload fehlgeschlagen: " + error.message);
+    status(t("ui.upload_failed", { error: error.message }));
   }
 };
 
@@ -1452,7 +1542,7 @@ $("closeBtn").onclick = () => $("picker").close();
 
 removeSetBtn.onclick = async () => {
   if (!layout.sets.length) return;
-  if (!confirm("Set \"" + (layout.sets[current].name || "") + "\" wirklich löschen?")) return;
+  if (!confirm(t("ui.confirm_delete", { name: layout.sets[current].name || "" }))) return;
   layout.sets.splice(current, 1);
   current = Math.max(0, current - 1);
   await save();
@@ -1462,17 +1552,17 @@ removeSetBtn.onclick = async () => {
 $("buildBtn").onclick = async () => {
   await save();
   $("buildBtn").disabled = true;
-  status("baut ...");
+  status(t("ui.building"));
   $("log").style.display = "block";
-  $("log").textContent = "läuft ...";
+  $("log").textContent = t("ui.running");
   try {
     const result = await (await api("/api/build", { method: "POST" })).json();
     $("log").textContent = result.log.join("\n");
     markBuildState("1");
-    status("fertig gebaut");
+    status(t("ui.built"));
   } catch (error) {
-    $("log").textContent = "Fehler: " + error.message;
-    status("Bauen fehlgeschlagen");
+    $("log").textContent = t("ui.log_error", { error: error.message });
+    status(t("ui.build_failed"));
   } finally {
     $("buildBtn").disabled = false;
   }
@@ -1486,19 +1576,17 @@ async function loadSources() {
   } catch (error) {
     sources = { metacom: false };
   }
-  $("q").placeholder = sources.metacom
-    ? "METACOM und ARASAAC durchsuchen, z.B. trinken"
-    : "ARASAAC durchsuchen, z.B. trinken";
+  $("q").placeholder = t(sources.metacom ? "ui.search_both" : "ui.search_arasaac");
   if (sources.metacom) {
-    $("quellen").textContent =
-      "Symbole: METACOM 9 (Annette Kitzinger), lizenziert für diesen Rechner - "
-      + "sie werden nur verwiesen, nicht ins Projekt kopiert. "
-      + "Piktogramme: ARASAAC, Urheber Sergio Palao, Lizenz CC BY-NC-SA.";
+    $("quellen").textContent = t("ui.credits_both");
   }
 }
 
+// Labels first: without them the page shows empty buttons for as long as
+// the first request takes.
+applyTexts();
 loadSources();
-load().catch((error) => status("Laden fehlgeschlagen: " + error.message));
+load().catch((error) => status(t("ui.load_failed", { error: error.message })));
 </script>
 </body>
 </html>
@@ -1539,26 +1627,26 @@ def main(argv: list[str] | None = None) -> int:
     build.ensure_content()
     server = Server((args.host, args.port), Handler)
     if args.host in ("0.0.0.0", "::"):
-        print(f"vorlaut läuft auf Port {args.port}", flush=True)
+        print(f"vorlaut is listening on port {args.port}", flush=True)
         if Path("/.dockerenv").exists():
             # Inside a container our own address would be the Docker
             # network's and therefore useless from outside.
-            print("  Im Container: die Adresse des NAS mit dem freigegebenen "
-                  "Port verwenden.", flush=True)
+            print("  In a container: use the address of the NAS with the "
+                  "published port.", flush=True)
         else:
             print(f"  http://localhost:{args.port}", flush=True)
-            for adresse in local_addresses():
-                print(f"  http://{adresse}:{args.port}   <- diese im Handy eingeben",
-                      flush=True)
-        print("Achtung: Es gibt keine Anmeldung - wer den Port erreicht, kann "
-              "die Inhalte ändern.", flush=True)
+            for address in local_addresses():
+                print(f"  http://{address}:{args.port}   <- type this one into "
+                      "the phone", flush=True)
+        print("Careful: there is no sign-in - whoever reaches the port can "
+              "change the content.", flush=True)
     else:
-        print(f"vorlaut läuft auf http://{args.host}:{args.port}", flush=True)
-    print("(Strg+C beendet)", flush=True)
+        print(f"vorlaut is running on http://{args.host}:{args.port}", flush=True)
+    print("(Ctrl+C stops it)", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nbeendet.")
+        print("\nstopped.")
     finally:
         server.server_close()
     return 0
