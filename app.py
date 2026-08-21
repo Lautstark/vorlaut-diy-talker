@@ -652,11 +652,25 @@ PAGE = r"""<!doctype html>
   /* The language picker looks like the buttons next to it. Left to itself a
      select brings the operating system's own look, which on a dark header is
      a white rectangle. */
+  /* Form elements do not inherit the page font by themselves - without this
+     the header sits in the browser's default face while everything around it
+     is the system font. */
+  button, select, input, textarea { font-family: inherit; }
+
+  /* appearance: none, because otherwise the operating system draws its own
+     arrow and imposes its own height: 35.5 px next to 34 px buttons, and a
+     chevron sitting wherever macOS likes. Everything below matches the
+     buttons - same padding, same radius, same border. */
   #langPick {
-    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 14px;
+    appearance: none; -webkit-appearance: none;
+    background: var(--panel-2)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa3b2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      no-repeat right 11px center;
+    color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 30px 8px 12px; cursor: pointer;
+    font-size: 14px; line-height: normal;   /* like the buttons next to it */
   }
-  #langPick:hover { background: #303540; }
+  #langPick:hover { background-color: #303540; }
   /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. */
   button.primary {
     background: var(--accent); border-color: transparent; color: #1b1b20;
@@ -748,11 +762,12 @@ PAGE = r"""<!doctype html>
     #langPick { order: 1; }
     header .status { order: 2; margin-left: auto; }
 
-    /* With 20 sets, wrapping tabs eat half the display before any content
-       appears. On a phone therefore a single row to swipe. */
-    .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin;
-      margin-bottom: 8px; }
-    .tabs .tab { flex: none; }
+    /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
+       sets past the edge with nothing to say they are there - and the sets
+       are the navigation. Several lines cost height, but only as many lines
+       as there are actually sets. */
+    .tabs { flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .tabs .tab { flex: none; padding: 8px 12px; }
 
     main { padding: 12px; }
     .device { grid-template-columns: 1fr 1fr; }
