@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 import metacom
+import texts
 
 import tts
 
@@ -93,17 +94,31 @@ def symbol_path(symbol: str) -> Path | None:
 
 
 def missing_hint(symbol: str) -> str:
-    """Warum ein Symbol nicht auflösbar ist - als Satz fürs Bauprotokoll."""
+    """Why a symbol cannot be resolved - as a key for the build log."""
     if symbol.startswith(METACOM_PREFIX):
         if not metacom.available():
-            return (f"Symbol {symbol} kommt aus der METACOM-Sammlung, aber "
-                    "VORLAUT_METACOM_DIR ist nicht gesetzt.")
-        return f"Symbol {symbol} steht nicht in der METACOM-Sammlung."
-    return f"Symbol {symbol} fehlt in symbols/."
+            return "build.missing_metacom_off"
+        return "build.missing_metacom"
+    return "build.missing_symbol"
 
 
 class BuildError(RuntimeError):
-    pass
+    """A build that stopped, in a form that can still be translated.
+
+    The message is carried as a key and its values, not as a finished
+    sentence: the same error goes to a terminal in English and into the web
+    interface in whatever language layout.json asks for. str() renders
+    English, so tracebacks and the command line stay readable without anyone
+    having to think about it.
+    """
+
+    def __init__(self, key: str, **params):
+        self.key = key
+        self.params = params
+        super().__init__(texts.t(key, **params))
+
+    def message(self, lang: str) -> str:
+        return texts.t(self.key, lang, **self.params)
 
 
 # --- layout.json -------------------------------------------------------------
@@ -159,7 +174,7 @@ def ensure_content() -> None:
             target = SYMBOLS_DIR / file.name
             if not target.exists():
                 shutil.copyfile(file, target)
-        print(f"content/ mit den Beispielen aus example/ gefüllt.", flush=True)
+        print(texts.t("build.filled_from_example"), flush=True)
     else:
         LAYOUT_FILE.write_text(
             json.dumps({"sleep_timeout_seconds": DEFAULT_SLEEP_TIMEOUT, "sets": []},
@@ -169,11 +184,12 @@ def ensure_content() -> None:
 def load_layout(path: Path = LAYOUT_FILE) -> dict:
     """Reads layout.json and brings it into a guaranteed complete shape."""
     if not path.exists():
-        raise BuildError(f"{path.name} nicht gefunden.")
+        raise BuildError("build.err.not_found", name=path.name)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        raise BuildError(f"{path.name} ist kein gültiges JSON: {exc}") from exc
+        raise BuildError("build.err.bad_json", name=path.name,
+                         reason=str(exc)) from exc
     return normalize_layout(raw)
 
 
@@ -194,9 +210,10 @@ def normalize_layout(raw: dict) -> dict:
 
     sets = raw.get("sets") or []
     if not isinstance(sets, list):
-        raise BuildError("\"sets\" muss eine Liste sein.")
+        raise BuildError("build.err.sets_not_list")
     if len(sets) > MAX_SETS:
-        raise BuildError(f"Höchstens {MAX_SETS} Sets, gefunden: {len(sets)}.")
+        raise BuildError("build.err.too_many_sets", max=MAX_SETS,
+                         found=len(sets))
 
     clean_sets = []
     for index, entry in enumerate(sets):
@@ -206,10 +223,8 @@ def normalize_layout(raw: dict) -> dict:
             slots = []
         # Exactly 4 slots: pad the missing ones, surplus ones are an error.
         if len(slots) > SLOTS_PER_SET:
-            raise BuildError(
-                f"Set {index + 1} hat {len(slots)} Slots, erlaubt sind genau "
-                f"{SLOTS_PER_SET}."
-            )
+            raise BuildError("build.err.too_many_slots", set=index + 1,
+                             found=len(slots), expected=SLOTS_PER_SET)
         while len(slots) < SLOTS_PER_SET:
             slots.append({"text": "", "symbol": ""})
         clean_slots = []
@@ -235,10 +250,8 @@ def normalize_layout(raw: dict) -> dict:
 
     active = sum(1 for entry in clean_sets if entry["active"])
     if active > MAX_ACTIVE_SETS:
-        raise BuildError(
-            f"Höchstens {MAX_ACTIVE_SETS} Sets gleichzeitig aktiv, "
-            f"gewählt sind {active}. Mehr passen nicht aufs Gerät."
-        )
+        raise BuildError("build.err.too_many_active", max=MAX_ACTIVE_SETS,
+                         found=active)
 
     return {
         "sleep_timeout_seconds": timeout,
@@ -369,9 +382,7 @@ def _require_pillow():
     try:
         from PIL import Image, ImageDraw  # noqa: F401
     except ImportError as exc:
-        raise BuildError(
-            "Pillow fehlt. Installieren mit:  pip install -r requirements.txt"
-        ) from exc
+        raise BuildError("build.err.no_pillow") from exc
     from PIL import Image, ImageDraw
     return Image, ImageDraw
 
@@ -441,7 +452,7 @@ def render_symbol(symbol: str) -> bytes:
 
 
 def tile_fingerprint(symbol: str) -> str:
-    """Hängt nur am Inhalt des Symbols, nicht an Name, Set oder Farbe."""
+    """Depends on the symbol's content alone, not on name, set or colour."""
     source = symbol_path(symbol)
     if source:
         content = hashlib.sha256(source.read_bytes()).hexdigest()
@@ -465,7 +476,7 @@ def load_tile_index() -> dict:
 
 
 def tile_bytes(symbol: str) -> bytes:
-    """Gerenderte Symbolfläche, aus dem Cache oder frisch erzeugt."""
+    """The rendered symbol area, from the cache or freshly made."""
     key = tile_fingerprint(symbol)
     path = TILE_CACHE / f"{key}.bin"
     index = load_tile_index()
@@ -576,11 +587,18 @@ def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> byt
 
 # --- Building -------------------------------------------------------------------
 
-def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
-    """Builds everything and returns the log as a list of lines."""
+def build(with_audio: bool = True, force_audio: bool = False,
+          lang: str = texts.DEFAULT) -> list[str]:
+    """Builds everything and returns the log as a list of lines.
+
+    The language decides how the log reads, nothing else. On the command line
+    it stays English; the web interface passes what layout.json asks for, so
+    the log matches the rest of the page.
+    """
     log: list[str] = []
 
-    def note(message: str) -> None:
+    def note(key: str, **params) -> None:
+        message = texts.t(key, lang, **params) if key else ""
         log.append(message)
         print(message, flush=True)
 
@@ -593,18 +611,18 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     if not layout["sets"]:
-        note("layout.json enthält keine Sets - es gibt nichts zu bauen.")
+        note("build.no_sets")
     elif not sets:
-        note("Kein Set ist aktiv - das Gerät hätte nichts anzuzeigen.")
+        note("build.none_active")
     elif len(sets) != len(layout["sets"]):
-        note(f"{len(sets)} von {len(layout['sets'])} Sets aktiv.")
+        note("build.active_count", active=len(sets), total=len(layout["sets"]))
 
     expected: set[str] = set()
     audio_ok = True
 
     # Without a key nothing new can be spoken - but everything already in
     # the cache can still be used. That is exactly what makes a
-    # frischen Klon des Repos ohne Azure-Zugang brauchbar.
+    # fresh clone of the repo usable without Azure access.
     no_key = with_audio and not tts.have_key()
 
     # The file names on the device are hashes of the content. That means the
@@ -630,22 +648,26 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         # is why the name is always alongside.
         label = (f"Set {index}" if entry["name"] == f"Set {index}"
                  else f"Set {index} ({entry['name']})")
-        # Set-Kachel
+        # the set tile
         label_files.append(store_tile(entry["symbol"]))
         if not entry["symbol"]:
-            note(f"{label}: noch kein Set-Symbol gewählt.")
+            note("build.no_set_symbol", label=label)
         elif symbol_path(entry["symbol"]) is None:
-            note(f"{label}: {missing_hint(entry['symbol'])}")
+            note("build.missing_prefixed", label=label,
+                 what=texts.t(missing_hint(entry["symbol"]), lang,
+                              symbol=entry["symbol"]))
 
         tile_names: list[str] = []
         audio_names: list[str] = []
         for slot_index, slot in enumerate(entry["slots"], start=1):
             tile_names.append(store_tile(slot["symbol"]))
             if slot["symbol"] and symbol_path(slot["symbol"]) is None:
-                note(f"{label} Slot {slot_index}: {missing_hint(slot['symbol'])}")
+                note("build.missing_in_slot", label=label, slot=slot_index,
+                     what=texts.t(missing_hint(slot["symbol"]), lang,
+                                  symbol=slot["symbol"]))
 
             if not slot["text"]:
-                note(f"{label} Slot {slot_index}: kein Text - kein Ton.")
+                note("build.no_text", label=label, slot=slot_index)
                 audio_names.append("")
                 continue
 
@@ -656,11 +678,8 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             in_cache = tts.cache_path(slot["text"]).exists()
             if no_key and (not in_cache or force_audio):
                 audio_ok = False
-                note(
-                    f"{label} Slot {slot_index}: \"{slot['text']}\" liegt "
-                    "nicht im Cache und ohne AZURE_SPEECH_KEY lässt es sich "
-                    "nicht sprechen."
-                )
+                note("build.slot_no_key", label=label, slot=slot_index,
+                     text=slot["text"], reason=texts.t("build.err.no_key", lang))
                 audio_names.append("")
                 continue
 
@@ -668,7 +687,8 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
                 cached = tts.synthesize(slot["text"], force=force_audio)
             except tts.TTSError as exc:
                 audio_ok = False
-                note(f"WARNUNG: TTS fehlgeschlagen bei \"{slot['text']}\": {exc}")
+                note("build.tts_failed", text=slot["text"],
+                     reason=exc.message(lang))
                 audio_names.append("")
                 continue
 
@@ -678,7 +698,8 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             if not target.exists() or target.stat().st_size != cached.stat().st_size:
                 shutil.copyfile(cached, target)
             audio_names.append(name)
-            note(f"{label} Slot {slot_index}: \"{slot['text']}\"")
+            note("build.slot_text", label=label, slot=slot_index,
+                 text=slot["text"])
 
         tile_files.append(tile_names)
         audio_files.append(audio_names)
@@ -687,29 +708,27 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     for existing in DATA_DIR.iterdir():
         if existing.is_file() and existing.name not in expected:
             existing.unlink()
-            note(f"entfernt: {existing.name}")
+            note("build.removed", name=existing.name)
 
     expected.add(LAYOUT_BIN)
     (DATA_DIR / LAYOUT_BIN).write_bytes(
         render_layout_bin(layout, label_files, tile_files, audio_files))
-    note(f"geschrieben: {(DATA_DIR / LAYOUT_BIN).relative_to(ROOT)}")
+    note("build.written", name=(DATA_DIR / LAYOUT_BIN).relative_to(ROOT))
 
     total = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
     _remember_build(layout)
-    note(
-        f"Fertig: {len(sets)} Set(s), "
-        f"{sum(1 for f in DATA_DIR.iterdir() if f.is_file())} Dateien, "
-        f"{total / 1024:.0f} KiB in {DATA_DIR.relative_to(ROOT)}/"
-    )
+    note("build.done", sets=len(sets),
+         files=sum(1 for f in DATA_DIR.iterdir() if f.is_file()),
+         size=f"{total / 1024:.0f}", where=f"{DATA_DIR.relative_to(ROOT)}/")
     if not audio_ok:
-        note("Hinweis: Es fehlen Tondateien - siehe Warnungen oben.")
+        note("build.audio_missing")
 
     # Building only produces files. Nothing changes on the device from that -
     # it is a separate step, and without this note one wonders why.
     note("")
-    note("Aufs Gerät kommen die Dateien damit noch nicht. Dafür:")
-    note("  python build.py --fs-image   und der Befehl, den es ausgibt")
-    note("  Einzelheiten in docs/firmware.md")
+    note("build.next_steps")
+    note("build.next_command")
+    note("build.next_docs")
     return log
 
 
@@ -739,23 +758,19 @@ def build_fs_image() -> list[str]:
     log: list[str] = []
     tool = find_tool("mklittlefs")
     if not tool:
-        raise BuildError(
-            "mklittlefs not found. It comes with the ESP32 core of the "
-            "Arduino IDE; without it no image can be built."
-        )
+        raise BuildError("build.err.no_mklittlefs")
     used = sum(f.stat().st_size for f in DATA_DIR.iterdir() if f.is_file())
     if used > FS_SIZE:
-        raise BuildError(
-            f"The data is {used / 1024:.0f} KiB, the file area holds only "
-            f"{FS_SIZE / 1024:.0f} KiB."
-        )
+        raise BuildError("build.err.too_big", used=f"{used / 1024:.0f}",
+                         fits=f"{FS_SIZE / 1024:.0f}")
     result = subprocess.run(
         [str(tool), "-c", str(DATA_DIR), "-b", "4096", "-p", "256",
          "-s", str(FS_SIZE), str(FS_IMAGE)],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        raise BuildError(f"mklittlefs failed: {result.stderr.strip()[:300]}")
+        raise BuildError("build.err.mklittlefs",
+                         reason=result.stderr.strip()[:300])
     esptool = find_tool("esptool")
     call = str(esptool) if esptool else "esptool"
     for line in [

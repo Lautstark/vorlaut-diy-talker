@@ -23,6 +23,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import texts
+
 ROOT = Path(__file__).resolve().parent
 # Same root as in build.py - the reasoning is over there.
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
@@ -96,7 +98,19 @@ AZURE_FORMAT = "riff-16khz-16bit-mono-pcm"
 
 
 class TTSError(RuntimeError):
-    pass
+    """Same idea as build.BuildError: a key and its values, not a sentence.
+
+    str() renders English for the command line, message(lang) renders for the
+    web interface.
+    """
+
+    def __init__(self, key: str, **params):
+        self.key = key
+        self.params = params
+        super().__init__(texts.t(key, **params))
+
+    def message(self, lang: str) -> str:
+        return texts.t(self.key, lang, **self.params)
 
 
 # --- Key ---------------------------------------------------------------------
@@ -226,9 +240,9 @@ def azure_synthesize(text: str) -> bytes:
                 "Azure lehnt den Key ab (401). Stimmen Key und Region "
                 f"({REGION}) zusammen?"
             ) from exc
-        raise TTSError(f"Azure-Fehler {exc.code}: {detail}") from exc
+        raise TTSError("tts.err.azure", code=exc.code, detail=detail) from exc
     except urllib.error.URLError as exc:
-        raise TTSError(f"Azure nicht erreichbar: {exc.reason}") from exc
+        raise TTSError("tts.err.unreachable", reason=exc.reason) from exc
 
 
 # --- ffmpeg ------------------------------------------------------------------
@@ -236,7 +250,7 @@ def azure_synthesize(text: str) -> bytes:
 def _ffmpeg_binary() -> str:
     binary = shutil.which("ffmpeg")
     if not binary:
-        raise TTSError("ffmpeg nicht gefunden. Unter macOS: brew install ffmpeg")
+        raise TTSError("tts.err.no_ffmpeg")
     return binary
 
 
@@ -292,7 +306,7 @@ def postprocess(raw_wav: bytes, target: Path) -> None:
             text=True,
         )
         if result.returncode != 0 or not output.exists():
-            raise TTSError(f"ffmpeg fehlgeschlagen: {result.stderr.strip()[:400]}")
+            raise TTSError("tts.err.ffmpeg", reason=result.stderr.strip()[:400])
         shutil.copyfile(output, target)
 
 
@@ -305,7 +319,7 @@ def synthesize(text: str, force: bool = False) -> Path:
     """
     text = (text or "").strip()
     if not text:
-        raise TTSError("Leerer Text lässt sich nicht sprechen.")
+        raise TTSError("tts.err.empty")
     target = cache_path(text)
     remember(text)
     if target.exists() and not force:
