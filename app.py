@@ -585,7 +585,13 @@ PAGE = r"""<!doctype html>
     display: flex; align-items: center; gap: 16px;
     padding: 12px 24px; border-bottom: 1px solid var(--line);
   }
-  header h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  /* The wordmark is hidden, not deleted: the logo next to it says the same
+     thing, but a page still wants a heading for screen readers and for its
+     outline. */
+  header h1 {
+    position: absolute; width: 1px; height: 1px; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
   .logo { width: 26px; height: 26px; flex: none; }
   header .status { margin-left: auto; }
   main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
@@ -663,14 +669,22 @@ PAGE = r"""<!doctype html>
      buttons - same padding, same radius, same border. */
   #langPick {
     appearance: none; -webkit-appearance: none;
-    background: var(--panel-2)
+    /* The chevron only, on nothing. Box and border appear when the thing is
+       pointed at - see below. Note the order: the background shorthand resets
+       background-color, so transparent has to come after it, not before. */
+    background:
       url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239aa3b2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
       no-repeat right 11px center;
-    color: var(--text); border: 1px solid var(--line);
+    background-color: transparent;
+    color: var(--muted); border: 1px solid transparent;
     border-radius: 8px; padding: 8px 30px 8px 12px; cursor: pointer;
-    font-size: 14px; line-height: normal;   /* like the buttons next to it */
+    font-size: 14px; line-height: normal;   /* like the button next to it */
+    transition: background-color .12s, border-color .12s, color .12s;
   }
-  #langPick:hover { background-color: #303540; }
+  #langPick:hover, #langPick:focus-visible {
+    background-color: var(--panel-2); border-color: var(--line);
+    color: var(--text);
+  }
   /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. */
   button.primary {
     background: var(--accent); border-color: transparent; color: #1b1b20;
@@ -758,9 +772,13 @@ PAGE = r"""<!doctype html>
        Row 2  device preview, status text on the right */
     header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
     header h1 { margin-right: auto; }
+    /* Same order as on a wide screen: settings first, the action last. The
+       flex order only has to be set because the status sits in between and
+       pushes with margin-left: auto. */
     .schalter { order: 1; }
-    #langPick { order: 1; }
-    header .status { order: 2; margin-left: auto; }
+    #langPick { order: 2; }
+    #releaseBtn { order: 3; }
+    header .status { order: 4; margin-left: auto; }
 
     /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
        sets past the edge with nothing to say they are there - and the sets

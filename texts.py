@@ -24,7 +24,7 @@ DEFAULT = "en"
 TEXTS: dict[str, dict[str, str]] = {
     "en": {
         # --- header ---------------------------------------------------------
-        "ui.preview": "Device preview",
+        "ui.preview": "Preview",
         "ui.preview_title": "Also shows how big and how coarse it arrives on "
                             "the display",
         "ui.language_title": "Language of this page and of the menu on the "
@@ -202,7 +202,7 @@ TEXTS: dict[str, dict[str, str]] = {
 
     "de": {
         # --- header ---------------------------------------------------------
-        "ui.preview": "Gerätevorschau",
+        "ui.preview": "Vorschau",
         "ui.preview_title": "Zeigt zusätzlich, wie groß und wie grob es auf "
                             "dem Display ankommt",
         "ui.language_title": "Sprache dieser Seite und des Menüs auf dem Gerät",
