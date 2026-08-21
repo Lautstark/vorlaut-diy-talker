@@ -55,6 +55,11 @@ jobs:
         # it reads with what build.py wrote.
         run: python tests/test_layout_format.py
 
+      - name: No German left where English belongs
+        # Counts German function words, not umlauts - most German has none.
+        # Three files are German on purpose and named in the test.
+        run: python tests/test_language.py
+
       - name: Interface texts are complete in every language
         # Both languages carry the same keys and the same placeholders, and
         # nothing says words to the user from outside the table.
