@@ -64,6 +64,16 @@ def main() -> int:
                   f"{missing}, which the font does not have")
             failures += 1
 
+    # Every field of the struct has to be in the dump. The list there is
+    # written by hand, and a label that nobody dumps is a label that nobody
+    # checks - a translation could be too long or undrawable and still pass.
+    fields = int(next(l for l in lines if l.startswith("fields ")).split()[1])
+    dumped = len(entries) // max(languages, 1)
+    if dumped != fields:
+        print(f"  FAIL  texts.h has {fields} labels, texts_dump.cpp prints "
+              f"{dumped} - the missing ones are not checked at all")
+        failures += 1
+
     # The two tables have to agree on how many languages there are - the file
     # carries an index into one of them and is written by the other.
     if languages != len(build.LANGUAGE_CODES):

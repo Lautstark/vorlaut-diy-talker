@@ -27,8 +27,22 @@ int main(void) {
     dump(i, "storageMissing", s.storageMissing);
     dump(i, "empty1", s.empty1);
     dump(i, "empty2", s.empty2);
+    dump(i, "fetch1", s.fetch1);
+    dump(i, "fetch2", s.fetch2);
+    dump(i, "wifi", s.wifi);
+    dump(i, "loading", s.loading);
+    dump(i, "done", s.done);
+    dump(i, "failed", s.failed);
+    dump(i, "noWifi", s.noWifi);
+    dump(i, "noServer", s.noServer);
+    dump(i, "badKey", s.badKey);
+    dump(i, "switchedOff", s.switchedOff);
   }
   printf("max %d\n", MENU_MAX_CHARS);
   printf("count %u\n", (unsigned)LANGUAGE_COUNT);
+  // How many the struct actually has. The list above is written out by hand,
+  // so a field added to texts.h would otherwise quietly never be checked -
+  // which is exactly what happened once.
+  printf("fields %u\n", (unsigned)(sizeof(Strings) / sizeof(const char *)));
   return 0;
 }

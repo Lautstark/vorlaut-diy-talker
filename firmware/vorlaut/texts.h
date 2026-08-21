@@ -43,6 +43,16 @@ struct Strings {
   const char *storageMissing;
   const char *empty1;        // nothing on the device yet, line 1
   const char *empty2;        //                            line 2
+  const char *fetch1;        // key 2: fetch content over Wi-Fi, line 1
+  const char *fetch2;        //                                 line 2
+  const char *wifi;          // ... looking for the network
+  const char *loading;       // ... transferring, with a count underneath
+  const char *done;          // ... and it worked
+  const char *failed;        // ... and it did not, with a reason below
+  const char *noWifi;        // reasons, each one word
+  const char *noServer;
+  const char *badKey;
+  const char *switchedOff;
 };
 
 // The order has to match LANGUAGE_CODES in build.py - the file stores the
@@ -59,6 +69,16 @@ static const Strings LANGUAGES[] = {
     /* storageMissing  */ "missing",
     /* empty1          */ "no",
     /* empty2          */ "content",
+    /* fetch1          */ "Fetch",
+    /* fetch2          */ "content",
+    /* wifi            */ "Wi-Fi",
+    /* loading         */ "loading",
+    /* done            */ "done",
+    /* failed          */ "failed",
+    /* noWifi          */ "no Wi-Fi",
+    /* noServer        */ "no server",
+    /* badKey          */ "wrong key",
+    /* switchedOff     */ "shut",
   },
   {  // 1 - German
     /* back            */ "zurück",
@@ -71,6 +91,16 @@ static const Strings LANGUAGES[] = {
     /* storageMissing  */ "fehlt",
     /* empty1          */ "keine",
     /* empty2          */ "Inhalte",
+    /* fetch1          */ "Inhalte",
+    /* fetch2          */ "holen",
+    /* wifi            */ "WLAN",
+    /* loading         */ "lädt",
+    /* done            */ "fertig",
+    /* failed          */ "Fehler",
+    /* noWifi          */ "kein WLAN",
+    /* noServer        */ "kein Ziel",
+    /* badKey          */ "Schlüssel",
+    /* switchedOff     */ "zu",
   },
 };
 
