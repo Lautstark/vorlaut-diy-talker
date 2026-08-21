@@ -102,6 +102,17 @@ the width of a display.
 **Code and documentation are English** — identifiers, comments, commit
 messages, `docs/` and the command line.
 
+**The older history does not follow that**, and `git log` is the first place
+anyone looks. 104 of the first 142 commits have German subjects and bodies.
+That is drift, not a second rule: nothing ever checked it, because
+`tests/test_language.py` reads files and a commit message is not a file. It
+went unnoticed for long enough that people — and agents — read the log,
+inferred the convention from it, and wrote the next commit in German too.
+
+So: the rule above is the rule. Take conventions from here, not from the log.
+Rewriting 142 commits to match would cost more than it is worth, so the old
+ones stay as they are and the line is drawn at the point this note appears.
+
 The command line stays English even when the interface is set to German:
 `build.py` passes messages on as keys, and whoever displays them decides the
 language. The same error reads English in the terminal and German in the
