@@ -56,15 +56,23 @@ Stimme und Sprechtempo lassen sich dort ebenfalls einstellen;
 
 ## Sprachen im Projekt
 
-Das **Produkt** ist vorerst deutsch: die Weboberfläche und alles, was
-gesprochen wird.
+Das **Produkt** gibt es auf Deutsch und auf Englisch — Oberfläche, Bauprotokoll
+und die Beschriftungen auf dem Gerät. Umgeschaltet wird oben rechts in der
+Oberfläche; gespeichert ist das als `"language"` in `layout.json`.
 
-Der **Talker** selbst nicht mehr. Die paar Wörter, die die Firmware selbst
-malt — vier Menütasten und der Hinweis auf einem leeren Gerät — stehen in einer
-Tabelle pro Sprache in [`firmware/vorlaut/texts.h`](firmware/vorlaut/texts.h).
-Welche gilt, entscheidet `"language"` in `layout.json` und reist in
-`layout.bin` mit; dieselbe Firmware spricht also jede Sprache, ein Wechsel
-braucht kein Kabel. Standard ist Englisch.
+Es ist absichtlich **eine** Einstellung für alles. Ein Talker, dessen Menü
+`back` sagt, während der Rechner daneben `zurück` sagt, wäre nur eine weitere
+Sache, die man synchron halten muss.
+
+Die **Inhalte** bleiben davon unberührt: Setnamen, die Wörter auf den Tasten
+und alles Gesprochene sind, was jemand eingetippt hat. Wer die Oberfläche auf
+Englisch stellt, behält ein deutsches Set. Die Stimme wird getrennt in `.env`
+gewählt.
+
+Die Texte liegen als Tabelle pro Sprache in [`texts.py`](texts.py) für Rechner
+und Oberfläche und in
+[`firmware/vorlaut/texts.h`](firmware/vorlaut/texts.h) fürs Gerät. Standard ist
+Englisch.
 
 Der eingebaute Font ist dabei kein Unicode, sondern Codepage 437: `zurück` wäre
 als `zur├╝ck` auf dem Display gelandet. Was sich zeichnen lässt und was nicht,
@@ -72,13 +80,17 @@ steht in [docs/firmware.md](docs/firmware.md); ein Test prüft jede Übersetzung
 gegen die Breite eines Displays.
 
 **Code und Dokumentation sind englisch** — Bezeichner, Kommentare,
-Commit-Nachrichten, `docs/` und die CLI. Nur diese README bleibt deutsch, als
-Einstieg ins Projekt.
+Commit-Nachrichten, `docs/` und die Kommandozeile. Nur diese README bleibt
+deutsch, als Einstieg ins Projekt.
+
+Die Kommandozeile bleibt auch dann englisch, wenn die Oberfläche deutsch
+steht: `build.py` reicht Meldungen als Schlüssel weiter, und wer sie anzeigt,
+entscheidet über die Sprache. Derselbe Fehler steht im Terminal auf Englisch
+und im Browser auf Deutsch.
 
 Die Trennung verläuft also nicht nach Datei, sondern danach, wer es liest:
-was in der Oberfläche steht, ist deutsch; was beim Weiterentwickeln gelesen
-wird, ist englisch. Die Texte auf dem Gerät sind der Sonderfall — sie liegen
-als Tabelle vor und gehören keiner Sprache mehr fest an.
+was jemand benutzt, gibt es in seiner Sprache; was beim Weiterentwickeln
+gelesen wird, ist englisch.
 
 ## Weiter
 

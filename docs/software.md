@@ -96,16 +96,29 @@ The single source of truth. Exactly 4 slots per set.
 }
 ```
 
-`language` says which language the **device** labels itself in - the four menu
-keys and the notice on an empty device, nothing else. The words on the keys are
-whatever somebody typed; this is only about the text the firmware draws by
-itself. Available are `en` and `de`, more in
-[`firmware/vorlaut/texts.h`](../firmware/vorlaut/texts.h). If the field is
-absent it is `en`.
+`language` is the language of the whole thing: the web interface, the build
+log, and the four menu labels the device draws itself. Available are `en` and
+`de`; if the field is absent it is `en`. The picker in the header sets it - it
+saves and reloads the page.
 
-It travels in `layout.bin`, so a change needs a rebuild and an upload - but no
-reflashing of the program. One and the same firmware image speaks every
-language.
+It is deliberately one setting and not two. A talker whose menu says "back"
+while the computer it is edited on says "zurück" would be one thing to keep in
+step for no gain.
+
+What it does **not** touch is the content. Set names, the words on the keys and
+what gets spoken are whatever somebody typed - switching the interface to
+English leaves a German set German. The voice is picked separately in `.env`
+(`AZURE_SPEECH_VOICE`).
+
+For the device it travels in `layout.bin`, so a change needs a rebuild and an
+upload - but no reflashing of the program. One and the same firmware image
+speaks every language.
+
+Adding a language is one block in [`texts.py`](../texts.py) and, if the device
+is to speak it too, one in
+[`firmware/vorlaut/texts.h`](../firmware/vorlaut/texts.h) plus an entry in
+`LANGUAGE_CODES` in `build.py`. `tests/test_ui_texts.py` and
+`tests/test_texts.py` check that the tables stay in step.
 
 `active` decides whether a set goes onto the device. If the field is absent it
 counts as active — that keeps older layouts valid unchanged.
