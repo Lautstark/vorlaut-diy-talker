@@ -194,9 +194,10 @@ pre.log {
 @media (max-width: 620px) {
   /* Side by side the header needs 493px - on a 375px wide display the
      right-hand end of it fell outside, with no way to scroll to it. So it
-     wraps rather than being squeezed:
-     Row 1  logo, name, the release button on the right
-     Row 2  device preview, status text on the right */
+     wraps rather than being squeezed. On a 375px display that comes out
+     as two rows, and the wordmark is in neither - it is hidden just below:
+     Row 1  logo and gear at the left, preview and language at the right
+     Row 2  the release button */
   header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
   /* Here the wordmark is hidden, not deleted: it costs 64px next to a
      logo that carries the same brand, and the bar has to fit one line.
@@ -205,17 +206,24 @@ pre.log {
     position: absolute; width: 1px; height: 1px; margin: -1px;
     overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
-  /* Same order as on a wide screen: settings first, the action last, and
-     the whole group against the right edge. On a wide screen the status
+  /* The gear stays beside the mark, which is where a wide screen puts it.
+     It used to be pulled into the group on the right, and at order: 3 that
+     also put the device preview in front of it - so the settings button
+     sat in a different place, and in a different order, depending on how
+     wide the window happened to be. At order: 0 it keeps the logo's
+     company; the wordmark that separates them on a wide screen is hidden
+     just above.
+
+     The rest stand against the right edge. On a wide screen the status
      carries the auto margin that pushes them there; here it sits next to
-     the logo instead, so the margin moves to the first control. */
+     the logo instead, so the margin moves to the first of them. */
   /* All scoped to the header: .toggle is also the active switch on the
      set tile, and an auto margin sent that one to the right edge too. */
+  header #gear { order: 0; }
   header .status { order: 1; margin-left: 0; }
   header .toggle { order: 2; margin-left: auto; }
-  header #gear { order: 3; }
-  header #langPick { order: 4; }
-  header #releaseBtn { order: 5; }
+  header #langPick { order: 3; }
+  header #releaseBtn { order: 4; }
 
   /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
      sets past the edge with nothing to say they are there - and the sets
