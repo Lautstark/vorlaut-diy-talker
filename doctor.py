@@ -166,8 +166,8 @@ def check_docker() -> None:
 def check_metacom() -> None:
     """Die lizenzierte METACOM-Sammlung ist freiwillig - ohne sie sucht die
     Oberfläche nur bei ARASAAC."""
-    eingestellt = metacom.configured()
-    if not eingestellt:
+    configured = metacom.configured()
+    if not configured:
         report("METACOM-Sammlung", False, "VORLAUT_METACOM_DIR nicht gesetzt",
                "Nur nötig, wenn du eine METACOM-Lizenz hast.\n"
                "Pfad auf den entpackten Download zeigen lassen - in .env\n"
@@ -177,7 +177,7 @@ def check_metacom() -> None:
         return
     if not metacom.available():
         report("METACOM-Sammlung", False, "Ordner nicht lesbar",
-               f"VORLAUT_METACOM_DIR zeigt auf {eingestellt},\n"
+               f"VORLAUT_METACOM_DIR zeigt auf {configured},\n"
                f"darunter fehlt {metacom.SYMBOL_SUBDIR}.",
                required=False)
         return
@@ -189,14 +189,14 @@ def check_metacom() -> None:
         print("         die Suche läuft über Dateinamen und findet weniger.")
 
 
-def check_geraet_token() -> None:
+def check_device_token() -> None:
     """Ohne Schluessel kann sich der Talker keine Inhalte holen."""
     import app
     if app.device_token():
         report("Schluessel fuer den Talker", True, "aus der Umgebung oder .env",
                required=False)
     else:
-        report("Schluessel fuer den Talker", False, "VORLAUT_GERAET_TOKEN nicht gesetzt",
+        report("Schluessel fuer den Talker", False, "VORLAUT_DEVICE_TOKEN nicht gesetzt",
                "Nur noetig, wenn sich das Geraet die Inhalte selbst holen soll.\n"
                "Einen erzeugen und in .env eintragen:\n"
                "  python -c \"import secrets; print(secrets.token_urlsafe(24))\"",
@@ -233,7 +233,7 @@ def main() -> int:
     print("\n Wahlweise")
     check_docker()
     check_metacom()
-    check_geraet_token()
+    check_device_token()
 
     print()
     if missing_required:

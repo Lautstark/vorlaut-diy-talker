@@ -173,11 +173,11 @@ Damit sich das Gerät seine Inhalte selbst holen kann, gibt der Server zwei
 Endpunkte heraus. Beide verlangen einen Schlüssel:
 
 ```
-GET /api/geraet/manifest          Versionsstempel und Dateiliste
-GET /api/geraet/datei?name=<n>    eine Datei aus data/
+GET /api/device/manifest          Versionsstempel und Dateiliste
+GET /api/device/file?name=<n>    eine Datei aus data/
 ```
 
-Der Schlüssel steht in `.env` als `VORLAUT_GERAET_TOKEN` und wird als
+Der Schlüssel steht in `.env` als `VORLAUT_DEVICE_TOKEN` und wird als
 Kopfzeile `X-Vorlaut-Token` mitgeschickt - **nicht** im Adressteil, denn
 Adressen landen in Protokollen. Verglichen wird mit `hmac.compare_digest`,
 damit die Antwortzeit nichts über den Schlüssel verrät.

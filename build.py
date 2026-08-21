@@ -266,15 +266,15 @@ def device_manifest() -> dict:
     layout.bin heißt immer gleich und wird jedes Mal geholt.
     """
     layout = load_layout()
-    dateien = [
+    files = [
         {"name": f.name, "size": f.stat().st_size}
         for f in sorted(DATA_DIR.iterdir()) if f.is_file()
     ] if DATA_DIR.is_dir() else []
     return {
         "version": built_fingerprint(layout),
         "sets": len(active_sets(layout)),
-        "files": dateien,
-        "bytes": sum(d["size"] for d in dateien),
+        "files": files,
+        "bytes": sum(f["size"] for f in files),
     }
 
 
@@ -602,24 +602,24 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         # Die Nummer ist die Stelle in der Reihenfolge auf dem Geraet, nicht
         # die in layout.json - bei abgeschalteten Sets faellt beides
         # auseinander, deshalb steht der Name immer dabei.
-        wer = (f"Set {index}" if entry["name"] == f"Set {index}"
-               else f"Set {index} ({entry['name']})")
+        label = (f"Set {index}" if entry["name"] == f"Set {index}"
+                 else f"Set {index} ({entry['name']})")
         # Set-Kachel
         label_files.append(store_tile(entry["symbol"]))
         if not entry["symbol"]:
-            note(f"{wer}: noch kein Set-Symbol gewählt.")
+            note(f"{label}: noch kein Set-Symbol gewählt.")
         elif symbol_path(entry["symbol"]) is None:
-            note(f"{wer}: {missing_hint(entry['symbol'])}")
+            note(f"{label}: {missing_hint(entry['symbol'])}")
 
         tile_names: list[str] = []
         audio_names: list[str] = []
         for slot_index, slot in enumerate(entry["slots"], start=1):
             tile_names.append(store_tile(slot["symbol"]))
             if slot["symbol"] and symbol_path(slot["symbol"]) is None:
-                note(f"{wer} Slot {slot_index}: {missing_hint(slot['symbol'])}")
+                note(f"{label} Slot {slot_index}: {missing_hint(slot['symbol'])}")
 
             if not slot["text"]:
-                note(f"{wer} Slot {slot_index}: kein Text - kein Ton.")
+                note(f"{label} Slot {slot_index}: kein Text - kein Ton.")
                 audio_names.append("")
                 continue
 
@@ -631,7 +631,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             if no_key and (not in_cache or force_audio):
                 audio_ok = False
                 note(
-                    f"{wer} Slot {slot_index}: \"{slot['text']}\" liegt "
+                    f"{label} Slot {slot_index}: \"{slot['text']}\" liegt "
                     "nicht im Cache und ohne AZURE_SPEECH_KEY lässt es sich "
                     "nicht sprechen."
                 )
@@ -652,7 +652,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
             if not target.exists() or target.stat().st_size != cached.stat().st_size:
                 shutil.copyfile(cached, target)
             audio_names.append(name)
-            note(f"{wer} Slot {slot_index}: \"{slot['text']}\"")
+            note(f"{label} Slot {slot_index}: \"{slot['text']}\"")
 
         tile_files.append(tile_names)
         audio_files.append(audio_names)

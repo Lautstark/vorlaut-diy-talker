@@ -24,16 +24,16 @@
 #include <WiFiManager.h>
 
 // Wie lange das Einrichtungsportal offen bleibt, bevor es aufgibt.
-static const unsigned long PORTAL_SEKUNDEN = 180;
+static const unsigned long PORTAL_SECONDS = 180;
 static const char *AP_NAME = "vorlaut einrichten";
 
-static uint32_t letzteMeldung = 0;
-static bool warVerbunden = false;
+static uint32_t lastReport = 0;
+static bool wasConnected = false;
 
 // Das Portal traegt sonst das Aussehen der Bibliothek. Es ist aber das
 // Erste, was jemand von vorlaut zu sehen bekommt - also dieselben Farben
 // wie die Weboberflaeche, derselbe Ton.
-static const char PORTAL_STIL[] PROGMEM = R"(
+static const char PORTAL_STYLE[] PROGMEM = R"(
 <style>
   :root { --bg:#16181d; --panel:#1f2229; --line:#343a45;
           --text:#eceff4; --muted:#9aa3b2; --accent:#9B7BFF; }
@@ -59,7 +59,7 @@ static const char PORTAL_STIL[] PROGMEM = R"(
 </div>
 )";
 
-static void meldeVerbindung() {
+static void reportConnection() {
   Serial.printf("verbunden mit \"%s\"\n", WiFi.SSID().c_str());
   Serial.print("  IP-Adresse:    ");
   Serial.println(WiFi.localIP());
@@ -77,12 +77,12 @@ void setup() {
 
   WiFiManager wm;
   wm.setTitle("vorlaut");
-  wm.setCustomHeadElement(PORTAL_STIL);
+  wm.setCustomHeadElement(PORTAL_STYLE);
   // Nur was gebraucht wird: Netz aussuchen, Daten eintragen, fertig.
   // static, weil setMenu die Liste per Referenz nimmt und behaelt.
-  static std::vector<const char *> menue = {"wifi", "info", "restart"};
-  wm.setMenu(menue);
-  wm.setConfigPortalTimeout(PORTAL_SEKUNDEN);
+  static std::vector<const char *> menu = {"wifi", "info", "restart"};
+  wm.setMenu(menu);
+  wm.setConfigPortalTimeout(PORTAL_SECONDS);
   wm.setDarkMode(true);
 
   Serial.println("Suche gespeichertes Netz ...");
@@ -92,27 +92,27 @@ void setup() {
     return;
   }
 
-  warVerbunden = true;
-  meldeVerbindung();
+  wasConnected = true;
+  reportConnection();
 }
 
 void loop() {
-  bool jetzt = WiFi.status() == WL_CONNECTED;
+  bool now = WiFi.status() == WL_CONNECTED;
 
-  if (jetzt != warVerbunden) {
-    warVerbunden = jetzt;
-    if (jetzt) {
+  if (now != wasConnected) {
+    wasConnected = now;
+    if (now) {
       Serial.println();
-      meldeVerbindung();
+      reportConnection();
     } else {
       Serial.println();
       Serial.println("Verbindung verloren - versuche es weiter.");
     }
   }
 
-  if (millis() - letzteMeldung >= 5000) {
-    letzteMeldung = millis();
-    if (jetzt) {
+  if (millis() - lastReport >= 5000) {
+    lastReport = millis();
+    if (now) {
       Serial.printf("verbunden, %d dBm, IP %s\n",
                     WiFi.RSSI(), WiFi.localIP().toString().c_str());
     } else {

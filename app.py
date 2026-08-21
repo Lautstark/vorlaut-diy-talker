@@ -54,11 +54,11 @@ def device_token() -> str:
     herum: dort liegen die Tonaufnahmen und Bilder deines Kindes, und ein
     Abgleich, den niemand eingerichtet hat, soll auch nichts herausgeben.
     """
-    value = (os.environ.get("VORLAUT_GERAET_TOKEN") or "").strip()
+    value = (os.environ.get("VORLAUT_DEVICE_TOKEN") or "").strip()
     if value:
         return value
     try:
-        return (tts.load_env_file().get("VORLAUT_GERAET_TOKEN") or "").strip()
+        return (tts.load_env_file().get("VORLAUT_DEVICE_TOKEN") or "").strip()
     except Exception:
         return ""
 
@@ -235,19 +235,19 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- Geräte-Abgleich --
 
-    def _geraet_erlaubt(self) -> bool:
+    def _device_allowed(self) -> bool:
         """Schlüssel prüfen. Antwortet selbst, wenn etwas nicht stimmt."""
         token = device_token()
         if not token:
             self._error(
                 "Der Geräte-Abgleich ist nicht eingerichtet - "
-                "VORLAUT_GERAET_TOKEN fehlt.", 503)
+                "VORLAUT_DEVICE_TOKEN fehlt.", 503)
             return False
         # Nur als Kopfzeile, nie im Adressteil: Adressen landen in
         # Protokollen, Kopfzeilen nicht.
-        gesendet = self.headers.get("X-Vorlaut-Token", "")
+        sent = self.headers.get("X-Vorlaut-Token", "")
         # compare_digest statt ==, damit die Antwortzeit nichts verrät.
-        if not hmac.compare_digest(gesendet, token):
+        if not hmac.compare_digest(sent, token):
             self._error("Falscher oder fehlender Schlüssel.", 401)
             return False
         return True
@@ -352,8 +352,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(results)
             return
 
-        if path == "/api/geraet/manifest":
-            if not self._geraet_erlaubt():
+        if path == "/api/device/manifest":
+            if not self._device_allowed():
                 return
             try:
                 self._json(build.device_manifest())
@@ -361,16 +361,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._error(str(exc), 500)
             return
 
-        if path == "/api/geraet/datei":
-            if not self._geraet_erlaubt():
+        if path == "/api/device/file":
+            if not self._device_allowed():
                 return
             # Nur der Dateiname, nichts davor - der Wunsch kommt von aussen.
             name = Path((query.get("name") or [""])[0]).name
-            ziel = build.DATA_DIR / name
-            if not name or not ziel.is_file():
+            target = build.DATA_DIR / name
+            if not name or not target.is_file():
                 self._error("Datei nicht gefunden.", 404)
                 return
-            self._send(200, ziel.read_bytes(), "application/octet-stream")
+            self._send(200, target.read_bytes(), "application/octet-stream")
             return
 
         if path == "/api/sources":
@@ -761,24 +761,24 @@ PAGE = r"""<!doctype html>
   .results .group:first-child { margin-top: 0; }
   /* Inaktive Sets bleiben sichtbar, treten aber zurueck - man soll an der
      Leiste ablesen koennen, was gerade aufs Geraet geht. */
-  .tab.aus { opacity: .45; }
-  .tab.aus .dot { box-shadow: inset 0 0 0 2px var(--panel); }
-  .plaetze { color: var(--muted); font-size: 12px; margin: -8px 2px 14px; }
+  .tab.off { opacity: .45; }
+  .tab.off .dot { box-shadow: inset 0 0 0 2px var(--panel); }
+  .slots { color: var(--muted); font-size: 12px; margin: -8px 2px 14px; }
   /* Kein aktives Set ist erlaubt - das Geraet faengt es ab und zeigt einen
      Hinweis. Gewollt ist es aber selten, deshalb dieselbe Warnfarbe wie beim
      Speicherkonflikt, nur als schmales Feld statt als Banner. */
-  .plaetze.leer {
+  .slots.empty {
     color: #f0d7d9; background: #3a2224; border: 1px solid #7a3a3f;
     border-radius: 8px; padding: 6px 10px; display: inline-block;
   }
-  .schalter.aufGeraet { font-size: 13px; }
+  .schalter.onDevice { font-size: 13px; }
   /* Abgesetzt vom Rest der Kachel: darueber steht, wie das Set aussieht,
      hier steht, ob es aufs Geraet geht. */
-  .aktivZeile {
+  .activeRow {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
   }
-  .aktivZeile .hinweis { color: var(--muted); font-size: 12px; }
+  .activeRow .note { color: var(--muted); font-size: 12px; }
   .hint { padding: 0 16px 16px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -804,7 +804,7 @@ PAGE = r"""<!doctype html>
     <button id="reloadBtn">Neu laden</button>
   </div>
   <div class="tabs" id="tabs"></div>
-  <div class="plaetze" id="plaetze"></div>
+  <div class="slots" id="slots"></div>
   <div class="device" id="device"></div>
 
   <button id="removeSet" class="danger">Dieses Set löschen</button>
@@ -869,10 +869,10 @@ async function load() {
 // niemand merken, wann gebaut werden muss.
 function markBuildState(flag) {
   if (flag === null || flag === undefined) return;
-  const noetig = flag !== "1";
-  const knopf = $("buildBtn");
-  knopf.classList.toggle("primary", noetig);
-  knopf.title = noetig
+  const needed = flag !== "1";
+  const button = $("buildBtn");
+  button.classList.toggle("primary", needed);
+  button.title = needed
     ? "Das Gerät bekommt erst durch Bauen und Aufspielen den neuen Stand"
     : "Die Dateien in data/ entsprechen dem Layout";
 }
@@ -1048,7 +1048,7 @@ function render() {
   layout.sets.forEach((entry, index) => {
     const tab = document.createElement("div");
     tab.className = "tab" + (index === current ? " active" : "")
-                  + (entry.active === false ? " aus" : "");
+                  + (entry.active === false ? " off" : "");
     tab.title = entry.active === false ? "Nicht auf dem Gerät" : "Geht aufs Gerät";
     tab.style.borderColor = index === current ? entry.color : "transparent";
     tab.innerHTML = '<span class="dot" style="background:' + entry.color + '"></span>';
@@ -1098,13 +1098,13 @@ function render() {
     tabs.appendChild(add);
   }
 
-  const belegt = activeCount();
-  $("plaetze").classList.toggle("leer", belegt === 0 && layout.sets.length > 0);
-  $("plaetze").textContent = belegt === 0 && layout.sets.length > 0
+  const used = activeCount();
+  $("slots").classList.toggle("empty", used === 0 && layout.sets.length > 0);
+  $("slots").textContent = used === 0 && layout.sets.length > 0
     ? "Kein Set aktiv - das Gerät zeigt dann nur einen Hinweis an. "
       + layout.sets.length + " Sets liegen bereit."
-    : belegt + " von " + limits.maxActive + " Plätzen auf dem Gerät belegt"
-      + (layout.sets.length > belegt
+    : used + " von " + limits.maxActive + " Plätzen auf dem Gerät belegt"
+      + (layout.sets.length > used
          ? "  ·  " + layout.sets.length + " Sets angelegt" : "");
 
   const device = $("device");
@@ -1140,25 +1140,25 @@ function render() {
 
   // Aufs Geraet passen nur fuenf Sets - anlegen darf man mehr. Der Schalter
   // entscheidet, welche davon gerade mitkommen.
-  const anSchalter = document.createElement("label");
-  anSchalter.className = "schalter aufGeraet";
+  const activeToggle = document.createElement("label");
+  activeToggle.className = "schalter onDevice";
   // Kurz, weil daneben schon "Gerätevorschau" steht - zweimal "Gerät" in
   // einer Ansicht liest sich wie dasselbe. Was es bedeutet, sagt der Titel.
-  anSchalter.title = "Aktive Sets gehen aufs Gerät - höchstens "
+  activeToggle.title = "Aktive Sets gehen aufs Gerät - höchstens "
                    + limits.maxActive + " gleichzeitig";
-  const anBox = document.createElement("input");
-  anBox.type = "checkbox";
-  anBox.checked = entry.active !== false;
-  const anPille = document.createElement("span");
-  anPille.className = "pille";
-  anSchalter.append(anBox, anPille, document.createTextNode("Aktiv"));
-  anBox.onchange = async () => {
-    if (anBox.checked && activeCount() >= limits.maxActive) {
-      anBox.checked = false;
+  const activeBox = document.createElement("input");
+  activeBox.type = "checkbox";
+  activeBox.checked = entry.active !== false;
+  const activePill = document.createElement("span");
+  activePill.className = "pille";
+  activeToggle.append(activeBox, activePill, document.createTextNode("Aktiv"));
+  activeBox.onchange = async () => {
+    if (activeBox.checked && activeCount() >= limits.maxActive) {
+      activeBox.checked = false;
       status("Es sind schon " + limits.maxActive + " Sets aktiv - erst eins abschalten.");
       return;
     }
-    entry.active = anBox.checked;
+    entry.active = activeBox.checked;
     await save();
     status("");
     render();
@@ -1201,16 +1201,16 @@ function render() {
   // Ganz unten und abgesetzt: Name und Farbe beschreiben das Set, "Aktiv"
   // entscheidet, was damit geschieht - dieselbe Ecke wie das Loeschen
   // darunter. Bewusst nicht in dessen Rot: abschalten ist umkehrbar.
-  const aktivZeile = document.createElement("div");
-  aktivZeile.className = "aktivZeile";
-  aktivZeile.appendChild(anSchalter);
+  const activeRow = document.createElement("div");
+  activeRow.className = "activeRow";
+  activeRow.appendChild(activeToggle);
   if (entry.active === false) {
-    const hinweis = document.createElement("span");
-    hinweis.className = "hinweis";
-    hinweis.textContent = "liegt bereit, nicht auf dem Gerät";
-    aktivZeile.appendChild(hinweis);
+    const note = document.createElement("span");
+    note.className = "note";
+    note.textContent = "liegt bereit, nicht auf dem Gerät";
+    activeRow.appendChild(note);
   }
-  setTile.appendChild(aktivZeile);
+  setTile.appendChild(activeRow);
 
   setCol.append(setTile, removeSetBtn);
   device.appendChild(setCol);
@@ -1323,7 +1323,7 @@ async function ask(word, source) {
   return await (await api(url)).json();
 }
 
-function sagen(box, text) {
+function say(box, text) {
   box.innerHTML = "";
   const note = document.createElement("p");
   note.textContent = text;
@@ -1335,7 +1335,7 @@ async function doSearch() {
   if (!word) return;
   const box = $("results");
   const mine = ++searchToken;
-  sagen(box, "sucht ...");
+  say(box, "sucht ...");
 
   let cleared = false;
   let total = 0;
@@ -1375,7 +1375,7 @@ async function doSearch() {
     const remote = await ask(word, "arasaac");
     if (mine !== searchToken) return;
     show("ARASAAC", remote);
-    if (!total) sagen(box, "Nichts gefunden zu „" + word + "“.");
+    if (!total) say(box, "Nichts gefunden zu „" + word + "“.");
   } catch (error) {
     if (mine !== searchToken) return;
     if (total) {
@@ -1383,7 +1383,7 @@ async function doSearch() {
       note.textContent = "ARASAAC nicht erreichbar - nur METACOM-Treffer.";
       box.appendChild(note);
     } else {
-      sagen(box, error.message);
+      say(box, error.message);
     }
   }
 }
