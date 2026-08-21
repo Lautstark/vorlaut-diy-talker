@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Weboberfläche für vorlaut - läuft auf http://localhost:8771
+"""Web interface for vorlaut - runs on http://localhost:8771
 
-Bewusst ohne Framework: nur die Python-Standardbibliothek. Die Seite sieht aus
-wie das Gerät - oben die Reiter für die Sets, darunter die vier Sprechtasten
-im 2x2-Raster und daneben die Set-Kachel.
+Deliberately without a framework: the Python standard library only. The page
+looks like the device - tabs for the sets on top, below them the four speech
+keys in a 2x2 grid with the set tile next to them.
 """
 
 from __future__ import annotations
@@ -32,27 +32,27 @@ ASSETS = ROOT / "assets"
 SYMBOLS_DIR = build.SYMBOLS_DIR
 THUMB_CACHE = build.CONTENT / "cache" / "thumbs"
 PORT = 8771
-HOST = "127.0.0.1"   # Voreinstellung: nur dieser Rechner
-MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB reichen für jedes Symbol
+HOST = "127.0.0.1"   # default: this machine only
+MAX_UPLOAD = 10 * 1024 * 1024  # 10 MB is plenty for any symbol
 
 ARASAAC_SEARCH = "https://api.arasaac.org/api/pictograms/de/search/"
 ARASAAC_IMAGE = "https://api.arasaac.org/api/pictograms/"
-ARASAAC_RESOLUTION = 500  # die API erlaubt nur 500 oder 2500
-# Hausmaß für alles in symbols/. Das Gerät rendert 116x116 Pixel, 500 lässt
-# reichlich Luft und hält den Repo klein - Symbole werden mitcommittet.
+ARASAAC_RESOLUTION = 500  # the API allows only 500 or 2500
+# House size for everything in symbols/. The device renders 116x116 pixels;
+# 500 leaves plenty of room and keeps the repo small.
 SYMBOL_MAX_PX = 500
-# Je Quelle, nicht insgesamt - sonst verdrängt die eine die andere.
+# Per source, not in total - otherwise one crowds out the other.
 SEARCH_LIMIT = 40
 
 
 # --- Hilfsfunktionen ---------------------------------------------------------
 
 def device_token() -> str:
-    """Schlüssel für die Geräte-Endpunkte: erst Umgebung, dann .env.
+    """Key for the device endpoints: environment first, then .env.
 
-    Ohne gesetzten Schlüssel bleiben die Endpunkte zu. Absichtlich so
-    herum: dort liegen die Tonaufnahmen und Bilder deines Kindes, und ein
-    Abgleich, den niemand eingerichtet hat, soll auch nichts herausgeben.
+    Without a key the endpoints stay shut. Deliberately that way round: what
+    lies behind them are the recordings and pictures of your child, and a sync
+    nobody set up should not hand anything out either.
     """
     value = (os.environ.get("VORLAUT_DEVICE_TOKEN") or "").strip()
     if value:
@@ -64,10 +64,10 @@ def device_token() -> str:
 
 
 def build_current_flag() -> str:
-    """"1", wenn data/ zum aktuellen Layout passt - sonst "0".
+    """"1" when data/ matches the current layout - otherwise "0".
 
-    Die Oberflaeche zeigt daran, ob das Bauen ansteht. Ein Fehler hier darf
-    Laden und Speichern nicht stoeren, deshalb im Zweifel "0".
+    The interface shows from this whether a build is due. A failure here must
+    not disturb loading and saving, so when in doubt it answers "0".
     """
     try:
         return "1" if build.build_is_current() else "0"
@@ -76,8 +76,8 @@ def build_current_flag() -> str:
 
 
 def layout_version() -> str:
-    """Kennung des aktuellen Dateistands, damit ein veralteter Tab nicht
-    stillschweigend die Arbeit eines anderen überschreibt."""
+    """Identifier of the current file state, so that a stale tab does not
+    silently overwrite someone else's work."""
     if not build.LAYOUT_FILE.exists():
         return "empty"
     return hashlib.sha256(build.LAYOUT_FILE.read_bytes()).hexdigest()[:16]
@@ -100,8 +100,8 @@ def arasaac_search(word: str) -> list[dict]:
         with urllib.request.urlopen(request, timeout=20) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        # ARASAAC antwortet auf ein Wort ohne Treffer mit 404 und einer leeren
-        # Liste. Das ist kein Fehler, sondern schlicht kein Ergebnis.
+        # ARASAAC answers a word without hits with 404 and an empty list.
+        # That is not an error, just no result.
         if exc.code == 404:
             return []
         raise
@@ -121,8 +121,8 @@ def arasaac_search(word: str) -> list[dict]:
                 "source": "arasaac",
                 "id": pictogram_id,
                 "label": label,
-                # über den eigenen Server, damit die Seite keine Anfragen
-                # nach draußen stellen muss
+                # through our own server, so the page does not have to make
+                # requests to the outside
                 "url": f"/api/thumb?id={pictogram_id}",
             }
         )
@@ -130,11 +130,11 @@ def arasaac_search(word: str) -> list[dict]:
 
 
 def preview_png(symbol: str, color: str) -> bytes:
-    """Was das Display wirklich zeigen wird, als PNG.
+    """What the display will really show, as a PNG.
 
-    Nicht das Quellbild: hier steckt die Verkleinerung auf 116x116, die
-    Quantisierung auf RGB565 und der Rahmen drin, den die Firmware zeichnet.
-    Auf 15,21 mm sichtbarer Fläche macht das einen Unterschied.
+    Not the source image: this contains the scaling down to 116x116, the
+    quantisation to RGB565 and the border the firmware draws. On 15.21 mm of
+    visible area that makes a difference.
     """
     Image, _ = build._require_pillow()
     raw = build.tile_bytes(symbol)          # 116x116, RGB565 big-endian
@@ -146,7 +146,7 @@ def preview_png(symbol: str, color: str) -> bytes:
         r = (value >> 11) << 3
         g = ((value >> 5) & 0x3F) << 2
         b = (value & 0x1F) << 3
-        # Die unteren Bits so auffüllen, wie ein Panel es tut
+        # Pad the low bits the way a panel does
         px[i % kante, i // kante] = (r | r >> 5, g | g >> 6, b | b >> 5)
 
     tile = Image.new("RGB", (build.IMG_SIZE, build.IMG_SIZE),
@@ -167,24 +167,24 @@ def save_upload(data: bytes, original_name: str) -> str:
     except Exception as exc:  # Pillow wirft je nach Format Verschiedenes
         raise ValueError("Das ist kein lesbares Bild.") from exc
 
-    # Auf quadratisch beschneiden, mittig. Die Kachel ist quadratisch - ohne
-    # das bliebe an zwei Seiten ein weißer Balken stehen, und das Bild wäre
-    # kleiner als nötig. Zuerst schneiden, dann verkleinern: das kostet
-    # weniger Schärfe, als andersherum.
+    # Crop to square, centred. The tile is square - without this a white bar
+    # would remain on two sides and the picture would be smaller than needed.
+    # Crop first, then scale down: that costs less sharpness than the other
+    # way round.
     if picture.width != picture.height:
         seite = min(picture.size)
         links = (picture.width - seite) // 2
         oben = (picture.height - seite) // 2
         picture = picture.crop((links, oben, links + seite, oben + seite))
 
-    # Handyfotos kommen mit mehreren tausend Pixeln an. Direkt beim Annehmen
-    # verkleinern, damit nie ein Riesenbild in symbols/ landet.
+    # Phone photos arrive with several thousand pixels. Scale down right on
+    # acceptance, so no huge image ever lands in symbols/.
     if max(picture.size) > SYMBOL_MAX_PX:
         picture.thumbnail((SYMBOL_MAX_PX, SYMBOL_MAX_PX), Image.LANCZOS)
 
     stem = slugify(Path(original_name).stem)
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
-    # Vorhandene Symbole nicht überschreiben, sondern durchnummerieren.
+    # Do not overwrite existing symbols, number them instead.
     filename = f"{stem}.png"
     counter = 2
     while (SYMBOLS_DIR / filename).exists():
@@ -195,10 +195,10 @@ def save_upload(data: bytes, original_name: str) -> str:
 
 
 def arasaac_fetch(pictogram_id: int) -> bytes:
-    """Holt ein Piktogramm als PNG und legt es im Cache ab.
+    """Fetches a pictogram as PNG and puts it into the cache.
 
-    Die API erlaubt nur die Auflösungen 500 und 2500; wir nehmen 500 sowohl
-    für die Vorschau in der Suche als auch für die Datei in symbols/.
+    The API allows the resolutions 500 and 2500 only; we take 500 both for the
+    preview in search and for the file in symbols/.
     """
     identifier = int(pictogram_id)
     THUMB_CACHE.mkdir(parents=True, exist_ok=True)
@@ -233,7 +233,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/api/"):
             print(f"  {self.command} {self.path}", flush=True)
 
-    # -- Geräte-Abgleich --
+    # -- Device sync --
 
     def _device_allowed(self) -> bool:
         """Schlüssel prüfen. Antwortet selbst, wenn etwas nicht stimmt."""
@@ -244,9 +244,9 @@ class Handler(BaseHTTPRequestHandler):
                 "VORLAUT_DEVICE_TOKEN fehlt.", 503)
             return False
         # Nur als Kopfzeile, nie im Adressteil: Adressen landen in
-        # Protokollen, Kopfzeilen nicht.
+        # logs, headers do not.
         sent = self.headers.get("X-Vorlaut-Token", "")
-        # compare_digest statt ==, damit die Antwortzeit nichts verrät.
+        # compare_digest instead of ==, so the response time gives nothing away.
         if not hmac.compare_digest(sent, token):
             self._error("Falscher oder fehlender Schlüssel.", 401)
             return False
@@ -328,8 +328,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/search":
             word = (query.get("q") or [""])[0].strip()
-            # Ohne Angabe beide Quellen. Die Oberfläche fragt sie einzeln ab,
-            # damit die lizenzierte Sammlung sofort dasteht und nicht auf die
+            # Without a value, both sources. The interface asks for them
+            # separately so the licensed collection is there at once instead of
             # Antwort aus dem Netz wartet.
             source = (query.get("source") or [""])[0].strip()
             if not word:
@@ -344,8 +344,8 @@ class Handler(BaseHTTPRequestHandler):
                     results.extend(arasaac_search(word)[:SEARCH_LIMIT])
                 except (urllib.error.URLError, json.JSONDecodeError,
                         TimeoutError) as exc:
-                    # Treffer aus der eigenen Sammlung sind mehr wert als eine
-                    # Fehlermeldung - die kommt nur, wenn sonst nichts da ist.
+                    # Hits from one's own collection are worth more than an
+                    # error message - that comes only when nothing else is there.
                     if not results:
                         self._error(f"ARASAAC nicht erreichbar: {exc}", 502)
                         return
@@ -364,7 +364,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/device/file":
             if not self._device_allowed():
                 return
-            # Nur der Dateiname, nichts davor - der Wunsch kommt von aussen.
+            # The file name only, nothing before it - the request comes from outside.
             name = Path((query.get("name") or [""])[0]).name
             target = build.DATA_DIR / name
             if not name or not target.is_file():
@@ -391,10 +391,10 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/manifest.webmanifest":
-            # Damit sich die Seite als App auf den Startbildschirm legen
-            # lässt. Bewusst ohne Service Worker: die Oberfläche ist ohne
-            # Server ohnehin nutzlos, und zwischengespeichertes JavaScript
-            # hätte schon genug Ärger gemacht.
+            # So the page can be placed on the home screen as an app.
+            # Deliberately without a service worker: the interface is useless
+            # without the server anyway, and cached JavaScript has caused
+            # enough trouble already.
             self._json({
                 "name": "vorlaut",
                 "short_name": "vorlaut",
@@ -431,8 +431,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path.startswith("/symbols/"):
-            # Der Verweis kann "bild.png" sein oder "metacom:name" - welche
-            # Datei gemeint ist, entscheidet build.symbol_path.
+            # The reference can be "bild.png" or "metacom:name" - which file
+            # is meant is decided by build.symbol_path.
             reference = urllib.parse.unquote(path[len("/symbols/"):])
             target = build.symbol_path(reference)
             if target is None:
@@ -447,7 +447,7 @@ class Handler(BaseHTTPRequestHandler):
         route = urllib.parse.urlparse(self.path)
         path = route.path
 
-        # Der Upload schickt rohe Bilddaten, kein JSON - deshalb vorher raus.
+        # The upload sends raw image data, not JSON - so it leaves early.
         if path == "/api/upload":
             self._upload(urllib.parse.parse_qs(route.query))
             return
@@ -462,7 +462,7 @@ class Handler(BaseHTTPRequestHandler):
             sent = self.headers.get("X-Layout-Version")
             current = layout_version()
             if sent and sent != current:
-                # Diese Seite kennt einen älteren Stand. Nicht überschreiben.
+                # This page knows an older state. Do not overwrite.
                 self._json(
                     {
                         "error": "Diese Seite hat einen veralteten Stand - "
@@ -485,9 +485,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/pick":
-            # METACOM-Symbole werden nicht heruntergeladen und nicht kopiert:
-            # sie bleiben in der lizenzierten Sammlung, im Layout steht nur
-            # der Verweis darauf.
+            # METACOM symbols are neither downloaded nor copied: they stay in
+            # the licensed collection, the layout only holds the reference.
             if (body.get("source") or "") == "metacom":
                 reference = str(body.get("ref") or "")
                 if build.symbol_path(reference) is None:
@@ -548,7 +547,7 @@ PAGE = r"""<!doctype html>
     --line: #343a45;
     --text: #eceff4;
     --muted: #9aa3b2;
-    --accent: #9B7BFF;   /* das Lila aus dem Symbol */
+    --accent: #9B7BFF;   /* the purple from the icon */
   }
   * { box-sizing: border-box; }
   body {
@@ -613,7 +612,7 @@ PAGE = r"""<!doctype html>
     border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
   }
   input[type=color]:hover { border-color: var(--muted); }
-  /* Etwas schmaler gesetzt, damit "#4A90D9" vollständig hineinpasst. */
+  /* Set slightly narrower so that "#4A90D9" fits in completely. */
   .colorRow input[type=text] {
     flex: 1 1 auto; padding: 8px 6px; font-family: ui-monospace, monospace;
     font-size: 13px;
@@ -623,7 +622,7 @@ PAGE = r"""<!doctype html>
     border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px;
   }
   button:hover { background: #303540; }
-  /* Dunkle Schrift auf dem Lila: 5,5:1 statt 3,2:1 mit Weiß. */
+  /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. */
   button.primary {
     background: var(--accent); border-color: transparent; color: #1b1b20;
     font-weight: 600;
@@ -646,10 +645,10 @@ PAGE = r"""<!doctype html>
   .tab[draggable=true] { cursor: grab; }
 
   .status { color: var(--muted); font-size: 13px; }
-  /* Schiebeschalter. HTML kennt so etwas nicht - Safari 17.4 rendert
-     <input type="checkbox" switch> nativ so, sonst gibt es nur das Kästchen.
-     Also aus dem Kästchen gebaut: das bleibt darunter erhalten und damit auch
-     Tastaturbedienung und Vorlesen. */
+  /* Toggle switch. HTML has no such thing - Safari 17.4 renders
+     <input type="checkbox" switch> natively that way, elsewhere there is only
+     the box. So it is built from the box: that stays underneath, and with it
+     keyboard operation and screen readers. */
   .schalter {
     display: flex; align-items: center; gap: 8px; cursor: pointer;
     color: var(--muted); font-size: 13px; white-space: nowrap;
@@ -670,9 +669,8 @@ PAGE = r"""<!doctype html>
     outline: 2px solid var(--muted); outline-offset: 2px;
   }
   header .status { margin-left: auto; }
-  /* Originalgröße: 15,21 mm sind auf dem Gerät sichtbar. Auf dem Bildschirm
-     ungefähr lebensgroß, damit man beurteilen kann, ob ein Symbol darauf
-     überhaupt erkennbar ist. */
+  /* Original size: 15.21 mm are visible on the device. Roughly life-size on
+     screen, so one can judge whether a symbol is recognisable on it at all. */
   .echtgross {
     display: flex; align-items: center; gap: 8px;
     color: var(--muted); font-size: 11px;
@@ -688,7 +686,7 @@ PAGE = r"""<!doctype html>
   }
   .conflict.show { display: flex; }
   .conflict button { background: #4d2b2e; border-color: #7a3a3f; color: #f0d7d9; }
-  /* Linke Spalte: Set-Kachel und darunter der Löschen-Knopf. */
+  /* Left column: set tile with the delete button below it. */
   .setCol {
     grid-row: span 2; display: flex; flex-direction: column; gap: 10px;
     justify-content: flex-start;
@@ -700,22 +698,22 @@ PAGE = r"""<!doctype html>
     max-height: 260px; overflow: auto; white-space: pre-wrap; display: none;
   }
 
-  /* Auf dem Handy passen drei Spalten nicht - dann die Set-Kachel über die
-     volle Breite und die vier Sprechtasten als 2x2 darunter. Die räumliche
-     Zuordnung bleibt damit erhalten. */
+  /* Three columns do not fit on a phone - then the set tile across the full
+     width and the four speech keys as a 2x2 below it. The spatial
+     correspondence is preserved that way. */
   @media (max-width: 620px) {
-    /* Nebeneinander braucht die Kopfzeile 493px - auf einem 375px breiten
-       Display fielen "Speichern" und "Bauen" heraus, ohne dass sich seitlich
+    /* Side by side the header needs 493px - on a 375px wide display
+       "Speichern" and "Bauen" fell outside, with no way to scroll
        scrollen liess. Also umbrechen statt stauchen:
-       Zeile 1  Logo, Name, die beiden Knoepfe rechts
-       Zeile 2  Geraetevorschau, Statustext rechts */
+       Row 1  logo, name, the two buttons on the right
+       Row 2  device preview, status text on the right */
     header { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
     header h1 { margin-right: auto; }
     .schalter { order: 1; }
     header .status { order: 2; margin-left: auto; }
 
-    /* Bei 20 Sets fraessen umbrechende Reiter das halbe Display, bevor
-       ueberhaupt Inhalt kommt. Auf dem Handy deshalb eine Zeile zum Wischen. */
+    /* With 20 sets, wrapping tabs eat half the display before any content
+       appears. On a phone therefore a single row to swipe. */
     .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin;
       margin-bottom: 8px; }
     .tabs .tab { flex: none; }
@@ -735,16 +733,16 @@ PAGE = r"""<!doctype html>
     display: flex; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line);
     align-items: center;
   }
-  /* Die Knöpfe behalten ihre Breite, das Suchfeld gibt nach - sonst bricht
-     die Beschriftung um und wird abgeschnitten. */
+  /* The buttons keep their width, the search field yields - otherwise the
+     labels wrap and get cut off. */
   .dlgHead button { flex: none; white-space: nowrap; }
   .dlgHead input[type=text] { flex: 1 1 auto; width: auto; min-width: 4rem; }
   .results {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
     gap: 10px; padding: 16px; max-height: 60vh; overflow: auto;
   }
-  /* Meldungen sind keine Ergebnisse - sie sollen nicht in eine 96px-Spalte
-     gequetscht werden. */
+  /* Messages are not results - they should not be squeezed into a 96px
+     column. */
   .results p { grid-column: 1 / -1; margin: 4px 2px; color: var(--muted); }
   .results figure { margin: 0; cursor: pointer; text-align: center; }
   .results img {
@@ -754,26 +752,26 @@ PAGE = r"""<!doctype html>
   .results figure:hover img { border-color: var(--accent); }
   .results figcaption { font-size: 11px; color: var(--muted); margin-top: 4px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* Trennt die Quellen: die lizenzierte Sammlung oben, ARASAAC darunter. */
+  /* Separates the sources: the licensed collection on top, ARASAAC below. */
   .results .group { grid-column: 1 / -1; margin: 10px 2px 0; font-size: 11px;
     letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
     border-bottom: 1px solid var(--line); padding-bottom: 4px; }
   .results .group:first-child { margin-top: 0; }
-  /* Inaktive Sets bleiben sichtbar, treten aber zurueck - man soll an der
+  /* Inactive sets stay visible but recede - one should be able to read off
      Leiste ablesen koennen, was gerade aufs Geraet geht. */
   .tab.off { opacity: .45; }
   .tab.off .dot { box-shadow: inset 0 0 0 2px var(--panel); }
   .slots { color: var(--muted); font-size: 12px; margin: -8px 2px 14px; }
-  /* Kein aktives Set ist erlaubt - das Geraet faengt es ab und zeigt einen
-     Hinweis. Gewollt ist es aber selten, deshalb dieselbe Warnfarbe wie beim
-     Speicherkonflikt, nur als schmales Feld statt als Banner. */
+  /* No active set is allowed - the device catches it and shows a notice.
+     It is rarely intended though, hence the same warning colour as for the
+     save conflict, only as a narrow field instead of a banner. */
   .slots.empty {
     color: #f0d7d9; background: #3a2224; border: 1px solid #7a3a3f;
     border-radius: 8px; padding: 6px 10px; display: inline-block;
   }
   .schalter.onDevice { font-size: 13px; }
-  /* Abgesetzt vom Rest der Kachel: darueber steht, wie das Set aussieht,
-     hier steht, ob es aufs Geraet geht. */
+  /* Set apart from the rest of the tile: above it says how the set looks,
+     here it says whether it goes onto the device. */
   .activeRow {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
@@ -828,13 +826,13 @@ let layout = { sleep_timeout_seconds: 600, sets: [] };
 let current = 0;
 let pickTarget = null;      // {kind: "set"} oder {kind: "slot", index: n}
 let sources = { metacom: false };
-let searchToken = 0;        // damit eine langsame Antwort keine neuere überholt
-let dragSet = null;         // Index des gezogenen Sets
-let dragSlot = null;        // Index der gezogenen Taste
+let searchToken = 0;        // so a slow answer cannot overtake a newer one
+let dragSet = null;         // index of the dragged set
+let dragSlot = null;        // index of the dragged key
 let saveTimer = null;
 let layoutVersion = null;   // Stand, den diese Seite geladen hat
-let unsaved = false;        // es gibt Änderungen, die noch nicht in der Datei sind
-let vorschau = false;       // Kacheln so zeigen, wie das Display sie anzeigt
+let unsaved = false;        // there are changes not yet in the file
+let preview = false;       // show tiles the way the display shows them
 
 const $ = (id) => document.getElementById(id);
 const removeSetBtn = $("removeSet");
@@ -862,11 +860,11 @@ async function load() {
   render();
 }
 
-// Eine Sekunde nach der letzten Eingabe. Kuerzer bringt nichts - es fuehlt
-// sich nicht schneller an, erzeugt aber deutlich mehr Schreibvorgaenge.
-// Der Bauen-Knopf sagt selbst, ob er dran ist: hervorgehoben, solange
-// data/ nicht zum Layout passt, sonst zurueckgenommen. Damit muss sich
-// niemand merken, wann gebaut werden muss.
+// One second after the last keystroke. Shorter gains nothing - it does not
+// feel faster but produces markedly more writes.
+// The build button says for itself whether it is due: highlighted while
+// data/ does not match the layout, subdued otherwise. That way nobody has to
+// remember when a build is needed.
 function markBuildState(flag) {
   if (flag === null || flag === undefined) return;
   const needed = flag !== "1";
@@ -884,8 +882,8 @@ function saveSoon() {
   saveTimer = setTimeout(save, 1000);
 }
 
-// Bringt layout in dieselbe Form, die der Server daraus macht. Nur so lassen
-// sich die beiden Stände sinnvoll vergleichen.
+// Brings layout into the same shape the server makes of it. Only then can
+// the two states be compared meaningfully.
 function vergleichbar(l) {
   return JSON.stringify({
     sets: (l.sets || []).map((entry) => ({
@@ -900,9 +898,9 @@ function vergleichbar(l) {
   });
 }
 
-// Speichervorgänge nacheinander abarbeiten. Zwei gleichzeitige würden sich
-// mit dem Stand-Abgleich gegenseitig abweisen - und der Aufrufer könnte nicht
-// mehr darauf warten, dass wirklich geschrieben wurde.
+// Process saves one after another. Two at once would reject each other via
+// the state check - and the caller could no longer wait for the write to have
+// actually happened.
 let saveChain = Promise.resolve();
 
 function save() {
@@ -937,14 +935,14 @@ async function doSave() {
     }
     layoutVersion = response.headers.get("X-Layout-Version");
   markBuildState(response.headers.get("X-Build-Current"));
-    // layout hier NICHT durch die Antwort ersetzen. Die Eingabefelder hängen
-    // an genau diesen Objekten; ein frisches Geflecht vom Server würde ihre
-    // Handler ins Leere zeigen lassen, und alles weitere Getippte ginge
-    // verloren, bis das nächste render() die Felder neu aufbaut.
+    // Do NOT replace layout with the answer here. The input fields hang off
+    // exactly these objects; a fresh graph from the server would leave their
+    // handlers pointing at nothing, and everything typed afterwards would be
+    // lost until the next render() rebuilds the fields.
     const gespeichert = await response.json();
 
-    // Nachprüfen statt vertrauen: steht in der Datei wirklich das, was auf
-    // dem Bildschirm steht? Wenn nicht, lieber laut sagen als still verlieren.
+    // Verify instead of trust: does the file really hold what is on screen?
+    // If not, better to say so loudly than to lose it quietly.
     if (vergleichbar(gespeichert) !== vergleichbar(layout)) {
       $("conflictText").textContent =
         "Achtung: Die Datei enthält nicht das, was hier steht. Bitte den " +
@@ -973,7 +971,7 @@ $("overwriteBtn").onclick = async () => {
 $("reloadBtn").onclick = () => load();
 
 $("previewToggle").onchange = () => {
-  vorschau = $("previewToggle").checked;
+  preview = $("previewToggle").checked;
   render();
 };
 
@@ -982,7 +980,7 @@ $("saveBtn").onclick = async () => {
   await save();
 };
 
-// Wer das Fenster schließt, während noch etwas aussteht, soll das merken.
+// Whoever closes the window while something is outstanding should notice.
 window.addEventListener("beforeunload", (event) => {
   if (!unsaved) return;
   event.preventDefault();
@@ -993,7 +991,7 @@ function clearDragMarks() {
   document.querySelectorAll(".dragover").forEach((el) => el.classList.remove("dragover"));
 }
 
-// Vom Server eingesetzt, damit die Liste nur in build.py gepflegt wird.
+// Injected by the server, so the list is maintained in build.py only.
 const palette = __PALETTE__;
 const limits = __LIMITS__;
 
@@ -1011,12 +1009,12 @@ function emptySet(index, active) {
   };
 }
 
-// Die sichtbare Fläche der ScreenKeys ist nur 15,21 mm. Ob ein Piktogramm
-// darauf erkennbar ist, sieht man erst in dieser Größe - und zwar so, wie das
-// Display es zeigt: auf 116x116 verkleinert und auf RGB565 gerundet.
+// The visible area of the ScreenKeys is only 15.21 mm. Whether a pictogram
+// is recognisable on it shows only at this size - and shown the way the
+// display shows it: scaled to 116x116 and rounded to RGB565.
 //
-// Die große Kachel darüber bleibt bewusst das Quellbild. Sie ist zum
-// Aussuchen da und soll scharf sein.
+// The large tile above deliberately stays the source image. It is there for
+// picking and should be sharp.
 function echtgross(symbol, colour) {
   const line = document.createElement("div");
   line.className = "echtgross";
@@ -1055,7 +1053,7 @@ function render() {
     tab.append(entry.name || "Set " + (index + 1));
     tab.onclick = () => { current = index; render(); };
 
-    // Sets umsortieren: die Reihenfolge bestimmt, wie die Set-Taste durchschaltet.
+    // Reorder sets: the order determines how the set key cycles through.
     tab.draggable = true;
     tab.ondragstart = (event) => {
       dragSet = index;
@@ -1088,8 +1086,8 @@ function render() {
     add.className = "tab add";
     add.textContent = "+ Set";
     add.onclick = async () => {
-      // Ein neues Set nur dann gleich aktiv, wenn noch ein Platz frei ist -
-      // sonst liesse sich das Layout gar nicht speichern.
+      // A new set is active straight away only when a slot is still free -
+      // otherwise the layout could not be saved at all.
       layout.sets.push(emptySet(layout.sets.length, activeCount() < limits.maxActive));
       current = layout.sets.length - 1;
       await save();
@@ -1117,7 +1115,7 @@ function render() {
   }
   const color = entry.color;
 
-  // Set-Kachel links, danach die vier Sprechtasten im 2x2-Raster.
+  // Set tile on the left, then the four speech keys in a 2x2 grid.
   const setCol = document.createElement("div");
   setCol.className = "setCol";
   const setTile = document.createElement("div");
@@ -1129,7 +1127,7 @@ function render() {
   setTile.appendChild(setLabel);
   setTile.appendChild(thumb(entry.symbol, () => openPicker({ kind: "set" }, entry.name)));
 
-  if (vorschau) setTile.appendChild(echtgross(entry.symbol, color));
+  if (preview) setTile.appendChild(echtgross(entry.symbol, color));
 
   const nameInput = document.createElement("input");
   nameInput.type = "text";
@@ -1138,12 +1136,12 @@ function render() {
   nameInput.oninput = () => { entry.name = nameInput.value; saveSoon(); renderTabsOnly(); };
   setTile.appendChild(nameInput);
 
-  // Aufs Geraet passen nur fuenf Sets - anlegen darf man mehr. Der Schalter
+  // Only five sets fit onto the device - creating more is allowed. The
   // entscheidet, welche davon gerade mitkommen.
   const activeToggle = document.createElement("label");
   activeToggle.className = "schalter onDevice";
-  // Kurz, weil daneben schon "Gerätevorschau" steht - zweimal "Gerät" in
-  // einer Ansicht liest sich wie dasselbe. Was es bedeutet, sagt der Titel.
+  // Short, because "Gerätevorschau" already sits next to it - twice "Gerät"
+  // in one view reads like the same thing. The title says what it means.
   activeToggle.title = "Aktive Sets gehen aufs Gerät - höchstens "
                    + limits.maxActive + " gleichzeitig";
   const activeBox = document.createElement("input");
@@ -1194,13 +1192,13 @@ function render() {
     feld.onclick = () => applyColor(hex);
     swatches.appendChild(feld);
   });
-  // Direkt unter das Namensfeld: die Schnellauswahl ist der Normalfall,
-  // der Farbwähler darunter die Ausnahme.
+  // Directly below the name field: the quick picks are the normal case, the
+  // colour picker below them the exception.
   setTile.insertBefore(swatches, colorRow);
 
-  // Ganz unten und abgesetzt: Name und Farbe beschreiben das Set, "Aktiv"
-  // entscheidet, was damit geschieht - dieselbe Ecke wie das Loeschen
-  // darunter. Bewusst nicht in dessen Rot: abschalten ist umkehrbar.
+  // At the very bottom and set apart: name and colour describe the set,
+  // "Aktiv" decides what happens to it - the same corner as the delete button
+  // below. Deliberately not in its red: switching off is reversible.
   const activeRow = document.createElement("div");
   activeRow.className = "activeRow";
   activeRow.appendChild(activeToggle);
@@ -1224,8 +1222,8 @@ function render() {
     caption.className = "slotNr";
     caption.textContent = "TASTE " + (index + 1);
 
-    // Tasten tauschen: im festen 2x2-Raster ist Tauschen eindeutiger als
-    // Einsortieren - die andere Taste rückt genau dorthin, wo diese herkam.
+    // Swap keys: in the fixed 2x2 grid swapping is less ambiguous than
+    // inserting - the other key moves exactly where this one came from.
     const grip = document.createElement("span");
     grip.className = "grip";
     grip.textContent = "\u283F";
@@ -1275,7 +1273,7 @@ function render() {
     row.append(textInput, playBtn);
     tile.appendChild(row);
 
-    if (vorschau) tile.appendChild(echtgross(slot.symbol, color));
+    if (preview) tile.appendChild(echtgross(slot.symbol, color));
     device.appendChild(tile);
   });
 }
@@ -1353,8 +1351,8 @@ async function doSearch() {
       image.loading = "lazy";
       image.alt = "";
       const caption = document.createElement("figcaption");
-      // textContent statt innerHTML: die Beschriftung kommt aus einer fremden
-      // Datenquelle und ist kein Markup.
+      // textContent instead of innerHTML: the caption comes from a foreign
+      // data source and is not markup.
       caption.textContent = item.label || item.id;
       figure.append(image, caption);
       figure.onclick = () => pick(item);
@@ -1364,9 +1362,9 @@ async function doSearch() {
   };
 
   try {
-    // Die lizenzierte Sammlung liegt lokal und ist sofort da. ARASAAC geht
-    // über das Netz und kommt danach - so steht schon etwas auf dem Schirm,
-    // während die zweite Quelle noch antwortet.
+    // The licensed collection sits locally and is there at once. ARASAAC
+    // goes over the network and comes afterwards - that way something is
+    // already on screen while the second source is still answering.
     if (sources.metacom) {
       const hits = await ask(word, "metacom");
       if (mine !== searchToken) return;
@@ -1388,15 +1386,15 @@ async function doSearch() {
   }
 }
 
-// Trägt ein fertiges Symbol dort ein, wo der Dialog geöffnet wurde.
-// label ist das Wort zum Symbol, sofern die Quelle eines mitliefert.
+// Enters a finished symbol where the dialog was opened.
+// label is the word for the symbol, if the source supplies one.
 async function applySymbol(filename, label) {
   const entry = layout.sets[current];
   const word = (label || "").trim();
   if (pickTarget.kind === "set") {
     entry.symbol = filename;
-    // Nur ein leeres Feld vorbelegen, niemals etwas überschreiben: das Symbol
-    // heißt "zustimmen", deine Taste soll aber "Ja!" sagen.
+    // Only prefill an empty field, never overwrite anything: the symbol is
+    // called "zustimmen", but your key should say "Ja!".
     if (word && !entry.name.trim()) entry.name = word;
   } else {
     const slot = entry.slots[pickTarget.index];
@@ -1428,8 +1426,8 @@ async function pick(item) {
   }
 }
 
-// Eigenes Bild: die Datei geht raw an den Server, der Name steht im
-// Query-String. So braucht es kein Multipart-Formular.
+// Own picture: the file goes to the server raw, the name sits in the query
+// string. That way no multipart form is needed.
 $("uploadBtn").onclick = () => $("fileInput").click();
 $("fileInput").onchange = async () => {
   const file = $("fileInput").files[0];
@@ -1480,8 +1478,8 @@ $("buildBtn").onclick = async () => {
   }
 };
 
-// Welche Symbolquellen es gibt, steht beim Start fest - einmal erfragen
-// reicht. Schlägt das fehl, bleibt es bei ARASAAC allein.
+// Which symbol sources exist is fixed at start - asking once is enough.
+// If that fails, it stays with ARASAAC alone.
 async function loadSources() {
   try {
     sources = await (await api("/api/sources")).json();
@@ -1517,7 +1515,7 @@ def local_addresses() -> list[str]:
     import socket
     adressen = set()
     try:
-        # Kein Verbindungsaufbau - der Kernel verrät nur, über welche
+        # No connection is made - the kernel only reveals which
         # Schnittstelle er hinauswollte.
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("192.0.2.1", 9))
@@ -1543,8 +1541,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.host in ("0.0.0.0", "::"):
         print(f"vorlaut läuft auf Port {args.port}", flush=True)
         if Path("/.dockerenv").exists():
-            # Im Container wäre die eigene Adresse die des Docker-Netzes und
-            # damit von außen nutzlos.
+            # Inside a container our own address would be the Docker
+            # network's and therefore useless from outside.
             print("  Im Container: die Adresse des NAS mit dem freigegebenen "
                   "Port verwenden.", flush=True)
         else:
