@@ -35,6 +35,7 @@ jobs:
             firmware/tests/test4_buttons
             firmware/tests/test5_sound
             firmware/tests/test6_wlan
+            firmware/tests/test7_sync
 
       # Ready-made image, so nobody has to install Arduino just to flash.
       # merged.bin contains bootloader, partition table and program and gets
