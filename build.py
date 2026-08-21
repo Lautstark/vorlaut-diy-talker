@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Baut aus layout.json alles, was die Firmware braucht, nach firmware/data/.
+"""Builds everything the firmware needs from layout.json into firmware/data/.
 
-Erzeugt pro Set S (1-basiert) und Slot N (1-basiert):
+Produces, per set S (1-based) and slot N (1-based):
   set<S>_slot<N>.wav   gesprochener Satz, 16 kHz mono 16 bit
   set<S>_slot<N>.bin   128x128 RGB565 big-endian, mit Set-Farbe als Rahmen
-  set<S>_label.bin     dasselbe für das Set-Symbol
-und dazu firmware/layout.h mit allen Konstanten für die Firmware.
+  set<S>_label.bin     the same for the set symbol
+plus firmware/layout.h with all constants for the firmware.
 """
 
 from __future__ import annotations
@@ -28,44 +28,44 @@ import tts
 ROOT = Path(__file__).resolve().parent
 
 # Alles, was dir gehört - Layout, Symbole, gesprochene Sätze - liegt unter
-# content/ und ist bewusst nicht versioniert. Der Ort lässt sich verlegen,
-# etwa auf eine Netzfreigabe:  VORLAUT_CONTENT=/volume1/talker
+# content/ and is deliberately not versioned. The location can be moved,
+# for instance onto a network share:  VORLAUT_CONTENT=/volume1/talker
 CONTENT = Path(os.environ.get("VORLAUT_CONTENT") or ROOT / "content").resolve()
 EXAMPLE = ROOT / "example"
 
 LAYOUT_FILE = CONTENT / "layout.json"
 SYMBOLS_DIR = CONTENT / "symbols"
-# Arduino verlangt, dass der Sketch-Ordner so heißt wie die .ino-Datei, und
-# der LittleFS-Uploader sucht data/ direkt daneben. Deshalb diese Ebene.
+# Arduino requires the sketch folder to have the same name as the .ino file,
+# and the LittleFS uploader looks for data/ right next to it. Hence this level.
 BACKUP_DIR = CONTENT / "cache" / "layout-backups"
 KEEP_BACKUPS = 60
-# Die Oberflaeche speichert kurz nach der letzten Eingabe, beim Tippen also
-# laufend. Ohne Mindestabstand fuellen sich die 60 Plaetze mit Zwischenstaenden
-# einzelner Woerter, und der Stand von gestern faellt hinten heraus.
+# The web interface saves shortly after the last keystroke, so continuously
+# while typing. Without a minimum interval the 60 slots fill up with snapshots
+# of single words, and yesterday's state drops off the end.
 BACKUP_MIN_INTERVAL = 5 * 60
 SKETCH_DIR = ROOT / "firmware" / "vorlaut"
 DATA_DIR = SKETCH_DIR / "data"
 
-# Was gleichzeitig aufs Geraet geht. Nicht willkuerlich: ein voll befuelltes
-# Set kostet rund 300 KiB, der Dateibereich fasst 1536 KiB. Dieselbe Zahl
+# How many go onto the device at once. Not arbitrary: a fully filled set
+# costs around 300 KiB and the file area holds 1536 KiB. The same number
 # steht als MAX_SETS in firmware/vorlaut/layout_format.h.
 MAX_ACTIVE_SETS = 5
 # Wie viele insgesamt in layout.json stehen duerfen. Keine Geraetegrenze -
-# die Sammlung liegt auf dem Rechner. Nur ein Riegel gegen eine Datei, die
+# the collection lives on the computer. Just a guard against a file that
 # niemand mehr ueberblickt.
 MAX_SETS = 25
 SLOTS_PER_SET = 4
 IMG_SIZE = 128           # Displayfläche
-BORDER = 6               # Rahmenbreite, wird von der Firmware gezeichnet
-TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, was tatsächlich als Datei anfällt
+BORDER = 6               # border width, drawn by the firmware
+TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, what actually ends up as a file
 TILE_CACHE = CONTENT / "cache" / "tiles"
 TILE_INDEX = TILE_CACHE / "index.json"
 # Haelt fest, welcher Stand zuletzt nach data/ gebaut wurde.
 BUILD_STATE = CONTENT / "cache" / "build-state.json"
-TILE_PIPELINE = 2        # hochzählen, wenn sich das Rendern ändert
+TILE_PIPELINE = 2        # bump when the rendering changes
 DEFAULT_COLOR = "#3B5BDB"
-# Vorschläge für neue Sets, in dieser Reihenfolge vergeben. Die Oberfläche
-# holt sich dieselbe Liste, damit sie nicht doppelt gepflegt werden muss.
+# Suggestions for new sets, handed out in this order. The web interface
+# fetches the same list so it does not have to be maintained twice.
 DEFAULT_PALETTE = ["#3B5BDB", "#159947", "#9B7BFF", "#FF8BC7", "#FF6B35"]
 DEFAULT_SLEEP_TIMEOUT = 600
 
@@ -74,20 +74,20 @@ METACOM_PREFIX = "metacom:"
 
 
 def symbol_path(symbol: str) -> Path | None:
-    """Die Bilddatei zu einem Symbolverweis - oder None, wenn es sie nicht gibt.
+    """The image file for a symbol reference - or None when it does not exist.
 
-    Zwei Herkünfte: ein nackter Dateiname meint symbols/ und damit etwas, das
-    dir gehört. Der Präfix "metacom:" meint die lizenzierte Sammlung, die
-    außerhalb des Projekts liegt und nur über VORLAUT_METACOM_DIR erreichbar
-    ist. Fehlt die, kommt None zurück wie bei jedem anderen fehlenden Symbol -
-    gerendert wird dann der Platzhalter.
+    Two origins: a bare file name means symbols/ and therefore something that
+    belongs to you. The prefix "metacom:" means the licensed collection, which
+    lives outside the project and is only reachable through
+    VORLAUT_METACOM_DIR. If that is missing, None comes back just like for any
+    other missing symbol - the placeholder gets rendered instead.
     """
     if not symbol:
         return None
     if symbol.startswith(METACOM_PREFIX):
         return metacom.resolve(symbol[len(METACOM_PREFIX):])
-    # Der Name stammt aus layout.json: alles ausser dem Dateinamen verwerfen,
-    # damit "../" nicht aus symbols/ herausführt.
+    # The name comes from layout.json: discard everything but the file name,
+    # so that "../" cannot lead out of symbols/.
     candidate = SYMBOLS_DIR / Path(symbol).name
     return candidate if candidate.exists() else None
 
@@ -143,10 +143,10 @@ def rgb_to_565(r: int, g: int, b: int) -> int:
 
 
 def ensure_content() -> None:
-    """Legt content/ an und füllt es beim ersten Mal aus example/.
+    """Creates content/ and fills it from example/ the first time round.
 
-    So zeigt ein frisch geklontes Projekt sofort etwas an, ohne dass jemand
-    von Hand Dateien anlegen muss.
+    That way a freshly cloned project shows something right away, without
+    anyone having to create files by hand.
     """
     CONTENT.mkdir(parents=True, exist_ok=True)
     SYMBOLS_DIR.mkdir(parents=True, exist_ok=True)
@@ -197,7 +197,7 @@ def normalize_layout(raw: dict) -> dict:
         slots = entry.get("slots") or []
         if not isinstance(slots, list):
             slots = []
-        # Genau 4 Slots: fehlende auffüllen, überzählige sind ein Fehler.
+        # Exactly 4 slots: pad the missing ones, surplus ones are an error.
         if len(slots) > SLOTS_PER_SET:
             raise BuildError(
                 f"Set {index + 1} hat {len(slots)} Slots, erlaubt sind genau "
@@ -217,8 +217,8 @@ def normalize_layout(raw: dict) -> dict:
         clean_sets.append(
             {
                 "name": str(entry.get("name") or f"Set {index + 1}").strip(),
-                # Fehlt das Feld, ist das Set aktiv - so bleiben Layouts aus
-                # der Zeit vor dieser Unterscheidung unveraendert gueltig.
+                # If the field is absent the set is active - that keeps
+                # layouts from before this distinction valid unchanged.
                 "active": bool(entry.get("active", True)),
                 "symbol": str(entry.get("symbol") or "").strip(),
                 "color": normalize_color(entry.get("color") or empty_set(index)["color"]),
@@ -244,9 +244,8 @@ def active_sets(layout: dict) -> list[dict]:
 def built_fingerprint(layout: dict) -> str:
     """Kennung dessen, was tatsächlich in data/ landet.
 
-    Bewusst nur die aktiven Sets: an einem abgeschalteten Set zu arbeiten
-    ändert nichts am Gerät und soll deshalb auch nicht als "neu bauen"
-    gemeldet werden.
+    Deliberately the active sets only: working on a switched-off set changes
+    nothing on the device and should therefore not be reported as a rebuild.
     """
     payload = {
         "sleep": layout["sleep_timeout_seconds"],
@@ -259,11 +258,11 @@ def built_fingerprint(layout: dict) -> str:
 
 
 def device_manifest() -> dict:
-    """Was auf dem Gerät liegen soll: Versionsstempel und Dateiliste.
+    """What should sit on the device: version stamp and file list.
 
-    Die Dateinamen sind Prüfsummen ihres Inhalts - deshalb genügt dem Gerät
-    diese Liste, um zu wissen, was ihm fehlt und was es wegwerfen kann. Nur
-    layout.bin heißt immer gleich und wird jedes Mal geholt.
+    The file names are hashes of their content - so this list is all the
+    device needs to know what it is missing and what it can throw away. Only
+    layout.bin always has the same name and gets fetched every time.
     """
     layout = load_layout()
     files = [
@@ -287,14 +286,14 @@ def _remember_build(layout: dict) -> None:
             encoding="utf-8",
         )
     except OSError:
-        pass   # ohne Merkzettel meldet die Oberflaeche haeufiger "neu bauen"
+        pass   # without the note the interface says "rebuild" more often
 
 
 def build_is_current(layout: dict | None = None) -> bool:
     """Entspricht data/ dem aktuellen Layout?
 
-    Nicht erkannt wird, wenn sich eine Symboldatei unter demselben Namen
-    ändert - dafür müsste jedes Bild bei jeder Abfrage gehasht werden.
+    What goes undetected is a symbol file changing under the same name - that
+    would mean hashing every image on every query.
     """
     if not (DATA_DIR / "layout.bin").exists():
         return False
@@ -311,14 +310,14 @@ def build_is_current(layout: dict | None = None) -> bool:
 
 
 def backup_layout(path: Path = LAYOUT_FILE) -> None:
-    """Legt den bisherigen Stand beiseite, bevor er überschrieben wird.
+    """Puts the previous state aside before it gets overwritten.
 
-    Billige Versicherung: die Oberfläche speichert immer die ganze Datei, und
-    ein Fehlgriff ist damit sonst endgültig.
+    Cheap insurance: the web interface always saves the whole file, so a
+    misstep would otherwise be final.
 
-    Nicht bei jedem Speichern: unverändert braucht es keine Sicherung, und
-    kurz nach der letzten ist der ältere Stand der wertvollere - ihn durch
-    einen Zwischenstand von vor zehn Sekunden zu verdrängen hilft niemandem.
+    Not on every save: unchanged content needs no backup, and shortly after
+    the last one the older state is the more valuable - pushing it out with a
+    snapshot from ten seconds ago helps nobody.
     """
     if not path.exists():
         return
@@ -334,7 +333,7 @@ def backup_layout(path: Path = LAYOUT_FILE) -> None:
             if age < BACKUP_MIN_INTERVAL:
                 return
         except OSError:
-            pass   # nicht lesbar: dann lieber sichern als nicht sichern
+            pass   # unreadable: then rather back up than not
 
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
     shutil.copyfile(path, BACKUP_DIR / f"layout-{stamp}.json")
@@ -366,17 +365,17 @@ def _require_pillow():
 
 
 def fill_colour(picture) -> tuple[int, int, int]:
-    """Die Farbe für die Fläche, die neben einem Symbol frei bleibt.
+    """The colour for the area left over next to a symbol.
 
-    Nicht jedes Symbol ist quadratisch - METACOM liefert 706x589 -, in der
-    quadratischen Kachel bleibt also oben und unten ein Streifen übrig. Weiß
-    ist dort richtig, solange das Symbol auf hellem Grund gezeichnet ist.
-    Bei den randlos farbigen Symbolen - "ja" ist durchgehend grün, "nein" rot -
-    entstünde dagegen ein sichtbarer weißer Balken.
+    Not every symbol is square - METACOM ships 706x589 - so in the square tile
+    a strip remains at the top and bottom. White is right there as long as the
+    symbol is drawn on a light background. With the edge-to-edge coloured
+    symbols - "ja" is green throughout, "nein" red - it would instead produce
+    a visible white bar.
 
-    Deshalb: kein Alphakanal und alle vier Ecken dieselbe Farbe heißt randlos
-    gefärbt, dann wird mit dieser Farbe weitergefüllt. Sonst bleibt es bei
-    Weiß - dunkle Strichzeichnung braucht den hellen Grund, und ein bunter
+    Hence: no alpha channel and all four corners the same colour means
+    edge-to-edge coloured, and that colour continues into the strip.
+    Otherwise it stays white - dark line art needs the light ground, and a
     Untergrund würde den Kontrast nehmen.
     """
     if picture.getchannel("A").getextrema()[0] < 255:
@@ -390,11 +389,11 @@ def fill_colour(picture) -> tuple[int, int, int]:
 def render_symbol(symbol: str) -> bytes:
     """116x116 Symbolfläche auf Weiß, ohne Rahmen.
 
-    Der farbige Rahmen kommt nicht mit ins Bild - den zeichnet die Firmware
-    aus SET_COLORS. Dadurch hängt diese Datei nur am Symbol: dasselbe Bild in
-    zwei verschieden farbigen Sets ist genau eine Datei.
+    The coloured border does not go into the image - the firmware draws it
+    from SET_COLORS. That makes this file depend on the symbol alone: the same
+    picture in two differently coloured sets is exactly one file.
 
-    Rückgabe sind rohe RGB565-Daten, big-endian, wie sie das ST7735-Panel
+    Returns raw RGB565 data, big-endian, in the form the ST7735 panel
     expected_size.
     """
     Image, ImageDraw = _require_pillow()
@@ -409,7 +408,7 @@ def render_symbol(symbol: str) -> bytes:
         ground = fill_colour(picture)
         inner = Image.new("RGB", (inner_size, inner_size), ground)
         picture.thumbnail((inner_size, inner_size), Image.LANCZOS)
-        # Transparenz auf den Untergrund legen, sonst wird sie schwarz.
+        # Composite transparency onto the ground, otherwise it turns black.
         backdrop = Image.new("RGBA", picture.size, ground + (255,))
         backdrop.alpha_composite(picture)
         offset = (
@@ -418,8 +417,8 @@ def render_symbol(symbol: str) -> bytes:
         )
         inner.paste(backdrop.convert("RGB"), offset)
     else:
-        # Platzhalter: leeres Feld mit grauem Kreuz, damit man sofort sieht,
-        # dass hier noch ein Symbol fehlt.
+        # Placeholder: empty field with a grey cross, so one sees at once
+        # that a symbol is still missing here.
         draw = ImageDraw.Draw(inner)
         pad = inner_size // 4
         grey = (200, 200, 200)
@@ -488,11 +487,11 @@ def to_rgb565_be(image) -> bytes:
 
 # --- layout.bin --------------------------------------------------------------
 #
-# Die Tabelle - wie viele Sets, welche Farben, welche Datei je Taste - liegt
-# beim Inhalt und nicht in der Firmware. Sonst müsste man ein neues Set mit
+# The table - how many sets, which colours, which file per key - sits with
+# the content and not in the firmware. Otherwise a new set would mean
 # Kabel aufspielen.
 #
-# Bewusst eine feste Binärstruktur und kein JSON: die Firmware liest damit
+# Deliberately a fixed binary structure and not JSON: it lets the firmware
 # Feld für Feld, ohne Parser.
 #
 #   Kopf   4  Kennung "MTRD"
@@ -503,7 +502,7 @@ def to_rgb565_be(image) -> bytes:
 #          4  Schlafzeit in Sekunden
 #   je Set 2  Farbe als RGB565
 #         32  Name, mit Nullbytes aufgefüllt
-#         16  Hash der Set-Kachel
+#         16  hash of the set tile
 #            je Taste (4x):
 #         16     Hash des Bildes
 #         16     Hash des Tons
@@ -514,7 +513,7 @@ LAYOUT_MAGIC = b"MTRD"
 LAYOUT_VERSION = 1
 NAME_BYTES = 32
 HASH_BYTES = 16
-# Feste Schrittweiten - die Firmware rechnet mit denselben Zahlen.
+# Fixed strides - the firmware works with the same numbers.
 SLOT_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1        # 34
 SET_BYTES = 2 + NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES   # 186
 HEADER_BYTES = 4 + 4 + 4                            # 12
@@ -529,8 +528,8 @@ def _hash_bytes(dateiname: str) -> bytes:
 
 
 def render_layout_bin(layout: dict, label_files, tile_files, audio_files) -> bytes:
-    # Nur die aktiven Sets - die Dateilisten sind genauso aufgebaut, und
-    # setCount im Kopf muss zu ihnen passen.
+    # The active sets only - the file lists are built the same way, and
+    # setCount in the header has to match them.
     sets = active_sets(layout)
     data = bytearray()
     data += LAYOUT_MAGIC
@@ -560,9 +559,9 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
 
     ensure_content()
     layout = load_layout()
-    # Aufs Geraet geht nur die Auswahl. Der Rest bleibt in layout.json liegen,
-    # samt Kacheln und Tonspuren im Zwischenspeicher - wieder anschalten
-    # kostet deshalb weder Rechenzeit noch einen Azure-Aufruf.
+    # Only the selection goes onto the device. The rest stays in layout.json,
+    # tiles and audio included in the cache - switching one back on therefore
+    # costs neither compute time nor an Azure call.
     sets = active_sets(layout)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -576,16 +575,16 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     expected: set[str] = set()
     audio_ok = True
 
-    # Ohne Key lässt sich nichts Neues sprechen - aber alles, was schon im
-    # Cache liegt, kann trotzdem verwendet werden. Genau das macht einen
+    # Without a key nothing new can be spoken - but everything already in
+    # the cache can still be used. That is exactly what makes a
     # frischen Klon des Repos ohne Azure-Zugang brauchbar.
     no_key = with_audio and not tts.have_key()
 
-    # Die Dateinamen auf dem Gerät sind Hashes des Inhalts. Damit liegt
-    # dasselbe Symbol oder derselbe Satz dort genau einmal, egal in wie vielen
-    # Sets er vorkommt - und eine Datei kann nie veralten, ohne dass sich ihr
-    # Name mitändert.
-    tile_files: list[list[str]] = []   # [set][slot] -> Dateiname
+    # The file names on the device are hashes of the content. That means the
+    # same symbol or the same sentence sits there exactly once, no matter how
+    # many sets it appears in - and a file can never go stale without its name
+    # changing along with it.
+    tile_files: list[list[str]] = []   # [set][slot] -> file name
     audio_files: list[list[str]] = []
     label_files: list[str] = []
 
@@ -599,9 +598,9 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         return name
 
     for index, entry in enumerate(sets, start=1):
-        # Die Nummer ist die Stelle in der Reihenfolge auf dem Geraet, nicht
-        # die in layout.json - bei abgeschalteten Sets faellt beides
-        # auseinander, deshalb steht der Name immer dabei.
+        # The number is the position in the order on the device, not the one
+        # in layout.json - with switched-off sets the two drift apart, which
+        # is why the name is always alongside.
         label = (f"Set {index}" if entry["name"] == f"Set {index}"
                  else f"Set {index} ({entry['name']})")
         # Set-Kachel
@@ -657,7 +656,7 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
         tile_files.append(tile_names)
         audio_files.append(audio_names)
 
-    # Reste früherer Läufe entfernen, damit kein altes Set übrig bleibt.
+    # Remove leftovers from earlier runs, so no old set stays behind.
     for existing in DATA_DIR.iterdir():
         if existing.is_file() and existing.name not in expected:
             existing.unlink()
@@ -678,8 +677,8 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     if not audio_ok:
         note("Hinweis: Es fehlen Tondateien - siehe Warnungen oben.")
 
-    # Das Bauen erzeugt nur Dateien. Auf dem Gerät ändert sich davon nichts -
-    # das ist ein eigener Schritt, und ohne diesen Hinweis wundert man sich.
+    # Building only produces files. Nothing changes on the device from that -
+    # it is a separate step, and without this note one wonders why.
     note("")
     note("Aufs Gerät kommen die Dateien damit noch nicht. Dafür:")
     note("  python build.py --fs-image   und der Befehl, den es ausgibt")
@@ -687,8 +686,8 @@ def build(with_audio: bool = True, force_audio: bool = False) -> list[str]:
     return log
 
 
-# Werte aus default_8MB.csv des ESP32-Cores - dort heißt die Partition
-# "spiffs", und genau die hängt LittleFS ein.
+# Values from default_8MB.csv of the ESP32 core - the partition is called
+# "spiffs" there, and that is exactly the one LittleFS mounts.
 FS_SIZE = 0x180000       # 1536 KiB
 FS_OFFSET = 0x670000
 FS_IMAGE = SKETCH_DIR / "littlefs.bin"
