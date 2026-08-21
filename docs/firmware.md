@@ -193,6 +193,7 @@ In the menu the keys label themselves. Currently:
 | 1 | **Info** — number of sets, is the file system there |
 | 2 | **Fetch content** — bring up Wi-Fi and sync with the web interface |
 | 3 | **new Wi-Fi** — open the setup portal and teach it another network |
+| 4 | **Pair** — fetch a new key from the web interface |
 | Set | **back** to normal operation |
 
 The rest stay empty. Entries appear once the function behind them exists.
@@ -206,20 +207,25 @@ comes up only when somebody asks for it here, and goes off again straight
 afterwards.
 
 **Setting up is its own key.** `new Wi-Fi` opens the portal: join the network
-**"vorlaut einrichten"** with a phone and enter the Wi-Fi and the key from
-`VORLAUT_DEVICE_TOKEN`. Both are kept in NVS and survive a reflash. The portal
-gives up after three minutes — a device stuck in a portal no longer speaks.
+**"vorlaut einrichten"** with a phone and enter the Wi-Fi. It is kept in NVS
+and survives a reflash. The portal gives up after three minutes — a device
+stuck in a portal no longer speaks.
 
 What is entered there does not replace what is stored: the network joins the
 list, so home and the grandparents' both keep working. Press `new Wi-Fi` again
 at the next place.
 
-**The address of the computer is not asked for.** Once the Wi-Fi is up the
+**Neither the address nor the key is asked for.** Once the Wi-Fi is up the
 device shouts one UDP packet into the network and takes the answer, so a new
 address from the router changes nothing and the same device works in another
 household. That takes about a second, with `searching` on the displays. The
 portal keeps a field for an address anyway, for the networks that swallow
-broadcasts — filled in, it beats the search. The whole of it is in
+broadcasts — filled in, it beats the search.
+
+The key it fetches itself the first time, by pairing: five digits on the
+displays, typed into the web interface. `Pair` on key 4 does it again on
+demand — when the key on the server has been replaced, or when the device is
+to talk to a different computer. The whole of it is in
 [software.md](software.md).
 
 `Fetch content` never opens the portal. It used to, whenever it found no
@@ -240,6 +246,8 @@ with a count, then `done` with the number of files. On failure they show
 | `wrong key` | the key does not match `VORLAUT_DEVICE_TOKEN` |
 | `shut` | no key set on the server, so the endpoints answer 503 |
 | `no answer` | nothing at that address — usually the editor is not running, or this is a network it is not on |
+| `too late` | the pairing code expired before anybody typed it |
+| `denied` | too many wrong attempts at the pairing code |
 
 The serial monitor gets the same in a full sentence. The one-word version
 exists because the alternative is fetching a USB cable to find out that a
@@ -247,6 +255,45 @@ character is missing from a key that was typed on a phone.
 
 New content is loaded straight after a successful sync, so the device shows it
 without a restart.
+
+### Pairing
+
+**A 32-character key typed character by character into a captive portal on a
+phone was the worst step in the whole setup**, and it is gone. Instead the
+device makes up **five digits and puts one on each display**, in the
+arrangement of the keys — 1 and 2 on top, 3 and 4 below, the set key on the
+left under the speaker. The web interface shows five boxes in the same places;
+each box gets what the display in that position shows. Type them, and the
+device is handed `VORLAUT_DEVICE_TOKEN` and stores it in NVS next to the Wi-Fi
+credentials.
+
+The digits are the proof that somebody is standing in front of the device: a
+device that has never been paired holds no shared secret and cannot prove
+anything to the server, but whoever can read its displays is in the room with
+it. That is why the device makes the code up and the browser confirms it, and
+not the other way round. The exchange itself is written down in
+[software.md](software.md#pairing).
+
+It happens **once**. `Fetch content` pairs only when there is no key stored, so
+a device already set up — including one from before pairing existed — goes
+straight past it. `Pair` on key 3 does it deliberately, for when the key on the
+server has been replaced or the device is to talk to a different computer. And
+a sync that comes back with `wrong key` throws the useless key away and pairs
+again by itself, because the portal no longer has a field to correct it in.
+
+While the code is up, **holding the set key ends the pairing** — the same
+400 ms as everywhere else, so brushing past it does not throw away a code
+somebody has already started typing. Otherwise it gives up by itself after
+three minutes, for the same reason the portal does.
+
+**The key is not tied to an address.** Address and key are stored separately,
+so a device carried to another network where the computer has a different
+address only needs the new address — nothing is paired again.
+
+`pair_format.h` holds the wire format with no Arduino dependency, the way
+`layout_format.h` and `panel_text.h` do, so `tests/test_pair_format.py` can
+check the five digits and the answers on the computer instead of on a device
+that shows the wrong digit and says nothing about why.
 
 All of those labels sit in [`texts.h`](../firmware/vorlaut/texts.h), one table
 per language, and the device picks one by the `language` field from

@@ -48,16 +48,21 @@ struct Strings {
   const char *wifiNew1;      // key 3: teach it another network, line 1
   const char *wifiNew2;      //                                 line 2
   const char *portalHint;    // ... the portal is open, go to the phone
+  const char *pairMenu;      // key 3: pair with the web interface
   const char *wifi;          // ... looking for the network
   const char *searching;     // ... and then for the computer that has the content
   const char *loading;       // ... transferring, with a count underneath
   const char *done;          // ... and it worked
   const char *failed;        // ... and it did not, with a reason below
+  const char *pairing;       // ... asking the server for a code
+  const char *paired;        // ... and the token arrived
   const char *noWifi;        // reasons, each one word
   const char *noServer;
   const char *badKey;
   const char *switchedOff;
   const char *noAnswer;      // ... nothing answered at that address
+  const char *tooLate;       // ... the pairing code expired unused
+  const char *denied;        // ... too many wrong attempts at the code
 };
 
 // The order has to match LANGUAGE_CODES in build.py - the file stores the
@@ -79,16 +84,21 @@ static const Strings LANGUAGES[] = {
     /* wifiNew1        */ "new",
     /* wifiNew2        */ "Wi-Fi",
     /* portalHint      */ "on phone",
+    /* pairMenu        */ "Pair",
     /* wifi            */ "Wi-Fi",
     /* searching       */ "searching",
     /* loading         */ "loading",
     /* done            */ "done",
     /* failed          */ "failed",
+    /* pairing         */ "pairing",
+    /* paired          */ "paired",
     /* noWifi          */ "no Wi-Fi",
     /* noServer        */ "no server",
     /* badKey          */ "wrong key",
     /* switchedOff     */ "shut",
     /* noAnswer        */ "no answer",
+    /* tooLate         */ "too late",
+    /* denied          */ "denied",
   },
   {  // 1 - German
     /* back            */ "zurück",
@@ -106,16 +116,21 @@ static const Strings LANGUAGES[] = {
     /* wifiNew1        */ "neues",
     /* wifiNew2        */ "WLAN",
     /* portalHint      */ "am Handy",
+    /* pairMenu        */ "Koppeln",
     /* wifi            */ "WLAN",
     /* searching       */ "suchen",
     /* loading         */ "lädt",
     /* done            */ "fertig",
     /* failed          */ "Fehler",
+    /* pairing         */ "koppeln",
+    /* paired          */ "gekoppelt",
     /* noWifi          */ "kein WLAN",
     /* noServer        */ "kein Ziel",
     /* badKey          */ "Schlüssel",
     /* switchedOff     */ "zu",
     /* noAnswer        */ "nicht da",
+    /* tooLate         */ "zu spät",
+    /* denied          */ "abgelehnt",
   },
 };
 

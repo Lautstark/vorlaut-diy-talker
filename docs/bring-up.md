@@ -111,8 +111,7 @@ anybody entering anything again — see **Several networks** in
 `test7_sync` — the sync and nothing else. No displays, no sound, no sleep, so
 that a problem here is this one problem and not one of six at the same time.
 
-It needs the key from `VORLAUT_DEVICE_TOKEN` in `.env`, asked for in the same
-portal as the Wi-Fi and kept afterwards. **The address it finds by itself:**
+It needs nothing typed in but the Wi-Fi. **The address it finds by itself:**
 one UDP broadcast, and whoever runs `app.py` answers with the port it listens
 on — the address is the one the answer came from. The monitor shows the search
 before the sync.
@@ -121,8 +120,17 @@ If nothing answers, the network is not carrying the broadcast; a guest network
 usually does not, and neither does a container behind a bridge network (see
 [operation.md](operation.md)). The device then falls back on whatever answered
 last time, and the portal still has a field to type an address into, which
-beats the search whenever it is filled in. How it all fits together is in
-[software.md](software.md).
+beats the search whenever it is filled in.
+
+**The key is not typed in either.** The sketch pairs by itself: it makes up
+five digits and prints them in the monitor, laid out the way they will later
+sit on the displays — 1 and 2 on top, the set key on the left, 3 and 4 below.
+Type those five into the web interface and the sketch is handed
+`VORLAUT_DEVICE_TOKEN` and stores it. The code is good for about three minutes.
+How the whole exchange works is in [software.md](software.md#pairing).
+
+The second run does not ask again: the key is in NVS and stays valid even if
+the computer turns up at a different address later.
 
 What should happen: **the first run fetches everything, the second fetches
 `layout.bin` only.** That difference is the whole point of the design — the
@@ -154,7 +162,11 @@ right at once. Everything the earlier stages tested separately, now together.
 Your own content comes afterwards, and **in this order:** first **neues WLAN**
 — that is the key that opens the portal from stages 6 and 7, for the network
 and the key. Then **Inhalte holen**, which does what stage 7 did, this time
-with the displays showing progress. Or over USB, `build.py --fs-image` and step
+with the displays showing progress — including the pairing, with one digit on
+each of the five displays instead of a line in the monitor. **Koppeln** on key
+4 does only that part, for when the key on the server has been replaced. A
+device set up before pairing existed has its key in the same place and goes
+straight past all of it. Or over USB, `build.py --fs-image` and step
 4 in [firmware.md](firmware.md).
 
 The two are apart on purpose. **Inhalte holen** never opens a portal: where the

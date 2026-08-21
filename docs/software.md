@@ -307,6 +307,10 @@ sync nobody set up should not hand anything out. Generating a key:
 python -c "import secrets; print(secrets.token_urlsafe(24))"
 ```
 
+**Nobody types that key into the device.** It used to be pasted into `.env` and
+then entered character by character into a captive portal on a phone, which was
+the worst step in the whole setup — see [Pairing](#pairing) below.
+
 The sync is simple because a file name always means the same content: the
 device fetches the manifest, compares the version stamp with the stored one,
 and on a mismatch fetches only the files it does not have and throws away what
@@ -354,6 +358,164 @@ by `firmware/tests/test7_sync`, which does nothing but this. Files land under
 `/.part` first and are renamed only once they are complete — a transfer that
 breaks off leaves a fragment behind, not half a file under a name that
 promises whole content.
+
+---
+
+## Pairing
+
+How the key gets onto the device without anybody typing it.
+
+The device shows **five digits, one per display**, and whoever is standing in
+front of it types them into the web interface. That is the whole idea: a device
+that has never been paired holds no shared secret, so it cannot prove anything
+to the server — but somebody who can read its displays is in the room with it.
+Physical presence is the proof, which is why **the device makes the code up and
+the browser confirms it**, and not the other way round.
+
+```
+   device                          server                        browser
+
+   1  POST /api/device/pair  ---->  remembers id, code, secret
+      id, code, secret
+
+   2  five digits on the
+      displays
+
+   3                                <----  POST /api/pair/confirm   somebody
+                                                                    types the
+                                                                    five digits
+
+   4  POST /api/device/pair/poll -> hands out VORLAUT_DEVICE_TOKEN
+      id, secret            <----   token
+```
+
+The device stores the token in NVS next to the Wi-Fi credentials, so it
+survives a reflash and pairing happens exactly once.
+
+### The digits sit where the keys sit
+
+The five digits are shown in the arrangement of the keys — 1 and 2 on top, 3
+and 4 below, the set key on the left under the speaker, the same drawing as in
+[hardware.md](hardware.md). **The web interface has to lay its five boxes out
+the same way.** Then nobody has to be told an order: each box gets what the
+display in that position shows.
+
+As one string the code runs `key1 key2 key3 key4 setkey` — that order is the
+only part of the arrangement the two sides have to agree on in writing.
+
+Leading zeros are kept, so a code is always five characters. Otherwise one of
+the five displays would stay empty and nobody could tell which.
+
+### The two device endpoints
+
+Lines, not JSON, and no key — this is where a device that has no key yet comes
+to get one. Same reasoning as the manifest: a JSON parser on the ESP32 means a
+library, a heap and a class of failure a fixed line format does not have. A
+reader skips keywords it does not know, so either side can gain a field without
+the other falling over.
+
+```
+POST /api/device/pair
+     device <12 hex>        the Wi-Fi MAC, stable across a reflash
+     code <5 digits>        what is on the displays
+     secret <32 hex>        16 random bytes, never shown anywhere
+
+  200 ok 1
+      expires 180
+      interval 3
+```
+
+```
+POST /api/device/pair/poll
+     device <12 hex>
+     secret <32 hex>
+
+  200 state waiting                    nobody has typed it yet
+  200 state ready
+      token <VORLAUT_DEVICE_TOKEN>     confirmed
+  200 state expired                    the code was too old
+  200 state denied                     too many wrong attempts
+```
+
+Status codes both endpoints may answer with: **503** when the server has no
+`VORLAUT_DEVICE_TOKEN` to hand out at all, **404** or **410** for a pairing the
+server does not know or no longer holds, **429** when too many pairings are
+being started at once. The device turns each of those into one word on its
+displays.
+
+**The secret is not the code.** Without it the poll would be authenticated by
+the device id alone — and that is the Wi-Fi MAC, which anybody on the network
+can read out of an ARP table. They could then poll along and take the token in
+the moment it is confirmed. Sixteen random bytes close that, and the secret
+never appears on a display or in the interface.
+
+### The two browser endpoints
+
+JSON, like the rest of the interface — this side has a parser.
+
+```
+GET  /api/pair
+     → {"waiting": [{"device": "aabbccddeeff", "since": 12}]}
+
+POST /api/pair/confirm   {"code": "12345"}
+     → {"ok": true, "device": "aabbccddeeff"}
+     → 400 {"error": "err.pair_wrong_code", "left": 3}
+     → 410 {"error": "err.pair_expired"}
+```
+
+`GET /api/pair` is what lets the interface offer the five boxes only when a
+device is actually waiting. `since` is seconds, so the page can show how much
+of the code's life is left.
+
+The user types five digits and nothing else — no device is picked. The server
+looks for the pending pairing carrying that code. A code matching none of them
+is a wrong attempt and counts against every pairing currently waiting, which
+with one device on the table is exactly right.
+
+### Expiry and attempts
+
+**A code lives about three minutes and dies after a handful of wrong
+attempts.** Both are on the server, because the server is the side that can be
+guessed at: five digits are a hundred thousand possibilities, which is plenty
+against somebody typing and nothing at all against a script.
+
+The device carries its own end of the same limit: it takes the `expires` the
+server sends but never keeps a code up for more than 200 seconds, and it polls
+no faster than every 2 and no slower than every 10 seconds whatever `interval`
+says. A server that answers with a year must not be able to park the device in
+a pairing for a year — the same reason the setup portal gives up after three
+minutes. **A device that hangs in setup no longer speaks**, and speaking is the
+one thing it is for.
+
+Holding the set key ends the pairing at the device. Deliberately the same
+400 ms as everywhere else, so brushing past it does not throw away a code
+somebody has already started typing.
+
+### The token is not tied to an address
+
+The device stores the token and the address of the computer as two separate
+things. Carried to another network where the computer has a different address,
+only the address changes — the key stays valid and nothing has to be paired
+again. That is why the token is a plain secret and carries no host in it.
+
+The other way round is handled too: a stored key the server does not know is
+worth nothing, and since the portal no longer has a field to correct it in, the
+device throws it away and pairs once more by itself. That is the way back when
+`VORLAUT_DEVICE_TOKEN` on the server has been replaced.
+
+### What this does not do
+
+All of it runs over plain HTTP on the home network, exactly like the sync it
+sets up. Somebody already listening on that network sees the token go past —
+but they would see it on every sync afterwards as well, so pairing does not
+make that better or worse. What pairing does close is the case of a second
+machine on the network claiming to be the device, which the secret and the
+five digits together prevent.
+
+`firmware/vorlaut/pair_format.h` holds the device's side of the format with no
+Arduino dependency, and `tests/test_pair_format.py` compiles it here and checks
+it against the answers described above — including the ones that are easy to
+get wrong, such as `state ready` arriving without a token.
 
 ---
 

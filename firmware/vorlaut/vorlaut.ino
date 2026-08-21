@@ -60,6 +60,7 @@
 #include "discover.h"
 #include "networks.h"
 #include "sync.h"
+#include "pairing.h"
 
 // How long the setup portal stays open before the device gives up and goes
 // back to being a talker. A device stuck in a portal no longer speaks.
@@ -305,7 +306,7 @@ static void drawMenu() {
   drawMenuKey(display[0], text().info, nullptr);
   drawMenuKey(display[1], text().fetch1, text().fetch2);
   drawMenuKey(display[2], text().wifiNew1, text().wifiNew2);
-  drawMenuKey(display[3], nullptr, nullptr);
+  drawMenuKey(display[3], text().pairMenu, nullptr);
   drawMenuKey(display[SET_BUTTON], text().back, nullptr);
 }
 
@@ -313,6 +314,10 @@ static void drawMenu() {
 //
 // All five displays show the same thing while this runs. It takes seconds,
 // and a device that looks switched off during them invites a second press.
+
+// Defined further down with the other key handling. Needed up here because
+// the pairing has to be interruptible while it waits.
+static bool isDown(uint8_t index);
 
 static void showOnAll(const char *first, const char *second) {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
@@ -339,9 +344,98 @@ static const char *reasonFor(SyncError code) {
   }
 }
 
-static void fetchContent() {
-  showOnAll(text().wifi, nullptr);
+// --- Pairing ------------------------------------------------------------
+//
+// Where the key used to be typed. Five digits, one per display, and whoever
+// can read them is standing in front of the device - see pairing.h for why
+// that is the proof and not a password.
 
+static const uint8_t PAIR_DIGIT_SIZE = 12;   // 72 x 96 pixels inside the frame
+
+// One code digit, as big as a panel allows. Readable across a room, which is
+// the point: these are read off the device and typed somewhere else.
+static void drawBigDigit(Panel *tft, char digit) {
+  drawMenuKey(tft, nullptr, nullptr);   // grey frame, nothing in it
+  const int16_t width = 6 * PAIR_DIGIT_SIZE, height = 8 * PAIR_DIGIT_SIZE;
+  tft->setTextColor(ST77XX_WHITE);
+  tft->setTextSize(PAIR_DIGIT_SIZE);
+  tft->setCursor((DISPLAY_W - width) / 2, (DISPLAY_H - height) / 2);
+  tft->write((uint8_t)digit);
+}
+
+// One digit per display, in the arrangement of the keys: 1 and 2 on top, 3
+// and 4 below, the set key on the left under the speaker. The web interface
+// puts its five boxes in the same places, so nobody has to be told an order -
+// each box gets what the display in that position shows.
+static_assert(PAIR_CODE_DIGITS == DISPLAY_COUNT,
+              "one digit per display - the code and the panels have to agree");
+
+static void showPairCode(const char *digits) {
+  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+    drawBigDigit(display[i], digits[i]);
+  }
+  Serial.printf("code on the displays: %s\n", digits);
+  Serial.println("  keys 1-4 in reading order, last digit on the set key");
+}
+
+// Held set key means stop. Deliberately the same 400 ms as everywhere else:
+// long enough that brushing past it does not throw away a code somebody has
+// already started typing.
+static bool pairCancelled() {
+  static uint32_t heldSince = 0;
+  if (!isDown(SET_BUTTON)) { heldSince = 0; return false; }
+  const uint32_t now = millis();
+  if (heldSince == 0) { heldSince = now; return false; }
+  return now - heldSince >= SET_HOLD_MS;
+}
+
+// The pairing version of reasonFor.
+static const char *pairReasonFor(PairError code) {
+  switch (code) {
+    case PAIR_NO_NETWORK:    return text().noWifi;
+    case PAIR_NO_SERVER:     return text().noServer;
+    case PAIR_SWITCHED_OFF:  return text().switchedOff;
+    case PAIR_TOO_LATE:      return text().tooLate;
+    case PAIR_DENIED:        return text().denied;
+    default:                 return nullptr;
+  }
+}
+
+// Fetches a key by showing a code, and stores it in NVS next to the Wi-Fi
+// credentials. Returns false when it did not work - and has said why on the
+// displays by then.
+static bool pairDevice(const String &host, uint16_t port, String &token) {
+  showOnAll(text().pairing, nullptr);
+  Pairing pairing(host, port);
+  const PairResult result = pairing.run(showPairCode, pairCancelled);
+
+  if (!result.ok) {
+    Serial.printf("pairing failed: %s\n", result.error);
+    // Somebody held the set key to get out. They know what they did; a
+    // failure notice would only be in the way.
+    if (result.code != PAIR_CANCELLED) {
+      showOnAll(text().failed, pairReasonFor(result.code));
+      delay(4000);
+    }
+    return false;
+  }
+
+  token = result.token;
+  settings.putString("token", token);
+  Serial.println("paired. The key is stored and is not tied to this address -");
+  Serial.println("  on another network only the address has to change.");
+  showOnAll(text().paired, nullptr);
+  delay(2000);
+  return true;
+}
+
+// --- Fetching -----------------------------------------------------------
+
+// Wi-Fi and the address of the computer, both kept in NVS so they survive a
+// reflash. The key is NOT asked for here any more - that is what pairing is
+// for, and a 32-character key typed into a captive portal on a phone was the
+// worst step in the whole setup.
+static bool connectAndRemember(String &host, uint16_t &port) {
   settings.begin("vorlaut", false);
 
   // Only the networks that are already stored, and never the portal. Fetching
@@ -355,20 +449,18 @@ static void fetchContent() {
     showOnAll(text().failed, text().noWifi);
     delay(2500);
     WiFi.mode(WIFI_OFF);
-    return;
+    return false;
   }
 
   // Typed into the portal, if anybody ever did: for the networks where the
   // search cannot work - a guest network that drops broadcasts, or two
   // subnets with a router in between.
   const String fixed = settings.getString("fixed", "");
-  const String token = settings.getString("token", "");
 
   // Where the content is: typed in beats found, and found beats remembered.
   // The search takes about a second and can come back with nothing - that is
   // a network without broadcasts, not a fault.
-  String host;
-  uint16_t port = 8771;
+  port = 8771;
   if (fixed.length()) {
     parseAddress(fixed, host, port);
     Serial.printf("address typed in: %s:%u\n", host.c_str(), port);
@@ -387,11 +479,43 @@ static void fetchContent() {
                     host.length() ? host.c_str() : "(none yet)", port);
     }
   }
+  return true;
+}
+
+
+static void fetchContent() {
+  showOnAll(text().wifi, nullptr);
+
+  String host;
+  uint16_t port = 0;
+  if (!connectAndRemember(host, port)) return;
+
+  String token = settings.getString("token", "");
+  // A device that has been paired keeps its key, so this asks for five digits
+  // once and never again. Devices set up before pairing existed have a key in
+  // the same place and go straight past here.
+  if (token.length() == 0 && !pairDevice(host, port, token)) {
+    WiFi.mode(WIFI_OFF);
+    return;
+  }
 
   Serial.printf("Wi-Fi %s, fetching from %s:%u\n", WiFi.SSID().c_str(),
                 host.c_str(), port);
-  Sync sync(host, port, token);
-  const SyncStatus status = sync.run(syncProgress);
+  SyncStatus status = Sync(host, port, token).run(syncProgress);
+
+  // A key the server does not know is worth nothing, and the portal no longer
+  // has a field to correct it in. So throw it away and pair once more - that
+  // is the way back when the key on the server has been replaced.
+  if (!status.ok && status.code == SYNC_BAD_KEY) {
+    Serial.println("the stored key is not valid any more - pairing again");
+    settings.remove("token");
+    token = "";
+    if (!pairDevice(host, port, token)) {
+      WiFi.mode(WIFI_OFF);
+      return;                 // pairDevice has already shown the reason
+    }
+    status = Sync(host, port, token).run(syncProgress);
+  }
   WiFi.mode(WIFI_OFF);   // straight back off, it costs power
 
   if (!status.ok) {
@@ -490,6 +614,22 @@ static void wifiSetup() {
   snprintf(count, sizeof(count), "%u", n);
   showOnAll(text().done, count);
   delay(2500);
+}
+
+
+// Pairing on its own, from the menu. Needed when the key on the server has
+// been replaced, or when the device is to talk to a different computer: there
+// is a key stored then, it simply is not the right one any more.
+static void pairFromMenu() {
+  showOnAll(text().wifi, nullptr);
+
+  String host;
+  uint16_t port = 0;
+  if (!connectAndRemember(host, port)) return;
+
+  String token;
+  pairDevice(host, port, token);   // says on the displays how it went
+  WiFi.mode(WIFI_OFF);
 }
 
 static void drawInfo() {
@@ -785,6 +925,13 @@ void loop() {
       wifiSetup();
       // Whatever happened, the menu is where we came from. Both keys may
       // still be held after minutes at the portal.
+      waitForRelease();
+      drawMenu();
+      menuSince = millis();
+    } else if (pressed == 3) {
+      pairFromMenu();
+      // Same again, and here the set key was very likely the way out of the
+      // pairing - so it is certainly still down.
       waitForRelease();
       drawMenu();
       menuSince = millis();
