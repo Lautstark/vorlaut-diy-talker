@@ -484,6 +484,14 @@ def settings_state(local: bool) -> dict:
             "ok": metacom.available(),
             "count": metacom.count() if metacom.available() else 0,
             "keywords": metacom.has_keywords() if metacom.available() else False,
+            # Handed in rather than saved, which in practice means the
+            # container: docker-compose.yml sets it, and what it sets is the
+            # path inside the container. Typing a host path into the field
+            # there could not take effect and would go into the .env that the
+            # mount itself is read from - so the field says where it comes
+            # from instead of pretending to be editable. post_settings()
+            # refuses the write either way.
+            "fixed": config.from_environment("VORLAUT_METACOM_DIR"),
         },
     }
 
@@ -1126,17 +1134,34 @@ def pick(handler, body) -> None:
 @route("POST", "/api/settings")
 def post_settings(handler, body) -> None:
     local = handler._may_set_secrets()
+    if "azureKey" in body and not local:
+        handler._error("err.settings_local_only", 403)
+        return
+
     updates: dict[str, str] = {}
-    if "azureKey" in body:
-        if not local:
-            handler._error("err.settings_local_only", 403)
-            return
-        updates["AZURE_SPEECH_KEY"] = str(body.get("azureKey") or "").strip()
-    if "azureRegion" in body:
-        updates["AZURE_SPEECH_REGION"] = str(
-            body.get("azureRegion") or "").strip()
-    if "metacom" in body:
-        updates["VORLAUT_METACOM_DIR"] = str(body.get("metacom") or "").strip()
+
+    def take(field: str, name: str) -> None:
+        """One field of the sheet into what gets written - unless it is handed
+        in from outside.
+
+        config.value() takes the environment first, so a line written under a
+        set variable never reaches this process: the page would save, read
+        back the environment's value and show no change, which is how this
+        went unnoticed. In the container it is worse than useless.
+        VORLAUT_METACOM_DIR is /metacom there, the path *inside* it, and
+        docker-compose.yml reads the same variable for the host side of the
+        mount. Opening the gear and pressing save was enough to leave a .env
+        that no longer starts: "bind source path does not exist: /metacom".
+
+        The sheet says so rather than dropping the write silently - see
+        "fixed" in settings_state().
+        """
+        if field in body and not config.from_environment(name):
+            updates[name] = str(body.get(field) or "").strip()
+
+    take("azureKey", "AZURE_SPEECH_KEY")
+    take("azureRegion", "AZURE_SPEECH_REGION")
+    take("metacom", "VORLAUT_METACOM_DIR")
     try:
         config.write(updates)
     except OSError as exc:

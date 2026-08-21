@@ -80,6 +80,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_names": "file names only",
         "ui.metacom_bad": "nothing readable in that folder",
         "ui.metacom_none": "not set - searching ARASAAC alone",
+        "ui.metacom_fixed": "set by docker-compose.yml, not here. That is the "
+                            "path inside the container; the folder on the "
+                            "machine stands in .env.",
         "ui.settings_saved": "saved",
         "ui.metacom_offer": "Have a METACOM licence? Add the folder under the gear, and it is searched alongside this.",
         "ui.voice_failed": "The list of voices could not be loaded: {error}",
@@ -344,6 +347,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_names": "nur Dateinamen",
         "ui.metacom_bad": "in dem Ordner ist nichts Lesbares",
         "ui.metacom_none": "nicht gesetzt - es wird nur ARASAAC durchsucht",
+        "ui.metacom_fixed": "kommt aus docker-compose.yml, nicht von hier. Das "
+                            "ist der Pfad im Container; der Ordner auf dem "
+                            "Rechner steht in der .env.",
         "ui.settings_saved": "gespeichert",
         "ui.metacom_offer": "Du hast eine METACOM-Lizenz? Trag den Ordner beim Zahnrad ein, dann wird er hier mit durchsucht.",
         "ui.voice_failed": "Die Liste der Stimmen kam nicht an: {error}",

@@ -275,7 +275,8 @@ def check_settings() -> None:
           phone.payload["azureRegion"] == "germanywestcentral",
           phone.payload["azureRegion"])
     check("and the METACOM entry is whole",
-          set(phone.payload["metacom"]) == {"path", "ok", "count", "keywords"},
+          set(phone.payload["metacom"])
+          == {"path", "ok", "count", "keywords", "fixed"},
           str(sorted(phone.payload["metacom"])))
 
     # The write answers with the same state, so it needs the same treatment.
@@ -292,6 +293,40 @@ def check_settings() -> None:
     check("but not the key", phone.code == 403, f"HTTP {phone.code}")
     check("and nothing was written",
           app.config.value("AZURE_SPEECH_KEY") == "0123456789abcdef")
+
+    # --- a setting the environment hands in is not ours to write -----------
+    # The container case, and it used to break the container. The field shows
+    # VORLAUT_METACOM_DIR, which docker-compose.yml sets to /metacom - the
+    # path *inside* the container - and reads back for the host side of the
+    # mount. Saving the sheet untouched wrote that into .env, which then said
+    # "bind source path does not exist: /metacom" at the next start. Nothing
+    # on screen changed at the time, because the environment still won the
+    # read.
+    env_file = app.config.ENV_FILE
+    before = env_file.read_text(encoding="utf-8")
+    os.environ["VORLAUT_METACOM_DIR"] = "/metacom"
+    try:
+        recorder = Recorder(local=True)
+        app.post_settings(recorder, {"metacom": "/metacom"})
+        check("saving a handed-in path is answered normally",
+              recorder.code == 200, f"HTTP {recorder.code}")
+        check("but leaves .env exactly as it was",
+              env_file.read_text(encoding="utf-8") == before)
+        check("and the sheet says where the path comes from",
+              recorder.payload["metacom"]["fixed"] is True)
+    finally:
+        os.environ.pop("VORLAUT_METACOM_DIR", None)
+
+    # Without one handed in it is an ordinary setting again.
+    recorder = Recorder(local=True)
+    app.post_settings(recorder, {"metacom": "/somewhere/METACOM_9_Desktop"})
+    check("a path of one's own is still written",
+          app.config.value("VORLAUT_METACOM_DIR")
+          == "/somewhere/METACOM_9_Desktop",
+          app.config.value("VORLAUT_METACOM_DIR"))
+    check("and that one is not called fixed",
+          recorder.payload["metacom"]["fixed"] is False)
+    app.post_settings(Recorder(local=True), {"metacom": ""})
 
 
 def check_device_gate() -> None:

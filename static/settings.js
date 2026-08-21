@@ -8,7 +8,8 @@ import { $, api, status } from "./dom.js";
 import { t } from "./texts.js";
 
 let settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
-                 metacom: { path: "", ok: false, count: 0, keywords: false },
+                 metacom: { path: "", ok: false, count: 0, keywords: false,
+                            fixed: false },
                  local: true };
 
 function renderSettings() {
@@ -24,7 +25,7 @@ function renderSettings() {
   if (!settings.local) $("azureKeyState").textContent = t("ui.azure_local_only");
 
   const where = settings.metacom;
-  $("metacomState").textContent = !where.path
+  const found = !where.path
     ? t("ui.metacom_none")
     : (where.ok
         ? t("ui.metacom_ok", {
@@ -32,6 +33,17 @@ function renderSettings() {
             kind: t(where.keywords ? "ui.metacom_keywords" : "ui.metacom_names"),
           })
         : t("ui.metacom_bad"));
+  // Handed in from outside - the container. The path in the field is the one
+  // inside it, a host path typed here could not take effect, and the write
+  // would land in the .env that the mount is read from. Same shape as the
+  // Azure key above: disabled, and the line underneath says why rather than
+  // leaving somebody to wonder at a save that changed nothing. What was found
+  // stays in front of it either way - that half is worth reading regardless of
+  // who may edit the path.
+  $("metacomPath").disabled = !!where.fixed;
+  $("metacomState").textContent = where.fixed
+    ? `${found} - ${t("ui.metacom_fixed")}`
+    : found;
 }
 
 export async function loadSettings() {

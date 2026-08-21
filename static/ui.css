@@ -65,6 +65,12 @@ input[type=text], input[type=password] {
   color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 14px;
   flex: 0 1 auto; align-self: flex-start;
 }
+/* A field somebody may look at but not set: the Azure key away from the
+   machine it runs on, the METACOM path when docker-compose.yml hands it in.
+   Both were already disabled and neither looked it - a field that takes no
+   typing has to say so before it is typed in, not after. The note underneath
+   says why; this only has to make the difference visible. */
+input:disabled { background: var(--panel); color: var(--muted); cursor: not-allowed; }
 .row input[type=text] { flex: 1 1 auto; }
 .colorRow { display: flex; gap: 8px; }
 input[type=color] {
