@@ -1063,9 +1063,10 @@ function applyTexts() {
   $("q").placeholder = t("ui.search_arasaac");
   $("quellen").textContent = t("ui.credits_arasaac");
 
-  // The picker carries the language names in their own language - somebody
-  // looking for English cannot be expected to recognise "Englisch".
-  const names = { de: "Deutsch", en: "English" };
+  // Just the code. "Deutsch" and "English" read nicer but cost a third of
+  // the header on a phone, and a two-letter language code is the one label
+  // that needs no translation. The title says what the thing is.
+  const names = { de: "DE", en: "EN" };
   const pick = $("langPick");
   pick.title = t("ui.language_title");
   for (const code of LANGUAGES) {
