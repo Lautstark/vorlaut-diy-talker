@@ -107,6 +107,48 @@ test("tabs, swatches and thumbs answer the keyboard", async ({ page }) => {
   await expect(page.locator("#picker")).toBeVisible();
 });
 
+test("sets move and keys swap without a mouse", async ({ page }) => {
+  await openBoard(page);
+
+  // A second set, so there is somewhere to move to. It arrives current and
+  // named "Set 2", which is what the order is read off below.
+  await page.locator("#tabs .tab.add").focus();
+  await page.keyboard.press("Enter");
+  const tabs = page.locator("#tabs .tab:not(.add)");
+  await expect(tabs).toHaveCount(2);
+
+  // Alt+Arrow moves the focused tab, and focus travels with it.
+  await tabs.nth(1).focus();
+  await page.keyboard.press("Alt+ArrowLeft");
+  await expect(tabs.first()).toHaveText(/Set 2/);
+  await expect(tabs.first()).toBeFocused();
+  await page.keyboard.press("Alt+ArrowRight");
+  await expect(tabs.nth(1)).toHaveText(/Set 2/);
+  await expect(tabs.nth(1)).toBeFocused();
+
+  // Two keys with distinguishable sentences, to see the swap by its work.
+  const texts = keyText(page);
+  await texts.first().fill("Eins");
+  await texts.nth(1).fill("Zwei");
+
+  // Enter on a grip arms the swap, Escape lets go of it again...
+  const grips = page.locator("#device .grip");
+  await grips.first().focus();
+  await page.keyboard.press("Enter");
+  await expect(grips.first()).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Escape");
+  await expect(grips.first()).toHaveAttribute("aria-pressed", "false");
+
+  // ...and Enter on a second grip completes it. Focus lands where the armed
+  // key went.
+  await page.keyboard.press("Enter");
+  await grips.nth(1).focus();
+  await page.keyboard.press("Enter");
+  await expect(texts.first()).toHaveValue("Zwei");
+  await expect(texts.nth(1)).toHaveValue("Eins");
+  await expect(grips.nth(1)).toBeFocused();
+});
+
 test("an own picture lands on a key and renders", async ({ page }) => {
   await openBoard(page);
 

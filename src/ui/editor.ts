@@ -1,7 +1,7 @@
 // The set tabs, the set tile and the four speech keys - everything the page
 // shows when no dialog is open, and the drag-and-drop that reorders it.
 //
-// dragSet, dragSlot and preview live here and nowhere else.
+// dragSet, dragSlot, armedSlot and preview live here and nowhere else.
 import { $, status } from "./dom.js";
 import { previewInto, symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
@@ -13,6 +13,7 @@ import { openPicker } from "./picker.js";
 
 let dragSet = null;         // index of the dragged set
 let dragSlot = null;        // index of the dragged key
+let armedSlot = null;       // index of the key a keyboard swap starts from
 let preview = false;        // show tiles the way the display shows them
 
 // Cached rather than looked up: render() moves this button into the set
@@ -21,6 +22,38 @@ const removeSetBtn = $<HTMLButtonElement>("removeSet");
 
 function clearDragMarks() {
   document.querySelectorAll(".dragover").forEach((el) => el.classList.remove("dragover"));
+}
+
+// Lets go of a half-done keyboard swap. Told to the status line as well,
+// because arming moves nothing on the page that eyes-free users would hear.
+function disarmSwap() {
+  armedSlot = null;
+  document.querySelectorAll(".grip.armed").forEach((el) => {
+    el.classList.remove("armed");
+    el.setAttribute("aria-pressed", "false");
+  });
+  status("");
+}
+
+// Where a set lands, whether dropped or moved by Alt+Arrow. The moved set
+// becomes the edited one, as it always has on drop; focus follows its tab
+// because render() rebuilds the row, and the keyboard would otherwise be
+// left standing on nothing.
+async function moveSet(from, to) {
+  const moved = state.layout.sets.splice(from, 1)[0];
+  state.layout.sets.splice(to, 0, moved);
+  state.current = to;
+  await save();
+  render();
+  ($("tabs").children[to] as HTMLElement).focus();
+}
+
+// Where a swap of two speech keys lands, whether dropped or completed by the
+// second Enter on a grip.
+async function swapSlots(slots, a, b) {
+  [slots[a], slots[b]] = [slots[b], slots[a]];
+  await save();
+  render();
 }
 
 function activeCount() {
@@ -91,6 +124,10 @@ function thumb(symbol, onClick) {
 }
 
 export function render() {
+  // A half-done keyboard swap does not survive a re-render: the grip that
+  // carried the mark is thrown away with the rest of the DOM, and the set it
+  // counted in may be gone too.
+  armedSlot = null;
   const tabs = $("tabs");
   tabs.innerHTML = "";
   state.layout.sets.forEach((entry, index) => {
@@ -116,7 +153,16 @@ export function render() {
     tab.setAttribute("role", "button");
     tab.tabIndex = 0;
     if (index === state.current) tab.setAttribute("aria-current", "true");
+    tab.setAttribute("aria-keyshortcuts", "Alt+ArrowLeft Alt+ArrowRight");
     tab.onkeydown = (event) => {
+      if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+        // Claimed even when the move has nowhere to go: Alt+Left is history
+        // back in some engines, and reordering must never walk off the page.
+        event.preventDefault();
+        const to = index + (event.key === "ArrowRight" ? 1 : -1);
+        if (to >= 0 && to < state.layout.sets.length) moveSet(index, to);
+        return;
+      }
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       open();
@@ -139,12 +185,9 @@ export function render() {
       event.preventDefault();
       clearDragMarks();
       if (dragSet === null || dragSet === index) return;
-      const moved = state.layout.sets.splice(dragSet, 1)[0];
-      state.layout.sets.splice(index, 0, moved);
-      state.current = index;
+      const from = dragSet;
       dragSet = null;
-      await save();
-      render();
+      await moveSet(from, index);
     };
     tab.ondragend = () => { dragSet = null; clearDragMarks(); };
 
@@ -299,6 +342,38 @@ export function render() {
     grip.className = "grip";
     grip.textContent = "\u283F";
     grip.title = t("ui.grip_title");
+    // The same hand-made button-ness as the tabs above, for the same reason:
+    // the grip is dragged, so it cannot be a <button>. Enter arms a swap and
+    // Enter on another key's grip completes it - the two ends of what the
+    // mouse holds down and lets go of. Escape lets go without swapping.
+    grip.setAttribute("role", "button");
+    grip.tabIndex = 0;
+    grip.setAttribute("aria-label", t("ui.grip_label", { n: index + 1 }));
+    grip.setAttribute("aria-pressed", "false");
+    grip.onkeydown = async (event) => {
+      if (event.key === "Escape" && armedSlot !== null) {
+        event.preventDefault();
+        disarmSwap();
+        return;
+      }
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      if (armedSlot === null) {
+        armedSlot = index;
+        grip.classList.add("armed");
+        grip.setAttribute("aria-pressed", "true");
+        status(t("ui.swap_armed", { n: index + 1 }));
+      } else if (armedSlot === index) {
+        disarmSwap();
+      } else {
+        const from = armedSlot;
+        armedSlot = null;
+        await swapSlots(entry.slots, from, index);
+        // The armed key sits at this index now; focus lands on the grip
+        // that would move it again.
+        document.querySelectorAll<HTMLElement>("#device .grip")[index].focus();
+      }
+    };
     grip.draggable = true;
     grip.ondragstart = (event) => {
       dragSlot = index;
@@ -320,11 +395,9 @@ export function render() {
       event.preventDefault();
       clearDragMarks();
       if (dragSlot === null || dragSlot === index) return;
-      const slots = entry.slots;
-      [slots[dragSlot], slots[index]] = [slots[index], slots[dragSlot]];
+      const from = dragSlot;
       dragSlot = null;
-      await save();
-      render();
+      await swapSlots(entry.slots, from, index);
     };
 
     tile.appendChild(thumb(slot.symbol, () => openPicker({ kind: "slot", index }, slot.text)));
