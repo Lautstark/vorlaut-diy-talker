@@ -89,19 +89,34 @@ const referenceFor = (path) => METACOM_PREFIX + path.split("/").pop().replace(/\
  * bare-stem reference, and every one of them rendered whichever folder the
  * index walked first. The folders are part of a METACOM distribution while the
  * root names one copy of it, so dropping the root keeps the reference portable
- * between copies of the same version; a collection without the folder degrades
- * to the stem inside bildquelle, and bare stems stay valid forever.
+ * between copies of the same version; a collection arranged differently
+ * degrades to the stem inside bildquelle, and bare stems stay valid forever.
+ *
+ * The root is compared, not assumed: bildquelle's ids only start with the
+ * root when the collection came in as a file list or zip. A picked directory
+ * handle indexes paths without it — there the first segment is already the
+ * rendering folder, and cutting it blind would store the stem and lose the
+ * pick. A path that carries no folder beyond the root has nothing to say
+ * either way and stays the bare stem it always was.
+ *
+ * Exported for tests: the handle shape cannot be fabricated through
+ * readMetacomFiles, so the mapping is checked as the function it is.
  */
-const pickReference = (path) => {
-  const inside = path.split("/").slice(1).join("/");
-  return inside ? METACOM_PREFIX + inside.replace(/\.[^.]+$/, "") : referenceFor(path);
+export const pickReference = (path, root) => {
+  const segments = path.split("/");
+  const inside = (segments[0] === root ? segments.slice(1) : segments).join("/");
+  return inside.includes("/")
+    ? METACOM_PREFIX + inside.replace(/\.[^.]+$/, "")
+    : referenceFor(path);
 };
 
 /** The folder a hit's picture sits in, said the way a human would — "PNG ohne
- *  Rahmen" — or "" for a file straight under the collection root. */
-const folderOf = (path) => {
+ *  Rahmen" — or "" for a file straight under the collection root. Root-aware
+ *  for the same reason pickReference is. */
+export const folderOf = (path, root) => {
   const segments = path.split("/");
-  return segments.length > 2 ? segments[segments.length - 2].replace(/_/g, " ") : "";
+  const inside = segments[0] === root ? segments.slice(1) : segments;
+  return inside.length > 1 ? inside[inside.length - 2].replace(/_/g, " ") : "";
 };
 
 /**
@@ -139,8 +154,9 @@ export async function search(word, source) {
       url: (await imageUrl(source, hit.id)) || "",
     };
     if (source !== "metacom") return { ...item, id: hit.id };
-    const hint = twins.get(hit.label) ? folderOf(hit.id) : "";
-    return { ...item, ref: pickReference(hit.id), ...(hint ? { hint } : {}) };
+    const root = metacomRoot();
+    const hint = twins.get(hit.label) ? folderOf(hit.id, root) : "";
+    return { ...item, ref: pickReference(hit.id, root), ...(hint ? { hint } : {}) };
   }));
 }
 
