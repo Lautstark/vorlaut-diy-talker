@@ -32,12 +32,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Docker tags have to be lower case, GitHub user names do not - hence
-      # the conversion here.
-      - name: Lowercase the image name
+      # Written out rather than worked out from ${{ github.repository }},
+      # which is where it used to come from. The repository is moving to
+      # another owner, and the image name would have followed it: the workflow
+      # would have begun publishing under a new path while the README,
+      # docker-compose.yml and the install line in docs/operation.md all still
+      # named the old one. Nobody would have seen an error. They would simply
+      # have gone on pulling a tag that had quietly stopped moving.
+      #
+      # It stays written out until the browser version replaces the container,
+      # at which point this workflow is deleted rather than corrected. Lower
+      # case throughout because Docker tags have to be and user names do not.
+      - name: Name the image
         run: |
-          echo "ABBILD=ghcr.io/$(echo '${{ github.repository }}' \
-            | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+          echo "ABBILD=ghcr.io/steffipetaffy/vorlaut" >> "$GITHUB_ENV"
 
       # What the image is called, worked out from what was pushed. Only
       # :latest used to be published, which meant there was nothing to pin to
