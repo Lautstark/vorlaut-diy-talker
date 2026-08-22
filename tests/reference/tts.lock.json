@@ -5,10 +5,10 @@
   "ffmpeg": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers",
   "tts_py": {
     "loudnorm": "I=-16:TP=-1.5:LRA=11",
-    "silence_threshold": "-45dB",
+    "silence_threshold": "-50dB",
     "sample_rate": 16000,
-    "keep_head": 0.06,
-    "keep_tail": 0.1,
+    "keep_head": 0.05,
+    "keep_tail": 0.05,
     "fade": 0.012,
     "tail_pad": 0.06
   },
@@ -144,7 +144,7 @@
       "compare": true,
       "tts_py": {
         "lufs": -16.0,
-        "peak": -7.07,
+        "peak": -7.17,
         "lra": 0.0
       }
     },

@@ -7,8 +7,10 @@
     python3 tools/ttscheck.py --serve 8771    # hand the batch to a real browser
     python3 tools/ttscheck.py --browser dump/ # measure what that tab produced
 
-static/tts/level.js is a second implementation of the ffmpeg chain in tts.py,
-and a second implementation is only worth having if somebody checks it. The
+The chain in @lautstark/stimmquelle is a second implementation of the ffmpeg
+chain in tts.py, and a second implementation is only worth having if somebody
+checks it. It is vendored under static/vendor/, shared with mitreden, and its
+rules are CONTRACT.md - which tts.py now follows rather than approximates. The
 sibling project found out what happens otherwise: ffmpeg.wasm looked like the
 safe choice - the same filter string, the same code - and its loudnorm, three
 years stale, came out 13.6 dB too quiet on half of all short sentences. The
@@ -129,7 +131,7 @@ def node_level(raw: Path, target: Path) -> dict:
     """
     node = shutil.which("node")
     if not node:
-        raise SystemExit("This needs node to run static/tts/level.js outside a browser.")
+        raise SystemExit("This needs node to run the vendored chain outside a browser.")
     result = subprocess.run(
         [node, str(ROOT / "tools" / "ttscheck.mjs"), str(raw), str(target)],
         capture_output=True, text=True)
@@ -310,8 +312,8 @@ def main(argv: list[str]) -> int:
         print("No piper here. This compares against the real chain, so it needs one.")
         return 1
 
-    # The page fetches ../../dump/ from /static/tts/, so the folder it reads is
-    # the repository's own dump/ unless somebody says otherwise. Gitignored.
+    # The page fetches /dump/ by absolute path, so the folder it reads is the
+    # repository's own dump/ unless somebody says otherwise. Gitignored.
     if port:
         return serve(port, keep or ROOT / "dump", languages)
 

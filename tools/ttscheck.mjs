@@ -8,14 +8,15 @@
 // in a tab; if these two ever disagree, the difference is the browser and not
 // the arithmetic.
 import { readFileSync, writeFileSync } from "node:fs";
-import { postprocess } from "../static/tts/level.js";
+import { postprocess } from "../static/vendor/stimmquelle/index.js";
 
 const [source, target] = process.argv.slice(2);
 if (!source || !target) {
   console.error("usage: node tools/ttscheck.mjs raw.wav out.wav");
   process.exit(2);
 }
-const result = postprocess(new Uint8Array(readFileSync(source)));
+const result = postprocess(new Uint8Array(readFileSync(source)),
+                           { rate: 16000, fadeSec: 0.012, padSec: 0.06 });
 writeFileSync(target, result.wav);
 const { wav, ...numbers } = result;
 console.log(JSON.stringify(numbers));

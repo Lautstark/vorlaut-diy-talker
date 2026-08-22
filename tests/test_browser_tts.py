@@ -1,25 +1,32 @@
 #!/usr/bin/env python3
-"""Keeps the browser's copy of the speech pipeline in step with this one.
+"""Keeps tts.py in step with the recording contract it now shares.
 
-static/tts/level.js is a second implementation of the ffmpeg chain in tts.py,
-and static/tts/voices.json is a second voice list next to VOICE_CATALOGUE.
-Both exist for the same reason - a page with no server behind it cannot call
-ffmpeg and cannot download the voices this can - and both would drift the same
-way: silently, because nothing in either half reads the other.
+The speech chain used to exist twice in this repository: once as an ffmpeg
+filter string in tts.py and once as JavaScript in static/tts/. It exists twice
+still, but the second copy is no longer ours - it is @lautstark/stimmquelle,
+vendored under static/vendor/ and shared with mitreden, and its rules are
+written down in CONTRACT.md rather than inferred from whichever file somebody
+read first.
 
-What drift would look like:
+That makes this test simpler and stricter at once. It no longer compares two
+sets of constants we own and could change together by accident. It reads the
+contract out of the vendored package and checks that tts.py obeys it - and the
+package is a copy of somebody else's repository, so the only way to make this
+pass is to actually agree.
 
-  * KEEP_TAIL changed here, not there - the browser leaves a different amount
-    of room at the end of a word than tts.py does, and two recordings
-    of the same sentence differ while claiming the same fingerprint
-  * a voice added to VOICE_CATALOGUE that no browser can speak with - it works
-    for whoever added it, on the server, and turns into a silent slot for
-    whoever opens the page
-  * a low voice added to the browser list - vits-web dies on those, and the
-    error is about a symbol table rather than about the voice
+What drift would look like, and why none of it is loud on its own:
 
-So this reads both files and compares. tests/test_piper_version.py is the same
-idea for the piper pin.
+  * tts.py trimmed at -45 dB and kept 60/100 ms for a long time, against the
+    contract's -50 and 50/50. Nothing broke. The device simply recorded
+    slightly differently from mitreden, for no reason anyone had decided
+  * a contract refresh that moves §1 or §2 while tts.py stays put - same thing,
+    arriving from the other direction, and a vendored file is exactly the kind
+    of thing that gets refreshed without reading
+  * PIPELINE_VERSION left behind when either moves: recordings made under the
+    old rules keep names claiming they match the new ones, and a device syncs
+    a cache it already has
+
+tests/test_piper_version.py is the same idea for the piper pin.
 """
 
 from __future__ import annotations
@@ -33,138 +40,128 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 import tts  # noqa: E402
 
-LEVEL = ROOT / "static" / "tts" / "level.js"
-VOICES = ROOT / "static" / "tts" / "voices.json"
+VENDOR = ROOT / "static" / "vendor" / "stimmquelle"
+BUNDLE = VENDOR / "index.js"
+CATALOGUE = VENDOR / "voices.json"
+CONTRACT = VENDOR / "CONTRACT.md"
 
 failures: list[str] = []
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
-    """Unlike its twin in test_piper_version.py, the detail is only printed
-    when something failed: most of the checks below are one line each per
-    voice, and their details are sentences about what to do rather than the
-    value that was read."""
     print(f"  {'ok  ' if ok else 'FAIL'}  {name}" + (f"\n          {detail}" if detail and not ok else ""))
     if not ok:
         failures.append(name)
 
 
-def constants(source: str) -> dict[str, float]:
-    """The exported numbers out of level.js, without running any JavaScript."""
-    return {name: float(value) for name, value in
-            re.findall(r"export const (\w+) = (-?[0-9.]+);", source)}
+def contract_numbers() -> dict[str, float]:
+    """The contract's constants, read out of the vendored bundle.
+
+    Out of the built JavaScript rather than CONTRACT.md's prose: the prose is
+    for people and the bundle is what the browser actually runs, so the bundle
+    is the one that can disagree with tts.py in a way that matters. esbuild
+    leaves the object literal intact, which is what makes this readable at all.
+    """
+    text = BUNDLE.read_text(encoding="utf-8")
+    found: dict[str, float] = {}
+    trim = re.search(r"thresholdDb:\s*(-?[\d.]+),\s*keepHeadSec:\s*([\d.]+),"
+                     r"\s*keepTailSec:\s*([\d.]+)", text)
+    if trim:
+        found["thresholdDb"] = float(trim.group(1))
+        found["keepHeadSec"] = float(trim.group(2))
+        found["keepTailSec"] = float(trim.group(3))
+    for name in ("TARGET_LUFS", "TARGET_PEAK_DBTP"):
+        hit = re.search(rf"{name}\s*=\s*(-?[\d.]+)", text)
+        if hit:
+            found[name] = float(hit.group(1))
+    return found
 
 
 def main() -> int:
-    source = LEVEL.read_text(encoding="utf-8")
-    js = constants(source)
+    for name, path in (("bundle", BUNDLE), ("catalogue", CATALOGUE), ("contract", CONTRACT)):
+        check(f"the vendored {name} is there", path.is_file(),
+              f"{path} is missing - see static/vendor/stimmquelle/VENDORED.md")
+    if failures:
+        print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")
+        return 1
 
-    # --- the filter chain, number by number ------------------------------
-    # tts.SILENCE_THRESHOLD is a string with a unit on it because ffmpeg reads
-    # it; level.js does the arithmetic itself and holds a number. Same value,
-    # two shapes, and this is where they meet.
+    contract = contract_numbers()
+    check("the contract's numbers could be read out of the bundle",
+          len(contract) == 5, f"found {sorted(contract)}")
+
+    # --- §2, the trim -----------------------------------------------------
     threshold = float(tts.SILENCE_THRESHOLD.removesuffix("dB"))
-    for name, here in [
-        ("SAMPLE_RATE", tts.SAMPLE_RATE),
-        ("SILENCE_THRESHOLD_DB", threshold),
-        ("KEEP_HEAD", tts.KEEP_HEAD),
-        ("KEEP_TAIL", tts.KEEP_TAIL),
-        ("FADE", tts.FADE),
-        ("TAIL_PAD", tts.TAIL_PAD),
-    ]:
-        check(f"level.js {name} matches tts.py",
-              name in js and abs(js[name] - here) < 1e-9,
-              f"level.js says {js.get(name)!r}, tts.py says {here!r}")
+    for label, here, there in (
+        ("SILENCE_THRESHOLD", threshold, contract.get("thresholdDb")),
+        ("KEEP_HEAD", tts.KEEP_HEAD, contract.get("keepHeadSec")),
+        ("KEEP_TAIL", tts.KEEP_TAIL, contract.get("keepTailSec")),
+    ):
+        check(f"tts.{label} matches the contract",
+              there is not None and abs(here - there) < 1e-9,
+              f"tts.py says {here!r}, the contract says {there!r}")
 
-    # --- and the two halves of LOUDNORM ----------------------------------
+    # --- §1, the levelling ------------------------------------------------
     loudnorm = dict(part.split("=", 1) for part in tts.LOUDNORM.split(":"))
-    check("level.js TARGET_LUFS matches the I in tts.LOUDNORM",
-          abs(js.get("TARGET_LUFS", 0) - float(loudnorm["I"])) < 1e-9,
-          f"level.js {js.get('TARGET_LUFS')!r}, tts.py {loudnorm['I']!r}")
-    check("level.js TARGET_PEAK_DBTP matches the TP in tts.LOUDNORM",
-          abs(js.get("TARGET_PEAK_DBTP", 0) - float(loudnorm["TP"])) < 1e-9,
-          f"level.js {js.get('TARGET_PEAK_DBTP')!r}, tts.py {loudnorm['TP']!r}")
+    check("the I in tts.LOUDNORM matches the contract's target",
+          abs(float(loudnorm["I"]) - contract.get("TARGET_LUFS", 0)) < 1e-9,
+          f"tts.py {loudnorm['I']!r}, contract {contract.get('TARGET_LUFS')!r}")
+    check("the TP in tts.LOUDNORM matches the contract's ceiling",
+          abs(float(loudnorm["TP"]) - contract.get("TARGET_PEAK_DBTP", 0)) < 1e-9,
+          f"tts.py {loudnorm['TP']!r}, contract {contract.get('TARGET_PEAK_DBTP')!r}")
 
-    # --- the voice list ---------------------------------------------------
-    catalogue = json.loads(VOICES.read_text(encoding="utf-8"))
-    usable = {v["id"]: v for v in catalogue["voices"]}
-    rejected = {v["id"]: v for v in catalogue["rejected"]}
+    # --- the device extras, which are ours and must stay ours -------------
+    # The contract permits these and leaves them off. If they ever vanish from
+    # here the device gets clicks and cut-off syllables, and nothing upstream
+    # would notice, because upstream is right not to care.
+    check("the fade against amplifier clicks is still applied", tts.FADE > 0)
+    check("the tail pad for the MAX98357A is still applied", tts.TAIL_PAD > 0)
+    chain = tts._filter_chain()
+    check("and both are actually in the filter chain",
+          f"afade=t=in:st=0:d={tts.FADE}" in chain
+          and f"apad=pad_dur={tts.TAIL_PAD}" in chain,
+          chain)
+    check("the chain still trims before it levels",
+          chain.index("silenceremove") < chain.index("loudnorm"),
+          "leading silence drags the integrated loudness down - CONTRACT.md §2")
 
-    check("no voice is both usable and rejected",
-          not (usable.keys() & rejected.keys()),
-          ", ".join(sorted(usable.keys() & rejected.keys())))
+    # --- the fingerprint --------------------------------------------------
+    # A contract change that does not reach the fingerprint is the worst of
+    # the three failures: the audio changes and the names do not.
+    config = tts.voice_config("piper:de_DE-thorsten-medium")
+    for key, value in (("silence_threshold", tts.SILENCE_THRESHOLD),
+                       ("loudnorm", tts.LOUDNORM),
+                       ("pipeline", tts.PIPELINE_VERSION)):
+        check(f"the fingerprint carries {key}", config.get(key) == value,
+              f"got {config.get(key)!r}, expected {value!r}")
 
-    for vid, voice in usable.items():
-        missing = [f for f in ("name", "lang", "quality", "bytes", "licence", "proof")
-                   if not voice.get(f)]
-        check(f"{vid} says everything a picker needs", not missing,
-              f"missing: {', '.join(missing)}")
+    # --- the catalogue ----------------------------------------------------
+    catalogue = json.loads(CATALOGUE.read_text(encoding="utf-8"))
+    voices = {v["id"]: v for v in catalogue["voices"]}
+    check("the catalogue has voices in it", bool(voices))
 
-    # The rule the spike measured: vits-web phonemizes against one fixed
-    # symbol table, and every low and x_low model has a smaller one. Listing
-    # such a voice as usable is not a judgement call that can go either way.
-    for vid, voice in usable.items():
-        check(f"{vid} is a quality vits-web can speak",
-              voice["quality"] in ("medium", "high"),
-              f"quality is {voice['quality']!r}")
-
-    for vid, voice in rejected.items():
-        check(f"{vid} says why it is out",
-              voice.get("why") in ("quality", "reach", "licence"),
-              f"why is {voice.get('why')!r}")
-
-    # --- the link to VOICE_CATALOGUE --------------------------------------
-    # The one that matters. Adding a voice to tts.py's catalogue is
-    # easy and looks harmless; whether a browser can speak with it is a
-    # separate question that nothing else asks.
     shipped = [entry.rsplit("/", 1)[-1]
                for entries in tts.VOICE_CATALOGUE.values() for entry in entries]
     for vid in shipped:
-        check(f"VOICE_CATALOGUE's {vid} has an answer in voices.json",
-              vid in usable or vid in rejected,
-              "not mentioned either way - add it, or say why it cannot work")
+        check(f"VOICE_CATALOGUE's {vid} is in the shared catalogue", vid in voices,
+              "the container fetches a voice the shared list has never heard of")
 
-    # And the finding this list was written for, asserted rather than left in
-    # a document: two of the four voices tts.py ships cannot be spoken
-    # in a browser, and one of them is the only German female voice there.
-    unusable = [v for v in shipped if v in rejected]
-    check("the browser list still knows which shipped voices it cannot speak",
-          len(unusable) == 2 and set(unusable) == {"de_DE-kerstin-low", "en_US-john-medium"},
-          f"expected kerstin-low and john-medium, found {unusable}")
+    # The finding that started all this, still asserted rather than left in a
+    # document: two of the four voices this fetches cannot be spoken in a
+    # browser, and one of them is the only German female voice there is.
+    unusable = [v for v in shipped if v in voices and voices[v].get("browser") != "ok"]
+    check("the browser still cannot speak two of the four voices this fetches",
+          sorted(unusable) == ["de_DE-kerstin-low", "en_US-john-medium"],
+          f"expected kerstin-low and john-medium, found {sorted(unusable)}")
 
-    german_female = [v for v in usable.values()
-                     if v["lang"] == "de" and v.get("gender") == "female"]
-    # Still true, and the day it stops being true is a good day: it means the
-    # phoneme remap got wired up and Kerstin came back. Then this check is the
-    # thing that reminds whoever did it that docs/browser-tts.md still says the
-    # device has no German female voice.
+    german_female = [v for v in voices.values()
+                     if v["lang"] == "de" and v.get("gender") == "female"
+                     and v.get("browser") == "ok"]
+    # The day this fails is a good day: it means the phoneme remap got wired
+    # up and Kerstin came back.
     check("there is still no German female voice for the browser",
           not german_female,
-          "there is one now - say so in docs/browser-tts.md and voices.json, "
-          "both of which still say there is not: "
-          + ", ".join(v["id"] for v in german_female))
-
-    # --- the URL the page writes down has to be speak.js's ---------------
-    # ui.html does not map onnxruntime-web yet, because nothing it loads asks
-    # for one; the entry sits in a comment there, ready for whoever wires
-    # speech up. A comment rots more quietly than a mapping would, and this is
-    # the drift that hurts: vits-web loads its runtime binaries from a fixed
-    # 1.18.0 path, so a page naming a different onnxruntime fails deep inside
-    # with nothing readable attached - the exact failure the pin exists to
-    # avoid, reintroduced one file over.
-    #
-    # VITS_WEB is deliberately not checked: speak.js imports it by URL rather
-    # than by bare name, so no map entry names it and there is nothing for the
-    # page to disagree with.
-    speak = (ROOT / "static" / "tts" / "speak.js").read_text(encoding="utf-8")
-    constant = re.search(r'export const ONNX_RUNTIME = "([^"]+)"', speak)
-    written = re.search(r'"onnxruntime-web":\s*"([^"]+)"',
-                        (ROOT / "ui.html").read_text(encoding="utf-8"))
-    check("ui.html writes down the ONNX_RUNTIME speak.js uses",
-          constant is not None and written is not None
-          and written.group(1) == constant.group(1),
-          f"ui.html says {written.group(1)!r}, speak.js says {constant.group(1)!r}"
-          if constant and written else "not found in both files")
+          "there is one now - say so in docs/browser-tts.md, which still says "
+          "there is not: " + ", ".join(v["id"] for v in german_female))
 
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")

@@ -52,12 +52,6 @@ PLACEHOLDER = re.compile(r"\{(\w+)\}")
 NOT_ON_THE_PAGE = {
     "tiles.js": "tests/test_tile_render_js.py",
     "layout_format.js": "tests/test_layout_format.py",
-    # The speech pipeline: level.js is the browser's ffmpeg and speak.js is
-    # its piper and its Azure. They sit in a folder of their own because there
-    # are three of them with voices.json, which is the one file here meant to
-    # be copied into mitreden rather than kept twice.
-    "tts/level.js": "tests/test_browser_tts.py",
-    "tts/speak.js": "tests/test_browser_tts.py",
     # Where the content goes when there is no content/ folder. The stamp that
     # guards a stale tab is what test_store.py checks against app.py; the
     # database itself is tools/storecheck.html, because IndexedDB needs a
@@ -333,9 +327,9 @@ def check_every_module_is_reachable() -> int:
         """The modules one file names, as paths under static/.
 
         Resolved against the importing file rather than taken as a name:
-        "./level.js" in static/tts/speak.js is static/tts/level.js, and in a
-        flat reading it would have been a top-level level.js that is not
-        there - or, worse, one that is and is a different file.
+        "./dom.js" in static/backend/local.js is static/backend/dom.js if one
+        is there, and in a flat reading it would have been the top-level
+        dom.js - which exists, and is a different file.
         """
         nonlocal failures
         out = []

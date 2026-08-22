@@ -2,9 +2,9 @@
   "azure_format": "riff-16khz-16bit-mono-pcm",
   "locale": "de-DE",
   "loudnorm": "I=-16:TP=-1.5:LRA=11",
-  "pipeline": 2,
+  "pipeline": 3,
   "rate": "-5%",
   "sample_rate": 16000,
-  "silence_threshold": "-45dB",
+  "silence_threshold": "-50dB",
   "voice": "de-DE-GiselaNeural"
 }
