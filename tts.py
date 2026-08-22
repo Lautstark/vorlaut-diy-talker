@@ -67,12 +67,12 @@ RATE = setting("AZURE_SPEECH_RATE", "-5%")
 # that layout.json answers the question and this is not read again.
 SEED_VOICE = setting("AZURE_SPEECH_VOICE", "")
 
-# Piper models are looked for here, first match wins. The container points
-# VORLAUT_VOICES at /voices, where its four baked-in voices sit - outside
-# /app on purpose, because Compose mounts the project over that. The search
-# carries on afterwards regardless, so a voice put next to the rest of the
-# content is still found, is backed up along with it, and survives every
-# rebuild.
+# Piper models are looked for here, first match wins. VORLAUT_VOICES comes
+# first for whoever keeps their models somewhere of their own; the container
+# used to set it to /voices, and it is kept because the reason outlived the
+# container. Then content/voices, so a voice put next to the rest of the
+# content is found and is backed up along with it, and only then the copy
+# next to the code.
 VOICE_DIRS = [d for d in dict.fromkeys(
     [Path(os.environ["VORLAUT_VOICES"]) if os.environ.get("VORLAUT_VOICES") else None,
      config.CONTENT / "voices", ROOT / "voices"]) if d is not None]
@@ -250,8 +250,7 @@ VOICE_SOURCE = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 # all three it publishes are low or x_low.
 #
 # The list below is deliberately not trimmed for that. Both voices work here,
-# and here is what this list is for: what the container downloads and speaks
-# with. What a browser can speak with is a different list with different
+# and here is what this list is for: what tts.py downloads and speaks with. What a browser can speak with is a different list with different
 # reasons behind it, and it is written down in static/tts/voices.json - one
 # list per question rather than one list that answers neither. What keeps them
 # from drifting apart is tests/test_browser_tts.py, which fails if a voice is
@@ -514,9 +513,9 @@ def voice_config(vid: str) -> dict:
     }
     kind, _, rest = vid.partition(":")
     if kind == "piper":
-        # The name of the model, never its path: the same voice sits at
-        # /voices in the container and in content/voices on a laptop, and both
-        # have to arrive at the same fingerprint.
+        # The name of the model, never its path: the same voice sits under
+        # VORLAUT_VOICES on one machine and in content/voices on another, and
+        # both have to arrive at the same fingerprint.
         #
         # The piper version is here and not in shared, so that bumping it
         # renames the recordings piper made and leaves Azure's alone. Azure
