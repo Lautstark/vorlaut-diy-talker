@@ -160,6 +160,10 @@ button.danger { color: var(--danger); }
 }
 .grip:hover { opacity: 1; }
 .grip:active { cursor: grabbing; }
+.grip:focus-visible { opacity: 1; }
+/* An armed swap has no drag image to show for itself, so the grip that
+   holds it speaks the accent the focus ring already uses. */
+.grip.armed { opacity: 1; color: var(--accent); }
 .tile.dragover { border-style: dashed; }
 .tab.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
 .tab[draggable=true] { cursor: grab; }
