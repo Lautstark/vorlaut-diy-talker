@@ -76,9 +76,38 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         failures.append(name)
 
 
+# Code that is not ours, and the reason is the one tests/test_ui_texts.py
+# gives beside its own copy of this constant. static/vendor/ holds built
+# copies of packages, with their provenance in a VENDORED.md beside them, and
+# the rule below is not one they agreed to: composing markup is what a bundler
+# does, and a minified one cannot be read to see whether the value it hands
+# over is one it wrote. Nothing there assigns .innerHTML today, so checking it
+# would pass - and the day a refreshed bundle does, the build would fail over
+# a line nobody here can change. Checking them would only ever report that
+# somebody else writes code differently.
+VENDOR = "vendor"
+
+
 def scripts() -> list[Path]:
-    """Every JavaScript module the page loads."""
-    return sorted(app.STATIC.glob("*.js"))
+    """Every JavaScript module under static/, however deep, minus vendored code.
+
+    rglob rather than glob, which is a fix and not a tidy-up: this used to
+    look only at the top level, so a module in a subfolder could hand the HTML
+    parser a string it composed and nothing here would see it. static/tts/
+    level.js and speak.js were exempt from the whole rule by being one
+    directory down, and nothing said so. tests/test_ui_texts.py had the same
+    hole in the same call and closed it; this is that fix, arriving late.
+    """
+    return sorted(path for path in app.STATIC.rglob("*.js")
+                  if VENDOR not in path.relative_to(app.STATIC).parts)
+
+
+def module_name(path: Path) -> str:
+    """How a module is named in a finding: its path under static/, not its
+    bare name. A finding has to say which file to open, and two folders could
+    hold a level.js one day - reporting both as "level.js" would send somebody
+    to the wrong one."""
+    return path.relative_to(app.STATIC).as_posix()
 
 
 def masked(text: str) -> str:
@@ -213,10 +242,11 @@ def check_no_composed_markup() -> None:
     global composed
     total = 0
     for path in modules:
-        found, problems = sites(path.name, path.read_text(encoding="utf-8"))
+        name = module_name(path)
+        found, problems = sites(name, path.read_text(encoding="utf-8"))
         total += found
         if found or problems:
-            check(f"{path.name}: {found} assignment(s) to .innerHTML",
+            check(f"{name}: {found} assignment(s) to .innerHTML",
                   not problems)
             for problem in problems:
                 print(f"          {problem}")
