@@ -1,0 +1,18 @@
+{
+  "name": "vorlaut",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A small talker to build yourself: five keys that are displays at the same time.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lautstark/vorlaut.git"
+  },
+  "scripts": {
+    "tokens": "cp node_modules/@lautstark/design/tokens/vorlaut.css static/tokens.css"
+  },
+  "devDependencies": {
+    "@lautstark/design": "github:Lautstark/design#v1.0.1"
+  }
+}

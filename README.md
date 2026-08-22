@@ -93,6 +93,29 @@ and nothing behind it, pictograms from [ARASAAC](https://arasaac.org), speech
 from piper or Azure. The build turns those into RGB565 images and 16 kHz WAVs
 and packs them into a LittleFS image for the flash.
 
+### The one npm dependency
+
+`static/tokens.css` is not written here. The colours, radii and shadows are
+shared with the sister projects and come from
+[Lautstark/design](https://github.com/Lautstark/design), which derives them from
+one input — vorlaut's accent `#9B7BFF` — and checks every contrast pairing
+before publishing. There is a [gallery](https://lautstark.github.io/design/):
+pick the purple swatch to see this product's exact set.
+
+That is the whole reason this repository has a `package.json`. There is still no
+build step and the page still loads plain ES modules; npm is here to pin a
+version and nothing else:
+
+```bash
+npm install                 # once
+npm update @lautstark/design && npm run tokens
+```
+
+`npm run tokens` copies the file into `static/`, where it is committed — so the
+page runs for anyone who never touches npm at all. Do not edit it; it says so at
+the top, and the next update overwrites it. To change a value, change the rule
+that produces it.
+
 ## Languages
 
 The **product** comes in German and English — interface, build log and the

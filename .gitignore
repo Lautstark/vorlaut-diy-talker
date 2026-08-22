@@ -50,3 +50,7 @@ __pycache__/
 # here, uploaded by the Pages workflow, and never committed - a checked-in
 # build output is a second copy of the front end that goes stale quietly.
 dist
+
+# npm, which this repository uses for exactly one thing: the shared design
+# tokens. See README.
+node_modules/
