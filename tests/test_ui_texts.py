@@ -257,6 +257,17 @@ def check_modules_are_valid_js() -> int:
     return failures
 
 
+# The page does not load this one yet, and that is not an oversight: it is the
+# browser's half of the layout.bin format, ported from layout_format.py while
+# the app is being turned into a static site. Nothing in the current interface
+# writes layout.bin - the server still does - so nothing imports it. What
+# keeps it honest until then is tests/test_layout_format.py, which writes
+# every case with it, compares the bytes with the ones Python writes and has
+# the firmware's own reader read the result. This name goes as soon as the
+# static app writes the file itself.
+NOT_LOADED_YET = {"layout_format.js"}
+
+
 def check_every_module_is_reachable() -> int:
     """No module may sit in static/ without the page ever loading it.
 
@@ -273,7 +284,7 @@ def check_every_module_is_reachable() -> int:
             imported.add(target)
     failures = 0
     for path in scripts():
-        if path.name not in imported:
+        if path.name not in imported and path.name not in NOT_LOADED_YET:
             print(f"  FAIL  nothing imports {path.name}, so the page never "
                   f"loads it")
             failures += 1
@@ -318,7 +329,9 @@ def main() -> int:
     # exactly like a run that found nothing wrong.
     print(f"  {len(frontend_sources())} front-end file(s) scanned, "
           f"{len(scripts())} of them modules, and every one of them reached "
-          f"from main.js")
+          f"from main.js"
+          + (f" except {', '.join(sorted(NOT_LOADED_YET))}"
+             if NOT_LOADED_YET else ""))
     print("  the bootstrap block cannot be closed by anything inside it")
     print("  the command line stays English, the interface does not")
     if not shutil.which("node"):

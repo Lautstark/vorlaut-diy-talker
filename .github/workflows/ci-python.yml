@@ -72,6 +72,11 @@ jobs:
         # What each test is for is in its own docstring, which is the place
         # that can keep it true. Run one on its own with:
         #   python tests/run.py pairing
+        #
+        # One of them needs Node: tests/test_layout_format.py runs the
+        # browser's writer, static/layout_format.js, and holds its bytes
+        # against the ones Python writes. The runner image brings Node, so
+        # nothing is installed for it here.
         run: python tests/run.py
 
       - name: Build with the example content
