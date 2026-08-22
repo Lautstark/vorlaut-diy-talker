@@ -43,6 +43,14 @@ member by member - names, order, timestamps, permissions and the bytes inside
 
 What is not here: validate(), the profiles and estimate_bytes(). They are not
 in static/obf.js either - see the note at the top of it.
+
+This file dies with obf.py, and that is on purpose. It imports the oracle at
+the top, so the day the Python half goes it goes with it -
+tests/test_obf_frozen.py is the half that carries on, against the answers
+tools/obffreeze.py wrote down while there were still two implementations to
+compare. The first thing checked below is that those written-down answers are
+still the ones obf.py gives, because a stale lock file would keep passing
+after this file is gone.
 """
 
 from __future__ import annotations
@@ -70,7 +78,7 @@ os.environ.pop("VORLAUT_DATA", None)
 os.environ.pop("VORLAUT_METACOM_DIR", None)
 
 import obf  # noqa: E402
-from buildbase import BuildError  # noqa: E402
+from buildbase import BuildError, short  # noqa: E402
 from layout import load_layout, normalize_layout  # noqa: E402
 
 DRIVER = ROOT / "tests" / "obf_node.mjs"
@@ -82,6 +90,11 @@ def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"  {'ok  ' if ok else 'FAIL'}  {name}" + (f"   {detail}" if detail else ""))
     if not ok:
         failures.append(name)
+
+
+def slug(name: str) -> str:
+    """A case name as a file name, so a frozen zip can be found by eye."""
+    return "".join(c if c.isalnum() else "-" for c in name).strip("-")
 
 
 def plain(value):
@@ -691,7 +704,7 @@ def container_cases(work: Path) -> list[tuple[str, Path, bool]]:
     # Nothing to read. Both have to refuse rather than answer with an empty
     # layout, which is what would quietly replace somebody's sets with nothing.
     cases.append(("a zip with no board in it", hand_built(
-        work / "empty.obz", [("images/ja.png", b"x")]), False))
+        work / "empty.obz", [("images/ja.png", b"x")]), True))
     not_a_zip = work / "notazip.obz"
     not_a_zip.write_bytes(b"this is not a zip file, it is a sentence")
     cases.append(("a file that is not a zip", not_a_zip, False))
@@ -751,8 +764,13 @@ def compare(name: str, want, answer: dict) -> None:
     check(name, found is None, found or "")
 
 
-def compare_refusal(name: str, want: BuildError | None, answer: dict) -> None:
-    """The same, for a case one of them is meant to refuse."""
+def compare_refusal(name: str, want: BuildError | str | None,
+                    answer: dict) -> None:
+    """The same, for a case one of them is meant to refuse.
+
+    `want` is the exception, or the sentence it made once the file name in it
+    has been brought to the form the browser uses.
+    """
     got = answer.get("error")
     if want is None:
         check(name, got is None,
@@ -765,6 +783,34 @@ def compare_refusal(name: str, want: BuildError | None, answer: dict) -> None:
           f"Python says {str(want)!r}, JavaScript says {got!r}")
 
 
+def frozen_is_still_current() -> int:
+    """Are the frozen answers still the ones obf.py gives?
+
+    tests/reference/obf.lock.json is a copy of this file's cases as the oracle
+    answered them, and copies go stale. Nothing else would notice: the frozen
+    test would keep passing, the JavaScript agreeing with a lock file about a
+    mapping obf.py no longer has. So it is asked here, in the file that still
+    has an obf.py to ask - the same arrangement test_layout_format.py has with
+    the frozen layouts.
+
+    The freezer does the comparing, with --check, so that there is one
+    definition of what the answers are and not a second one here.
+    """
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "obffreeze.py"), "--check"],
+        capture_output=True, text=True)
+    if result.returncode == 0:
+        print("  the frozen answers are still the ones obf.py gives")
+        return 0
+    print("  the frozen answers are no longer what obf.py produces:")
+    for line in result.stdout.strip().split("\n")[-12:]:
+        print(f"  {line}")
+    print("  Refreeze with tools/obffreeze.py, and read the diff before you "
+          "do - once obf.py is gone the lock file is the only thing that has "
+          "an opinion about static/obf.js.")
+    return 1
+
+
 def main() -> int:
     if not (ROOT / "static" / "obf.js").is_file():
         print("  static/obf.js is missing")
@@ -774,6 +820,8 @@ def main() -> int:
 
 
 def run(work: Path) -> int:
+    if frozen_is_still_current():
+        failures.append("the frozen answers are stale")
     helpers = helper_calls()
     exports = export_cases()
     foreign = foreign_cases()
@@ -931,7 +979,13 @@ def check_read_zip(name: str, path: Path, wording: bool, answer: dict) -> None:
         layout = obf.document_to_layout(document)
     except BuildError as exc:
         if wording:
-            compare_refusal(name, exc, answer)
+            # obf.py names the file by its path and the browser is handed a
+            # name, so the two are brought to the same thing before the
+            # sentences are compared - the same normalizing tools/obffreeze.py
+            # does when it writes one of these down.
+            said = str(exc).replace(short(path), path.name) \
+                           .replace(str(path), path.name)
+            compare_refusal(name, said, answer)
         else:
             # Both refuse; the reason inside the message is zipfile's on one
             # side and DecompressionStream's on the other, and holding one

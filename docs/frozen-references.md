@@ -1,7 +1,8 @@
 # What still checks the browser once Python is gone
 
-Four subsystems in this repository exist twice — tile rendering, the layout
-binary, the speech chain and symbol search — because the app is being rewritten
+Five subsystems in this repository exist twice — tile rendering, the layout
+binary, the speech chain, symbol search and the Open Board Format converter —
+because the app is being rewritten
 from a Python web app into a browser-only static site. The Python halves are on
 a deletion path. They are also, today, most of the reason anybody knows the
 JavaScript halves are correct.
@@ -17,10 +18,10 @@ numbers are now the only external check left in that repository.
 
 **A test that can only compare a thing against itself passes forever.** So the
 outside opinions here were written down while there were still outside opinions
-to write down. Nothing has been deleted; that is a later phase, and this exists
-to make it safe.
+to write down — which turned out to be the last chance to: the Python halves
+are being deleted now (2026-08-22), and this is what is left behind them.
 
-## The three lock files
+## The lock files
 
 | | frozen from | needs, to check it | what it protects |
 |---|---|---|---|
@@ -28,14 +29,16 @@ to make it safe.
 | [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `static/tiles.js` |
 | [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `static/layout_format.js` |
 | [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `static/symbols.js` |
+| [`tests/reference/obf.lock.json`](../tests/reference/obf.lock.json) | `obf.py` and `normalize_layout()` in `layout.py` | node | `static/obf.js` |
 
 Each is written by a tool that can only run while the Python half is here —
 [`tools/ttsfreeze.py`](../tools/ttsfreeze.py),
 [`tools/tilefreeze.py`](../tools/tilefreeze.py),
 [`tools/layoutfreeze.py`](../tools/layoutfreeze.py),
-[`tools/symbolfreeze.py`](../tools/symbolfreeze.py) — and each carries what
+[`tools/symbolfreeze.py`](../tools/symbolfreeze.py),
+[`tools/obffreeze.py`](../tools/obffreeze.py) — and each carries what
 produced it, when, and what would invalidate it, in the shape
-`tools/vendor.lock.json` uses next door. All four take `--check`, which
+`tools/vendor.lock.json` uses next door. All of them take `--check`, which
 measures again and changes nothing; that is the command to run after upgrading
 `ffmpeg` or Pillow.
 
@@ -63,17 +66,20 @@ what was recorded.** So what is frozen here keeps regression detection on the
 recorded set, and does not keep the ability to work out what the right answer
 is for a case nobody recorded. The moment `TILE_PIPELINE` is bumped, or the
 layout format grows a field, or a symbol is added, these files cannot say what
-the new correct bytes are — Python has to come back to regenerate them, and all
-three freeze tools import it precisely so that it must.
+the new correct bytes are — Python has to come back to regenerate them, and
+every freeze tool imports it precisely so that it must.
 
 That makes them a **supplement to the oracles, not a replacement for them.**
 They are insurance against the check evaporating quietly; they are not the
 check itself.
 
-The bar for removing `tiles.py`, `tts.py`, `layout_format.py` and `obf.py` is
-unchanged by anything in this document: **replaced and proven on the bench.**
-Not "replaced", and not "the hardware arrived". Nothing here lowers it, and
-this file should not be cited as though it does.
+The bar for removing `tiles.py`, `tts.py`, `layout_format.py` and `obf.py` used
+to be **replaced and proven on the bench** — not "replaced", and not "the
+hardware arrived" — and nothing in this document ever lowered it. On
+2026-08-22 that bar was dropped by a decision rather than met: the Python
+halves go now and what breaks gets fixed forward. So this section is no longer
+an argument against anything; it is the list of what those files were doing
+that the lock files do not do. Read it as the price, not as a veto.
 
 One removal that these do not bear on at all, because the two get conflated
 easily: the firmware's Wi-Fi stack — `discover.h`, `networks.h`, `pairing.h`,
@@ -186,6 +192,58 @@ still what `normalize_layout()` produces. Nothing else would notice that going
 stale — the frozen cases would keep agreeing with each other about a layout
 Python no longer generates.
 
+### The board as a document — the only one with no second opinion
+
+The other four have something outside Python to fall back on: Pillow is one
+renderer among renderers, `layout.bin` has the firmware's own C reader
+compiled at test time, the speech chain has `ffmpeg`, and symbol search is a
+naming rule two implementations both state. A `.obf` is a mapping this project
+invented — which set becomes which board, what a set key is, where the colour
+lives — so [`obf.py`](../obf.py) was the entire outside opinion on whether
+[`static/obf.js`](../static/obf.js) is right.
+
+`tests/test_obf_js.py` compares the two live and imports `obf` at the top, so
+it does not survive the deletion in a form that reports anything: it fails to
+start, gets removed with the Python it named, and nothing is left that has an
+opinion about the converter at all.
+
+So `tools/obffreeze.py` writes down what the oracle says, in the shape the
+node driver answers in, and `tests/test_obf_frozen.py` compares the two with
+nothing but node:
+
+- **The helpers**, on the arguments where two implementations of one rule
+  drift — a symbol reference split and rejoined, `image_id`'s SHA-256 over
+  names of one, two, three and four byte characters, `rgb()` out of a colour
+  that still needs normalizing, a locale nobody has heard of.
+- **Every layout on the way out**, as the document it becomes, field by field.
+- **Every document on the way in**, as the layout it becomes — the exporter's
+  own, and the foreign ones, which is the half that matters. A third row of
+  keys, links by path and by name, an orphan, a picture carried as pixels, a
+  label and a vocalization that disagree.
+- **`normalize_layout()`**, which is in `layout.py` and decides what a
+  complete layout is. The browser has a copy of it now; without this the copy
+  is checked against nothing.
+- **The licence rule**: nine documents, seven of which have to be refused, and
+  the sentence each is refused with.
+- **The container.** Thirteen files under
+  [`tests/reference/obf/`](../tests/reference/obf/) — nothing compressed, no
+  manifest, a manifest naming a root nobody packed, board ids that are not the
+  file names, a board that is a list, three that have to be refused rather
+  than answered with an empty layout — and, for every export case, the members
+  `write_obz()` packed with their fixed timestamp and mode.
+
+Byte-identical `.obz` files are not the bar and cannot be: `zlib` and the
+browser's `CompressionStream` are two compressors that agree about the format
+and not about the output. What is frozen is what comes out of the members, and
+Python's own `zipfile` — which is not going anywhere — is what opens the
+browser's file to get at it.
+
+`tests/test_obf_js.py` keeps the live comparison while `obf.py` is here, and
+gained one check: that these frozen answers are still the ones the oracle
+gives, by running `tools/obffreeze.py --check`. Nothing else would notice that
+going stale — the browser and a lock file would go on agreeing about a mapping
+`obf.py` no longer has.
+
 ### Symbol search — a paraphrase, not an oracle
 
 A symbol lives in `layout.json` as `metacom:essen`. `metacom.py` keys the
@@ -243,6 +301,10 @@ Representative, with the check that fired:
 | alpha 254 read as opaque | `nearly-opaque`, and only that |
 | `NAME_BYTES` changed under the fleet | the C reader's fields |
 | a frozen case edited by hand, hash refreshed | the JavaScript writer disagreeing |
+| a symbol reference losing its collection | `symbolOf`, and every board with a METACOM key in it |
+| the manifest's root ignored on read | the one fixture whose root is not its first board |
+| `sort_keys` dropped from the board JSON | the members of every written `.obz` |
+| the zip's fixed timestamp moved to today | the stamps on all eight written zips |
 
 ## What is still only checked against itself
 
@@ -275,9 +337,12 @@ much it would cost to be wrong:
    search, the index it builds, or the METACOM `.asar` reader in
    `metacom.py`. Those are still checked only by `tests/test_metacom_index.py`
    against Python.
-6. **`normalize_layout()` has no browser equivalent, and now has a copy.**
-   The frozen layouts are its output. If the browser ever has to normalize a
-   layout itself, nothing checks that against these.
+6. **`normalize_layout()` now exists in the browser too**, in
+   `static/obf.js`, because an imported board has to be given a colour and its
+   four slots. It is checked against `layout.py` in `tests/test_obf_js.py` and
+   frozen in `obf.lock.json` — but only on the inputs recorded there, and
+   `tests/reference/layout.lock.json`'s layouts are still `layout.py`'s output
+   rather than something the browser reproduces.
 7. **Tolerances.** The speech checks allow 0.15 LU on the ruler and 0.2 LU
    end-to-end, against agreement of 0.04 and 0.05 when frozen. The slack is
    room for a different `ffmpeg` build, not measured error — but a systematic
