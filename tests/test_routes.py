@@ -83,6 +83,7 @@ EXPECTED = {
     ("GET", "/manifest.webmanifest"),
     ("GET", "/symbols/"),               # by prefix - the rest is the reference
     ("GET", "/static/"),                # likewise - the stylesheet and the modules
+    ("GET", "/tools/"),                 # likewise - the standalone benches
     # The layout, and what goes into it
     ("GET", "/api/layout"),
     ("POST", "/api/layout"),
@@ -125,7 +126,7 @@ EXPECTED_RAW = {
     ("POST", "/api/device/pair/poll"),
 }
 
-EXPECTED_PREFIX = {("GET", "/symbols/"), ("GET", "/static/")}
+EXPECTED_PREFIX = {("GET", "/symbols/"), ("GET", "/static/"), ("GET", "/tools/")}
 
 
 def check_table() -> None:
@@ -142,7 +143,7 @@ def check_table() -> None:
           ", ".join(f"{m} {p}" for m, p in sorted(raw)))
 
     prefix = {key for key, entry in app.ROUTES.items() if entry.prefix}
-    check("and exactly two are matched by prefix", prefix == EXPECTED_PREFIX,
+    check("and exactly three are matched by prefix", prefix == EXPECTED_PREFIX,
           ", ".join(f"{m} {p}" for m, p in sorted(prefix)))
 
 
@@ -566,6 +567,33 @@ def check_static() -> None:
                          for _, code, kind in served),
           ", ".join(f"{n} HTTP {c}" for n, c, k in served
                     if c != 200 or k != "text/javascript; charset=utf-8"))
+
+    # tools/ is served by the same shape of route, so it gets the same
+    # questions. It exists so serialcheck.html can reach /api/build/* from the
+    # same origin - see docs/cable.md - and it serves .html as well as .js,
+    # which is one more suffix for a way out to hide behind.
+    bench = Recorder(route_path="/tools/serialcheck.html")
+    app.tool_file(bench, {})
+    check("a bench is served as HTML",
+          bench.content_type == "text/html; charset=utf-8", bench.content_type)
+    check("and is the file on disk",
+          bench.raw == (ROOT / "tools" / "serialcheck.html").read_bytes())
+
+    client = Recorder(route_path="/tools/cable.js")
+    app.tool_file(client, {})
+    check("the cable client is served as JavaScript",
+          client.content_type == "text/javascript; charset=utf-8",
+          client.content_type)
+
+    for path in ("/tools/../app.py",
+                 "/tools/..%2fapp.py",
+                 "/tools/../static/main.js",
+                 "/tools/nope.html",
+                 "/tools/icons.py",          # a real file, but not one to serve
+                 "/tools/"):
+        out = Recorder(route_path=path)
+        app.tool_file(out, {})
+        check(f"{path} is refused", out.code == 404, f"HTTP {out.code}")
 
     for path in ("/static/../app.py",
                  "/static/..%2fapp.py",
