@@ -1,12 +1,10 @@
 // Finding a symbol, in the browser.
 //
 // The browser half of metacom.py and of the ARASAAC endpoints in app.py, the
-// same way static/tiles.js is the browser half of tiles.py. Both halves exist
-// while the rewrite is in flight; this one does not replace the server yet.
-// picker.js asks backend.js for a search and backend.js still answers it over
-// HTTP - so this file is what the local implementation behind that seam will
-// call once there is one. See docs/symbol-search.md for what has to be true
-// before the switch is thrown.
+// same way static/tiles.js is the browser half of tiles.py. This is the half
+// the page uses: nothing here asks /api/search, /api/thumb or /api/sources any
+// more. The Python still answers all three, and still resolves symbols for the
+// build, which is the one thing that has not moved. See docs/symbol-search.md.
 //
 // The work itself is not done here. It is done by @lautstark/bildquelle, which
 // bildhaft and vorlaut share, because the METACOM rules are easier to keep
@@ -15,9 +13,9 @@
 //
 // The bare specifier below needs an import map, and a module cannot install one
 // for its own import — it has to be in the document before the first module
-// loads. tools/symbolcheck.html carries it, and for now that is the only page
-// that should: ui.html is the server-rendered app and nothing it loads imports
-// this file yet. The map belongs to whatever page the rewrite grows.
+// loads. ui.html carries one now, and tools/symbolcheck.html carries its own;
+// a document may hold exactly one, so a second dependency means a line in that
+// block rather than a second block.
 //
 // This is not a stopgap. Native modules and an import map are a destination
 // vorlaut can keep: the pitch is a web interface built from the standard
@@ -54,6 +52,10 @@ export async function restoreMetacom() {
 
 export const metacomStatus = () => metacom.status();
 export const metacomReady = () => metacom.isReady();
+/** How many image files were indexed. A count, never the list. */
+export const metacomCount = () => metacom.symbolCount;
+/** The name of the chosen folder, for saying which one is in use. */
+export const metacomRoot = () => metacom.rootName;
 export const subscribeMetacom = (listener) => metacom.subscribe(listener);
 
 export const chooseMetacomFolder = () => metacom.pickDirectory();

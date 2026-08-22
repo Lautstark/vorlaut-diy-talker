@@ -77,18 +77,14 @@ export async function saveLayout(layout, version) {
 }
 
 // --- Symbols -----------------------------------------------------------------
-
-export async function searchSymbols(word, source) {
-  const url = "/api/search?source=" + source + "&q=" + encodeURIComponent(word);
-  return await (await api(url)).json();
-}
+//
+// What is left of them here. The page searches through symbols.js and reads a
+// METACOM folder itself; /api/search and /api/sources still answer and nothing
+// calls them. This one stays because an ARASAAC pick has to land in symbols/
+// for build.py to resolve it.
 
 export async function pickSymbol(choice) {
   return await (await post("/api/pick", choice)).json();
-}
-
-export async function symbolSources() {
-  return await (await api("/api/sources")).json();
 }
 
 // The file goes up raw with its name in the query string, which is what saves

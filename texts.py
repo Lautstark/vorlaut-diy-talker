@@ -96,6 +96,17 @@ TEXTS: dict[str, dict[str, str]] = {
                             "because a value typed here could not take "
                             "effect.",
         # The same thing in the width of a heading.
+        "ui.metacom_here": "Folder in this browser, for searching",
+        "ui.metacom_choose": "Choose folder",
+        "ui.metacom_forget": "Forget",
+        "ui.metacom_here_none": "none chosen - searching ARASAAC alone",
+        "ui.metacom_here_ok": "{count} symbols from {root}",
+        "ui.metacom_here_busy": "reading the folder ...",
+        "ui.metacom_here_failed": "that folder could not be read",
+        "ui.metacom_build_uses": "The build reads the path above, the search "
+                                 "reads the folder chosen here. Point both at "
+                                 "the same collection until the build moves "
+                                 "into the browser too.",
         "ui.metacom_short_none": "not set",
         "ui.settings_saved": "saved",
         "ui.metacom_offer": "Have a METACOM licence? Add the folder under the gear, and it is searched alongside this.",
@@ -415,6 +426,17 @@ TEXTS: dict[str, dict[str, str]] = {
                             "Zu ändern ist er dort, wo die Variable gesetzt "
                             "wird - ein hier eingetragener Wert könnte nicht "
                             "wirksam werden.",
+        "ui.metacom_here": "Ordner in diesem Browser, zum Suchen",
+        "ui.metacom_choose": "Ordner wählen",
+        "ui.metacom_forget": "Vergessen",
+        "ui.metacom_here_none": "keiner gewählt - es wird nur ARASAAC durchsucht",
+        "ui.metacom_here_ok": "{count} Symbole aus {root}",
+        "ui.metacom_here_busy": "der Ordner wird gelesen ...",
+        "ui.metacom_here_failed": "dieser Ordner konnte nicht gelesen werden",
+        "ui.metacom_build_uses": "Der Build liest den Pfad oben, die Suche "
+                                 "liest den hier gewählten Ordner. Beide auf "
+                                 "dieselbe Sammlung zeigen lassen, bis auch "
+                                 "der Build in den Browser umzieht.",
         "ui.metacom_short_none": "nicht gesetzt",
         "ui.settings_saved": "gespeichert",
         "ui.metacom_offer": "Du hast eine METACOM-Lizenz? Trag den Ordner beim Zahnrad ein, dann wird er hier mit durchsucht.",

@@ -1,16 +1,17 @@
 // The symbol dialog: searching two sources, picking a result, uploading an
 // image of your own, and writing the outcome into the layout.
 //
-// pickTarget, searchToken and sources live here and nowhere else.
+// pickTarget and searchToken live here and nowhere else. Which sources are
+// available is bildquelle's answer now, not a variable of ours.
 import { $, say, status } from "./dom.js";
-import { searchSymbols, pickSymbol, symbolSources, uploadSymbol } from "./backend.js";
+import { pickSymbol, uploadSymbol } from "./backend.js";
+import * as symbols from "./symbols.js";
 import { state } from "./state.js";
 import { t } from "./texts.js";
 import { save } from "./save.js";
 import { render } from "./editor.js";
 
 let pickTarget = null;      // {kind: "set"} or {kind: "slot", index: n}
-let sources = { metacom: false };
 let searchToken = 0;        // so a slow answer cannot overtake a newer one
 
 export function openPicker(target, seed) {
@@ -22,9 +23,10 @@ export function openPicker(target, seed) {
   if ($("q").value) doSearch();
 }
 
-async function ask(word, source) {
-  return await searchSymbols(word, source);
-}
+// Searching happens here now, not on the server. /api/search and /api/thumb
+// still exist and still work; nothing on this page calls them. See
+// docs/symbol-search.md.
+const ask = (word, source) => symbols.search(word, source);
 
 async function doSearch() {
   const word = $("q").value.trim();
@@ -63,7 +65,7 @@ async function doSearch() {
     // The licensed collection sits locally and is there at once. ARASAAC
     // goes over the network and comes afterwards - that way something is
     // already on screen while the second source is still answering.
-    if (sources.metacom) {
+    if (symbols.metacomReady()) {
       const hits = await ask(word, "metacom");
       if (mine !== searchToken) return;
       show("METACOM", hits);
@@ -107,29 +109,45 @@ async function applySymbol(filename, label) {
 async function pick(item) {
   status(t(item.source === "metacom" ? "ui.taking_symbol" : "ui.loading_symbol"));
   try {
-    const result = await pickSymbol({
-      source: item.source,
-      id: item.id,
-      ref: item.ref,
-      label: item.label || $("q").value,
-    });
-    await applySymbol(result.symbol, result.label);
+    if (item.source === "metacom") {
+      // Nothing to fetch and nothing to copy: the layout holds the reference
+      // and the picture stays in the licensed folder, which is the whole of
+      // the METACOM rule. The browser resolved it, so the server is not asked.
+      await applySymbol(item.ref, item.label);
+    } else {
+      // ARASAAC still goes through the server, and this is the one place the
+      // page has not left it. The reference an ARASAAC pick *should* become is
+      // its id - that is the decision in docs/symbol-search.md - but build.py
+      // resolves a symbol by looking in symbols/, so writing an id today would
+      // produce layouts the build cannot build. The download stays until the
+      // build itself moves into the browser, and then this branch goes - and
+      // with it the last symbol call behind the seam.
+      const result = await pickSymbol({
+        source: item.source,
+        id: item.id,
+        label: item.label || $("q").value,
+      });
+      await applySymbol(result.symbol, result.label);
+    }
     status("");
   } catch (error) {
     status(t("ui.symbol_failed", { error: error.message }));
   }
 }
 
-// Which symbol sources exist is fixed at start - asking once is enough.
-// If that fails, it stays with ARASAAC alone.
+// Which sources exist is no longer fixed at start: METACOM arrives when a
+// folder is chosen and leaves when it is forgotten, both without a reload. So
+// this runs again whenever the provider says something changed.
 export async function loadSources() {
-  try {
-    sources = await symbolSources();
-  } catch (error) {
-    sources = { metacom: false };
-  }
-  $("q").placeholder = t(sources.metacom ? "ui.search_both" : "ui.search_arasaac");
-  if (sources.metacom) {
+  await symbols.restoreMetacom();
+  symbols.subscribeMetacom(showSources);
+  showSources();
+}
+
+function showSources() {
+  const metacom = symbols.metacomReady();
+  $("q").placeholder = t(metacom ? "ui.search_both" : "ui.search_arasaac");
+  if (metacom) {
     $("credits").textContent = t("ui.credits_both");
   } else {
     // Where somebody is standing when they wish the pictograms were better.

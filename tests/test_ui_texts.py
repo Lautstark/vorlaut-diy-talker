@@ -58,10 +58,6 @@ NOT_ON_THE_PAGE = {
     # be copied into mitreden rather than kept twice.
     "tts/level.js": "tests/test_browser_tts.py",
     "tts/speak.js": "tests/test_browser_tts.py",
-    # Symbol search. Not a port: bildhaft had written it, so it was lifted into
-    # a package the two share and this is the adapter. The test checks the one
-    # thing the two halves must agree on — the metacom: reference.
-    "symbols.js": "tests/test_symbol_reference.py",
 }
 
 # Code that is not ours. static/vendor/ holds built copies of packages, with

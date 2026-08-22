@@ -8,12 +8,16 @@
 // halves already exist and are already measured against the Python they were
 // ported from. What was missing was somewhere to put them.
 //
-// So the seventeen requests that used to be written out in eight modules are
-// named here instead, once. editor.js, picker.js, voices.js and settings.js ask
-// for what they need and are not told who answers; swapping the line below for
-// a local implementation moves the whole page across without any of them being
-// opened again. That is the only thing this file buys, and it is the reason the
-// rest of the rewrite is a series of small commits rather than one large one.
+// So the requests that used to be written out in eight modules are named here
+// instead, once. editor.js, picker.js, voices.js and settings.js ask for what
+// they need and are not told who answers; swapping the line below for a local
+// implementation moves the whole page across without any of them being opened
+// again. That is the only thing this file buys, and it is the reason the rest
+// of the rewrite is a series of small commits rather than one large one.
+//
+// The list shrinks as the rewrite lands. Searching and asking which sources
+// exist were here until the browser took both; what is left of symbols is the
+// ARASAAC download, which needs somewhere on disk to put the file.
 //
 // The names are re-exported one at a time rather than with `export *`, so that
 // this list is the contract: adding a way for the page to reach the outside
@@ -25,11 +29,10 @@ export {
   loadLayout,
   saveLayout,
 
-  // Finding a symbol, keeping one, and showing what it will look like at the
-  // 15.21 mm the ScreenKey actually has.
-  searchSymbols,
+  // Keeping a symbol, and showing what it will look like at the 15.21 mm the
+  // ScreenKey actually has. Finding one no longer comes through here - see
+  // symbols.js.
   pickSymbol,
-  symbolSources,
   uploadSymbol,
   previewInto,
 

@@ -7,6 +7,7 @@
 import { $, status } from "./dom.js";
 import { readSettings, writeSettings } from "./backend.js";
 import { t } from "./texts.js";
+import * as symbols from "./symbols.js";
 
 let settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
                  metacom: { path: "", ok: false, count: 0, keywords: false,
@@ -60,6 +61,67 @@ function renderSettings() {
   if (settings.metacom.fixed) {
     $("metacomState").textContent = t("ui.metacom_fixed");
   }
+
+  renderHere();
+}
+
+/* --------------------------------------- the folder this browser can read ---
+
+ * Two folders, briefly, and the panel says so rather than pretending
+ * otherwise. Searching happens in the browser now and reads the folder chosen
+ * here; the build still runs in Python and reads the path in the field above.
+ * They are the same collection in every sane setup - a metacom: reference is
+ * a file name, so the two agree as long as both point at a METACOM - and when
+ * the build moves into the browser the field above goes and this is all that
+ * is left.
+ *
+ * Nothing here uploads, copies or stores a symbol. The folder is read where it
+ * lies; see docs/symbol-search.md.
+ */
+function renderHere() {
+  $("metacomHereLabel").textContent = t("ui.metacom_here");
+  $("metacomChoose").textContent = t("ui.metacom_choose");
+  $("metacomForget").textContent = t("ui.metacom_forget");
+  $("metacomBuildNote").textContent = t("ui.metacom_build_uses");
+  $("metacomForget").hidden = !symbols.metacomReady();
+
+  const state = symbols.metacomStatus();
+  if (symbols.metacomReady()) {
+    $("metacomHereState").textContent = t("ui.metacom_here_ok", {
+      count: symbols.metacomCount(),
+      root: symbols.metacomRoot(),
+    });
+  } else if (state.kind === "loading") {
+    $("metacomHereState").textContent = t("ui.metacom_here_busy");
+  } else if (state.kind === "error") {
+    $("metacomHereState").textContent = t("ui.metacom_here_failed");
+  } else {
+    $("metacomHereState").textContent = t("ui.metacom_here_none");
+  }
+}
+
+export function wireSymbolFolder() {
+  // Chromium remembers the choice; everywhere else the file input reads the
+  // folder for this session only. One button either way, so the difference
+  // does not become a thing to explain.
+  $("metacomChoose").onclick = async () => {
+    try {
+      if (symbols.remembersFolder) await symbols.chooseMetacomFolder();
+      else $("metacomFiles").click();
+    } catch (error) {
+      // An abandoned picker throws, and is not a failure worth reporting.
+      if (error && error.name !== "AbortError") status(error.message);
+    }
+  };
+  $("metacomFiles").onchange = async (event) => {
+    const files = event.target.files;
+    event.target.value = "";
+    if (files && files.length) await symbols.readMetacomFiles(files);
+  };
+  $("metacomForget").onclick = () => symbols.forgetMetacom();
+
+  // The provider says when a folder arrives or goes; nothing here polls.
+  symbols.subscribeMetacom(renderHere);
 }
 
 // Where the symbols come from, in one line. Twice over, because the heading
