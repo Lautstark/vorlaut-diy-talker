@@ -17,14 +17,20 @@ import { $, status} from "./ui/dom.js";
 import { runBuild } from "./backend/index.js";
 import { t, applyTexts } from "./core/texts.js";
 import { load, saveNow, markReleaseState, wireConflict } from "./core/save.js";
-import { wireEditor } from "./ui/editor.js";
+import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
 import { confirmPair, watchPair } from "./ui/pairing.js";
 import { openVoices, saveVoice, wireLanguage } from "./ui/voices.js";
 import { wireSymbolFolder, wireBoard } from "./ui/settings.js";
+import { subscribeMetacom } from "./data/symbols.js";
 
 export function start(): void {
   wireConflict();
+// The board's own pictures follow the METACOM provider: a folder arriving -
+// restored on load, reconnected, or freshly picked - re-renders the board, or
+// every metacom: key keeps the placeholder it drew while there was no folder,
+// and connecting one looks like it did nothing.
+subscribeMetacom(render);
   wireEditor();
   wirePicker();
   wireSymbolFolder();

@@ -160,6 +160,13 @@ export function wireSymbolFolder() {
   // does not become a thing to explain.
   $<HTMLButtonElement>("metacomChoose").onclick = async () => {
     try {
+      // A folder chosen on an earlier visit is usually still here, one
+      // permission click away - reconnect first, and only open the picker
+      // when there is nothing to reconnect to. Without this, every return
+      // visit cost re-picking the folder from scratch.
+      const status = symbols.metacomStatus();
+      if (status.kind === "needs-setup" && status.code === "permission-needed"
+          && await symbols.reconnectMetacom()) return;
       if (symbols.remembersFolder) await symbols.chooseMetacomFolder();
       else $<HTMLInputElement>("metacomFiles").click();
     } catch (error) {
@@ -184,6 +191,12 @@ export function wireSymbolFolder() {
 // sentence - and only the "nothing set" case differs between the two.
 function metacomWord(short) {
   const where = settings.metacom;
+  // The folder is there and one click re-confirms it - a different sentence
+  // from "not set" and from "unreadable", because the remedy is different.
+  const state = symbols.metacomStatus();
+  if (state.kind === "needs-setup" && state.code === "permission-needed") {
+    return t("ui.metacom_confirm");
+  }
   if (!where.path) return t(short ? "ui.metacom_short_none" : "ui.metacom_none");
   if (!where.ok) return t("ui.metacom_bad");
   return t("ui.metacom_ok", {

@@ -55,6 +55,11 @@ export const metacomRoot = () => metacom.rootName;
 export const subscribeMetacom = (listener) => metacom.subscribe(listener);
 
 export const chooseMetacomFolder = () => metacom.pickDirectory();
+/** One click on a stored folder handle, no picker: Chromium keeps the handle
+ *  across visits but often downgrades the permission to "ask again", and
+ *  re-confirming needs a user gesture. This is that gesture's cheap path -
+ *  falling back to the full picker only when there is nothing stored. */
+export const reconnectMetacom = () => metacom.requestPermission();
 export const readMetacomFiles = (files) => metacom.useFileList(files);
 export const readMetacomZip = (file) => metacom.useZip(file);
 export const forgetMetacom = () => metacom.forget();
@@ -118,6 +123,20 @@ export async function searchAll(word) {
  * Promise, which is truthy, and put "[object Promise]" where a URL belonged. */
 export const imageUrl = (source: ProviderId, id: string): Promise<string | null> =>
   getProvider(source).getImageUrl(id);
+
+/** A metacom: reference's picture, from the bare stem the reference is.
+ *
+ * Two different questions hide behind "give me the image". The picker holds
+ * provider ids - paths - and imageUrl() answers those. A stored reference
+ * holds a *name*, because a name survives the collection moving between
+ * machines, and turning it back into a path is the provider's idForName():
+ * exact or null, never ranked. Resolution through search() was the bug this
+ * replaces - capped at 24 ranked hits, a stem behind a common word family
+ * simply fell off the end. */
+export async function metacomImageByName(stem: string): Promise<string | null> {
+  const path = metacom.idForName(stem);
+  return path ? metacom.getImageUrl(path) : null;
+}
 
 /**
  * The symbol as something drawImage takes, ready for tiles.js.

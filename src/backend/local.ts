@@ -28,7 +28,9 @@ import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import {
   speak, asBlob, shippable, displayName, usePiper, PIPELINE_VERSION,
+  listVoices as catalogueVoices,
 } from "@lautstark/stimmquelle/browser";
+import { LANGUAGES } from "../core/boot_data.js";
 
 // What vorlaut asks the shared chain for. The rate is the device's; the fade
 // and the tail pad are CONTRACT.md §2's permitted device extras, off unless
@@ -92,7 +94,12 @@ export async function saveLayout(layout, version) {
 async function picture(reference) {
   if (!reference) return null;
   if (reference.startsWith("metacom:")) {
-    const url = await symbols.imageUrl("metacom", reference.slice("metacom:".length));
+    // By name, not by id: the reference deliberately stores the stem alone,
+    // and the provider's ids are paths into one particular copy of the
+    // collection. imageUrl() with the stem asked for a path that never
+    // existed, so every metacom: key rendered its placeholder - with the
+    // folder connected, the index built, and nothing anywhere saying why.
+    const url = await symbols.metacomImageByName(reference.slice("metacom:".length));
     return url ? await symbols.loadImage(url) : null;
   }
   const bytes = await store.getFile("symbols", reference);
@@ -221,6 +228,30 @@ export async function listVoices(): Promise<VoiceList> {
     language: voice.lang || "",
     ready: true,
   }));
+
+  // Azure's voices, when a key is stored. app.py listed them and this file
+  // did not, so the key somebody typed into the sheet was kept, shown as
+  // "set", and then never asked anything - the sheet offered piper alone and
+  // the Azure section looked decorative. Failure adds nothing rather than
+  // throwing: a wrong key or a network that is not there should cost the
+  // Azure rows, not the whole list, and the key panel's own state line is
+  // where a bad key gets talked about.
+  const held = await store.readSettings(NO_SETTINGS);
+  if (held.azureSecret && held.azureRegion) {
+    try {
+      const cloud = await catalogueVoices({
+        azure: { key: held.azureSecret, region: held.azureRegion,
+                 languages: [...LANGUAGES] },
+      });
+      for (const voice of cloud) {
+        if (voice.source !== "azure") continue;
+        list.push({ id: voice.id, label: voice.name,
+                    language: voice.lang || "", ready: true });
+      }
+    } catch {
+      // The rows stay absent; nothing else about the page should change.
+    }
+  }
   // Both names, because the page reads both and means different things by
   // them: `active` is what would speak if somebody pressed play now, `chosen`
   // is what stands in layout.json. Without a server they are the same value.
@@ -245,7 +276,14 @@ export async function synthesise(text, voice) {
   // over: every play press on a board without a voice went to the catalogue as
   // the empty string and came back as a refusal with no name in it.
   const chosen = voice || (await store.readLayout()).layout?.voice || "";
-  const spoken = await speak(text, chosen, VORLAUT);
+  // The Azure key rides along whenever one is stored. speak() only reaches
+  // for it on an azure: id, so for piper this is baggage it ignores - and
+  // without it an azure: voice chosen in the sheet failed on every sentence.
+  const held = await store.readSettings(NO_SETTINGS);
+  const options = held.azureSecret && held.azureRegion
+    ? { ...VORLAUT, azure: { key: held.azureSecret, region: held.azureRegion } }
+    : VORLAUT;
+  const spoken = await speak(text, chosen, options);
   return asBlob(spoken.wav);
 }
 
@@ -466,7 +504,16 @@ export async function runBuild(): Promise<{ log: string[] }> {
     });
     const name = `a${await fingerprint(new TextEncoder().encode(payload))}.wav`;
     if (!await store.getFile("data", name)) {
-      const spoken = await speak(text, spokenBy, VORLAUT);
+      // The Azure key rides along the way synthesise() sends it, or a board
+      // whose voice is azure: previews fine and then fails on Release. Not in
+      // the fingerprint above, deliberately: the key changes who may ask, not
+      // how the sentence sounds, and rotating a key must not re-render a
+      // device's worth of audio.
+      const held = await store.readSettings(NO_SETTINGS);
+      const options = held.azureSecret && held.azureRegion
+        ? { ...VORLAUT, azure: { key: held.azureSecret, region: held.azureRegion } }
+        : VORLAUT;
+      const spoken = await speak(text, spokenBy, options);
       await store.putFile("data", name, owned(spoken.wav));
     }
     expected.add(name);
