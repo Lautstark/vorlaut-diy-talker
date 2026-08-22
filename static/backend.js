@@ -52,8 +52,11 @@ export {
   readSettings,
   writeSettings,
 
-  // Turning all of it into tiles and WAVs for the device.
+  // Turning all of it into tiles and WAVs for the device, and reading back
+  // what that left - which is how the files reach whatever sends them.
   runBuild,
+  buildManifest,
+  buildFile,
 
   // The five digits. On the way out with the Wi-Fi sync that needs them - see
   // the note in backend/server.js.
@@ -79,13 +82,17 @@ export {
 // Whoever brings WebSerial is expected to add a slot of its own here, against
 // the grain of the list above, and that is not a mistake.
 //
-// What it will not need is a way to be handed the files. The build already
-// leaves them where the sync finds them - builder.py writes data/ and the
-// device fetches out of it - and the browser keeps that arrangement rather
-// than inventing one: runBuild() writes through the same storage the layout
-// goes through and answers with its log, as it does now. The artefacts never
-// travel in a return value, which is the reason runBuild does not change
-// meaning when it moves.
+// What it will not get is the files as an argument. That was written here
+// before the cable was, and half of it was wrong: the transport does have to
+// be handed them, it just is not handed them by runBuild(). The build leaves
+// its files where something else comes and reads them - builder.py writes
+// data/ and the device fetches out of it - and the browser keeps exactly that
+// arrangement rather than inventing one. runBuild() still writes through
+// storage and still answers with nothing but its log; buildManifest() and
+// buildFile() read the result back afterwards, by name, the same way the
+// device has always read it. So the artefacts never travel in a return value,
+// which is the reason runBuild does not change meaning when it moves, and the
+// reason 1.5 MB does not pass through it.
 //
 // The list above is at its longest today. Most of it is here because the
 // server can do something the browser cannot do yet, and each of those leaves

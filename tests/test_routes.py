@@ -108,6 +108,9 @@ EXPECTED = {
     ("POST", "/api/device/pair/poll"),
     ("GET", "/api/device/manifest"),
     ("GET", "/api/device/file"),
+    # The same build read back by the page, which is what feeds the cable
+    ("GET", "/api/build/manifest"),
+    ("GET", "/api/build/file"),
 }
 
 # The three that read their own body. _body() is where the content-type and
@@ -354,6 +357,77 @@ def check_device_gate() -> None:
           missing.code == 404, f"HTTP {missing.code}")
 
 
+def check_build_readback() -> None:
+    """The page's half of the build, and the reason it is a separate pair.
+
+    /api/build/* and /api/device/* serve the same bytes out of the same
+    folder. They are two routes rather than one because of who is allowed to
+    ask: the device pair is gated on the device token, and that token belongs
+    to the talker. The page cannot be given it - a page goes to whoever can
+    reach this server - so the page pair is at the page's own trust level.
+
+    The test that matters here is the negative one. If somebody ever tidies
+    these two together with the device's, or copies _device_allowed() into
+    them out of a general sense that a device route should be gated, the
+    browser can no longer read what it is about to send down a cable, and the
+    failure appears as a sync that stops rather than as anything about a
+    token. So: refused with no key on one pair, served with no key on the
+    other, said in one place.
+    """
+    # Content of its own: this workspace has none, and without a layout the
+    # manifest is a 500 for a reason that has nothing to do with what is being
+    # checked here. Two files with known sizes are enough to be a build.
+    app.config.CONTENT.mkdir(parents=True, exist_ok=True)
+    (app.config.CONTENT / "layout.json").write_text(
+        (ROOT / "example" / "layout.json").read_text(encoding="utf-8"),
+        encoding="utf-8")
+    app.config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    (app.config.DATA_DIR / "layout.bin").write_bytes(b"\x00" * 64)
+    (app.config.DATA_DIR / "t0123.bin").write_bytes(b"\xff" * 128)
+
+    denied = Recorder(device_ok=False)
+    app.device_manifest(denied, {})
+    check("the device's manifest still wants the key", denied.code == 401,
+          f"HTTP {denied.code}")
+
+    # The same call, the same absent key, the page's route.
+    served = Recorder(device_ok=False)
+    app.build_manifest(served, {})
+    check("the page's manifest does not", served.code == 200,
+          f"HTTP {served.code}")
+    check("and it is JSON, because the page has a parser",
+          isinstance(served.payload, dict) and "files" in served.payload,
+          str(type(served.payload)))
+
+    # Same list as the device gets, so nobody can send a different build than
+    # the one the device would have fetched for itself.
+    both = app.manifest.device_manifest()
+    check("naming the same files the device would fetch",
+          [f["name"] for f in served.payload["files"]]
+          == [f["name"] for f in both["files"]])
+
+    # A file, by name, as bytes.
+    if both["files"]:
+        name = both["files"][0]["name"]
+        got = Recorder(device_ok=False)
+        app.build_file(got, {"name": [name]})
+        check(f"a file comes back whole   {name}",
+              got.code == 200 and len(got.raw) == both["files"][0]["size"],
+              f"HTTP {got.code}, {len(got.raw)} bytes")
+
+    # The name comes off a query string, so it gets the same guard as the
+    # device route rather than a weaker one.
+    escaped = Recorder(device_ok=False)
+    app.build_file(escaped, {"name": ["../../etc/passwd"]})
+    check("a name with a path in it does not escape data/",
+          escaped.code == 404, f"HTTP {escaped.code}")
+
+    absent = Recorder(device_ok=False)
+    app.build_file(absent, {"name": [""]})
+    check("and an empty name is a 404 rather than the folder",
+          absent.code == 404, f"HTTP {absent.code}")
+
+
 def check_upload() -> None:
     """The upload reads its own body, so it can be handed one."""
     empty = Recorder(headers={"Content-Length": "0"})
@@ -521,6 +595,7 @@ def main() -> int:
         check_lookup()
         check_settings()
         check_device_gate()
+        check_build_readback()
         check_upload()
         check_pairing()
         check_plain_routes()

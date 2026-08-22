@@ -881,6 +881,43 @@ def device_file(handler, query) -> None:
     handler._send(200, target.read_bytes(), "application/octet-stream")
 
 
+# --- The same build, for the page ---------------------------------------------
+#
+# The two above are the device's, and they are gated on the device token. The
+# page cannot use them: that token is the talker's credential, and a page is
+# served to whoever can reach this server, so handing it over would hand it to
+# them. Hence a second pair at the page's own trust level - the same level as
+# /api/layout, which is to say the same as everything else somebody editing
+# their own content already reads.
+#
+# They exist because the cable runs through the browser. Over Wi-Fi the device
+# pulled for itself and the page was not in the conversation; over WebSerial
+# the page is the one holding both ends, so it has to be able to read what the
+# last build left. Same bytes, same names, one serialisation each: lines for
+# the device because it has no parser, JSON here because the page does.
+
+
+@route("GET", "/api/build/manifest")
+def build_manifest(handler, query) -> None:
+    try:
+        handler._json(manifest.device_manifest())
+    except BuildError as exc:
+        handler._failed(exc, 500)
+
+
+@route("GET", "/api/build/file")
+def build_file(handler, query) -> None:
+    # The file name only, nothing before it. Same guard as the device route:
+    # the name comes off a query string and Path().name drops any directory
+    # somebody put in front of it.
+    name = Path((query.get("name") or [""])[0]).name
+    target = config.DATA_DIR / name
+    if not name or not target.is_file():
+        handler._error("err.file_not_found", 404)
+        return
+    handler._send(200, target.read_bytes(), "application/octet-stream")
+
+
 @route("GET", "/api/sources")
 def sources(handler, query) -> None:
     handler._json({

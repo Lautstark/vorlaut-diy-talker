@@ -141,6 +141,26 @@ export async function runBuild() {
   return await (await api("/api/build", { method: "POST" })).json();
 }
 
+// --- What the last build left -------------------------------------------------
+//
+// Not /api/device/manifest and /api/device/file, which look like exactly this
+// and are not: those two are gated on the device token, and that token is the
+// talker's credential rather than the page's. See the note beside them in
+// app.py. Same bytes either way.
+
+export async function buildManifest() {
+  return await (await api("/api/build/manifest")).json();
+}
+
+// Bytes, not a Blob: whatever ends up pushing these down a cable wants to look
+// at them, and a per-file buffer is the granularity progress is counted in
+// anyway - nothing here is bigger than a WAV.
+export async function buildFile(name) {
+  const url = "/api/build/file?name=" + encodeURIComponent(name);
+  return await (await api(url)).arrayBuffer();
+}
+
+
 // --- Pairing -----------------------------------------------------------------
 //
 // Both of these are on their way out: the five digits are how a talker over
