@@ -286,7 +286,7 @@ from the image, so there is no folder to get the permissions wrong on:
 
 ```bash
 docker run -d --name vorlaut -p 8771:8771 -p 8771:8771/udp \
-  -v vorlaut-data:/data ghcr.io/steffipetaffy/vorlaut:latest
+  -v vorlaut-data:/data ghcr.io/lautstark/vorlaut:latest
 docker logs -f vorlaut          # what the container says
 docker rm -f vorlaut            # gone again
 docker volume rm vorlaut-data   # and its content with it

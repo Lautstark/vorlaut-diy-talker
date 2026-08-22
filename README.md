@@ -23,7 +23,7 @@ create first:
 
 ```bash
 docker run -d --name vorlaut -p 8771:8771 -p 8771:8771/udp \
-  -v vorlaut-data:/data ghcr.io/steffipetaffy/vorlaut:latest
+  -v vorlaut-data:/data ghcr.io/lautstark/vorlaut:latest
 ```
 
 Then open [localhost:8771](http://localhost:8771). No Python, no ffmpeg, no

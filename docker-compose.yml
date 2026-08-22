@@ -7,7 +7,7 @@ services:
     #
     # Building it yourself is one file further along: docker-compose.build.yml
     # adds the "build:" back. See docs/operation.md.
-    image: ghcr.io/steffipetaffy/vorlaut:latest
+    image: ghcr.io/lautstark/vorlaut:latest
     container_name: vorlaut
     ports:
       # Another port on the computer, in case something already runs there:

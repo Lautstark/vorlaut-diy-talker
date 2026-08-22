@@ -32,20 +32,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Written out rather than worked out from ${{ github.repository }},
-      # which is where it used to come from. The repository is moving to
-      # another owner, and the image name would have followed it: the workflow
-      # would have begun publishing under a new path while the README,
-      # docker-compose.yml and the install line in docs/operation.md all still
-      # named the old one. Nobody would have seen an error. They would simply
-      # have gone on pulling a tag that had quietly stopped moving.
+      # Worked out from what the repository is called, and it has to be:
+      # writing the name out was tried, for the move to this organisation, so
+      # that the path in the README would not quietly stop being the path the
+      # workflow publishes to. It cannot work. A package belongs to an owner,
+      # GITHUB_TOKEN only reaches packages belonging to the owner running the
+      # job, and the old package stayed with the account the repository left:
       #
-      # It stays written out until the browser version replaces the container,
-      # at which point this workflow is deleted rather than corrected. Lower
-      # case throughout because Docker tags have to be and user names do not.
-      - name: Name the image
+      #   denied: permission_denied: The requested installation does not exist
+      #
+      # So the image moves with the repository whether or not that is
+      # convenient, and the documentation has to be moved by hand to match -
+      # README.md, docker-compose.yml and docs/operation.md all name it.
+      #
+      # Docker tags have to be lower case, GitHub owner names do not - hence
+      # the conversion here.
+      - name: Lowercase the image name
         run: |
-          echo "ABBILD=ghcr.io/steffipetaffy/vorlaut" >> "$GITHUB_ENV"
+          echo "ABBILD=ghcr.io/$(echo '${{ github.repository }}' \
+            | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
       # What the image is called, worked out from what was pushed. Only
       # :latest used to be published, which meant there was nothing to pin to
