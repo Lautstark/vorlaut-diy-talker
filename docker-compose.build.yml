@@ -9,6 +9,9 @@
 # Dockerfile. The source mount puts this folder back over /app, so that a
 # changed app.py needs a restart and not a build.
 #
+# The repeated "ports:" at the end is not part of that pair. It undoes a bug
+# in old Compose, and explains itself where it stands.
+#
 # Both are deliberately out of docker-compose.yml, and the mount is the more
 # important of the two. That file is the one everybody else runs, and with
 # ./:/app in it the code that runs is never the code that was pulled: the
@@ -38,3 +41,29 @@ services:
       # The baked-in voices survive this because they sit at /voices, outside
       # /app - see the Dockerfile.
       - ./:/app
+    # Said again here, exactly as docker-compose.yml already says it. That
+    # looks like a duplicate and is a repair: Compose 2.0.0-beta.1, and others
+    # old enough, deduplicate the merged ports list on the published number
+    # alone, protocol ignored, and keep whichever entry they saw last.
+    # docker-compose.yml publishes tcp first and the udp port discovery
+    # listens on second, both of them 8771, so in this two-file path the tcp
+    # entry silently went: nothing answering on the host, while the container
+    # reported healthy and the log had nothing to say about it. Repeating tcp
+    # last makes it the one that survives.
+    #
+    # What that costs on such a Compose is the udp publish, and only at the
+    # default port - one of the two is all there is to have. It is the right
+    # one to give up. Being found is not allowed to matter: discovery.py opens
+    # by saying so, the answer fails quietly, and the address field in the
+    # setup portal is there for exactly this. An interface nobody can reach is
+    # the worse half to lose.
+    #
+    # Nowhere else is anything given up. On another port the two do not
+    # collide and both come through:
+    #
+    #   ./start.sh 8798
+    #
+    # And on a Compose that reads the protocol this line changes nothing -
+    # checked against 5.5.0, which publishes both with it and without it.
+    ports:
+      - "${VORLAUT_PORT:-8771}:8771"

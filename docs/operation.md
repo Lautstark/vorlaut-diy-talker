@@ -196,7 +196,7 @@ the container.
 ### Building the image yourself
 
 Only for working on the project itself. `docker-compose.build.yml` adds two
-things, and they belong together — the `build:`, and the source mount that
+things that belong together — the `build:`, and the source mount that
 puts this folder back over `/app` so a changed `app.py` needs a restart rather
 than a build:
 
@@ -224,6 +224,23 @@ NAS that the published image exists to avoid.
 And the file is deliberately **not** called `docker-compose.override.yml` —
 Compose reads a file of that name without being asked, so both would quietly
 be the default again for anybody who has it lying around.
+
+A third entry in that file stands apart from the pair: it repeats the port
+`docker-compose.yml` already publishes. That is a repair, not an oversight.
+A Compose from before it learned to tell the protocols apart deduplicates the
+merged list on the published number alone — and the web interface and the
+device's UDP discovery are both on 8771, so one of them was dropped. The last
+one seen won, that was the UDP entry, and the two-file path came up with a
+container reporting healthy and nothing answering on the host. Repeating the
+TCP port makes it the survivor instead.
+
+What that costs on such a Compose, and only at the default port, is the UDP
+publish in this path: the device cannot find the server by asking, and the
+address field in the setup portal is the way in — which is what that field
+is for, and discovery was never allowed to matter. Start on any other port
+(`./start.sh 8798`) and the two no longer collide, so both are published. On a
+current Compose the repeated line changes nothing at all: 5.5.0 publishes both
+with it and without it.
 
 ### start.sh and stop.sh — for the clone only
 
