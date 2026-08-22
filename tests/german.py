@@ -122,8 +122,8 @@ ALLOWED = [
     # into texts.h when Wi-Fi lands in the main firmware.
     ("Damit der Talker neue Inhalte holen kann", "the captive portal"),
     ("Es bleibt gespeichert, diese Seite kommt", "the captive portal"),
-    # The README quotes the two German words that made the encoding bug
-    # visible. Explaining it without them would not explain it.
+    # docs/languages.md quotes the two German words that made the encoding
+    # bug visible. Explaining it without them would not explain it.
     ("`zurück` would have ended", "the encoding bug, quoted"),
     ("`zur├╝ck`", "the encoding bug, quoted with the wrong glyphs"),
     ("`back` while the computer next to it says `zurück`",

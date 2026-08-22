@@ -33,8 +33,9 @@ done
 export VORLAUT_PORT="$PORT"
 
 if [ ! -f .env ]; then
-  echo "Note: no .env - without an Azure key it stays silent."
-  echo "      Template: cp .env.example .env"
+  echo "Note: no .env - and none is needed. The image brings four voices"
+  echo "      and speaks straight away. An Azure key or a licensed METACOM"
+  echo "      collection would go in one: cp .env.example .env"
   echo
 fi
 
