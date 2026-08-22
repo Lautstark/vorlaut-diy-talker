@@ -202,6 +202,31 @@ its line reader — and somewhere in a WAV there is eventually something that
 looks like a command. The round trip costs about a millisecond and removes the
 whole category.
 
+**The name is created by the rename and by nothing else.** That is worth
+stating on its own, because more rests on it than on any other line of the
+device's code. The order is: write every byte into `/.part`, check the
+checksum, and only then rename. There is no point at which the final name
+exists holding bytes that have not been checked — an interrupt leaves a
+fragment under a name nobody consults, or it leaves nothing.
+
+Two things follow that would otherwise both be wrong:
+
+- **Keeping a file because its name is present is sound.** The browser skips
+  what the device already has, on the name alone. If a transfer could leave a
+  short file under its real name, that file would be kept for its name, never
+  sent again, and `layout.bin` would eventually point at a truncated tile or a
+  truncated recording. Silent, and permanent, because nothing ever looks at it
+  again. The rename is what makes the skip safe.
+- **Stopping is free, at any moment.** A cancelled push costs the fragment in
+  `/.part` and nothing else, so cancelling is a matter of not sending the next
+  thing rather than of undoing the last one.
+
+The browser compares the size as well as the name — one comparison, and `list`
+already reports sizes. That is a net under the rename rather than a second
+opinion: if the invariant above were ever broken, by another implementation or
+a damaged file system, a wrong length turns a silent-and-permanent fault into a
+file that is simply sent again.
+
 The bytes are raw rather than base64 or hex. Base64 would cost a third of the
 budget on a 1.5 MB partition and, worse, would make the *device* do work per
 byte to undo it. The device reads exactly `size` bytes and then goes back to
@@ -280,6 +305,27 @@ Before a greeting the device only waits a quarter of a second for a whole line,
 rather than four. Until a browser has said `hello`, whatever is on this wire is
 as likely to be a serial monitor or one stray byte, and every millisecond spent
 here is a millisecond the keys are not being read.
+
+## Stopping halfway on purpose
+
+A push takes a cable's worth of time, and the page needs to be able to stop —
+a dialog closing, a navigation, somebody changing their mind. That is an
+`AbortSignal` passed into `push()` rather than a `cancel()` on the connection:
+all the time is inside that one function, and a signal composes with the page's
+own reasons to stop through `AbortSignal.any()` in a way a bespoke method
+cannot.
+
+**It is checked between files, not inside one.** It could be checked inside
+one — the rename above makes stopping safe at any instant — but a push stopped
+mid-file leaves the device counting down its four seconds to bytes that will
+never arrive, after which the session is shut until `hello`. A step boundary is
+at most one file away, well under a second, and leaves the connection usable.
+
+An aborted push never sends `done`, which is the point: `done` is what makes
+the device read its new layout in, and a half-sent payload is not one to start
+reading. Closing the connection is the caller's business, not `push()`'s — the
+cable was handed in, and a caller that wants to abort and retry should not find
+its port shut underneath it.
 
 ## No pairing, and no key
 
