@@ -114,9 +114,14 @@ document.getElementById("go").onclick = async () => {
     check("settings round trip", settings.azureRegion === "westeurope");
 
     // The two folders. A build empties data/ and must not touch symbols/.
+    // Not zeroes: a store that lost its contents and handed back a buffer of
+    // the right size would pass against zeroes and fail against anything else.
+    const pattern = new Uint8Array(26912);
+    for (let i = 0; i < pattern.length; i++) pattern[i] = (i * 7 + (i >> 8)) & 0xff;
+
     await store.putFile("symbols", "ja.png", new Uint8Array([1, 2, 3]).buffer);
     await store.putFile("data", "layout.bin", new Uint8Array(198).buffer);
-    await store.putFile("data", "t0.bin", new Uint8Array(26912).buffer);
+    await store.putFile("data", "t0.bin", pattern.buffer);
 
     const files = await store.listFiles("data");
     check("data/ lists what was put in it, with sizes",
@@ -124,8 +129,19 @@ document.getElementById("go").onclick = async () => {
           files[0].size === 198 && files[1].size === 26912,
           JSON.stringify(files));
 
+    // Length is not "whole". These bytes go store -> buildFile() -> the cable
+    // -> LittleFS, and nothing downstream re-derives them: a tile is named
+    // after its input, so a byte that changed in here would travel under a
+    // name saying it had not, and the device would draw it. Compare content.
     const one = await store.getFile("data", "t0.bin");
-    check("and a file comes back whole", one && one.byteLength === 26912);
+    const sent = new Uint8Array(one || new ArrayBuffer(0));
+    let wrong = -1;
+    for (let i = 0; i < pattern.length; i++) {
+      if (sent[i] !== pattern[i]) { wrong = i; break; }
+    }
+    check("and a file comes back byte for byte, not merely the right length",
+          one && one.byteLength === pattern.length && wrong === -1,
+          wrong === -1 ? `${pattern.length} bytes` : `first difference at ${wrong}`);
 
     await store.empty("data");
     check("emptying data/ empties it", (await store.listFiles("data")).length === 0);
