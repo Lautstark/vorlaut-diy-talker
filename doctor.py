@@ -103,7 +103,7 @@ def check_piper() -> None:
         detail = "program present, no voice"
     report("piper", bool(program and models), detail,
           "Local voices, German and English, no key and no network.\n"
-          "  pip install piper-tts\n"
+          "  pip install piper-tts==1.7.0\n"
           "  python3 tools/voices.py",
           required=False)
 
@@ -169,14 +169,6 @@ def check_flash_tools() -> None:
               required=False)
 
 
-def check_docker() -> None:
-    path = shutil.which("docker")
-    report("Docker", bool(path), version_of("docker", "--version") if path else "",
-          "Only needed if the interface is meant to run in a container.\n"
-          "Without Docker this works too:  python app.py",
-          required=False)
-
-
 def check_metacom() -> None:
     """The licensed METACOM collection is optional - without it the web
     interface searches ARASAAC only."""
@@ -196,9 +188,7 @@ def check_metacom() -> None:
         report("METACOM collection", False, "no folder at that path",
                f"VORLAUT_METACOM_DIR points at {configured},\n"
                "and there is nothing there. It has to be a path on this\n"
-               "machine even when the interface runs in the container:\n"
-               "docker-compose.yml mounts what this names, and /metacom is\n"
-               "only where it arrives on the inside.\n"
+               "machine, and readable by whoever runs this.\n"
                "  VORLAUT_METACOM_DIR=~/METACOM_9_Desktop",
                required=False)
         return
@@ -259,7 +249,6 @@ def main() -> int:
     check_arduino()
     check_flash_tools()
     print("\n Optional")
-    check_docker()
     check_metacom()
     check_device_token()
 

@@ -21,8 +21,8 @@ That scaffolding is gone: every caller now imports the module that owns the
 name, and `import tiles` says where tile_bytes lives in a way that
 `import build` never did.
 
-What stays is the name of the command. The README, the docs, start.sh and
-both workflows all say `build.py`, and every habit agrees with them. The
+What stays is the name of the command. The README, the docs and the workflows
+all say `build.py`, and every habit agrees with them. The
 argument parsing behind it is in builder.py, next to the build it starts.
 """
 

@@ -91,9 +91,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_names": "file names only",
         "ui.metacom_bad": "nothing readable in that folder",
         "ui.metacom_none": "not set - searching ARASAAC alone",
-        "ui.metacom_fixed": "set by docker-compose.yml, not here. That is the "
-                            "path inside the container; the folder on the "
-                            "machine stands in the mount that puts it there.",
+        "ui.metacom_fixed": "handed in through VORLAUT_METACOM_DIR, not set "
+                            "here. Change it where that variable is set, "
+                            "because a value typed here could not take "
+                            "effect.",
         # The same thing in the width of a heading.
         "ui.metacom_short_none": "not set",
         "ui.settings_saved": "saved",
@@ -410,10 +411,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_names": "nur Dateinamen",
         "ui.metacom_bad": "in dem Ordner ist nichts Lesbares",
         "ui.metacom_none": "nicht gesetzt - es wird nur ARASAAC durchsucht",
-        "ui.metacom_fixed": "kommt aus docker-compose.yml, nicht von hier. Das "
-                            "ist der Pfad im Container; der Ordner auf dem "
-                            "Rechner steht in der Einbindung, die ihn dorthin "
-                            "bringt.",
+        "ui.metacom_fixed": "kommt aus VORLAUT_METACOM_DIR, nicht von hier. "
+                            "Zu ändern ist er dort, wo die Variable gesetzt "
+                            "wird - ein hier eingetragener Wert könnte nicht "
+                            "wirksam werden.",
         "ui.metacom_short_none": "nicht gesetzt",
         "ui.settings_saved": "gespeichert",
         "ui.metacom_offer": "Du hast eine METACOM-Lizenz? Trag den Ordner beim Zahnrad ein, dann wird er hier mit durchsucht.",

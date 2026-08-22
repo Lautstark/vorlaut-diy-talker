@@ -295,12 +295,11 @@ def check_settings() -> None:
           app.config.value("AZURE_SPEECH_KEY") == "0123456789abcdef")
 
     # --- a setting the environment hands in is not ours to write -----------
-    # The container case, and it used to break the container. The field shows
-    # VORLAUT_METACOM_DIR, which docker-compose.yml sets to /metacom - the
-    # path *inside* the container - and reads back for the host side of the
-    # mount. Saving the sheet untouched wrote that into .env, which then said
-    # "bind source path does not exist: /metacom" at the next start. Nothing
-    # on screen changed at the time, because the environment still won the
+    # This used to break a running install. The field shows
+    # VORLAUT_METACOM_DIR when the environment hands it in, and saving the
+    # sheet untouched wrote that value into .env, where it then outlived the
+    # environment that set it and pointed at a path that was not there.
+    # Nothing on screen changed at the time, because the environment won the
     # read.
     env_file = app.config.ENV_FILE
     before = env_file.read_text(encoding="utf-8")

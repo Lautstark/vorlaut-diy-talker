@@ -1,6 +1,6 @@
 # Where the baked-in voices come from
 
-The image built from the `Dockerfile` carries all four piper voices of
+`tools/voices.py` fetches all four piper voices of
 `tts.VOICE_CATALOGUE` at `/voices`. They are not in this repository — they are
 downloaded during the build, by the project's own `tools/voices.py`, from
 `https://huggingface.co/rhasspy/piper-voices`. This file records what they are

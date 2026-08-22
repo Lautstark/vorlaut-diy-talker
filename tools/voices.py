@@ -8,9 +8,8 @@
 The models land wherever tts.voice_target() points - the first entry of
 tts.VOICE_DIRS, normally content/voices/ next to the rest of the content, so
 they are backed up with it and survive every rebuild. With VORLAUT_VOICES set
-they follow that instead, which is how the Dockerfile bakes the same four into
-the image at /voices: this file rather than a curl of its own, so that where a
-voice comes from is written down once.
+they follow that instead: one place that says where a voice comes from, rather
+than a curl written out wherever one happened to be needed.
 
 Deliberately not in the repository: together they are about 250 MB - four
 times 63 MB, the "low" one no smaller than the others - and they are somebody
