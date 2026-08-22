@@ -147,6 +147,15 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   const rows = page.locator("#voiceList .voiceRow");
   await expect(rows.first()).toBeVisible();
 
+  // Offered because this page owns the piper runtime, and for no other
+  // reason: vits-web can phonemise neither of these two. Kerstin is the one
+  // voice that reaches the device at its own 16 kHz with no resample, so her
+  // row going missing is broken wiring, not a catalogue opinion.
+  await expect(page.locator("#voiceList .voiceRow", { hasText: "Kerstin" }))
+    .toHaveCount(1);
+  await expect(page.locator("#voiceList .voiceRow", { hasText: "John" }))
+    .toHaveCount(1);
+
   const picked = (await rows.first().locator(".pick span").first().textContent())!;
   await rows.first().locator("button.pick").click();
   await expect(page.locator("#voiceList .voiceRow.on")).toHaveCount(1);
