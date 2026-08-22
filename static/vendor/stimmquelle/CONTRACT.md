@@ -80,7 +80,15 @@ second decimal on every row tried.
 ### Permitted device extras
 
 Neither changes measured loudness, so neither is part of the contract. A
-consumer applies them after levelling and records why:
+consumer asks for them and records why.
+
+**They are applied to the trimmed signal, before the measurement** — the same
+order as ffmpeg's filter chain, and the order the reference implementation uses.
+Not after the gain: a consumer implementing from this document alone would
+otherwise measure a different signal than the reference does, and the two would
+disagree by however much the extras move the level. (They barely do, which is
+why they are permitted at all — but "barely" is not a thing to leave to two
+readings of a sentence.)
 
 - a short fade at each end, against clicks on a class-D amplifier — vorlaut uses
   12 ms
@@ -176,6 +184,36 @@ So: **look each phoneme up as emitted, and compose it onto the one before only
 where the model has never heard of that form.** A model whose map holds the
 combining mark is untouched — required, because those voices already speak and
 their recordings are named by fingerprints that must not move.
+
+### This disagrees with native piper, on purpose
+
+Dumped from piper 1.7.0 for *"Ich möchte noch nicht ins Bett."*:
+
+```
+33 phonemes  ->  thorsten 69 ids
+33 phonemes  ->  kerstin  63 ids
+stderr, three times:  Missing phoneme from id map: ̧
+```
+
+Both voices phonemise identically, so espeak decomposes natively too. Thorsten's
+map has the mark and keeps all 33. **Kerstin's does not, so native piper drops
+it and leaves the bare `c` at 16** — a plosive where the ich-Laut belongs, three
+times in one short sentence: *Ik, mökte, nikt.*
+
+Her map has the precomposed `ç` at 40. She predates the decomposing espeak
+entirely, so 40 is the form she was **trained on**. Native piper is feeding a
+2021 model a sequence it never saw and silently dropping the part it cannot
+express.
+
+So this package composes and native does not, and **that is the correct
+direction.** The disagreement only ever touches a voice native cannot render
+properly anyway: a model whose map holds the mark comes out byte-identical.
+
+Two things follow that are easy to get wrong later. **Do not "keep the slot"** —
+an earlier theory had native padding where the mark was, reaching 69; it does
+not, and matching that would land on 69 and match nothing. And **native piper is
+not the oracle for a voice it is mispronouncing.** Comparing spectra against
+native Kerstin compares two recordings saying different words.
 
 **Keep the phonemizer's own ids for their structure.** They carry sentence
 splitting that the flat `phonemes` array does not, and rebuilding from phonemes

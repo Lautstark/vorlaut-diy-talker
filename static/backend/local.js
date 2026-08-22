@@ -191,15 +191,20 @@ export async function symbolInto(image, reference) {
 // --- Voices and speech -------------------------------------------------------
 
 export async function listVoices() {
-  // shippable("browser") rather than the whole catalogue: it drops what cannot
-  // speak in a tab, what may not be handed on at all, and what may be handed
-  // on only with an attribution this interface does not render yet. The last
-  // one costs a voice - de_DE-mls-medium is CC-BY - and that is the option
-  // doing its job, not a bug. Pass { rendersAttribution: true } once the
-  // notices are on screen.
+  // shippable() rather than the whole catalogue: it drops what cannot speak in
+  // a tab, what may not be handed on at all, and what may be handed on only
+  // with an attribution this interface does not render yet. The last one costs
+  // a voice - de_DE-mls-medium is CC-BY - and that is the option doing its
+  // job, not a bug. Pass { rendersAttribution: true } once the notices are on
+  // screen; attributionsFor() in the catalogue is what would render them.
+  //
+  // It took an argument until 2.0.0 - shippable("browser") - and the default
+  // now says the same thing: this page does not render notices and does not
+  // drive piper itself, so it is offered what vits-web can speak and what may
+  // be handed on unconditionally.
   const layout = (await store.readLayout()).layout;
   const chosen = layout && layout.voice ? layout.voice : "";
-  const list = shippable("browser").map((voice) => ({
+  const list = shippable().map((voice) => ({
     id: `piper:${voice.id}`,
     label: displayName(voice.id),
     language: voice.lang || "",
