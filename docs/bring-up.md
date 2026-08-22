@@ -142,8 +142,8 @@ on — the address is the one the answer came from. The monitor shows the search
 before the sync.
 
 If nothing answers, the network is not carrying the broadcast; a guest network
-usually does not, and neither does a container behind a bridge network (see
-[operation.md](operation.md)). The device then falls back on whatever answered
+usually does not, and neither does anything that puts the server on a different
+network from the device. The device then falls back on whatever answered
 last time, and the portal still has a field to type an address into, which
 beats the search whenever it is filled in.
 

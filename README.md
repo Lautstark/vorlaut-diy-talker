@@ -16,51 +16,45 @@ speak yet.
 - One command turns that into pictures and speech files for the device
 - Falls asleep by itself, wakes on any key press
 
-## Quick start
+## Running it
 
-With Docker, and nothing else — no clone, nothing to download, nothing to
-create first:
-
-```bash
-docker run -d --name vorlaut -p 8771:8771 -p 8771:8771/udp \
-  -v vorlaut-data:/data ghcr.io/lautstark/vorlaut:latest
-```
-
-Then open [localhost:8771](http://localhost:8771). No Python, no ffmpeg, no
-key and no `.env` — every setting has a default, and the image carries four
-piper voices, so it speaks from the first minute.
-
-There is content there too: on the first start the volume fills itself from the
-examples in the image, so a set with four keys is ready right away. The four
-example sentences come along as finished recordings, so the example can be
-built and flashed before any voice exists.
-
-That volume is everything that is yours; the code stays in the image, so
-`docker pull` is the whole of updating.
-
-**To keep it**, use the Compose file instead — one download, and it puts the
-content in a `data/` folder you can see, which is what a NAS backup picks up.
-That, another port, and building the image yourself:
-[docs/operation.md](docs/operation.md).
-
-## From source
-
-The developer route — needed to work on the Python, not to run it.
+There is one way in today, and it is a clone. The container is gone: vorlaut is
+becoming a page that runs in the browser with nothing behind it, and keeping an
+image published in the meantime meant maintaining a way in that is on its way
+out.
 
 ```bash
+git clone https://github.com/Lautstark/vorlaut && cd vorlaut
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python app.py
 ```
 
-Python 3.9 or newer and `ffmpeg` (`brew install ffmpeg` or
-`apt install ffmpeg`); `python3 doctor.py` says what is missing.
+Then open [localhost:8771](http://localhost:8771). Python 3.9 or newer, and
+`ffmpeg` for the speech (`brew install ffmpeg` or `apt install ffmpeg`).
 
-No voice comes with this route, and none is needed to start editing: the
-interface and the build work without one, only new sentences stay silent and
-say so. The same four piper voices are one press away in the voice picker in
-the header, and Azure Speech is the other route — more voices and better ones,
-against a key of your own, for which a free account is enough. Both are in
-[docs/editing.md](docs/editing.md#for-the-speech-output).
+```bash
+python3 doctor.py
+```
+
+says what is missing and how to install it, including piper. It needs nothing
+itself, so it works before anything else does.
+
+No key and no `.env` to write: every setting has a default, and content/ fills
+itself from the examples on the first start, so a set with four keys is ready
+right away. The four example sentences come with finished recordings, so the
+example can be built and flashed before any voice exists.
+
+No voice is installed for you. Nothing is needed to start editing — the
+interface and the build work without one, and new sentences simply stay silent
+and say so. The four piper voices are one press away in the voice picker in the
+header, and Azure Speech is the other route, against a key of your own. Both
+are in [docs/editing.md](docs/editing.md#for-the-speech-output).
+
+> **Where this is going.** The app half is being rewritten as a static site
+> with no server at all — see [docs/browser-tts.md](docs/browser-tts.md) and
+> [docs/tile-rendering.md](docs/tile-rendering.md) for the pieces of it that
+> already exist and are proven against the Python. That page is not ready, and
+> until it is, the clone above is how vorlaut runs.
 
 ## What it is made of
 
@@ -93,7 +87,6 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/tile-rendering.md](docs/tile-rendering.md) | The symbol renderer in Python and in the browser, and how far apart they are |
 | [docs/bring-up.md](docs/bring-up.md) | First assembly in stages, with small test sketches |
 | [docs/firmware.md](docs/firmware.md) | Ready-made image or compile it yourself, partition scheme, flashing |
-| [docs/operation.md](docs/operation.md) | Running in a container, editing from a phone, on a NAS |
 | [docs/languages.md](docs/languages.md) | German and English in the product, English in the code |
 | [docs/obf.md](docs/obf.md) | layout.json as an Open Board Format document, field by field |
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |

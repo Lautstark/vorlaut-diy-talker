@@ -135,7 +135,7 @@ def from_environment(name: str) -> bool:
     The other side of value()'s precedence, and the question anything writing
     .env has to ask first: a line written under a set environment variable
     never reaches the process that wrote it. It is not a saved setting, it is
-    a note in a file nobody rereads - and docker-compose.yml reads this file.
+    a note in a file nobody rereads.
     """
     return bool(os.environ.get(name, "").strip())
 

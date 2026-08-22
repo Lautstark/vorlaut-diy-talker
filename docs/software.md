@@ -450,7 +450,7 @@ moment it starts instead of waiting for somebody to press Fetch voices. They
 are fetched during the build by `tools/voices.py` itself, so the catalogue
 stays the one place that says where a voice comes from.
 
-Deliberately not under `/app`: `docker-compose.build.yml` mounts the source
+Deliberately kept out of the way of the source tree: a mount over it
 folder over that path for developing, and the mount replaces the directory
 wholesale. A voice baked into `/app/voices` would be invisible the moment such
 a container ran, and would look exactly like a download that never happened.
