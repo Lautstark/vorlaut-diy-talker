@@ -36,6 +36,15 @@ from buildbase import BuildError  # noqa: E402
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 
+# Modules that live in static/ without ui.html ever loading them. There is one
+# and it is meant to be temporary: tiles.js is the browser half of the symbol
+# renderer, written for the static-site rewrite, which has no page yet. It is
+# not unreachable code - tests/test_tile_render_js.py runs every line of it
+# against tiles.py - it is code whose page has not arrived. Take it off this
+# list the moment main.js imports it.
+NOT_ON_THE_PAGE = {"tiles.js"}
+
+
 def scripts() -> list[Path]:
     """Every JavaScript module the page loads."""
     return sorted(app.STATIC.glob("*.js"))
@@ -276,8 +285,12 @@ def check_every_module_is_reachable() -> int:
     exactly like working code - and, the other way round, a typo in an import
     path is a module that silently never loads. The browser shows that as a
     button that does nothing, which no test above would notice.
+
+    NOT_ON_THE_PAGE is the one deliberate exception, and it is checked too:
+    the loop below fails if a name on that list is not a file any more, so
+    the exception cannot outlive the module it was written for.
     """
-    imported = {"main.js"}
+    imported = {"main.js"} | NOT_ON_THE_PAGE
     for path in scripts():
         for target in re.findall(r'from\s+"\./([\w.-]+\.js)"',
                                  path.read_text(encoding="utf-8")):

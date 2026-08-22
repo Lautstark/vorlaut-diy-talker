@@ -90,6 +90,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/hardware.md](docs/hardware.md) | Parts, pin assignment, case dimensions |
 | [docs/editing.md](docs/editing.md) | Web interface, layout.json, symbols, voices, settings |
 | [docs/software.md](docs/software.md) | How it works: discovery, pairing, sync, build, speech |
+| [docs/tile-rendering.md](docs/tile-rendering.md) | The symbol renderer in Python and in the browser, and how far apart they are |
 | [docs/bring-up.md](docs/bring-up.md) | First assembly in stages, with small test sketches |
 | [docs/firmware.md](docs/firmware.md) | Ready-made image or compile it yourself, partition scheme, flashing |
 | [docs/operation.md](docs/operation.md) | Running in a container, editing from a phone, on a NAS |
