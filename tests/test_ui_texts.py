@@ -105,7 +105,19 @@ def frontend_sources() -> list[Path]:
     matching fails rather than quietly narrowing what is looked at.
     """
     return [ROOT / "app.py", ROOT / "ui.html",
-            *sorted(app.STATIC.glob("*.css")), *scripts()]
+            *sorted(app.STATIC.glob("*.css")),
+            *(s for s in scripts() if module_name(s) not in GERMAN_BY_DESIGN)]
+
+
+# The one module that holds the interface in both languages, because it is the
+# table rather than a user of it - tools/bootdata.py writes it out of texts.py
+# so that a page with no server has the same words as one with. Same exception
+# texts.py and firmware/vorlaut/texts.h already have, and for the same reason:
+# scanning it would report the German half of the product as untranslated code.
+# It is exempt from the German scan alone. Reachability, syntax and the
+# composed-markup check all still apply to it, and tests/test_boot_data.py is
+# what stops it drifting from its source.
+GERMAN_BY_DESIGN = {"boot_data.js"}
 
 # The page is served in one language at a time; these are the only words in it
 # that belong to no language. Everything else has to come from the table.
