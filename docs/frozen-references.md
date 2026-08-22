@@ -27,13 +27,15 @@ to make it safe.
 | [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `static/tts/level.js` |
 | [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `static/tiles.js` |
 | [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `static/layout_format.js` |
+| [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `static/symbols.js` |
 
 Each is written by a tool that can only run while the Python half is here —
 [`tools/ttsfreeze.py`](../tools/ttsfreeze.py),
 [`tools/tilefreeze.py`](../tools/tilefreeze.py),
-[`tools/layoutfreeze.py`](../tools/layoutfreeze.py) — and each carries what
+[`tools/layoutfreeze.py`](../tools/layoutfreeze.py),
+[`tools/symbolfreeze.py`](../tools/symbolfreeze.py) — and each carries what
 produced it, when, and what would invalidate it, in the shape
-`tools/vendor.lock.json` uses next door. All three take `--check`, which
+`tools/vendor.lock.json` uses next door. All four take `--check`, which
 measures again and changes nothing; that is the command to run after upgrading
 `ffmpeg` or Pillow.
 
@@ -184,6 +186,36 @@ still what `normalize_layout()` produces. Nothing else would notice that going
 stale — the frozen cases would keep agreeing with each other about a layout
 Python no longer generates.
 
+### Symbol search — a paraphrase, not an oracle
+
+A symbol lives in `layout.json` as `metacom:essen`. `metacom.py` keys the
+collection by the file's stem and `obf.py` reads it back that way; the browser
+gets a path out of the vendored `bildquelle` package and `static/symbols.js`
+turns it into the same reference. If those drift, every layout that exists
+points at symbols nobody can find.
+
+`tests/test_symbol_reference.py` checked this all along, against
+`"metacom:" + Path(path).stem` written out by hand. Two things were wrong with
+that once `metacom.py` is going: the paraphrase survives the deletion and then
+passes for ever, both sides of it being in the browser's half — and a
+paraphrase can already be wrong. This one was. `_scan_files()` globs `"*.png"`
+and nothing else, so for the `.jpeg` and `.webp` cases in that test
+`metacom.py` files nothing at all, while the restatement confidently supplied
+an answer.
+
+So `tools/symbolfreeze.py` asks the real indexer: it builds a folder, runs
+`metacom._scan_files()` over it, and writes down what that filed each case
+under. Where the glob does not reach a file the name is still frozen from
+Python — `path.stem` *is* the expression in `_scan_files()`, and only the glob
+kept the file out — but the lock records that nothing resolves for it, which is
+a fact about the collection rather than a fault in the adapter.
+
+Those unreachable cases turned out to be load-bearing, and not for the reason
+they were added. Every PNG makes *strip the last suffix* and *drop four
+characters* the same rule, so a `.jpeg` is the only thing in the set that can
+tell those two apart. Without it a mutation doing the latter passed every
+check — found by mutation testing, not by reading.
+
 ## How we know the checks bite
 
 Every claim above was tested by breaking the implementation and confirming the
@@ -196,6 +228,8 @@ Representative, with the check that fired:
 
 | broken on purpose | caught by |
 |---|---|
+| the adapter dropping four characters instead of finding the dot | the one `.jpeg` case, and nothing else |
+| the adapter cutting at the first dot | the fixture whose name carries a dot that is not the extension |
 | K-weighting head shelf removed | 10000 Hz and 1000 Hz tones |
 | K-weighting high pass removed | the 60 Hz tone, and only that |
 | BS.1770's −0.691 offset dropped | all five tones |
@@ -234,13 +268,13 @@ much it would cost to be wrong:
 4. **`static/tts/speak.js` has no behavioural test.** The voice path —
    vits-web, Azure — is checked only for the shape of `voices.json` and the
    `onnxruntime-web` pin, in `tests/test_browser_tts.py`. Nothing runs it.
-5. **Symbol search was not touched.** It is the fourth subsystem that exists
-   twice, and it was not part of this work.
-   `tests/test_symbol_reference.py` runs the real stem-derivation function out
-   of `static/symbols.js` — but its oracle is `metacom.py`, so that comparison
-   goes when Python does. Freezing it is a small job: a table of
-   `path inside the folder → stem` pairs, taken from `metacom.py` while it is
-   here. **It should be done before the deletion phase.**
+5. **Symbol search is frozen for the name only.** What the adapter makes of
+   a path is now checked without `metacom.py` — but that is the whole of it.
+   Whether the vendored `bildquelle` *finds* the right symbol is the package's
+   own business and has its own tests upstream; nothing here exercises the
+   search, the index it builds, or the METACOM `.asar` reader in
+   `metacom.py`. Those are still checked only by `tests/test_metacom_index.py`
+   against Python.
 6. **`normalize_layout()` has no browser equivalent, and now has a copy.**
    The frozen layouts are its output. If the browser ever has to normalize a
    layout itself, nothing checks that against these.
@@ -256,6 +290,6 @@ much it would cost to be wrong:
 9. **The lock files only answer for what was recorded**, which is the whole
    shape of the deal with golden files and is why "this does not make the
    Python removable" is at the top of this document rather than here. All
-   three freeze tools import Python modules, deliberately: it is what stops a
+   four freeze tools import Python modules, deliberately: it is what stops a
    red test being "fixed" by refreezing, and it is what makes regenerating
    them impossible after a deletion rather than merely inadvisable.
