@@ -1,8 +1,8 @@
 // Stage 4: the buttons.
 //
-// Shows on each display whether its own button is currently pressed: dark =
-// open, bright with a check mark = pressed. Plus a line in the serial monitor
-// on every change.
+// Shows on each display whether its own button is currently pressed: dark
+// grey with its own number = open, green with a "!" = pressed. Plus a line in
+// the serial monitor on every change.
 //
 // What to check:
 //   - Does pressing light up the display ON THAT SAME key? If another one
@@ -59,7 +59,7 @@ void setup() {
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     display[i] = new Panel(&SPI, PIN_CS[i], PIN_DC, -1);
-    display[i]->initR(INITR_144GREENTAB);
+    display[i]->initR(PANEL_INITR);
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
     display[i]->setRotation(PANEL_ROTATION);
     was_down[i] = false;

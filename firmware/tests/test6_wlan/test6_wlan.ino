@@ -12,7 +12,7 @@
 //
 // WHAT SHOULD BE VISIBLE
 //
-//   - "verbunden" with IP address and signal strength
+//   - "connected" with IP address and signal strength
 //   - a status line every five seconds after that
 //   - switch the network off: it reports the loss and keeps trying
 //
@@ -60,10 +60,10 @@ static const char PORTAL_STYLE[] PROGMEM = R"(
 )";
 
 static void reportConnection() {
-  Serial.printf("verbunden mit \"%s\"\n", WiFi.SSID().c_str());
-  Serial.print("  IP-Adresse:    ");
+  Serial.printf("connected to \"%s\"\n", WiFi.SSID().c_str());
+  Serial.print("  IP address:    ");
   Serial.println(WiFi.localIP());
-  Serial.printf("  Signalstaerke: %d dBm\n", WiFi.RSSI());
+  Serial.printf("  signal:        %d dBm\n", WiFi.RSSI());
   Serial.printf("  MAC:           %s\n", WiFi.macAddress().c_str());
 }
 
@@ -71,7 +71,7 @@ void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("vorlaut – Stufe 6: WLAN");
+  Serial.println("vorlaut - stage 6: Wi-Fi");
 
   WiFi.mode(WIFI_STA);
 
@@ -85,7 +85,7 @@ void setup() {
   wm.setConfigPortalTimeout(PORTAL_SECONDS);
   wm.setDarkMode(true);
 
-  Serial.println("Suche gespeichertes Netz ...");
+  Serial.println("looking for a stored network ...");
   if (!wm.autoConnect(AP_NAME)) {
     Serial.println("No connection and the portal has timed out.");
     Serial.println("The device keeps running anyway - just without a network.");
@@ -106,17 +106,17 @@ void loop() {
       reportConnection();
     } else {
       Serial.println();
-      Serial.println("Verbindung verloren - versuche es weiter.");
+      Serial.println("connection lost - still trying.");
     }
   }
 
   if (millis() - lastReport >= 5000) {
     lastReport = millis();
     if (now) {
-      Serial.printf("verbunden, %d dBm, IP %s\n",
+      Serial.printf("connected, %d dBm, IP %s\n",
                     WiFi.RSSI(), WiFi.localIP().toString().c_str());
     } else {
-      Serial.println("nicht verbunden");
+      Serial.println("not connected");
     }
   }
   delay(50);

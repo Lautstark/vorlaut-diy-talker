@@ -29,6 +29,13 @@ Deliberately not provided for: a volume control and an on/off switch. The
 device falls asleep by itself and wakes on a key press; the volume is set by
 the normalisation during the build.
 
+That is also why the speaker's bottom end is worth knowing rather than
+guessing: with no volume control, what the driver cannot carry it cannot
+carry, and a 40 mm cone in a 41.5 cm³ chamber gives out somewhere. It is the
+one figure here that no datasheet settles — stage 5 of
+[bring-up.md](bring-up.md) sweeps 200 to 2000 Hz, and where the sweep goes
+thin is the answer. **Lower limit: not measured yet.**
+
 ## Wiring
 
 ![Wiring](wiring.png)
@@ -84,7 +91,9 @@ broken out on the Feather as A0-A4.
   the Feather's side.
 
 If the picture is off by a few pixels or a margin remains: adjust
-`PANEL_COL_OFFSET` and `PANEL_ROW_OFFSET` at the top of the sketch.
+`PANEL_COL_OFFSET` and `PANEL_ROW_OFFSET` in `firmware/vorlaut/pins.h`, which
+is also where `PANEL_INITR` says which panel variant these are. All three are
+settled in stage 2 of [bring-up.md](bring-up.md).
 
 ## Case
 

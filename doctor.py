@@ -110,13 +110,13 @@ def check_piper() -> None:
 
 def check_azure_key() -> None:
     key = config.value("AZURE_SPEECH_KEY")
-    source = ("Umgebungsvariable" if os.environ.get("AZURE_SPEECH_KEY", "").strip()
+    source = ("the environment" if os.environ.get("AZURE_SPEECH_KEY", "").strip()
               else ".env")
     report("Azure key", bool(key),
-          f"aus {source}" if key else "",
+          f"from {source}" if key else "",
           "Only needed for the Azure voices - with a piper voice the device\n"
           "speaks without one. cp .env.example .env  and enter your own key.\n"
-          "Ein kostenloses Konto reicht (Stufe F0).",
+          "A free account is enough (tier F0).",
           required=False)
 
 

@@ -55,9 +55,9 @@ void setup() {
 
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
-    Serial.printf("Display %u an CS GPIO %d\n", i + 1, PIN_CS[i]);
+    Serial.printf("display %u on CS GPIO %d\n", i + 1, PIN_CS[i]);
     display[i] = new Panel(&SPI, PIN_CS[i], PIN_DC, -1);
-    display[i]->initR(INITR_144GREENTAB);
+    display[i]->initR(PANEL_INITR);
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
     display[i]->setRotation(PANEL_ROTATION);
 

@@ -30,6 +30,23 @@ which is why COMMENT_WORDS below holds no word that is also English - `die`,
 day long. In code the older threshold of two still applies, against the wider
 WORDS list, because a line of code is not a sentence.
 
+Half a German string in code
+----------------------------
+The threshold that makes a line of code need two words is also what lets a
+one-word German string through: `Serial.println("vorlaut - Stufe 5: Ton")` is
+one match and stays one match however many nouns get added. Ten such lines
+sat in firmware/tests/ and passed on exactly that.
+
+Treating a quoted string as prose, the way a comment is treated, was the
+obvious fix and is not the one taken. A string in code is not only a message
+- it is also every interpolated variable name, and `f"{AUS}"` in doctor.py
+reads as the German `aus` under a one-word rule. That is four false positives
+in one file, all of them on a variable, and a check that cries wolf gets
+switched off. So the nouns below narrow the gap rather than close it: half
+those lines now trip the two-word rule alongside `mit`, `auf`, `ein`,
+`nicht`, which is enough for the sweep to fail and name the file. The other
+half is still read by a person, and the file is now open in front of them.
+
 What this does not catch
 ------------------------
 A German identifier - `echtgross`, `pille`, `quellen`. There is nothing
@@ -72,6 +89,18 @@ ALL_PROSE = {".md"}
 # the one worth naming - it is what is left of a German sentence often enough
 # to be worth having, and an English comment that says "er" is a person
 # clearing their throat, which nobody writes down.
+#
+# The second block is nouns rather than function words, and they are here
+# because a whole set of German serial output sat in firmware/tests/ for
+# months and passed: `Stufe 1: Board`, `Versatz %d/%d`, `nicht verbunden`.
+# Nothing structural was wrong - a printed line is short and mostly format
+# specifiers, so it carries no function words to count. What it does carry is
+# the vocabulary of a diagnostic, and that vocabulary repeats: a device says
+# `verbunden` and `Netz` and `Adresse` every time it says anything about a
+# network. These are the words that were actually there, not guesses at what
+# might turn up; the one-offs from those same lines (`Hintergrundlicht`) were
+# left out, because a word that can only ever match the line it came from
+# catches nothing that has not already been read.
 COMMENT_WORDS = (
     r"der|das|dem|den|des|und|oder|nicht|kein|keine|eine|einen|einem|eines|"
     r"einer|ist|sind|wird|werden|wurde|wurden|kann|muss|soll|sollte|darf|"
@@ -80,7 +109,9 @@ COMMENT_WORDS = (
     r"gegen|ohne|hinter|zwischen|ihre|seine|diese|dieser|dieses|statt|welche|"
     r"welcher|wollte|wollen|dass|sowie|jede|jeder|jedes|etwa|immer|wieder|"
     r"mehr|er|sie|wie|selbst|leicht|gerade|zwei|drei|vier|fuenf|fünf|sechs|"
-    r"sieben|acht|neun|zehn|Gerät|Geraet|Datei|Ordner|Rechner|können|koennen"
+    r"sieben|acht|neun|zehn|Gerät|Geraet|Datei|Ordner|Rechner|können|koennen|"
+    r"Stufe|Versatz|Durchlauf|Suche|Netz|Adresse|Kerne|Arbeitsspeicher|"
+    r"Signalstaerke|verbunden|Verbindung|verloren|gespeichert|gemeinsam|stumm"
 )
 
 # The wider list, for lines that are not comments. It may hold words that are
