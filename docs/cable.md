@@ -414,16 +414,25 @@ Upload it with the same `--fqbn` and `-p /dev/cu.usbmodemXXXX`, as in
 starting point here and is worth using at least once: it is the first row of
 the table below.
 
-**3. Build something to send, and serve the bench.**
+**3. Serve the bench.** Any static server will do — it needs no back end, and
+`localhost` is a secure context, which is all WebSerial asks for:
 
 ```bash
-.venv/bin/python build.py
-.venv/bin/python app.py --port 8798
+python3 -m http.server 8799
 ```
 
-**4. Open <http://localhost:8798/tools/serialcheck.html>**, press *Take the
-build from the editor*, then *Connect to a device* and pick the port. Then
-*Work out what is missing, then send it*.
+**4. Open <http://localhost:8799/tools/serialcheck.html>**, press *Pick a
+`data/` folder* and choose `firmware/vorlaut/data/`. Then *Connect to a
+device* and pick the port, and *Work out what is missing, then send it*.
+
+**There is no longer a way to build that folder.** `build.py` was deleted along
+with the rest of the Python, and the browser cannot stand in yet —
+`runBuild()` in `static/backend/local.js` throws and says so. So what is in
+`firmware/vorlaut/data/` is whatever the last build left there, it is
+gitignored, and nothing can make a new one. For proving the wire that is
+enough; for changing what the device says it is not, and that is the gap to
+close next. See [What no longer works at all](frozen-references.md) for the
+rest of what went with it.
 
 Close the serial monitor first if one is open. Two programs cannot hold the
 same port, and the symptom is a port that simply will not open.
@@ -450,13 +459,27 @@ without losing both, and the device would then have no working way to receive
 content at all. The old path is the fallback while the new one earns trust, and
 it costs nothing to keep for a week.
 
-**Its bar is lower than the Python's, and the two should not be confused.**
-`tiles.py`, `tts.py` and `layout_format.py` are *oracles*: they are the only
-reason anybody knows the browser ports are right, so deleting them destroys the
-proof and their bar is the whole rewrite being finished and measured. The
-firmware Wi-Fi stack is an oracle for nothing. It is just the old transport, and
-its bar is one real end-to-end success. Whoever is next asked to reduce
-complexity should not read the second as permission for the first.
+**Its bar is lower than the Python's was, and the two were never the same
+question.** `tiles.py`, `tts.py` and `layout_format.py` were *oracles*: the only
+reason anybody knew the browser ports were right. The firmware Wi-Fi stack is an
+oracle for nothing — it is just the old transport, and its bar is one real
+end-to-end success.
+
+Past tense, because on 2026-08-22 the Python was deleted anyway, before the
+cable had run once. Four of the oracles were frozen first, as reference bytes
+under `tests/reference/`, so those checks survive their source; the OBF
+converter was not, and is now checked by nothing. The whole of it is in
+[frozen-references.md](frozen-references.md).
+
+**That does not lower the bar here, it raises it.** The reason for keeping the
+Wi-Fi stack was that it is a working way to get content onto a device while the
+cable is unproven. That argument is stronger now than when it was written, not
+weaker: with `build.py` and `flashing.py` both gone, the cable is not merely the
+newest way in — it is the only one, and it has still never run. Deleting the
+old path now would leave a device with no route at all if the new one turns out
+to be wrong on hardware.
+
+So the table below is unchanged and none of it has been ticked.
 
 What has to be true, written down before the run rather than remembered after
 it. **Results belong in this table as they come in** — a row that was checked
@@ -605,39 +628,39 @@ python3 -m http.server 8799
 
 Then <http://localhost:8799/tools/serialcheck.html>. **Use the mock instead**
 needs no hardware; **Make a payload up** needs nothing set up at all, and
-**Pick a `data/` folder** takes whatever `build.py` last left in
-`firmware/vorlaut/data/`. Ticking *change two files and the layout* is how to
+**Pick a `data/` folder** takes whatever the last build left in
+`firmware/vorlaut/data/` — which is now the only payload there is, since
+nothing can make a new one. Ticking *change two files and the layout* is how to
 see the case that matters: the second push should send three files and delete
 two, and leave the rest alone.
 
-**For the real path, serve it from `app.py` instead**, which also answers the
-API:
+**Take the build from the editor** is the fourth button, and it does not work
+at the moment. It asks `buildManifest()` and `buildFile()` in
+`static/backend.js`, which are still wired to `backend/server.js` and fetch
+`/api/build/*` from `app.py` — and `app.py` has been deleted. The two
+operations themselves are not going anywhere: they are what the transport needs
+permanently, and `static/backend/local.js` already implements both against
+local storage. What is missing is the line in `backend.js` that points at it,
+and something to fill that storage, which is `runBuild()` — deleted in Python
+and not yet written in the browser.
 
-```bash
-.venv/bin/python app.py --port 8798
-```
-
-Then <http://localhost:8798/tools/serialcheck.html>, and **Take the build from
-the editor**. That asks `buildManifest()` and `buildFile()` in
-`static/backend.js` for what `build.py` last made — the two operations the
-transport needs permanently, answered over HTTP today and out of local storage
-once the browser does its own building. Nothing of the browser build is in that
-path, so a failure is the wire or the firmware and not one of five new things
+Until then the directory picker is the way in, and it is the better one for a
+first bench run anyway: it reads the bytes off the disk with nothing between,
+so a failure is the wire or the firmware rather than one of several new things
 at once.
 
-It has to be the same origin as the API, which is what the `/tools/` route in
-`app.py` exists for. The alternative was cross-origin headers on the API for
-the sake of a bench, which is the larger of the two changes.
+Two things that were worth having and are worth keeping when that button comes
+back:
 
-The page refuses a build whose `current` is false rather than sending it: that
-flag means `data/` no longer matches `layout.json`, and pushing then would put
-yesterday's content on the device while reporting success. It also checks each
-file against the length the manifest declared, which is what a build moving
-underneath the read looks like.
+- The page refuses a build whose `current` is false rather than sending it.
+  That flag means `data/` no longer matches `layout.json`, and pushing then
+  would put yesterday's content on the device while reporting success.
+- It checks each file against the length the manifest declared, which is what
+  a build moving underneath the read looks like.
 
-Note which pair of endpoints that is. `/api/build/*` is page-facing;
-`/api/device/*` is **not**, and must never be called from a page — those sit
+And one rule that outlives all of it. `/api/build/*` was page-facing;
+`/api/device/*` was **not**, and must never be called from a page — those sat
 behind the talker's own token, and handing that to anything served to a browser
-hands it to whoever asked for the page. `tests/test_routes.py` asserts both
-directions so that tidying the two pairs together fails loudly rather than
-silently.
+hands it to whoever asked for the page. Both are gone with `app.py`, and the
+test that asserted the difference went with them, so whoever writes the next
+pair has only this paragraph to go on.

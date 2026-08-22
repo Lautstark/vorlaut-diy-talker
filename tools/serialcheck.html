@@ -34,12 +34,12 @@
 
 <h1>Pushing content down the cable</h1>
 <p class="lede">
-  The browser half of <a href="../docs/cable.md">docs/cable.md</a>, on its own,
-  the way <a href="ttscheck.html">ttscheck.html</a> is the bench for the speech
-  and <a href="tilecheck.html">tilecheck.html</a> for the tiles. It speaks the
-  same <code>tools/cable.js</code> the static site will use, to a real device
-  over WebSerial or to the mock in <code>tools/cable_mock.js</code> when there
-  is no device to hand.
+  The browser half of <a href="../docs/cable.md">docs/cable.md</a>, on its own —
+  the last of the standalone benches, now that ttscheck and tilecheck have gone
+  with the Python they measured against. It speaks the same
+  <code>tools/cable.js</code> the static site will use, to a real device over
+  WebSerial or to the mock in <code>tools/cable_mock.js</code> when there is no
+  device to hand.
 </p>
 
 <fieldset>
@@ -83,18 +83,21 @@
     <button id="folder">Pick a <code>data/</code> folder</button>
     <label><input type="checkbox" id="restyle"> change two files and the layout</label>
   </div>
-  <p><small><b>The first one is the real path.</b> It asks
-  <code>buildManifest()</code> and <code>buildFile()</code> in
-  <code>static/backend.js</code> for whatever <code>build.py</code> last made —
-  the same two calls the static site will use, answered over HTTP today and out
-  of local storage later. It needs this page to be served by <code>app.py</code>
-  itself, which is what <code>/tools/</code> is for; opened from any other server
-  the calls are cross-origin and will fail.
-  <br>The other two need no server. An invented payload proves the protocol with
-  nothing set up at all, and the directory picker reads
-  <code>firmware/vorlaut/data/</code> straight off the disk. Ticking the box
-  changes part of an invented payload, which is how the case that matters gets
-  tested: almost nothing should transfer the second time.</small></p>
+  <p><small><b>Use the directory picker.</b> It reads
+  <code>firmware/vorlaut/data/</code> straight off the disk with nothing in
+  between, which is what you want for a first run on real hardware: a failure is
+  then the wire or the firmware rather than one of several new things at once.
+  An invented payload needs nothing set up at all and proves the protocol on its
+  own. Ticking the box changes part of an invented payload, which is how the
+  case that matters gets tested: almost nothing should transfer the second time.
+  <br><b>Take the build from the editor does not work at the moment.</b> It asks
+  <code>buildManifest()</code>/<code>buildFile()</code>, which
+  <code>static/backend.js</code> still routes to <code>backend/server.js</code>
+  and thence to <code>/api/build/*</code> on the deleted <code>app.py</code>.
+  The two operations are staying — <code>backend/local.js</code> implements both
+  against local storage — but nothing fills that storage until
+  <code>runBuild()</code> exists in the browser. It is left in place because it
+  is the path that comes back, not one that is going away.</small></p>
   <div id="payload"></div>
 </fieldset>
 
@@ -353,7 +356,11 @@ $("#build").addEventListener("click", async () => {
     describe("took the build from the editor");
   } catch (error) {
     log(`could not read the build: ${error.message}`, "bad");
-    log("  is this page being served by app.py? /api/build/* is same-origin only.");
+    log("  This button does not work at the moment. backend.js still asks "
+        + "backend/server.js,", "bad");
+    log("  which fetches /api/build/* from app.py - and app.py has been "
+        + "deleted. Use", "bad");
+    log("  \u201cPick a data/ folder\u201d instead; see docs/cable.md.", "bad");
   } finally {
     $("#build").disabled = false;
   }
