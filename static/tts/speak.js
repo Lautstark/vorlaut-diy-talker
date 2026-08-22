@@ -32,8 +32,19 @@ export const ONNX_RUNTIME = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0
 //   </script>
 //
 // A module cannot install that for its own import - import maps have to be in
-// the document before the first module loads. tools/ttscheck.html shows it.
-// Shipping for real, all of this is vendored and the map goes away.
+// the document before the first module loads. tools/ttscheck.html carries it,
+// and that is the only page that should: ui.html is the server-rendered app,
+// which never imports this file, and an entry there would name a CDN the page
+// does not fetch from. The map belongs to whatever page the static-site
+// rewrite grows, and by then it should be pointing at vendored files rather
+// than at jsdelivr.
+//
+// Vendoring is allowed - vits-web is MIT - but it buys less than it looks
+// like. Its only dependency is onnxruntime-web, and the models are a separate
+// matter again: 63 to 114 MB fetched from Hugging Face at first use, by a URL
+// baked into vits-web itself. Getting the library off a CDN does not make
+// speaking offline; caching the model in OPFS is what does, and that already
+// happens. See static/tts/voices.json for where they come from.
 
 let piper = null;
 
