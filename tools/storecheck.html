@@ -1,0 +1,145 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>The content, in a browser</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 46rem;
+         background: #16181d; color: #e6e6e6; }
+  h1 { font-size: 1.3rem; }
+  .lede { color: #aaa; }
+  pre { background: #0f1115; padding: .8rem; border-radius: .4rem;
+        white-space: pre-wrap; }
+  .ok { color: #6ee7a8; }
+  .bad { color: #ff8080; }
+  button { font: inherit; padding: .4rem .8rem; border-radius: .3rem;
+           border: 1px solid #444; background: #232733; color: inherit; }
+  code { background: #0f1115; padding: .1rem .3rem; border-radius: .2rem; }
+</style>
+<main>
+<h1>The content, in a browser</h1>
+<p class="lede">
+  Whether <code>static/store.js</code> can hold what
+  <code>content/</code> holds today, with no server under it. The bench for the
+  storage half of the rewrite, the way
+  <a href="symbolcheck.html">symbolcheck.html</a> is the bench for symbols.
+</p>
+<p class="lede">
+  <strong>Must be served, not opened as a file.</strong> IndexedDB has no
+  origin on <code>file://</code> and every call below fails with a
+  SecurityError. From the repository root:
+  <code>python3 -m http.server 8799</code>, then
+  <a href="http://localhost:8799/tools/storecheck.html">localhost:8799/tools/storecheck.html</a>.
+</p>
+<p><button id="go">Run</button> <button id="wipe">Delete the database</button></p>
+<pre id="out"></pre>
+</main>
+<script type="module">
+import * as store from "../static/store.js";
+
+const out = document.getElementById("out");
+let bad = 0;
+const check = (name, ok, detail = "") => {
+  bad += ok ? 0 : 1;
+  out.insertAdjacentHTML("beforeend",
+    `<span class="${ok ? "ok" : "bad"}">${ok ? "ok  " : "FAIL"}</span>  ` +
+    `${name}${detail ? "   " + detail : ""}\n`);
+};
+
+const LAYOUT = {
+  sleep_timeout_seconds: 600,
+  language: "de",
+  sets: [{ name: "Grundset", symbol: "start.png", color: "#3B5BDB",
+           slots: [{ text: "Ja!", symbol: "ja.png" }] }],
+};
+
+document.getElementById("wipe").onclick = async () => {
+  // close() first, or the connection this page is holding blocks the delete
+  // and onblocked fires instead of onsuccess - which looks like nothing
+  // happening at all.
+  await store.close();
+  const request = indexedDB.deleteDatabase("vorlaut");
+  request.onsuccess = () => { out.textContent = "deleted\n"; };
+  request.onblocked = () => {
+    out.textContent = "blocked - another tab still has it open\n";
+  };
+  request.onerror = () => { out.textContent = `failed: ${request.error}\n`; };
+};
+
+document.getElementById("go").onclick = async () => {
+  out.textContent = "";
+  bad = 0;
+  try {
+    // Nothing stored yet reads the way app.py reads a missing layout.json.
+    const fresh = await store.readLayout();
+    check("an empty store says 'empty' and 'no build'",
+          fresh.version === "empty" && fresh.buildCurrent === "0",
+          `${fresh.version} / ${fresh.buildCurrent}`);
+
+    const first = await store.writeLayout(LAYOUT, null);
+    check("a first write goes in", first.conflict === false);
+    const back = await store.readLayout();
+    check("and reads back as what went in",
+          JSON.stringify(back.layout) === JSON.stringify(LAYOUT));
+    check("with the stamp the write reported",
+          back.version === first.version, `${back.version}`);
+
+    // The whole point. A second tab holding the older stamp must not win.
+    const edited = structuredClone(LAYOUT);
+    edited.sets[0].slots[0].text = "Nein!";
+    const stale = await store.writeLayout(edited, "0000000000000000");
+    check("a stale tab is refused", stale.conflict === true);
+
+    const after = await store.readLayout();
+    check("and nothing was written - the transaction aborted",
+          after.layout.sets[0].slots[0].text === "Ja!" &&
+          after.version === first.version);
+
+    // The same edit, with the stamp this page actually holds.
+    const forced = await store.writeLayout(edited, after.version);
+    check("the same edit with the current stamp goes in",
+          forced.conflict === false &&
+          forced.saved.sets[0].slots[0].text === "Nein!");
+
+    // A build stamps what it built against; editing after it makes it stale.
+    await store.recordBuild(forced.version);
+    const built = await store.readLayout();
+    check("after a build the page says none is due", built.buildCurrent === "1");
+    const later = structuredClone(edited);
+    later.sets[0].name = "Anders";
+    const moved = await store.writeLayout(later, built.version);
+    check("and after the next edit it says one is", moved.buildCurrent === "0");
+
+    // Settings are their own record and survive a layout write.
+    await store.writeSettings({ azureRegion: "westeurope", metacom: "" });
+    const settings = await store.readSettings();
+    check("settings round trip", settings.azureRegion === "westeurope");
+
+    // The two folders. A build empties data/ and must not touch symbols/.
+    await store.putFile("symbols", "ja.png", new Uint8Array([1, 2, 3]).buffer);
+    await store.putFile("data", "layout.bin", new Uint8Array(198).buffer);
+    await store.putFile("data", "t0.bin", new Uint8Array(26912).buffer);
+
+    const files = await store.listFiles("data");
+    check("data/ lists what was put in it, with sizes",
+          files.length === 2 && files[0].name === "layout.bin" &&
+          files[0].size === 198 && files[1].size === 26912,
+          JSON.stringify(files));
+
+    const one = await store.getFile("data", "t0.bin");
+    check("and a file comes back whole", one && one.byteLength === 26912);
+
+    await store.empty("data");
+    check("emptying data/ empties it", (await store.listFiles("data")).length === 0);
+    check("and leaves symbols/ alone",
+          (await store.listFiles("symbols")).length === 1);
+
+    check("a file that is not there is null",
+          (await store.getFile("data", "nope.bin")) === null);
+
+    out.insertAdjacentHTML("beforeend",
+      bad ? `\n<span class="bad">${bad} problem(s)</span>\n`
+          : `\n<span class="ok">All good.</span>\n`);
+  } catch (error) {
+    check("the bench ran to the end", false, error.message);
+  }
+};
+</script>

@@ -58,6 +58,11 @@ NOT_ON_THE_PAGE = {
     # be copied into mitreden rather than kept twice.
     "tts/level.js": "tests/test_browser_tts.py",
     "tts/speak.js": "tests/test_browser_tts.py",
+    # Where the content goes when there is no content/ folder. The stamp that
+    # guards a stale tab is what test_store.py checks against app.py; the
+    # database itself is tools/storecheck.html, because IndexedDB needs a
+    # browser and this list is about what CI can reach.
+    "store.js": "tests/test_store.py",
 }
 
 # Code that is not ours. static/vendor/ holds built copies of packages, with

@@ -62,6 +62,18 @@
 #include "sync.h"
 #include "pairing.h"
 
+// --- Fetching content over the cable ----------------------------------------
+//
+// The editor is becoming a page with no server behind it, and a tab cannot be
+// something the device fetches from. So the browser pushes instead, down the
+// USB-C cable the device is charged through anyway - docs/cable.md.
+//
+// Both ways are compiled in. The Wi-Fi path above is not going anywhere until
+// the cable has been shown to work on real hardware, and they do not tread on
+// each other: a cable session that changes anything throws away the note the
+// Wi-Fi sync keeps about what it last fetched.
+#include "cable.h"
+
 // How long the setup portal stays open before the device gives up and goes
 // back to being a talker. A device stuck in a portal no longer speaks.
 static const uint32_t PORTAL_TIMEOUT_S = 180;
@@ -329,6 +341,37 @@ static void syncProgress(uint16_t done, uint16_t total) {
   char count[12];
   snprintf(count, sizeof(count), "%u/%u", done, total);
   showOnAll(text().loading, count);
+}
+
+// --- The cable ----------------------------------------------------------
+//
+// Nothing has to be chosen in the menu for this. The browser starts talking
+// and the device answers, which is the whole point: over the network five
+// digits on the displays proved somebody was standing in front of the device,
+// and whoever has hold of the cable is standing in front of it already.
+
+static void cableProgress(const char *what, uint16_t done, uint32_t bytes) {
+  (void)bytes;
+  char count[12];
+  snprintf(count, sizeof(count), "%u", done);
+  if (strcmp(what, "hello") == 0) {
+    // All five, so it is obvious at a glance that this is not the talker and
+    // that the keys are not going to say anything for a moment.
+    showOnAll(text().cable, nullptr);
+  } else if (strcmp(what, "done") == 0) {
+    showOnAll(text().done, count);
+  } else {
+    showOnAll(text().cable, count);
+  }
+}
+
+// The way out, and deliberately the same key and the same 400 ms as the way
+// out of a pairing. A transfer that has to be stopped is stopped here, not by
+// pulling the plug - a half-written file left behind by a cable coming out is
+// exactly what the .part rule is there to survive, but it should not be the
+// normal way to say no.
+static bool cableAbort() {
+  return isDown(SET_BUTTON);
 }
 
 // A reason in one word. The serial monitor gets the English sentence from
@@ -892,6 +935,34 @@ void setup() {
 }
 
 void loop() {
+  // A browser on the cable comes first. Cable::waiting() is one call to
+  // Serial.available() when nothing is there, and when something is there it
+  // is the most explicit thing anybody can be doing with this device.
+  //
+  // Serve() returns at once unless a browser really says hello, so a serial
+  // monitor left open costs a quarter of a second and nothing else.
+  if (Cable::waiting()) {
+    const CableResult cable = Cable::serve(cableProgress, cableAbort);
+    if (cable.ran) {
+      Serial.printf("cable: %u stored, %u removed, %u bytes%s%s\n",
+                    cable.stored, cable.removed, (unsigned)cable.bytes,
+                    cable.error ? " - " : "", cable.error ? cable.error : "");
+      if (cable.stored || cable.removed) {
+        // Read the new content in straight away. Otherwise the device would
+        // go on showing yesterday until somebody restarts it, which is a bad
+        // way to find out whether the transfer worked.
+        contentReady = loadLayout();
+        if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
+      }
+      delay(1500);            // long enough to read the count on the displays
+      waitForRelease();
+      if (mode == MODE_MENU) drawMenu(); else drawCurrentSet();
+      lastActivity = millis();
+      menuSince = millis();
+      return;
+    }
+  }
+
   // The gesture takes precedence - otherwise letting go would count as a press.
   if (menuComboReady()) {
     if (mode == MODE_MENU) leaveMenu(); else enterMenu();

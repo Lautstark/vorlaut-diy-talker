@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>vorlaut · pushing content down the cable</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2rem auto;
+         padding: 0 1rem; }
+  h1 { font-size: 1.35rem; margin-bottom: .2rem; }
+  p.lede { color: #777; margin-top: 0; }
+  fieldset { border: 1px solid #8884; border-radius: .4rem; margin: 1rem 0; padding: .7rem 1rem; }
+  legend { font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+  input, button, select { font: inherit; padding: .35rem .6rem; }
+  button { cursor: pointer; }
+  button[disabled] { cursor: default; opacity: .45; }
+  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-top: .6rem; }
+  #log { font: 13px/1.45 ui-monospace, monospace; white-space: pre-wrap;
+         background: #8881; padding: .7rem; border-radius: .3rem; min-height: 6rem;
+         max-height: 26rem; overflow-y: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; margin-top: .5rem; }
+  th, td { text-align: left; padding: .2rem .45rem; border-bottom: 1px solid #8883; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  td.name { font-family: ui-monospace, monospace; word-break: break-all; }
+  small { color: #777; }
+  #state { padding: .4rem .7rem; border-radius: .3rem; background: #8881;
+           display: inline-block; }
+  .bad { color: #c0392b; }
+  .good { color: #218c5a; }
+  progress { width: 12rem; vertical-align: middle; }
+</style>
+<main>
+
+<h1>Pushing content down the cable</h1>
+<p class="lede">
+  The browser half of <a href="../docs/cable.md">docs/cable.md</a>, on its own,
+  the way <a href="ttscheck.html">ttscheck.html</a> is the bench for the speech
+  and <a href="tilecheck.html">tilecheck.html</a> for the tiles. It speaks the
+  same <code>tools/cable.js</code> the static site will use, to a real device
+  over WebSerial or to the mock in <code>tools/cable_mock.js</code> when there
+  is no device to hand.
+</p>
+
+<fieldset>
+  <legend>The wire</legend>
+  <p><small><b>Connecting once is the whole setup.</b>
+  <code>requestPort()</code> needs a click to open the picker, so it can only be
+  reached from a button — but <code>getPorts()</code> hands back a port that was
+  granted earlier with no click at all, which is why this page tries that by
+  itself on load. Plug the cable in, pick the device once, and every visit after
+  that connects on its own. That is also why there is no five-digit code any
+  more: the plug is the proof that somebody is standing in front of the device.
+  <br>WebSerial needs a secure context, so this page has to be served — over
+  <code>http://localhost</code> or over https, not opened as a file.</small></p>
+  <div class="row">
+    <button id="connect">Connect to a device</button>
+    <button id="mock">Use the mock instead</button>
+    <button id="forget" disabled>Disconnect</button>
+  </div>
+  <div class="row"><span id="state">nothing connected</span></div>
+  <div id="hello"></div>
+</fieldset>
+
+<fieldset>
+  <legend>What is on it</legend>
+  <div class="row">
+    <button id="list" disabled>List the files</button>
+    <button id="verify" disabled>Checksum every one of them</button>
+  </div>
+  <p><small>Checksumming all of them is not what a push does — a name is a hash
+  of what went into the file, so a name being there is answer enough, and only
+  <code>layout.bin</code> has to be asked about. This is the deep check: it
+  reads every file back off the device and compares it with what was sent.</small></p>
+  <div id="files"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Something to push</legend>
+  <div class="row">
+    <button id="build">Take the build from the editor</button>
+    <button id="invent">Make a payload up</button>
+    <button id="folder">Pick a <code>data/</code> folder</button>
+    <label><input type="checkbox" id="restyle"> change two files and the layout</label>
+  </div>
+  <p><small><b>The first one is the real path.</b> It asks
+  <code>buildManifest()</code> and <code>buildFile()</code> in
+  <code>static/backend.js</code> for whatever <code>build.py</code> last made —
+  the same two calls the static site will use, answered over HTTP today and out
+  of local storage later. It needs this page to be served by <code>app.py</code>
+  itself, which is what <code>/tools/</code> is for; opened from any other server
+  the calls are cross-origin and will fail.
+  <br>The other two need no server. An invented payload proves the protocol with
+  nothing set up at all, and the directory picker reads
+  <code>firmware/vorlaut/data/</code> straight off the disk. Ticking the box
+  changes part of an invented payload, which is how the case that matters gets
+  tested: almost nothing should transfer the second time.</small></p>
+  <div id="payload"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Push it</legend>
+  <div class="row">
+    <button id="push" disabled>Work out what is missing, then send it</button>
+    <progress id="bar" value="0" max="1" hidden></progress>
+  </div>
+  <div id="plan"></div>
+</fieldset>
+
+<fieldset>
+  <legend>Log</legend>
+  <div class="row"><button id="clear">Clear</button></div>
+  <div id="log"></div>
+  <p><small id="env"></small></p>
+</fieldset>
+
+</main>
+
+<script type="module">
+import { Cable, CableError, plan, push, crc32, hex8, LAYOUT_FILE, CABLE_VERSION }
+  from "./cable.js";
+import { MockDevice } from "./cable_mock.js";
+// The seam the static site reaches the outside through. Only the two build
+// operations are wanted here - this bench has no business with the rest of it.
+import { buildManifest, buildFile } from "../static/backend.js";
+
+const $ = (s) => document.querySelector(s);
+const log = (m, cls) => {
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = m;
+  $("#log").append(line);
+  $("#log").scrollTop = $("#log").scrollHeight;
+};
+
+$("#env").textContent = (navigator.serial ? "navigator.serial is here" : "no WebSerial in this browser")
+  + ` · ${window.isSecureContext ? "secure context" : "NOT a secure context — serve this page"}`
+  + ` · client speaks protocol ${CABLE_VERSION} · ${navigator.userAgent}`;
+
+let cable = null;      // the open connection
+let serial = null;     // the SerialPort behind it, when it is a real one
+let made = null;       // Map name -> {bytes}: what we would like on the device
+let sent = null;       // what the last push believed it put there
+
+function ready(on) {
+  for (const id of ["#list", "#verify", "#forget"]) $(id).disabled = !on;
+  $("#push").disabled = !(on && made);
+}
+
+// --- The wire ----------------------------------------------------------------
+
+/** Opens a SerialPort and greets whatever is on the other end. */
+async function attach(port, how) {
+  // 115200 is what vorlaut.ino calls Serial.begin() with. On the ESP32-S3's
+  // native USB it is a number both sides ignore - there is no UART in the
+  // path to run at it - but WebSerial will not open a port without one.
+  await port.open({ baudRate: 115200 });
+  // Raising DTR is what makes the device's own Serial report a connection.
+  // Nothing here toggles DTR and RTS together in a pattern: that is the
+  // sequence esptool uses to drop an ESP32 into its bootloader, and doing it
+  // by accident would take the talker off the wire mid-session.
+  try { await port.setSignals({ dataTerminalReady: true, requestToSend: false }); }
+  catch { /* not every platform offers the signals */ }
+  serial = port;
+  return await greet({ readable: port.readable, writable: port.writable }, how);
+}
+
+async function greet(streams, how) {
+  cable = new Cable(streams, { onLog: (line) => log(`  device: ${line}`) });
+  const hello = await cable.hello();
+  if (hello.version !== CABLE_VERSION) {
+    log(`  it speaks protocol ${hello.version}, this page speaks ${CABLE_VERSION}`,
+        "bad");
+  }
+  $("#state").textContent = `${how} · ${hello.files} file(s) · `
+    + `${(hello.free / 1024).toFixed(0)} KB free of ${(hello.total / 1024).toFixed(0)} KB`;
+  $("#hello").innerHTML = table([
+    ["protocol", hello.version], ["files on it", hello.files],
+    ["partition", `${hello.total} bytes`], ["free", `${hello.free} bytes`],
+  ].map(([k, v]) => ({ name: k, n: v })));
+  log(`connected: ${how}, protocol ${hello.version}, ${hello.files} file(s), `
+      + `${hello.free} of ${hello.total} bytes free`, "good");
+  ready(true);
+  return hello;
+}
+
+// requestPort() needs the click that is happening right now. It cannot be
+// moved behind anything slow - the permission expires in about five seconds.
+$("#connect").addEventListener("click", async () => {
+  if (!navigator.serial) return log("this browser has no WebSerial", "bad");
+  try {
+    const port = await navigator.serial.requestPort();
+    await detach();
+    await attach(port, "over the cable");
+  } catch (error) {
+    log(`could not connect: ${error.message}`, "bad");
+  }
+});
+
+$("#mock").addEventListener("click", async () => {
+  await detach();
+  const device = new MockDevice({ noise: true });
+  window.mock = device;                 // for poking at from the console
+  await greet(device.open(), "the mock, no hardware involved");
+  log("  this is tools/cable_mock.js. It answers the way cable.h is written to,");
+  log("  and it chatters unmarked log lines into the same stream on purpose.");
+});
+
+async function detach() {
+  if (cable) { await cable.close(); cable = null; }
+  if (serial) { try { await serial.close(); } catch { /* gone */ } serial = null; }
+  ready(false);
+  $("#state").textContent = "nothing connected";
+}
+
+$("#forget").addEventListener("click", async () => {
+  await detach();
+  log("disconnected");
+});
+
+// No click needed for this one, which is the whole point: a port that was
+// granted once comes back on every later visit without anybody being asked.
+async function reconnect() {
+  if (!navigator.serial) return;
+  const [port] = await navigator.serial.getPorts();
+  if (!port) return;
+  try {
+    await attach(port, "over the cable, reconnected without asking");
+  } catch (error) {
+    log(`a port was remembered but would not open: ${error.message}`);
+  }
+}
+
+// --- What is on it -----------------------------------------------------------
+
+function table(rows, head = null) {
+  const header = head ? `<tr>${head.map((h) => `<th class="${h.n ? "n" : ""}">${h.t}</th>`).join("")}</tr>` : "";
+  return "<table>" + header + rows.map((r) =>
+    `<tr><td class="name">${r.name}</td><td class="n">${r.n}</td>`
+    + (r.note !== undefined ? `<td>${r.note}</td>` : "") + "</tr>").join("") + "</table>";
+}
+
+$("#list").addEventListener("click", async () => {
+  const files = await cable.list();
+  const layout = files.some((f) => f.name === LAYOUT_FILE)
+    ? hex8(await cable.crc(LAYOUT_FILE)) : "not there";
+  $("#files").innerHTML = table(
+    files.map((f) => ({ name: f.name, n: f.size,
+                        note: f.name === LAYOUT_FILE ? `crc ${layout}` : "" })),
+    [{ t: "file" }, { t: "bytes", n: true }, { t: "" }]);
+  log(`${files.length} file(s) on the device, `
+      + `${files.reduce((n, f) => n + f.size, 0)} bytes; layout.bin ${layout}`);
+});
+
+$("#verify").addEventListener("click", async () => {
+  const files = await cable.list();
+  let wrong = 0;
+  const rows = [];
+  for (const f of files) {
+    const there = hex8(await cable.crc(f.name));
+    const ours = sent?.has(f.name) ? hex8(crc32(sent.get(f.name).bytes)) : null;
+    const verdict = ours === null ? "not from this page"
+                  : ours === there ? "matches what was sent" : "DIFFERENT";
+    if (verdict === "DIFFERENT") wrong++;
+    rows.push({ name: f.name, n: f.size, note: `${there} — ${verdict}` });
+  }
+  $("#files").innerHTML = table(rows,
+    [{ t: "file" }, { t: "bytes", n: true }, { t: "checksum on the device" }]);
+  log(wrong ? `${wrong} file(s) came back different` : `all ${files.length} files read back byte for byte`,
+      wrong ? "bad" : "good");
+});
+
+// --- Something to push -------------------------------------------------------
+
+/** Deterministic bytes, so two runs of this page make the same payload. */
+function blob(seed, length) {
+  let state = seed >>> 0;
+  const bytes = new Uint8Array(length);
+  for (let i = 0; i < length; i++) {
+    state ^= state << 13; state >>>= 0;
+    state ^= state >>> 17;
+    state ^= state << 5;  state >>>= 0;
+    bytes[i] = state & 0xff;
+  }
+  return bytes;
+}
+
+function invent(variant) {
+  const files = new Map();
+  // Shaped like the real thing: "t" or "a", 32 hex, and the extension. The
+  // sizes are about what a 116x116 tile and a short sentence really come to.
+  for (let i = 0; i < 8; i++) {
+    const swapped = variant && i < 2;         // two files different this time
+    const seed = (i + 1) * 7919 + (swapped ? 5000 : 0);
+    const image = i % 2 === 0;
+    const name = (image ? "t" : "a")
+      + [0, 1, 2, 3].map((k) => hex8(seed * (k + 3) + i)).join("")
+      + (image ? ".bin" : ".wav");
+    files.set(name, { bytes: blob(seed, image ? 26912 : 20000 + i * 811) });
+  }
+  files.set(LAYOUT_FILE, { bytes: blob(variant ? 424242 : 1, 942) });
+  return files;
+}
+
+function describe(what) {
+  const bytes = [...made.values()].reduce((n, f) => n + f.bytes.length, 0);
+  $("#payload").innerHTML = table(
+    [...made.entries()].map(([name, f]) =>
+      ({ name, n: f.bytes.length, note: hex8(crc32(f.bytes)) })),
+    [{ t: "file" }, { t: "bytes", n: true }, { t: "checksum" }]);
+  log(`${what}: ${made.size} file(s), ${(bytes / 1024).toFixed(0)} KB`
+      + (bytes > 1536 * 1024 ? " — that is more than the partition holds" : ""));
+  $("#push").disabled = !cable;
+}
+
+// The real path, and deliberately the only one that is: these are the two
+// operations the transport needs permanently. Nothing of the browser build is
+// involved - the bytes are what Python already produced - so a failure here is
+// the wire or the firmware and nothing else.
+$("#build").addEventListener("click", async () => {
+  $("#build").disabled = true;
+  try {
+    const manifest = await buildManifest();
+    if (manifest.current === false) {
+      log("the build in data/ no longer matches layout.json — this would send "
+          + "yesterday's content. Press Build in the editor first.", "bad");
+      return;
+    }
+    log(`the editor has build ${manifest.version || "(none)"}: `
+        + `${manifest.files.length} file(s), ${manifest.bytes} bytes, `
+        + `${manifest.sets} set(s)`);
+    const files = new Map();
+    for (const entry of manifest.files) {
+      const bytes = new Uint8Array(await buildFile(entry.name));
+      // The manifest says how long each one is. A length that disagrees means
+      // the build moved underneath us while this was reading it.
+      if (bytes.length !== entry.size) {
+        log(`  ${entry.name} came back ${bytes.length} bytes, the manifest `
+            + `said ${entry.size}`, "bad");
+        return;
+      }
+      files.set(entry.name, { bytes });
+    }
+    made = files;
+    describe("took the build from the editor");
+  } catch (error) {
+    log(`could not read the build: ${error.message}`, "bad");
+    log("  is this page being served by app.py? /api/build/* is same-origin only.");
+  } finally {
+    $("#build").disabled = false;
+  }
+});
+
+$("#invent").addEventListener("click", () => {
+  made = invent($("#restyle").checked);
+  describe($("#restyle").checked ? "invented a changed payload" : "invented a payload");
+});
+
+$("#folder").addEventListener("click", async () => {
+  if (!window.showDirectoryPicker) return log("this browser has no directory picker", "bad");
+  try {
+    const dir = await window.showDirectoryPicker();
+    const files = new Map();
+    for await (const [name, handle] of dir.entries()) {
+      if (handle.kind !== "file") continue;
+      files.set(name, { bytes: new Uint8Array(await (await handle.getFile()).arrayBuffer()) });
+    }
+    if (!files.has(LAYOUT_FILE)) {
+      log(`no ${LAYOUT_FILE} in there — is that really a data/ folder?`, "bad");
+    }
+    made = files;
+    describe(`read ${dir.name}/`);
+  } catch (error) {
+    log(`could not read the folder: ${error.message}`, "bad");
+  }
+});
+
+// --- Push it -----------------------------------------------------------------
+
+$("#push").addEventListener("click", async () => {
+  $("#push").disabled = true;
+  $("#bar").hidden = false;
+  try {
+    const hello = await cable.hello();
+    const have = await cable.list();
+    const layoutCrc = have.some((f) => f.name === LAYOUT_FILE)
+      ? await cable.crc(LAYOUT_FILE) : null;
+
+    const work = plan(made, have, hello, layoutCrc);
+    $("#plan").innerHTML = table([
+      { name: "to send", n: work.put.length, note: `${work.needed} bytes` },
+      { name: "to remove", n: work.remove.length, note: "" },
+      { name: "already there", n: work.keep.length, note: "nothing to do — the names are hashes" },
+      { name: "order", n: work.tight ? "clear out first" : "send first, then clear out",
+        note: work.tight
+          ? "not enough room for the old content and the new at once"
+          : "so the device never reads a layout whose files have gone" },
+    ]);
+    log(`plan: send ${work.put.length}, remove ${work.remove.length}, `
+        + `leave ${work.keep.length} alone (${work.needed} bytes)`);
+    if (!work.fits) {
+      log("it does not fit even after clearing out — the payload is too big "
+          + "for the partition", "bad");
+      return;
+    }
+    if (work.tight) {
+      log("clearing out first: there is not room for both, so a transfer that "
+          + "breaks off now leaves the device with silent keys until it is "
+          + "finished");
+    }
+
+    $("#bar").max = work.put.length + work.remove.length;
+    const started = performance.now();
+    const result = await push(cable, made, work, (what, name, index, total) => {
+      $("#bar").value = index;
+      log(`  ${what} ${name}  (${index + 1}/${total})`);
+    });
+    const took = (performance.now() - started) / 1000;
+    sent = made;
+    await refreshState();
+    log(`done: ${result.stored} stored, ${result.removed} removed, `
+        + `${result.bytes} bytes in ${took.toFixed(1)}s`
+        + (result.bytes ? ` — ${(result.bytes / 1024 / took).toFixed(0)} KB/s` : ""),
+        "good");
+    log("the device has read its new layout in and is a talker again");
+  } catch (error) {
+    if (error instanceof CableError) {
+      log(`the device refused: ${error.word}${error.detail ? " " + error.detail : ""}`, "bad");
+      if (error.word === "session") {
+        log("  a transfer was given up on. Say hello again — that is the only "
+            + "way back in, on purpose.");
+      }
+    } else {
+      log(`failed: ${error.message}`, "bad");
+    }
+    console.error(error);
+  } finally {
+    $("#bar").hidden = true;
+    $("#push").disabled = false;
+  }
+});
+
+/** The line at the top goes stale the moment anything is pushed. */
+async function refreshState() {
+  const hello = await cable.hello();
+  $("#state").textContent = $("#state").textContent.replace(
+    /·.*$/, `· ${hello.files} file(s) · ${(hello.free / 1024).toFixed(0)} KB free `
+          + `of ${(hello.total / 1024).toFixed(0)} KB`);
+}
+
+$("#clear").addEventListener("click", () => { $("#log").textContent = ""; });
+
+// The console gets the same things the buttons use, not a second copy.
+window.check = { get cable() { return cable; }, get made() { return made; },
+                 plan, push, crc32, hex8, invent, MockDevice };
+
+await reconnect();
+</script>
