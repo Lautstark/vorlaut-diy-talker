@@ -139,6 +139,28 @@ def main() -> int:
           "there is one now - update docs/browser-tts.md, which says there is not: "
           + ", ".join(v["id"] for v in german_female))
 
+    # --- the URL the page writes down has to be speak.js's ---------------
+    # ui.html does not map onnxruntime-web yet, because nothing it loads asks
+    # for one; the entry sits in a comment there, ready for whoever wires
+    # speech up. A comment rots more quietly than a mapping would, and this is
+    # the drift that hurts: vits-web loads its runtime binaries from a fixed
+    # 1.18.0 path, so a page naming a different onnxruntime fails deep inside
+    # with nothing readable attached - the exact failure the pin exists to
+    # avoid, reintroduced one file over.
+    #
+    # VITS_WEB is deliberately not checked: speak.js imports it by URL rather
+    # than by bare name, so no map entry names it and there is nothing for the
+    # page to disagree with.
+    speak = (ROOT / "static" / "tts" / "speak.js").read_text(encoding="utf-8")
+    constant = re.search(r'export const ONNX_RUNTIME = "([^"]+)"', speak)
+    written = re.search(r'"onnxruntime-web":\s*"([^"]+)"',
+                        (ROOT / "ui.html").read_text(encoding="utf-8"))
+    check("ui.html writes down the ONNX_RUNTIME speak.js uses",
+          constant is not None and written is not None
+          and written.group(1) == constant.group(1),
+          f"ui.html says {written.group(1)!r}, speak.js says {constant.group(1)!r}"
+          if constant and written else "not found in both files")
+
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")
         return 1
