@@ -127,6 +127,13 @@
       "licence": "CC BY-NC-SA 4.0",
       "why": "licence",
       "note": "Same model card, same answer."
+    },
+    {
+      "id": "en_US-ryan-medium",
+      "name": "Ryan", "lang": "en", "gender": "male",
+      "licence": "CC BY-NC-SA 4.0",
+      "why": "licence",
+      "note": "Every quality Ryan is published in - low, medium and high - is non-commercial and share-alike. A medium and a high English male voice is exactly what somebody reaches for when the list looks short, which is why it is written down here rather than left out. Between Ryan and the two HFC voices, roughly a third of piper's English medium and high catalogue cannot be handed on."
     }
   ]
 }

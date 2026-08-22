@@ -106,6 +106,21 @@ Two-pass `loudnorm` was checked as well, in case `tts.py`'s own numbers
 were an artefact of measuring and normalising in one go. They are not: two-pass
 gives the same answer to the second decimal on every row tried.
 
+### Somebody else's ffmpeg agrees too
+
+The loudness measurement was checked a second time, from outside this
+repository. `Lautstark/stimmquelle` ported `level.js` to TypeScript and ran its
+BS.1770 against three `ebur128` numbers frozen out of ffmpeg while mitreden
+still had an ffmpeg to freeze them from: 1000 Hz at two amplitudes, and 440 Hz,
+where the K-weighting is deliberately not flat. **It agrees within 0.03 dB on
+all three** — including after the kernel-cache rewrite below, which was the
+thing most likely to have quietly cost accuracy.
+
+Two implementations written independently, landing on ffmpeg's answer, is a
+better result than either landing on it alone. The table above says this one
+matches ffmpeg on real speech; those three say it matches on signals whose
+right answer is known in advance.
+
 ### The tab does the same thing as the shell
 
 `level.js` never touches Web Audio, so the same file runs under node. It would

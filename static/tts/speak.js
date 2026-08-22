@@ -197,6 +197,10 @@ const split = (vid) => {
 
 /** One sentence, one voice id, one finished WAV.
  *
+ * Options are { rate, onProgress, azure: { key, region, rate } } - the outer
+ * rate is the sample rate of the finished WAV, the inner one is how fast the
+ * voice speaks. They are nested apart on purpose; see below.
+ *
  * Returns level.js's numbers alongside the bytes, and how long each half
  * took. The synthesiser is 4-7 s on an M-series Mac and the levelling is
  * milliseconds; anyone looking at a slow page should be able to see which of
@@ -206,11 +210,26 @@ export async function speak(text, vid, options = {}) {
   if (!text || !text.trim()) throw new Error("Nothing to say.");
   const [kind, rest] = split(vid);
   const started = performance.now();
+  // Azure's options are nested, and that is a fix rather than a style. This
+  // used to hand the same object to both halves, and both halves read a field
+  // called "rate" meaning unrelated things: to Azure it is how fast the voice
+  // speaks, "-5%", and to the levelling it is the sample rate, 16000. Nothing
+  // set either, so nothing was wrong yet - the first caller to set one would
+  // have got the other one wrong.
+  //
+  // Neither direction failed usefully. "-5%" reaching the resampler produced a
+  // 44 byte WAV - a header and no samples at all - and threw nothing, which is
+  // a silent empty recording cached under a fingerprint saying it is fine.
+  // 16000 reaching the SSML threw a TypeError about String.replace, from four
+  // frames away. The shape below is the one Lautstark/stimmquelle settled on,
+  // where a TypeScript port refused to compile the flat version and is how
+  // this was found; matching it means the call sites do not move when vorlaut
+  // consumes that package.
   const raw = kind === "azure"
-    ? await synthesizeAzure(text, rest, options)
+    ? await synthesizeAzure(text, rest, options.azure || {})
     : await synthesizePiper(text, rest, options.onProgress);
   const spoken = performance.now();
-  const result = postprocess(raw, options);
+  const result = postprocess(raw, { rate: options.rate });
   return {
     ...result,
     voice: vid,
