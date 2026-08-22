@@ -1,4 +1,5 @@
-import { api, status } from "./dom.js";
+import { status } from "./dom.js";
+import { synthesise } from "./backend.js";
 import { t } from "./texts.js";
 
 // A voice given here is listened to instead of the saved one - that is what
@@ -8,12 +9,7 @@ export async function speak(text, button, voice) {
   const before = button.textContent;
   button.textContent = "···";
   try {
-    const response = await api("/api/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice: voice || "" }),
-    });
-    const url = URL.createObjectURL(await response.blob());
+    const url = URL.createObjectURL(await synthesise(text, voice));
     const audio = new Audio(url);
     audio.onended = () => URL.revokeObjectURL(url);
     await audio.play();

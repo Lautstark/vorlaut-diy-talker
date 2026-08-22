@@ -2,9 +2,11 @@
 //
 // The browser half of metacom.py and of the ARASAAC endpoints in app.py, the
 // same way static/tiles.js is the browser half of tiles.py. Both halves exist
-// while the rewrite is in flight; this one does not replace the server yet, and
-// picker.js still talks to /api/search. See docs/symbol-search.md for what has
-// to be true before the switch is thrown.
+// while the rewrite is in flight; this one does not replace the server yet.
+// picker.js asks backend.js for a search and backend.js still answers it over
+// HTTP - so this file is what the local implementation behind that seam will
+// call once there is one. See docs/symbol-search.md for what has to be true
+// before the switch is thrown.
 //
 // The work itself is not done here. It is done by @lautstark/bildquelle, which
 // bildhaft and vorlaut share, because the METACOM rules are easier to keep

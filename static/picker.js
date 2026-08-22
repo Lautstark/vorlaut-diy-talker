@@ -2,7 +2,8 @@
 // image of your own, and writing the outcome into the layout.
 //
 // pickTarget, searchToken and sources live here and nowhere else.
-import { $, api, say, status } from "./dom.js";
+import { $, say, status } from "./dom.js";
+import { searchSymbols, pickSymbol, symbolSources, uploadSymbol } from "./backend.js";
 import { state } from "./state.js";
 import { t } from "./texts.js";
 import { save } from "./save.js";
@@ -22,8 +23,7 @@ export function openPicker(target, seed) {
 }
 
 async function ask(word, source) {
-  const url = "/api/search?source=" + source + "&q=" + encodeURIComponent(word);
-  return await (await api(url)).json();
+  return await searchSymbols(word, source);
 }
 
 async function doSearch() {
@@ -107,16 +107,12 @@ async function applySymbol(filename, label) {
 async function pick(item) {
   status(t(item.source === "metacom" ? "ui.taking_symbol" : "ui.loading_symbol"));
   try {
-    const result = await (await api("/api/pick", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: item.source,
-        id: item.id,
-        ref: item.ref,
-        label: item.label || $("q").value,
-      }),
-    })).json();
+    const result = await pickSymbol({
+      source: item.source,
+      id: item.id,
+      ref: item.ref,
+      label: item.label || $("q").value,
+    });
     await applySymbol(result.symbol, result.label);
     status("");
   } catch (error) {
@@ -128,7 +124,7 @@ async function pick(item) {
 // If that fails, it stays with ARASAAC alone.
 export async function loadSources() {
   try {
-    sources = await (await api("/api/sources")).json();
+    sources = await symbolSources();
   } catch (error) {
     sources = { metacom: false };
   }
@@ -145,8 +141,8 @@ export async function loadSources() {
 }
 
 export function wirePicker() {
-  // Own picture: the file goes to the server raw, the name sits in the query
-  // string. That way no multipart form is needed.
+  // Own picture. Where it goes and what happens to it is backend.js's
+  // business; all that matters here is that a symbol comes back.
   $("uploadBtn").onclick = () => $("fileInput").click();
   $("fileInput").onchange = async () => {
     const file = $("fileInput").files[0];
@@ -154,10 +150,7 @@ export function wirePicker() {
     if (!file) return;
     status(t("ui.uploading"));
     try {
-      const result = await (await api(
-        "/api/upload?name=" + encodeURIComponent(file.name),
-        { method: "POST", body: file }
-      )).json();
+      const result = await uploadSymbol(file);
       await applySymbol(result.symbol);
       status(t("ui.upload_done"));
     } catch (error) {

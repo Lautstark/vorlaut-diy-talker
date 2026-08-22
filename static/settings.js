@@ -4,7 +4,8 @@
 //
 // This is the lower half of the settings sheet. The sheet itself, and its one
 // Save, are in voices.js.
-import { $, api, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { readSettings, writeSettings } from "./backend.js";
 import { t } from "./texts.js";
 
 let settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
@@ -76,7 +77,7 @@ function metacomWord(short) {
 
 export async function loadSettings() {
   try {
-    settings = await (await api("/api/settings")).json();
+    settings = await readSettings();
     renderSettings();
   } catch (error) {
     status(t("ui.voice_failed", { error: error.message }));
@@ -91,11 +92,6 @@ export async function saveSettings() {
   // Only when something was typed: an untouched field must not wipe the key.
   const typed = $("azureKey").value.trim();
   if (typed) wanted.azureKey = typed;
-  const answer = await api("/api/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(wanted),
-  });
-  settings = await answer.json();
+  settings = await writeSettings(wanted);
   renderSettings();
 }

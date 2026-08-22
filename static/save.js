@@ -3,7 +3,8 @@
 // saveTimer, unsaved and layoutVersion live here and nowhere else. They were
 // three of the eleven at the top of the old script; nothing outside this file
 // ever read them, and nothing can now.
-import { $, api, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { loadLayout, saveLayout } from "./backend.js";
 import { state } from "./state.js";
 import { t } from "./texts.js";
 import { render } from "./editor.js";
@@ -13,10 +14,10 @@ let layoutVersion = null;   // the state this page loaded
 let unsaved = false;        // there are changes not yet in the file
 
 export async function load() {
-  const response = await api("/api/layout");
-  layoutVersion = response.headers.get("X-Layout-Version");
-  markReleaseState(response.headers.get("X-Build-Current"));
-  state.layout = await response.json();
+  const fresh = await loadLayout();
+  layoutVersion = fresh.version;
+  markReleaseState(fresh.buildCurrent);
+  state.layout = fresh.layout;
   if (state.current >= state.layout.sets.length) {
     state.current = Math.max(0, state.layout.sets.length - 1);
   }
@@ -86,15 +87,8 @@ export function save() {
 async function doSave() {
   clearTimeout(saveTimer);
   try {
-    const response = await fetch("/api/layout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Layout-Version": layoutVersion || "",
-      },
-      body: JSON.stringify(state.layout),
-    });
-    if (response.status === 409) {
+    const result = await saveLayout(state.layout, layoutVersion);
+    if (result.conflict) {
       // Nothing was written. Which of the two states counts is not this
       // page's decision to make.
       $("conflictText").textContent =
@@ -103,18 +97,13 @@ async function doSave() {
       status(t("ui.not_saved"));
       return;
     }
-    if (!response.ok) {
-      let message = response.statusText;
-      try { message = (await response.json()).error || message; } catch (e) {}
-      throw new Error(message);
-    }
-    layoutVersion = response.headers.get("X-Layout-Version");
-    markReleaseState(response.headers.get("X-Build-Current"));
+    layoutVersion = result.version;
+    markReleaseState(result.buildCurrent);
     // Do NOT replace state.layout with the answer here. The input fields hang
     // off exactly these objects; a fresh graph from the server would leave
     // their handlers pointing at nothing, and everything typed afterwards
     // would be lost until the next render() rebuilds the fields.
-    const saved = await response.json();
+    const saved = result.saved;
 
     // Verify instead of trust: does the file really hold what is on screen?
     // If not, better to say so loudly than to lose it quietly.
@@ -140,10 +129,9 @@ async function doSave() {
 export function wireConflict() {
   // Deliberately force through what this page holds.
   $("overwriteBtn").onclick = async () => {
-    const response = await api("/api/layout");
-    layoutVersion = response.headers.get("X-Layout-Version");
-    markReleaseState(response.headers.get("X-Build-Current"));
-    await response.json();
+    const fresh = await loadLayout();
+    layoutVersion = fresh.version;
+    markReleaseState(fresh.buildCurrent);
     await save();
   };
   $("reloadBtn").onclick = () => load();

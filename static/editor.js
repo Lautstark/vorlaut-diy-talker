@@ -3,6 +3,7 @@
 //
 // dragSet, dragSlot and preview live here and nowhere else.
 import { $, status } from "./dom.js";
+import { previewInto } from "./backend.js";
 import { state } from "./state.js";
 import { limits, palette } from "./boot.js";
 import { t } from "./texts.js";
@@ -46,8 +47,7 @@ function actualSize(symbol, colour) {
   const line = document.createElement("div");
   line.className = "actualSize";
   const image = document.createElement("img");
-  image.src = "/api/preview?symbol=" + encodeURIComponent(symbol || "")
-           + "&color=" + encodeURIComponent(colour || "#000000");
+  previewInto(image, symbol, colour);
   line.append(image, document.createTextNode(t("ui.device_size")));
   return line;
 }

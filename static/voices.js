@@ -6,7 +6,8 @@
 // This file also owns the settings sheet itself - opening it and its one Save
 // - because that Save is mostly about the voice. The Azure and METACOM panel
 // inside it is settings.js, which this calls into.
-import { $, api, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { listVoices, voiceFetchState, startVoiceFetch } from "./backend.js";
 import { LANG, LANGUAGES } from "./boot.js";
 import { state } from "./state.js";
 import { t } from "./texts.js";
@@ -46,7 +47,7 @@ let showAll = false;
 
 async function loadVoices() {
   try {
-    voices = await (await api("/api/voices")).json();
+    voices = await listVoices();
   } catch (error) {
     status(t("ui.voice_failed", { error: error.message }));
   }
@@ -199,7 +200,7 @@ function fetchNote() {
 
 async function readFetch() {
   try {
-    fetching = await (await api("/api/voices/fetch")).json();
+    fetching = await voiceFetchState();
   } catch (error) {
     fetching = { running: false, done: 0, total: 0, name: "",
                  error: error.message, missing: 0 };
@@ -209,11 +210,7 @@ async function readFetch() {
 async function startFetch() {
   fetchDone = false;
   try {
-    await api("/api/voices/fetch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    await startVoiceFetch();
   } catch (error) {
     fetching.error = error.message;
     renderVoices();

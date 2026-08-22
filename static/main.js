@@ -1,7 +1,8 @@
 // What the page does when it opens, and the buttons that belong to no one
 // section. Every other module is imported from here, so this is the file to
 // read first and the only one ui.html names.
-import { $, api, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { runBuild } from "./backend.js";
 import { t, applyTexts } from "./texts.js";
 import { load, saveNow, markReleaseState, wireConflict } from "./save.js";
 import { wireEditor } from "./editor.js";
@@ -24,7 +25,7 @@ $("releaseBtn").onclick = async () => {
   $("log").style.display = "block";
   $("log").textContent = t("ui.running");
   try {
-    const result = await (await api("/api/build", { method: "POST" })).json();
+    const result = await runBuild();
     $("log").textContent = result.log.join("\n");
     markReleaseState("1");
     status(t("ui.released"));

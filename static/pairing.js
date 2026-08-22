@@ -3,7 +3,8 @@
 // below - so nobody has to be told an order. As one string the code runs
 // key1 key2 key3 key4 setkey; that order is the whole agreement with the
 // device, and it is written down in docs/software.md.
-import { $, api, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { pairState, confirmPairCode } from "./backend.js";
 import { t } from "./texts.js";
 
 const PAIR_ORDER = ["1", "2", "3", "4", "S"];
@@ -56,13 +57,8 @@ export async function confirmPair() {
   if (code.length !== PAIR_ORDER.length) return;
   $("pairError").textContent = "";
   try {
-    const response = await fetch("/api/pair/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    });
-    const answer = await response.json();
-    if (!response.ok) {
+    const answer = await confirmPairCode(code);
+    if (!answer.ok) {
       $("pairError").textContent = answer.left
         ? answer.error + " (" + t("ui.pair_left", { left: answer.left }) + ")"
         : answer.error;
@@ -91,7 +87,7 @@ function hidePair() {
 // there while somebody stands at the device reading out digits.
 export async function watchPair() {
   try {
-    const answer = await (await api("/api/pair")).json();
+    const answer = await pairState();
     const waiting = (answer.waiting || []).length > 0;
     if (waiting && !pairShown) {
       pairShown = true;
