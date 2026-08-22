@@ -27,9 +27,7 @@ That finding is why the chain is written out by hand at all.
 | | |
 |---|---|
 | [`static/vendor/stimmquelle/`](../static/vendor/stimmquelle/VENDORED.md) | The chain and the catalogue, vendored from [Lautstark/stimmquelle](https://github.com/Lautstark/stimmquelle) and shared with mitreden |
-| [`tools/ttscheck.html`](../tools/ttscheck.html) | The page that drives it in a real tab |
-| [`tools/ttscheck.py`](../tools/ttscheck.py) | The harness. Also `--serve`, which hands the batch to that page |
-| [`tests/test_browser_tts.py`](../tests/test_browser_tts.py) | Holds `tts.py` to the contract the package carries |
+| [`tests/browser/level.test.mjs`](../tests/browser/level.test.mjs) | Holds the vendored chain to what real `ffmpeg` said, frozen in `tests/reference/tts.lock.json` |
 
 **This started as two files written here**, `static/tts/level.js` and
 `speak.js`, and they are gone from this repository — extracted into the shared

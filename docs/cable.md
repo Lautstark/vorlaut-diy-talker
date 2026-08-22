@@ -170,7 +170,7 @@ explanation.
 
 The cost of the safe order is room. For the length of the transfer both the old
 files and the new ones sit on a partition of **1.5 MB** (`FS_SIZE = 0x180000`
-in [`flashing.py`](../flashing.py)). A full payload is around 950 KB, so
+in the firmware's partition table). A full payload is around 950 KB, so
 replacing *every* symbol and *every* sentence at once does not fit. That is
 rare and it is real, so the browser checks: `free` came back in the `hello`,
 and if the new files will not fit alongside the old ones it falls back to

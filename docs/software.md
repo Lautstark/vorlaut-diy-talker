@@ -5,7 +5,7 @@ finds the server, how it gets its key, how content reaches it, how the build
 and the speech output work, and what the repository does and does not hold.
 
 Installing any of it and editing the content is a separate document,
-[editing.md](editing.md).
+[cable.md](cable.md).
 
 ## Finding the server
 
@@ -140,7 +140,7 @@ every time.
 To be precise, the names are hashes of the **input** - source image plus
 pipeline version, or text plus voice configuration - not of the output bytes.
 Same input, same name, so a file is transferred once no matter how many sets
-it appears in. `TILE_PIPELINE` in [`tiles.py`](../tiles.py) is what keeps that honest: bump it
+it appears in. `TILE_PIPELINE` in [`static/tiles.js`](../static/tiles.js) is what keeps that honest: bump it
 when the rendering changes, and every name changes with it.
 
 **The version stamp describes the files, not the layout.** That distinction
@@ -403,7 +403,7 @@ Useful switches:
 `tts.py` speaks either locally through **piper** or through the **Azure Speech
 REST API**. Which one is not a setting of its own: it follows from the voice.
 Choosing between the two and getting one working is a different question, and
-it is answered in [For the speech output](editing.md#for-the-speech-output).
+it is answered in [browser-tts.md](browser-tts.md).
 
 ### One voice has one name
 

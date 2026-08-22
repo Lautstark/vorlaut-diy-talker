@@ -10,24 +10,25 @@ nothing says so.
 
 What changed here, and why. This test used to build its inputs with
 Image.new() and take its expected bytes from tiles.render_symbol(), which made
-both sides of the comparison things Pillow worked out afresh on every run.
-That is a real comparison while Pillow is installed and nothing at all once it
-is not: the test skips, says Pillow is missing, and the suite stays green with
-the renderer unchecked. Since the Python half is on its way out, that is the
-wrong way round. So tools/tilefreeze.py wrote down what a known Pillow
-produced, and this reads it.
+both sides of the comparison things Pillow worked out afresh on every run -
+fine while Pillow was installed, and nothing at all once it was not. So
+tools/tilefreeze.py wrote down what a known Pillow produced while there was
+still one to ask, and this reads that. The tool and the renderer have since
+been deleted; the recording is what is left of them, and the provenance of it
+is in tests/reference/tiles.lock.json.
 
-Three comparisons, and it is worth being clear about which of them survives:
+The Python half is now gone, and this is what is left of that comparison:
 
-  node against the frozen bytes     needs nothing but node. This is the one
-                                    that still means something after the
-                                    Python half is deleted.
-  tiles.py against the frozen bytes catches the Python renderer drifting away
-                                    from what it was frozen at - a Pillow
-                                    upgrade, most likely. Skipped without
-                                    Pillow, and says so.
+  node against the frozen bytes     the whole of it. Needs nothing but node.
   the constants                     TILE_PIPELINE and the sizes, read out of
-                                    both files as text. Needs neither.
+                                    static/tiles.js as text. Needs not even
+                                    that.
+
+There used to be a third, tiles.py against the same bytes, which is what
+caught the renderer and the fixtures drifting apart in opposite directions.
+Nothing replaces it: from here the frozen bytes are the only opinion there is
+about what a tile should look like, and they only answer for the fourteen
+symbols in tests/reference/tiles/.
 
 tools/tilecheck.py is still the thorough version and still needs a browser:
 the one step left out here is decoding the PNG, which the fixtures are frozen
@@ -39,7 +40,6 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -186,60 +186,6 @@ def check_against_node(lock: dict, work: Path) -> None:
                 expected, (work / f"{entry['name']}.js.bin").read_bytes(), total)
 
 
-def check_against_pillow(lock: dict) -> None:
-    """Is tiles.py still rendering what it was frozen rendering?
-
-    A separate question from the one above, and the answer stops mattering the
-    day tiles.py goes. Until then it is the thing that would catch a Pillow
-    upgrade quietly changing every tile on every device - which the
-    fingerprint would not, because it hashes the symbol and the pipeline
-    number and not the bytes.
-    """
-    try:
-        from PIL import Image
-    except ImportError:
-        print("  skipped: Pillow is missing, so tiles.py was not asked. The "
-              "frozen tiles were still checked against node, which is the "
-              "comparison that has to outlive it.")
-        return
-
-    # tiles.py resolves a symbol through SYMBOLS_DIR, so the shipped ones are
-    # rendered the way the build renders them - through render_symbol() and
-    # the placeholder - and only the drawn fixtures go the short way round.
-    workspace = tempfile.TemporaryDirectory()
-    os.environ["VORLAUT_CONTENT"] = workspace.name
-    os.environ.pop("VORLAUT_DATA", None)
-    os.environ.pop("VORLAUT_METACOM_DIR", None)
-    with workspace:
-        symbols = Path(workspace.name) / "symbols"
-        symbols.mkdir(parents=True, exist_ok=True)
-        shipped = {}
-        for source in sorted((ROOT / "example" / "symbols").glob("*.png")):
-            shutil.copy(source, symbols / source.name)
-            shipped[source.stem] = source.name
-
-        import tiles
-        import tilefreeze
-
-        same = lock["tile_pipeline"] == tiles.TILE_PIPELINE
-        check("the frozen tiles were rendered at this TILE_PIPELINE", same,
-              "" if same else
-              f"frozen at {lock['tile_pipeline']}, tiles.py says "
-              f"{tiles.TILE_PIPELINE} - refreeze with tools/tilefreeze.py")
-
-        total = lock["tile_size"] ** 2
-        for entry in lock["fixtures"]:
-            name = entry["name"]
-            expected = (REFERENCE / entry["expected"]).read_bytes()
-            if entry["pixels"] is None:
-                actual = tiles.render_symbol("does-not-exist.png")
-            elif name in shipped:
-                actual = tiles.render_symbol(shipped[name])
-            else:
-                actual = tilefreeze.render_from_pixels(entry, tiles, Image)
-            compare(name, "tiles.py", expected, actual, total)
-
-
 def main() -> int:
     if not MODULE.is_file():
         print(f"  {MODULE} is missing")
@@ -260,8 +206,6 @@ def main() -> int:
     else:
         with tempfile.TemporaryDirectory() as work:
             check_against_node(lock, Path(work))
-
-    check_against_pillow(lock)
 
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")

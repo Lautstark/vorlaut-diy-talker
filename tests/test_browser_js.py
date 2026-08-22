@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
-"""Runs the browser speech tests, which are JavaScript.
+"""Runs the browser tests, which are JavaScript.
 
-static/tts/level.js is a second implementation of the ffmpeg chain in tts.py,
-and the checks on it are in JavaScript because it is. They run under plain
-node with nothing installed - the same rule the rest of this folder follows -
-so this file is only the bridge, and exists so that `python3 tests/run.py`
-covers both halves and CI needs to know about one command.
+The app is a static site, so most of what there is to check is written in
+JavaScript, and the checks are too. They run under plain node with nothing
+installed - the same rule the rest of this folder follows - so this file is
+only the bridge, and exists so that `python3 tests/run.py` covers everything
+and CI needs to know about one command.
 
-The distinction against tests/test_browser_tts.py next door is worth keeping
-straight, because the names are close and the jobs are not:
+Every tests/browser/*.test.mjs runs. At the time of writing:
 
-  test_browser_tts.py     reads the constants out of level.js and compares
-                          them with tts.py. Never runs any JavaScript, and
-                          would pass on correct constants over wrong
-                          arithmetic.
-  this one                runs level.js and checks what it produces against
-                          numbers real ffmpeg gave for the same inputs, frozen
-                          in tests/reference/tts.lock.json.
+  level.test.mjs      the recording chain in static/vendor/stimmquelle, held
+                      against numbers real ffmpeg gave for the same inputs
+                      while there was still an ffmpeg half of this project to
+                      ask. Frozen in tests/reference/tts.lock.json.
+  boot_data.test.mjs  static/boot_data.js, which used to be generated from
+                      texts.py and is the source itself now that texts.py is
+                      gone.
 
-Skipped, not failed, where node is missing: a contributor without it can still
-run everything else. That is a real gap rather than a formality - without node
-the speech chain has nothing checking it but its constants - so it says so.
+Skipped, not failed, where node is missing - and that is a real gap rather
+than a formality now, so it says so plainly. There is no Python half left to
+fall back on: without node, almost nothing in this repository is checked.
 """
 
 from __future__ import annotations

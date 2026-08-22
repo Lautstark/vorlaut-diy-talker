@@ -18,7 +18,7 @@ everything spoken are whatever somebody typed. Switching the interface to
 English leaves a German set German. The voice is chosen separately and can
 speak a different language than the menu.
 
-The texts live as one table per language in [`texts.py`](../texts.py) for the
+The texts live as one table per language in [`static/boot_data.js`](../static/boot_data.js) for the
 computer and the interface, and in
 [`firmware/vorlaut/texts.h`](../firmware/vorlaut/texts.h) for the device.
 English is the default.

@@ -17,13 +17,35 @@ uses and checks what the panel would really receive.
 from __future__ import annotations
 
 import subprocess
+import json
+import re
 import sys
 import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from layout import LANGUAGE_CODES  # noqa: E402
+
+
+def language_codes() -> dict[str, int]:
+    """Which language rides in which byte, read out of the browser's writer.
+
+    This used to come from layout.py, which no longer exists: the app is the
+    static site now. static/layout_format.js is the writer that puts the byte
+    into layout.bin, so it is the right thing for the firmware's own table to
+    be held against - and reading it as text rather than restating it here
+    keeps the two from agreeing only with this file.
+    """
+    source = (ROOT / "static" / "layout_format.js").read_text(encoding="utf-8")
+    found = re.search(r"export const LANGUAGE_CODES = (\{[^}]*\});", source)
+    if not found:
+        raise SystemExit("static/layout_format.js has no LANGUAGE_CODES - "
+                         "it is what says which byte a language is")
+    # `{ en: 0, de: 1 }` is not JSON until its keys are quoted.
+    return json.loads(re.sub(r"(\w+):", r'"\1":', found.group(1)))
+
+
+LANGUAGE_CODES = language_codes()
 
 
 def dump() -> list[str]:

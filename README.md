@@ -18,37 +18,32 @@ speak yet.
 
 ## Running it
 
-There is one way in today, and it is a clone. The container is gone: vorlaut is
-becoming a page that runs in the browser with nothing behind it, and keeping an
-image published in the meantime meant maintaining a way in that is on its way
-out.
+vorlaut is a page. There is no server, no container and nothing to install:
+the app is `ui.html` and `static/`, and it runs in a browser with nothing
+behind it. Open the page and it is ready — the boards, the symbols and the
+speech all happen in the tab.
 
 ```bash
 git clone https://github.com/Lautstark/vorlaut && cd vorlaut
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python app.py
 ```
 
-Then open [localhost:8771](http://localhost:8771). Python 3.9 or newer, and
-`ffmpeg` for the speech (`brew install ffmpeg` or `apt install ffmpeg`).
+Then open `ui.html`. It needs a browser recent enough for ES modules and, to
+put content on a device, one that speaks WebSerial — Chrome or Edge. Firefox
+and Safari will edit boards but cannot talk to the cable.
 
-```bash
-python3 doctor.py
-```
+No key and no `.env` to write: every setting has a default, and the page starts
+from the example content, so a set with four keys is there on the first visit.
+The four example sentences come with finished recordings, so a board can be
+put on a device before any voice has been downloaded.
 
-says what is missing and how to install it, including piper. It needs nothing
-itself, so it works before anything else does.
-
-No key and no `.env` to write: every setting has a default, and content/ fills
-itself from the examples on the first start, so a set with four keys is ready
-right away. The four example sentences come with finished recordings, so the
-example can be built and flashed before any voice exists.
+Getting it onto the talker is [docs/cable.md](docs/cable.md): flash the
+firmware once, then push content down the USB-C cable from the same page.
 
 No voice is installed for you. Nothing is needed to start editing — the
 interface and the build work without one, and new sentences simply stay silent
 and say so. The four piper voices are one press away in the voice picker in the
 header, and Azure Speech is the other route, against a key of your own. Both
-are in [docs/editing.md](docs/editing.md#for-the-speech-output).
+are in [docs/browser-tts.md](docs/browser-tts.md).
 
 ### If you have a METACOM licence
 
@@ -60,16 +55,9 @@ the folder — Chrome and Edge remember it, Firefox and Safari read it for the
 session. Nothing is uploaded, nothing is copied, and nothing derived from those
 files leaves the browser; see [METACOM on the device](#metacom-on-the-device).
 
-**The build** still runs in Python and reads a path from the environment:
-
-```bash
-VORLAUT_METACOM_DIR=~/METACOM_9_Desktop
-```
-
-Point both at the same collection. A `metacom:` reference is a file name, so
-the two agree as long as each is looking at a METACOM — and when the build
-moves into the browser too, the variable goes and only the folder picker is
-left. `python3 doctor.py` checks the path half.
+The build runs in the browser too, so there is nothing to configure and no
+path to set — the folder picker is the whole of it. A `metacom:` reference is
+a file name, so a board keeps working against any copy of the collection.
 
 > **Where this is going.** The app half is being rewritten as a static site
 > with no server at all — see [docs/browser-tts.md](docs/browser-tts.md) and
@@ -103,13 +91,11 @@ of it, including what the display's font can and cannot draw, is in
 | | |
 |---|---|
 | [docs/hardware.md](docs/hardware.md) | Parts, pin assignment, case dimensions |
-| [docs/editing.md](docs/editing.md) | Web interface, layout.json, symbols, voices, settings |
 | [docs/software.md](docs/software.md) | How it works: discovery, pairing, sync, build, speech |
 | [docs/tile-rendering.md](docs/tile-rendering.md) | The symbol renderer in Python and in the browser, and how far apart they are |
 | [docs/bring-up.md](docs/bring-up.md) | First assembly in stages, with small test sketches |
 | [docs/firmware.md](docs/firmware.md) | Ready-made image or compile it yourself, partition scheme, flashing |
 | [docs/languages.md](docs/languages.md) | German and English in the product, English in the code |
-| [docs/obf.md](docs/obf.md) | layout.json as an Open Board Format document, field by field |
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
 | [docs/cable.md](docs/cable.md) | Pushing content down the USB-C cable, for when there is no server to fetch from |
 | [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
@@ -144,7 +130,7 @@ follows for files:
 - **The build runs on your machine and goes to your device.** Not through
   anybody's server.
 - **A board you share stays a reference.** `.obf` and `.obz` are not picture
-  containers — see [docs/obf.md](docs/obf.md) — so a board sent to someone else
+  containers, so a board sent to someone else
   carries the names of the symbols, and renders for them only if they hold a
   licence too.
 

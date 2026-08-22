@@ -1,7 +1,15 @@
 # The same tile, twice
 
+> **`tiles.py`, `tools/tilecheck.py` and `tools/tilefreeze.py` no longer
+> exist.** The Python half was deleted once the browser took over; what it
+> rendered survives as the frozen tiles in `tests/reference/tiles/`, and
+> [frozen-references.md](frozen-references.md) says what that does and does
+> not still check. This document is kept because the reasoning below is why
+> `static/tiles.js` is written the way it is - the Lanczos arithmetic, the
+> premultiply, the rounding - and none of that changed with the deletion.
+
 The app is being rewritten as a static site with no server behind it, so
-`render_symbol()` in [`tiles.py`](../tiles.py) had to be written a second time
+`render_symbol()` in `tiles.py` had to be written a second time
 in the browser, as [`static/tiles.js`](../static/tiles.js). This is what that
 port has to get right, how far off it actually is, and why the answer decided
 what the JavaScript does.
@@ -57,8 +65,8 @@ reason that has nothing to do with resampling.
 
 ## The measurement
 
-[`tools/tilecheck.py`](../tools/tilecheck.py) serves
-[`tools/tilecheck.html`](../tools/tilecheck.html), the page renders every
+`tools/tilecheck.py` served
+`tools/tilecheck.html`, the page rendered every
 fixture with every renderer and `PUT`s the raw RGB565 back, and Python compares
 it against `tiles.render_symbol()`. Deltas are counted in RGB565's own units —
 0..31 for red and blue, 0..63 for green — because that is what the panel is
@@ -107,7 +115,7 @@ can sit side by side for as long as the rewrite takes.
 Everything in `static/tiles.js` except decoding the PNG is arithmetic on plain
 arrays, so [`tests/test_tile_render_js.py`](../tests/test_tile_render_js.py)
 runs it under node against tiles frozen from Pillow on every CI run — no
-browser and, since [`tools/tilefreeze.py`](../tools/tilefreeze.py) wrote those
+browser and, since `tools/tilefreeze.py` wrote those
 down, no Pillow either; see [frozen-references.md](frozen-references.md). It also
 checks that `TILE_PIPELINE` in the JavaScript still matches the one in
 `tiles.py`, which is the failure that would otherwise be silent.
