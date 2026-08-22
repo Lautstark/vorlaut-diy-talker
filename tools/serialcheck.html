@@ -78,16 +78,23 @@
 <fieldset>
   <legend>Something to push</legend>
   <div class="row">
+    <button id="build">Take the build from the editor</button>
     <button id="invent">Make a payload up</button>
     <button id="folder">Pick a <code>data/</code> folder</button>
     <label><input type="checkbox" id="restyle"> change two files and the layout</label>
   </div>
-  <p><small>An invented payload needs nothing set up and is enough to prove the
-  protocol. A real one is whatever <code>build.py</code> left in
-  <code>firmware/vorlaut/data/</code> — that needs Chrome's directory picker, and
-  nothing leaves this tab. Ticking the box changes part of the payload, which is
-  how the interesting case gets tested: almost nothing should transfer the second
-  time.</small></p>
+  <p><small><b>The first one is the real path.</b> It asks
+  <code>buildManifest()</code> and <code>buildFile()</code> in
+  <code>static/backend.js</code> for whatever <code>build.py</code> last made —
+  the same two calls the static site will use, answered over HTTP today and out
+  of local storage later. It needs this page to be served by <code>app.py</code>
+  itself, which is what <code>/tools/</code> is for; opened from any other server
+  the calls are cross-origin and will fail.
+  <br>The other two need no server. An invented payload proves the protocol with
+  nothing set up at all, and the directory picker reads
+  <code>firmware/vorlaut/data/</code> straight off the disk. Ticking the box
+  changes part of an invented payload, which is how the case that matters gets
+  tested: almost nothing should transfer the second time.</small></p>
   <div id="payload"></div>
 </fieldset>
 
@@ -113,6 +120,9 @@
 import { Cable, CableError, plan, push, crc32, hex8, LAYOUT_FILE, CABLE_VERSION }
   from "./cable.js";
 import { MockDevice } from "./cable_mock.js";
+// The seam the static site reaches the outside through. Only the two build
+// operations are wanted here - this bench has no business with the rest of it.
+import { buildManifest, buildFile } from "../static/backend.js";
 
 const $ = (s) => document.querySelector(s);
 const log = (m, cls) => {
@@ -302,6 +312,44 @@ function describe(what) {
       + (bytes > 1536 * 1024 ? " — that is more than the partition holds" : ""));
   $("#push").disabled = !cable;
 }
+
+// The real path, and deliberately the only one that is: these are the two
+// operations the transport needs permanently. Nothing of the browser build is
+// involved - the bytes are what Python already produced - so a failure here is
+// the wire or the firmware and nothing else.
+$("#build").addEventListener("click", async () => {
+  $("#build").disabled = true;
+  try {
+    const manifest = await buildManifest();
+    if (manifest.current === false) {
+      log("the build in data/ no longer matches layout.json — this would send "
+          + "yesterday's content. Press Build in the editor first.", "bad");
+      return;
+    }
+    log(`the editor has build ${manifest.version || "(none)"}: `
+        + `${manifest.files.length} file(s), ${manifest.bytes} bytes, `
+        + `${manifest.sets} set(s)`);
+    const files = new Map();
+    for (const entry of manifest.files) {
+      const bytes = new Uint8Array(await buildFile(entry.name));
+      // The manifest says how long each one is. A length that disagrees means
+      // the build moved underneath us while this was reading it.
+      if (bytes.length !== entry.size) {
+        log(`  ${entry.name} came back ${bytes.length} bytes, the manifest `
+            + `said ${entry.size}`, "bad");
+        return;
+      }
+      files.set(entry.name, { bytes });
+    }
+    made = files;
+    describe("took the build from the editor");
+  } catch (error) {
+    log(`could not read the build: ${error.message}`, "bad");
+    log("  is this page being served by app.py? /api/build/* is same-origin only.");
+  } finally {
+    $("#build").disabled = false;
+  }
+});
 
 $("#invent").addEventListener("click", () => {
   made = invent($("#restyle").checked);
