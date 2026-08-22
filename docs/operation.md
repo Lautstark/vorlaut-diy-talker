@@ -38,7 +38,7 @@ nothing is built — one downloaded file and one command:
 
 ```bash
 mkdir -p vorlaut/data && cd vorlaut
-curl -O https://raw.githubusercontent.com/SteffiPeTaffy/vorlaut/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/Lautstark/vorlaut/main/docker-compose.yml
 docker compose up -d --wait
 ```
 
