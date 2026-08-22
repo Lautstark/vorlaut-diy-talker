@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """Checks src/data/obf.ts against what obf.py said, without obf.py.
 
-The converter exists twice, and tests/test_obf_js.py holds the two together
-while both are here. This is the half that outlives the Python: everything in
+The converter existed twice, and tests/test_obf_js.py held the two together
+while both were here; the Python half went on 2026-08-22 and took the live
+test with it. This is the half that outlives them: everything in
 tests/reference/obf.lock.json was written by obf.py and layout.py through
-tools/obffreeze.py, and nothing below imports either of them. Node and the
+tools/obffreeze.py, and nothing below imports any of them. Node and the
 lock file are the whole of what it needs.
+
+One thing about that tool, because it is the odd one out of the five: it is
+still in tools/, kept as the record of how the lock was made, and it can no
+longer run - everything it imports, obf.py and layout.py first among them,
+went with the Python half. Its presence is not a way to regenerate the lock.
+The lock is the record, nothing in the repository can write it again, and a
+deliberate change to the mapping means restoring the oracle and its imports
+from git for as long as a refreeze takes (docs/frozen-references.md, "The
+board as a document").
 
 Which matters more here than for the other three subsystems, because there is
 no second opinion to fall back on. Tile rendering has Pillow, layout.bin has
@@ -182,8 +192,10 @@ def check_the_fixtures_are_intact(lock: dict) -> None:
             bad.append(entry["file"])
     check("every frozen file is the one that was read", not bad,
           "" if not bad else
-          f"changed: {', '.join(bad)} - regenerate with tools/obffreeze.py "
-          f"rather than editing, and expect the answers to change with them")
+          f"changed: {', '.join(bad)} - restore them from git rather than "
+          f"editing. tools/obffreeze.py cannot rewrite them: it is still in "
+          f"tools/, but what it imports went with the Python half - "
+          f"docs/frozen-references.md, under The board as a document")
 
 
 def check_the_written_zips(lock: dict, answers: list) -> None:
@@ -229,9 +241,11 @@ def check_the_written_zips(lock: dict, answers: list) -> None:
 
 def main() -> int:
     if not LOCK.is_file():
-        print(f"  {LOCK} is missing - the frozen answers are the reference, "
-              f"and there is nothing to compare against without them. "
-              f"tools/obffreeze.py writes them.")
+        print(f"  {LOCK} is missing - restore it from git. It is frozen "
+              f"obf.py output, and tools/obffreeze.py cannot write it again: "
+              f"the tool is still in tools/, but what it imports went with "
+              f"the Python half. There is nothing to compare against "
+              f"without it.")
         return 1
     if not MODULE.is_file():
         print(f"  {MODULE} is missing")

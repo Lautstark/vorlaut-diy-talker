@@ -34,10 +34,11 @@ the Python halves were deleted, and this is what is left behind them.
 
 Each was written by a tool that could only run while the Python half was here
 — `tools/ttsfreeze.py`, `tools/tilefreeze.py`, `tools/layoutfreeze.py`,
-`tools/symbolfreeze.py`, `tools/obffreeze.py`. They went with it; the lock
-files carry what produced them, when, and what would invalidate them, in the
-shape `tools/vendor.lock.json` uses next door, and git has the tools if one is
-ever needed again.
+`tools/symbolfreeze.py`, `tools/obffreeze.py`. The first four went with it;
+`tools/obffreeze.py` is still in `tools/`, kept as the record of how its lock
+was made, and cannot run — everything it imports went. The lock files carry
+what produced them, when, and what would invalidate them, and git has the
+tools and their oracles if one is ever needed again.
 
 **`git add -A` before running the suite, when you have just added fixtures.**
 The reason is in `tests/run.py`'s docstring and in the Tests section of

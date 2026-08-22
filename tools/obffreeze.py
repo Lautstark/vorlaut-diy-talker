@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """Freezes what obf.py says a board becomes, in both directions.
 
+This tool no longer runs. It imports obf.py, layout.py, buildbase.py and
+tests/test_obf_js.py, and all four went with the Python half on 2026-08-22;
+this file stayed, deliberately, as the record of how
+tests/reference/obf.lock.json was made. Running it again means restoring the
+four from git for as long as a refreeze takes, and refreezing to make a red
+test green is the one move the lock exists to stop
+(docs/frozen-references.md, "The board as a document"). Everything below is
+from when it ran.
+
     python3 tools/obffreeze.py            # rewrite tests/reference/obf.lock.json
     python3 tools/obffreeze.py --check    # convert again, change nothing, report
 
