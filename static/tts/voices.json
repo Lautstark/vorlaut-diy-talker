@@ -30,7 +30,7 @@
     "  spike    run in a browser in mitreden's spike",
     "  here     run in a browser from vorlaut's tools/ttscheck.html",
     "  rule     medium or high, present in PATH_MAP, never actually spoken in a tab",
-    "  catalogue-only  fetched by the container, cannot be reached from a browser"
+    "  catalogue-only  fetched by tts.py, cannot be reached from a browser"
   ],
 
   "revised": "2026-08-22",
@@ -112,7 +112,7 @@
       "name": "John", "lang": "en", "gender": "male",
       "licence": "public domain",
       "why": "reach",
-      "note": "In vorlaut's VOICE_CATALOGUE and fetched fine by the container - it is on both mirrors, 63531379 bytes. It is vits-web that cannot have it: predict() looks the id up in PATH_MAP, finds nothing, and asks the mirror for 'undefined.json'. voices() lists it anyway."
+      "note": "In vorlaut's VOICE_CATALOGUE and fetched fine by tts.py - it is on both mirrors, 63531379 bytes. It is vits-web that cannot have it: predict() looks the id up in PATH_MAP, finds nothing, and asks the mirror for 'undefined.json'. voices() lists it anyway."
     },
     {
       "id": "en_US-hfc_female-medium",

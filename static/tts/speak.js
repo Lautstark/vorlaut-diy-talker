@@ -1,6 +1,6 @@
 // Speaking a sentence with nothing behind the page.
 //
-// The container has two backends and this has the same two, under the same
+// tts.py has two backends and this has the same two, under the same
 // names: a voice is one string, "piper:de_DE-thorsten-medium" or
 // "azure:de-DE-GiselaNeural", exactly as it stands in layout.json. Keeping
 // the ids identical is what lets a set of sentences move between the server
@@ -8,7 +8,7 @@
 //
 // What comes out is what tts.synthesize() returns: a 16 kHz mono 16 bit WAV,
 // trimmed and levelled. The levelling is level.js next door, measured against
-// the container in tools/ttscheck.py.
+// tts.py in tools/ttscheck.py.
 //
 // This file needs a browser; level.js deliberately does not. The split is so
 // that the arithmetic can be checked without one.

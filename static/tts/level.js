@@ -1,6 +1,6 @@
 // Everything that happens to a recording after something has spoken it: trim
 // the silence off both ends, fade, level it, write a 16 kHz mono 16 bit WAV.
-// In the container that is one call to ffmpeg - tts.py, _filter_chain() and
+// On this machine that is one call to ffmpeg - tts.py, _filter_chain() and
 // postprocess(). In a tab there is no ffmpeg, and the obvious replacement,
 // ffmpeg.wasm, cannot be used: its newest core is built from ffmpeg 5.1.4,
 // whose loudnorm gets the gain wrong by about 13 dB on half of all short
@@ -401,9 +401,9 @@ export function postprocess(wavBytes, { rate = SAMPLE_RATE } = {}) {
   // A limiter was written and measured before this comment was. It lands
   // closer to -16 than ffmpeg does - and that is the argument against it. The
   // two halves of this project speak the same sentences into the same cache;
-  // a browser that levels better than the container is a device on which the
-  // sentence recorded yesterday is quieter than the one recorded today. The
-  // container is the oracle, not the target.
+  // a browser that levels better than tts.py is a device on which the sentence
+  // recorded yesterday is quieter than the one recorded today. tts.py is the
+  // oracle, not the target.
   let gainDb = TARGET_LUFS - lufs;
   const peakDb = truePeakDb(out, rate);
   const headroom = TARGET_PEAK_DBTP - peakDb;

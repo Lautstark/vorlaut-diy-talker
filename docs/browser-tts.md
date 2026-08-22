@@ -1,9 +1,9 @@
 # Speaking in a tab
 
-The app half is being rewritten as a static site: no server, no container, one
-page. Speech is the part of it that does not obviously survive the move, because
-today it is two programs on a machine somebody else runs — `piper` renders the
-sentence and `ffmpeg` levels it (`tts.py`). Neither exists in a browser.
+The app half is being rewritten as a static site: no server, one page. Speech is
+the part of it that does not obviously survive the move, because today it is two
+programs on the machine running `app.py` — `piper` renders the sentence and
+`ffmpeg` levels it (`tts.py`). Neither exists in a browser.
 
 This document is what was measured, not what is expected. The numbers come from
 `tools/ttscheck.py`, which renders a batch with the real piper, levels each one
@@ -55,7 +55,7 @@ It also means the table below moves a little between runs. The column that does
 not move is the last one — whether the two paths agree on the same recording.
 
 ```
-id      text                            container     node       Δ  TP node   LRA
+id      text                               tts.py     node       Δ  TP node   LRA
 ---------------------------------------------------------------------------------
 de-00   Ja!                                -16.15   -16.10   +0.05    -1.49  0.00
 de-01   Nein!                              -16.00   -16.04   -0.04    -3.81  0.00
@@ -96,13 +96,13 @@ and always long ones.
 This was worth being wrong about in both directions before settling it. A
 lookahead true-peak limiter was written and measured: it tracks −16 LUFS
 *better* than ffmpeg does, and the worst deviation flips from −2.26 to +2.23 LU.
-It was taken out again. The container is the oracle here, not the target: both
+It was taken out again. `tts.py` is the oracle here, not the target: both
 halves of this project speak the same sentences into the same cache under the
-same fingerprint, and a browser that levels *better* than the container is still
+same fingerprint, and a browser that levels *better* than `tts.py` is still
 a device on which yesterday's sentence is quieter than today's. Being 2.3 LU
 quiet on one sentence in twenty is the smaller fault.
 
-Two-pass `loudnorm` was checked as well, in case the container's own numbers
+Two-pass `loudnorm` was checked as well, in case `tts.py`'s own numbers
 were an artefact of measuring and normalising in one go. They are not: two-pass
 gives the same answer to the second decimal on every row tried.
 
@@ -119,7 +119,7 @@ the same file.
 ### Speaking in the tab as well
 
 Running the whole path in the browser, piper-wasm included, the agreement is
-looser: −1.52 to +0.99 LU against the container. That is not the levelling —
+looser: −1.52 to +0.99 LU against `tts.py`. That is not the levelling —
 that is checked above and exact, byte for byte. The two sides are levelling
 different recordings, and they always will be: partly because onnxruntime-web
 and native onnxruntime need not produce the same waveform from one model, but
@@ -127,7 +127,7 @@ mostly because piper does not produce the same waveform twice in a row anyway.
 The spread here is the same order as the spread between two native renders.
 
 Worth knowing before anybody debugs it as a levelling bug — and worth knowing
-before anybody expects a browser and a container to agree byte for byte on a
+before anybody expects a browser and `app.py` to agree byte for byte on a
 sentence. They cannot. What they can agree on is the level, and that is what
 the fingerprint in `tts.py` is really promising.
 
@@ -174,7 +174,7 @@ never actually spoken. `tests/test_browser_tts.py` fails if a voice is added to
 `VOICE_CATALOGUE` without an answer in it.
 
 `VOICE_CATALOGUE` itself is deliberately unchanged. Both voices work perfectly
-well in the container, which is what it is for; the static site reads
+well where `tts.py` runs, which is what it is for; the static site reads
 `voices.json`, and it is the rewrite's job to decide what a picker with two
 Thorstens in it should look like.
 
@@ -202,7 +202,7 @@ key handling on the way through, no region routing, no week-long cache of the
 voice list because a page that keeps state can just remember it.
 
 Levelled through `level.js`, an Azure recording lands at −16.03 LUFS against
-the container's −15.98. Azure already delivers `riff-16khz-16bit-mono-pcm`, so
+`tts.py`'s −15.98. Azure already delivers `riff-16khz-16bit-mono-pcm`, so
 nothing is resampled and only the trim and the gain are left to do.
 
 The catch is the obvious one and it is worth writing down rather than
