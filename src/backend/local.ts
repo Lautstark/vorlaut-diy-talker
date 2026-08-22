@@ -27,8 +27,9 @@ import {
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import {
-  speak, asBlob, shippable, displayName, usePiper, PIPELINE_VERSION,
+  speak, asBlob, shippable, displayName, usePiperRuntime, PIPELINE_VERSION,
   listVoices as catalogueVoices,
+  type OnnxModule, type PhonemizerFactory,
 } from "@lautstark/stimmquelle/browser";
 import { LANGUAGES } from "../core/boot_data.js";
 
@@ -38,13 +39,47 @@ import { LANGUAGES } from "../core/boot_data.js";
 // same two - tests/test_browser_tts.py is what holds them together.
 const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
 
-// The package does not import piper; the consumer hands it in. Kept lazy, so
-// opening the page costs nothing until somebody actually speaks.
-usePiper(() => import(
-  // The package's PiperModule is a description of somebody else's module and
-  // this is a URL the compiler cannot see behind - see src/types/cdn.d.ts.
-  "https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/dist/vits-web.js"
-) as unknown as Promise<Parameters<typeof usePiper>[0] extends () => Promise<infer M> ? M : never>);
+// The package does not drive piper by itself; the consumer says where the
+// pieces are. Driving it directly - rather than through vits-web's predict() -
+// is what makes de_DE-kerstin-low and en_US-john-medium speakable at all:
+// vits-web cannot phonemise her and does not list him, and she is the one
+// voice in the catalogue that is 16 kHz native, the device's own rate, so she
+// alone reaches it without a resample. Configuring this reroutes every piper
+// voice, and the package holds that safe: a voice that already spoke produces
+// identical phoneme ids on either route, so nothing re-renders. What does move
+// is the model cache - an OPFS directory of stimmquelle's rather than
+// vits-web's - so the first sentence per voice after this re-downloads its
+// 63 MB. That looks like a broken fetch and is not one.
+//
+// vits-web itself is gone with this: speak() routes every piper voice here the
+// moment a runtime is configured, which made the usePiper() handover the kind
+// of code this file exists to not have - importable, reading like a working
+// path, and unreachable. The import map in index.html went with it; nothing
+// imports a bare name from the browser any more.
+//
+// Three pieces, three transports, each for a reason:
+//  - the phonemizer is an npm package Vite bundles, lazily, so opening the
+//    page still costs nothing until somebody speaks. Its file is Emscripten's
+//    UMD, whose exports only exist for a bundler - a browser importing the
+//    URL gets a module with nothing in it, so the CDN route vits-web took is
+//    not open to it.
+//  - onnxruntime is the module the import map used to name, from the same
+//    pinned URL - see src/types/cdn.d.ts for why it stays one.
+//  - the wasm binaries behind both are served beside the page: wasmBase is
+//    one directory answering for the phonemizer's wasm and data and for
+//    onnxruntime's binaries together, and no CDN serves those four files
+//    from one place. vite.config.ts is what fills vendor/.
+usePiperRuntime({
+  phonemizer: async () => ({
+    createPiperPhonemize:
+      (await import("@diffusionstudio/piper-wasm/build/piper_phonemize.js"))
+        .default as PhonemizerFactory,
+  }),
+  onnx: () => import(
+    "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js"
+  ) as unknown as Promise<OnnxModule>,
+  wasmBase: `${import.meta.env.BASE_URL}vendor/`,
+});
 
 // --- The layout --------------------------------------------------------------
 
@@ -211,20 +246,21 @@ export async function symbolInto(image, reference) {
 // --- Voices and speech -------------------------------------------------------
 
 export async function listVoices(): Promise<VoiceList> {
-  // shippable() rather than the whole catalogue: it drops what cannot speak in
-  // a tab, what may not be handed on at all, and what may be handed on only
+  // shippable() rather than the whole catalogue: it drops what cannot speak
+  // here, what may not be handed on at all, and what may be handed on only
   // with an attribution this interface does not render yet. The last one costs
   // a voice - de_DE-mls-medium is CC-BY - and that is the option doing its
   // job, not a bug. Pass { rendersAttribution: true } once the notices are on
   // screen; attributionsFor() in the catalogue is what would render them.
   //
-  // It took an argument until 2.0.0 - shippable("browser") - and the default
-  // now says the same thing: this page does not render notices and does not
-  // drive piper itself, so it is offered what vits-web can speak and what may
-  // be handed on unconditionally.
+  // ownsInference is the usePiperRuntime() call at the top of this file: the
+  // runtime question is answered by this page itself now, not by what
+  // vits-web could speak, and that is what puts Kerstin and John on offer.
+  // It claims nothing about licences - that half is asked of every voice
+  // either way, which is why mls still waits on its notice.
   const layout = (await store.readLayout()).layout;
   const chosen = layout && layout.voice ? layout.voice : "";
-  const list = shippable().map((voice) => ({
+  const list = shippable({ ownsInference: true }).map((voice) => ({
     id: `piper:${voice.id}`,
     label: displayName(voice.id),
     language: voice.lang || "",
@@ -281,9 +317,15 @@ export async function synthesise(text, voice) {
   // for it on an azure: id, so for piper this is baggage it ignores - and
   // without it an azure: voice chosen in the sheet failed on every sentence.
   const held = await store.readSettings(NO_SETTINGS);
+  // ownsInference rides in the options, never in VORLAUT: speak()'s licence
+  // gate takes the runtime claim from its caller rather than inferring it,
+  // so without this line Kerstin is refused at the door the sheet offered
+  // her through. And VORLAUT is spread into the WAV fingerprint below, where
+  // a new key would rename every recording ever made.
   const options = held.azureSecret && held.azureRegion
-    ? { ...VORLAUT, azure: { key: held.azureSecret, region: held.azureRegion } }
-    : VORLAUT;
+    ? { ...VORLAUT, ownsInference: true,
+        azure: { key: held.azureSecret, region: held.azureRegion } }
+    : { ...VORLAUT, ownsInference: true };
   const spoken = await speak(text, chosen, options);
   return asBlob(spoken.wav);
 }
@@ -462,7 +504,11 @@ async function fingerprint(bytes: BufferSource): Promise<string> {
  * the build. */
 function chosenVoice(layout: Layout): string {
   if (layout.voice) return layout.voice;
-  const offered = shippable();
+  // The same offering listVoices() asks with, so a fresh board's default is a
+  // voice the picker actually shows. The two new voices this admits stand
+  // behind Thorsten and Kristin in the catalogue, so no default moves - which
+  // matters, because this answer goes into the name of every WAV.
+  const offered = shippable({ ownsInference: true });
   if (!offered.length) return "";
   const wanted = layout.language || DEFAULT_LANGUAGE;
   const spoken = offered.find((voice) => voice.lang === wanted) || offered[0];
@@ -562,9 +608,13 @@ export async function runBuild(): Promise<{ log: string[] }> {
       // how the sentence sounds, and rotating a key must not re-render a
       // device's worth of audio.
       const held = await store.readSettings(NO_SETTINGS);
+      // ownsInference for the same reason synthesise() states it, and like
+      // the key it stays out of the fingerprint payload above: both say who
+      // may ask, not how the sentence sounds.
       const options = held.azureSecret && held.azureRegion
-        ? { ...VORLAUT, azure: { key: held.azureSecret, region: held.azureRegion } }
-        : VORLAUT;
+        ? { ...VORLAUT, ownsInference: true,
+            azure: { key: held.azureSecret, region: held.azureRegion } }
+        : { ...VORLAUT, ownsInference: true };
       const spoken = await speak(text, spokenBy, options);
       await store.putFile("data", name, owned(spoken.wav));
     }
