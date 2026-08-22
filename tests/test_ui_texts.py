@@ -36,18 +36,48 @@ from buildbase import BuildError  # noqa: E402
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 
-# Modules that live in static/ without ui.html ever loading them. There is one
-# and it is meant to be temporary: tiles.js is the browser half of the symbol
-# renderer, written for the static-site rewrite, which has no page yet. It is
-# not unreachable code - tests/test_tile_render_js.py runs every line of it
-# against tiles.py - it is code whose page has not arrived. Take it off this
-# list the moment main.js imports it.
-NOT_ON_THE_PAGE = {"tiles.js"}
+# Modules that live in static/ without ui.html ever loading them.
+#
+# All of them are the same thing and all of them are meant to be temporary:
+# the app is being turned into a static site, and the browser halves of what
+# the server does today are landing one at a time, ahead of the page that will
+# import them. None of it is unreachable code - each entry names the test that
+# runs it against the Python it was ported from - it is code whose page has
+# not arrived. An entry comes off this list the moment main.js reaches it.
+#
+# This was two lists a moment ago, NOT_ON_THE_PAGE and NOT_LOADED_YET, one per
+# module, written by two people who each needed the same exception and neither
+# of whom could see the other's. A third would have made it three. The value
+# is the test that runs the module instead.
+NOT_ON_THE_PAGE = {
+    "tiles.js": "tests/test_tile_render_js.py",
+    "layout_format.js": "tests/test_layout_format.py",
+    # The speech pipeline: level.js is the browser's ffmpeg and speak.js is
+    # its piper and its Azure. They sit in a folder of their own because there
+    # are three of them with voices.json, which is the one file here meant to
+    # be copied into mitreden rather than kept twice.
+    "tts/level.js": "tests/test_browser_tts.py",
+    "tts/speak.js": "tests/test_browser_tts.py",
+}
 
 
 def scripts() -> list[Path]:
-    """Every JavaScript module the page loads."""
-    return sorted(app.STATIC.glob("*.js"))
+    """Every JavaScript module under static/, however deep.
+
+    rglob rather than glob, which is a fix and not a tidy-up: this used to
+    look only at the top level, so a module in a subfolder was not checked for
+    being valid JavaScript, not checked for being reachable, and not checked
+    for asking after a text that does not exist. It was exempt from all of it
+    by being one directory down, and nothing said so.
+    """
+    return sorted(app.STATIC.rglob("*.js"))
+
+
+def module_name(path: Path) -> str:
+    """How a module is referred to here: its path under static/, not its bare
+    name. Two folders could hold a level.js one day, and one of them being
+    silently taken for the other is the failure this whole check is about."""
+    return path.relative_to(app.STATIC).as_posix()
 
 
 def frontend_sources() -> list[Path]:
@@ -260,21 +290,10 @@ def check_modules_are_valid_js() -> int:
                                 capture_output=True, text=True)
         Path(name).unlink()
         if result.returncode != 0:
-            print(f"  FAIL  {path.name} is not valid JavaScript\n"
+            print(f"  FAIL  {module_name(path)} is not valid JavaScript\n"
                   f"{result.stderr}")
             failures += 1
     return failures
-
-
-# The page does not load this one yet, and that is not an oversight: it is the
-# browser's half of the layout.bin format, ported from layout_format.py while
-# the app is being turned into a static site. Nothing in the current interface
-# writes layout.bin - the server still does - so nothing imports it. What
-# keeps it honest until then is tests/test_layout_format.py, which writes
-# every case with it, compares the bytes with the ones Python writes and has
-# the firmware's own reader read the result. This name goes as soon as the
-# static app writes the file itself.
-NOT_LOADED_YET = {"layout_format.js"}
 
 
 def check_every_module_is_reachable() -> int:
@@ -290,15 +309,24 @@ def check_every_module_is_reachable() -> int:
     the loop below fails if a name on that list is not a file any more, so
     the exception cannot outlive the module it was written for.
     """
-    imported = {"main.js"} | NOT_ON_THE_PAGE
+    imported = {"main.js"} | set(NOT_ON_THE_PAGE)
     for path in scripts():
-        for target in re.findall(r'from\s+"\./([\w.-]+\.js)"',
+        # Resolved against the importing file rather than taken as a name:
+        # "./level.js" in static/tts/speak.js is static/tts/level.js, and in a
+        # flat reading it would have been a top-level level.js that is not
+        # there - or, worse, one that is and is a different file.
+        for target in re.findall(r'from\s+"(\.\.?/[\w./-]+\.js)"',
                                  path.read_text(encoding="utf-8")):
-            imported.add(target)
+            resolved = (path.parent / target).resolve()
+            try:
+                imported.add(resolved.relative_to(app.STATIC).as_posix())
+            except ValueError:
+                print(f"  FAIL  {module_name(path)} imports {target}, which is "
+                      f"outside static/")
     failures = 0
     for path in scripts():
-        if path.name not in imported and path.name not in NOT_LOADED_YET:
-            print(f"  FAIL  nothing imports {path.name}, so the page never "
+        if module_name(path) not in imported:
+            print(f"  FAIL  nothing imports {module_name(path)}, so the page never "
                   f"loads it")
             failures += 1
     for name in sorted(imported):
@@ -343,8 +371,9 @@ def main() -> int:
     print(f"  {len(frontend_sources())} front-end file(s) scanned, "
           f"{len(scripts())} of them modules, and every one of them reached "
           f"from main.js"
-          + (f" except {', '.join(sorted(NOT_LOADED_YET))}"
-             if NOT_LOADED_YET else ""))
+          + (f" except {', '.join(sorted(NOT_ON_THE_PAGE))}, which the "
+             f"static-site rewrite has not wired up yet"
+             if NOT_ON_THE_PAGE else ""))
     print("  the bootstrap block cannot be closed by anything inside it")
     print("  the command line stays English, the interface does not")
     if not shutil.which("node"):
