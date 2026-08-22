@@ -1,0 +1,103 @@
+{
+  "what": "The reference metacom.py files a symbol under, for paths the vendored bildquelle package can hand the adapter in static/symbols.js. Frozen so the two halves can still be held to each other once metacom.py is gone.",
+  "produced_by": "tools/symbolfreeze.py",
+  "produced_on": "2026-08-22",
+  "python": "3.14.6",
+  "oracle": "metacom._scan_files(), run over a folder built for the purpose - not a restatement of what it does",
+  "prefix": "metacom:",
+  "invalidated_by": [
+    "a change to _scan_files() in metacom.py, or to the glob it uses",
+    "a change to how obf.py or layout.json spell a symbol reference",
+    "a new case here, which has to be frozen rather than guessed"
+  ],
+  "not_invalidated_by": [
+    "changes to static/symbols.js or to the vendored bildquelle - that is the half being checked, and refreezing to make it pass would leave the adapter agreeing with itself"
+  ],
+  "unindexed": {
+    "paths": [
+      "a/b/c/tief_verschachtelt.webp",
+      "PNG_ohne_Rahmen/gross.jpeg"
+    ],
+    "what": "metacom._scan_files() globs '*.png' and nothing else, so its index never sees these. The browser can still be handed such a path, because the package searches whatever folder it was pointed at. Their reference is still frozen, and from Python: path.stem is the rule metacom.py applies - it is the expression in _scan_files() - and only the glob in front of it kept these out. So the name is checked; what is not checked is that anything resolves, because nothing does. A reference built from one of these renders as the placeholder, which is the honest outcome and not a bug in the adapter.",
+    "why_it_matters": "these are also the only cases whose extension is not four characters long. Every PNG makes 'strip the last suffix' and 'drop four characters' agree, so without them a rule doing the latter passes everything."
+  },
+  "cases": [
+    {
+      "path": "Apfel.png",
+      "why": "the plain case, and the only one where every wrong rule still passes",
+      "indexed_as": "Apfel",
+      "indexed": true,
+      "reference": "metacom:Apfel"
+    },
+    {
+      "path": "METACOM_Symbole/Symbole_PNG/PNG_ohne_Rahmen/essen.png",
+      "why": "the full path from the top of a real collection - four folders to discard",
+      "indexed_as": "essen",
+      "indexed": true,
+      "reference": "metacom:essen"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/wuetend.png",
+      "why": "one folder, which is what the picker usually hands over",
+      "indexed_as": "wuetend",
+      "indexed": true,
+      "reference": "metacom:wuetend"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/wuetendSW.png",
+      "why": "the black-and-white rendition: a variant suffix that is part of the name",
+      "indexed_as": "wuetendSW",
+      "indexed": true,
+      "reference": "metacom:wuetendSW"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/wuetend2.png",
+      "why": "an alternative of the same symbol, numbered rather than suffixed",
+      "indexed_as": "wuetend2",
+      "indexed": true,
+      "reference": "metacom:wuetend2"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/wuetend_dh.png",
+      "why": "a skin-tone variant - VARIANT_SUFFIX knows these, and the reference still keeps the whole name rather than the base",
+      "indexed_as": "wuetend_dh",
+      "indexed": true,
+      "reference": "metacom:wuetend_dh"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/Guten_Morgen.png",
+      "why": "an underscore, and a capital in the middle of a reference",
+      "indexed_as": "Guten_Morgen",
+      "indexed": true,
+      "reference": "metacom:Guten_Morgen"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/zwei.punkte.png",
+      "why": "a dot that is not the extension: only the last suffix comes off, so a rule that cut at the first dot loses half the name",
+      "indexed_as": "zwei.punkte",
+      "indexed": true,
+      "reference": "metacom:zwei.punkte"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/.versteckt.png",
+      "why": "a leading dot. The extension is still .png and the name keeps its dot",
+      "indexed_as": ".versteckt",
+      "indexed": true,
+      "reference": "metacom:.versteckt"
+    },
+    {
+      "path": "a/b/c/tief_verschachtelt.webp",
+      "why": "not a PNG, so metacom.py never files it at all - and the browser can be handed one, because the package searches a folder it did not choose",
+      "indexed_as": null,
+      "indexed": false,
+      "reference": "metacom:tief_verschachtelt"
+    },
+    {
+      "path": "PNG_ohne_Rahmen/gross.jpeg",
+      "why": "the same, with the extension length that catches a rule cutting four characters instead of finding the dot",
+      "indexed_as": null,
+      "indexed": false,
+      "reference": "metacom:gross"
+    }
+  ]
+}

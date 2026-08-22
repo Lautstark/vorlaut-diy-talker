@@ -22,6 +22,8 @@ must not be the reason a machine without node cannot run the suite.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import re
 import shutil
@@ -69,17 +71,56 @@ def javascript_reference(paths: list[str]) -> list[str]:
     return json.loads(done.stdout)
 
 
+def frozen_is_still_current() -> int:
+    """Is tests/reference/symbols.lock.json still what metacom.py files?
+
+    That file exists so the adapter can be checked once metacom.py cannot be
+    asked any more, which makes it a copy of this module's answer - and copies
+    go stale. Nothing else would notice: the frozen cases would keep agreeing
+    with static/symbols.js about names metacom.py no longer uses.
+
+    So it is asked here, in the file that still has a metacom.py to ask.
+    """
+    lock_path = ROOT / "tests" / "reference" / "symbols.lock.json"
+    if not lock_path.is_file():
+        print("  FAIL  tests/reference/symbols.lock.json is missing - "
+              "tools/symbolfreeze.py writes it")
+        return 1
+    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT / "tools"))
+    import symbolfreeze
+
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    # freeze() reports what it found, which is right when it is run by hand
+    # and noise in the middle of a test. Only its answer is wanted here.
+    with contextlib.redirect_stdout(io.StringIO()):
+        fresh = symbolfreeze.freeze()
+    was = {c["path"]: c["reference"] for c in lock["cases"]}
+    now = {c["path"]: c["reference"] for c in fresh["cases"]}
+    if was != now:
+        moved = sorted(k for k in set(was) | set(now) if was.get(k) != now.get(k))
+        print(f"  FAIL  metacom.py no longer files these as the lock file says: "
+              f"{', '.join(moved)}")
+        print("        Refreeze with tools/symbolfreeze.py, and read the diff "
+              "first - the browser has no metacom.py to follow this one with.")
+        return 1
+    print(f"  ok    the {len(was)} frozen references are still what metacom.py "
+          f"files")
+    return 0
+
+
 def main() -> int:
     print("static/symbols.js writes the same metacom: reference as metacom.py")
     if not shutil.which("node"):
         print("  SKIP  node is not installed")
         return 0
 
+    failures = frozen_is_still_current()
+
     from_js = javascript_reference(CASES)
     if not from_js:
         return 1
 
-    failures = 0
     for path, actual in zip(CASES, from_js):
         # What metacom.py keys the collection by, and what layout.json holds.
         wanted = "metacom:" + Path(path).stem
