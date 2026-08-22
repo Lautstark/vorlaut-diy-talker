@@ -111,6 +111,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/languages.md](docs/languages.md) | German and English in the product, English in the code |
 | [docs/obf.md](docs/obf.md) | layout.json as an Open Board Format document, field by field |
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
+| [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
 
 ## Licence
 

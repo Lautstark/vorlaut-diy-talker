@@ -248,6 +248,22 @@ throttled renderer took 20× longer on the same code than node did on the same
 data. The correctness results above are unaffected by that; the timings would
 be.
 
+## What checks this now
+
+The table above is still produced by hand, and still needs a `piper` and an
+`ffmpeg` to produce. What does not is
+[`tests/browser/level.test.mjs`](../tests/browser/level.test.mjs): the loudness
+measurement, the peak meter, the resampling and the whole chain are checked
+against numbers real `ffmpeg` gave for the same inputs, frozen in
+[`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) while there
+was still an `ffmpeg` half to freeze them from. It runs under plain node, from
+`python3 tests/run.py`, with no synthesiser and no browser.
+
+That covers the arithmetic, not the sentences: the frozen utterances are
+synthetic, because `piper` renders the same text differently every time. The
+rest of what is and is not covered is in
+[frozen-references.md](frozen-references.md).
+
 ## What was not tested
 
 - **iPads**, which is where this would actually be used, and the one measurement
