@@ -14,7 +14,7 @@ import { state } from "../core/state.js";
 import { t } from "../core/texts.js";
 import { save } from "../core/save.js";
 import { speak } from "./speech.js";
-import { loadSettings, saveSettings } from "./settings.js";
+import { forgetKey, loadSettings, saveSettings } from "./settings.js";
 
 let voices = { voices: [], active: "", chosen: "" };
 // What is ticked in the sheet. Separate from voices.chosen, which is what
@@ -299,6 +299,21 @@ export async function saveVoice() {
   }
   status(t("ui.settings_saved"));
   $<HTMLDialogElement>("voices").close();
+}
+
+// Removing the key is the same shape of errand as saving one: the list it
+// feeds is on this sheet, so the sheet stays open and the Azure rows leave
+// in front of the person who asked.
+export async function forgetAzureKey() {
+  try {
+    await forgetKey();
+  } catch (error) {
+    status(t("ui.save_failed", { error: reason(error) }));
+    return;                       // stay open, the message is in the header
+  }
+  await loadVoices();
+  renderVoices();
+  status(t("ui.azure_key_removed"));
 }
 
 // The options name themselves: "Deutsch" stays "Deutsch" whatever the page is

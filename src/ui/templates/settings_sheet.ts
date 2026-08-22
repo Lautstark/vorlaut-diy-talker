@@ -45,6 +45,9 @@ export const markup = `
       <label id="azureKeyLabel" for="azureKey"></label>
       <input type="password" id="azureKey" autocomplete="off">
       <p class="note" id="azureKeyState"></p>
+      <!-- Removing the key is its own button: the empty field already means
+           "leave the key alone", so it cannot also mean "drop it". -->
+      <button id="azureForget" type="button"></button>
       <label id="azureRegionLabel" for="azureRegion"></label>
       <input type="text" id="azureRegion" autocomplete="off">
     </div>
