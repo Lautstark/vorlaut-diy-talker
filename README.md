@@ -96,6 +96,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/operation.md](docs/operation.md) | Running in a container, editing from a phone, on a NAS |
 | [docs/languages.md](docs/languages.md) | German and English in the product, English in the code |
 | [docs/obf.md](docs/obf.md) | layout.json as an Open Board Format document, field by field |
+| [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
 
 ## Licence
 

@@ -1,0 +1,132 @@
+{
+  "_": [
+    "Which piper voices actually work in a browser. Vendored, not maintained twice:",
+    "vorlaut and mitreden both need this answer and it is the same answer, so the file",
+    "is copied between them rather than each keeping its own. tts.py makes the same",
+    "argument about VOICE_CATALOGUE - one list, one place - and this is that argument",
+    "applied to the browser, where the list is different because the constraints are.",
+    "",
+    "Three things make a voice usable in a tab, and piper's own catalogue answers none",
+    "of them:",
+    "",
+    "  quality  Only medium and high survive @diffusionstudio/vits-web. Every low and",
+    "           x_low voice dies with 'idx=... must be within the inclusive range",
+    "           [-130,129]', because vits-web phonemizes against one fixed symbol table",
+    "           instead of the phoneme_id_map in each model's own .onnx.json. Measured",
+    "           in mitreden's spike, docs/spike/README.md on branch spike/piper-wasm.",
+    "",
+    "  reach    vits-web can only fetch what is in its hardcoded PATH_MAP. Its voices()",
+    "           call returns the mirror's voices.json instead - 124 entries against 119",
+    "           in the map - so five voices are advertised by the library and cannot be",
+    "           downloaded by it. en_US-john-medium is one of them, and it is in",
+    "           vorlaut's VOICE_CATALOGUE.",
+    "",
+    "  licence  Unchanged by any of this and easy to forget once a voice is a string in",
+    "           a JSON file. Read the MODEL_CARD next to the model, not the file name.",
+    "",
+    "'proof' says how each entry was established, because a list that says 'tested' and",
+    "means 'assumed' is worth less than no list:",
+    "",
+    "  spike    run in a browser in mitreden's spike",
+    "  here     run in a browser from vorlaut's static/tts/check.html",
+    "  rule     medium or high, present in PATH_MAP, never actually spoken in a tab",
+    "  catalogue-only  fetched by the container, cannot be reached from a browser"
+  ],
+
+  "revised": "2026-08-22",
+  "library": { "name": "@diffusionstudio/vits-web", "version": "1.0.3" },
+  "models": "https://huggingface.co/diffusionstudio/piper-voices/resolve/main",
+
+  "voices": [
+    {
+      "id": "de_DE-thorsten-medium",
+      "name": "Thorsten",
+      "lang": "de", "locale": "de_DE", "gender": "male",
+      "quality": "medium", "bytes": 63201294, "sampleRate": 22050,
+      "licence": "CC0", "browser": "ok", "proof": "spike, here"
+    },
+    {
+      "id": "de_DE-thorsten-high",
+      "name": "Thorsten",
+      "lang": "de", "locale": "de_DE", "gender": "male",
+      "quality": "high", "bytes": 113887510, "sampleRate": 22050,
+      "licence": "CC0", "browser": "ok", "proof": "spike"
+    },
+    {
+      "id": "de_DE-thorsten_emotional-medium",
+      "name": "Thorsten (emotional)",
+      "lang": "de", "locale": "de_DE", "gender": "male",
+      "quality": "medium", "bytes": 76667635, "sampleRate": 22050,
+      "licence": "CC0", "browser": "ok", "proof": "spike",
+      "note": "One model, several moods, chosen by speaker id. vits-web speaks the first one and offers no way to pick another."
+    },
+    {
+      "id": "de_DE-mls-medium",
+      "name": "MLS",
+      "lang": "de", "locale": "de_DE", "gender": "mixed",
+      "quality": "medium", "bytes": 76966619, "sampleRate": 22050,
+      "licence": "CC-BY 4.0", "browser": "ok", "proof": "spike",
+      "note": "A corpus, not a person - many speakers in one model, and no name a picker can show. The only German voice here that is not Thorsten, and the closest thing to a German female voice that runs at all."
+    },
+    {
+      "id": "en_US-kristin-medium",
+      "name": "Kristin",
+      "lang": "en", "locale": "en_US", "gender": "female",
+      "quality": "medium", "bytes": 63531379, "sampleRate": 22050,
+      "licence": "public domain", "browser": "ok", "proof": "spike, here"
+    },
+    {
+      "id": "en_US-ljspeech-medium",
+      "name": "LJ Speech",
+      "lang": "en", "locale": "en_US", "gender": "female",
+      "quality": "medium", "bytes": 63531379, "sampleRate": 22050,
+      "licence": "public domain", "browser": "ok", "proof": "rule",
+      "note": "The name of a dataset, which reads like a mistake in a list of first names - tts.py says so about the same voice. Here as the free English fallback if Kristin ever goes, not as something to offer."
+    }
+  ],
+
+  "rejected": [
+    {
+      "id": "de_DE-kerstin-low",
+      "name": "Kerstin", "lang": "de", "gender": "female",
+      "licence": "CC0",
+      "why": "quality",
+      "note": "In vorlaut's VOICE_CATALOGUE and the only German female voice there. Published as low only, so it cannot be made to work by choosing a different file. Reading each model's phoneme_id_map instead of vits-web's fixed table would unlock it - and owning the phonemizer glue."
+    },
+    {
+      "id": "de_DE-eva_k-x_low",
+      "name": "Eva K", "lang": "de", "gender": "female",
+      "licence": "see MODEL_CARD",
+      "why": "quality",
+      "note": "The other German female voice in the catalogue. x_low, so the same wall."
+    },
+    {
+      "id": "de_DE-ramona-low",
+      "name": "Ramona", "lang": "de", "gender": "female",
+      "licence": "see MODEL_CARD",
+      "why": "quality",
+      "note": "The third and last German female voice piper publishes. Also low."
+    },
+    {
+      "id": "en_US-john-medium",
+      "name": "John", "lang": "en", "gender": "male",
+      "licence": "public domain",
+      "why": "reach",
+      "note": "In vorlaut's VOICE_CATALOGUE and fetched fine by the container - it is on both mirrors, 63531379 bytes. It is vits-web that cannot have it: predict() looks the id up in PATH_MAP, finds nothing, and asks the mirror for 'undefined.json'. voices() lists it anyway."
+    },
+    {
+      "id": "en_US-hfc_female-medium",
+      "name": "HFC female", "lang": "en", "gender": "female",
+      "licence": "CC BY-NC-SA 4.0",
+      "why": "licence",
+      "note": "Runs in a browser - the spike used it. Non-commercial and share-alike, which is not what a voice handed on inside an application can be. tts.py already warns about exactly this: read the MODEL_CARD, not the file name."
+    },
+    {
+      "id": "en_US-hfc_male-medium",
+      "name": "HFC male", "lang": "en", "gender": "male",
+      "licence": "CC BY-NC-SA 4.0",
+      "why": "licence",
+      "note": "Same model card, same answer."
+    }
+  ]
+}

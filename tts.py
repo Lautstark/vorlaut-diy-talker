@@ -240,6 +240,23 @@ VOICE_SOURCE = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 # ljspeech would be the obvious English pick and is public domain too, but it
 # is the name of a dataset, and in a list of first names it reads like an
 # error. Kristin is just as free and sits better among the others.
+#
+# Two of these four cannot be spoken in a browser, which matters because the
+# app half is being rewritten as a static site. Kerstin is published as "low"
+# only, and the phonemizer the browser build uses cannot read a low model's
+# symbol table; John is fetched fine by this code and is missing from the
+# table of paths that build ships, so it cannot fetch it at all. That leaves
+# Thorsten and Kristin - and no German female voice anywhere in piper, because
+# all three it publishes are low or x_low.
+#
+# The list below is deliberately not trimmed for that. Both voices work here,
+# and here is what this list is for: what the container downloads and speaks
+# with. What a browser can speak with is a different list with different
+# reasons behind it, and it is written down in static/tts/voices.json - one
+# list per question rather than one list that answers neither. What keeps them
+# from drifting apart is tests/test_browser_tts.py, which fails if a voice is
+# added here without an answer over there. The measurements are in
+# docs/browser-tts.md.
 VOICE_CATALOGUE = {
     "de": [
         "de/de_DE/thorsten/medium/de_DE-thorsten-medium",

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>vorlaut · speaking in a tab</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 48rem; margin: 2rem auto;
+         padding: 0 1rem; }
+  h1 { font-size: 1.35rem; margin-bottom: .2rem; }
+  p.lede { color: #777; margin-top: 0; }
+  fieldset { border: 1px solid #8884; border-radius: .4rem; margin: 1rem 0; padding: .7rem 1rem; }
+  legend { font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+  textarea, select, button { font: inherit; }
+  textarea { width: 100%; padding: .5rem; box-sizing: border-box; }
+  select, button { padding: .35rem .6rem; }
+  button { cursor: pointer; }
+  button[disabled] { cursor: default; opacity: .45; }
+  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-top: .6rem; }
+  #log { font: 13px/1.45 ui-monospace, monospace; white-space: pre-wrap;
+         background: #8881; padding: .7rem; border-radius: .3rem; min-height: 5rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .2rem .45rem; border-bottom: 1px solid #8883; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  audio { width: 100%; margin-top: .5rem; }
+  small { color: #777; }
+</style>
+<main>
+
+<h1>Speaking in a tab</h1>
+<p class="lede">The same two files the static site would ship —
+<code>speak.js</code> for the voice, <code>level.js</code> for the trim and the
+levelling. Nothing is uploaded; the models come from Hugging Face once and stay
+in this browser.</p>
+
+<fieldset>
+  <legend>One sentence</legend>
+  <textarea id="text" rows="2">Ich möchte noch nicht ins Bett.</textarea>
+  <div class="row">
+    <select id="voice"></select>
+    <button id="go">Speak</button>
+    <button id="forget" title="Delete the downloaded models from this browser">Forget the models</button>
+  </div>
+  <div id="out"></div>
+</fieldset>
+
+<fieldset>
+  <legend>The batch</legend>
+  <p style="margin:.2rem 0"><small>Only with <code>tools/leveling.py --serve</code>
+  behind it. It renders the batch with the real piper, this levels each one in
+  the tab and hands it back, and <code>--browser</code> then measures both with
+  the real ffmpeg. Two runs: <b>levelling</b> takes piper's own recordings, so
+  it isolates this code from the synthesiser; <b>everything</b> speaks each
+  sentence here as well, which is the whole path and needs the models.</small></p>
+  <div class="row">
+    <button id="batch-level">Level the batch</button>
+    <button id="batch-all">Speak and level the batch</button>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>Log</legend>
+  <div id="log"></div>
+  <p><small id="env"></small></p>
+</fieldset>
+
+</main>
+
+<script type="importmap">
+{ "imports": { "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js" } }
+</script>
+<script type="module">
+import * as speech from "./speak.js";
+import { postprocess } from "./level.js";
+
+const $ = (s) => document.querySelector(s);
+const log = (m) => { $("#log").textContent += m + "\n"; };
+const clear = () => { $("#log").textContent = ""; };
+
+$("#env").textContent =
+  `${navigator.hardwareConcurrency || "?"} cores · `
+  + (crossOriginIsolated ? "cross-origin isolated, threads available"
+                         : "not cross-origin isolated — onnxruntime falls back to one thread")
+  + ` · ${navigator.userAgent}`;
+
+// --- the voice picker --------------------------------------------------------
+// Out of voices.json, and only out of voices.json. Offering piper's own
+// catalogue here is the mistake the whole file exists to prevent: it lists
+// voices this cannot speak with, and a voice that cannot speak turns into a
+// silent slot on the device rather than an error on this page.
+const catalogue = await speech.voices();
+const already = await speech.downloaded().catch(() => []);
+for (const voice of catalogue.voices) {
+  $("#voice").append(Object.assign(document.createElement("option"), {
+    value: `piper:${voice.id}`,
+    textContent: `${voice.name} · ${voice.lang} · ${voice.quality} · `
+      + `${(voice.bytes / 1e6).toFixed(0)} MB`
+      + (already.includes(voice.id) ? " · here already" : ""),
+  }));
+}
+log(`${catalogue.voices.length} voices that work, ${catalogue.rejected.length} that do not`
+    + ` (voices.json, revised ${catalogue.revised})`);
+if (already.length) log(`already in this browser: ${already.join(", ")}`);
+
+// --- one sentence ------------------------------------------------------------
+
+async function render(text, vid) {
+  let last = -1;
+  return speech.speak(text, vid, {
+    onProgress: ({ url, share }) => {
+      const percent = Math.round(share * 100);
+      if (percent >= last + 25) {
+        log(`  downloading ${url.split("/").pop()} … ${percent}%`);
+        last = percent;
+      }
+    },
+  });
+}
+
+function show(result) {
+  const rows = [
+    ["synthesis", `${result.synthesisMs} ms`],
+    ["levelling", `${result.levellingMs} ms`],
+    ["length", `${result.seconds.toFixed(2)} s`],
+    ["measured", `${result.lufs.toFixed(2)} LUFS`],
+    ["gain", `${result.gainDb >= 0 ? "+" : ""}${result.gainDb.toFixed(2)} dB`
+      + (result.clamped ? " (held back by the ceiling)" : "")],
+    ["true peak", `${result.peakDb.toFixed(2)} dBTP`],
+    ["size", `${(result.wav.length / 1024).toFixed(1)} KB`],
+  ];
+  $("#out").innerHTML = "<table>" + rows
+    .map(([k, v]) => `<tr><td>${k}</td><td class="n">${v}</td></tr>`).join("") + "</table>";
+  const url = URL.createObjectURL(speech.asBlob(result.wav));
+  $("#out").append(Object.assign(document.createElement("audio"), { controls: true, src: url }));
+}
+
+$("#go").addEventListener("click", async () => {
+  const text = $("#text").value.trim();
+  if (!text) return;
+  $("#go").disabled = true;
+  clear();
+  const vid = $("#voice").value;
+  log(`${vid}`);
+  try {
+    show(await render(text, vid));
+    log("  done");
+  } catch (error) {
+    log(`  FAILED: ${error.message}`);
+    console.error(error);
+  } finally {
+    $("#go").disabled = false;
+  }
+});
+
+$("#forget").addEventListener("click", async () => {
+  await speech.forget();
+  log("the downloaded models are gone");
+});
+
+// --- the batch ---------------------------------------------------------------
+// The page does the work and the shell does the measuring. Handing a file back
+// over PUT rather than measuring it here is the point: a levelling that marks
+// its own homework is how the sibling project's 13 dB stayed invisible.
+
+async function batch(speakItToo) {
+  clear();
+  let list;
+  try {
+    list = await (await fetch("../../dump/batch.json")).json();
+  } catch {
+    log("No batch here. Start it with:  python3 tools/leveling.py --serve 8771");
+    return;
+  }
+  log(`${list.length} sentences, ${speakItToo ? "spoken here and levelled here"
+                                              : "levelled here from piper's own recordings"}`);
+  for (const item of list) {
+    try {
+      let wav, note;
+      if (speakItToo) {
+        const result = await render(item.text, `piper:${item.model}`);
+        wav = result.wav;
+        note = `${result.synthesisMs} ms + ${result.levellingMs} ms`;
+      } else {
+        const raw = new Uint8Array(await (await fetch(`../../dump/${item.id}-raw.wav`)).arrayBuffer());
+        const result = postprocess(raw);
+        wav = result.wav;
+        note = `${result.lufs.toFixed(2)} LUFS ${result.gainDb >= 0 ? "+" : ""}${result.gainDb.toFixed(2)} dB`;
+      }
+      await fetch(`../../dump/${item.id}-browser.wav`, { method: "PUT", body: wav });
+      log(`  ${item.id}  ${note}`);
+    } catch (error) {
+      log(`  ${item.id}  FAILED: ${error.message}`);
+    }
+  }
+  log("done — now:  python3 tools/leveling.py --browser <the same folder>");
+}
+
+$("#batch-level").addEventListener("click", () => batch(false));
+$("#batch-all").addEventListener("click", () => batch(true));
+
+// The console gets the same functions the buttons use, not a second copy.
+window.check = { ...speech, postprocess, render, batch };
+</script>
