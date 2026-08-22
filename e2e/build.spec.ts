@@ -19,17 +19,28 @@ import { TILE_SIZE } from "../src/data/tiles.js";
  *
  * Two things are deliberately not the real article.
  *
- * Piper is intercepted. The model is 63 MB from a CDN and the sentence after
- * it is seconds of inference, so a test that fetched one would be a test of
- * somebody else's uptime. The interception is at the network rather than
- * inside the package: local.ts reaches piper by importing a pinned URL, and
- * routing that URL to a stand-in exercises the real dynamic import, the real
- * usePiper() handover and the whole chain downstream of predict() - the
- * levelling, the fade, the pad, the resample to 16 kHz, the naming, the
- * storing and the pruning. What it cannot check is what the real module
- * imports on the way in; that is what broke last time and it is checked by
- * loading the page against the actual CDN, which is not something to put in
- * front of every commit.
+ * Piper is intercepted. The model is 63 MB from a mirror and the sentence
+ * after it is seconds of inference, so a test that fetched one would be a
+ * test of somebody else's uptime. The interception is at the network rather
+ * than inside the package, and since local.ts drives piper itself - the
+ * usePiperRuntime() handover - there are three doors where vits-web's one
+ * bundle used to be:
+ *
+ *   - the phonemizer, the one piece Vite bundles, so the door is its chunk.
+ *     The stand-in answers with the export shape Rollup gave the real one -
+ *     `p`, a namespace whose default is the factory - which couples this
+ *     file to a bundler internal on purpose: if a Vite upgrade renames it,
+ *     the build here fails loudly rather than the test quietly measuring a
+ *     stand-in that no longer stands in.
+ *   - onnxruntime, still a pinned CDN URL, exactly as vits-web arrived.
+ *   - the model and its config, from the Hugging Face mirror.
+ *
+ * Everything downstream of the three stays the real article - the id
+ * remapping against the config's own table, the levelling, the fade, the
+ * pad, the resample to 16 kHz, the naming, the storing and the pruning.
+ * What none of it checks is the real phonemizer wasm booting in a page;
+ * that is one press of a play button against the real vendor/ directory,
+ * not something to put in front of every commit.
  *
  * The store is seeded through IndexedDB rather than through the interface.
  * Typing sentences is what page.spec.ts already does; symbols cannot be added
@@ -71,6 +82,11 @@ const IDB = `
 const BOARD = {
   sleep_timeout_seconds: 600,
   language: "de",
+  /* Kerstin, explicitly: she only speaks through the owned runtime, so a
+   * build in her name is the test that the ownsInference claim travels from
+   * the board all the way to the licence gate. A board with no voice would
+   * default to Thorsten, who passes that gate even unclaimed. */
+  voice: "piper:de_DE-kerstin-low",
   sets: [
     { name: "Erste", symbol: "red.png", color: "#3B5BDB", active: true,
       slots: [{ symbol: "red.png", text: "Hallo" },
@@ -89,37 +105,74 @@ const BOARD = {
   ],
 };
 
-/** A module with vits-web's shape, in place of the 1.4 MB from the CDN.
+/** The phonemizer, in place of the 90 kB Emscripten chunk.
  *
- * predict() answers with a real WAV, because the chain decodes it: 22050 Hz
- * mono 16 bit, half a second of a tone. Silence would be trimmed away to
- * nothing before the levelling ever saw it. Every call is recorded, which is
- * how "one WAV per distinct sentence" is checked from the other end. */
-const STAND_IN = `
-export const PATH_MAP = { "de_DE-thorsten-medium": "stand-in" };
-export async function predict({ text }) {
-  (globalThis.__spoken ??= []).push(text);
-  const rate = 22050, count = rate / 2;
-  const bytes = new ArrayBuffer(44 + count * 2);
-  const view = new DataView(bytes);
-  const ascii = (at, s) => [...s].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)));
-  ascii(0, "RIFF"); view.setUint32(4, 36 + count * 2, true); ascii(8, "WAVEfmt ");
-  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-  view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true);
-  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
-  ascii(36, "data"); view.setUint32(40, count * 2, true);
-  for (let i = 0; i < count; i++) {
-    view.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * 440 * i / rate) * 12000), true);
-  }
-  return new Blob([bytes], { type: "audio/wav" });
-}
-export default { PATH_MAP, predict };
+ * callMain gets the text - it rides in the --input JSON - so this is where
+ * every synthesis is recorded, which is how "one WAV per distinct sentence"
+ * is checked from the other end. The ids it prints remap onto CONFIG's
+ * phoneme_id_map without composing, so the real remapPhonemeIds runs and
+ * changes nothing. */
+const PHONEMIZER = `
+const createPiperPhonemize = (options) => Promise.resolve({
+  callMain(args) {
+    const { text } = JSON.parse(args[args.indexOf("--input") + 1])[0];
+    (globalThis.__spoken ??= []).push(text);
+    options.print(JSON.stringify({ phonemes: ["a"], phoneme_ids: [1, 0, 5, 0, 2] }));
+  },
+});
+export const p = { default: createPiperPhonemize };
+export default createPiperPhonemize;
 `;
 
+/** onnxruntime, in place of the 143 kB from the CDN: a session whose answer
+ * is half a second of a tone, at the amplitude the old vits-web stand-in
+ * used. Real audio rather than silence, because the chain decodes and trims
+ * it - silence would be trimmed away to nothing before the levelling ever
+ * saw it. */
+const ORT = `
+export const env = { wasm: {} };
+export class Tensor {
+  constructor(type, data, dims) { Object.assign(this, { type, data, dims }); }
+}
+export const InferenceSession = {
+  async create() {
+    return { async run() {
+      const rate = 22050, count = rate / 2;
+      const data = new Float32Array(count);
+      for (let i = 0; i < count; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / rate) * 0.37;
+      return { output: { data } };
+    } };
+  },
+};
+`;
+
+/** The model's config, in place of the mirror's: the four ids PHONEMIZER
+ * prints, and the rate the ORT stand-in answers at. The model itself is
+ * fulfilled as a few bytes the ORT stand-in never reads - and, being shorter
+ * than the catalogue says, it is evicted from the cache on every read and
+ * re-fetched, which costs nothing when the fetch is a route. */
+const CONFIG = JSON.stringify({
+  audio: { sample_rate: 22050 },
+  espeak: { voice: "de" },
+  inference: { noise_scale: 0.667, length_scale: 1, noise_w: 0.8 },
+  phoneme_id_map: { "^": [1], "$": [2], "_": [0], "a": [5] },
+});
+
+/** Everything the page needs
 /** Everything the page needs before the button is worth pressing. */
 async function seed(page: import("@playwright/test").Page) {
-  await page.route("**/vits-web*.js", (route) =>
-    route.fulfill({ contentType: "text/javascript", body: STAND_IN }));
+  await page.route("**/piper_phonemize*.js", (route) =>
+    route.fulfill({ contentType: "text/javascript", body: PHONEMIZER }));
+  // The CDN and the mirror are cross-origin, so the answers need the header
+  // the real servers send, or the page's fetch refuses them.
+  const CORS = { "Access-Control-Allow-Origin": "*" };
+  await page.route("**/ort.wasm.min.js", (route) =>
+    route.fulfill({ contentType: "text/javascript", headers: CORS, body: ORT }));
+  await page.route("**/*.onnx.json", (route) =>
+    route.fulfill({ contentType: "application/json", headers: CORS, body: CONFIG }));
+  await page.route("**/*.onnx", (route) =>
+    route.fulfill({ contentType: "application/octet-stream", headers: CORS,
+                    body: "stand-in" }));
 
   await page.goto("./");
   await expect(page.locator("#device .tile")).toHaveCount(5);
