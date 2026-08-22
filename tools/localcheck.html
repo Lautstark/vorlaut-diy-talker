@@ -1,0 +1,175 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>The seam, answered without a server</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 48rem;
+         background: #16181d; color: #e6e6e6; }
+  h1 { font-size: 1.3rem; }
+  .lede { color: #aaa; }
+  pre { background: #0f1115; padding: .8rem; border-radius: .4rem;
+        white-space: pre-wrap; }
+  .ok { color: #6ee7a8; } .bad { color: #ff8080; } .note { color: #d8b26a; }
+  button { font: inherit; padding: .4rem .8rem; border-radius: .3rem;
+           border: 1px solid #444; background: #232733; color: inherit; }
+  code { background: #0f1115; padding: .1rem .3rem; border-radius: .2rem; }
+  img { background: #fff; border-radius: .2rem; vertical-align: middle; }
+</style>
+<script type="importmap">
+{ "imports": { "@lautstark/bildquelle": "/static/vendor/bildquelle/index.js" } }
+</script>
+<main>
+<h1>The seam, answered without a server</h1>
+<p class="lede">
+  <code>static/backend/local.js</code> against the same contract
+  <code>backend/server.js</code> answers over HTTP. The bench for the half of
+  the rewrite that has no Python behind it.
+</p>
+<p class="lede">
+  <strong>Must be served from the app's own origin</strong>, so that the
+  import map and <code>/static/</code> resolve: run the interface, then open
+  this file's contents there. IndexedDB has no origin on <code>file://</code>.
+</p>
+<p><button id="go">Run</button> <button id="wipe">Delete the database</button></p>
+<pre id="out"></pre>
+<p id="shot"></p>
+</main>
+<script type="module">
+import * as local from "/static/backend/local.js";
+import * as store from "/static/store.js";
+
+const out = document.getElementById("out");
+let bad = 0;
+const check = (name, ok, detail = "") => {
+  bad += ok ? 0 : 1;
+  out.insertAdjacentHTML("beforeend",
+    `<span class="${ok ? "ok" : "bad"}">${ok ? "ok  " : "FAIL"}</span>  ` +
+    `${name}${detail ? "   " + detail : ""}\n`);
+};
+
+document.getElementById("wipe").onclick = async () => {
+  await store.close();
+  indexedDB.deleteDatabase("vorlaut");
+  out.textContent = "deleted - reload before running again\n";
+};
+
+document.getElementById("go").onclick = async () => {
+  out.textContent = ""; bad = 0;
+  try {
+    const first = await local.loadLayout();
+    check("a first visit gets a board to type into",
+          first.layout && first.layout.sets.length === 1 &&
+          first.layout.sets[0].slots.length === 4);
+    check("and its stamp is one the store agrees with",
+          first.version === (await store.readLayout()).version, first.version);
+
+    const edited = structuredClone(first.layout);
+    edited.sets[0].slots[0].text = "Ja!";
+    const saved = await local.saveLayout(edited, first.version);
+    check("a save goes in", saved.conflict === false);
+    const stale = await local.saveLayout(edited, "0000000000000000");
+    check("and a stale one is refused, as over HTTP", stale.conflict === true);
+
+    const settings = await local.readSettings();
+    check("settings answer in the shape settings.js reads",
+          "azureKey" in settings && "metacom" in settings && settings.local === true);
+    const written = await local.writeSettings({ azureRegion: "westeurope" });
+    check("and a region round trips", written.azureRegion === "westeurope");
+
+    const voices = await local.listVoices();
+    check("the voices are the ones a browser can actually speak with",
+          Array.isArray(voices.voices) && voices.voices.length > 0 &&
+          voices.voices.every((v) => v.id.startsWith("piper:")),
+          `${voices.voices.length} voice(s)`);
+
+    const manifest = await local.buildManifest();
+    check("an empty data/ is an empty manifest",
+          manifest.files.length === 0 && manifest.bytes === 0);
+
+    let threw = "";
+    try { await local.runBuild(); } catch (error) { threw = error.message; }
+    check("runBuild says it is not written rather than doing nothing",
+          threw.includes("not written yet"), threw.slice(0, 60));
+
+    check("there is no pairing here", (await local.pairState()).waiting.length === 0);
+
+    // The preview is the one that has to look right, not merely return.
+    await store.putFile("symbols", "dot.png", await dot());
+    const image = document.createElement("img");
+    await local.previewInto(image, "dot.png", "#2F9E44");
+    await new Promise((r) => { image.onload = r; setTimeout(r, 1500); });
+    check("a preview draws at the size the panel shows",
+          image.naturalWidth === 128 && image.naturalHeight === 128,
+          `${image.naturalWidth}x${image.naturalHeight}`);
+    document.getElementById("shot").append("rendered: ", image);
+
+    // The preview claims to reproduce preview_png() in app.py, including the
+    // low bits a panel pads by repeating the high ones. Claimed is not
+    // measured, and while the server is still there it can be measured: the
+    // same picture, both routes, every channel compared.
+    const cmp = await (await fetch("/api/upload?name=cmp.png",
+                                   { method: "POST", body: await blobOf() })).json();
+    await store.putFile("symbols", cmp.symbol, await (await blobOf()).arrayBuffer());
+    const mine = document.createElement("img");
+    await local.previewInto(mine, cmp.symbol, "#2F9E44");
+    await new Promise((r) => { mine.onload = r; setTimeout(r, 2000); });
+    const a = await pixels(`/api/preview?symbol=${encodeURIComponent(cmp.symbol)}&color=%232F9E44`);
+    const b = await pixels(mine.src);
+    let off = 0;
+    for (let i = 0; i < a.data.length; i += 4)
+      for (let k = 0; k < 3; k++) if (a.data[i + k] !== b.data[i + k]) off++;
+    check("the preview is what app.py's preview_png draws, channel for channel",
+          off === 0, `${off} of ${(a.data.length / 4) * 3} differ`);
+
+    out.insertAdjacentHTML("beforeend",
+      bad ? `\n<span class="bad">${bad} problem(s)</span>\n`
+          : `\n<span class="ok">All good.</span>\n`);
+    out.insertAdjacentHTML("beforeend",
+      `<span class="note">Speaking is not run here: piper fetches a model ` +
+      `from a CDN on first use and that belongs in ttscheck.html.</span>\n`);
+  } catch (error) {
+    check("the bench ran to the end", false, error.message);
+  }
+};
+
+function pixels(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0);
+      resolve(context.getImageData(0, 0, canvas.width, canvas.height));
+    };
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+/** Something with an edge and a curve in it, so the resampling has work to
+ * do - a flat square would agree even if the filters did not. */
+async function blobOf() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#c92a2a";
+  context.fillRect(8, 8, 48, 48);
+  context.fillStyle = "#1971c2";
+  context.beginPath();
+  context.arc(20, 20, 10, 0, Math.PI * 2);
+  context.fill();
+  return await new Promise((r) => canvas.toBlob(r, "image/png"));
+}
+
+/** A small red square, as a PNG, so the preview has something to scale. */
+async function dot() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#c92a2a";
+  context.fillRect(8, 8, 48, 48);
+  const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+  return await blob.arrayBuffer();
+}
+</script>
