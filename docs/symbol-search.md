@@ -91,8 +91,14 @@ name, which needs a map until there is a bundler, and a module cannot install
 one for its own import. `tools/symbolcheck.html` carries it and `ui.html`
 deliberately does not — the server-rendered app imports nothing from here yet,
 and `static/tts/speak.js` makes the same point about its own dependency. The map
-moves to whatever page the rewrite grows, and disappears when that page is built
-rather than served.
+moves to whatever page the rewrite grows.
+
+Not as a stopgap. Native modules with an import map are somewhere vorlaut can
+stop: its pitch is a web interface built from the standard library with no build
+step, and every browser that can do WebSerial can do both. A bundler would buy
+node_modules, a lockfile and CI to run them, for a project with none of the
+three. The specifier is bare rather than relative because that costs nothing and
+leaves the door open, not because the door is expected to be used.
 
 METACOM references are unaffected: `symbols.js` derives `metacom:<stem>` from
 the package's path exactly as `metacom.py` does, so existing layouts and the OBF

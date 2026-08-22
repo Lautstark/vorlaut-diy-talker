@@ -34,6 +34,7 @@ for the reason `static/tts/speak.js` gives about its own dependency: `ui.html` i
 the server-rendered app, and an entry there would name a module the page never
 imports. It moves to whatever page the static-site rewrite grows.
 
-When that page gains a bundler, delete the map and add the package as a
-dependency — no application code changes, because the specifier is already the
-real one.
+The specifier is bare rather than a relative path, which keeps the option of a
+bundler open — delete the map, add the dependency, no application code moves.
+That is an option and not a plan: an import map is a fine place for vorlaut to
+stop, given a project whose point is having no build step.

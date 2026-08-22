@@ -15,9 +15,14 @@
 // for its own import — it has to be in the document before the first module
 // loads. tools/symbolcheck.html carries it, and for now that is the only page
 // that should: ui.html is the server-rendered app and nothing it loads imports
-// this file yet. The map belongs to whatever page the rewrite grows. Keeping the
-// specifier real rather than a relative path is the point — when a bundler
-// arrives, the map goes and no import here moves.
+// this file yet. The map belongs to whatever page the rewrite grows.
+//
+// This is not a stopgap. Native modules and an import map are a destination
+// vorlaut can keep: the pitch is a web interface built from the standard
+// library with no build step, and a bundler would mean node_modules, a
+// lockfile and CI to run it, for a project that has none of the three. The
+// specifier is bare rather than a relative path only because that costs
+// nothing and leaves the door open.
 import {
   attributionsFor,
   getProvider,
