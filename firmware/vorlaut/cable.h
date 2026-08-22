@@ -175,6 +175,11 @@ class Cable {
           } else {
             result.stored++;
             result.bytes += command.size;
+            // Before the "ok", and skippable: a browser that does not know
+            // these keywords steps over them, which is the rule this protocol
+            // states everywhere else and is worth actually exercising.
+            sayNumber("gap", gap_);
+            sayNumber("stall", stall_);
             sayNameNumber("ok", command.name, command.size);
             if (progress) progress("put", result.stored, result.bytes);
           }
@@ -346,6 +351,20 @@ class Cable {
     return false;
   }
 
+  // The two numbers a green run would otherwise not tell anybody. See the note
+  // on measuring rather than guessing in docs/cable.md.
+  //
+  // gap_  is the longest stretch this transfer spent with nothing arriving. It
+  //       is what CABLE_QUIET_MS is measured against, so it is the margin.
+  // stall_ is the longest single write into LittleFS. That is where a garbage
+  //       collection pause shows up, and it does NOT appear in gap_ - the
+  //       device is inside file.write() at the time, not waiting for bytes.
+  //
+  // Two numbers rather than one because they are two different risks, and one
+  // of them would hide the other.
+  static uint32_t gap_;
+  static uint32_t stall_;
+
   // One file. Returns nullptr when it is stored, or the word to send back.
   //
   // "go" goes out only once the half-written file is open, and the browser
@@ -372,11 +391,15 @@ class Cable {
     uint32_t value = CABLE_CRC_INIT;
     uint8_t buffer[CABLE_CHUNK];
     uint32_t lastByte = millis();
+    gap_ = 0;
+    stall_ = 0;
 
     while (got < command.size) {
       const int there = Serial.available();
       if (there <= 0) {
-        if (millis() - lastByte > CABLE_QUIET_MS) {
+        const uint32_t waited = millis() - lastByte;
+        if (waited > gap_) gap_ = waited;
+        if (waited > CABLE_QUIET_MS) {
           file.close();
           LittleFS.remove(CABLE_PART_FILE);
           return "short";
@@ -395,7 +418,11 @@ class Cable {
       const size_t take = Serial.readBytes(buffer, want);
       if (take == 0) continue;
 
-      if (file.write(buffer, take) != take) {
+      const uint32_t before = millis();
+      const size_t wrote = file.write(buffer, take);
+      const uint32_t took = millis() - before;
+      if (took > stall_) stall_ = took;
+      if (wrote != take) {
         // The file system stopped taking bytes partway through - a full
         // partition, most likely. A different word from "write" on purpose:
         // this one happened after "go", so the browser is still sending and
@@ -456,3 +483,8 @@ class Cable {
     return true;
   }
 };
+
+// One sketch, one copy. Defined out of line rather than as inline members so
+// that this header stays buildable on the older C++ an Arduino core may pick.
+uint32_t Cable::gap_ = 0;
+uint32_t Cable::stall_ = 0;

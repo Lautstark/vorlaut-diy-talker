@@ -185,7 +185,11 @@ export class MockDevice {
         }
         await this.reply("go");
         await this.chatter();
-        return { name, size, crc: sum, at: 0, got: new Uint8Array(size), forced };
+        // Numbers a device made of a Map has no honest way to produce. Small
+        // and fixed, so a run against the mock cannot be mistaken for a
+        // measurement of anything.
+        return { name, size, crc: sum, at: 0, got: new Uint8Array(size), forced,
+                 gap: 1, stall: 2 };
       }
 
       case "done": {
@@ -217,6 +221,12 @@ export class MockDevice {
     this.files.set(pending.name, pending.got);
     this.stored++;
     this.bytes += pending.size;
+    // The firmware reports these before every "ok" - see the note on
+    // measuring rather than guessing in docs/cable.md. They are here so that
+    // the client's stepping over keywords it does not act on is exercised by
+    // every run rather than only by the one test that aims at it.
+    await this.reply(`gap ${pending.gap ?? 0}`);
+    await this.reply(`stall ${pending.stall ?? 0}`);
     await this.reply(`ok ${pending.name} ${pending.size}`);
   }
 
