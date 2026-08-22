@@ -319,7 +319,7 @@ Representative, with the check that fired:
 | the adapter dropping four characters instead of finding the dot | the one `.jpeg` case, and nothing else |
 | the OBF sleep timeout or a set colour dropped, either direction | the round trip, naming the field that went |
 | the OBF set order reversed on import | the round trip, naming the first set that moved |
-| OBF `border_color` written from the wrong field | **nothing** — written for other programs, read back from elsewhere |
+| OBF `border_color` written from the wrong field | **nothing here** — written for other programs, read back from elsewhere. Only another program opening the file would catch it; see the gaps list |
 | the adapter cutting at the first dot | the fixture whose name carries a dot that is not the extension |
 | K-weighting head shelf removed | 10000 Hz and 1000 Hz tones |
 | K-weighting high pass removed | the 60 Hz tone, and only that |
@@ -392,42 +392,54 @@ much it would cost to be wrong:
    `tools/ttscheck.html` and `tools/tilecheck.html`, the pages that drove them
    in a real tab, were deleted with the Python harnesses that fed them. Until
    something replaces those, nothing exercises a browser at all.
-2. **PNG decoding is not covered at all.** The tile fixtures are frozen
+2. **No other program has ever opened a `.obz` this wrote**, and that is the
+   only real test of an interchange format. Not a unit test, not a freeze, not
+   the round trip: export a container and load it in something else that reads
+   Open Board Format. That is the one thing which checks the fields nothing
+   here can — `border_color`, the grid, `load_board`, each image's
+   `symbol.set` — because they exist for somebody else's software and this
+   project never reads them back. It needs no code and no oracle and can be
+   done by hand in an afternoon, and until somebody does, "other AAC software
+   can read this" is a claim rather than a result. The seam session's point,
+   and the honest answer to the row in the table above where the answer is
+   otherwise "nothing".
+
+3. **PNG decoding is not covered at all.** The tile fixtures are frozen
    *after* the decode, because that is the one step the browser does and this
    test does not. `tools/tilecheck.py` measured it lossless for these symbols
    — once, by hand, and it no longer exists. A browser that decoded a PNG differently would not be
    noticed here.
-3. **No real speech is frozen.** `piper` is not installed on this machine and
+4. **No real speech is frozen.** `piper` is not installed on this machine and
    is not deterministic anyway — three renders of one sentence gave three
    different files. The utterances are synthetic. Agreement on real sentences
    is still only [`browser-tts.md`](browser-tts.md)'s hand-run table, and
    nothing regenerates it.
-4. **`static/tts/speak.js` has no behavioural test.** The voice path —
+5. **`static/tts/speak.js` has no behavioural test.** The voice path —
    vits-web, Azure — is checked only for the shape of `voices.json` and the
    `onnxruntime-web` pin, in `tests/test_browser_tts.py`. Nothing runs it.
-5. **Symbol search is frozen for the name only.** What the adapter makes of
+6. **Symbol search is frozen for the name only.** What the adapter makes of
    a path is now checked without `metacom.py` — but that is the whole of it.
    Whether the vendored `bildquelle` *finds* the right symbol is the package's
    own business and has its own tests upstream; nothing here exercises the
    search, the index it builds, or the METACOM `.asar` reader in
    `metacom.py`. Those are still checked only by `tests/test_metacom_index.py`
    against Python.
-6. **`normalize_layout()` now exists in the browser too**, in
+7. **`normalize_layout()` now exists in the browser too**, in
    `static/obf.js`, because an imported board has to be given a colour and its
    four slots. It is checked against `layout.py` in `tests/test_obf_js.py` and
    frozen in `obf.lock.json` — but only on the inputs recorded there, and
    `tests/reference/layout.lock.json`'s layouts are still `layout.py`'s output
    rather than something the browser reproduces.
-7. **Tolerances.** The speech checks allow 0.15 LU on the ruler and 0.2 LU
+8. **Tolerances.** The speech checks allow 0.15 LU on the ruler and 0.2 LU
    end-to-end, against agreement of 0.04 and 0.05 when frozen. The slack is
    room for a different `ffmpeg` build, not measured error — but a systematic
    mistake smaller than it would pass.
-8. **`ffmpeg` 9.0.1 is taken on trust.** If it is wrong, everything here
+9. **`ffmpeg` 9.0.1 is taken on trust.** If it is wrong, everything here
    inherits that. Two things argue against it: `mitreden` froze the same three
    tones from an earlier build and got the same numbers, and
    `Lautstark/stimmquelle` ported this measurement independently and agreed
    within 0.03 dB.
-9. **The lock files only answer for what was recorded**, which is the whole
+10. **The lock files only answer for what was recorded**, which is the whole
    shape of the deal with golden files and is why "this does not make the
    Python removable" is at the top of this document rather than here. All
    four freeze tools import Python modules, deliberately: it is what stops a
