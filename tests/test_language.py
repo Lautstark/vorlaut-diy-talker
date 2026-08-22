@@ -33,6 +33,8 @@ import german  # noqa: E402
 # there is deliberately no README.de.md to drift out of step.
 GERMAN_BY_DESIGN = {
     "texts.py",                       # holds the German interface texts
+    "static/boot_data.js",            # the same table, written out for the
+                                      # page that has no server to inject it
     "firmware/vorlaut/texts.h",       # holds the German device labels
     "tests/german.py",                # the word lists themselves
     "tests/test_language.py",         # this file - it quotes them
