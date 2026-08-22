@@ -148,6 +148,8 @@ ALLOWED = [
     ("`ä ö ü ß é à ñ ç`", "which letters the font has"),
     # Test data that is German on purpose.
     ("Ein sehr langer Name", "a name with umlauts, to test the encoding"),
+    ('"PNG mit Rahmen"', "a METACOM folder name, spaces for underscores, "
+                         "as the picker captions a twin"),
     # The Wi-Fi captive portal: what a parent reads on their phone. That is
     # product text, not code, so it follows the product language. It moves
     # into texts.h when Wi-Fi lands in the main firmware.

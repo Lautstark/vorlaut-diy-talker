@@ -94,11 +94,13 @@ export async function saveLayout(layout, version) {
 async function picture(reference) {
   if (!reference) return null;
   if (reference.startsWith("metacom:")) {
-    // By name, not by id: the reference deliberately stores the stem alone,
-    // and the provider's ids are paths into one particular copy of the
-    // collection. imageUrl() with the stem asked for a path that never
-    // existed, so every metacom: key rendered its placeholder - with the
-    // folder connected, the index built, and nothing anywhere saying why.
+    // By name, not by id: the reference stores a name - the bare stem, or a
+    // folder-qualified one ("PNG_ohne_Rahmen/ja") now that picks record which
+    // rendering was chosen - while the provider's ids are paths into one
+    // particular copy of the collection. imageUrl() with the name asked for a
+    // path that never existed, so every metacom: key rendered its placeholder
+    // - with the folder connected, the index built, and nothing anywhere
+    // saying why.
     const url = await symbols.metacomImageByName(reference.slice("metacom:".length));
     return url ? await symbols.loadImage(url) : null;
   }

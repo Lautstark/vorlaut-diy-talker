@@ -53,8 +53,10 @@ async function doSearch() {
       image.alt = "";
       const caption = document.createElement("figcaption");
       // textContent instead of innerHTML: the caption comes from a foreign
-      // data source and is not markup.
-      caption.textContent = item.label || item.id;
+      // data source and is not markup. The hint tells twins apart - four
+      // METACOM tiles captioned "ja" differ only in rendering - and stays a
+      // separate field because applySymbol may write item.label onto the key.
+      caption.textContent = (item.label || item.id) + (item.hint ? ` · ${item.hint}` : "");
       figure.append(image, caption);
       figure.onclick = () => pick(item);
       box.appendChild(figure);

@@ -67,15 +67,42 @@ export const forgetMetacom = () => metacom.forget();
 /* -------------------------------------------------------------- search --- */
 
 /**
- * vorlaut's reference for a symbol out of the licensed collection.
+ * vorlaut's oldest reference for a symbol out of the licensed collection.
  *
  * bildquelle identifies a METACOM symbol by its path inside the chosen folder,
- * "METACOM_Symbole/.../Apfel.png". layout.json has always written "metacom:Apfel"
- * — the bare stem — and obf.py reads it back that way, so the stem is what the
- * reference stays. METACOM keeps its PNGs in one flat directory, so a stem
- * identifies a file on its own.
+ * "METACOM_9/PNG_ohne_Rahmen/ja.png". layout.json wrote "metacom:ja" — the
+ * bare stem — from the day there was a layout.json, and obf.py read it back
+ * that way, so every existing board and export holds this shape and it must
+ * keep resolving forever. What a stem cannot say is which of METACOM's
+ * parallel rendering folders was meant — pickReference below records that —
+ * so nothing writes this shape any more; it is read for as long as boards
+ * exist. tests/test_symbol_frozen.py holds this line to the frozen mapping.
  */
 const referenceFor = (path) => METACOM_PREFIX + path.split("/").pop().replace(/\.[^.]+$/, "");
+
+/**
+ * The reference a pick stores: the path under the collection root, extension
+ * dropped — "metacom:PNG_ohne_Rahmen/ja" for "METACOM_9/PNG_ohne_Rahmen/ja.png".
+ *
+ * METACOM ships parallel rendering folders holding identical file names, so
+ * four picker tiles that are the same stem in four folders all stored the same
+ * bare-stem reference, and every one of them rendered whichever folder the
+ * index walked first. The folders are part of a METACOM distribution while the
+ * root names one copy of it, so dropping the root keeps the reference portable
+ * between copies of the same version; a collection without the folder degrades
+ * to the stem inside bildquelle, and bare stems stay valid forever.
+ */
+const pickReference = (path) => {
+  const inside = path.split("/").slice(1).join("/");
+  return inside ? METACOM_PREFIX + inside.replace(/\.[^.]+$/, "") : referenceFor(path);
+};
+
+/** The folder a hit's picture sits in, said the way a human would — "PNG ohne
+ *  Rahmen" — or "" for a file straight under the collection root. */
+const folderOf = (path) => {
+  const segments = path.split("/");
+  return segments.length > 2 ? segments[segments.length - 2].replace(/_/g, " ") : "";
+};
 
 /**
  * Hits from one source, in the shape picker.js already renders: source, label,
@@ -98,12 +125,23 @@ export async function search(word, source) {
   }
 
   const wanted = hits.slice(0, SEARCH_LIMIT);
-  return Promise.all(wanted.map(async (hit) => ({
-    source,
-    label: hit.label,
-    url: (await imageUrl(source, hit.id)) || "",
-    ...(source === "metacom" ? { ref: referenceFor(hit.id) } : { id: hit.id }),
-  })));
+  // Four METACOM tiles all captioned "ja" are told apart only by picture, so
+  // when a label repeats within one answer, the tile also names the folder its
+  // rendering came from. Display only: the caption must not leak into the
+  // reference, and item.label stays clean because applySymbol may write it
+  // onto the key.
+  const twins = new Map();
+  for (const hit of wanted) twins.set(hit.label, twins.has(hit.label));
+  return Promise.all(wanted.map(async (hit) => {
+    const item = {
+      source,
+      label: hit.label,
+      url: (await imageUrl(source, hit.id)) || "",
+    };
+    if (source !== "metacom") return { ...item, id: hit.id };
+    const hint = twins.get(hit.label) ? folderOf(hit.id) : "";
+    return { ...item, ref: pickReference(hit.id), ...(hint ? { hint } : {}) };
+  }));
 }
 
 /** Both sources, the local one first because it answers without a network. */
@@ -124,7 +162,8 @@ export async function searchAll(word) {
 export const imageUrl = (source: ProviderId, id: string): Promise<string | null> =>
   getProvider(source).getImageUrl(id);
 
-/** A metacom: reference's picture, from the bare stem the reference is.
+/** A metacom: reference's picture, from the name the reference is — a bare
+ * stem ("ja") or a folder-qualified one ("PNG_ohne_Rahmen/ja").
  *
  * Two different questions hide behind "give me the image". The picker holds
  * provider ids - paths - and imageUrl() answers those. A stored reference
@@ -133,8 +172,8 @@ export const imageUrl = (source: ProviderId, id: string): Promise<string | null>
  * exact or null, never ranked. Resolution through search() was the bug this
  * replaces - capped at 24 ranked hits, a stem behind a common word family
  * simply fell off the end. */
-export async function metacomImageByName(stem: string): Promise<string | null> {
-  const path = metacom.idForName(stem);
+export async function metacomImageByName(name: string): Promise<string | null> {
+  const path = metacom.idForName(name);
   return path ? metacom.getImageUrl(path) : null;
 }
 
