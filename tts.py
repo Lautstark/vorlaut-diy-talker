@@ -118,6 +118,22 @@ SAMPLE_RATE = 16000
 
 # Post-processing. Bump the version when the ffmpeg chain changes.
 PIPELINE_VERSION = 2
+# Which piper rendered a recording. It belongs in the fingerprint because
+# piper is what makes the audio, and a release that changed how a voice sounds
+# would otherwise leave old recordings in the cache under names claiming they
+# match new ones - two sentences on one device, in two different voices.
+#
+# Written down rather than read from the installed package, which would be the
+# obvious way and is the wrong one: voice_config() promises to derive a name
+# from the voice id alone, no disk and no network, so that a machine which
+# cannot render a WAV still knows what it would have been called. Ask the
+# installed piper and a computer without piper gets a different answer, and
+# the device fetches a cache it already has.
+#
+# So it is a constant, kept in step with the pin in the Dockerfile by
+# tests/test_piper_version.py. Bump both together, and expect every
+# piper-spoken sentence to be rendered again.
+PIPER_VERSION = "1.7.0"
 SILENCE_THRESHOLD = "-45dB"
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
 # Do not trim down to the last audible sample: a little room tone stays, or
@@ -484,7 +500,13 @@ def voice_config(vid: str) -> dict:
         # The name of the model, never its path: the same voice sits at
         # /voices in the container and in content/voices on a laptop, and both
         # have to arrive at the same fingerprint.
-        return {"backend": "piper", "model": rest, **shared}
+        #
+        # The piper version is here and not in shared, so that bumping it
+        # renames the recordings piper made and leaves Azure's alone. Azure
+        # synthesises on somebody else's machine; which piper is installed
+        # here says nothing about how those came out.
+        return {"backend": "piper", "model": rest,
+                "piper": PIPER_VERSION, **shared}
     # Azure keeps exactly the shape it had before there was anything to
     # choose. Adding a key here would rename every WAV ever spoken.
     #
