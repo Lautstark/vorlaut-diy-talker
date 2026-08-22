@@ -360,6 +360,57 @@ python3 obf.py import boards.obz --save       # write content/layout.json
 what it would become is the common case, and it should not cost the file you
 already had.
 
+## The same converter, twice
+
+The app is being rewritten as a static site, so the mapping above exists a
+second time as [`static/obf.js`](../static/obf.js), and
+[`static/backend/local.js`](../static/backend/local.js) answers `exportBoard()`
+and `importBoard()` out of the browser rather than over `/api/board`.
+
+`obf.py` is the oracle and is not edited while it is being measured against —
+the same rule [tile-rendering.md](tile-rendering.md) followed for `tiles.py`,
+and for the same reason: an oracle that moves while something is held against
+it makes the measurement mean nothing.
+
+**What was ported is the mapping and the container.** `layout_to_document()`,
+`document_to_layout()` and every helper around them, plus
+`normalize_layout()` — which is in [`layout.py`](../layout.py) rather than
+here, and is what gives a foreign board its palette colour, its four slots and
+its timeout. `validate()`, the profiles, `estimate_bytes()`, the graph tools
+and the two `attach_*()` steps are not there: they answer questions the page
+does not ask, and a second copy of that table with no reader would only be
+something to keep level. `obf.py check` stays a command line tool.
+
+**The measurement** is [`tests/test_obf_js.py`](../tests/test_obf_js.py),
+which runs `static/obf.js` under node and compares it with `obf.py` field for
+field: every helper on a table of awkward arguments, every layout on the way
+out, and on the way in both those documents and a set of foreign ones — a
+third row of keys, links by path and by name, an orphan, pixels instead of a
+reference, a locale nobody has heard of.
+
+The container is measured differently, and has to be. Python's zlib and the
+browser's `CompressionStream` are two compressors that agree about the format
+and not about the output, so byte-identical `.obz` files are not available and
+are not the bar. What is compared is everything else: the same members in the
+same order, the same bytes inside each of them, the same fixed timestamp and
+mode — Python's own `zipfile` opens what the browser wrote, and the browser
+reads back what `write_obz()` packed, including zips with nothing compressed
+in them, without a manifest, and with board ids that are not the file names.
+
+[`tools/obfcheck.html`](../tools/obfcheck.html) is the part node cannot
+answer: the real `CompressionStream`, the layout out of the real store, and
+the download the settings sheet really makes. Measured 2026-08-22 on macOS
+26.5 in Chromium 148 — every check green, and the `.obz` it wrote reads in
+`obf.py` and in `zipfile` unchanged. `deflate-raw` needs Safari 16.4 or
+Firefox 113; older browsers cannot export.
+
+**One place where the browser does more than `obf.py`.** `ui.html`'s file
+input accepts `.obf`, and `read_obz()` reads zips only — so a single board
+handed to the server comes back as "is not a readable .obz". `readObf()` in
+the JavaScript reads it as a document with one board in it, which is the
+format's other half. That asymmetry is `obf.py`'s and was left there rather
+than fixed mid-port.
+
 ## What is missing
 
 Named rather than quietly left out.

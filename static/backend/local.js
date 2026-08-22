@@ -3,8 +3,8 @@
 // backend/server.js sends each of these to app.py. This answers them out of
 // the browser: the content from store.js, the pictures from symbols.js and the
 // package behind it, the tiles from tiles.js, the speech from the vendored
-// @lautstark/stimmquelle.
-// Those four were written and measured against the Python one at a time; this
+// @lautstark/stimmquelle, the board as a document from obf.js.
+// Each of them was written and measured against the Python one at a time; this
 // is the file where they stop being spare parts.
 //
 // Everything here is the destination rather than a stepping stone, with one
@@ -12,6 +12,7 @@
 // which files to write, what to call them, what to throw away - is builder.py
 // and has no browser half yet, so it says so instead of pretending.
 
+import * as obf from "../obf.js";
 import * as store from "../store.js";
 import * as tiles from "../tiles.js";
 import * as symbols from "../symbols.js";
@@ -233,23 +234,34 @@ export async function writeSettings(wanted) {
 
 // --- The board as a document -------------------------------------------------
 //
-// The one place where the browser is still behind the server. obf.py is a
-// thousand lines with a profile system and a licensing check, and porting it
-// wants the same treatment tiles.js got: written against the Python, measured
-// against it, and only then trusted. Until that exists these say so, because a
-// board exported by a half-finished converter is worse than no export - it
-// looks like a backup.
+// obf.js is the converter, measured against obf.py document by document in
+// tests/test_obf_js.py. What is left here is the two ends of it: where the
+// layout comes from, and what the page is handed back.
 
-export async function exportBoard() {
-  throw new Error(
-    "Exporting a board needs the OBF converter in the browser, which is not " +
-    "written yet - obf.py still does this.");
+/** The board as a .obz, ready to be downloaded.
+ *
+ * A Blob rather than bytes, because that is what the route answered with and
+ * what settings.js hands to createObjectURL. References only: embedding the
+ * symbols is an opt-in that only obf.py's command line ever passed, and it
+ * needs a content type per file and a reader for content/symbols/ that this
+ * has no caller for. Asked for it anyway, it says so rather than quietly
+ * writing a document with no pictures in it and calling that the same thing.
+ */
+export async function exportBoard({ images = false } = {}) {
+  if (images) {
+    throw new Error(
+      "Embedding the symbols in the export is not written here - obf.py's " +
+      "--images does it, and nothing in the page asks for it.");
+  }
+  const held = await loadLayout();
+  return new Blob([await obf.exportObz(held.layout)],
+                  { type: "application/zip" });
 }
 
-export async function importBoard() {
-  throw new Error(
-    "Opening a board needs the OBF converter in the browser, which is not " +
-    "written yet - obf.py still does this.");
+/** An .obf or .obz on the way in, as a layout. Deliberately does not save it:
+ * replacing what somebody has is a decision, and this is the reading half. */
+export async function importBoard(file) {
+  return await obf.importObz(await file.arrayBuffer(), file.name || "This file");
 }
 
 // --- The build ---------------------------------------------------------------

@@ -33,18 +33,29 @@ The last group is the one that matters most and is the easiest to leave out.
 An export only ever meets its own documents; an import meets whatever a
 therapist's software wrote.
 
+And then the container, which is bytes rather than JSON and is measured
+differently on purpose. Python's zlib and the browser's deflate agree about
+the format and not about the output, so byte-identical .obz files are not the
+bar and cannot be: what has to be identical is what comes out of them. Every
+zip the JavaScript writes is opened with Python's own zipfile and compared
+member by member - names, order, timestamps, permissions and the bytes inside
+- and every zip Python writes is handed to the JavaScript to read back.
+
 What is not here: validate(), the profiles and estimate_bytes(). They are not
 in static/obf.js either - see the note at the top of it.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -532,6 +543,190 @@ def licensing_cases() -> list[tuple[str, dict]]:
     ]
 
 
+# --- The container -----------------------------------------------------------
+
+def wav(seconds: float = 0.25) -> bytes:
+    """A real 16 kHz mono WAV, so a sound in the zip is a sound.
+
+    Bytes that are not text and do not compress to nothing, which is what the
+    binary half of the container has to survive.
+    """
+    frames = int(16000 * seconds)
+    body = bytes((i * 37) % 256 for i in range(frames * 2))
+    fmt = struct.pack("<HHIIHH", 1, 1, 16000, 32000, 2, 16)
+    chunks = b"fmt " + struct.pack("<I", len(fmt)) + fmt \
+        + b"data" + struct.pack("<I", len(body)) + body
+    return b"RIFF" + struct.pack("<I", 4 + len(chunks)) + b"WAVE" + chunks
+
+
+def hand_built(path: Path, members: list[tuple[str, bytes]], *,
+               method=zipfile.ZIP_DEFLATED) -> Path:
+    """A zip written without going through write_obz().
+
+    Which is the point: everything below is a shape obf.py can read and would
+    never write, and a reader that has only ever been handed its own output is
+    a reader that has not been tested.
+    """
+    with zipfile.ZipFile(path, "w", method) as bundle:
+        for name, payload in members:
+            info = zipfile.ZipInfo(name, date_time=obf.ZIP_DATE)
+            info.compress_type = method
+            bundle.writestr(info, payload)
+    return path
+
+
+def board_json(board: dict) -> bytes:
+    return (json.dumps(board, indent=2, ensure_ascii=False,
+                       sort_keys=True) + "\n").encode("utf-8")
+
+
+def container_cases(work: Path) -> list[tuple[str, Path, bool]]:
+    """Files for the JavaScript to read, and whether obf.py can read them.
+
+    Each is written by Python alone. The third value says whether the exact
+    refusal can be compared: a file that is not a zip is refused by both, but
+    the reason inside the message is whichever library said so, and holding
+    zipfile's wording against DecompressionStream's would be a test about two
+    error strings rather than about a document.
+    """
+    cases = []
+
+    # What this project writes, with a payload in it. attach_images() is not
+    # ported, so the files are put in by hand - which is what it would have
+    # done, and what a document from a therapist who embedded her symbols
+    # looks like.
+    document = obf.layout_to_document(normalize_layout(export_cases()[2][1]))
+    document.files["images/ja.png"] = b"\x89PNG\r\n\x1a\n" + bytes(range(256))
+    document.files["images/empty.png"] = b""
+    document.files["sounds/one.wav"] = wav()
+    cases.append(("a document with pictures and sound in it",
+                  obf.write_obz(document, work / "payload.obz"), True))
+
+    board = {"format": obf.FORMAT, "id": "one", "locale": "en", "name": "One",
+             "buttons": [{"id": "k", "label": "Hello"}], "images": [],
+             "ext_vorlaut_color": "#159947",
+             "ext_vorlaut_sleep_timeout_seconds": 45}
+    other = {"format": obf.FORMAT, "id": "two", "locale": "en", "name": "Two",
+             "buttons": [], "images": []}
+
+    # Stored rather than deflated. Legal, common enough in the wild, and a
+    # reader that only inflates reads none of it.
+    cases.append(("a zip with nothing compressed in it", hand_built(
+        work / "stored.obz",
+        [(obf.MANIFEST_NAME, board_json(
+            {"format": obf.FORMAT, "root": "boards/one.obf",
+             "paths": {"boards": {"one": "boards/one.obf"}}})),
+         ("boards/one.obf", board_json(board))],
+        method=zipfile.ZIP_STORED), True))
+
+    # No manifest at all: every .obf in the zip is taken instead.
+    cases.append(("a zip with no manifest", hand_built(
+        work / "nomanifest.obz",
+        [("boards/two.obf", board_json(other)),
+         ("boards/one.obf", board_json(board))]), True))
+
+    # A manifest that is wrong in the two ways a hand-written one is wrong.
+    cases.append(("a manifest naming a root nobody packed", hand_built(
+        work / "noroot.obz",
+        [(obf.MANIFEST_NAME, board_json(
+            {"format": obf.FORMAT, "root": "boards/gone.obf",
+             "paths": {"boards": {"b": "boards/two.obf",
+                                  "a": "boards/one.obf"}}})),
+         ("boards/one.obf", board_json(board)),
+         ("boards/two.obf", board_json(other))]), True))
+    cases.append(("a manifest naming boards that are not in the zip", hand_built(
+        work / "missing.obz",
+        [(obf.MANIFEST_NAME, board_json(
+            {"format": obf.FORMAT, "root": "boards/one.obf",
+             "paths": {"boards": {"one": "boards/one.obf",
+                                  "gone": "boards/gone.obf"}}})),
+         ("boards/one.obf", board_json(board))]), True))
+
+    # The root the manifest names, rather than the first board that was
+    # packed. Without a case where those two are different boards, believing
+    # the manifest and ignoring it look the same.
+    cases.append(("a manifest whose root is not the first board", hand_built(
+        work / "secondroot.obz",
+        [(obf.MANIFEST_NAME, board_json(
+            {"format": obf.FORMAT, "root": "boards/two.obf",
+             "paths": {"boards": {"one": "boards/one.obf",
+                                  "two": "boards/two.obf"}}})),
+         ("boards/one.obf", board_json(board)),
+         ("boards/two.obf", board_json(other))]), True))
+
+    # Board ids that are whole numbers, and no root to be had. Python falls
+    # back to the first board it packed; a JavaScript object with keys like
+    # these does not iterate in the order they went in, which is why the
+    # reader keeps that order beside them.
+    cases.append(("boards whose ids are numbers, and no root", hand_built(
+        work / "numbered.obz",
+        [(obf.MANIFEST_NAME, board_json(
+            {"format": obf.FORMAT, "root": "boards/gone.obf",
+             "paths": {"boards": {"a": "boards/ten.obf",
+                                  "b": "boards/two.obf"}}})),
+         ("boards/ten.obf", board_json({**board, "id": "10"})),
+         ("boards/two.obf", board_json({**other, "id": "2"}))]), True))
+
+    # Ids that are not the file names, which is what the path lookup in a
+    # load_board is for, and a folder entry beside them.
+    cases.append(("board ids that are not the file names", hand_built(
+        work / "renamed.obz",
+        [(obf.MANIFEST_NAME, board_json(
+            {"format": obf.FORMAT, "root": "boards/first.obf",
+             "paths": {"boards": {"first": "boards/first.obf",
+                                  "second": "boards/second.obf"}}})),
+         ("images/", b""),
+         ("boards/first.obf", board_json(
+             {**board, "id": "01", "name": "First", "buttons": [
+                 {"id": "go", "label": "On",
+                  "load_board": {"path": "boards/second.obf"}}]})),
+         ("boards/second.obf", board_json({**other, "id": "02"}))]), True))
+
+    # A board that is not an object, and a board file that is not JSON.
+    cases.append(("an .obf holding a list rather than a board", hand_built(
+        work / "list.obz", [("boards/one.obf", b"[1, 2, 3]\n")]), True))
+    cases.append(("an .obf that is not JSON at all", hand_built(
+        work / "broken.obz", [("boards/one.obf", b"{not json\n")]), False))
+
+    # Nothing to read. Both have to refuse rather than answer with an empty
+    # layout, which is what would quietly replace somebody's sets with nothing.
+    cases.append(("a zip with no board in it", hand_built(
+        work / "empty.obz", [("images/ja.png", b"x")]), False))
+    not_a_zip = work / "notazip.obz"
+    not_a_zip.write_bytes(b"this is not a zip file, it is a sentence")
+    cases.append(("a file that is not a zip", not_a_zip, False))
+
+    # The format's other half: one board, as itself. obf.py cannot read this
+    # one - see readObf() in static/obf.js, which says why the browser does.
+    only = work / "one.obf"
+    only.write_bytes(board_json(board))
+    cases.append(("a single .obf, which is where the browser goes further",
+                  only, True))
+    return cases
+
+
+def document_as_json(document: obf.Document) -> dict:
+    return {"root": document.root, "boards": document.boards,
+            "files": {name: base64.b64encode(data).decode("ascii")
+                      for name, data in document.files.items()}}
+
+
+def read_with_python(path: Path) -> obf.Document:
+    """What obf.py makes of the same file.
+
+    A single .obf has no answer in obf.py - read_obz() reads zips - so the
+    document is built the way readObf() builds it and obf.py is asked the
+    question it does have: what does this board become. The container step is
+    the browser's own and is the only part of this that is not measured.
+    """
+    if path.suffix == ".obf":
+        board = json.loads(path.read_text(encoding="utf-8"))
+        return obf.Document(root=str(board.get("id") or path.stem),
+                            boards={str(board.get("id") or path.stem): board},
+                            files={})
+    return obf.read_obz(path)
+
+
 # --- Asking the JavaScript ---------------------------------------------------
 
 def ask_node(jobs: dict) -> dict:
@@ -574,7 +769,11 @@ def main() -> int:
     if not (ROOT / "static" / "obf.js").is_file():
         print("  static/obf.js is missing")
         return 1
+    with tempfile.TemporaryDirectory() as raw_work:
+        return run(Path(raw_work))
 
+
+def run(work: Path) -> int:
     helpers = helper_calls()
     exports = export_cases()
     foreign = foreign_cases()
@@ -590,11 +789,16 @@ def main() -> int:
     imports = [(f"back from {name}", raw)
                for (name, _), raw in zip(exports, exported)] + foreign
 
+    containers = container_cases(work)
     answers = ask_node({
         "helpers": [{"call": call, "args": args} for call, args in helpers],
         "exports": [layout for _, layout in exports],
         "imports": [raw for _, raw in imports],
         "licensing": [raw for _, raw in licensing],
+        "obz": [layout for _, layout in exports],
+        "unobz": [{"name": path.name,
+                   "base64": base64.b64encode(path.read_bytes()).decode("ascii")}
+                  for _, path, _ in containers],
     })
 
     print("\n--- the helpers, on the arguments that bite --------------------")
@@ -637,11 +841,114 @@ def main() -> int:
         except BuildError as exc:
             compare_refusal(name, exc, answer)
 
+    print("\n--- and the same zip, member by member -------------------------")
+    for (name, layout), answer in zip(exports, answers["obz"]):
+        check_written_zip(name, layout, answer, work)
+
+    print("\n--- reading what Python packed ---------------------------------")
+    for (name, path, wording), answer in zip(containers, answers["unobz"]):
+        check_read_zip(name, path, wording, answer)
+
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")
         return 1
     print("\n  All good.")
     return 0
+
+
+def check_written_zip(name: str, layout: dict, answer: dict, work: Path) -> None:
+    """One .obz written by the JavaScript, against the one Python writes.
+
+    Not byte for byte - two deflate implementations are two compressors - so
+    what is compared is everything else: the members, their order, what is
+    inside each of them, and the fixed timestamp and permissions that make the
+    same document the same file twice.
+    """
+    if "error" in answer:
+        check(f"{name}: the zip was written", False,
+              f"JavaScript refused it: {answer['error']}")
+        return
+    theirs = work / "js.obz"
+    theirs.write_bytes(base64.b64decode(answer["value"]))
+    # normalize_layout() first, because that is the path: app.py's export
+    # route calls export_obz() with no layout, which calls load_layout(),
+    # which normalizes what is on disk. exportObz() reads the store and does
+    # the same, so the layout the two are given has to be the same one.
+    mine = obf.write_obz(obf.layout_to_document(normalize_layout(layout)),
+                         work / "py.obz")
+
+    try:
+        with zipfile.ZipFile(mine) as want, zipfile.ZipFile(theirs) as got:
+            same_names = want.namelist() == got.namelist()
+            check(f"{name}: the same members in the same order", same_names,
+                  "" if same_names else
+                  f"{want.namelist()} vs {got.namelist()}")
+            if not same_names:
+                return
+            for member in want.namelist():
+                one, two = want.read(member), got.read(member)
+                if one != two:
+                    check(f"{name}: {member} is byte for byte the same", False,
+                          difference(json.loads(one), json.loads(two))
+                          if member.endswith((".obf", ".json"))
+                          else f"{len(one)} bytes vs {len(two)}")
+                    return
+            check(f"{name}: every member is byte for byte the same", True,
+                  f"{len(want.namelist())} member(s)")
+            stamps = {(i.date_time, i.external_attr, i.compress_type)
+                      for i in got.infolist()}
+            wanted = {(i.date_time, i.external_attr, i.compress_type)
+                      for i in want.infolist()}
+            check(f"{name}: the fixed timestamp and mode came through",
+                  stamps == wanted, "" if stamps == wanted else
+                  f"{sorted(stamps)} vs {sorted(wanted)}")
+    except zipfile.BadZipFile as exc:
+        check(f"{name}: the zip opens", False, str(exc))
+        return
+
+    # And the whole way round: what Python reads out of the file the browser
+    # wrote has to be the layout that went in. A layout with no sets at all is
+    # a document with no board in it, which obf.py refuses to read - including
+    # the one it wrote itself - so the two files are held to answering the
+    # same way rather than to answering.
+    try:
+        back = plain(obf.import_obz(theirs))
+    except BuildError as exc:
+        back = f"refused: {exc}"
+    try:
+        want = plain(obf.import_obz(mine))
+    except BuildError as exc:
+        want = f"refused: {exc}".replace(str(mine), str(theirs))
+    found = difference(want, back)
+    check(f"{name}: obf.py reads it back as the layout that went in",
+          found is None, found or "")
+
+
+def check_read_zip(name: str, path: Path, wording: bool, answer: dict) -> None:
+    """One file written by Python, read by the JavaScript."""
+    try:
+        document = read_with_python(path)
+        layout = obf.document_to_layout(document)
+    except BuildError as exc:
+        if wording:
+            compare_refusal(name, exc, answer)
+        else:
+            # Both refuse; the reason inside the message is zipfile's on one
+            # side and DecompressionStream's on the other, and holding one
+            # library's wording against the other's would be a test about
+            # error strings.
+            check(f"{name}: refused by both", "error" in answer,
+                  answer.get("error", "JavaScript read it anyway"))
+        return
+    if "error" in answer:
+        check(name, False, f"JavaScript refused it: {answer['error']}")
+        return
+    found = difference(plain(document_as_json(document)),
+                       {k: v for k, v in answer["value"].items()
+                        if k != "layout"})
+    check(f"{name}: the same document", found is None, found or "")
+    found = difference(plain(layout), answer["value"]["layout"])
+    check(f"{name}: and the same layout", found is None, found or "")
 
 
 if __name__ == "__main__":

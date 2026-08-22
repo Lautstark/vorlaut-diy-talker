@@ -646,3 +646,370 @@ export function normalizeLayout(raw) {
 
   return { sleep_timeout_seconds: timeout, language, voice, sets: cleanSets };
 }
+
+// --- The container -----------------------------------------------------------
+//
+// A .obf is one board as JSON; a .obz is a zip of several with a manifest
+// naming the root, and since vorlaut writes one board per set, everything it
+// exports is a .obz. Neither the browser nor node has a zip in it, and this
+// project has no bundler, no node_modules and no lockfile - so the sixty lines
+// below are the container, written out, and the compression itself is
+// CompressionStream, which both of them do have.
+//
+// What is not attempted is byte-identical zips. Python's zlib and the
+// browser's deflate are two compressors and agree about the format, not about
+// the output, so the thing that has to be identical is what comes out of the
+// members: the same names in the same order, the same bytes inside each, the
+// same fixed timestamp. tests/test_obf_js.py unpacks both with Python's own
+// zipfile and compares member by member.
+
+// Zip entries carry a fixed timestamp, so the same document always produces
+// the same bytes. Otherwise "did anything actually change" is unanswerable
+// without unpacking both files. obf.py's ZIP_DATE, as the two 16-bit fields
+// the format actually stores: 1980-01-01 00:00:00.
+const DOS_TIME = 0;
+const DOS_DATE = (0 << 9) | (1 << 5) | 1;
+// 0o644 << 16, and the creating system as unix - what zipfile.ZipInfo writes
+// on the machine obf.py runs on.
+const EXTERNAL_ATTR = 0o644 << 16;
+const MADE_BY = (3 << 8) | 20;
+const NEEDED = 20;
+const DEFLATED = 8;
+const STORED = 0;
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/** Everything a compression stream gives back, as one array of bytes.
+ *
+ * The write is deliberately not awaited before the reading starts: a stream
+ * holds a chunk until somebody takes it, so awaiting both in order is how a
+ * large member would sit there forever.
+ */
+async function through(bytes, stream) {
+  const writer = stream.writable.getWriter();
+  const written = writer.write(bytes).then(() => writer.close());
+  const reader = stream.readable.getReader();
+  const parts = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value);
+    total += value.length;
+  }
+  await written;
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
+
+const deflate = (bytes) => through(bytes, new CompressionStream("deflate-raw"));
+const inflate = (bytes) => through(bytes, new DecompressionStream("deflate-raw"));
+
+/** What Path(name).stem gives: the file name without its directory or its
+ * last suffix. layout_format.js has the same four lines and does not export
+ * them; a shared one belongs in neither of these two modules. */
+function stemOf(name) {
+  const base = name.slice(name.lastIndexOf("/") + 1);
+  const dot = base.lastIndexOf(".");
+  if (dot <= 0 || /^\.+$/.test(base)) return base;
+  return base.slice(0, dot);
+}
+
+/** The bytes obf.py's _json_bytes() writes: sorted keys, indented by two,
+ * not escaped away from UTF-8, and a newline at the end.
+ *
+ * Sorted so that the same document is the same file - a diff of an export
+ * should be about what changed in the board and not about what order a
+ * dictionary happened to be built in.
+ */
+export function jsonBytes(data) {
+  return new TextEncoder().encode(
+    JSON.stringify(sortDeep(data), null, 2) + "\n");
+}
+
+function sortDeep(value) {
+  if (Array.isArray(value)) return value.map(sortDeep);
+  if (!isObject(value)) return value;
+  const out = {};
+  for (const key of sorted(Object.keys(value))) out[key] = sortDeep(value[key]);
+  return out;
+}
+
+/** The manifest the spec asks for, and nothing beyond it.
+ *
+ * Deliberately thin. Everything about the document that is vorlaut's own sits
+ * on the root board instead - a manifest is an index of a zip, and an index is
+ * the thing a tool rewrites without thinking about what it was carrying.
+ */
+export function manifestOf(document) {
+  const paths = {};
+  for (const boardId of order(document)) paths[boardId] = boardPath(boardId);
+  const manifest = { format: FORMAT, root: document.root
+    ? boardPath(document.root) : "", paths: { boards: paths } };
+  for (const [field, prefix] of [["images", IMAGE_DIR], ["sounds", SOUND_DIR]]) {
+    const found = {};
+    for (const name of sorted(Object.keys(document.files || {}))) {
+      if (name.startsWith(prefix + "/")) found[name] = name;
+    }
+    if (Object.keys(found).length) manifest.paths[field] = found;
+  }
+  return manifest;
+}
+
+/** Writes the document out as the bytes of a .obz.
+ *
+ * checkLicensing() first, always, whatever the caller thinks it is doing.
+ * That is the only reason this function exists rather than callers reaching
+ * for a zip writer: there has to be exactly one door, so that the invariant
+ * can stand next to it.
+ */
+export async function writeObz(document) {
+  checkLicensing(document);
+  const members = [{ name: MANIFEST_NAME, data: jsonBytes(manifestOf(document)) }];
+  for (const boardId of order(document)) {
+    members.push({ name: boardPath(boardId),
+                   data: jsonBytes(document.boards[boardId]) });
+  }
+  for (const name of sorted(Object.keys(document.files || {}))) {
+    members.push({ name, data: new Uint8Array(document.files[name]) });
+  }
+
+  const encoder = new TextEncoder();
+  const pieces = [];
+  const central = [];
+  let offset = 0;
+  for (const member of members) {
+    const name = encoder.encode(member.name);
+    const packed = await deflate(member.data);
+    const crc = crc32(member.data);
+
+    const local = new Uint8Array(30 + name.length);
+    const head = new DataView(local.buffer);
+    head.setUint32(0, 0x04034b50, true);
+    head.setUint16(4, NEEDED, true);
+    head.setUint16(6, 0, true);                  // no flags, no data descriptor
+    head.setUint16(8, DEFLATED, true);
+    head.setUint16(10, DOS_TIME, true);
+    head.setUint16(12, DOS_DATE, true);
+    head.setUint32(14, crc, true);
+    head.setUint32(18, packed.length, true);
+    head.setUint32(22, member.data.length, true);
+    head.setUint16(26, name.length, true);
+    head.setUint16(28, 0, true);                 // no extra field
+    local.set(name, 30);
+    pieces.push(local, packed);
+
+    const entry = new Uint8Array(46 + name.length);
+    const view = new DataView(entry.buffer);
+    view.setUint32(0, 0x02014b50, true);
+    view.setUint16(4, MADE_BY, true);
+    view.setUint16(6, NEEDED, true);
+    view.setUint16(8, 0, true);
+    view.setUint16(10, DEFLATED, true);
+    view.setUint16(12, DOS_TIME, true);
+    view.setUint16(14, DOS_DATE, true);
+    view.setUint32(16, crc, true);
+    view.setUint32(20, packed.length, true);
+    view.setUint32(24, member.data.length, true);
+    view.setUint16(28, name.length, true);
+    view.setUint32(38, EXTERNAL_ATTR, true);
+    view.setUint32(42, offset, true);
+    entry.set(name, 46);
+    central.push(entry);
+    offset += local.length + packed.length;
+  }
+
+  const directorySize = central.reduce((total, one) => total + one.length, 0);
+  const end = new Uint8Array(22);
+  const tail = new DataView(end.buffer);
+  tail.setUint32(0, 0x06054b50, true);
+  tail.setUint16(8, members.length, true);
+  tail.setUint16(10, members.length, true);
+  tail.setUint32(12, directorySize, true);
+  tail.setUint32(16, offset, true);
+  return concat([...pieces, ...central, end]);
+}
+
+function concat(parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
+
+/** Every member of a zip, by name, already decompressed.
+ *
+ * Read from the central directory rather than by walking the local headers:
+ * the directory is where the sizes are certain, since a local header is
+ * allowed to leave them for a data descriptor after the data.
+ */
+async function unzip(bytes, name) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = -1;
+  for (let at = bytes.length - 22; at >= 0; at--) {
+    if (view.getUint32(at, true) === 0x06054b50) { end = at; break; }
+  }
+  if (end < 0) throw notAZip(name, "no end of central directory");
+
+  const count = view.getUint16(end + 10, true);
+  let at = view.getUint32(end + 16, true);
+  const decoder = new TextDecoder();
+  const members = new Map();
+  for (let i = 0; i < count; i++) {
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) {
+      throw notAZip(name, `damaged central directory at ${at}`);
+    }
+    const method = view.getUint16(at + 10, true);
+    const packedSize = view.getUint32(at + 20, true);
+    const nameLength = view.getUint16(at + 28, true);
+    const extraLength = view.getUint16(at + 30, true);
+    const commentLength = view.getUint16(at + 32, true);
+    const start = view.getUint32(at + 42, true);
+    const member = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength));
+
+    if (view.getUint32(start, true) !== 0x04034b50) {
+      throw notAZip(name, `${member} is not where the directory says`);
+    }
+    const from = start + 30 + view.getUint16(start + 26, true)
+      + view.getUint16(start + 28, true);
+    const packed = bytes.subarray(from, from + packedSize);
+    if (method === DEFLATED) members.set(member, await inflate(packed));
+    else if (method === STORED) members.set(member, packed);
+    else throw notAZip(name, `${member} is compressed with method ${method}`);
+    at += 46 + nameLength + extraLength + commentLength;
+  }
+  return members;
+}
+
+function notAZip(name, reason) {
+  // obf.err.not_a_zip, in the words texts.py gives it.
+  return new Error(`${name} is not a readable .obz: ${reason}`);
+}
+
+function readJson(members, member, name) {
+  try {
+    return JSON.parse(new TextDecoder().decode(members.get(member)));
+  } catch (error) {
+    // build.err.bad_json, named the way obf.py names a member inside a zip.
+    throw new Error(`${name}:${member} is not valid JSON: ${error.message}`);
+  }
+}
+
+/** Reads a .obz back into a document.
+ *
+ * Tolerant about where the boards are: the manifest is believed first, and if
+ * it names nothing usable every .obf in the zip is taken instead. Both happen
+ * in the wild - a manifest written by hand tends to be the half of the file
+ * that is wrong, and the boards are still all there.
+ */
+export async function readObz(bytes, name = "This file") {
+  const members = await unzip(bytes, name);
+  const names = [...members.keys()];
+  let manifest = {};
+  if (members.has(MANIFEST_NAME)) {
+    manifest = readJson(members, MANIFEST_NAME, name);
+    if (!isObject(manifest)) manifest = {};
+  }
+
+  let wanted = ((manifest.paths || {}).boards);
+  if (!isObject(wanted) || !Object.keys(wanted).length) {
+    wanted = {};
+    for (const member of sorted(names)) {
+      if (member.endsWith(".obf")) wanted[stemOf(member)] = member;
+    }
+  }
+
+  const boards = {};
+  // The order the boards went in, kept beside them: an object with a board
+  // called "12" in it does not iterate in insertion order, and the first board
+  // is what the root falls back to.
+  const inserted = [];
+  const byMember = new Map();
+  for (const key of sorted(Object.keys(wanted))) {
+    const member = wanted[key];
+    if (!members.has(member)) continue;
+    let board = readJson(members, member, name);
+    if (!isObject(board)) board = {};
+    const boardId = text(board.id) || key;
+    if (!(boardId in boards)) inserted.push(boardId);
+    boards[boardId] = board;
+    byMember.set(member, boardId);
+  }
+
+  const files = {};
+  for (const member of sorted(names)) {
+    if (member === MANIFEST_NAME || member.endsWith(".obf")
+        || member.endsWith("/")) continue;
+    files[member] = members.get(member);
+  }
+
+  // A manifest that names a board nobody packed: the document is still
+  // readable and a root still has to be picked, so it is the first one in the
+  // manifest's own order - which is the order it was written in.
+  const root = byMember.get(text(manifest.root)) || inserted[0] || "";
+  if (!inserted.length) {
+    // obf.err.no_boards.
+    throw new Error(`${name} has no board in it.`);
+  }
+  return { root, boards, files };
+}
+
+/** A single .obf - one board as JSON - as a document of one.
+ *
+ * The one place this does more than obf.py, and it is the page that asks for
+ * it: ui.html's file input accepts `.obf`, and read_obz() only reads zips, so
+ * over the server that promise ends in "is not a readable .obz". A board on
+ * its own is the format's other half and is a document with one board in it.
+ */
+export function readObf(bytes, name = "This file") {
+  let board;
+  try {
+    board = JSON.parse(new TextDecoder().decode(bytes));
+  } catch (error) {
+    throw notAZip(name, error.message);
+  }
+  if (!isObject(board)) throw new Error(`${name} has no board in it.`);
+  const boardId = text(board.id) || stemOf(name) || "board";
+  return { root: boardId, boards: { [boardId]: board }, files: {} };
+}
+
+// --- The two ends ------------------------------------------------------------
+
+/** A layout out as the bytes of a .obz. */
+export async function exportObz(layout) {
+  return await writeObz(await layoutToDocument(normalizeLayout(layout)));
+}
+
+/** A .obf or a .obz in, as a layout. Does not save it: reading somebody
+ * else's document and seeing what it would become is the common case, and it
+ * should not cost the file you already had. */
+export async function importObz(bytes, name = "This file") {
+  const data = new Uint8Array(bytes);
+  // "PK", which is where every zip starts and no JSON document does.
+  const zipped = data[0] === 0x50 && data[1] === 0x4b;
+  return documentToLayout(
+    zipped ? await readObz(data, name) : readObf(data, name));
+}

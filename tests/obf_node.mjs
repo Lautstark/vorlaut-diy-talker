@@ -6,7 +6,12 @@
 //   {"helpers": [{"call": "cssColor", "args": ["#abc"]}, ...],
 //    "exports": [<layout>, ...],
 //    "imports": [<document>, ...],
-//    "licensing": [<document>, ...]}
+//    "licensing": [<document>, ...],
+//    "obz": [<layout>, ...],
+//    "unobz": [{"base64": "...", "name": "board.obz"}, ...]}
+//
+// The two container lists deal in base64: a zip is bytes, JSON is not, and
+// this is the one shape both sides already have a decoder for.
 //
 // and writes one JSON object back with the same keys and the answers in the
 // same order. A call that threw comes back as {"error": "<message>"} rather
@@ -44,7 +49,8 @@ async function answered(work) {
 }
 
 const jobs = JSON.parse(readFileSync(0, "utf8"));
-const out = { helpers: [], exports: [], imports: [], licensing: [] };
+const out = { helpers: [], exports: [], imports: [], licensing: [],
+              obz: [], unobz: [] };
 
 for (const one of jobs.helpers || []) {
   out.helpers.push(await answered(() => HELPERS[one.call](...one.args)));
@@ -61,6 +67,28 @@ for (const document of jobs.licensing || []) {
   out.licensing.push(await answered(() => {
     obf.checkLicensing(document);
     return "";
+  }));
+}
+
+for (const layout of jobs.obz || []) {
+  out.obz.push(await answered(async () =>
+    Buffer.from(await obf.exportObz(layout)).toString("base64")));
+}
+for (const one of jobs.unobz || []) {
+  // The same sniff importObz() makes, and then both halves of what it does -
+  // the document and the layout - so that a difference says which of the two
+  // it is in.
+  out.unobz.push(await answered(async () => {
+    const bytes = new Uint8Array(Buffer.from(one.base64, "base64"));
+    const zipped = bytes[0] === 0x50 && bytes[1] === 0x4b;
+    const document = zipped
+      ? await obf.readObz(bytes, one.name) : obf.readObf(bytes, one.name);
+    const files = {};
+    for (const [name, data] of Object.entries(document.files)) {
+      files[name] = Buffer.from(data).toString("base64");
+    }
+    return { root: document.root, boards: document.boards, files,
+             layout: obf.documentToLayout(document) };
   }));
 }
 
