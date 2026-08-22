@@ -17,7 +17,17 @@ arduino-cli upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:adafruit_feather_e
 arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 ```
 
+**These three lines are the same at every stage.** Only the last path segment
+changes — `test1_board`, then `test2_display`, and so on down the page. They
+are not repeated below: scroll back up here and edit that one word.
+
 ---
+
+**Solder as you go, not all at once.** Every stage adds one thing to what the
+stage before it needed: the Feather on its own for stage 1, display 1 for
+stage 2, the other four for stage 3, the buttons for stage 4, amplifier and
+speaker for stage 5, nothing further after that. Wiring the lot up front puts
+back exactly the eight causes at once that these stages exist to take apart.
 
 ## Stage 1 — Is the board alive?
 
@@ -26,7 +36,11 @@ arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 The red LED blinks once a second, a line runs through the monitor every two
 seconds. If that does not work, there is no point looking at the wiring yet.
 
-If the monitor stays silent: *Tools > USB CDC On Boot* to **Enabled**.
+If the monitor stays silent: *Tools > USB CDC On Boot* to **Enabled** — that
+is the Arduino IDE. With `arduino-cli` that setting is already the default for
+this board, so look at the port instead: the S3 re-enumerates when it resets
+and can come back under a different `/dev/cu.usbmodem…`. `arduino-cli board
+list` says which one it is now.
 
 ## Stage 2 — One display
 
@@ -35,10 +49,15 @@ If the monitor stays silent: *Tools > USB CDC On Boot* to **Enabled**.
 This is where the **two unknowns that cannot be worked out on paper** get
 settled:
 
-- **Panel profile.** It shows red, green, blue in turn. If red appears as
-  blue, the colour channels are swapped — then try a different `initR`
-  variant. The profile can be overridden at compile time with
-  `-DPANEL_INITR=INITR_BLACKTAB` without editing the sketch.
+- **Panel profile.** It shows red, green, blue in turn and names each one in
+  the monitor as it sends it, so there is something to hold the panel against.
+  If red appears as blue, the colour channels are swapped — then try a
+  different `initR` variant. Trying one costs no edit: add `--build-property
+  "compiler.cpp.extra_flags=-DPANEL_INITR=INITR_BLACKTAB"` to the compile
+  line. Once a variant is right, that is the answer — write it into
+  `PANEL_INITR` in `pins.h`, which is where stages 3 and 4 and the real
+  firmware read it from. Until it is written there they all keep using the
+  default, and stage 3 will look like a CS fault.
 - **Offset.** After that a white border exactly at the outermost edge, with a
   coloured square in every corner and a crosshair. If the border is equally
   wide all round and all four corners are complete, `PANEL_COL_OFFSET` and
@@ -76,7 +95,13 @@ pressed.
 
 ## Stage 5 — Sound
 
-`test5_sound` — 440 Hz for two seconds, then a sweep from 200 to 2000 Hz.
+`test5_sound` — 440 Hz for two seconds, then a sweep from 200 to 2000 Hz, over
+and over until you pull the plug.
+
+**A pass is a clean 440 Hz at a usable volume and a sweep that runs through
+without breaking up.** The last two questions below are not pass conditions: a
+click at switch-off is fixed in the firmware, not in the wiring, and the low
+limit is a measurement. Neither of them holds up stage 6.
 
 - Does anything come out at all? Otherwise check BCLK, LRC, DIN, the supply
   and especially **SD** — if that sits LOW it stays silent.
@@ -193,11 +218,13 @@ the content is on the file system.
 
 ## What to write down along the way
 
-These values are calculated, not measured. Whatever turns out differently in
-stages 2 to 5 belongs back in the repo:
+These values are calculated, not measured — all but the last, which had
+nothing to calculate from. Whatever turns out differently in stages 2 to 5
+belongs back in the repo:
 
 | | where |
 |---|---|
 | Panel profile and offset | `firmware/vorlaut/pins.h` |
 | Order of the CS and KEY lines | `firmware/vorlaut/pins.h` |
 | Actual component dimensions | `docs/hardware.md`, `tools/wiring.py` |
+| Where the sweep goes thin — the speaker's lower limit | `docs/hardware.md` |

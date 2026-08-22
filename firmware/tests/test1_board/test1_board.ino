@@ -19,11 +19,11 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   delay(2000);            // give the USB monitor time to connect
   Serial.println();
-  Serial.println("vorlaut – Stufe 1: Board");
-  Serial.printf("Chip: %s, %u MHz, %u Kerne\n",
+  Serial.println("vorlaut - stage 1: board");
+  Serial.printf("Chip: %s, %u MHz, %u cores\n",
                 ESP.getChipModel(), ESP.getCpuFreqMHz(), ESP.getChipCores());
   Serial.printf("Flash: %u MB\n", ESP.getFlashChipSize() / (1024 * 1024));
-  Serial.printf("Freier Arbeitsspeicher: %u Byte\n", ESP.getFreeHeap());
+  Serial.printf("Free memory: %u bytes\n", ESP.getFreeHeap());
   Serial.println("If the red LED blinks, stage 1 is done.");
 }
 

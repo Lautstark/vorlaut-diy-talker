@@ -9,11 +9,11 @@
 // The buttons have to sit on GPIO 0..21, only those can bring the chip out
 // of deep sleep (EXT1).
 
-static const int8_t PIN_SCK  = 36;  // SCK,  gemeinsam
-static const int8_t PIN_MOSI = 35;  // MO,   gemeinsam
-static const int8_t PIN_DC   = 9;   // D9,   gemeinsam
-static const int8_t PIN_RST  = 10;  // D10,  gemeinsam
-static const int8_t PIN_BL   = 3;   // SDA,  Hintergrundlicht aller Displays
+static const int8_t PIN_SCK  = 36;  // SCK,  shared
+static const int8_t PIN_MOSI = 35;  // MO,   shared
+static const int8_t PIN_DC   = 9;   // D9,   shared
+static const int8_t PIN_RST  = 10;  // D10,  shared
+static const int8_t PIN_BL   = 3;   // SDA,  backlight of all five displays
 
 static const uint8_t DISPLAY_COUNT = 5;
 // Order: speech keys 1..4, then the set key.
@@ -28,10 +28,28 @@ static const uint8_t SET_BUTTON = 4;  // index of the set key
 static const int8_t PIN_I2S_BCLK = 8;   // A5
 static const int8_t PIN_I2S_LRCK = 38;  // RX
 static const int8_t PIN_I2S_DIN  = 39;  // TX
-static const int8_t PIN_AMP_SD   = 4;   // SCL, MAX98357A SD: LOW = stumm
+static const int8_t PIN_AMP_SD   = 4;   // SCL, MAX98357A SD: LOW = silent
 
 // Some 128x128 panels sit a few pixels off. If a margin remains, correct it
 // here - test2_display shows it.
 static const int8_t PANEL_COL_OFFSET = 2;
 static const int8_t PANEL_ROW_OFFSET = 3;
 static const uint8_t PANEL_ROTATION = 0;
+
+// Which ST7735 variant the panels are. The default is the one the real
+// ScreenKeys (128x128) should be; if red comes out blue, another variant is
+// the answer, and test2_display is what shows it.
+//
+// Overridable at compile time, so variants can be tried without editing this
+// file. Once one of them is right, write it in here - then stages 3 and 4 and
+// the firmware all use the answer instead of the guess:
+//
+//   arduino-cli compile --build-property \
+//     "compiler.cpp.extra_flags=-DPANEL_INITR=INITR_BLACKTAB" ...
+//
+// A macro rather than a constant, because that is what -D can reach. It
+// expands where it is used, so Adafruit_ST7735.h only has to be included
+// there, not here.
+#ifndef PANEL_INITR
+#define PANEL_INITR INITR_144GREENTAB
+#endif

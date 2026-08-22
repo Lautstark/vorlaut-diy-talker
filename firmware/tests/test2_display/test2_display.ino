@@ -6,9 +6,11 @@
 // Connect display 1 only (CS on D11). The others follow in stage 3.
 //
 // What should be visible, alternating every three seconds:
-//   1. RED      - is the picture really red? If it looks blue, the colour
-//                 channels are swapped: exchange initR(INITR_144GREENTAB) for
-//                 another variant or set invertDisplay.
+//   1. RED      - is the picture really red? The monitor names the colour it
+//                 has just sent, so what is on the panel can be compared
+//                 against it. If it looks blue, the colour channels are
+//                 swapped: try another PANEL_INITR variant (pins.h says how
+//                 to do that without editing anything) or set invertDisplay.
 //   2. GREEN
 //   3. BLUE
 //   4. Border   - a white border exactly at the outermost edge, plus a square
@@ -28,14 +30,6 @@
 #define BREITE 128
 #define HOEHE  128
 
-// Panel profile. The default is the variant of the real Screenkeys
-// (128x128). Overridable without changing the code, for instance
-//   arduino-cli compile --build-property \
-//     "compiler.cpp.extra_flags=-DPANEL_INITR=INITR_BLACKTAB" ...
-#ifndef PANEL_INITR
-#define PANEL_INITR INITR_144GREENTAB
-#endif
-
 class Panel : public Adafruit_ST7735 {
  public:
   using Adafruit_ST7735::Adafruit_ST7735;
@@ -49,8 +43,8 @@ void setup() {
   Serial.begin(115200);
   delay(2000);
   Serial.println();
-  Serial.println("vorlaut – Stufe 2: ein Display");
-  Serial.printf("CS auf GPIO %d, DC %d, RST %d, Versatz %d/%d\n",
+  Serial.println("vorlaut - stage 2: one display");
+  Serial.printf("CS on GPIO %d, DC %d, RST %d, offset %d/%d\n",
                 PIN_CS[0], PIN_DC, PIN_RST, PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
 
   pinMode(PIN_BL, OUTPUT);
