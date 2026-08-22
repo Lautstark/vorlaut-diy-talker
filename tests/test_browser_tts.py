@@ -134,9 +134,14 @@ def main() -> int:
 
     german_female = [v for v in usable.values()
                      if v["lang"] == "de" and v.get("gender") == "female"]
+    # Still true, and the day it stops being true is a good day: it means the
+    # phoneme remap got wired up and Kerstin came back. Then this check is the
+    # thing that reminds whoever did it that docs/browser-tts.md still says the
+    # device has no German female voice.
     check("there is still no German female voice for the browser",
           not german_female,
-          "there is one now - update docs/browser-tts.md, which says there is not: "
+          "there is one now - say so in docs/browser-tts.md and voices.json, "
+          "both of which still say there is not: "
           + ", ".join(v["id"] for v in german_female))
 
     # --- the URL the page writes down has to be speak.js's ---------------
