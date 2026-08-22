@@ -7,7 +7,7 @@
 import { $, status} from "./dom.js";
 import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
-import { readSettings, writeSettings, exportBoard, importBoard } from "../backend/index.js";
+import { readSettings, writeSettings, exportBoard, importBoard, azureState } from "../backend/index.js";
 import { t } from "../core/texts.js";
 import { replaceLayout } from "../core/save.js";
 import * as symbols from "../data/symbols.js";
@@ -42,6 +42,7 @@ function renderSettings() {
   // Only the one thing the field cannot show by itself. That a key is stored,
   // and which one, is in the placeholder above and in the heading below.
   $("azureKeyState").textContent = settings.local ? "" : t("ui.azure_local_only");
+  probeAzure();
   $("azureState").textContent = settings.azureKey.set
     ? t("ui.azure_key_stored")
     : t("ui.azure_key_none");
@@ -205,6 +206,25 @@ function metacomWord(short) {
   });
 }
 
+/** Replaces "stored" with whether the key actually works, asynchronously.
+ *
+ * "stored" is a statement about this database; the person who typed a key
+ * wants to know whether Azure answers. A wrong region used to cost the Azure
+ * rows in silence - the fetch fails before any status exists, listVoices()
+ * keeps the piper voices alive by swallowing it, and nothing anywhere said
+ * why the list looked exactly as if no key had been typed. */
+async function probeAzure() {
+  if (!settings.azureKey.set || !settings.azureRegion) return;
+  const summary = $("azureState");
+  summary.textContent = t("ui.azure_checking");
+  const state = await azureState();
+  if (!state.configured) return;
+  summary.textContent = state.ok
+    ? t("ui.azure_ok", { count: state.count })
+    : t(state.code === "unreachable" ? "ui.azure_unreachable"
+      : state.code === "refused" ? "ui.azure_refused" : "ui.azure_probe_failed");
+}
+
 export async function loadSettings() {
   try {
     settings = await readSettings();
@@ -214,7 +234,7 @@ export async function loadSettings() {
   }
 }
 
-export async function saveSettings() {
+export async function saveSettings(): Promise<{ azureChanged: boolean }> {
   const wanted: WantedSettings = {
     azureRegion: $<HTMLInputElement>("azureRegion").value.trim(),
     metacom: $<HTMLInputElement>("metacomPath").value.trim(),
@@ -222,6 +242,8 @@ export async function saveSettings() {
   // Only when something was typed: an untouched field must not wipe the key.
   const typed = $<HTMLInputElement>("azureKey").value.trim();
   if (typed) wanted.azureKey = typed;
+  const azureChanged = !!typed || wanted.azureRegion !== (settings.azureRegion || "");
   settings = await writeSettings(wanted);
   renderSettings();
+  return { azureChanged };
 }

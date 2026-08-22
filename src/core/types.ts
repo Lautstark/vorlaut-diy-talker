@@ -108,3 +108,14 @@ export interface PairAnswer {
   error?: string;
   left?: number;
 }
+
+/** Whether Azure answers for the stored key and region. `code` is for the
+ *  text table to branch on - "unreachable" is a region that is not one (the
+ *  hostname never resolves), "refused" is a live region rejecting the key,
+ *  "failed" is anything else. The seam stays wordless; the page owns words. */
+export interface AzureState {
+  configured: boolean;
+  ok: boolean;
+  count: number;
+  code: "" | "unreachable" | "refused" | "failed";
+}

@@ -15,7 +15,7 @@
 // to call them, what to throw away, lived in builder.py and threw here - and
 // it is at the foot of this file now.
 
-import type { Layout, PairAnswer, Settings, VoiceList, WantedSettings } from "../core/types.js";
+import type { Layout, PairAnswer, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
 import * as obf from "../data/obf.js";
 import * as store from "../data/store.js";
 import * as tiles from "../data/tiles.js";
@@ -239,17 +239,16 @@ export async function listVoices(): Promise<VoiceList> {
   const held = await store.readSettings(NO_SETTINGS);
   if (held.azureSecret && held.azureRegion) {
     try {
-      const cloud = await catalogueVoices({
-        azure: { key: held.azureSecret, region: held.azureRegion,
-                 languages: [...LANGUAGES] },
-      });
-      for (const voice of cloud) {
-        if (voice.source !== "azure") continue;
+      for (const voice of await azureCatalogue(held.azureSecret, held.azureRegion)) {
         list.push({ id: voice.id, label: voice.name,
                     language: voice.lang || "", ready: true });
       }
     } catch {
-      // The rows stay absent; nothing else about the page should change.
+      // The rows stay absent from the LIST - a broken key must not cost the
+      // piper voices. But absent-with-no-words was the whole of the bad UX:
+      // somebody typed a wrong region and the page's only answer was a list
+      // that looked exactly as if they had typed nothing. azureState() is
+      // where the failure gets its words, and the settings sheet renders it.
     }
   }
   // Both names, because the page reads both and means different things by
@@ -285,6 +284,55 @@ export async function synthesise(text, voice) {
     : VORLAUT;
   const spoken = await speak(text, chosen, options);
   return asBlob(spoken.wav);
+}
+
+// Azure's catalogue, memoised per key and region: one sheet-opening asks for
+// it twice - once for the voice list, once for the state line - and Azure's
+// answer does not change between the two. A new key clears it (writeSettings).
+let azureCache: { stamp: string; voices: { id: string; name: string; lang: string }[] } | null = null;
+
+async function azureCatalogue(key: string, region: string) {
+  const stamp = `${region}\u0000${key}`;
+  if (azureCache && azureCache.stamp === stamp) return azureCache.voices;
+  const offered = await catalogueVoices({
+    azure: { key, region, languages: [...LANGUAGES] },
+  });
+  const cloud = offered.filter((voice) => voice.source === "azure")
+    .map((voice) => ({ id: voice.id, name: voice.name, lang: voice.lang || "" }));
+  azureCache = { stamp, voices: cloud };
+  return cloud;
+}
+
+/** Whether Azure answers for the stored key and region, in a shape the page
+ * can put into words.
+ *
+ * This exists because its absence was the bad experience: a wrong region is a
+ * hostname that does not resolve, the fetch threw, listVoices() swallowed it
+ * so the piper voices survive - and the page's only signal was Azure rows
+ * that silently were not there, under a panel saying "stored". Stored
+ * describes this database. This describes whether the key works, which is
+ * the only question the person typing it has.
+ *
+ * The code is for the text table to translate, not prose to print: the seam
+ * stays wordless and the page owns the words, which is the rule bildquelle's
+ * ProviderStatus set and the Release button learned the hard way. */
+export async function azureState(): Promise<AzureState> {
+  const held = await store.readSettings(NO_SETTINGS);
+  if (!held.azureSecret || !held.azureRegion) {
+    return { configured: false, ok: false, count: 0, code: "" };
+  }
+  try {
+    const cloud = await azureCatalogue(held.azureSecret, held.azureRegion);
+    return { configured: true, ok: true, count: cloud.length, code: "" };
+  } catch (error) {
+    // A region that is not one is a hostname that never resolves - the fetch
+    // fails as a TypeError before any status exists. A live region with a
+    // wrong key answers, and stimmquelle relays Azure's refusal.
+    const code = error instanceof TypeError ? "unreachable"
+      : /rejected the key|401|403/.test(reason(error)) ? "refused"
+      : "failed";
+    return { configured: true, ok: false, count: 0, code };
+  }
 }
 
 // --- Settings ----------------------------------------------------------------
@@ -323,6 +371,8 @@ export async function writeSettings(wanted: WantedSettings): Promise<Settings> {
     next.azureKey = { set: true, hint: wanted.azureKey.slice(-4) };
     next.azureSecret = wanted.azureKey;
   }
+  // A different key or region is a different Azure to ask.
+  azureCache = null;
   await store.writeSettings(next);
   return await readSettings();
 }

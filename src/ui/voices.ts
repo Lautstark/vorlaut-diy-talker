@@ -255,8 +255,9 @@ function chooseVoice(id) {
 // the server's business, not something the page should make anybody think
 // about.
 export async function saveVoice() {
+  let azureChanged = false;
   try {
-    await saveSettings();
+    ({ azureChanged } = await saveSettings());
   } catch (error) {
     status(t("ui.save_failed", { error: reason(error) }));
     return;                       // stay open, the message is in the header
@@ -284,6 +285,18 @@ export async function saveVoice() {
   // A key that has just arrived can mean Azure voices that were not there
   // when the sheet opened.
   await loadVoices();
+  if (azureChanged) {
+    // Stay open. This save's whole point was to change where the voices come
+    // from, and closing meant the person who typed a key had to reopen the
+    // sheet to learn what it did - the panel's state line and the refreshed
+    // list are the answer, and they belong on the screen the question was
+    // asked from. Picking a voice still closes, below: that save is the end
+    // of the errand, this one is the middle of it.
+    showAll = true;
+    renderVoices();
+    status(t("ui.settings_saved"));
+    return;
+  }
   status(t("ui.settings_saved"));
   $<HTMLDialogElement>("voices").close();
 }
