@@ -58,6 +58,7 @@ void setup() {
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
   tft = new Panel(&SPI, PIN_CS[0], PIN_DC, -1);
   tft->initR(PANEL_INITR);
+  tft->invertDisplay(PANEL_INVERT);
   tft->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
   tft->setRotation(PANEL_ROTATION);
   Serial.println("If it stays black: check the wiring of CLK, DIN, DC, RST and VCC.");
