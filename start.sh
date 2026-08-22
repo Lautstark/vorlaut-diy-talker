@@ -17,8 +17,9 @@
 # That fetches the published image the first time, replaces a running
 # container, and comes back once the interface really answers rather than
 # once the container has started. The image carries a healthcheck, so that
-# last part costs nothing here - it used to be a curl loop counting to
-# thirty. It needs Compose 2.1 or newer.
+# last part costs nothing here - it used to be a curl loop counting to thirty.
+# On a Compose older than 2.1, which does not know --wait, this script watches
+# that same healthcheck itself and behaves the same way.
 #
 # The code in the container comes from the image, not from this folder, so
 # a changed app.py needs --build like everything else. That is the price of
@@ -81,22 +82,64 @@ fi
 # image passes, which is the interface answering - and it fails the command if
 # the container never gets there, so there is nothing to check afterwards.
 #
+# But it arrived in Compose 2.1, and an older one does not ignore what it does
+# not know: it refuses the whole command with "unknown flag: --wait" and
+# starts nothing at all. That is not a hypothetical - the 2.0 on this laptop
+# does exactly that, and so does the Compose 1 in Synology's older Docker
+# package. So ask once whether the flag exists, and if it does not, watch the
+# same healthcheck by hand. The waiting is worth keeping either way: the first
+# start seeds the speech cache and is not ready when it is up.
+WAIT=""
+if docker compose up --help 2>&1 | grep -q -- --wait; then
+  WAIT="--wait"
+fi
+
+# What --wait would have done. Polls the healthcheck the image already
+# carries, so the definition of "ready" is the same one either way. Ten
+# minutes, because the first start pulls a gigabyte of voices before it begins
+# seeding.
+wait_for_health() {
+  local waited=0 status health
+  while [ "$waited" -lt 600 ]; do
+    status=$(docker inspect -f '{{.State.Status}}' vorlaut 2>/dev/null || true)
+    health=$(docker inspect -f '{{.State.Health.Status}}' vorlaut 2>/dev/null || true)
+    if [ "$health" = healthy ]; then
+      return 0
+    fi
+    if [ "$health" = unhealthy ] || [ "$status" = exited ]; then
+      return 1
+    fi
+    sleep 3
+    waited=$((waited + 3))
+  done
+  return 1
+}
+
 # The arguments go through "set --" rather than an array, because the two
 # cases differ at both ends of the command and the failure branch below should
 # only be written once. An empty array would have done it just as well
 # everywhere except the bash 3.2 that macOS still ships, where expanding one
-# under "set -u" is an error.
+# under "set -u" is an error. $WAIT is unquoted for the same reason: quoted, an
+# empty one would be an empty argument rather than no argument.
 if [ -n "$BUILD" ]; then
   echo "Building and starting ..."
-  set -- -f docker-compose.yml -f docker-compose.build.yml up -d --wait --build
+  set -- -f docker-compose.yml -f docker-compose.build.yml up -d $WAIT --build
 else
   # The first start fetches the image and takes a few minutes over it; every
   # one after that has it already.
   echo "Starting ..."
-  set -- up -d --wait
+  set -- up -d $WAIT
 fi
 
+started=1
 if ! docker compose "$@"; then
+  started=""
+elif [ -z "$WAIT" ]; then
+  echo "Waiting for it to answer ..."
+  wait_for_health || started=""
+fi
+
+if [ -z "$started" ]; then
   echo
   echo "The server did not come up. What it says itself:"
   docker compose logs --tail 20

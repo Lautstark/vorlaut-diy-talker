@@ -182,6 +182,14 @@ everything runs as it, which is what the id lines above are for. `/app` stays
 root-owned and the app only reads it: an interface anybody on the Wi-Fi can
 reach has no business being able to rewrite its own code.
 
+**It runs without the compose file.** The image knows that its content goes to
+`/data` because the Dockerfile says so, not because something outside remembers
+to tell it — which is what makes the one-line `docker run` under *Trying it
+locally first* below a working server. It was the other way round once: the two variables lived in
+`docker-compose.yml` alone, and without that file the app fell back to a folder
+under root-owned `/app` and stopped on *Permission denied* before it served
+anything.
+
 Verified: Azure speech, ffmpeg, ARASAAC search and `build.py` all run inside
 the container.
 
@@ -255,7 +263,22 @@ docker logs -f vorlaut
 
 ### Trying it locally first
 
-Worth doing before wrestling with DSM — same file, same container:
+Worth doing before wrestling with DSM. Nothing has to be downloaded or created
+for a look — a named volume is made by Docker, and it inherits `/data`'s owner
+from the image, so there is no folder to get the permissions wrong on:
+
+```bash
+docker run -d --name vorlaut -p 8771:8771 -p 8771:8771/udp \
+  -v vorlaut-data:/data ghcr.io/steffipetaffy/vorlaut:latest
+docker logs -f vorlaut          # what the container says
+docker rm -f vorlaut            # gone again
+docker volume rm vorlaut-data   # and its content with it
+```
+
+That is the whole of trying it, and it is deliberately not the way to keep it:
+a named volume lives wherever Docker keeps its volumes, which is not a place a
+NAS backup looks. For that, the same file and the same container as the NAS
+gets:
 
 ```bash
 mkdir -p data
@@ -263,6 +286,11 @@ docker compose up -d --wait
 docker compose logs -f          # what the container says
 docker compose down             # gone again
 ```
+
+`--wait` again needs Compose 2.1 or newer — `docker compose version` says which
+one this is. On an older one it is not ignored but refused, *unknown flag:
+--wait*, and nothing starts; drop it and watch `docker compose logs -f`
+instead. (`./start.sh` in the clone handles that difference itself.)
 
 If an `app.py` is already running on 8771, the container can take a different
 port on the machine:

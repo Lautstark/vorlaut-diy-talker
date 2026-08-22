@@ -18,27 +18,29 @@ speak yet.
 
 ## Quick start
 
-With Docker, and nothing else — no clone, one file:
+With Docker, and nothing else — no clone, nothing to download, nothing to
+create first:
 
 ```bash
-mkdir -p vorlaut/data && cd vorlaut
-curl -O https://raw.githubusercontent.com/SteffiPeTaffy/vorlaut/main/docker-compose.yml
-docker compose up -d --wait
+docker run -d --name vorlaut -p 8771:8771 -p 8771:8771/udp \
+  -v vorlaut-data:/data ghcr.io/steffipetaffy/vorlaut:latest
 ```
 
 Then open [localhost:8771](http://localhost:8771). No Python, no ffmpeg, no
 key and no `.env` — every setting has a default, and the image carries four
 piper voices, so it speaks from the first minute.
 
-There is content there too: on the first start `data/` fills itself from the
+There is content there too: on the first start the volume fills itself from the
 examples in the image, so a set with four keys is ready right away. The four
 example sentences come along as finished recordings, so the example can be
 built and flashed before any voice exists.
 
-`data/` is the only folder that is yours and the only one to back up; the code
-stays in the image, so `docker compose pull` is the whole of updating.
+That volume is everything that is yours; the code stays in the image, so
+`docker pull` is the whole of updating.
 
-Another port, a NAS, building the image yourself:
+**To keep it**, use the Compose file instead — one download, and it puts the
+content in a `data/` folder you can see, which is what a NAS backup picks up.
+That, another port, and building the image yourself:
 [docs/operation.md](docs/operation.md).
 
 ## From source

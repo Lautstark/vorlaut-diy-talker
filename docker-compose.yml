@@ -18,17 +18,13 @@ services:
       # in advance, and the answer carries the real port.
       - "8771:8771/udp"
     environment:
-      # Everything that belongs to you goes to /data, and /data is the one
-      # directory handed in from outside. The code comes from the image and is
-      # not overwritten by anything, so "which version am I on" has an answer.
-      - VORLAUT_CONTENT=/data
-      # The .env with the Azure key and the licence lives there too, because
-      # the settings sheet writes it and a saved setting has to survive the
-      # next "docker compose up". Deliberately not Compose's own "env_file:":
-      # that injects values the container cannot write back, so every setting
-      # saved in the interface would be gone on the next recreate - and it
-      # would look like the save had silently failed.
-      - VORLAUT_ENV_FILE=/data/.env
+      # VORLAUT_CONTENT=/data and VORLAUT_ENV_FILE=/data/.env are deliberately
+      # not here: the Dockerfile sets them, so the image knows where its
+      # content goes without being told. They were here once, and that alone
+      # made the image unrunnable without this file - see the Dockerfile for
+      # what that looked like. Setting them again here would only be a second
+      # place to change them.
+      #
       # A licensed METACOM collection is deliberately not set up here. It
       # lives outside all of this, it is optional, and most people have none.
       # docs/operation.md has the two lines - the mount and the variable - for

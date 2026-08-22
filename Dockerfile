@@ -38,6 +38,25 @@ RUN groupadd --gid 1000 vorlaut \
  && mkdir /data \
  && chown vorlaut:vorlaut /data
 
+# And /data is where the app looks, because the image says so rather than
+# because a Compose file remembered to. These two lived in docker-compose.yml
+# alone, which meant the image could not be run without it: config.py falls
+# back to ROOT/content, that is /app/content, and /app belongs to root while
+# the app does not. A plain "docker run" got as far as
+#
+#   PermissionError: [Errno 13] Permission denied: '/app/content'
+#
+# and stopped there - on an image whose whole point is that it carries
+# everything it needs. Here they are part of what was pulled, so one
+# "docker run -v vorlaut-data:/data" is a working server.
+ENV VORLAUT_CONTENT=/data
+# The .env with the Azure key and the licence belongs to you too, so it lives
+# in /data with the rest. Deliberately not Compose's "env_file:": that injects
+# values the container cannot write back, so every setting saved in the
+# interface would be gone on the next recreate - and it would look like the
+# save had silently failed.
+ENV VORLAUT_ENV_FILE=/data/.env
+
 # The four voices of the catalogue come along too, another 250 MB. Paying the
 # 200 MB for onnxruntime above and then shipping a talker that cannot speak
 # was the wrong half of both trades: a fresh container said "Nothing here can
