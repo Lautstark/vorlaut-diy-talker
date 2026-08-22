@@ -21,6 +21,13 @@ inputs:
 runs:
   using: composite
   steps:
+    # The one action here still running on Node.js 20, so this step keeps
+    # warning after everything else was moved to actions on Node.js 24.
+    # There is nothing to bump to: v2.0.0 is the newest release, from July
+    # 2024, and the default branch declares node20 as well. Whoever comes
+    # back to this because of the warning should check for a newer release
+    # first rather than pinning a commit - the runner still runs node20
+    # actions, it only complains.
     - uses: arduino/setup-arduino-cli@v2
 
     # Deliberately by hand instead of through arduino/compile-sketches: only

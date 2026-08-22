@@ -20,7 +20,7 @@ jobs:
     name: Firmware build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The test sketches come along: they use the same pins.h as the real
       # firmware. Whoever does not compile them too notices a broken pins.h
@@ -51,7 +51,7 @@ jobs:
       # to flash is better off with the release for the tag - see
       # release.yml.
       - name: Upload firmware image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: firmware
           path: |
