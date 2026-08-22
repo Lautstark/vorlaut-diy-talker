@@ -68,9 +68,11 @@ docker compose pull && docker compose up -d --wait
 ### Two things about that data/ folder
 
 **It has to exist before the first start.** That is what the `mkdir` above is
-for. Left to itself, Docker creates a missing bind-mount folder as root, and
-the container — which is not root, see below — then cannot write into its own
-data folder. Making it yourself, first, is the whole fix.
+for. What a missing one does depends on the Docker: some refuse to start the
+container at all — *bind source path does not exist* — and others create the
+folder as root, which the container, not being root, then cannot write into.
+The second is the worse of the two, because it looks like it worked. Making
+the folder yourself, first, avoids both.
 
 **The container has to be told which id you are.** It runs as `1000:1000`,
 which is right on an ordinary Linux and on Docker Desktop, and wrong on a
@@ -127,11 +129,13 @@ there, and the settings sheet then reports a collection it cannot read, which
 reads like a fault and is not one. With neither, the search runs on ARASAAC
 alone and the gear says so.
 
-It is deliberately not in `docker-compose.yml` with some default path. A
-default there would have to point at something, and Compose invents an empty
-directory for a bind mount whose source is missing rather than refusing — so a
-wrong default is not an error message, it is a collection that is silently
-empty.
+It is deliberately not in `docker-compose.yml` with some default path. There
+used to be one — `${VORLAUT_METACOM_DIR:-./example}` — and it only ever worked
+because a clone had an `example/` folder to fall back on. Without the clone it
+points at nothing, and pointing a bind mount at nothing is not reliably an
+error: depending on the Docker it is either a refusal to start or a silently
+invented empty folder. Neither is a METACOM collection, and only one of them
+says so.
 
 ### Being found by the device
 

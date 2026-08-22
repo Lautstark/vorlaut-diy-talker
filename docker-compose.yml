@@ -47,6 +47,10 @@ services:
       # The whole of it: layout.json, symbols/, cache/, the spoken sentences
       # and the .env. This lives on the NAS, is covered by its backup, and
       # survives every new image. Nothing else is handed in.
+      #
+      # Make the folder before the first start. A missing one is either a
+      # refusal to start or a folder Docker creates as root, depending on the
+      # Docker - and the container is not root. See docs/operation.md.
       - ./data:/data
     # The container does not run as root - see the Dockerfile for why. What
     # that costs is this line, and there is no way around it: which id owns
