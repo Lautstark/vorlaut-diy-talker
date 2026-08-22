@@ -212,6 +212,16 @@ placeholder tile with a grey cross.
 A `symbol` is either a file name from `content/symbols/` or a reference of the
 form `metacom:<name>` — see the next section.
 
+`layout.json` is also readable and writable as an Open Board Format document —
+`.obf` for one board, `.obz` for a whole collection, which is what the rest of
+the AAC world exchanges boards in. Every field above has a home there, and what
+it is is in [obf.md](obf.md):
+
+```bash
+python3 obf.py export boards.obz
+python3 obf.py import boards.obz --save
+```
+
 ---
 
 ## METACOM (optional)

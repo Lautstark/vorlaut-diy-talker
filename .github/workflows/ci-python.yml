@@ -61,7 +61,7 @@ jobs:
         run: python doctor.py
 
       - name: Modules import
-        run: python -c "import app, build, tts"
+        run: python -c "import app, build, obf, tts"
 
       - name: Tests
         # Every tests/test_*.py, and the folder is the list. This used to be

@@ -94,6 +94,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/firmware.md](docs/firmware.md) | Ready-made image or compile it yourself, partition scheme, flashing |
 | [docs/operation.md](docs/operation.md) | Running in a container, editing from a phone, on a NAS |
 | [docs/languages.md](docs/languages.md) | German and English in the product, English in the code |
+| [docs/obf.md](docs/obf.md) | layout.json as an Open Board Format document, field by field |
 
 ## Licence
 
