@@ -50,6 +50,27 @@ and say so. The four piper voices are one press away in the voice picker in the
 header, and Azure Speech is the other route, against a key of your own. Both
 are in [docs/editing.md](docs/editing.md#for-the-speech-output).
 
+### If you have a METACOM licence
+
+Two places want to know where your collection is, for now, and they are not the
+same place.
+
+**Searching** happens in the browser. Open the gear, and under *Symbols* choose
+the folder — Chrome and Edge remember it, Firefox and Safari read it for the
+session. Nothing is uploaded, nothing is copied, and nothing derived from those
+files leaves the browser; see [METACOM on the device](#metacom-on-the-device).
+
+**The build** still runs in Python and reads a path from the environment:
+
+```bash
+VORLAUT_METACOM_DIR=~/METACOM_9_Desktop
+```
+
+Point both at the same collection. A `metacom:` reference is a file name, so
+the two agree as long as each is looking at a METACOM — and when the build
+moves into the browser too, the variable goes and only the folder picker is
+left. `python3 doctor.py` checks the path half.
+
 > **Where this is going.** The app half is being rewritten as a static site
 > with no server at all — see [docs/browser-tts.md](docs/browser-tts.md) and
 > [docs/tile-rendering.md](docs/tile-rendering.md) for the pieces of it that
