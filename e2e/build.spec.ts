@@ -1,0 +1,245 @@
+import { expect, test } from "@playwright/test";
+/* Out of the modules that decide them rather than written here: a stride
+ * this test spelled out for itself would agree with nothing. */
+import { HEADER_BYTES, SET_BYTES } from "../src/data/layout_format.js";
+import { TILE_SIZE } from "../src/data/tiles.js";
+
+/* The Release button, pressed for real, and what it left in the store.
+ *
+ * page.spec.ts checks a board is on the screen. This goes the step further
+ * that runBuild() needed: it seeds a board, presses Release, and then asks
+ * IndexedDB what is in it. That is the only place the answer can be - the
+ * build answers with its log and nothing else, deliberately, and the files it
+ * makes are read back by name afterwards the way the device reads them.
+ *
+ * What it is really holding down is the hashing, because none of it shows in a
+ * log line: the same symbol in two sets is one file, the same sentence in two
+ * sets is one WAV, and a build cannot leave the previous version of either
+ * behind. Those are three counts in a file listing.
+ *
+ * Two things are deliberately not the real article.
+ *
+ * Piper is intercepted. The model is 63 MB from a CDN and the sentence after
+ * it is seconds of inference, so a test that fetched one would be a test of
+ * somebody else's uptime. The interception is at the network rather than
+ * inside the package: local.ts reaches piper by importing a pinned URL, and
+ * routing that URL to a stand-in exercises the real dynamic import, the real
+ * usePiper() handover and the whole chain downstream of predict() - the
+ * levelling, the fade, the pad, the resample to 16 kHz, the naming, the
+ * storing and the pruning. What it cannot check is what the real module
+ * imports on the way in; that is what broke last time and it is checked by
+ * loading the page against the actual CDN, which is not something to put in
+ * front of every commit.
+ *
+ * The store is seeded through IndexedDB rather than through the interface.
+ * Typing sentences is what page.spec.ts already does; symbols cannot be added
+ * that way without ARASAAC, and a build with no pictures in it would not
+ * exercise the tiles at all.
+ */
+
+/** The database store.ts keeps, opened without importing it: the built bundle
+ *  has no module URL to reach, and reading the raw records is what a check of
+ *  "what did the build leave" should be doing anyway. */
+const IDB = `
+  const open = () => new Promise((keep, drop) => {
+    const request = indexedDB.open("vorlaut", 1);
+    request.onsuccess = () => keep(request.result);
+    request.onerror = () => drop(request.error);
+  });
+  const put = (db, store, value, key) => new Promise((keep, drop) => {
+    const tx = db.transaction([store], "readwrite");
+    tx.objectStore(store).put(value, key);
+    tx.oncomplete = keep;
+    tx.onerror = () => drop(tx.error);
+  });
+  const all = (db, store) => new Promise((keep, drop) => {
+    const tx = db.transaction([store], "readonly");
+    const box = tx.objectStore(store);
+    const keys = box.getAllKeys();
+    const values = box.getAll();
+    tx.oncomplete = () => keep(keys.result.map((name, i) => ({
+      name, size: values.result[i] ? values.result[i].byteLength : 0 })));
+    tx.onerror = () => drop(tx.error);
+  });
+`;
+
+/* Chosen so that every count below has something to be wrong about: three
+ * pictures used six times between them, two references that resolve to nothing
+ * and must share one placeholder tile, four distinct sentences across six
+ * slots with text, and a switched-off set naming a symbol and a sentence that
+ * nothing else does. */
+const BOARD = {
+  sleep_timeout_seconds: 600,
+  language: "de",
+  sets: [
+    { name: "Erste", symbol: "red.png", color: "#3B5BDB", active: true,
+      slots: [{ symbol: "red.png", text: "Hallo" },
+              { symbol: "blue.png", text: "Danke" },
+              { symbol: "green.png", text: "Hallo" },
+              { symbol: "", text: "" }] },
+    { name: "", symbol: "blue.png", color: "#159947", active: true,
+      slots: [{ symbol: "red.png", text: "Danke" },
+              { symbol: "weg.png", text: "Tsch\u00fcss" },   // escaped: tests/test_language.py
+              { symbol: "", text: "Bitte" },
+              { symbol: "green.png", text: "" }] },
+    { name: "Aus", symbol: "yellow.png", color: "#FF6B35", active: false,
+      slots: [{ symbol: "yellow.png", text: "Niemals" },
+              { symbol: "", text: "" }, { symbol: "", text: "" },
+              { symbol: "", text: "" }] },
+  ],
+};
+
+/** A module with vits-web's shape, in place of the 1.4 MB from the CDN.
+ *
+ * predict() answers with a real WAV, because the chain decodes it: 22050 Hz
+ * mono 16 bit, half a second of a tone. Silence would be trimmed away to
+ * nothing before the levelling ever saw it. Every call is recorded, which is
+ * how "one WAV per distinct sentence" is checked from the other end. */
+const STAND_IN = `
+export const PATH_MAP = { "de_DE-thorsten-medium": "stand-in" };
+export async function predict({ text }) {
+  (globalThis.__spoken ??= []).push(text);
+  const rate = 22050, count = rate / 2;
+  const bytes = new ArrayBuffer(44 + count * 2);
+  const view = new DataView(bytes);
+  const ascii = (at, s) => [...s].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)));
+  ascii(0, "RIFF"); view.setUint32(4, 36 + count * 2, true); ascii(8, "WAVEfmt ");
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  ascii(36, "data"); view.setUint32(40, count * 2, true);
+  for (let i = 0; i < count; i++) {
+    view.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * 440 * i / rate) * 12000), true);
+  }
+  return new Blob([bytes], { type: "audio/wav" });
+}
+export default { PATH_MAP, predict };
+`;
+
+/** Everything the page needs before the button is worth pressing. */
+async function seed(page: import("@playwright/test").Page) {
+  await page.route("**/vits-web*.js", (route) =>
+    route.fulfill({ contentType: "text/javascript", body: STAND_IN }));
+
+  await page.goto("./");
+  await expect(page.locator("#device .tile")).toHaveCount(5);
+
+  await page.evaluate(`(async () => {
+    ${IDB}
+    const db = await open();
+    const png = async (colour) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 64;
+      const context = canvas.getContext("2d");
+      context.fillStyle = colour;
+      context.fillRect(0, 0, 64, 64);
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+      return await blob.arrayBuffer();
+    };
+    for (const [name, colour] of [["red.png", "#cc2222"], ["blue.png", "#2222cc"],
+                                  ["green.png", "#22cc22"], ["yellow.png", "#cccc22"]]) {
+      await put(db, "symbols", await png(colour), name);
+    }
+    /* Any version string does: the page reads it, hands it straight back as
+       the one it expects, and the first save replaces it with a real hash. */
+    await put(db, "content",
+              { text: ${JSON.stringify(JSON.stringify(BOARD, null, 2) + "\n")},
+                version: "seeded" },
+              "layout");
+  })()`);
+
+  /* Reloaded rather than carried on with: the Release button saves what is on
+     screen first, so a board that never reached the editor would be written
+     straight back over by the one that did. */
+  await page.reload();
+  await expect(page.locator("#device .tile")).toHaveCount(5);
+}
+
+/** Presses it, and waits for the handler rather than for a spinner: the
+ *  onclick is an async function, so its promise is exactly "the build is
+ *  over", and it catches its own errors - a failed build is a log line. */
+async function release(page: import("@playwright/test").Page) {
+  await page.evaluate(`document.getElementById("releaseBtn").onclick()`);
+  return await page.evaluate(`(async () => {
+    ${IDB}
+    const files = await all(await open(), "data");
+    return {
+      log: document.getElementById("log").textContent,
+      primary: document.getElementById("releaseBtn").classList.contains("primary"),
+      names: files.map((f) => f.name),
+      sizes: Object.fromEntries(files.map((f) => [f.name, f.size])),
+      spoken: (globalThis.__spoken ?? []).slice(),
+    };
+  })()`) as {
+    log: string; primary: boolean; names: string[];
+    sizes: Record<string, number>; spoken: string[];
+  };
+}
+
+const tilesOf = (names: string[]) => names.filter((n) => /^t[0-9a-f]{32}\.bin$/.test(n));
+const wavsOf = (names: string[]) => names.filter((n) => /^a[0-9a-f]{32}\.wav$/.test(n));
+
+test("it builds a board into the store, one file per distinct thing", async ({ page }) => {
+  await seed(page);
+  const built = await release(page);
+
+  /* The message runBuild() used to throw, in case this ever runs against a
+   * page where the build is not written. */
+  expect(built.log).not.toContain("not written yet");
+
+  /* A key that reached the screen because nobody put it in the table. The
+   * build log was 19 labels that no longer existed when it was ported. */
+  expect(built.log.split("\n").filter((l) => /^(build|ui|err)\.[a-z_.]+$/.test(l)))
+    .toEqual([]);
+
+  expect(tilesOf(built.names)).toHaveLength(4);   // three pictures, one placeholder
+  expect(wavsOf(built.names)).toHaveLength(4);    // Hallo, Danke, Tschuess, Bitte
+  expect(built.spoken).toHaveLength(4);           // and each spoken exactly once
+  expect(built.names).toContain("layout.bin");
+  /* The switched-off set put nothing in: 4 + 4 + the table. */
+  expect(built.names).toHaveLength(9);
+
+  /* The table is the two active sets, and every tile is a whole frame. */
+  expect(built.sizes["layout.bin"]).toBe(HEADER_BYTES + 2 * SET_BYTES);
+  for (const tile of tilesOf(built.names)) {
+    expect(built.sizes[tile]).toBe(TILE_SIZE * TILE_SIZE * 2);
+  }
+
+  /* The button stops asking to be pressed. */
+  expect(built.primary).toBe(false);
+});
+
+test("a second build replaces what changed and leaves nothing behind", async ({ page }) => {
+  await seed(page);
+  const first = await release(page);
+
+  /* Changed through the interface, so that nothing here depends on reaching a
+     module the bundle has renamed. The symbol is changed in both places it
+     stands, or it would - correctly - keep its tile and the count would be
+     measuring nothing. */
+  const keyText = page.locator("#device .tile:not(.setTile) input[type=text]");
+  await page.locator("#tabs .tab").nth(1).click();
+  await keyText.nth(2).fill("Guten Tag");
+  await page.waitForTimeout(1500);
+
+  const second = await release(page);
+
+  const gone = first.names.filter((n) => !second.names.includes(n));
+  const fresh = second.names.filter((n) => !first.names.includes(n));
+
+  expect(second.names).toHaveLength(9);
+  expect(gone).toHaveLength(1);          // the WAV for "Bitte"
+  expect(fresh).toHaveLength(1);         // the WAV for "Guten Tag"
+  expect(gone[0]).toMatch(/^a[0-9a-f]{32}\.wav$/);
+  /* And it said so, in whichever language the runner opened the page in. */
+  expect(second.log).toMatch(/^(removed|entfernt): a[0-9a-f]{32}\.wav$/m);
+  /* Only the new sentence cost anything: the other three came back out of the
+     store under the names their text still hashes to. */
+  expect(second.spoken).toEqual([...first.spoken, "Guten Tag"]);
+
+  /* A third run over an unchanged board is free and takes nothing away. */
+  const third = await release(page);
+  expect(third.names).toEqual(second.names);
+  expect(third.spoken).toEqual(second.spoken);
+  expect(third.log).not.toMatch(/^(removed|entfernt): /m);
+});

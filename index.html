@@ -11,6 +11,36 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="vorlaut">
+
+<!-- The one bare name Vite cannot resolve, because it never sees the module
+     that writes it.
+
+     backend/local.ts reaches piper by importing a pinned CDN URL at the moment
+     somebody first asks for speech - see src/types/cdn.d.ts for why that stays
+     a URL rather than a dependency. The browser fetches vits-web itself, and
+     vits-web's bundle imports onnxruntime-web by bare name. Nothing in the
+     build is in that conversation: adding onnxruntime-web to package.json
+     would put a copy in node_modules that the fetched module has no way to
+     reach. An import map is what a browser resolves a bare name with, so this
+     is the entry, and it is the only one.
+
+     Without it every sentence in a build comes back as "TTS failed: Failed to
+     resolve module specifier 'onnxruntime-web'" and the play button beside
+     each key does nothing. Neither shows up in a check that does not press
+     them - e2e/build.spec.ts routes the CDN to a stand-in, deliberately, so it
+     cannot see this either.
+
+     In <head>, and last in it: Vite appends its own module script here, an
+     import map has to be parsed before the first module loads, and one that
+     arrives afterwards is ignored with a console error rather than an
+     exception. -->
+<script type="importmap">
+{
+  "imports": {
+    "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js"
+  }
+}
+</script>
 </head>
 <body>
 <!-- Everything that was here is in src/ui/templates/ now, beside the module
