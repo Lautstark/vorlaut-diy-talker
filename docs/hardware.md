@@ -34,7 +34,10 @@ guessing: with no volume control, what the driver cannot carry it cannot
 carry, and a 40 mm cone in a 41.5 cm³ chamber gives out somewhere. It is the
 one figure here that no datasheet settles — stage 5 of
 [bring-up.md](bring-up.md) sweeps 200 to 2000 Hz, and where the sweep goes
-thin is the answer. **Lower limit: not measured yet.**
+thin is the answer. **Lower limit: no thinning heard anywhere between 200 and
+2000 Hz on 2026-08-22** — which is not yet the answer, because that run was on
+a bare driver. The figure this section wants is the one the driver gives in
+its 41.5 cm³ chamber, and that measurement is still owed.
 
 ## Wiring
 

@@ -25,11 +25,26 @@
 static const uint32_t ABTASTRATE = 16000;   // the rate build.py writes the WAVs at
 static const size_t BLOCK = 512;
 
+// How hard the tone is driven, 0..1. Not a taste setting: it is here so that
+// this stage sounds like the finished device rather than like a test. Speech
+// is normalised to about -16 LUFS, and a sine at that RMS has an amplitude of
+// roughly 0.22 - a good 7 dB below the 0.5 this ran at until the first real
+// hardware said it was alarmingly loud. At 0.5 the stage frightens whoever is
+// holding the speaker and still says nothing about the talker.
+//
+// Overridable, to hear the difference without editing:
+//
+//   arduino-cli compile --build-property \
+//     "compiler.cpp.extra_flags=-DAMPLITUDE=0.5f" ...
+#ifndef AMPLITUDE
+#define AMPLITUDE 0.22f
+#endif
+
 static I2SClass i2s;
 static int16_t puffer[BLOCK];
 
 // Generates a sine wave and pushes it out. amplitude 0..1
-static void ton(float frequenz, uint32_t dauer_ms, float amplitude = 0.5f) {
+static void ton(float frequenz, uint32_t dauer_ms, float amplitude = AMPLITUDE) {
   static float phase = 0.0f;
   const float schritt = 2.0f * (float)M_PI * frequenz / (float)ABTASTRATE;
   const uint32_t bis = millis() + dauer_ms;

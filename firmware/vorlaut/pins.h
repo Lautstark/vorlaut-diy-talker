@@ -53,3 +53,16 @@ static const uint8_t PANEL_ROTATION = 0;
 #ifndef PANEL_INITR
 #define PANEL_INITR INITR_144GREENTAB
 #endif
+
+// Whether the panel needs its colours inverted. The ST7735 init sequence in
+// the library sends INVOFF; IPS panels want INVON, and then every colour comes
+// out as its own complement - red as cyan, green as violet, blue as yellow.
+//
+// Overridable at compile time like PANEL_INITR, so it can be tried without
+// editing this file:
+//
+//   arduino-cli compile --build-property \
+//     "compiler.cpp.extra_flags=-DPANEL_INVERT=0" ...
+#ifndef PANEL_INVERT
+#define PANEL_INVERT 1
+#endif

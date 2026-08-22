@@ -60,6 +60,7 @@ void setup() {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     display[i] = new Panel(&SPI, PIN_CS[i], PIN_DC, -1);
     display[i]->initR(PANEL_INITR);
+    display[i]->invertDisplay(PANEL_INVERT);
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
     display[i]->setRotation(PANEL_ROTATION);
     was_down[i] = false;

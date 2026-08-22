@@ -410,10 +410,15 @@ export async function writeSettings(wanted: WantedSettings): Promise<Settings> {
   const held = await store.readSettings(NO_SETTINGS);
   const next = { ...held, azureRegion: wanted.azureRegion || "" };
   // An untouched field must not wipe the key - the same rule settings.js
-  // follows on the way in.
+  // follows on the way in. Which left removal with no door at all: this
+  // branch only ever set, so a stored key was permanent until null became
+  // the one explicit way to ask for its removal.
   if (wanted.azureKey) {
     next.azureKey = { set: true, hint: wanted.azureKey.slice(-4) };
     next.azureSecret = wanted.azureKey;
+  } else if (wanted.azureKey === null) {
+    next.azureKey = { set: false, hint: "" };
+    delete next.azureSecret;
   }
   // A different key or region is a different Azure to ask.
   azureCache = null;

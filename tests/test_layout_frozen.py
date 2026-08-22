@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Checks the browser's layout.bin writer against frozen bytes and the firmware.
 
-The companion to tests/test_layout_format.py, and the difference between them
-is what each needs to be installed:
+One of a pair with tests/test_layout_format.py, and the difference was what
+each needed installed:
 
-  test_layout_format.py   writes every case with layout_format.py as well,
-                          and compares all three. The most thorough check
-                          there is, and it stops existing with the Python half.
-  this one                needs the lock file, node and a C compiler. No
-                          layout.py, no layout_format.py, no tiles.py.
+  test_layout_format.py   wrote every case with layout_format.py as well,
+                          and compared all three. The most thorough check
+                          there was, and it went with the Python half,
+                          2026-08-22.
+  this one                needs the lock file, node and a C compiler - which
+                          is why it is the one still here. No layout.py, no
+                          layout_format.py, no tiles.py.
 
 That distinction is the whole reason this file exists. The C reader really is
 independent of Python - it is firmware/vorlaut/layout_format.h, the header
@@ -18,9 +20,15 @@ survives; what it was compared against did not. normalize_layout() built the
 inputs, expected() built the fields, and render_layout_bin() was the only
 opinion on whether the JavaScript bytes were right.
 
-So tools/layoutfreeze.py wrote all three down, and this asks the question that
-matters afterwards: does the browser still write the bytes the firmware reads,
-and does the firmware still read them into the same fields?
+So tools/layoutfreeze.py wrote all three down while they were still here to
+ask. The tool imported what it froze, so it went with the Python half and only
+git history has it now; the lock is what remains, and nothing in the
+repository can write it again. If the format ever changes on purpose,
+refreezing means restoring layout.py, layout_format.py and the tool from git
+for as long as that takes, not editing the lock by hand
+(docs/frozen-references.md, "The layout binary"). What is left to ask is the
+question that matters afterwards: does the browser still write the bytes the
+firmware reads, and does the firmware still read them into the same fields?
 
 Two independent things have to agree for this to pass, which is what keeps it
 from being a mirror. The bytes are checked against a value frozen from the
@@ -155,8 +163,10 @@ def difference(frozen: bytes, js: bytes | str) -> str | None:
 
 def main() -> int:
     if not LOCK.is_file():
-        print(f"  {LOCK} is missing - tools/layoutfreeze.py writes it, and "
-              f"without it there is nothing to compare against.")
+        print(f"  {LOCK} is missing - restore it from git. It is frozen "
+              f"layout_format.py output, the tool that wrote it went with "
+              f"the Python half, and there is nothing to compare against "
+              f"without it.")
         return 1
     lock = json.loads(LOCK.read_text(encoding="utf-8"))
     cases = lock["cases"]
@@ -168,8 +178,11 @@ def main() -> int:
                 if hashlib.sha256(bytes.fromhex(c["bytes"])).hexdigest() != c["sha256"]]
     check("every frozen case still hashes to what was frozen", not tampered,
           "" if not tampered else
-          f"changed: {', '.join(tampered)} - regenerate with "
-          f"tools/layoutfreeze.py rather than editing")
+          f"changed: {', '.join(tampered)} - restore the lock from git "
+          f"rather than editing. Refreezing means restoring layout.py, "
+          f"layout_format.py and tools/layoutfreeze.py from git for as "
+          f"long as that takes - docs/frozen-references.md, under The "
+          f"layout binary")
 
     from_js = render_with_node(cases)
     if from_js is None:

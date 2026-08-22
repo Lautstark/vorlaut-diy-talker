@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Checks the browser's METACOM reference against frozen names.
 
-The companion to tests/test_symbol_reference.py, and the difference is what
-each needs installed:
+One of a pair with tests/test_symbol_reference.py, and the difference was
+what each needed installed:
 
-  test_symbol_reference.py  asks metacom.py what a file is filed under and
-                            compares. Goes when metacom.py goes.
-  this one                  needs tests/reference/symbols.lock.json and node.
+  test_symbol_reference.py  asked metacom.py what a file is filed under and
+                            compared. Went when metacom.py went, 2026-08-22.
+  this one                  needs tests/reference/symbols.lock.json and node,
+                            which is why it is the one still here.
 
 A symbol lives in layout.json as `metacom:essen`. metacom.py keys the
 collection by the file's stem and obf.py reads it back that way; the browser
@@ -16,10 +17,17 @@ drift, every layout that exists points at symbols nobody can find, the build
 fails on boards that used to build, and neither half says anything.
 
 The names here came from metacom._scan_files() itself rather than from a
-restatement of what it does - see tools/symbolfreeze.py, which explains why
-that distinction is not pedantry. The function under test is read out of
-src/data/symbols.ts rather than copied, for the same reason: a copy would agree
-with itself for ever, which is the one thing this must not do.
+restatement of what it does - tools/symbolfreeze.py wrote them down, and its
+docstring explains why that distinction is not pedantry. The tool imported the
+indexer it asked, so it went with the Python half and only git history has it
+now. The lock is what remains, and nothing in the repository can write it
+again: if referenceFor ever changes on purpose, refreezing means restoring
+metacom.py and the tool from git for as long as that takes, not editing the
+lock by hand (docs/frozen-references.md, "Symbol search").
+
+The function under test is read out of src/data/symbols.ts rather than copied,
+for the same reason the names are not restated: a copy would agree with itself
+for ever, which is the one thing this must not do.
 """
 
 from __future__ import annotations
@@ -77,8 +85,10 @@ def javascript_reference(paths: list[str]) -> list[str] | None:
 
 def main() -> int:
     if not LOCK.is_file():
-        print(f"  {LOCK} is missing - tools/symbolfreeze.py writes it, and "
-              f"there is nothing to compare against without it.")
+        print(f"  {LOCK} is missing - restore it from git. It is frozen "
+              f"metacom.py output, the tool that wrote it went with the "
+              f"Python half, and there is nothing to compare against "
+              f"without it.")
         return 1
     lock = json.loads(LOCK.read_text(encoding="utf-8"))
 
@@ -122,7 +132,9 @@ def main() -> int:
           bool(unindexed),
           "" if unindexed else
           "none are listed - without one, a rule that drops four characters "
-          "passes every check above. Refreeze with tools/symbolfreeze.py")
+          "passes every check above. Refreezing means restoring metacom.py "
+          "and tools/symbolfreeze.py from git for as long as that takes - "
+          "docs/frozen-references.md, under Symbol search")
 
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")
