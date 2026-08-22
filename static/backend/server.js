@@ -161,6 +161,23 @@ export async function buildFile(name) {
 }
 
 
+// --- The board as a document -------------------------------------------------
+
+/** The layout as an .obz, for keeping somewhere real or handing to somebody
+ * using different software. Bytes rather than a download: whether this becomes
+ * a file on disk is the page's business, not the transport's. */
+export async function exportBoard({ images = false } = {}) {
+  const url = `/api/board?images=${images ? "1" : "0"}`;
+  return await (await api(url)).blob();
+}
+
+/** An .obf or .obz on the way in, as a layout. Deliberately does not save it:
+ * replacing what somebody has is a decision, and this is the reading half. */
+export async function importBoard(file) {
+  return await (await api("/api/board", { method: "POST", body: file })).json();
+}
+
+
 // --- Pairing -----------------------------------------------------------------
 //
 // Both of these are on their way out: the five digits are how a talker over

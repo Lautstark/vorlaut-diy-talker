@@ -58,6 +58,22 @@ export function saveNow() {
   return save();
 }
 
+/** Put a whole different layout in place of what is on screen, and write it.
+ *
+ * The board import is the caller. It saves rather than leaving the new board
+ * unsaved: opening a file is somebody's decision already, and a page sitting
+ * on an imported board that is not written anywhere is a state nobody can tell
+ * apart from a saved one by looking.
+ */
+export async function replaceLayout(layout) {
+  state.layout = layout;
+  if (state.current >= state.layout.sets.length) {
+    state.current = Math.max(0, state.layout.sets.length - 1);
+  }
+  render();
+  await saveNow();
+}
+
 // Brings the layout into the same shape the server makes of it. Only then can
 // the two states be compared meaningfully.
 function comparable(l) {

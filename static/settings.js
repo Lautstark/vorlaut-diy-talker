@@ -5,8 +5,9 @@
 // This is the lower half of the settings sheet. The sheet itself, and its one
 // Save, are in voices.js.
 import { $, status } from "./dom.js";
-import { readSettings, writeSettings } from "./backend.js";
+import { readSettings, writeSettings, exportBoard, importBoard } from "./backend.js";
 import { t } from "./texts.js";
+import { replaceLayout } from "./save.js";
 import * as symbols from "./symbols.js";
 
 let settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
@@ -98,6 +99,51 @@ function renderHere() {
   } else {
     $("metacomHereState").textContent = t("ui.metacom_here_none");
   }
+}
+
+/* ------------------------------------------------- the board as a document ---
+ *
+ * Open Board Format, which is what other AAC software reads. The buttons live
+ * in the settings sheet rather than the header because this is not something
+ * anybody does while editing - it is how a board leaves or arrives.
+ */
+export function wireBoard() {
+  $("boardExport").onclick = async () => {
+    $("boardState").textContent = "";
+    try {
+      const blob = await exportBoard();
+      // Handed to the browser as a download rather than kept anywhere: the
+      // point of the export is that it leaves.
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "board.obz";
+      link.click();
+      URL.revokeObjectURL(url);
+      $("boardState").textContent = t("ui.board_exported");
+    } catch (error) {
+      $("boardState").textContent = t("ui.board_failed", { error: error.message });
+    }
+  };
+
+  $("boardImport").onclick = () => $("boardFile").click();
+  $("boardFile").onchange = async () => {
+    const file = $("boardFile").files[0];
+    $("boardFile").value = "";
+    if (!file) return;
+    $("boardState").textContent = "";
+    try {
+      const layout = await importBoard(file);
+      // Read first, ask second: a board that turns out to be unreadable should
+      // not have cost anybody a question, and this is the only chance to say
+      // what is about to be replaced while both still exist.
+      if (!confirm(t("ui.board_replace_ask"))) return;
+      await replaceLayout(layout);
+      $("boardState").textContent = t("ui.board_imported");
+    } catch (error) {
+      $("boardState").textContent = t("ui.board_failed", { error: error.message });
+    }
+  };
 }
 
 export function wireSymbolFolder() {

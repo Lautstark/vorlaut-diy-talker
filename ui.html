@@ -52,6 +52,7 @@
   <button id="removeSet" class="danger"></button>
   <pre class="log" id="log"></pre>
 <input type="file" id="fileInput" accept="image/*" hidden>
+<input type="file" id="boardFile" accept=".obf,.obz,application/zip" hidden>
 </main>
 
 <dialog id="picker">
@@ -126,6 +127,18 @@
       <input type="text" id="metacomPath" autocomplete="off">
       <p class="note" id="metacomState"></p>
       <p class="note" id="metacomBuildNote"></p>
+    </div>
+  </details>
+
+  <details class="panel" id="boardPanel">
+    <summary>
+      <span class="section" id="boardSection"></span>
+    </summary>
+    <div class="field">
+      <p class="lead" id="boardNote"></p>
+      <button id="boardExport"></button>
+      <button id="boardImport"></button>
+      <p class="note" id="boardState"></p>
     </div>
   </details>
 

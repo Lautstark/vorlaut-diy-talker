@@ -107,6 +107,14 @@ TEXTS: dict[str, dict[str, str]] = {
                                  "reads the folder chosen here. Point both at "
                                  "the same collection until the build moves "
                                  "into the browser too.",
+        "ui.board": "Board",
+        "ui.board_note": "The board as an Open Board Format document - what other AAC software reads and writes. Symbols travel as names, not as pictures.",
+        "ui.board_export": "Save as .obz",
+        "ui.board_import": "Open a board",
+        "ui.board_exported": "Board saved",
+        "ui.board_imported": "Board opened",
+        "ui.board_replace_ask": "Open this board? It replaces the sets you have here.",
+        "ui.board_failed": "That board could not be read: {error}",
         "ui.metacom_short_none": "not set",
         "ui.settings_saved": "saved",
         "ui.metacom_offer": "Have a METACOM licence? Add the folder under the gear, and it is searched alongside this.",
@@ -437,6 +445,14 @@ TEXTS: dict[str, dict[str, str]] = {
                                  "liest den hier gewählten Ordner. Beide auf "
                                  "dieselbe Sammlung zeigen lassen, bis auch "
                                  "der Build in den Browser umzieht.",
+        "ui.board": "Board",
+        "ui.board_note": "Das Board als Open-Board-Format-Dokument - das, was andere AAC-Software liest und schreibt. Symbole reisen als Namen mit, nicht als Bilder.",
+        "ui.board_export": "Als .obz sichern",
+        "ui.board_import": "Board öffnen",
+        "ui.board_exported": "Board gesichert",
+        "ui.board_imported": "Board geöffnet",
+        "ui.board_replace_ask": "Dieses Board öffnen? Es ersetzt die Sets, die hier stehen.",
+        "ui.board_failed": "Dieses Board war nicht lesbar: {error}",
         "ui.metacom_short_none": "nicht gesetzt",
         "ui.settings_saved": "gespeichert",
         "ui.metacom_offer": "Du hast eine METACOM-Lizenz? Trag den Ordner beim Zahnrad ein, dann wird er hier mit durchsucht.",

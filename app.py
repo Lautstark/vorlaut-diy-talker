@@ -21,6 +21,7 @@ import os
 import json
 import re
 import sys
+import tempfile
 import threading
 import time
 import unicodedata
@@ -36,6 +37,7 @@ import config
 import discovery
 import manifest
 import metacom
+import obf
 import texts
 import tiles
 import tts
@@ -957,6 +959,56 @@ def build_file(handler, query) -> None:
         handler._error("err.file_not_found", 404)
         return
     handler._send(200, target.read_bytes(), "application/octet-stream")
+
+
+# --- The board as a document --------------------------------------------------
+#
+# The Open Board Format is what the rest of the AAC world writes boards in, and
+# obf.py is the whole of the translation - the argument for bothering is in
+# docs/obf.md and comes down to a document only one program can open being a
+# document that dies with the program.
+#
+# Served here rather than left as a command line, because a converter nobody
+# can reach from the page is a converter nobody uses. The browser half does not
+# exist yet, so on a static site these two are the operations that still need
+# writing; behind the seam that is a swap rather than a change to the page.
+
+
+@route("GET", "/api/board")
+def export_board(handler, query) -> None:
+    """The current layout as .obz, built in a temporary file and sent whole."""
+    want_images = (query.get("images") or ["0"])[0] == "1"
+    with tempfile.TemporaryDirectory() as scratch:
+        target = Path(scratch) / "board.obz"
+        try:
+            obf.export_obz(target, with_images=want_images, with_sounds=False)
+        except BuildError as exc:
+            handler._failed(exc, 500)
+            return
+        handler._send(200, target.read_bytes(), "application/octet-stream",
+                      {"Content-Disposition": 'attachment; filename="board.obz"'})
+
+
+@route("POST", "/api/board", raw=True)
+def import_board(handler, body) -> None:
+    """An .obf or .obz on the way in. Read and answered, never saved from here:
+    what to do with a board somebody opened is the page's decision, and a route
+    that wrote straight into layout.json would overwrite without asking."""
+    length = int(handler.headers.get("Content-Length") or 0)
+    if length <= 0 or length > MAX_UPLOAD:
+        handler._error("err.no_image_data" if length <= 0 else "err.image_too_big",
+                       400)
+        return
+    with tempfile.TemporaryDirectory() as scratch:
+        target = Path(scratch) / "board.obz"
+        target.write_bytes(handler.rfile.read(length))
+        try:
+            document = obf.read_obz(target)
+            handler._json(obf.document_to_layout(document))
+        except BuildError as exc:
+            handler._failed(exc, 400)
+        except Exception as exc:                    # a zip that is not one
+            handler._error("err.board_unreadable", 400, reason=str(exc))
 
 
 @route("GET", "/api/sources")

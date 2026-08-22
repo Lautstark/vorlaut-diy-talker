@@ -93,6 +93,9 @@ EXPECTED = {
     ("POST", "/api/upload"),
     ("GET", "/api/preview"),
     ("GET", "/api/thumb"),
+    # The board as a document other AAC software can open
+    ("GET", "/api/board"),
+    ("POST", "/api/board"),
     # Speech
     ("GET", "/api/voices"),
     ("GET", "/api/voices/fetch"),
@@ -122,6 +125,7 @@ EXPECTED = {
 # tests/test_csrf.py checks the same boundary from the outside, over a socket.
 EXPECTED_RAW = {
     ("POST", "/api/upload"),            # raw image bytes
+    ("POST", "/api/board"),             # a zip, which is not JSON either
     ("POST", "/api/device/pair"),       # the device's line format
     ("POST", "/api/device/pair/poll"),
 }
@@ -139,7 +143,7 @@ def check_table() -> None:
           ", ".join(f"{m} {p}" for m, p in sorted(extra)))
 
     raw = {key for key, entry in app.ROUTES.items() if entry.raw}
-    check("exactly three routes read their own body", raw == EXPECTED_RAW,
+    check("exactly four routes read their own body", raw == EXPECTED_RAW,
           ", ".join(f"{m} {p}" for m, p in sorted(raw)))
 
     prefix = {key for key, entry in app.ROUTES.items() if entry.prefix}

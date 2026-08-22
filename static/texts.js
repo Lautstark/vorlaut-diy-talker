@@ -58,6 +58,10 @@ export function applyTexts() {
   $("metacomIntro").textContent = t("ui.metacom_intro");
   outward("metacomLink", "ui.metacom_link", "ui.metacom_link_url");
   $("metacomLabel").textContent = t("ui.metacom_path");
+  $("boardSection").textContent = t("ui.board");
+  $("boardNote").textContent = t("ui.board_note");
+  $("boardExport").textContent = t("ui.board_export");
+  $("boardImport").textContent = t("ui.board_import");
   $("gear").title = t("ui.settings");
   $("gear").setAttribute("aria-label", t("ui.settings"));
   $("voiceSave").textContent = t("ui.save");

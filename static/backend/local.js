@@ -212,6 +212,27 @@ export async function writeSettings(wanted) {
   return await readSettings();
 }
 
+// --- The board as a document -------------------------------------------------
+//
+// The one place where the browser is still behind the server. obf.py is a
+// thousand lines with a profile system and a licensing check, and porting it
+// wants the same treatment tiles.js got: written against the Python, measured
+// against it, and only then trusted. Until that exists these say so, because a
+// board exported by a half-finished converter is worse than no export - it
+// looks like a backup.
+
+export async function exportBoard() {
+  throw new Error(
+    "Exporting a board needs the OBF converter in the browser, which is not " +
+    "written yet - obf.py still does this.");
+}
+
+export async function importBoard() {
+  throw new Error(
+    "Opening a board needs the OBF converter in the browser, which is not " +
+    "written yet - obf.py still does this.");
+}
+
 // --- The build ---------------------------------------------------------------
 
 /** Not here yet, and saying so.

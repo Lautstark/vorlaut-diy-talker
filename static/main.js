@@ -9,12 +9,13 @@ import { wireEditor } from "./editor.js";
 import { loadSources, wirePicker } from "./picker.js";
 import { confirmPair, watchPair } from "./pairing.js";
 import { openVoices, saveVoice, wireLanguage } from "./voices.js";
-import { wireSymbolFolder } from "./settings.js";
+import { wireSymbolFolder, wireBoard } from "./settings.js";
 
 wireConflict();
 wireEditor();
 wirePicker();
 wireSymbolFolder();
+wireBoard();
 wireLanguage();
 
 $("releaseBtn").onclick = async () => {

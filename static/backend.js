@@ -52,6 +52,12 @@ export {
   readSettings,
   writeSettings,
 
+  // The board as a document somebody else's software can open, and back.
+  // docs/obf.md is the argument; the short of it is that a format only one
+  // program reads is a format that dies with the program.
+  exportBoard,
+  importBoard,
+
   // Turning all of it into tiles and WAVs for the device, and reading back
   // what that left - which is how the files reach whatever sends them.
   runBuild,
