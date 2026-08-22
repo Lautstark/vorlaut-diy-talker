@@ -217,32 +217,28 @@ And the file is deliberately **not** called `docker-compose.override.yml` —
 Compose reads a file of that name without being asked, so both would quietly
 be the default again for anybody who has it lying around.
 
-### Starting
+### start.sh and stop.sh — for the clone only
+
+**Not the way in.** An install has the compose file and nothing else, and
+`docker compose up -d --wait` is the whole of starting it. These two live in
+the repository and exist for whoever is working on it, where starting and
+stopping happens twenty times an afternoon.
 
 ```bash
-./start.sh
-```
-
-Fetches the image if it is not there yet, replaces a running container, waits
-until the interface really answers and prints the address. A different port
-works with `./start.sh 8798`, and `./start.sh --build` builds the image here
-instead of taking the published one.
-
-The script is for the clone — it lives in it. On a NAS there is nothing to
-start but `docker compose up -d --wait`, which is what the script comes down
-to.
-
-### Stopping
-
-```bash
+./start.sh              # port 8771
+./start.sh 8798         # another port
+./start.sh --build      # build the image here instead of pulling it
 ./stop.sh
 ```
 
-Stops the container and says whether a directly started `app.py` is still
-sitting on the port next to it — Docker does not know about that one and will
+What they add over the plain command is the handling around it: `start.sh`
+makes `data/` first, refuses to start if a directly launched `app.py` already
+holds the port, and clears away a leftover container of the same name that
+Docker would otherwise refuse. `stop.sh` says whether such an `app.py` is
+still sitting there afterwards — Docker does not know about that one and will
 not stop it either.
 
-Where is anything running at all?
+### Where is anything running
 
 ```bash
 docker ps                 # running containers

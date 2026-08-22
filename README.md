@@ -35,9 +35,8 @@ examples in the image, so a set with four keys is ready right away. The four
 example sentences come along as finished recordings, so the example can be
 built and flashed before any voice exists.
 
-`data/` is then the only folder that is yours, and the only one to back up.
-The code stays in the image, so `docker compose pull` is the whole of
-updating.
+`data/` is the only folder that is yours and the only one to back up; the code
+stays in the image, so `docker compose pull` is the whole of updating.
 
 Another port, a NAS, building the image yourself:
 [docs/operation.md](docs/operation.md).

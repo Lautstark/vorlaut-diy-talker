@@ -3,6 +3,11 @@
 # Starts the web interface in the container - whether one is running or not,
 # and always with the current state.
 #
+# For whoever has the clone. An install has the compose file and nothing else,
+# and "docker compose up -d --wait" is the whole of starting it; this exists
+# because working on the project means doing that twenty times an afternoon,
+# with the same three things to get wrong each time.
+#
 #   ./start.sh              on port 8771
 #   ./start.sh 8798         on another port
 #   ./start.sh --build      build the image here first instead of pulling it
