@@ -179,6 +179,16 @@ by `firmware/tests/test7_sync`, which does nothing but this. Files land under
 breaks off leaves a fragment behind, not half a file under a name that
 promises whole content.
 
+**All of this needs a server, and there is not going to be one.** Once the
+editor is a page and nothing else, the device cannot pull: a tab has no address
+to fetch from, and a page on HTTPS may not talk to a plain-HTTP device on the
+LAN at all. The replacement pushes down the USB-C cable instead, and reuses
+every idea on this page except the transport — the line format, the file names
+that say what changed, `/.part`. It is written up on its own in
+[cable.md](cable.md), which is also where the reasons it is *not* simply this
+protocol over a different wire are set out. Both are compiled into the firmware
+until the cable has been proven on real hardware.
+
 ---
 
 ## Pairing

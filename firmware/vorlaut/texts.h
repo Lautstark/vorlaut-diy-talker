@@ -54,6 +54,7 @@ struct Strings {
   const char *loading;       // ... transferring, with a count underneath
   const char *done;          // ... and it worked
   const char *failed;        // ... and it did not, with a reason below
+  const char *cable;         // ... a browser is pushing content down the cable
   const char *pairing;       // ... asking the server for a code
   const char *paired;        // ... and the token arrived
   const char *noWifi;        // reasons, each one word
@@ -88,6 +89,7 @@ static const Strings LANGUAGES[] = {
     /* wifi            */ "Wi-Fi",
     /* searching       */ "searching",
     /* loading         */ "loading",
+    /* cable           */ "cable",
     /* done            */ "done",
     /* failed          */ "failed",
     /* pairing         */ "pairing",
@@ -120,6 +122,7 @@ static const Strings LANGUAGES[] = {
     /* wifi            */ "WLAN",
     /* searching       */ "suchen",
     /* loading         */ "lädt",
+    /* cable           */ "Kabel",
     /* done            */ "fertig",
     /* failed          */ "Fehler",
     /* pairing         */ "koppeln",
