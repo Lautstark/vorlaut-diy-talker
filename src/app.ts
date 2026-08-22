@@ -20,7 +20,7 @@ import { load, saveNow, markReleaseState, wireConflict } from "./core/save.js";
 import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
 import { confirmPair, watchPair } from "./ui/pairing.js";
-import { openVoices, saveVoice, wireLanguage } from "./ui/voices.js";
+import { forgetAzureKey, openVoices, saveVoice, wireLanguage } from "./ui/voices.js";
 import { wireSymbolFolder, wireBoard } from "./ui/settings.js";
 import { subscribeMetacom } from "./data/symbols.js";
 
@@ -63,6 +63,7 @@ subscribeMetacom(render);
   $<HTMLButtonElement>("gear").onclick = openVoices;
   $<HTMLButtonElement>("voiceClose").onclick = () => $<HTMLDialogElement>("voices").close();
   $<HTMLButtonElement>("voiceSave").onclick = saveVoice;
+  $<HTMLButtonElement>("azureForget").onclick = forgetAzureKey;
   $<HTMLButtonElement>("voiceCancel").onclick = () => $<HTMLDialogElement>("voices").close();
 
   // Labels first: without them the page shows empty buttons for as long as

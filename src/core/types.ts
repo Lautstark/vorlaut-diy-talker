@@ -76,11 +76,12 @@ export interface Settings {
 /** What the settings sheet asks to be written. A subset of Settings, because
  *  the sheet holds the fields somebody can type and not the ones the provider
  *  answers for - and azureKey is absent unless it was typed, since an untouched
- *  field must not wipe the stored key. */
+ *  field must not wipe the stored key. Removing the key is therefore its own
+ *  explicit ask - null - and never a reading of an empty field. */
 export interface WantedSettings {
   azureRegion: string;
   metacom: string;
-  azureKey?: string;
+  azureKey?: string | null;
 }
 
 /** A voice as the picker shows it. */

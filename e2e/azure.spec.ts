@@ -23,6 +23,8 @@ const AZURE_OK = new RegExp(`^(${table("ui.azure_ok")
   .join("|")})$`);
 const AZURE_UNREACHABLE = new RegExp(`^(${table("ui.azure_unreachable")
   .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
+const AZURE_NONE = new RegExp(`^(${table("ui.azure_key_none")
+  .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 
 /* A regex, not a glob: the region rides in the SUBDOMAIN
  * (westeurope.tts.speech...), and a glob's "**\/" wants a slash exactly where
@@ -80,4 +82,37 @@ test("a region that is not one gets said on the panel, not swallowed", async ({ 
   // test hid the very rows it asserted.
   await expect(page.locator("#voiceList .voiceRow", { hasText: "Thorsten" }).first())
     .toBeVisible();
+});
+
+test("a stored key can be removed, and the azure rows leave with it", async ({ page }) => {
+  await page.route(VOICES_LIST, (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify([
+      { ShortName: "de-DE-KatjaNeural", Locale: "de-DE", Gender: "Female",
+        DisplayName: "Katja", LocalName: "Katja" },
+    ]),
+  }));
+  await typeKeyAndSave(page, "westeurope");
+  await expect(page.locator("#voiceList .voiceRow", { hasText: "Katja" }))
+    .toBeVisible();
+
+  // Its own button, not a reading of the empty field - the empty field means
+  // "leave the key alone". The sheet stays open: the rows this removal costs
+  // leave in front of the person who asked.
+  await page.locator("#azureForget").click();
+  await expect(page.locator("#voices")).toBeVisible();
+  await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
+  await expect(page.locator("#voiceList .voiceRow", { hasText: "Katja" }))
+    .toHaveCount(0);
+  await expect(page.locator("#voiceList .voiceRow", { hasText: "Thorsten" }).first())
+    .toBeVisible();
+  // Gone from the button too: nothing left to remove.
+  await expect(page.locator("#azureForget")).toBeHidden();
+
+  // And gone from storage, not just from the screen: a fresh visit holds no
+  // key and asks Azure nothing.
+  await page.reload();
+  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await page.locator("#gear").click();
+  await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
 });

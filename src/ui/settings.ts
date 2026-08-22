@@ -46,6 +46,11 @@ function renderSettings() {
   $("azureState").textContent = settings.azureKey.set
     ? t("ui.azure_key_stored")
     : t("ui.azure_key_none");
+  const forget = $<HTMLButtonElement>("azureForget");
+  forget.textContent = t("ui.azure_forget");
+  // Only when there is a key to remove, and only where the key can be touched
+  // at all - away from the machine the whole panel is read-only.
+  forget.hidden = !settings.azureKey.set || !settings.local;
 
   $("metacomState").textContent = metacomWord(false);
   $("symbolsState").textContent = metacomWord(true);
@@ -246,4 +251,20 @@ export async function saveSettings(): Promise<{ azureChanged: boolean }> {
   settings = await writeSettings(wanted);
   renderSettings();
   return { azureChanged };
+}
+
+/** Drops the stored key, as its own act.
+ *
+ * The empty field already means "leave the key alone" - the guard above - so
+ * the field cannot double as the way to remove one. Until this existed it did
+ * not merely fail to: there was no way to remove a key at all, because
+ * writeSettings only ever set it. The region and the METACOM path ride along
+ * exactly as a save would take them; the null is the whole difference. */
+export async function forgetKey() {
+  settings = await writeSettings({
+    azureRegion: $<HTMLInputElement>("azureRegion").value.trim(),
+    metacom: $<HTMLInputElement>("metacomPath").value.trim(),
+    azureKey: null,
+  });
+  renderSettings();
 }
