@@ -84,11 +84,12 @@ fi
 #
 # But it arrived in Compose 2.1, and an older one does not ignore what it does
 # not know: it refuses the whole command with "unknown flag: --wait" and
-# starts nothing at all. That is not a hypothetical - the 2.0 on this laptop
-# does exactly that, and so does the Compose 1 in Synology's older Docker
-# package. So ask once whether the flag exists, and if it does not, watch the
-# same healthcheck by hand. The waiting is worth keeping either way: the first
-# start seeds the speech cache and is not ready when it is up.
+# starts nothing at all. That is not a hypothetical - the Compose 1 in
+# Synology's older Docker package does exactly that, and so did the 2.0 that
+# was on this laptop until it was upgraded. So ask once whether the flag
+# exists, and if it does not, watch the same healthcheck by hand. The waiting
+# is worth keeping either way: the first start seeds the speech cache and is
+# not ready when it is up.
 WAIT=""
 if docker compose up --help 2>&1 | grep -q -- --wait; then
   WAIT="--wait"
