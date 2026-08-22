@@ -47,7 +47,7 @@ in this browser.</p>
 
 <fieldset>
   <legend>The batch</legend>
-  <p style="margin:.2rem 0"><small>Only with <code>tools/leveling.py --serve</code>
+  <p style="margin:.2rem 0"><small>Only with <code>tools/ttscheck.py --serve</code>
   behind it. It renders the batch with the real piper, this levels each one in
   the tab and hands it back, and <code>--browser</code> then measures both with
   the real ffmpeg. Two runs: <b>levelling</b> takes piper's own recordings, so
@@ -71,8 +71,8 @@ in this browser.</p>
 { "imports": { "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js" } }
 </script>
 <script type="module">
-import * as speech from "./speak.js";
-import { postprocess } from "./level.js";
+import * as speech from "../static/tts/speak.js";
+import { postprocess } from "../static/tts/level.js";
 
 const $ = (s) => document.querySelector(s);
 const log = (m) => { $("#log").textContent += m + "\n"; };
@@ -167,9 +167,9 @@ async function batch(speakItToo) {
   clear();
   let list;
   try {
-    list = await (await fetch("../../dump/batch.json")).json();
+    list = await (await fetch("/dump/batch.json")).json();
   } catch {
-    log("No batch here. Start it with:  python3 tools/leveling.py --serve 8771");
+    log("No batch here. Start it with:  python3 tools/ttscheck.py --serve 8771");
     return;
   }
   log(`${list.length} sentences, ${speakItToo ? "spoken here and levelled here"
@@ -182,18 +182,18 @@ async function batch(speakItToo) {
         wav = result.wav;
         note = `${result.synthesisMs} ms + ${result.levellingMs} ms`;
       } else {
-        const raw = new Uint8Array(await (await fetch(`../../dump/${item.id}-raw.wav`)).arrayBuffer());
+        const raw = new Uint8Array(await (await fetch(`/dump/${item.id}-raw.wav`)).arrayBuffer());
         const result = postprocess(raw);
         wav = result.wav;
         note = `${result.lufs.toFixed(2)} LUFS ${result.gainDb >= 0 ? "+" : ""}${result.gainDb.toFixed(2)} dB`;
       }
-      await fetch(`../../dump/${item.id}-browser.wav`, { method: "PUT", body: wav });
+      await fetch(`/dump/${item.id}-browser.wav`, { method: "PUT", body: wav });
       log(`  ${item.id}  ${note}`);
     } catch (error) {
       log(`  ${item.id}  FAILED: ${error.message}`);
     }
   }
-  log("done — now:  python3 tools/leveling.py --browser <the same folder>");
+  log("done — now:  python3 tools/ttscheck.py --browser <the same folder>");
 }
 
 $("#batch-level").addEventListener("click", () => batch(false));

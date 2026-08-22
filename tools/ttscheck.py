@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Measures the browser levelling against the one that already works.
 
-    python3 tools/leveling.py                 # the whole batch, both voices
-    python3 tools/leveling.py de              # German only
-    python3 tools/leveling.py --keep out/     # leave the WAVs behind to listen to
-    python3 tools/leveling.py --serve 8771    # hand the batch to a real browser
-    python3 tools/leveling.py --browser dump/ # bring in what a tab produced
+    python3 tools/ttscheck.py                 # the whole batch, both voices
+    python3 tools/ttscheck.py de              # German only
+    python3 tools/ttscheck.py --keep out/     # leave the WAVs behind to listen to
+    python3 tools/ttscheck.py --serve 8771    # hand the batch to a real browser
+    python3 tools/ttscheck.py --browser dump/ # measure what that tab produced
 
 static/tts/level.js is a second implementation of the ffmpeg chain in tts.py,
 and a second implementation is only worth having if somebody checks it. The
@@ -29,14 +29,18 @@ The three paths, and what each of them proves:
   node        the same recording through level.js     is the arithmetic right
   browser     piper-wasm in a tab, then level.js      is the tab the same
 
-The third one cannot run from here; it needs static/tts/check.html open in a
+The third one cannot run from here; it needs tools/ttscheck.html open in a
 browser. --serve renders the batch, puts it where that page can fetch it and
 serves the page, and the page hands its results back over PUT. Then:
 
-    python3 tools/leveling.py --serve 8771        # leave this running
-    open http://localhost:8771/static/tts/check.html
+    python3 tools/ttscheck.py --serve 8771        # leave this running
+    open http://localhost:8771/tools/ttscheck.html
                                                   # press one of the batch buttons
-    python3 tools/leveling.py --browser dump/     # in another shell
+    python3 tools/ttscheck.py --browser dump/     # in another shell
+
+The same folder in both, and that is not incidental: it is where the
+recordings the page was given are, and all three columns have to be about the
+same recording.
 
 Handing files back to a shell rather than measuring them in the page is the
 point of the arrangement. The page cannot measure itself - the only ffmpeg it
@@ -127,7 +131,7 @@ def node_level(raw: Path, target: Path) -> dict:
     if not node:
         raise SystemExit("This needs node to run static/tts/level.js outside a browser.")
     result = subprocess.run(
-        [node, str(ROOT / "tools" / "leveling.mjs"), str(raw), str(target)],
+        [node, str(ROOT / "tools" / "ttscheck.mjs"), str(raw), str(target)],
         capture_output=True, text=True)
     if result.returncode != 0:
         raise SystemExit(f"level.js failed on {raw.name}:\n{result.stderr.strip()[-600:]}")
@@ -273,8 +277,8 @@ def serve(port: int, work: Path, languages: list[str]) -> int:
             self.send_header("Cache-Control", "no-store")
             super().end_headers()
 
-    print(f"\n  http://localhost:{port}/static/tts/check.html")
-    print(f"  then: python3 tools/leveling.py --browser {work}\n")
+    print(f"\n  http://localhost:{port}/tools/ttscheck.html")
+    print(f"  then: python3 tools/ttscheck.py --browser {work}\n")
     ThreadingHTTPServer(("127.0.0.1", port),
                         lambda *a: Handler(*a, directory=str(ROOT))).serve_forever()
     return 0
@@ -312,16 +316,22 @@ def main(argv: list[str]) -> int:
         return serve(port, keep or ROOT / "dump", languages)
 
     with tempfile.TemporaryDirectory() as tmp:
-        work = keep or Path(tmp)
+        # --browser names the folder --serve rendered into, so that is where
+        # the work happens too. Rendering somewhere else would give the
+        # container and the browser two different recordings of each sentence
+        # - and piper does not render one sentence the same way twice, so the
+        # table would show that noise in the browser column and call it a
+        # difference between the two paths. Found by doing exactly that.
+        work = keep or browser or Path(tmp)
         work.mkdir(parents=True, exist_ok=True)
         print(f"Rendering into {work}")
         rows = render(work, browser, languages)
         if not rows:
             return 1
         table(rows, browser is not None)
-        (work / "leveling.json").write_text(json.dumps(rows, indent=2, ensure_ascii=False),
+        (work / "ttscheck.json").write_text(json.dumps(rows, indent=2, ensure_ascii=False),
                                             encoding="utf-8")
-        print(f"\n  numbers in {work / 'leveling.json'}")
+        print(f"\n  numbers in {work / 'ttscheck.json'}")
     return 0
 
 

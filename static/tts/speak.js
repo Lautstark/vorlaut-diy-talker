@@ -8,7 +8,7 @@
 //
 // What comes out is what tts.synthesize() returns: a 16 kHz mono 16 bit WAV,
 // trimmed and levelled. The levelling is level.js next door, measured against
-// the container in tools/leveling.py.
+// the container in tools/ttscheck.py.
 //
 // This file needs a browser; level.js deliberately does not. The split is so
 // that the arithmetic can be checked without one.
@@ -32,7 +32,7 @@ export const ONNX_RUNTIME = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0
 //   </script>
 //
 // A module cannot install that for its own import - import maps have to be in
-// the document before the first module loads. static/tts/check.html shows it.
+// the document before the first module loads. tools/ttscheck.html shows it.
 // Shipping for real, all of this is vendored and the map goes away.
 
 let piper = null;
