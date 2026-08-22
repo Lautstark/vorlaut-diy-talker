@@ -332,23 +332,18 @@ image and drove `esptool`, so the cable is not merely the only *new* path — it
 is the only path, and it had never touched hardware when the Python was
 deleted.
 
-**The last built payload cannot be regenerated.** `firmware/vorlaut/data/` is
-gitignored, so it survived the deletion by not being in git at all: six files,
-144 KB, built 2026-08-21. It is what a bench run has to push, and until
-`runBuild()` exists it is the only payload there will be.
+**Content is not backed up, and that is deliberate.** `firmware/vorlaut/data/`
+and `content/` are both gitignored, so they survived the deletion by never
+having been in git — the last built payload, the board being worked on, its
+symbols and twenty recorded sentences. None of it can be rebuilt while
+`runBuild()` throws, and the recordings could not be rebuilt anyway because
+piper renders the same sentence differently every time.
 
-`content/` is in the same position and matters more — the board being worked
-on, its symbols, the rendered tile cache and twenty recorded sentences, 14 MB,
-none of it in any commit. The tiles and `layout.bin` are re-derivable in
-principle, because `static/tiles.js` and `static/layout_format.js` still
-render and
-[`tests/test_tile_render_js.py`](../tests/test_tile_render_js.py) shows how to
-drive them from node. **The recordings are not**: piper renders the same
-sentence differently every time, so those exact files cannot be made again.
-
-A copy of both was taken to `~/Code/vorlaut-data-rescue-2026-08-22` on the
-evening of the deletion, outside the repository, with a README saying what is
-in it. That is a stopgap on one machine, not a backup.
+It is test data and its loss was accepted deliberately when this was raised.
+Recorded here only so that nobody later mistakes the gitignore for an
+oversight, or spends an afternoon trying to recover something nobody wanted
+kept. **The thing that actually needs fixing is `runBuild()`,** not the data
+it would have produced.
 
 Two instructions in [`cable.md`](cable.md) still say to run `app.py` to serve
 the bench, and `static/backend.js` still imports `buildManifest`/`buildFile`
