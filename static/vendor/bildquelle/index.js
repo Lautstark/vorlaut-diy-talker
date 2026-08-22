@@ -350,7 +350,7 @@ var ArasaacProvider = class {
   #labels = /* @__PURE__ */ new Map();
   #lastError = null;
   status() {
-    return this.#lastError ? { kind: "error", message: this.#lastError } : { kind: "ready" };
+    return this.#lastError ? { kind: "error", code: "network", message: this.#lastError } : { kind: "ready" };
   }
   isReady() {
     return true;
@@ -454,7 +454,7 @@ var MetacomProvider = class {
   #byPath = /* @__PURE__ */ new Map();
   #objectUrls = /* @__PURE__ */ new Map();
   #rootName = "";
-  #status = { kind: "needs-setup", message: "Noch kein METACOM-Ordner ausgew\xE4hlt." };
+  #status = { kind: "needs-setup", code: "no-folder", message: "Noch kein METACOM-Ordner ausgew\xE4hlt." };
   #listeners = /* @__PURE__ */ new Set();
   subscribe(listener) {
     this.#listeners.add(listener);
@@ -556,13 +556,14 @@ var MetacomProvider = class {
     }
     this.#setStatus({
       kind: "needs-setup",
+      code: "permission-needed",
       message: "Zugriff auf den METACOM-Ordner muss erneut best\xE4tigt werden."
     });
     return false;
   }
   /** Firefox/Safari path: <input type="file" webkitdirectory>. Session-only. */
   async useFileList(fileList) {
-    this.#setStatus({ kind: "loading", message: "Ordner wird gelesen \u2026" });
+    this.#setStatus({ kind: "loading", code: "reading-folder", message: "Ordner wird gelesen \u2026" });
     const files = /* @__PURE__ */ new Map();
     const entries = [];
     for (const file of Array.from(fileList)) {
@@ -578,7 +579,7 @@ var MetacomProvider = class {
   }
   /** Last-resort path: a zip of the user's own symbol folder, unpacked in-browser. */
   async useZip(file) {
-    this.#setStatus({ kind: "loading", message: "ZIP wird entpackt \u2026" });
+    this.#setStatus({ kind: "loading", code: "unpacking-zip", message: "ZIP wird entpackt \u2026" });
     const { default: JSZip } = await import("./jszip.min-GIQOFNRZ.js");
     const zip = await JSZip.loadAsync(file);
     const entries = [];
@@ -599,7 +600,9 @@ var MetacomProvider = class {
     this.#byPath.clear();
     this.#rootName = "";
     await metacomStore.clear();
-    this.#setStatus({ kind: "needs-setup", message: "Noch kein METACOM-Ordner ausgew\xE4hlt." });
+    this.#setStatus(
+      { kind: "needs-setup", code: "no-folder", message: "Noch kein METACOM-Ordner ausgew\xE4hlt." }
+    );
   }
   /** Re-walks the folder, for when the user has added symbols since the last index. */
   async rebuildIndex() {
@@ -607,13 +610,14 @@ var MetacomProvider = class {
   }
   /* ------------------------------------------------------------- index ---- */
   async #buildIndexFromHandle(handle) {
-    this.#setStatus({ kind: "loading", message: "Symbole werden indiziert \u2026" });
+    this.#setStatus({ kind: "loading", code: "indexing", message: "Symbole werden indiziert \u2026" });
     const entries = [];
     try {
       await walk(handle, "", entries);
     } catch (err) {
       this.#setStatus({
         kind: "error",
+        code: "read-failed",
         message: err instanceof Error ? err.message : "Ordner konnte nicht gelesen werden."
       });
       return;
@@ -626,7 +630,11 @@ var MetacomProvider = class {
     this.#byPath = new Map(entries.map((e) => [e.path, e]));
     this.#rootName = rootName;
     this.#setStatus(
-      entries.length > 0 ? { kind: "ready" } : { kind: "error", message: "In diesem Ordner wurden keine Bilddateien gefunden." }
+      entries.length > 0 ? { kind: "ready" } : {
+        kind: "error",
+        code: "no-images",
+        message: "In diesem Ordner wurden keine Bilddateien gefunden."
+      }
     );
   }
   /* ------------------------------------------------------------ search ---- */

@@ -39,7 +39,12 @@ GERMAN_BY_DESIGN = {
 }
 
 SKIP_SUFFIX = {".png", ".svg", ".json", ".bin", ".stl", ".ico"}
-SKIP_PREFIX = ("content/", "example/symbols/")
+# static/vendor/ is somebody else's code, kept as built copies with their
+# provenance in a VENDORED.md beside them. English-in-the-code is a rule about
+# what we write; a vendored package agreed to none of our rules, and the German
+# in it is a default the host is meant to translate rather than a string that
+# escaped review. Editing it would be edited over on the next refresh anyway.
+SKIP_PREFIX = ("content/", "example/symbols/", "static/vendor/")
 
 
 def tracked_files() -> list[str]:

@@ -6,7 +6,7 @@ Not written here — this is a copy. Edit it upstream.
 | | |
 |---|---|
 | Source | https://github.com/Lautstark/bildquelle |
-| Commit | `9406424ca812f0e945851857bda4ec554e7cfcaa` |
+| Commit | `f62dfcc085a69fa90c562f8ce8f137e74c659a55` |
 | Vendored | 2026-08-22 |
 | Licence | MIT. Bundles [idb](https://github.com/jakearchibald/idb) (ISC) and, in the lazy chunk, [JSZip](https://stuk.github.io/jszip/) (MIT). |
 
