@@ -308,6 +308,52 @@ report a connection — but nothing should ever drive the pair in sequence.
   exercise. What a first run has to show is set out in
   [Before the Wi-Fi path can go](#before-the-wi-fi-path-can-go).
 
+## Running it on a device
+
+Nothing here needs Wi-Fi, sound or the case — a flashed board and a cable are
+enough, so this can be tried well before [bring-up.md](bring-up.md) reaches its
+last stage.
+
+**1. Check the one setting that stops everything.** *Tools → USB CDC On Boot*
+must be **Enabled**, or `Serial` is not the USB CDC and no part of this can
+work. Under `arduino-cli` it is already the default for this board.
+
+**2. Flash the firmware.** The content does not have to go with it — that is
+what the cable is for — so the program alone is enough:
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
+```
+
+Upload it with the same `--fqbn` and `-p /dev/cu.usbmodemXXXX`, as in
+[firmware.md](firmware.md). A device with an empty file system is a fine
+starting point here and is worth using at least once: it is the first row of
+the table below.
+
+**3. Build something to send, and serve the bench.**
+
+```bash
+.venv/bin/python build.py
+.venv/bin/python app.py --port 8798
+```
+
+**4. Open <http://localhost:8798/tools/serialcheck.html>**, press *Take the
+build from the editor*, then *Connect to a device* and pick the port. Then
+*Work out what is missing, then send it*.
+
+Close the serial monitor first if one is open. Two programs cannot hold the
+same port, and the symptom is a port that simply will not open.
+
+**5. Watch the device, not only the page.** All five displays should show
+*Kabel* with a count climbing, and the talker should come back by itself
+afterwards holding the new content. The page's log shows the device's own
+serial output inline — that is where a mount failure or a wrong partition
+scheme will say so.
+
+If nothing answers, the page says so within a moment rather than hanging: a
+port that does not reply `vorlaut` to `hello` is not the talker, and that is a
+different problem from a transfer that failed.
+
 ## Before the Wi-Fi path can go
 
 The Wi-Fi stack — `sync.h`, `discover.h`, `networks.h`, `pairing.h` and the
@@ -329,7 +375,8 @@ its bar is one real end-to-end success. Whoever is next asked to reduce
 complexity should not read the second as permission for the first.
 
 What has to be true, written down before the run rather than remembered after
-it:
+it. **Results belong in this table as they come in** — a row that was checked
+once and remembered is a row nobody can audit later:
 
 | | |
 |---|---|
@@ -339,6 +386,11 @@ it:
 | the device *speaks* the new content | not merely reports success |
 | a second transfer needs no port picker | `getPorts()` finds the device again |
 | a device that already holds content is updated | rather than confused by what is already there |
+
+None of the six has been run. The bench can produce every one of them except
+the third — pulling the cable out mid-transfer is a thing only hands can do —
+and the third is the one whose device-side behaviour has no test at all, since
+it is the timeout, the drain and the refusal that only `hello` clears.
 
 Three things about the hardware that bear on that list, from
 [bring-up.md](bring-up.md):
