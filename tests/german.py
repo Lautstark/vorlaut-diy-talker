@@ -166,6 +166,21 @@ ALLOWED = [
     ("`nicht da`", "what the device says for a missing file"),
     ('"Ich moechte nach draussen"', "German input for a speech probe"),
     ('"Wahlweise"', "a heading doctor.py prints in German"),
+    # The batch tools/ttscheck.py speaks, and the measurements it produced in
+    # docs/browser-tts.md. A harness that levels German speech has to have
+    # German speech to level: what is being checked is how loud a sentence
+    # comes out, and the words are the input. They are also the sentences this
+    # project exists to say - the first four are the ones in
+    # example/layout.json - so a batch of English placeholders would measure
+    # the wrong thing. Each fragment is cut short enough to match both the
+    # source line and the truncated row in the table.
+    ("Ich möchte noch nicht ins B", "a sentence in the levelling batch"),
+    ("Können wir bitte nach drauß", "a sentence in the levelling batch"),
+    ("Das Essen schmeckt mir heut", "a sentence in the levelling batch"),
+    ("Mir ist langweilig, ich hät", "a sentence in the levelling batch"),
+    ("Wo ist Mama?", "a sentence in the levelling batch"),
+    ("Mir tut der Bauch weh, und ", "a sentence in the levelling batch"),
+    ("Ich habe Durst und möchte e", "a sentence in the levelling batch"),
     # Regular expressions and word lists that match German.
     ('re.search(r"[äöüßÄÖÜ]"', "a check for German"),
     ('re.search(r"[äöüß]"', "a check for German"),

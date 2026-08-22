@@ -8,7 +8,7 @@
 //
 // So this is the second implementation of that chain, and the reason it is
 // allowed to exist is that it is checked against the first one:
-// tools/leveling.py runs a batch through both and measures each result with
+// tools/ttscheck.py runs a batch through both and measures each result with
 // the real ffmpeg.
 //
 // Deliberately free of the browser - no AudioContext, no DOM, no fetch. Web
@@ -374,7 +374,7 @@ export function truePeakDb(x, rate) {
  * last, so it measures what the trim actually left rather than the silence
  * that went in.
  *
- * Returns the numbers as well as the bytes. tools/leveling.py prints them
+ * Returns the numbers as well as the bytes. tools/ttscheck.py prints them
  * next to what ffmpeg says about the same file, and a levelling nobody can
  * check is how the 13 dB in ffmpeg.wasm stayed invisible for three years.
  */

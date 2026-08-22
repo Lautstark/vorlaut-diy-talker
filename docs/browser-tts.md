@@ -6,12 +6,12 @@ today it is two programs on a machine somebody else runs — `piper` renders the
 sentence and `ffmpeg` levels it (`tts.py`). Neither exists in a browser.
 
 This document is what was measured, not what is expected. The numbers come from
-`tools/leveling.py`, which renders a batch with the real piper, levels each one
+`tools/ttscheck.py`, which renders a batch with the real piper, levels each one
 both ways, and hands both results to the real ffmpeg to be measured. Nothing
 below is an estimate.
 
 ```bash
-python3 tools/leveling.py
+python3 tools/ttscheck.py
 ```
 
 Most of the question was already answered next door, in mitreden's
@@ -29,8 +29,8 @@ That finding is why `static/tts/level.js` exists at all.
 | [`static/tts/level.js`](../static/tts/level.js) | The `ffmpeg` half: trim, fade, pad, measure, level, write a 16 kHz mono 16 bit WAV. No browser needed — no `AudioContext`, no DOM — so it can be run and measured outside one |
 | [`static/tts/speak.js`](../static/tts/speak.js) | The voice: piper through vits-web, or Azure straight from the tab. Same `piper:`/`azure:` ids as `layout.json` |
 | [`static/tts/voices.json`](../static/tts/voices.json) | Which voices actually work in a browser. Meant to be vendored by vorlaut and mitreden rather than kept twice |
-| [`static/tts/check.html`](../static/tts/check.html) | The page that drives both in a real tab |
-| [`tools/leveling.py`](../tools/leveling.py) | The harness. Also `--serve`, which hands the batch to that page |
+| [`tools/ttscheck.html`](../tools/ttscheck.html) | The page that drives both in a real tab |
+| [`tools/ttscheck.py`](../tools/ttscheck.py) | The harness. Also `--serve`, which hands the batch to that page |
 | [`tests/test_browser_tts.py`](../tests/test_browser_tts.py) | Stops the two implementations drifting apart in silence |
 
 vorlaut needs WAV, so there is no MP3 encoder here — the spike's `lamejs` is
@@ -80,16 +80,18 @@ en-07   Where is my bag?                   -16.02   -16.05   -0.03    -2.84  0.0
 ```
 
 **Seventeen of twenty agree to within 0.13 LU.** No result is above the
-−1.5 dBTP ceiling. The three that do not agree are exactly the three whose
-loudness range is not zero, which is the whole explanation:
+−1.5 dBTP ceiling. Every row that does *not* agree has a loudness range above
+zero — not every row with one disagrees, but no row without one ever does. That
+is the whole explanation:
 
 ffmpeg's `loudnorm` normalises with one gain while it can, and switches to
 compressing when that gain would push the true peak through the ceiling. On a
 synthesised voice reading one sentence there is almost nothing to compress — so
 on seventeen of these it also just applies a gain and stops at the ceiling,
-which is what `level.js` does, and the two land on the same number. On the three
-with some range left, ffmpeg compresses and gets 0.4 to 2.3 LU more level out of
-them. `level.js` does not compress, so it comes out that much quieter.
+which is what `level.js` does, and the two land on the same number. Where there is some range left, ffmpeg may compress instead, and then gets up to
+2.3 LU more level out of the sentence. `level.js` never compresses, so it comes
+out that much quieter. Across several runs it is one or two sentences in twenty,
+and always long ones.
 
 This was worth being wrong about in both directions before settling it. A
 lookahead true-peak limiter was written and measured: it tracks −16 LUFS
@@ -108,7 +110,7 @@ gives the same answer to the second decimal on every row tried.
 
 `level.js` never touches Web Audio, so the same file runs under node. It would
 be a poor trade if the two then disagreed, so that is checked rather than
-assumed: `--serve` hands the batch to `check.html`, the page levels each
+assumed: `--serve` hands the batch to `ttscheck.html`, the page levels each
 recording and hands it back, and the results are compared byte for byte.
 
 **All twenty are byte-identical to what node produced.** Not "within a LU" —
