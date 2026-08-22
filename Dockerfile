@@ -16,7 +16,21 @@ RUN apt-get update \
 # piper speaks without an account anywhere. It brings onnxruntime along and
 # grows the image by roughly 200 MB - which is the whole price of a talker
 # that needs no key.
-RUN pip install --no-cache-dir piper-tts
+#
+# Pinned exactly, and more tightly than Pillow in requirements.txt, for a
+# reason that is specific to this one: piper renders the audio, and nothing
+# downstream can tell that it changed. A cached WAV is named by
+# tts.fingerprint(), which covers the text, the model, the ffmpeg chain and
+# PIPELINE_VERSION - but not the version of piper that spoke it. So a minor
+# release that alters the output leaves every existing recording sitting in
+# the cache under a name that says it is the same, next to new ones that are
+# not. Nobody would hear it until two sentences on the same device sounded
+# like two different people.
+#
+# The bound is therefore not about API breakage, which a ceiling at the next
+# major would cover. It is that any change at all has to be a decision:
+# bump this line, and re-render deliberately.
+RUN pip install --no-cache-dir piper-tts==1.7.0
 
 WORKDIR /app
 COPY requirements.txt ./
