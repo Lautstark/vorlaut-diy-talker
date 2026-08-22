@@ -31,6 +31,7 @@ const HELPERS = {
   gridOrder: obf.gridOrder,
   grid: obf.grid,
   order: obf.order,
+  normalizeLayout: obf.normalizeLayout,
 };
 
 /** Whatever the call answers, or the message it refused with. */

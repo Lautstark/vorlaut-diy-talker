@@ -14,14 +14,20 @@ browser and without a byte of the container being written yet.
 Three questions, and they are not the same question:
 
   the helpers      split_symbol, join_symbol, image_id, symbol_of, css_color,
-                   the locale fallback, the grid and the order boards come back
-                   in - each on a table of awkward arguments, because these are
-                   where two implementations of one rule quietly drift apart.
+                   the locale fallback, the grid, the order boards come back in
+                   and normalize_layout - each on a table of awkward
+                   arguments, because these are where two implementations of
+                   one rule quietly drift apart.
   layout -> board  every layout below through both, compared field for field.
   board -> layout  the documents that came out of that, and a set of documents
                    nothing here would ever write: a third row of keys, links
                    by path and by name, an orphan, a picture carried as pixels,
-                   a locale nobody has heard of.
+                   a locale nobody has heard of. Through normalize_layout(),
+                   which is where a foreign board is given the colour, the four
+                   slots and the timeout it did not come with - it is in
+                   layout.py rather than in obf.py, and leaving it out would
+                   leave documentToLayout() answering with a layout nobody may
+                   save.
 
 The last group is the one that matters most and is the easiest to leave out.
 An export only ever meets its own documents; an import meets whatever a
@@ -127,6 +133,8 @@ HELPERS = {
     "gridOrder": obf._grid_order,
     "grid": obf._grid,
     "order": lambda raw: document_of(raw).order(),
+    # layout.py's, and the second half of this port - see the docstring.
+    "normalizeLayout": normalize_layout,
 }
 
 
@@ -183,7 +191,56 @@ def helper_calls() -> list[tuple[str, list]]:
                   {"grid": {"order": [None, [], ["x"]]}, "buttons": []},
                   {"grid": {"order": [["a", "a"]]}, "buttons": [{"id": "a"}]}]:
         calls.append(("gridOrder", [board]))
+    calls.extend(("normalizeLayout", [raw]) for raw in normalize_cases())
     return calls
+
+
+def normalize_cases() -> list[dict]:
+    """Files in every shape normalize_layout() is there to survive.
+
+    Half of these cannot come out of an import at all - a layout with 26 sets,
+    a `sets` that is a dictionary - and they are here because this is the
+    function that decides what a layout is, and the browser now has a second
+    copy of that decision. The other half is exactly what a foreign board
+    becomes on the way in: no colour, a timeout somebody wrote as a string,
+    more sets switched on than the device can hold.
+    """
+    cases: list[dict] = [{}, {"sets": []}]
+    for timeout in [900, "900", " 900 ", 900.9, -900.9, True, None, "",
+                    "9_0_0", "1e3", "0x10", "900.5", 0, 5, 10, 86400, 86401,
+                    2 ** 40, [900], {"seconds": 900}]:
+        cases.append({"sleep_timeout_seconds": timeout, "sets": []})
+    for language in ["de", "en", "DE", " de ", "de-DE", "kl", "", None, 5]:
+        cases.append({"language": language, "sets": []})
+    for voice in ["piper:de_DE-thorsten-low", " azure:de-DE-KatjaNeural ",
+                  "piper:", "espeak:x", "", None, 5]:
+        cases.append({"voice": voice, "sets": []})
+    cases.append({"sets": [{}]})
+    cases.append({"sets": [{}, {}, {}, {}, {}, {}]})          # six, five active
+    cases.append({"sets": [{"active": False}] * 6})
+    cases.append({"sets": [{"active": None}, {"active": 0}, {"active": "no"}]})
+    cases.append({"sets": [{"name": " Spaced "}, {"name": ""}, {"name": 5},
+                           {"name": None}]})
+    cases.append({"sets": [{"color": c} for c in
+                           ["#abc", "3B5BDB", "", "not a colour", "  #ff8bc7  ",
+                            "#ABCDEF"]]})
+    # A palette colour per index, which is what a board with no colour of its
+    # own is given - and the seventh set starts round again.
+    cases.append({"sets": [{} for _ in range(7)]})
+    cases.append({"sets": [{"slots": []}, {"slots": [{"text": " a "}]},
+                           {"slots": [{}, {}, {}, {}]},
+                           {"slots": [{"text": 5, "symbol": None}]},
+                           {"slots": ["not a slot", None, 5, []]}]})
+    cases.append({"sets": [{"slots": {"a": 1}}]})     # not a list: no slots
+    cases.append({"sets": [{"slots": [{}, {}, {}, {}, {}]}]})     # five: refused
+    cases.append({"sets": ["not a set", None, 5, []]})
+    cases.append({"sets": [{} for _ in range(25)]})
+    cases.append({"sets": [{} for _ in range(26)]})               # refused
+    cases.append({"sets": {"one": {}}})                           # refused
+    cases.append({"sets": None})
+    cases.append({"sets": [{"symbol": " ja.png "}, {"symbol": None},
+                           {"symbol": 5}]})
+    return cases
 
 
 # --- Layouts to drive through both -------------------------------------------
@@ -542,8 +599,15 @@ def main() -> int:
 
     print("\n--- the helpers, on the arguments that bite --------------------")
     for (call, args), answer in zip(helpers, answers["helpers"]):
-        want = HELPERS[call](*args)
-        compare(f"{call}({', '.join(repr(a) for a in args)})", want, answer)
+        name = f"{call}({', '.join(repr(a) for a in args)})"
+        if len(name) > 90:
+            name = name[:87] + "...)"
+        try:
+            want = HELPERS[call](*args)
+        except BuildError as exc:
+            compare_refusal(name, exc, answer)
+            continue
+        compare(name, want, answer)
 
     print("\n--- a layout becomes the same document -------------------------")
     for (name, layout), answer in zip(exports, answers["exports"]):
@@ -553,13 +617,11 @@ def main() -> int:
 
     print("\n--- and a document the same layout -----------------------------")
     for (name, raw), answer in zip(imports, answers["imports"]):
-        # The mapping only. document_to_layout() ends in normalize_layout(),
-        # which is layout.py's and lands in the commit after this one; until
-        # then the two are compared at the point where the mapping stops, so
-        # that this stage is measured on its own rather than on a function
-        # neither of them has yet.
+        # The whole of it, normalize_layout() included: that is what turns a
+        # board from somewhere else into a layout that may be saved, and until
+        # both halves ran it this comparison stopped one function short.
         try:
-            want = with_normalize_stubbed(document_of(raw))
+            want = obf.document_to_layout(document_of(raw))
         except BuildError as exc:
             compare_refusal(name, exc, answer)
             continue
@@ -580,21 +642,6 @@ def main() -> int:
         return 1
     print("\n  All good.")
     return 0
-
-
-def with_normalize_stubbed(document: obf.Document) -> dict:
-    """document_to_layout() up to but not including normalize_layout().
-
-    Stubbed at the seam rather than by copying the function: obf.py is the
-    oracle and is not edited, and a second copy of the last four lines here
-    would be a third implementation to keep in step.
-    """
-    original = obf.normalize_layout
-    obf.normalize_layout = lambda raw: raw
-    try:
-        return obf.document_to_layout(document)
-    finally:
-        obf.normalize_layout = original
 
 
 if __name__ == "__main__":

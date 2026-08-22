@@ -28,11 +28,13 @@
 // **The device.** layout.bin stays exactly what layout_format.js writes. This
 // replaces the document somebody edits, not the file that gets flashed.
 
+import { LIMITS, PALETTE } from "./boot_data.js";
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_CODES,
   SLOTS_PER_SET,
   hexToRgb,
+  normalizeColor,
 } from "./layout_format.js";
 
 // --- What the spec calls things ---------------------------------------------
@@ -516,7 +518,7 @@ export function documentToLayout(document) {
   if (timeout !== undefined && timeout !== null) {
     raw.sleep_timeout_seconds = timeout;
   }
-  return raw;
+  return normalizeLayout(raw);
 }
 
 /** A BCP-47 locale down to the two codes this project has.
@@ -529,4 +531,118 @@ export function localeToLanguage(locale) {
   const code = text(locale).trim().toLowerCase().replace(/_/g, "-")
     .split("-")[0];
   return Object.hasOwn(LANGUAGE_CODES, code) ? code : DEFAULT_LANGUAGE;
+}
+
+
+// --- The complete shape ------------------------------------------------------
+//
+// normalizeLayout() is layout.py's, not obf.py's, and it is here because
+// document_to_layout() ends in it: a board that came from somewhere else has
+// no colour, no timeout it agrees with and however many slots its author felt
+// like, and this is what turns that into the shape everything downstream is
+// allowed to stop checking. Without it documentToLayout() answers with
+// `color: ""`, which is not a layout anybody may save.
+//
+// It lives in this module rather than in a layout.js that does not exist yet -
+// the same way layout.py's colour helpers live in layout_format.js, next to
+// the one thing that needs them. Whoever writes that module takes this with
+// them.
+//
+// The promise, unchanged: every set has a name, a colour and exactly four
+// slots, and every slot has a text and a symbol, whatever the document
+// happened to be missing.
+
+// What layout.py says, read where the page already reads it: the palette and
+// the two limits come out of boot_data.js, which tools/bootdata.py writes from
+// layout.py itself. One table rather than a second copy to keep level.
+export const MAX_SETS = LIMITS.maxSets;
+export const MAX_ACTIVE_SETS = LIMITS.maxActive;
+export const DEFAULT_PALETTE = PALETTE;
+// The one number that is in neither table. layout.py's DEFAULT_SLEEP_TIMEOUT.
+export const DEFAULT_SLEEP_TIMEOUT = 600;
+
+/** Python's int(value), which is not Number(value).
+ *
+ * The timeout arrives from ext_vorlaut_sleep_timeout_seconds, which a foreign
+ * document fills with whatever it likes, and normalize_layout() answers a
+ * TypeError or a ValueError with the default. Where the two languages differ
+ * is what counts as a number: Python truncates a float towards zero, reads a
+ * string of digits - underscores between them included - and refuses "1e3",
+ * "0x10" and "600.5", all of which Number() would take.
+ *
+ * Not reproduced: Python also accepts digits from other scripts, which is a
+ * sentence rather than a timeout wherever it turns up.
+ */
+function pyInt(value, fallback) {
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? Math.trunc(value) : fallback;
+  }
+  if (typeof value === "string") {
+    const digits = value.trim();
+    if (!/^[+-]?[0-9](_?[0-9])*$/.test(digits)) return fallback;
+    return Number(digits.replace(/_/g, ""));
+  }
+  return fallback;
+}
+
+/** layout.py's normalize_layout(): the file, brought into a complete shape. */
+export function normalizeLayout(raw) {
+  const timeout = Math.max(
+    10, Math.min(pyInt("sleep_timeout_seconds" in raw
+      ? raw.sleep_timeout_seconds : DEFAULT_SLEEP_TIMEOUT,
+      DEFAULT_SLEEP_TIMEOUT), 24 * 3600));
+
+  let language = text(raw.language || DEFAULT_LANGUAGE).trim().toLowerCase();
+  if (!Object.hasOwn(LANGUAGE_CODES, language)) {
+    // Not an error: an unknown language costs the menu labels, not the
+    // content. The device would fall back to English by itself.
+    language = DEFAULT_LANGUAGE;
+  }
+
+  // Which voice speaks. Only the shape is checked here, not whether this
+  // browser has that voice: a model on the other computer must not quietly
+  // overwrite a choice that was made deliberately.
+  let voice = text(raw.voice).trim();
+  if (!voice.startsWith("piper:") && !voice.startsWith("azure:")) voice = "";
+
+  const sets = raw.sets || [];
+  if (!Array.isArray(sets)) throw new Error(`"sets" has to be a list.`);
+  if (sets.length > MAX_SETS) {
+    throw new Error(`At most ${MAX_SETS} sets, found: ${sets.length}.`);
+  }
+
+  const cleanSets = sets.map((given, index) => {
+    const entry = isObject(given) ? given : {};
+    let slots = entry.slots || [];
+    if (!Array.isArray(slots)) slots = [];
+    // Exactly four slots: pad the missing ones, surplus ones are an error.
+    if (slots.length > SLOTS_PER_SET) {
+      throw new Error(`Set ${index + 1} has ${slots.length} slots, exactly ` +
+                      `${SLOTS_PER_SET} are allowed.`);
+    }
+    slots = [...slots];
+    while (slots.length < SLOTS_PER_SET) slots.push({ text: "", symbol: "" });
+    return {
+      name: text(entry.name || `Set ${index + 1}`).trim(),
+      // If the field is absent the set is active - that keeps layouts from
+      // before this distinction valid unchanged.
+      active: "active" in entry ? Boolean(entry.active) : true,
+      symbol: text(entry.symbol).trim(),
+      color: normalizeColor(
+        entry.color || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]),
+      slots: slots.map((slot) => {
+        const one = isObject(slot) ? slot : {};
+        return { text: text(one.text).trim(), symbol: text(one.symbol).trim() };
+      }),
+    };
+  });
+
+  const active = cleanSets.filter((entry) => entry.active).length;
+  if (active > MAX_ACTIVE_SETS) {
+    throw new Error(`At most ${MAX_ACTIVE_SETS} sets active at once, ` +
+                    `${active} are chosen. More do not fit on the device.`);
+  }
+
+  return { sleep_timeout_seconds: timeout, language, voice, sets: cleanSets };
 }
