@@ -23,6 +23,16 @@ class of failure it avoids.
 Sequential for the same reason: the ones that bind a port each pick their own,
 but they were written on the assumption that nothing else is listening.
 
+**Run this AFTER `git add`, not before, when you have added files.**
+test_language.py and test_links.py take their file list from `git ls-files`,
+so anything still untracked is invisible to them: the suite comes up green,
+and then goes red the moment you commit. That reads exactly like a real
+regression caused by the commit, and it is not one - it is the first time
+those two saw the file at all. It has now caught two people, once on a test
+fixture with an umlaut in its name and once on a folder of new fixtures.
+
+Everything else here reads the disk, which is why this is surprising.
+
 The exit code is what CI reads: 0 only if every test passed.
 """
 

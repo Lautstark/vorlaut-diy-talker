@@ -542,6 +542,12 @@ sketch to check that the firmware reads a format the way the build writes it,
 so those need a compiler; the rest need only what the web interface needs
 anyway.
 
+**Adding a test or a fixture? `git add` first, then run.** `test_language.py`
+and `test_links.py` ask `git ls-files` what exists, so an untracked file is one
+they cannot see - the suite passes, and then fails on the very next commit,
+which looks like the commit broke something. The reasoning is in the docstring
+of `tests/run.py`.
+
 ---
 
 ## What is in the repo and what is not

@@ -244,6 +244,56 @@ const CLIENT_ONLY = {
     return { stopped, stored: device.stored, of: work.put.length };
   },
 
+  // Aborting on the last step. The check inside the loop cannot catch this
+  // one - there is no next turn of the loop - so it is the only case that
+  // proves the guard in front of "done" is load-bearing.
+  async cancelLast() {
+    const device = new MockDevice({});
+    const made = payload(13, 4);
+    const cable = new Cable(device.open(), { onLog: () => {} });
+    const hello = await cable.hello();
+    const work = plan(made, await cable.list(), hello, null);
+
+    const stop = new AbortController();
+    let stopped = null;
+    try {
+      await push(cable, made, work, {
+        signal: stop.signal,
+        onStep: (_w, _n, index, total) => { if (index === total - 1) stop.abort(); },
+      });
+    } catch (error) {
+      stopped = error.name;
+    }
+    const sent = new TextDecoder().decode(device.transcript());
+    await cable.close();
+    if (stopped !== "AbortError") throw new Error(`stopped with ${stopped}`);
+    if (sent.includes("> done")) {
+      throw new Error("done was sent after aborting on the last step");
+    }
+    return { stopped, stored: device.stored };
+  },
+
+  // The device reports gap and stall before every ok, and the client has to
+  // step over them AND record them. A client that stopped skipping unknown
+  // keywords would read "gap" where it expects "ok".
+  async timings() {
+    const device = new MockDevice({});
+    const made = payload(14, 3);
+    const cable = new Cable(device.open(), { onLog: () => {} });
+    const hello = await cable.hello();
+    const work = plan(made, await cable.list(), hello, null);
+    const result = await push(cable, made, work);
+    const seen = { gap: cable.worstGap, stall: cable.worstStall };
+    await cable.close();
+    if (result.stored !== work.put.length) {
+      throw new Error(`stored ${result.stored} of ${work.put.length}`);
+    }
+    if (!(seen.gap > 0) || !(seen.stall > 0)) {
+      throw new Error(`the timings did not arrive: ${JSON.stringify(seen)}`);
+    }
+    return seen;
+  },
+
   // Room the device has not got. Refused before "go", so nothing is sent.
   async nospace() {
     const device = new MockDevice({ total: 300 });   // smaller than the first file
@@ -284,6 +334,7 @@ async function readback(text) {
     list: lines.filter((l) => /^< (file|end list)/.test(l)),
     crc: [lines.find((l) => l.startsWith("< crc layout.bin 1a2b3c4d"))],
     big: [lines.find((l) => l.startsWith("< crc layout.bin deadbeef"))],
+    padded: [lines.find((l) => l.startsWith("< crc layout.bin 0000beef"))],
   };
 
   const encoder = new TextEncoder();
@@ -308,7 +359,7 @@ async function readback(text) {
         const line = rest.slice(0, cut);
         rest = rest.slice(cut + 1);
         const verb = line.slice(2).split(" ")[0];
-        const which = verb === "crc" ? (asked++ ? "big" : "crc") : verb;
+        const which = verb === "crc" ? ["crc", "big", "padded"][asked++] : verb;
         for (const answer of groups[which] || []) {
           await out.write(encoder.encode(answer + "\n"));
         }
@@ -321,6 +372,7 @@ async function readback(text) {
     list: await cable.list(),
     crc: hex8(await cable.crc(LAYOUT_FILE)),
     big: hex8(await cable.crc(LAYOUT_FILE)),
+    padded: hex8(await cable.crc(LAYOUT_FILE)),
   };
   await cable.close();
   return seen;
