@@ -43,6 +43,34 @@ The direction only goes one way, and it is the whole point:
 > checked. Refreezing to make a red test green would leave the browser
 > compared against itself, which is what these files exist to stop.
 
+## This does not make the Python removable
+
+It is worth saying outright, because the opposite is the natural inference from
+a commit that freezes an oracle's output and it would be wrong.
+
+**A live oracle re-derives the answer for any input. A fixture only answers for
+what was recorded.** So what is frozen here keeps regression detection on the
+recorded set, and does not keep the ability to work out what the right answer
+is for a case nobody recorded. The moment `TILE_PIPELINE` is bumped, or the
+layout format grows a field, or a symbol is added, these files cannot say what
+the new correct bytes are — Python has to come back to regenerate them, and all
+three freeze tools import it precisely so that it must.
+
+That makes them a **supplement to the oracles, not a replacement for them.**
+They are insurance against the check evaporating quietly; they are not the
+check itself.
+
+The bar for removing `tiles.py`, `tts.py`, `layout_format.py` and `obf.py` is
+unchanged by anything in this document: **replaced and proven on the bench.**
+Not "replaced", and not "the hardware arrived". Nothing here lowers it, and
+this file should not be cited as though it does.
+
+One removal that these do not bear on at all, because the two get conflated
+easily: the firmware's Wi-Fi stack — `discover.h`, `networks.h`, `pairing.h`,
+`sync.h` and the five-digit code — is not an oracle for anything. It is the old
+transport, its bar is one real end-to-end cable transfer, and it is written up
+in [`cable.md`](cable.md) under "Before the Wi-Fi path can go".
+
 ## What is now checked against something that is not itself
 
 ### The speech chain — the one that had nothing
@@ -217,8 +245,9 @@ much it would cost to be wrong:
    tones from an earlier build and got the same numbers, and
    `Lautstark/stimmquelle` ported this measurement independently and agreed
    within 0.03 dB.
-9. **After the deletion, the lock files can no longer be regenerated.** All
-   three freeze tools import Python modules. That is deliberate — it is what
-   stops a red test being "fixed" by refreezing — but it means that from then
-   on these references can only be read or discarded, never legitimately
-   rewritten. Discarding one should be as deliberate as deleting the firmware.
+9. **The lock files only answer for what was recorded**, which is the whole
+   shape of the deal with golden files and is why "this does not make the
+   Python removable" is at the top of this document rather than here. All
+   three freeze tools import Python modules, deliberately: it is what stops a
+   red test being "fixed" by refreezing, and it is what makes regenerating
+   them impossible after a deletion rather than merely inadvisable.
