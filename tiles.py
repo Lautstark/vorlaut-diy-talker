@@ -30,7 +30,13 @@ BORDER = 6               # border width, drawn by the firmware
 TILE_SIZE = IMG_SIZE - 2 * BORDER   # 116, what actually ends up as a file
 TILE_CACHE = config.CONTENT / "cache" / "tiles"
 TILE_INDEX = TILE_CACHE / "index.json"
-TILE_PIPELINE = 2        # bump when the rendering changes
+# Bump when the rendering changes - every tile is named after this, so a bump
+# renames all of them and costs one full re-sync per device. static/tiles.js
+# renders the same tiles for the browser and carries the same number; bumping
+# one and not the other is the failure nothing would report, so
+# tests/test_tile_render_js.py checks that they agree. Why the two can be
+# identical at all: docs/tile-rendering.md.
+TILE_PIPELINE = 2
 
 METACOM_PREFIX = "metacom:"
 
