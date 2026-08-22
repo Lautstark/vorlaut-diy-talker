@@ -80,3 +80,24 @@ check("both shapes come back as a picture, through the page's own funnel",
       Boolean(await symbols.metacomImageByName("ja"))
       && Boolean(await symbols.metacomImageByName("PNG_ohne_Rahmen/ja"))
       && (await symbols.metacomImageByName("PNG_ohne_Rahmen/nirgends")) === null);
+
+/* --- the id shapes bildquelle produces ------------------------------------ */
+
+// A picked directory handle indexes paths WITHOUT the root; only file lists
+// and zips put it in front. readMetacomFiles can only fabricate the rootful
+// shape, so the root-aware halves are checked as the pure functions they are:
+// cutting the first segment blind off a handle id would cut the rendering
+// folder itself and store the stem - the very loss this reference exists to
+// prevent.
+
+check("a handle-shaped id keeps its folder, because the root is not there",
+      symbols.pickReference("PNG_ohne_Rahmen/ja.png", "METACOM 9") === "metacom:PNG_ohne_Rahmen/ja"
+      && symbols.folderOf("PNG_ohne_Rahmen/ja.png", "METACOM 9") === "PNG ohne Rahmen");
+
+check("a rootful id loses exactly the root",
+      symbols.pickReference("METACOM_9/PNG_ohne_Rahmen/ja.png", "METACOM_9") === "metacom:PNG_ohne_Rahmen/ja"
+      && symbols.folderOf("METACOM_9/PNG_ohne_Rahmen/ja.png", "METACOM_9") === "PNG ohne Rahmen");
+
+check("a file straight under the root stays the bare stem, with nothing to hint",
+      symbols.pickReference("METACOM_9/ja.png", "METACOM_9") === "metacom:ja"
+      && symbols.folderOf("METACOM_9/ja.png", "METACOM_9") === "");
