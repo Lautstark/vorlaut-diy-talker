@@ -43,6 +43,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+
 def build_reader(target: Path) -> None:
     result = subprocess.run(
         ["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-O1",
@@ -53,6 +54,9 @@ def build_reader(target: Path) -> None:
 
 
 def node_or_stop() -> str:
+    # Plain node: tests/cable_node.mjs imports tools/cable.js and
+    # tools/cable_mock.js, both of which are still JavaScript. The TypeScript
+    # loader is only for the harnesses that reach into src/.
     node = shutil.which("node")
     if not node:
         raise SystemExit(

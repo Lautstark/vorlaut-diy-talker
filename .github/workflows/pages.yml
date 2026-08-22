@@ -1,17 +1,10 @@
 name: Deploy the board designer to GitHub Pages
 
-# The shape of this is bildhaft's deploy.yml, which had solved the same problem
-# first: test, then build, then deploy, with pull requests tested and never
-# published. What is not taken from it is the toolchain. bildhaft is Vite,
-# React and TypeScript with a lockfile; vorlaut's front end is native modules
-# with an import map and no build step, so "build" here is a copy - nothing is
-# compiled, minified or rewritten - and there is no npm in this file.
-#
-# There was a tools/pagesite.py that made three substitutions on the way into
-# dist/, and it is gone. Every one of them was a way for the published page to
-# differ from the page in the clone, which is how the last one shipped broken:
-# ui.html is the page now, relative paths and all, and dist/ is the same bytes
-# under a different name.
+# The shape is bildhaft's deploy.yml, which solved the same problem first: test,
+# then build, then deploy, with pull requests tested and never published. The
+# toolchain is now the same shape too - Vite and TypeScript - though without
+# React, because vorlaut's interface is plain DOM and there is nothing here
+# asking to be a component tree.
 
 on:
   push:
@@ -32,35 +25,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Nothing reaches Pages unless this passes. The suite is the same one
-  # ci-tests.yml already runs - the point of repeating it here is the gate, not
-  # the cover.
+  # Nothing reaches Pages unless this passes. Three toolchains, because the
+  # checks genuinely need three: vitest imports src/ directly, Playwright opens
+  # the built page in a browser, and tests/run.py compiles the firmware's own
+  # C++ readers to replay the browser's bytes into them.
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
 
-      # Nothing is installed. Python runs tests/run.py and is standard library
-      # only; the checks themselves need node, g++ and a Chrome, and the runner
-      # image has all three.
-      - name: The suite
+      - run: npm ci
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Unit and frozen references
+        run: npm test
+
+      - name: Cache the Playwright browser
+        id: browser
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: The page, built and opened
+        run: npm run test:e2e
+
+      - name: What needs a C++ compiler
+        # g++ comes with the runner image, so nothing is installed for it.
         run: python tests/run.py
 
-      - name: node, g++ and Chrome really were there
-        # tests/run.py skips rather than fails where one of these is missing,
-        # so a runner image that quietly dropped Chrome would leave this gate
-        # green with the one check that opens the page not having run - which
-        # is precisely the hole this workflow exists to close.
-        run: |
-          node --version
-          g++ --version | head -1
-          google-chrome --version
+      - name: g++ really was there
+        # tests/run.py skips rather than fails where g++ is missing, so a runner
+        # image that quietly dropped it would leave this gate green with the
+        # firmware's own readers never compiled - which is the whole of what
+        # that file is for now.
+        run: g++ --version | head -1
 
   build:
     needs: test
@@ -72,28 +83,15 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
+          cache: npm
+      - run: npm ci
 
-      - name: Assemble the site
-        # A copy, and the whole of it. ui.html becomes index.html because that
-        # is the name Pages serves at a directory, and that rename is the only
-        # difference between what is published and what is in the clone.
-        #
-        # The paths are named rather than the repository being uploaded whole:
-        # firmware/, tests/, case/ and docs/ have no business on a web server,
-        # and a wildcard would put every future one of them there too.
-        run: |
-          mkdir -p dist
-          cp ui.html dist/index.html
-          cp manifest.webmanifest dist/
-          cp -R static dist/
-          cp -R assets dist/
-
-      - name: Open what is about to be published
-        # The same check the suite runs against the clone, pointed at dist/.
-        # It is here for the one thing the first run cannot see: whether the
-        # copy above missed a file the page names. A stylesheet left out of
-        # dist/ is a page that renders unstyled and reports nothing.
-        run: node tests/browser/page.test.mjs dist index.html
+      - name: Build
+        # A project site is served from /<repo>/, so the bundle needs that base.
+        # For a user site (<user>.github.io) set BASE_PATH to "/" instead.
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build
 
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

@@ -1,0 +1,15 @@
+{
+  /* Two programs, because they run in two places and must not see each other's
+     globals. src/ is a browser: it has window and document and its setTimeout
+     returns a number. The config and test-harness files are node: they have
+     process and fs and their setTimeout returns a Timeout object. One shared
+     program would give the browser half node's globals, and the first symptom
+     of that is `clearTimeout(null)` type-checking against the wrong overload
+     rather than anything that looks like a mixed-up environment. */
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.e2e.json" }
+  ]
+}

@@ -1,0 +1,113 @@
+// Where the page ends and the outside begins.
+//
+// The app is a static site. Everything the page cannot work out for itself -
+// the layout, the symbols, the speech, the build - used to be a request to
+// app.py and is the browser doing it now: a folder chosen with the File System
+// Access API, bildquelle for the symbols, the vendored stimmquelle for the
+// speech, tiles.js and layout_format.js for the build. Each of those halves
+// was written and measured against the Python it replaced; backend/local.js is
+// where they stopped being spare parts.
+//
+// So the requests that used to be written out in eight modules are named here
+// instead, once. editor.js, picker.js, voices.js and settings.js ask for what
+// they need and are not told who answers.
+// Not the whole page, though - getting the result onto the talker is not among
+// them and cannot come across this way. The note at the foot of this file says
+// why, and is there so that the gap is a reserved place rather than a
+// discovery.
+//
+// The list shrinks as the rewrite lands. Searching and asking which sources
+// exist were here until the browser took both; what is left of symbols is the
+// ARASAAC download, which needs somewhere to put the file.
+//
+// The names are re-exported one at a time rather than with `export *`, so that
+// this list is the contract: adding a way for the page to reach the outside
+// means writing it down here, where the next implementation will have to
+// answer it too.
+export {
+  // The layout, and the two headers that say whether it moved underneath us
+  // and whether a build is due.
+  loadLayout,
+  saveLayout,
+
+  // Keeping a symbol, and showing what it will look like at the 15.21 mm the
+  // ScreenKey actually has. Finding one no longer comes through here - see
+  // symbols.js.
+  pickSymbol,
+  uploadSymbol,
+  previewInto,
+  symbolInto,
+
+  // Which voices can be spoken with here - a question the server answers
+  // afresh on every open, because a key or a model may have arrived since.
+  listVoices,
+  voiceFetchState,
+  startVoiceFetch,
+
+  // A sentence as sound, for listening to before it is kept.
+  synthesise,
+
+  // The Azure key and the METACOM folder: this installation, not this content,
+  // which is why they are not in layout.json.
+  readSettings,
+  writeSettings,
+
+  // The board as a document somebody else's software can open, and back.
+  // The short of it: a format only one program reads is a format that dies
+  // with the program.
+  exportBoard,
+  importBoard,
+
+  // Turning all of it into tiles and WAVs for the device, and reading back
+  // what that left - which is how the files reach whatever sends them.
+  runBuild,
+  buildManifest,
+  buildFile,
+
+  // The five digits. On the way out with the Wi-Fi sync that needs them - see
+  // the note at the foot of backend/local.js.
+  pairState,
+  confirmPairCode,
+} from "./local.js";
+
+// One implementation, named directly. This was a bare specifier resolved by an
+// import map in the page while there was no bundler; there is one now, so the
+// indirection bought nothing that a second entry here would not buy more
+// plainly. A second way for the page to reach the outside - a build that talks
+// to a device over WebSerial, a hosted variant - is a change to this line and
+// to nothing else, which is what the seam promised in the first place.
+
+
+// --- Reserved: getting it onto the device ------------------------------------
+//
+// Nothing above sends anything to the talker, and today that is correct: the
+// device pulls over Wi-Fi on its own schedule and the page is not in the
+// conversation at all. Over a cable it will be, and that operation is the one
+// thing in the eventual contract that does not fit the shape of the rest.
+//
+// Everything named above is one shot - ask, get a value, done. A sync over
+// WebSerial is not: a gesture, a port the user grants, an open stream, about
+// 1.5 MB with progress worth watching, a cancel that has to be able to arrive
+// mid-flight, and a close. Written as one more async function returning one
+// more value, it would have to keep its progress and its cancellation
+// somewhere else, and that is the shape that is expensive to undo once other
+// code has grown around it. So it is left unwritten rather than written small.
+// Whoever brings WebSerial is expected to add a slot of its own here, against
+// the grain of the list above, and that is not a mistake.
+//
+// What it will not get is the files as an argument. That was written here
+// before the cable was, and half of it was wrong: the transport does have to
+// be handed them, it just is not handed them by runBuild(). The build leaves
+// its files where something else comes and reads them - builder.py writes
+// data/ and the device fetches out of it - and the browser keeps exactly that
+// arrangement rather than inventing one. runBuild() still writes through
+// storage and still answers with nothing but its log; buildManifest() and
+// buildFile() read the result back afterwards, by name, the same way the
+// device has always read it. So the artefacts never travel in a return value,
+// which is the reason runBuild does not change meaning when it moves, and the
+// reason 1.5 MB does not pass through it.
+//
+// The list above is at its longest today. Most of it is here because the
+// server can do something the browser cannot do yet, and each of those leaves
+// the way searching left. What is still here when the rewrite is done is
+// storage and this: the two things a page genuinely cannot do by itself.

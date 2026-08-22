@@ -1,0 +1,110 @@
+/* What a board is, as the rest of the app passes it around.
+ *
+ * These shapes were only ever written down in three places that could not
+ * check each other: layout_format.ts, which turns one into the bytes the
+ * firmware reads; obf.ts, which turns one into a document other AAC software
+ * opens; and the seed in backend/local.ts that a first visit gets. Every
+ * module in between took an object and hoped.
+ *
+ * The names are the ones already on disk and in every saved layout - snake
+ * case where the firmware and the Open Board Format use it - because these are
+ * a description of stored data rather than a chance to rename it.
+ */
+
+/** One key: what it says, and the picture on it. */
+export interface Slot {
+  text: string;
+  /** A file name kept in the browser's store, or "metacom:<name>" for a
+   *  reference into somebody's own licensed collection. Empty means none. */
+  symbol: string;
+}
+
+/** One set of four keys, and the set key that switches to it. */
+export interface BoardSet {
+  name: string;
+  symbol: string;
+  /** Hex, "#RRGGBB". Drawn as a border around all five displays. */
+  color: string;
+  /** Absent counts as active - the flag arrived after boards already existed,
+   *  and a board written before it must not become an empty device. */
+  active?: boolean;
+  slots: Slot[];
+}
+
+export interface Layout {
+  sets: BoardSet[];
+  /** Which language the device's own menu speaks. */
+  language?: string;
+  /** The voice chosen for this board, "" or absent when none is. */
+  voice?: string;
+  sleep_timeout_seconds?: number;
+}
+
+/** A layout as it comes out of storage, with the two stamps that say whether
+ *  somebody else has written since we read and whether a build is due. */
+export interface HeldLayout {
+  layout: Layout | null;
+  version: string | null;
+  buildCurrent: string | null;
+}
+
+/** What a write answers with: the conflict case is a value rather than a
+ *  throw, because the caller has something to say about it. */
+export interface SaveResult {
+  conflict?: boolean;
+  saved?: Layout;
+  version?: string | null;
+  buildCurrent?: string | null;
+}
+
+/** This installation rather than this content, which is why none of it is in
+ *  the layout: an Azure key and where somebody's METACOM folder is. */
+export interface Settings {
+  azureKey: { set: boolean; hint: string };
+  azureRegion: string;
+  azureSecret?: string;
+  metacom: {
+    path: string;
+    ok: boolean;
+    count: number;
+    keywords: boolean;
+    fixed: boolean;
+  };
+  local?: boolean;
+}
+
+/** What the settings sheet asks to be written. A subset of Settings, because
+ *  the sheet holds the fields somebody can type and not the ones the provider
+ *  answers for - and azureKey is absent unless it was typed, since an untouched
+ *  field must not wipe the stored key. */
+export interface WantedSettings {
+  azureRegion: string;
+  metacom: string;
+  azureKey?: string;
+}
+
+/** A voice as the picker shows it. */
+export interface OfferedVoice {
+  id: string;
+  label: string;
+  language: string;
+  ready: boolean;
+}
+
+export interface VoiceList {
+  voices: OfferedVoice[];
+  /** What would speak if somebody pressed play now. */
+  active: string;
+  /** What layout.json says. The settings sheet opens on this one; between
+   *  opening it and pressing Save the two can differ. */
+  chosen: string;
+  backend: string;
+}
+
+/** A refused pairing code is an answer, not a failure - it says how many tries
+ *  are left - so it comes back as a value the way a save conflict does. */
+export interface PairAnswer {
+  ok: boolean;
+  error?: string;
+  left?: number;
+}

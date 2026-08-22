@@ -5,12 +5,12 @@
 > rendered survives as the frozen tiles in `tests/reference/tiles/`, and
 > [frozen-references.md](frozen-references.md) says what that does and does
 > not still check. This document is kept because the reasoning below is why
-> `static/tiles.js` is written the way it is - the Lanczos arithmetic, the
+> `src/data/tiles.ts` is written the way it is - the Lanczos arithmetic, the
 > premultiply, the rounding - and none of that changed with the deletion.
 
 The app is being rewritten as a static site with no server behind it, so
 `render_symbol()` in `tiles.py` had to be written a second time
-in the browser, as [`static/tiles.js`](../static/tiles.js). This is what that
+in the browser, as [`src/data/tiles.ts`](../src/data/tiles.ts). This is what that
 port has to get right, how far off it actually is, and why the answer decided
 what the JavaScript does.
 
@@ -104,7 +104,7 @@ broken, and no version bump repairs that.
 **The hand-written Lanczos costs 50–200 ms per tile** against 1–20 ms for
 `drawImage`, on the fixtures above. For a page that renders a handful of tiles
 per set that is not worth a second thought, and it buys an output defined by
-[`static/tiles.js`](../static/tiles.js) alone.
+[`src/data/tiles.ts`](../src/data/tiles.ts) alone.
 
 **So `TILE_PIPELINE` stays at 2.** The browser produces the tiles the devices
 already have. Nothing renames, nothing re-syncs, and the two implementations
@@ -112,7 +112,7 @@ can sit side by side for as long as the rewrite takes.
 
 ## Keeping it that way
 
-Everything in `static/tiles.js` except decoding the PNG is arithmetic on plain
+Everything in `src/data/tiles.ts` except decoding the PNG is arithmetic on plain
 arrays, so [`tests/test_tile_render_js.py`](../tests/test_tile_render_js.py)
 runs it under node against tiles frozen from Pillow on every CI run — no
 browser and, since `tools/tilefreeze.py` wrote those

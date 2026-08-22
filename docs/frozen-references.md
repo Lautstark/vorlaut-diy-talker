@@ -26,11 +26,11 @@ the Python halves were deleted, and this is what is left behind them.
 
 | | frozen from | needs, to check it | what it protects |
 |---|---|---|---|
-| [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `static/vendor/stimmquelle/` |
-| [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `static/tiles.js` |
-| [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `static/layout_format.js` |
-| [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `static/symbols.js` |
-| [`tests/reference/obf.lock.json`](../tests/reference/obf.lock.json) | `obf.py` and `normalize_layout()` in `layout.py` | node | `static/obf.js` |
+| [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `node_modules/@lautstark/stimmquelle/` |
+| [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `src/data/tiles.ts` |
+| [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `src/data/layout_format.ts` |
+| [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `src/data/symbols.ts` |
+| [`tests/reference/obf.lock.json`](../tests/reference/obf.lock.json) | `obf.py` and `normalize_layout()` in `layout.py` | node | `src/data/obf.ts` |
 
 Each was written by a tool that could only run while the Python half was here
 — `tools/ttsfreeze.py`, `tools/tilefreeze.py`, `tools/layoutfreeze.py`,
@@ -101,8 +101,8 @@ verification was `tools/ttscheck.py`, run by hand,
 whose result exists as a table in [`browser-tts.md`](browser-tts.md) that
 nothing regenerates.
 
-[`tests/browser/level.test.mjs`](../tests/browser/level.test.mjs) now runs the
-module, via [`tests/test_browser_js.py`](../tests/test_browser_js.py) so
+[`tests/unit/level.test.ts`](../tests/unit/level.test.ts) now runs the
+module, via [`npm test`](../npm test) so
 that `python3 tests/run.py` picks it up. Four kinds of frozen reference:
 
 - **The ruler.** Five tones measured by `ffmpeg`'s `ebur128`. `integratedLufs()`
@@ -173,7 +173,7 @@ nothing, so the obvious conclusion is that this check survives on its own.
 
 It does not, and the reason is worth keeping. The reader survives; what it was
 compared against did not. `normalize_layout()` in `layout.py` built every input
-and `static/layout_format.js` has no equivalent — only `activeSets` and
+and `src/data/layout_format.ts` has no equivalent — only `activeSets` and
 `normalizeColor`. `expected()` built the field lines the reader was held
 against. And `render_layout_bin()` was the only opinion on whether the
 JavaScript bytes were right. Delete Python and what is left is a reader that
@@ -202,7 +202,7 @@ compiled at test time, the speech chain has `ffmpeg`, and symbol search is a
 naming rule two implementations both state. A `.obf` is a mapping this project
 invented — which set becomes which board, what a set key is, where the colour
 lives — so `obf.py` was the entire outside opinion on whether
-[`static/obf.js`](../static/obf.js) is right.
+[`src/data/obf.ts`](../src/data/obf.ts) is right.
 
 `tests/test_obf_js.py` compared the two live and imported `obf` at the top, so
 it could not survive the deletion in a form that reported anything: it would
@@ -252,7 +252,7 @@ agreeing about a mapping `obf.py` no longer had.
 
 A symbol lives in `layout.json` as `metacom:essen`. `metacom.py` keys the
 collection by the file's stem and `obf.py` reads it back that way; the browser
-gets a path out of the vendored `bildquelle` package and `static/symbols.js`
+gets a path out of the vendored `bildquelle` package and `src/data/symbols.ts`
 turns it into the same reference. If those drift, every layout that exists
 points at symbols nobody can find.
 
@@ -283,7 +283,7 @@ check — found by mutation testing, not by reading.
 Every lock file answers only for the cases in it, and for the OBF converter
 that limit bites hardest: `obf.py` is gone, so no case can ever be added.
 
-[`tests/browser/obf_roundtrip.test.mjs`](../tests/browser/obf_roundtrip.test.mjs)
+[`tests/unit/obf_roundtrip.test.ts`](../tests/unit/obf_roundtrip.test.ts)
 asks something a lock file structurally cannot:
 `documentToLayout(layoutToDocument(x)) == x`. That holds for any correct
 mapping on any input, recorded or not, and needs nothing outside the converter
@@ -350,7 +350,7 @@ than its summary and found the rest.
 **Nothing can build content.** `build.py`, `builder.py`, `manifest.py`,
 `tiles.py`, `tts.py`, `layout.py` and `layout_format.py` are gone, and the
 browser cannot stand in yet — `runBuild()` in
-[`static/backend/local.js`](../static/backend/local.js) throws by its own
+[`src/backend/local.ts`](../src/backend/local.ts) throws by its own
 admission: *"Building in the browser is not written yet — tiles.js and
 layout_format.js are here, builder.py's orchestration is not."* So both sides
 refuse. Change a symbol or a sentence and there is currently no way to render
@@ -377,7 +377,7 @@ it would have produced.
 Two instructions in [`cable.md`](cable.md) still say to run `app.py` to serve
 the bench. The WebSerial session is fixing those. The seam half is done:
 `backend/server.js` was deleted with the routes it fetched, and
-`static/backend.js` resolves `vorlaut:backend` through ui.html's import map to
+`src/backend/index.ts` resolves `vorlaut:backend` through index.html's import map to
 `backend/local.js`, which answers `buildManifest`/`buildFile` out of the store.
 The bench itself is not blocked: its *Pick a `data/` folder* button reads the
 payload straight off disk, so `python3 -m http.server` is enough.
@@ -388,7 +388,7 @@ An honest list is worth more than a claim of coverage. In rough order of how
 much it would cost to be wrong:
 
 1. **A real browser is in CI, but only far enough to open the page.**
-   `tests/browser/page.test.mjs` drives headless Chrome over the DevTools
+   `e2e/page.spec.ts` drives headless Chrome over the DevTools
    protocol from plain node, and asserts that the page loads with no exception,
    no console error and no 404, that a board renders, and that nothing asks a
    server for anything. It runs against the clone in the suite and again
@@ -434,7 +434,7 @@ much it would cost to be wrong:
    `metacom.py`. Those are still checked only by `tests/test_metacom_index.py`
    against Python.
 7. **`normalize_layout()` now exists in the browser too**, in
-   `static/obf.js`, because an imported board has to be given a colour and its
+   `src/data/obf.ts`, because an imported board has to be given a colour and its
    four slots. It is checked against `layout.py` in `tests/test_obf_js.py` and
    frozen in `obf.lock.json` — but only on the inputs recorded there, and
    `tests/reference/layout.lock.json`'s layouts are still `layout.py`'s output

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks static/obf.js against what obf.py said, without obf.py.
+"""Checks src/data/obf.ts against what obf.py said, without obf.py.
 
 The converter exists twice, and tests/test_obf_js.py holds the two together
 while both are here. This is the half that outlives the Python: everything in
@@ -11,7 +11,7 @@ Which matters more here than for the other three subsystems, because there is
 no second opinion to fall back on. Tile rendering has Pillow, layout.bin has
 the firmware's own C reader compiled at test time, the speech chain has
 ffmpeg. A board is a mapping this project invented, so obf.py was the only
-thing that ever knew whether static/obf.js was right - and a mapping compared
+thing that ever knew whether src/data/obf.ts was right - and a mapping compared
 against nothing passes for ever.
 
 Five comparisons:
@@ -42,14 +42,31 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import sys
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# The browser half is TypeScript now, so plain `node` cannot run these
+# harnesses. vite-node can - it is vitest's own loader, already installed, and
+# it resolves imports exactly the way the bundle does. Deliberately no build
+# step in between: a frozen reference compared against compiled output has
+# stopped measuring the source it names.
+#
+# The binary rather than `npx vite-node`, because npx reads its first argument
+# as a command name and would try to execute the harness itself.
+JS_RUNNER = str(ROOT / "node_modules" / ".bin" / "vite-node")
+
+
+def have_js() -> bool:
+    """Whether the loader is installed. `npm install` puts it there."""
+    return Path(JS_RUNNER).exists()
+
 REFERENCE = ROOT / "tests" / "reference"
 LOCK = REFERENCE / "obf.lock.json"
-MODULE = ROOT / "static" / "obf.js"
+MODULE = ROOT / "src" / "data" / "obf.ts"
 DRIVER = ROOT / "tests" / "obf_node.mjs"
 
 failures: list[str] = []
@@ -93,11 +110,23 @@ def difference(want, got, path: str = "") -> str | None:
 
 
 def ask_node(jobs: dict) -> dict:
-    result = subprocess.run([shutil.which("node"), str(DRIVER)],
-                            input=json.dumps(jobs), capture_output=True,
-                            text=True)
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
+                                     encoding="utf-8") as handle:
+        json.dump(jobs, handle)
+        payload = handle.name
+    try:
+        result = subprocess.run([JS_RUNNER, str(DRIVER), payload],
+                                capture_output=True, text=True)
+    finally:
+        Path(payload).unlink(missing_ok=True)
     if result.returncode != 0:
-        raise SystemExit("static/obf.js does not run:\n" + result.stderr)
+        raise SystemExit("src/data/obf.ts does not run:\n" + result.stderr)
+    # A zero exit with nothing on stdout used to reach json.loads and come back
+    # as "Expecting value: line 1 column 1", which says nothing about what
+    # happened. Whatever the loader put on stderr is the actual explanation.
+    if not result.stdout.strip():
+        raise SystemExit(
+            "the harness exited cleanly and printed nothing.\n" + result.stderr)
     return json.loads(result.stdout)
 
 
@@ -135,7 +164,7 @@ def check_the_module_still_says_the_format(lock: dict) -> None:
     """
     found = re.search(r'^export const FORMAT = "([^"]+)";',
                       MODULE.read_text(encoding="utf-8"), re.M)
-    check("static/obf.js declares FORMAT", found is not None)
+    check("src/data/obf.ts declares FORMAT", found is not None)
     if found:
         agrees = found.group(1) == lock["format"]
         check("and it is the format the answers were frozen under", agrees,
@@ -212,8 +241,8 @@ def main() -> int:
     check_the_module_still_says_the_format(lock)
     check_the_fixtures_are_intact(lock)
 
-    if not shutil.which("node"):
-        print("  skipped: node is not installed, so static/obf.js was not run. "
+    if not have_js():
+        print("  skipped: node is not installed, so src/data/obf.ts was not run. "
               "Only the format and the fixtures were checked.")
         return 1 if failures else 0
 

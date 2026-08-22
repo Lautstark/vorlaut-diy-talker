@@ -15,25 +15,25 @@ name: Tests
 on:
   push:
     branches: [main]
-    paths:
-      - ui.html
-      - static/**
+    paths: &paths
+      - index.html
+      - src/**
+      - e2e/**
       - tests/**
+      - public/**
       - example/**
       - firmware/vorlaut/**
       - docs/**
       - README.md
+      - package.json
+      - package-lock.json
+      - tsconfig*.json
+      - vite.config.ts
+      - vitest.config.ts
+      - playwright.config.ts
       - .github/workflows/ci-tests.yml
   pull_request:
-    paths:
-      - ui.html
-      - static/**
-      - tests/**
-      - example/**
-      - firmware/vorlaut/**
-      - docs/**
-      - README.md
-      - .github/workflows/ci-tests.yml
+    paths: *paths
 
 jobs:
   tests:
@@ -41,41 +41,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      # Nothing is installed. Python is here to run tests/run.py, which is
-      # standard library only; the checks themselves need node, g++ and a
-      # Chrome, and the runner image has all three. That is not tidiness - it
-      # is the state the project ended up in when the Python half was deleted,
-      # and a step that quietly installed something would hide how much of
-      # this now rests on node alone.
+      - run: npm ci
 
-      - name: Tests
-        # Every tests/test_*.py, and the folder is the list. This used to be
-        # one step per file, written out by hand - which meant a new test was
-        # only run if somebody remembered to add it here, and a test nobody
-        # added looked exactly like a test that passed.
-        #
-        # What each test is for is in its own docstring, which is the place
-        # that can keep it true. Run one on its own with:
-        #   python tests/run.py links
-        #
-        # Most of them need node: the app is JavaScript now, and so are the
-        # checks on it. Three also need a C++ compiler, because they compile
-        # the firmware's own readers and replay the browser's bytes into them,
-        # and one needs a Chrome, because it opens the page. All three come
-        # with the runner image, so nothing is installed for them.
+      # Three toolchains, and each has a reason it cannot be one of the others.
+      - name: Types
+        run: npm run typecheck
+
+      - name: Unit and frozen references
+        # vitest. Imports src/ directly rather than a build of it, because a
+        # frozen reference compared against compiled output has stopped
+        # measuring the source it names.
+        run: npm test
+
+      - name: Cache the Playwright browser
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: The page, built and opened
+        # The one check that runs the front end rather than reading it. This
+        # repository once shipped a page that rendered nothing while every
+        # other check stayed green.
+        run: npm run test:e2e
+
+      - name: What needs a C++ compiler
+        # tests/run.py is only this now: compiling the firmware's own readers
+        # and replaying the browser's bytes into them, plus the two checks on
+        # the repository itself. Python is standard library only.
         run: python tests/run.py
 
-      - name: node, g++ and Chrome really were there
-        # tests/run.py skips rather than fails where one of these is missing,
-        # so a runner image that quietly dropped one would leave this job
-        # green with almost nothing checked. That is the exact failure the
-        # frozen references exist to prevent, and it would be absurd to let it
-        # in through the workflow instead.
-        run: |
-          node --version
-          g++ --version | head -1
-          google-chrome --version
+      - name: g++ really was there
+        # tests/run.py skips rather than fails where g++ is missing, so a
+        # runner image that quietly dropped it would leave this job green with
+        # the firmware's readers never compiled.
+        run: g++ --version | head -1

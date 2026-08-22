@@ -46,7 +46,23 @@ __pycache__/
 # Twenty WAVs three times over, none of them worth keeping.
 /dump/
 
-# The assembled static site. Built by tools/pagesite.py from what is already
-# here, uploaded by the Pages workflow, and never committed - a checked-in
-# build output is a second copy of the front end that goes stale quietly.
-dist
+# What npm installs. The lockfile is what is committed - it pins every one of
+# these, including the two @lautstark packages, which are git dependencies
+# resolved to a commit rather than a registry version.
+node_modules/
+
+# What Vite builds. Uploaded by the Pages workflow and never committed: a
+# checked-in build output is a second copy of the front end that goes stale
+# quietly, and every check here runs against src/ rather than against it.
+dist/
+
+# Playwright's own leavings.
+test-results/
+playwright-report/
+
+# tsc -b's incremental state, which lives under node_modules/.tmp - listed
+# because the path is not obvious and somebody will go looking for it.
+node_modules/.tmp/
+
+# tsc -b leaves this at the root for the solution file itself.
+tsconfig.tsbuildinfo

@@ -1,37 +1,43 @@
 #!/usr/bin/env python3
-"""Runs every test in this folder and says what failed.
+"""Runs the checks that need a C++ compiler, and says what failed.
 
     python3 tests/run.py              # all of them
     python3 tests/run.py pairing      # only the ones whose name contains this
 
-This exists because the list used to live in .github/workflows/ci-python.yml,
-one step per file. That list had to be edited by hand for every new test, and
-nothing checked it: a test file nobody added to it simply never ran, and looked
-exactly like a test that passed. Four fixes landing at once also meant four
-branches appending to the same twenty lines of YAML.
+**This is no longer the whole suite, and that is the point.** Most of what
+vorlaut checks is JavaScript, and the JavaScript checks live where JavaScript
+tooling can run them:
 
-So the folder is the list now. A file named test_*.py runs, and that is the
-whole rule.
+    npm test         vitest - the frozen references for the tile renderer, the
+                     OBF converter, the recording chain and the text table, and
+                     the walk that says every module under src/ is one the page
+                     reaches. They import src/ directly, which is why they are
+                     here and not in this file: the modules are TypeScript, and
+                     putting a build between a frozen reference and the source
+                     it names is how it quietly stops measuring it.
+    npm run test:e2e Playwright - the page, built and opened in a real browser,
+                     under the base a project site is served from. The check
+                     whose absence let a page that rendered nothing ship green.
 
-Each test is a separate process on purpose. Several of them start the real
-server, bind a fixed port and set environment variables for their own run;
-importing them all into one interpreter would let those settings leak into
-each other, and the first test to call sys.exit would take the rest with it.
-The cost is a few seconds of interpreter startup, which is not worth the
-class of failure it avoids.
+What is left here is the half that no JavaScript runner can do: compiling the
+firmware's own readers from firmware/vorlaut/*.h and replaying the browser's
+bytes into them. layout.bin, the cable protocol, the pairing codes and the
+panel's text all have two implementations that have to agree, one of them C++,
+and g++ is the only thing that can hold them together. Plus the two checks on
+the repository itself - that no German is left in the code, and that no link in
+the docs points at nothing.
 
-Sequential for the same reason: the ones that bind a port each pick their own,
-but they were written on the assumption that nothing else is listening.
+Each test is a separate process on purpose. Several compile something and write
+into a temporary directory of their own; importing them all into one
+interpreter would let those settings leak into each other, and the first test to
+call sys.exit would take the rest with it.
 
 **Run this AFTER `git add`, not before, when you have added files.**
-test_language.py and test_links.py take their file list from `git ls-files`,
-so anything still untracked is invisible to them: the suite comes up green,
-and then goes red the moment you commit. That reads exactly like a real
-regression caused by the commit, and it is not one - it is the first time
-those two saw the file at all. It has now caught two people, once on a test
-fixture with an umlaut in its name and once on a folder of new fixtures.
-
-Everything else here reads the disk, which is why this is surprising.
+test_language.py and test_links.py take their file list from `git ls-files`, so
+anything still untracked is invisible to them: the suite comes up green, and
+then goes red the moment you commit. That reads exactly like a real regression
+caused by the commit, and it is not one - it is the first time those two saw the
+file at all. It has now caught three people.
 
 The exit code is what CI reads: 0 only if every test passed.
 """

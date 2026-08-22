@@ -354,7 +354,7 @@ value, so you can see how far off it is.
 ## The logo
 
 Speech bubble with two eyes and a smile, rebuilt from
-[`assets/icon.svg`](../assets/icon.svg) — not imported. An `import()` of the
+[`assets/icon.svg`](../public/icon.svg) — not imported. An `import()` of the
 SVG would have tied the file to a second path and silently changed the case
 with every change to the icon. Instead the SVG coordinates sit unchanged in the
 `.scad` (512 box, y downwards), so a glance at both files is enough to compare.

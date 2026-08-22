@@ -1,7 +1,7 @@
 // Runs the browser's Open Board Format converter from the command line, so
 // the test next door can hold its answers against the ones obf.py gives.
 //
-// Reads one JSON object on stdin with a list per question:
+// Reads one JSON object from the file named in argv[2], a list per question:
 //
 //   {"helpers": [{"call": "cssColor", "args": ["#abc"]}, ...],
 //    "exports": [<layout>, ...],
@@ -22,7 +22,7 @@
 // all of them.
 
 import { readFileSync } from "node:fs";
-import * as obf from "../static/obf.js";
+import * as obf from "../src/data/obf.ts";
 
 const HELPERS = {
   splitSymbol: obf.splitSymbol,
@@ -48,7 +48,15 @@ async function answered(work) {
   }
 }
 
-const jobs = JSON.parse(readFileSync(0, "utf8"));
+/* The jobs come from a file named on the command line, not from stdin.
+ *
+ * They used to come down a pipe, read with readFileSync(0). That works under
+ * plain node and does not under vite-node, which is what runs this now that
+ * obf is TypeScript: it leaves stdin non-blocking, so the synchronous read
+ * throws EAGAIN, and reading it asynchronously instead let the process exit
+ * before a large payload had arrived - a clean exit printing nothing, which is
+ * the worst of the three. A file has none of those failure modes. */
+const jobs = JSON.parse(readFileSync(process.argv[2], "utf8"));
 const out = { helpers: [], exports: [], imports: [], licensing: [],
               obz: [], unobz: [] };
 

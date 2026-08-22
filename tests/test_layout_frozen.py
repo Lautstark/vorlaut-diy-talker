@@ -43,6 +43,22 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# The browser half is TypeScript now, so plain `node` cannot run these
+# harnesses. vite-node can - it is vitest's own loader, already installed, and
+# it resolves imports exactly the way the bundle does. Deliberately no build
+# step in between: a frozen reference compared against compiled output has
+# stopped measuring the source it names.
+#
+# The binary rather than `npx vite-node`, because npx reads its first argument
+# as a command name and would try to execute the harness itself.
+JS_RUNNER = str(ROOT / "node_modules" / ".bin" / "vite-node")
+
+
+def have_js() -> bool:
+    """Whether the loader is installed. `npm install` puts it there."""
+    return Path(JS_RUNNER).exists()
+
 LOCK = ROOT / "tests" / "reference" / "layout.lock.json"
 
 failures: list[str] = []
@@ -94,14 +110,14 @@ def read_back(reader: Path, tmp: Path, name: str, data: bytes) -> list[str] | st
 
 
 def render_with_node(cases: list[dict]) -> list[bytes | str] | None:
-    """Every frozen layout, written by static/layout_format.js.
+    """Every frozen layout, written by src/data/layout_format.ts.
 
     All of them in one run: starting node costs more than writing every case.
     A case the writer refused comes back as its message instead of as bytes,
     so one bad case reads as one failure rather than as a missing line for
     every case after it.
     """
-    node = shutil.which("node")
+    node = JS_RUNNER
     if not node:
         return None
     payload = [{"layout": c["layout"], "label": c["label"],

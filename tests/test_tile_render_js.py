@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks that static/tiles.js still renders the tiles tiles.py rendered.
+"""Checks that src/data/tiles.ts still renders the tiles tiles.py rendered.
 
 The app is moving into the browser, so render_symbol() exists twice now. Two
 implementations of one thing drift, and this one drifting is expensive in a
@@ -21,7 +21,7 @@ The Python half is now gone, and this is what is left of that comparison:
 
   node against the frozen bytes     the whole of it. Needs nothing but node.
   the constants                     TILE_PIPELINE and the sizes, read out of
-                                    static/tiles.js as text. Needs not even
+                                    src/data/tiles.ts as text. Needs not even
                                     that.
 
 There used to be a third, tiles.py against the same bytes, which is what
@@ -48,10 +48,26 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# The browser half is TypeScript now, so plain `node` cannot run these
+# harnesses. vite-node can - it is vitest's own loader, already installed, and
+# it resolves imports exactly the way the bundle does. Deliberately no build
+# step in between: a frozen reference compared against compiled output has
+# stopped measuring the source it names.
+#
+# The binary rather than `npx vite-node`, because npx reads its first argument
+# as a command name and would try to execute the harness itself.
+JS_RUNNER = str(ROOT / "node_modules" / ".bin" / "vite-node")
+
+
+def have_js() -> bool:
+    """Whether the loader is installed. `npm install` puts it there."""
+    return Path(JS_RUNNER).exists()
+
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
-MODULE = ROOT / "static" / "tiles.js"
+MODULE = ROOT / "src" / "data" / "tiles.ts"
 REFERENCE = ROOT / "tests" / "reference"
 LOCK = REFERENCE / "tiles.lock.json"
 
@@ -172,12 +188,12 @@ def check_against_node(lock: dict, work: Path) -> None:
     driver.write_text(DRIVER, encoding="utf-8")
 
     result = subprocess.run(
-        [shutil.which("node"), str(driver), MODULE.as_uri(), str(plan_file)],
+        [JS_RUNNER, str(driver), MODULE.as_uri(), str(plan_file)],
         capture_output=True, text=True)
     if result.returncode != 0:
-        check("node ran static/tiles.js", False, result.stderr.strip()[:400])
+        check("node ran src/data/tiles.ts", False, result.stderr.strip()[:400])
         return
-    check("node ran static/tiles.js", True)
+    check("node ran src/data/tiles.ts", True)
 
     total = lock["tile_size"] ** 2
     for entry in lock["fixtures"]:
@@ -200,8 +216,8 @@ def main() -> int:
     check_constants(lock)
     check_fixtures_are_intact(lock)
 
-    if not shutil.which("node"):
-        print("  skipped: node is not installed, so static/tiles.js was not "
+    if not have_js():
+        print("  skipped: node is not installed, so src/data/tiles.ts was not "
               "run. Only the constants were checked.")
     else:
         with tempfile.TemporaryDirectory() as work:

@@ -2,11 +2,11 @@
 
 The app half is being rewritten as a static site, so `metacom.py` and the
 ARASAAC endpoints in `app.py` have to exist a second time in the browser — the
-same move `tiles.py` already made into [`static/tiles.js`](../static/tiles.js).
+same move `tiles.py` already made into [`src/data/tiles.ts`](../src/data/tiles.ts).
 
 This one is not a port. bildhaft had already written it, so the code was lifted
 out into [bildquelle](https://github.com/Lautstark/bildquelle), a package the
-two projects share, and [`static/symbols.js`](../static/symbols.js) is only the
+two projects share, and [`src/data/symbols.ts`](../src/data/symbols.ts) is only the
 adapter between that package and the shapes vorlaut speaks.
 
 The bench is [`tools/symbolcheck.html`](../tools/symbolcheck.html), the way
@@ -88,10 +88,10 @@ rewrite rather than to this file, and both change stored data:
 
 The import map is part of that. `symbols.js` imports the package by its real
 name, which needs a map until there is a bundler, and a module cannot install
-one for its own import. `tools/symbolcheck.html` carries it and `ui.html`
+one for its own import. `tools/symbolcheck.html` carries it and `index.html`
 deliberately does not — the server-rendered app imports nothing from here yet,
 and an entry there would name a module the page never fetches. The comment in
-`ui.html`'s own map block says the same thing about the speech dependency. The
+`index.html`'s own map block says the same thing about the speech dependency. The
 map moves to whatever page the rewrite grows.
 
 Not as a stopgap. Native modules with an import map are somewhere vorlaut can

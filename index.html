@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>vorlaut</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#161618">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="vorlaut">
+</head>
+<body>
+<!-- Everything that was here is in src/ui/templates/ now, beside the module
+     that wires it: the header, the board, the symbol picker and the settings
+     sheet. main.ts mounts them before it wires anything, and the order it
+     mounts them in is the order they appear.
+
+     Absolute paths above rather than relative ones, and that is Vite's doing
+     rather than a reversal: `base` is set from the environment at build time,
+     so /icon.svg becomes /vorlaut/icon.svg in the published bundle and stays
+     /icon.svg when `npm run dev` serves from the root. Writing "./" here would
+     opt those files out of that rewriting. -->
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

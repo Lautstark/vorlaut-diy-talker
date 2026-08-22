@@ -3,11 +3,10 @@
   "configurations": [
     {
       "name": "vorlaut",
-      "runtimeExecutable": "python3",
+      "runtimeExecutable": "npm",
       "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8801"
+        "run",
+        "dev"
       ],
       "port": 8801,
       "autoPort": true

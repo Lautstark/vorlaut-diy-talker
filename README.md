@@ -18,33 +18,22 @@ speak yet.
 
 ## Running it
 
-vorlaut is a page. There is no server, no container and nothing to install:
-the app is `ui.html` and `static/`, and it runs in a browser with nothing
-behind it. The boards, the symbols and the speech all happen in the tab.
-
-The published copy is that page, deployed straight from `main`:
-**<https://lautstark.github.io/vorlaut/>**. Nothing is behind it, so it is the
-same app as a clone — it just saves the clone.
+vorlaut is a page, and there is nothing behind it: the boards, the symbols and
+the speech all happen in the tab. The published copy is deployed straight from
+`main`: **<https://lautstark.github.io/vorlaut/>**. It is the same app as a
+clone — it just saves you the clone.
 
 To run it from a checkout:
 
 ```bash
-git clone https://github.com/Lautstark/vorlaut && cd vorlaut && python3 -m http.server 8801
+git clone https://github.com/Lautstark/vorlaut && cd vorlaut && npm install && npm run dev
 ```
 
-Then open <http://localhost:8801/ui.html>.
+Then open <http://localhost:8801>.
 
-**Double-clicking `ui.html` will not work, and cannot be made to.** A browser
-gives a `file://` page the origin `null`, and refuses to load ES modules across
-it — `static/main.js` is blocked before a line of it runs. IndexedDB has no
-origin there either, so there would be nowhere to keep a board. Any static
-server will do; the line above is the one that needs nothing installed. The
-alternative would be bundling the front end into a single file, which is the
-build step this project does not have on purpose.
-
-It needs a browser recent enough for ES modules and import maps and, to put
-content on a device, one that speaks WebSerial — Chrome or Edge. Firefox and
-Safari will edit boards but cannot talk to the cable.
+It needs a browser recent enough for ES2022 and, to put content on a device,
+one that speaks WebSerial — Chrome or Edge. Firefox and Safari will edit boards
+but cannot talk to the cable.
 
 No key and no `.env` to write: every setting has a default, and the first visit
 seeds an empty set with four keys, so there is something to type into
@@ -55,10 +44,37 @@ Getting it onto the talker is [docs/cable.md](docs/cable.md): flash the
 firmware once, then push content down the USB-C cable from the same page.
 
 No voice is installed for you. Nothing is needed to start editing — the
-interface and the build work without one, and new sentences simply stay silent
-and say so. The four piper voices are one press away in the voice picker in the
-header, and Azure Speech is the other route, against a key of your own. Both
-are in [docs/browser-tts.md](docs/browser-tts.md).
+interface works without one, and new sentences simply stay silent and say so.
+The piper voices are one press away in the voice picker in the header, and
+Azure Speech is the other route, against a key of your own. Both are in
+[docs/browser-tts.md](docs/browser-tts.md).
+
+> **The one thing that is not here yet.** *Release* — turning a board into the
+> tiles and WAVs the device reads — still reports that it is unwritten. The
+> pieces exist and are proven against the Python they were ported from, in
+> [docs/browser-tts.md](docs/browser-tts.md) and
+> [docs/tile-rendering.md](docs/tile-rendering.md); what is missing is the
+> orchestration that was `builder.py`. Everything else on the page works.
+
+## Working on it
+
+TypeScript, bundled by Vite, with no framework: the interface is plain DOM, and
+`src/ui/templates/` holds the markup beside the module that wires it.
+
+| | |
+|---|---|
+| `npm run dev` | the page, with reloading |
+| `npm run typecheck` | `tsc -b` over three projects — the browser, the config files, and the browser tests, which span both |
+| `npm test` | vitest: the frozen references for the tile renderer, the OBF converter and the recording chain, the text table, and the walk that says every module under `src/` is one the page reaches |
+| `npm run test:e2e` | Playwright: the page, built and opened in a real browser, under the base a project site is served from |
+| `python3 tests/run.py` | the checks that need a C++ compiler — the firmware's own readers, compiled and fed the browser's bytes |
+
+That last one is the only Python left, and it is not going anywhere: `layout.bin`,
+the cable protocol, the pairing codes and the panel's text each have two
+implementations that have to agree, one of them C++.
+
+The two shared packages are git dependencies pinned by commit — see
+[docs/packages.md](docs/packages.md).
 
 ### If you have a METACOM licence
 
@@ -88,10 +104,10 @@ displays with a built-in button — over a shared SPI bus, with a **MAX98357A**
 and a 40 mm speaker for the sound and a LiPo for the power. The firmware is an
 Arduino sketch.
 
-Editing happens in a browser: one page of native ES modules with no build step
-and nothing behind it, pictograms from [ARASAAC](https://arasaac.org), speech
-from piper or Azure. The build turns those into RGB565 images and 16 kHz WAVs
-and packs them into a LittleFS image for the flash.
+Editing happens in a browser: one page, TypeScript bundled by Vite, with
+nothing behind it — pictograms from [ARASAAC](https://arasaac.org), speech from
+piper or Azure. The build turns those into RGB565 images and 16 kHz WAVs and
+packs them into a LittleFS image for the flash.
 
 ## Languages
 
@@ -114,6 +130,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/languages.md](docs/languages.md) | German and English in the product, English in the code |
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
 | [docs/cable.md](docs/cable.md) | Pushing content down the USB-C cable, for when there is no server to fetch from |
+| [docs/packages.md](docs/packages.md) | The two shared packages, how they are pinned, and what vorlaut asks of them |
 | [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
 
 ## Licence

@@ -10,7 +10,7 @@ each needs installed:
 
 A symbol lives in layout.json as `metacom:essen`. metacom.py keys the
 collection by the file's stem and obf.py reads it back that way; the browser
-gets a path out of the vendored bildquelle package and static/symbols.js turns
+gets a path out of the vendored bildquelle package and src/data/symbols.ts turns
 it into the same reference. Those two agreeing is the whole of it - if they
 drift, every layout that exists points at symbols nobody can find, the build
 fails on boards that used to build, and neither half says anything.
@@ -18,7 +18,7 @@ fails on boards that used to build, and neither half says anything.
 The names here came from metacom._scan_files() itself rather than from a
 restatement of what it does - see tools/symbolfreeze.py, which explains why
 that distinction is not pedantry. The function under test is read out of
-static/symbols.js rather than copied, for the same reason: a copy would agree
+src/data/symbols.ts rather than copied, for the same reason: a copy would agree
 with itself for ever, which is the one thing this must not do.
 """
 
@@ -32,7 +32,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SYMBOLS_JS = ROOT / "static" / "symbols.js"
+
+SYMBOLS_JS = ROOT / "src" / "data" / "symbols.ts"
 LOCK = ROOT / "tests" / "reference" / "symbols.lock.json"
 
 failures: list[str] = []
@@ -54,15 +55,18 @@ def javascript_reference(paths: list[str]) -> list[str] | None:
     prefix = re.search(r'const METACOM_PREFIX = "([^"]*)"', source)
     body = re.search(r"^const referenceFor = .*?;$", source, re.M)
     if not prefix or not body:
-        check("static/symbols.js still has METACOM_PREFIX and referenceFor",
+        check("src/data/symbols.ts still has METACOM_PREFIX and referenceFor",
               False, "has the adapter been renamed or moved? Nothing else in "
                      "this file can run until it is found again")
         return None
-    check("static/symbols.js still has METACOM_PREFIX and referenceFor", True)
+    check("src/data/symbols.ts still has METACOM_PREFIX and referenceFor", True)
 
     driver = (f'const METACOM_PREFIX = "{prefix.group(1)}";\n'
               f"{body.group(0)}\n"
               f"console.log(JSON.stringify({json.dumps(paths)}.map(referenceFor)));")
+    # Plain node, not the TypeScript loader the other frozen tests need: the
+    # adapter is lifted out of symbols.ts as text and has no imports, so what
+    # runs here is one self-contained snippet rather than a module graph.
     done = subprocess.run([shutil.which("node"), "--input-type=module", "-e", driver],
                           capture_output=True, text=True)
     if done.returncode != 0:

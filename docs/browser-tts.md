@@ -26,8 +26,8 @@ That finding is why the chain is written out by hand at all.
 
 | | |
 |---|---|
-| [`static/vendor/stimmquelle/`](../static/vendor/stimmquelle/VENDORED.md) | The chain and the catalogue, vendored from [Lautstark/stimmquelle](https://github.com/Lautstark/stimmquelle) and shared with mitreden |
-| [`tests/browser/level.test.mjs`](../tests/browser/level.test.mjs) | Holds the vendored chain to what real `ffmpeg` said, frozen in `tests/reference/tts.lock.json` |
+| [`node_modules/@lautstark/stimmquelle/`](packages.md) | The chain and the catalogue, vendored from [Lautstark/stimmquelle](https://github.com/Lautstark/stimmquelle) and shared with mitreden |
+| [`tests/unit/level.test.ts`](../tests/unit/level.test.ts) | Holds the vendored chain to what real `ffmpeg` said, frozen in `tests/reference/tts.lock.json` |
 
 **This started as two files written here**, `static/tts/level.js` and
 `speak.js`, and they are gone from this repository — extracted into the shared
@@ -328,7 +328,7 @@ be.
 
 The table above is still produced by hand, and still needs a `piper` and an
 `ffmpeg` to produce. What does not is
-[`tests/browser/level.test.mjs`](../tests/browser/level.test.mjs): the loudness
+[`tests/unit/level.test.ts`](../tests/unit/level.test.ts): the loudness
 measurement, the peak meter, the resampling and the whole chain are checked
 against numbers real `ffmpeg` gave for the same inputs, frozen in
 [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) while there

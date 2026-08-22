@@ -427,7 +427,7 @@ device* and pick the port, and *Work out what is missing, then send it*.
 
 **There is no longer a way to build that folder.** `build.py` was deleted along
 with the rest of the Python, and the browser cannot stand in yet —
-`runBuild()` in `static/backend/local.js` throws and says so. So what is in
+`runBuild()` in `src/backend/local.ts` throws and says so. So what is in
 `firmware/vorlaut/data/` is whatever the last build left there, it is
 gitignored, and nothing can make a new one. For proving the wire that is
 enough; for changing what the device says it is not, and that is the gap to
@@ -636,10 +636,10 @@ two, and leave the rest alone.
 
 **Take the build from the editor** is the fourth button, and it does not work
 at the moment. It asks `buildManifest()` and `buildFile()` in
-`static/backend.js`, which are still wired to `backend/server.js` and fetch
+`src/backend/index.ts`, which are still wired to `backend/server.js` and fetch
 `/api/build/*` from `app.py` — and `app.py` has been deleted. The two
 operations themselves are not going anywhere: they are what the transport needs
-permanently, and `static/backend/local.js` already implements both against
+permanently, and `src/backend/local.ts` already implements both against
 local storage. What is missing is the line in `backend.js` that points at it,
 and something to fill that storage, which is `runBuild()` — deleted in Python
 and not yet written in the browser.

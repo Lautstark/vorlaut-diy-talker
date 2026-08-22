@@ -140,7 +140,7 @@ every time.
 To be precise, the names are hashes of the **input** - source image plus
 pipeline version, or text plus voice configuration - not of the output bytes.
 Same input, same name, so a file is transferred once no matter how many sets
-it appears in. `TILE_PIPELINE` in [`static/tiles.js`](../static/tiles.js) is what keeps that honest: bump it
+it appears in. `TILE_PIPELINE` in [`src/data/tiles.ts`](../src/data/tiles.ts) is what keeps that honest: bump it
 when the rendering changes, and every name changes with it.
 
 **The version stamp describes the files, not the layout.** That distinction
