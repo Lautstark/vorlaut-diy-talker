@@ -102,6 +102,7 @@
   <legend>Push it</legend>
   <div class="row">
     <button id="push" disabled>Work out what is missing, then send it</button>
+    <button id="stop" disabled>Stop</button>
     <progress id="bar" value="0" max="1" hidden></progress>
   </div>
   <div id="plan"></div>
@@ -142,6 +143,7 @@ let serial = null;     // the SerialPort behind it, when it is a real one
 let made = null;       // Map name -> {bytes}: what we would like on the device
 let sent = null;       // what the last push believed it put there
 let mocked = false;    // is there a real device on the end of this?
+let stopping = null;   // the AbortController of a push that is running
 
 function ready(on) {
   for (const id of ["#list", "#verify", "#forget"]) $(id).disabled = !on;
@@ -417,9 +419,14 @@ $("#push").addEventListener("click", async () => {
 
     $("#bar").max = work.put.length + work.remove.length;
     const started = performance.now();
-    const result = await push(cable, made, work, (what, name, index, total) => {
-      $("#bar").value = index;
-      log(`  ${what} ${name}  (${index + 1}/${total})`);
+    stopping = new AbortController();
+    $("#stop").disabled = false;
+    const result = await push(cable, made, work, {
+      signal: stopping.signal,
+      onStep: (what, name, index, total) => {
+        $("#bar").value = index;
+        log(`  ${what} ${name}  (${index + 1}/${total})`);
+      },
     });
     const took = (performance.now() - started) / 1000;
     sent = made;
@@ -449,7 +456,10 @@ $("#push").addEventListener("click", async () => {
       log("  a real measurement: these belong in the table in docs/cable.md");
     }
   } catch (error) {
-    if (error instanceof CableError) {
+    if (error?.name === "AbortError") {
+      log("stopped between files. Nothing was in flight, no \"done\" was sent, "
+          + "and the device still holds the layout it had.", "good");
+    } else if (error instanceof CableError) {
       log(`the device refused: ${error.word}${error.detail ? " " + error.detail : ""}`, "bad");
       if (error.word === "session") {
         log("  a transfer was given up on. Say hello again — that is the only "
@@ -462,7 +472,17 @@ $("#push").addEventListener("click", async () => {
   } finally {
     $("#bar").hidden = true;
     $("#push").disabled = false;
+    $("#stop").disabled = true;
+    stopping = null;
   }
+});
+
+// Between files rather than inside one - see the note on push() in cable.js.
+// At most one file away, and it leaves the connection usable instead of
+// leaving the device counting down to a transfer that will not arrive.
+$("#stop").addEventListener("click", () => {
+  stopping?.abort();
+  log("stopping after the file that is going now\u2026");
 });
 
 /** The line at the top goes stale the moment anything is pushed. */

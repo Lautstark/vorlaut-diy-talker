@@ -352,6 +352,18 @@ export const LAYOUT_FILE = "layout.bin";
  * different, because over a cable the browser is the one that can afford to
  * think.
  *
+ * The size is compared as well, and that is a belt to the device's braces
+ * rather than a second opinion. Keeping a file on its name alone is only
+ * sound because the device never creates a name until the bytes under it are
+ * whole and their checksum agrees - it writes to /.part and renames, so an
+ * interrupted transfer leaves a fragment nobody will look at rather than a
+ * short file under a name that promises a whole one. If that were ever not
+ * true, a truncated file would be kept for its name, never re-sent, and
+ * layout.bin would eventually point at it: silent, and permanent, because
+ * nothing looks at that file again. One comparison turns that into a file
+ * that is simply sent again, and it costs nothing - list already reports the
+ * sizes.
+ *
  * layout.bin is the exception at both ends: its name never changes, so it has
  * to be compared by checksum, and it is sent last because it is the file that
  * decides what everything else means. Until it lands the device still reads
@@ -368,7 +380,7 @@ export function plan(want, have, room, layoutCrc = null) {
     if (name === LAYOUT_FILE) {
       if (present.has(name) && layoutCrc === sum) keep.push(name);
       else put.push({ name, size, crc: sum });
-    } else if (present.has(name)) {
+    } else if (present.has(name) && present.get(name).size === size) {
       keep.push(name);
     } else {
       put.push({ name, size, crc: sum });
@@ -404,14 +416,35 @@ export function plan(want, have, room, layoutCrc = null) {
  * @param cable  a connected Cable
  * @param made   Map name -> {bytes}
  * @param theplan  what plan() worked out
- * @param onStep  called as ("put"|"rm", name, index, total)
+ * @param options.onStep  called as ("put"|"rm", name, index, total)
+ * @param options.signal  an AbortSignal: the page will have its own reasons to
+ *   stop that have nothing to do with the cable - a dialog closing, a
+ *   navigation, a timeout - and AbortSignal.any() composes those with this
+ *   one, which a cancel() method on the connection would not. All the time is
+ *   in here; everything else is pure or one round trip.
+ *
+ * Closing is the caller's business, not this function's. The cable was handed
+ * in, so a caller that wants to abort and retry would be surprised to find its
+ * connection shut underneath it - what belongs here is only not going on.
+ *
+ * Aborting is checked between steps rather than inside a file. It could be
+ * checked inside one: the device writes to /.part and renames on a matching
+ * checksum, so stopping mid-file leaves a fragment and never a short file
+ * under a real name. But stopping mid-file also leaves the device counting
+ * down its four seconds to a transfer that will not finish, after which the
+ * session is shut until hello. A step boundary is at most one file away - well
+ * under a second - and leaves the connection usable.
  */
-export async function push(cable, made, theplan, onStep = () => {}) {
+export async function push(cable, made, theplan, options = {}) {
+  const { onStep = () => {}, signal = null } = typeof options === "function"
+    ? { onStep: options }        // the older positional form
+    : options;
   const total = theplan.put.length + theplan.remove.length;
   let step = 0;
 
   const sweep = async () => {
     for (const name of theplan.remove) {
+      signal?.throwIfAborted();
       onStep("rm", name, step++, total);
       try {
         await cable.rm(name);
@@ -424,10 +457,15 @@ export async function push(cable, made, theplan, onStep = () => {}) {
 
   if (theplan.tight) await sweep();
   for (const file of theplan.put) {
+    signal?.throwIfAborted();
     onStep("put", file.name, step++, total);
     await cable.put(file.name, made.get(file.name).bytes);
   }
   if (!theplan.tight) await sweep();
 
+  // Not reached when aborted, and deliberately: "done" is what makes the
+  // device read its new layout in, and a half-sent payload is not one to
+  // start reading.
+  signal?.throwIfAborted();
   return await cable.done();
 }
