@@ -379,6 +379,16 @@ export function truePeakDb(x, rate) {
  * check is how the 13 dB in ffmpeg.wasm stayed invisible for three years.
  */
 export function postprocess(wavBytes, { rate = SAMPLE_RATE } = {}) {
+  // Because the alternative was silence. Handed something that is not a rate -
+  // "-5%", say, from a caller that meant Azure's speaking rate - every
+  // multiplication downstream goes NaN, the resampler asks for NaN output
+  // samples, and this returns a 44 byte WAV: a valid header with no audio
+  // under it, no error anywhere. A recording that is merely wrong gets noticed
+  // the first time somebody plays it; one that is empty and correctly named
+  // sits in the cache looking finished.
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error(`postprocess wants a sample rate in Hz, got ${JSON.stringify(rate)}`);
+  }
   const { samples, rate: inRate } = decodeWav(wavBytes);
   const shaped = pad(fadeEnds(trim(samples, inRate), inRate), inRate);
 
