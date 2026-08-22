@@ -1,10 +1,13 @@
-// The same questions, answered without a server.
+// The questions backend.js names, answered without a server.
 //
-// backend/server.js sends each of these to app.py. This answers them out of
-// the browser: the content from store.js, the pictures from symbols.js and the
-// package behind it, the tiles from tiles.js, the speech from the vendored
-// @lautstark/stimmquelle, the board as a document from obf.js.
-// Each of them was written and measured against the Python one at a time; this
+// There used to be a backend/server.js beside this that sent each of them to
+// app.py. It was deleted with app.py rather than kept: a second implementation
+// of the seam, still importable, still reading like working code, and every
+// call in it pointing at a route that no longer answers. This one answers out
+// of the browser instead - the content from store.js, the pictures from
+// symbols.js and the package behind it, the tiles from tiles.js, the speech
+// from the vendored @lautstark/stimmquelle, the board as a document from
+// obf.js. Each was written and measured against the Python one at a time; this
 // is the file where they stop being spare parts.
 //
 // Everything here is the destination rather than a stepping stone, with one
@@ -156,6 +159,34 @@ export async function previewInto(image, symbol, colour) {
     image.src = url;
   }, "image/png");
 }
+
+/** The symbol itself, out of wherever it lives.
+ *
+ * The same resolution previewInto() uses, which is the point of picture()
+ * being separate: a reference is a file in here, or a name in a licensed
+ * collection the package resolves, and neither is a path anybody can write
+ * down. The previous blob is let go of on the way, or every render leaks one.
+ */
+export async function symbolInto(image, reference) {
+  const source = await picture(reference);
+  const previous = image.dataset.blobUrl;
+  if (previous) URL.revokeObjectURL(previous);
+  if (!source) {
+    image.removeAttribute("src");
+    image.dispatchEvent(new Event("error"));
+    return;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = source.naturalWidth || source.width;
+  canvas.height = source.naturalHeight || source.height;
+  canvas.getContext("2d").drawImage(source, 0, 0);
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    image.dataset.blobUrl = url;
+    image.src = url;
+  }, "image/png");
+}
+
 
 // --- Voices and speech -------------------------------------------------------
 

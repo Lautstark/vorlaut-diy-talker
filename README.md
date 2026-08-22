@@ -20,21 +20,36 @@ speak yet.
 
 vorlaut is a page. There is no server, no container and nothing to install:
 the app is `ui.html` and `static/`, and it runs in a browser with nothing
-behind it. Open the page and it is ready — the boards, the symbols and the
-speech all happen in the tab.
+behind it. The boards, the symbols and the speech all happen in the tab.
+
+The published copy is that page, deployed straight from `main`:
+**<https://lautstark.github.io/vorlaut/>**. Nothing is behind it, so it is the
+same app as a clone — it just saves the clone.
+
+To run it from a checkout:
 
 ```bash
-git clone https://github.com/Lautstark/vorlaut && cd vorlaut
+git clone https://github.com/Lautstark/vorlaut && cd vorlaut && python3 -m http.server 8801
 ```
 
-Then open `ui.html`. It needs a browser recent enough for ES modules and, to
-put content on a device, one that speaks WebSerial — Chrome or Edge. Firefox
-and Safari will edit boards but cannot talk to the cable.
+Then open <http://localhost:8801/ui.html>.
 
-No key and no `.env` to write: every setting has a default, and the page starts
-from the example content, so a set with four keys is there on the first visit.
-The four example sentences come with finished recordings, so a board can be
-put on a device before any voice has been downloaded.
+**Double-clicking `ui.html` will not work, and cannot be made to.** A browser
+gives a `file://` page the origin `null`, and refuses to load ES modules across
+it — `static/main.js` is blocked before a line of it runs. IndexedDB has no
+origin there either, so there would be nowhere to keep a board. Any static
+server will do; the line above is the one that needs nothing installed. The
+alternative would be bundling the front end into a single file, which is the
+build step this project does not have on purpose.
+
+It needs a browser recent enough for ES modules and import maps and, to put
+content on a device, one that speaks WebSerial — Chrome or Edge. Firefox and
+Safari will edit boards but cannot talk to the cable.
+
+No key and no `.env` to write: every setting has a default, and the first visit
+seeds an empty set with four keys, so there is something to type into
+immediately. The boards, the symbols and the settings live in the browser's own
+storage — in that browser, on that machine, and nowhere else.
 
 Getting it onto the talker is [docs/cable.md](docs/cable.md): flash the
 firmware once, then push content down the USB-C cable from the same page.
@@ -59,11 +74,12 @@ The build runs in the browser too, so there is nothing to configure and no
 path to set — the folder picker is the whole of it. A `metacom:` reference is
 a file name, so a board keeps working against any copy of the collection.
 
-> **Where this is going.** The app half is being rewritten as a static site
-> with no server at all — see [docs/browser-tts.md](docs/browser-tts.md) and
-> [docs/tile-rendering.md](docs/tile-rendering.md) for the pieces of it that
-> already exist and are proven against the Python. That page is not ready, and
-> until it is, the clone above is how vorlaut runs.
+> **The one thing that is not here yet.** *Release* — turning a board into the
+> tiles and WAVs the device reads — still reports that it is unwritten. The
+> pieces exist and are proven against the Python they were ported from, in
+> [docs/browser-tts.md](docs/browser-tts.md) and
+> [docs/tile-rendering.md](docs/tile-rendering.md); what is missing is the
+> orchestration that was `builder.py`. Everything else on the page works.
 
 ## What it is made of
 
@@ -72,10 +88,10 @@ displays with a built-in button — over a shared SPI bus, with a **MAX98357A**
 and a 40 mm speaker for the sound and a LiPo for the power. The firmware is an
 Arduino sketch.
 
-Editing happens on a computer: a web interface built from the Python standard
-library, pictograms from [ARASAAC](https://arasaac.org), speech from piper or
-Azure. The build turns those into RGB565 images and 16 kHz WAVs and packs them
-into a LittleFS image for the flash.
+Editing happens in a browser: one page of native ES modules with no build step
+and nothing behind it, pictograms from [ARASAAC](https://arasaac.org), speech
+from piper or Azure. The build turns those into RGB565 images and 16 kHz WAVs
+and packs them into a LittleFS image for the flash.
 
 ## Languages
 

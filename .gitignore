@@ -45,3 +45,8 @@ __pycache__/
 # What tools/ttscheck.py renders for the browser to level and hand back.
 # Twenty WAVs three times over, none of them worth keeping.
 /dump/
+
+# The assembled static site. Built by tools/pagesite.py from what is already
+# here, uploaded by the Pages workflow, and never committed - a checked-in
+# build output is a second copy of the front end that goes stale quietly.
+dist

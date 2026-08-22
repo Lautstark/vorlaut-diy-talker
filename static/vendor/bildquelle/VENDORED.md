@@ -27,12 +27,11 @@ cp dist/browser/*.js <vorlaut>/static/vendor/bildquelle/
 
 ## Why vendored rather than an npm dependency
 
-vorlaut serves `static/` as plain ES modules from the Python server, so a bare
-`@lautstark/bildquelle` does not resolve on its own. An import map points it at
-this directory. That map lives in `tools/symbolcheck.html` and not in `ui.html`,
-for the reason the comment in `ui.html`'s own map block gives about the speech
-dependency: `ui.html` is the server-rendered app, and an entry there would name
-a module the page never imports. It moves to whatever page the static-site rewrite grows.
+vorlaut serves `static/` as plain ES modules, so a bare `@lautstark/bildquelle`
+does not resolve on its own. An import map points it at this directory, and that
+map is in `ui.html` — the page imports symbols.js, which imports this, so the
+entry names a module the page really loads. `tools/symbolcheck.html` carries its
+own copy of the entry because an import map is per document.
 
 The specifier is bare rather than a relative path, which keeps the option of a
 bundler open — delete the map, add the dependency, no application code moves.

@@ -3,7 +3,7 @@
 //
 // dragSet, dragSlot and preview live here and nowhere else.
 import { $, status } from "./dom.js";
-import { previewInto } from "./backend.js";
+import { previewInto, symbolInto } from "./backend.js";
 import { state } from "./state.js";
 import { limits, palette } from "./boot.js";
 import { t } from "./texts.js";
@@ -67,7 +67,7 @@ function thumb(symbol, onClick) {
   box.className = "thumb";
   if (symbol) {
     const image = document.createElement("img");
-    image.src = "/symbols/" + encodeURIComponent(symbol) + "?v=" + Date.now();
+    symbolInto(image, symbol);
     image.onerror = () => {
       box.replaceChildren(placeholder(symbol, document.createElement("br"),
                                       t("ui.symbol_missing")));

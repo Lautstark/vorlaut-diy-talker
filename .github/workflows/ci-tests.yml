@@ -46,11 +46,11 @@ jobs:
           python-version: "3.12"
 
       # Nothing is installed. Python is here to run tests/run.py, which is
-      # standard library only; the checks themselves need node and g++, and
-      # the runner image has both. That is not tidiness - it is the state the
-      # project ended up in when the Python half was deleted, and a step that
-      # quietly installed something would hide how much of this now rests on
-      # node alone.
+      # standard library only; the checks themselves need node, g++ and a
+      # Chrome, and the runner image has all three. That is not tidiness - it
+      # is the state the project ended up in when the Python half was deleted,
+      # and a step that quietly installed something would hide how much of
+      # this now rests on node alone.
 
       - name: Tests
         # Every tests/test_*.py, and the folder is the list. This used to be
@@ -64,12 +64,13 @@ jobs:
         #
         # Most of them need node: the app is JavaScript now, and so are the
         # checks on it. Three also need a C++ compiler, because they compile
-        # the firmware's own readers and replay the browser's bytes into them.
-        # Both come with the runner image, so nothing is installed for them.
+        # the firmware's own readers and replay the browser's bytes into them,
+        # and one needs a Chrome, because it opens the page. All three come
+        # with the runner image, so nothing is installed for them.
         run: python tests/run.py
 
-      - name: node and g++ really were there
-        # tests/run.py skips rather than fails where node or g++ is missing,
+      - name: node, g++ and Chrome really were there
+        # tests/run.py skips rather than fails where one of these is missing,
         # so a runner image that quietly dropped one would leave this job
         # green with almost nothing checked. That is the exact failure the
         # frozen references exist to prevent, and it would be absurd to let it
@@ -77,3 +78,4 @@ jobs:
         run: |
           node --version
           g++ --version | head -1
+          google-chrome --version

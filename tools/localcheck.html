@@ -20,14 +20,15 @@
 <main>
 <h1>The seam, answered without a server</h1>
 <p class="lede">
-  <code>static/backend/local.js</code> against the same contract
-  <code>backend/server.js</code> answers over HTTP. The bench for the half of
-  the rewrite that has no Python behind it.
+  <code>static/backend/local.js</code> against the contract in
+  <code>static/backend.js</code>. It is the only implementation of that seam
+  now; <code>backend/server.js</code> went with app.py.
 </p>
 <p class="lede">
-  <strong>Must be served from the app's own origin</strong>, so that the
-  import map and <code>/static/</code> resolve: run the interface, then open
-  this file's contents there. IndexedDB has no origin on <code>file://</code>.
+  <strong>Must be served over HTTP from the repository root</strong>, so that
+  the import map and <code>/static/</code> resolve, and so that IndexedDB has
+  an origin - it has none on <code>file://</code>. <code>python3 -m
+  http.server</code> in the clone is enough.
 </p>
 <p><button id="go">Run</button> <button id="wipe">Delete the database</button></p>
 <pre id="out"></pre>

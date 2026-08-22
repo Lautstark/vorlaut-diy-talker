@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>vorlaut</title>
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./assets/icon-192.png">
+<link rel="manifest" href="./manifest.webmanifest">
 <meta name="theme-color" content="#161618">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="vorlaut">
-<link rel="stylesheet" href="/static/tokens.css">
-<link rel="stylesheet" href="/static/ui.css">
+<link rel="stylesheet" href="./static/tokens.css">
+<link rel="stylesheet" href="./static/ui.css">
 </head>
 <body>
 <header>
-  <img src="/icon.svg" alt="" class="logo">
+  <img src="./assets/icon.svg" alt="" class="logo">
   <h1>vorlaut</h1>
   <button id="gear" class="gear">⚙</button>
   <span class="status" id="status"></span>
@@ -151,11 +151,6 @@
 </dialog>
 
 
-<!-- What the server knows and the page needs: language, texts, palette,
-     limits. The only thing app.py puts into this file, and it is data
-     rather than script - see static/boot.js. -->
-<script type="application/json" id="bootstrap">__BOOTSTRAP__</script>
-
 <!-- A document may hold exactly one of these, so everything the page imports
      by bare name has to be in this one block. A module cannot install it for
      its own import either - the map has to be parsed before the first module
@@ -168,15 +163,21 @@
      reached by path, and it does not import piper either, it is handed it.
      Written out here rather than mapped, because nothing this page loads asks
      for it yet and a live entry would name a CDN the page never fetches from.
-     tools/ttscheck.html carries it in the meantime. -->
+     backend/local.js reaches piper through a dynamic import in the meantime,
+     which needs no entry. -->
+<!-- vorlaut:backend is the seam - see static/backend.js. There is one
+     implementation and this names it, which is the point: a page that reaches
+     the outside some other way should arrive as a second entry here rather
+     than as an edit to every module that asks. -->
 <script type="importmap">
 {
   "imports": {
-    "@lautstark/bildquelle": "/static/vendor/bildquelle/index.js"
+    "vorlaut:backend": "./static/backend/local.js",
+    "@lautstark/bildquelle": "./static/vendor/bildquelle/index.js"
   }
 }
 </script>
 
-<script type="module" src="/static/main.js"></script>
+<script type="module" src="./static/main.js"></script>
 </body>
 </html>

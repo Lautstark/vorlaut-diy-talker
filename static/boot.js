@@ -1,27 +1,28 @@
-// What the server knows and the page needs: the language, its text table, the
-// palette and the set limits.
+// What the page needs before it can say anything: the language, its text
+// table, the palette and the set limits.
 //
-// This used to be five placeholders that app.py replaced in the page as it
-// served it - __LANG__, __TEXTS__, __LANGUAGES__, __PALETTE__, __LIMITS__.
-// json.dumps does not escape </script>, so a value holding that string would
-// have ended the script element early and the rest of the page would have
-// been parsed as markup. Nothing said so; it was safe only because everything
-// going through those holes happened to be trusted.
+// This used to arrive from app.py. First as five placeholders it substituted
+// into live script - __LANG__, __TEXTS__, __LANGUAGES__, __PALETTE__,
+// __LIMITS__ - and json.dumps does not escape </script>, so a value holding
+// that string would have ended the script element early and the rest of the
+// page would have been parsed as markup. Nothing said so; it was safe only
+// because everything going through those holes happened to be trusted. Then as
+// one JSON island, which was the same hole made narrow rather than closed.
 //
-// Now there is one hole instead of five, it is a JSON island rather than live
-// script, and app.py escapes < on the way in. A value can no longer say
-// anything the parser listens to.
-// And when there is no server, there is no block. Then the same values come
-// out of boot_data.js, which tools/bootdata.py writes from texts.py - so the
-// two pages are reading one table rather than two that have to be kept level.
-// The island wins where it exists: while app.py is still here, what it says
-// about the language is the answer, because it is the half that knows what the
-// request asked for.
+// There is no server now, so there is no island and no branch to read one.
+// boot_data.js is the table itself rather than a copy of texts.py - see
+// tests/browser/boot_data.test.mjs, which is what keeps the languages level -
+// and a value in it reaches the page as a module export, which the HTML parser
+// never looks at.
+//
+// The branch went with the island deliberately. Keeping `island ? ... : ...`
+// for a block that can no longer be in the page is a live-looking path nobody
+// can reach, and the way it failed is the argument: the block outlived the
+// half that filled it in, JSON.parse read the literal "__BOOTSTRAP__", and the
+// whole module tree died before rendering. A fallback that only fires when the
+// block is absent does not help when the block is present and empty of meaning.
 import { LANGUAGES as BUILT_IN_LANGUAGES, DEFAULT_LANGUAGE, TEXTS as BUILT_IN_TEXTS,
          PALETTE, LIMITS } from "./boot_data.js";
-
-const island = document.getElementById("bootstrap");
-const boot = island ? JSON.parse(island.textContent) : null;
 
 /** Which language a page nobody configured should open in.
  *
@@ -41,8 +42,8 @@ function preferred() {
   return DEFAULT_LANGUAGE;
 }
 
-export const LANG = boot ? boot.lang : preferred();
-export const LANGUAGES = boot ? boot.languages : BUILT_IN_LANGUAGES;
-export const TEXTS = boot ? boot.texts : BUILT_IN_TEXTS[LANG];
-export const palette = boot ? boot.palette : PALETTE;
-export const limits = boot ? boot.limits : LIMITS;
+export const LANG = preferred();
+export const LANGUAGES = BUILT_IN_LANGUAGES;
+export const TEXTS = BUILT_IN_TEXTS[LANG];
+export const palette = PALETTE;
+export const limits = LIMITS;

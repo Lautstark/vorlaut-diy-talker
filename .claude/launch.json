@@ -3,20 +3,6 @@
   "configurations": [
     {
       "name": "vorlaut",
-      "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": [
-        "app.py",
-        "--port",
-        "8798"
-      ],
-      "port": 8798,
-      "autoPort": true,
-      "env": {
-        "VORLAUT_DEVICE_TOKEN": "test-token-abcdefghijklmnop"
-      }
-    },
-    {
-      "name": "tools",
       "runtimeExecutable": "python3",
       "runtimeArgs": [
         "-m",

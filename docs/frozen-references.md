@@ -375,23 +375,32 @@ kept. **The thing that actually needs fixing is `runBuild()`,** not the data
 it would have produced.
 
 Two instructions in [`cable.md`](cable.md) still say to run `app.py` to serve
-the bench, and `static/backend.js` still imports `buildManifest`/`buildFile`
-from `backend/server.js`, which fetches routes that no longer exist. The
-WebSerial session is fixing both. The bench itself is not blocked: its *Pick a
-`data/` folder* button reads the payload straight off disk, so
-`python3 -m http.server` is enough.
+the bench. The WebSerial session is fixing those. The seam half is done:
+`backend/server.js` was deleted with the routes it fetched, and
+`static/backend.js` resolves `vorlaut:backend` through ui.html's import map to
+`backend/local.js`, which answers `buildManifest`/`buildFile` out of the store.
+The bench itself is not blocked: its *Pick a `data/` folder* button reads the
+payload straight off disk, so `python3 -m http.server` is enough.
 
 ## What is still only checked against itself
 
 An honest list is worth more than a claim of coverage. In rough order of how
 much it would cost to be wrong:
 
-1. **No real browser is in CI, and no longer any way to use one.** Everything
-   above runs under node. The vendored chain and `tiles.js` are deliberately
-   free of the DOM, so node is a fair stand-in for the arithmetic — but
-   `tools/ttscheck.html` and `tools/tilecheck.html`, the pages that drove them
-   in a real tab, were deleted with the Python harnesses that fed them. Until
-   something replaces those, nothing exercises a browser at all.
+1. **A real browser is in CI, but only far enough to open the page.**
+   `tests/browser/page.test.mjs` drives headless Chrome over the DevTools
+   protocol from plain node, and asserts that the page loads with no exception,
+   no console error and no 404, that a board renders, and that nothing asks a
+   server for anything. It runs against the clone in the suite and again
+   against `dist/` before the deploy — which is the check whose absence let a
+   page that rendered nothing at all ship green.
+
+   It is shallow on purpose, and everything below it is still unexercised in a
+   tab. The vendored chain and `tiles.js` are checked under node, where they
+   are deliberately free of the DOM, so node is a fair stand-in for the
+   arithmetic — but `tools/ttscheck.html` and `tools/tilecheck.html`, the pages
+   that drove them in a real tab, were deleted with the Python harnesses that
+   fed them, and nothing has replaced those.
 2. **No other program has ever opened a `.obz` this wrote**, and that is the
    only real test of an interchange format. Not a unit test, not a freeze, not
    the round trip: export a container and load it in something else that reads

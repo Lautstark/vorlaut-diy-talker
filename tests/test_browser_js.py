@@ -16,6 +16,13 @@ Every tests/browser/*.test.mjs runs. At the time of writing:
   boot_data.test.mjs  static/boot_data.js, which used to be generated from
                       texts.py and is the source itself now that texts.py is
                       gone.
+  reachable.test.mjs  that every module under static/ is one ui.html actually
+                      loads, following the import map the way the page does.
+                      This walk used to be in tests/test_ui_texts.py.
+  page.test.mjs       the page, opened in a real Chrome, with a board on it.
+                      The only check here that runs the front end rather than
+                      reading it - see its own docstring for why that gap cost
+                      a release.
 
 Skipped, not failed, where node is missing - and that is a real gap rather
 than a formality now, so it says so plainly. There is no Python half left to
@@ -65,8 +72,8 @@ def main() -> int:
     node = shutil.which("node")
     if not node:
         print("  skipped: node is not installed, so the browser tests cannot "
-              "run. The speech chain is then checked only by its constants, "
-              "in tests/test_browser_tts.py.")
+              "run - which means the speech chain, the text tables, the "
+              "import graph and the page itself are not checked at all.")
         print("\n  All good.")
         return 0
 

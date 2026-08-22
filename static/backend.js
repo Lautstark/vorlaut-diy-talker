@@ -1,17 +1,16 @@
 // Where the page ends and the outside begins.
 //
-// The app is being turned into a static site. Everything the page cannot work
-// out for itself - the layout, the symbols, the speech, the build - is today a
-// request to app.py and will tomorrow be the browser doing it: a folder chosen
-// with the File System Access API, bildquelle for the symbols, speak.js for the
-// speech, tiles.js and layout_format.js for the build. Those four browser
-// halves already exist and are already measured against the Python they were
-// ported from. What was missing was somewhere to put them.
+// The app is a static site. Everything the page cannot work out for itself -
+// the layout, the symbols, the speech, the build - used to be a request to
+// app.py and is the browser doing it now: a folder chosen with the File System
+// Access API, bildquelle for the symbols, the vendored stimmquelle for the
+// speech, tiles.js and layout_format.js for the build. Each of those halves
+// was written and measured against the Python it replaced; backend/local.js is
+// where they stopped being spare parts.
 //
 // So the requests that used to be written out in eight modules are named here
 // instead, once. editor.js, picker.js, voices.js and settings.js ask for what
-// they need and are not told who answers; swapping the line below for a local
-// implementation moves all of them across without any being opened again.
+// they need and are not told who answers.
 // Not the whole page, though - getting the result onto the talker is not among
 // them and cannot come across this way. The note at the foot of this file says
 // why, and is there so that the gap is a reserved place rather than a
@@ -19,7 +18,7 @@
 //
 // The list shrinks as the rewrite lands. Searching and asking which sources
 // exist were here until the browser took both; what is left of symbols is the
-// ARASAAC download, which needs somewhere on disk to put the file.
+// ARASAAC download, which needs somewhere to put the file.
 //
 // The names are re-exported one at a time rather than with `export *`, so that
 // this list is the contract: adding a way for the page to reach the outside
@@ -37,6 +36,7 @@ export {
   pickSymbol,
   uploadSymbol,
   previewInto,
+  symbolInto,
 
   // Which voices can be spoken with here - a question the server answers
   // afresh on every open, because a key or a model may have arrived since.
@@ -65,10 +65,27 @@ export {
   buildFile,
 
   // The five digits. On the way out with the Wi-Fi sync that needs them - see
-  // the note in backend/server.js.
+  // the note at the foot of backend/local.js.
   pairState,
   confirmPairCode,
-} from "./backend/server.js";
+} from "vorlaut:backend";
+
+// A bare specifier, and ui.html's import map is what points it somewhere. That
+// is the "one line" this file has promised since it was written, and the line
+// is in the page rather than here.
+//
+// There is one implementation to point at, and the bare name is kept anyway.
+// Writing "./backend/local.js" here would work today and would be a decision
+// taken silently: a second way for the page to reach the outside - a build
+// that talks to a device over WebSerial, a hosted variant - should arrive as
+// another entry in the map, next to this one, rather than as a refactor of the
+// module every caller imports. Naming the seam is what makes that the cheap
+// option.
+//
+// It also means no build step buys this. The alternative was a bundler with a
+// define, or a dynamic import that would make every caller await a module they
+// only wanted to call - see the note in symbols.js about why native modules
+// with a map is somewhere this project can stop rather than a stopgap.
 
 
 // --- Reserved: getting it onto the device ------------------------------------
