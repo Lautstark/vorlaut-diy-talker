@@ -17,7 +17,7 @@
     "build:pages": "BASE_PATH=/vorlaut/ npm run build"
   },
   "dependencies": {
-    "@lautstark/bildquelle": "github:Lautstark/bildquelle#f62dfcc085a69fa90c562f8ce8f137e74c659a55",
+    "@lautstark/bildquelle": "github:Lautstark/bildquelle#semver:^1.0.0",
     "@lautstark/stimmquelle": "github:Lautstark/stimmquelle#v2.0.2"
   },
   "devDependencies": {
