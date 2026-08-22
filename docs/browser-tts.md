@@ -151,11 +151,33 @@ the fingerprint in `tts.py` is really promising.
 `VOICE_CATALOGUE` in `tts.py` ships four voices. **Two of them cannot be spoken
 in a browser, and they fail for two different reasons.**
 
-`de_DE-kerstin-low` fails because it is a `low` model. vits-web phonemizes
-against one fixed symbol table instead of the `phoneme_id_map` in each model's
-own `.onnx.json`, and every `low` and `x_low` voice dies with
-`idx=... must be within the inclusive range [-130,129]`. Measured in the spike;
-not re-derived here.
+`de_DE-kerstin-low` fails because it is a `low` model, and every `low` and
+`x_low` voice dies the same way: `idx=140 must be within the inclusive range
+[-130,129]`. Measured in the spike; not re-derived here.
+
+The *reason* is narrower than this document first said, and the correction is
+worth having because it changes what is possible. It is not that the older
+models lack phonemes. The German ich-Laut has two Unicode spellings —
+precomposed `ç` (U+00E7), or `c` followed by the combining cedilla (U+0327) —
+and the phonemizer emits the second. Thorsten's map holds both, the combining
+mark at 140. Kerstin's map has 130 entries, ids 0 to 129, which is exactly the
+range in the error, and holds only the precomposed form, at 40.
+
+Checked here against both `.onnx.json` files rather than taken on trust:
+
+```
+thorsten map size 152     combining U+0327 -> [140]    precomposed ç -> [40]
+kerstin  map size 130     combining U+0327 -> None     precomposed ç -> [40]
+Kerstin's map is a strict subset of Thorsten's: True
+```
+
+So it is one sound written two ways, not a sound her model cannot make, and
+composing it where the model does not know the emitted form is a few lines
+rather than a fork of the phonemizer. `Lautstark/stimmquelle` has it as
+`remapPhonemeIds`: Thorsten's ids come out byte-identical on eight sentences
+and every one of Kerstin's lands in range with nothing dropped. What has not
+happened is audio — rendering through it means owning the onnxruntime call
+instead of vits-web's `predict()`, which phonemizes and infers in one go.
 
 `en_US-john-medium` fails for a different reason, and the spike's account of it
 — "files missing from the mirror" — is not right. The files are there: 63531379
@@ -167,15 +189,20 @@ absent from the 119-entry map, and John is one of them. `speak.js` checks the
 map and says so, rather than letting a 404 about a file nobody asked for come
 back from the network.
 
-**There is no German female voice.** Not "not in the catalogue" — there is none
-to be had. piper publishes three German female voices, Kerstin, Eva K and
-Ramona, and all three are `low` or `x_low`. The only German voices that run at
-all are Thorsten, in three flavours, and `de_DE-mls-medium`, which is a
-multi-speaker corpus rather than a person and has no name to show in a picker.
-Reading each model's own `phoneme_id_map` would unlock the `low` voices and with
-them Kerstin — and would mean owning the phonemizer glue instead of calling a
-library. That is the piece of work that decides whether this project has a
-German female voice.
+**There is no German female voice today.** piper publishes three — Kerstin,
+Eva K and Ramona — and all three are `low` or `x_low`, so all three fail. The
+only German voices that run are Thorsten, in three flavours, and
+`de_DE-mls-medium`, which is a multi-speaker corpus rather than a person and has
+no name to show in a picker.
+
+But "today" is doing real work in that sentence, and it did not use to. On the
+evidence above this is a property of the glue, not of piper's catalogue:
+Kerstin's model can make the sound, it is spelled differently, and the remap is
+written. Getting from there to a German female voice on the device needs the
+onnxruntime call owned rather than delegated — which is the same change that
+retires the `PATH_MAP` problem below and brings `en_US-john-medium` back with
+it. One piece of work, three results. It is the highest-value thing left in this
+whole area.
 
 One more thing turned up while checking: `en_US-hfc_female-medium`, which the
 spike used and which works, is **CC BY-NC-SA 4.0**. `tts.py` says the reason its

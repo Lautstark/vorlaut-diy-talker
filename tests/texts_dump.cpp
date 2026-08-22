@@ -36,6 +36,7 @@ int main(void) {
     dump(i, "wifi", s.wifi);
     dump(i, "searching", s.searching);
     dump(i, "loading", s.loading);
+    dump(i, "cable", s.cable);
     dump(i, "done", s.done);
     dump(i, "failed", s.failed);
     dump(i, "pairing", s.pairing);
