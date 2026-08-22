@@ -93,7 +93,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_none": "not set - searching ARASAAC alone",
         "ui.metacom_fixed": "set by docker-compose.yml, not here. That is the "
                             "path inside the container; the folder on the "
-                            "machine stands in .env.",
+                            "machine stands in the mount that puts it there.",
         # The same thing in the width of a heading.
         "ui.metacom_short_none": "not set",
         "ui.settings_saved": "saved",
@@ -365,7 +365,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "ui.metacom_none": "nicht gesetzt - es wird nur ARASAAC durchsucht",
         "ui.metacom_fixed": "kommt aus docker-compose.yml, nicht von hier. Das "
                             "ist der Pfad im Container; der Ordner auf dem "
-                            "Rechner steht in der .env.",
+                            "Rechner steht in der Einbindung, die ihn dorthin "
+                            "bringt.",
         "ui.metacom_short_none": "nicht gesetzt",
         "ui.settings_saved": "gespeichert",
         "ui.metacom_offer": "Du hast eine METACOM-Lizenz? Trag den Ordner beim Zahnrad ein, dann wird er hier mit durchsucht.",

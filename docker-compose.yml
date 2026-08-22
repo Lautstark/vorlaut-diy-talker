@@ -18,32 +18,49 @@ services:
       # in advance, and the answer carries the real port.
       - "8771:8771/udp"
     environment:
-      # A licensed METACOM collection lives outside the project and has to be
-      # mounted. Where it sits on the computer is in .env - Compose reads that
-      # by itself. Inside the container it is always at /metacom, so the same
-      # setup works on a Mac and on a NAS.
-      # With nothing mounted, /metacom does not hold the expected folder
-      # structure - then the search runs with ARASAAC alone.
-      - VORLAUT_METACOM_DIR=/metacom
+      # Everything that belongs to you goes to /data, and /data is the one
+      # directory handed in from outside. The code comes from the image and is
+      # not overwritten by anything, so "which version am I on" has an answer.
+      - VORLAUT_CONTENT=/data
+      # The .env with the Azure key and the licence lives there too, because
+      # the settings sheet writes it and a saved setting has to survive the
+      # next "docker compose up". Deliberately not Compose's own "env_file:":
+      # that injects values the container cannot write back, so every setting
+      # saved in the interface would be gone on the next recreate - and it
+      # would look like the save had silently failed.
+      - VORLAUT_ENV_FILE=/data/.env
+      # A licensed METACOM collection is deliberately not set up here. It
+      # lives outside all of this, it is optional, and most people have none.
+      # docs/operation.md has the two lines - the mount and the variable - for
+      # whoever does.
+      #
+      # Naming the variable here without the mount was tried and is worse: the
+      # settings sheet then reports a configured folder holding nothing
+      # readable and unfolds itself to say so, which is a fault message for
+      # something that is not a fault. Unset, it says what is true - searching
+      # ARASAAC alone.
       # Inside the container the interface listens on 8771; from outside the
       # NAS it is whatever was published above. Only this line can tell the
       # two apart, and without it the device would be sent to the wrong port.
       - VORLAUT_PUBLIC_PORT=${VORLAUT_PORT:-8771}
     volumes:
-      # Hand in the whole project: that way layout.json, symbols/ and cache/
-      # live on the NAS and survive every rebuild of the image. The Azure key
-      # comes through the .env from exactly this folder - deliberately not
-      # baked into the image.
-      #
-      # Careful: this replaces /app wholesale, image contents and all. It is
-      # why the baked-in voices sit at /voices and not under /app - see the
-      # Dockerfile. Whatever has to survive the mount belongs outside /app.
-      - ./:/app
-      # Read only - the collection is never changed. With no path set, the
-      # mount points at example/ instead; the METACOM structure is missing
-      # there and the integration switches itself off. Compose cannot leave a
-      # mount out, hence this route.
-      - ${VORLAUT_METACOM_DIR:-./example}:/metacom:ro
+      # The whole of it: layout.json, symbols/, cache/, the spoken sentences
+      # and the .env. This lives on the NAS, is covered by its backup, and
+      # survives every new image. Nothing else is handed in.
+      - ./data:/data
+    # The container does not run as root - see the Dockerfile for why. What
+    # that costs is this line, and there is no way around it: which id owns
+    # the files on the NAS is a fact about the NAS, and the container has to
+    # be told. 1000:1000 is right on an ordinary Linux and on Docker Desktop.
+    # A Synology numbers differently, so put your own in - "id" over SSH says
+    # what it is - into the .env next to this file:
+    #
+    #   VORLAUT_UID=1026
+    #   VORLAUT_GID=100
+    #
+    # Get it wrong and the container cannot write into data/, and says so in
+    # the log on the first start rather than later.
+    user: "${VORLAUT_UID:-1000}:${VORLAUT_GID:-1000}"
     # Being found from the network is the one thing a bridge network is bad
     # at: a broadcast has to be carried in by Docker's port forwarding, and
     # whether it is depends on the host. The name vorlaut.local does not get
@@ -57,10 +74,4 @@ services:
     #      other server on it. Then the "ports:" above no longer apply, and
     #      neither does VORLAUT_PORT: the interface sits on 8771 of the NAS.
     # network_mode: host
-
-    # On a Synology the container otherwise runs as root, and everything it
-    # creates (cache/, layout.json) belongs to root afterwards - over the
-    # network share it can then no longer be edited. Find your own id over SSH
-    # with "id" and enter it here, e.g. "1026:100".
-    # user: "1026:100"
     restart: unless-stopped

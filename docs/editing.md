@@ -244,14 +244,16 @@ If the variable is not set, everything runs as before: search returns ARASAAC
 only, and `metacom:` references yield the placeholder tile instead of an abort.
 That keeps the same `layout.json` usable on a computer without a licence.
 
-For the container this is already set up: `docker-compose.yml` mounts the path
-from `.env` read-only under `/metacom` and points `VORLAUT_METACOM_DIR` there.
-So the same line in `.env` as for running without a container is enough. On a
-NAS you enter the NAS path there — inside the container it is always
-`/metacom`, the rest stays the same.
+In the container it is set up by hand, because a licensed collection lives
+outside everything the image knows about. Two lines in a
+`docker-compose.override.yml` — the mount that carries the folder in read-only,
+and `VORLAUT_METACOM_DIR` pointing at where it lands. Inside the container the
+path is always `/metacom`, so the same setup works on a Mac and on a NAS; only
+the folder on the left is yours. The lines are written out in
+[operation.md](operation.md#a-licensed-metacom-collection).
 
-If nothing is set, the mount points at `example/` instead; the METACOM
-structure is missing there and the integration switches itself off.
+Both or neither. Nothing set is the ordinary case — the search runs on ARASAAC
+alone and the gear says so.
 
 `python doctor.py` shows under "Wahlweise" whether the collection was found and
 whether the keywords could be read.

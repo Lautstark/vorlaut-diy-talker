@@ -13,6 +13,11 @@
 # offered up for committing like any other new file.
 content
 
+# The same content again, seen from the container: docker-compose.yml hands
+# data/ in as /data, so this is where it lands when the container is run from
+# a clone. No trailing slash for the same reason as above.
+data
+
 # arduino-cli puts its intermediate directory inside the sketch folder
 firmware/vorlaut/build/
 # the same for the test stages
