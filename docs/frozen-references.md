@@ -1,51 +1,45 @@
-# What still checks the browser once Python is gone
+# What checks the browser, now that the Python is gone
 
-Four subsystems in this repository exist twice — tile rendering, the layout
-binary, the speech chain and symbol search — because the app is being rewritten
-from a Python web app into a browser-only static site. The Python halves are on
-a deletion path. They are also, today, most of the reason anybody knows the
-JavaScript halves are correct.
+Four subsystems used to exist twice — tile rendering, the layout binary, the
+speech chain and symbol search — because the app was being rewritten from a
+Python web app into a browser-only static site. The Python halves were also,
+for a while, the only reason anybody knew the JavaScript halves were correct.
 
-This document is about that second sentence. It exists because of what happened
-next door in [`mitreden`](https://github.com/Lautstark/mitreden): when that
-project deleted its Python half, it found that its browser audio tests measured
-the output with the same function that had decided the gain. A wrong loudness
-implementation would have satisfied every one of them. Real `ffmpeg` was the
-only outside opinion available and it was minutes from being deleted; it was
-used one last time to freeze three reference tones as literal values, and those
+They have now been deleted. This document is what was recorded first, and what
+that recording does and does not still cover.
+
+The precaution came from [`mitreden`](https://github.com/Lautstark/mitreden):
+when that project deleted its Python half, it found that its browser audio
+tests measured the output with the same function that had decided the gain. A
+wrong loudness implementation would have satisfied every one of them. Real
+`ffmpeg` was the only outside opinion available and it was minutes from being
+deleted; it was used one last time to freeze three reference tones, and those
 numbers are now the only external check left in that repository.
 
 **A test that can only compare a thing against itself passes forever.** So the
-outside opinions here were written down while there were still outside opinions
-to write down. Nothing has been deleted; that is a later phase, and this exists
-to make it safe.
+outside opinions here were written down while there were still outside
+opinions to write down — and then the Python went.
 
-## The three lock files
+## The four lock files
 
 | | frozen from | needs, to check it | what it protects |
 |---|---|---|---|
-| [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `static/tts/level.js` |
+| [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `static/vendor/stimmquelle/` |
 | [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `static/tiles.js` |
 | [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `static/layout_format.js` |
 | [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `static/symbols.js` |
 
-Each is written by a tool that can only run while the Python half is here —
-[`tools/ttsfreeze.py`](../tools/ttsfreeze.py),
-[`tools/tilefreeze.py`](../tools/tilefreeze.py),
-[`tools/layoutfreeze.py`](../tools/layoutfreeze.py),
-[`tools/symbolfreeze.py`](../tools/symbolfreeze.py) — and each carries what
-produced it, when, and what would invalidate it, in the shape
-`tools/vendor.lock.json` uses next door. All four take `--check`, which
-measures again and changes nothing; that is the command to run after upgrading
-`ffmpeg` or Pillow.
+Each was written by a tool that could only run while the Python half was here
+— `tools/ttsfreeze.py`, `tools/tilefreeze.py`, `tools/layoutfreeze.py`,
+`tools/symbolfreeze.py`. They are gone with it; the lock files carry what
+produced them, when, and what would invalidate them, in the shape
+`tools/vendor.lock.json` uses next door, and git has the tools if one is ever
+needed again.
 
-**`git add -A` before running the suite, when you have just frozen something.**
+**`git add -A` before running the suite, when you have just added fixtures.**
 The reason is in `tests/run.py`'s docstring and in the Tests section of
-[`software.md`](software.md), where it applies to any new file and not only to
-fixtures. It is worth repeating the pointer here only because freezing is the
-worst case of it: these arrived twenty-seven files at a time, and a suite that
-is green before the commit and red after it reads like somebody else's
-regression.
+[`software.md`](software.md), where it applies to any new file. Freezing is the
+worst case of it: these arrived twenty-seven files at a time.
 
 The direction only goes one way, and it is the whole point:
 
@@ -53,33 +47,23 @@ The direction only goes one way, and it is the whole point:
 > checked. Refreezing to make a red test green would leave the browser
 > compared against itself, which is what these files exist to stop.
 
-## This does not make the Python removable
+## What a lock file can and cannot answer
 
-It is worth saying outright, because the opposite is the natural inference from
-a commit that freezes an oracle's output and it would be wrong.
+It could not be said often enough while the deletion was pending, and it still
+decides what these files are worth:
 
 **A live oracle re-derives the answer for any input. A fixture only answers for
-what was recorded.** So what is frozen here keeps regression detection on the
-recorded set, and does not keep the ability to work out what the right answer
-is for a case nobody recorded. The moment `TILE_PIPELINE` is bumped, or the
-layout format grows a field, or a symbol is added, these files cannot say what
-the new correct bytes are — Python has to come back to regenerate them, and all
-three freeze tools import it precisely so that it must.
+what was recorded.** What is frozen here keeps regression detection on the
+recorded set. It cannot work out the right answer for a case nobody recorded —
+bump `TILE_PIPELINE`, add a field to the layout, and these files cannot tell
+you the new correct bytes. Nothing in the repository can, now.
 
-That makes them a **supplement to the oracles, not a replacement for them.**
-They are insurance against the check evaporating quietly; they are not the
-check itself.
-
-The bar for removing `tiles.py`, `tts.py`, `layout_format.py` and `obf.py` is
-unchanged by anything in this document: **replaced and proven on the bench.**
-Not "replaced", and not "the hardware arrived". Nothing here lowers it, and
-this file should not be cited as though it does.
-
-One removal that these do not bear on at all, because the two get conflated
-easily: the firmware's Wi-Fi stack — `discover.h`, `networks.h`, `pairing.h`,
-`sync.h` and the five-digit code — is not an oracle for anything. It is the old
-transport, its bar is one real end-to-end cable transfer, and it is written up
-in [`cable.md`](cable.md) under "Before the Wi-Fi path can go".
+That is the accepted cost of the deletion, not an oversight. It was taken
+knowingly: the product has no users yet, the code is early, and carrying six
+Python modules to answer questions nobody was asking was judged the worse
+trade. If that changes — if the formats settle and somebody needs to know what
+a *new* symbol or a *new* layout should produce — the answer is to restore the
+oracle from git for as long as it takes to re-freeze, not to guess.
 
 ## What is now checked against something that is not itself
 
@@ -89,12 +73,12 @@ in [`cable.md`](cable.md) under "Before the Wi-Fi path can go".
 out of `static/tts/level.js` and compares them with `tts.py` — its own docstring
 says "the exported numbers out of level.js, without running any JavaScript."
 Correct constants over wrong arithmetic passed every check in it. The real
-verification was [`tools/ttscheck.py`](../tools/ttscheck.py), run by hand,
+verification was `tools/ttscheck.py`, run by hand,
 whose result exists as a table in [`browser-tts.md`](browser-tts.md) that
 nothing regenerates.
 
 [`tests/browser/level.test.mjs`](../tests/browser/level.test.mjs) now runs the
-module, via [`tests/test_browser_level.py`](../tests/test_browser_level.py) so
+module, via [`tests/test_browser_js.py`](../tests/test_browser_js.py) so
 that `python3 tests/run.py` picks it up. Four kinds of frozen reference:
 
 - **The ruler.** Five tones measured by `ffmpeg`'s `ebur128`. `integratedLufs()`
@@ -249,16 +233,16 @@ Representative, with the check that fired:
 An honest list is worth more than a claim of coverage. In rough order of how
 much it would cost to be wrong:
 
-1. **No real browser is in CI.** Everything above runs under node.
-   `level.js` and `tiles.js` are deliberately free of the DOM, so node is a
-   fair stand-in for the arithmetic — but the tab itself is checked only by
-   [`tools/ttscheck.html`](../tools/ttscheck.html) and
-   [`tools/tilecheck.html`](../tools/tilecheck.html), by hand, when somebody
-   remembers.
+1. **No real browser is in CI, and no longer any way to use one.** Everything
+   above runs under node. The vendored chain and `tiles.js` are deliberately
+   free of the DOM, so node is a fair stand-in for the arithmetic — but
+   `tools/ttscheck.html` and `tools/tilecheck.html`, the pages that drove them
+   in a real tab, were deleted with the Python harnesses that fed them. Until
+   something replaces those, nothing exercises a browser at all.
 2. **PNG decoding is not covered at all.** The tile fixtures are frozen
    *after* the decode, because that is the one step the browser does and this
    test does not. `tools/tilecheck.py` measured it lossless for these symbols
-   — once, by hand. A browser that decoded a PNG differently would not be
+   — once, by hand, and it no longer exists. A browser that decoded a PNG differently would not be
    noticed here.
 3. **No real speech is frozen.** `piper` is not installed on this machine and
    is not deterministic anyway — three renders of one sentence gave three

@@ -1,16 +1,21 @@
 // layout.json as an Open Board Format document, and back again - in the browser.
 //
-// A port of the mapping half of obf.py. The app is becoming a static site, so
-// the converter has to exist here as well: export and import are reached from
-// the settings sheet, and today both of them are a request to app.py.
+// A port of the mapping half of obf.py, written field for field against it
+// while it was the oracle. The app is a static site now, so this is where
+// export and import happen: both are reached from the settings sheet.
 //
-// obf.py is the oracle and stays untouched. What that means in practice is in
-// docs/obf.md, the argument field by field, and in
-// tests/test_obf_js.py, which drives a set of layouts and a set of foreign
-// documents through both implementations and compares the results field for
-// field. The documents are JSON, so that comparison needs no zip and no
-// browser - the same arrangement tests/test_layout_format.py uses for
-// layout.bin.
+// **Nothing checks this file any more.** obf.py was deleted with the rest of
+// the Python half, and tests/test_obf_js.py - which drove layouts and foreign
+// documents through both implementations and compared the results field for
+// field - went with it. Unlike tile rendering, the layout binary, the speech
+// chain and symbol search, no reference was frozen first; the decision and
+// what it costs are in docs/frozen-references.md under "What is still only
+// checked against itself".
+//
+// So this file is the only statement of the mapping there is. A mistake in it
+// is a board that somebody else's software reads wrongly or cannot open, and
+// it will not show up here - the file writes, the zip opens, the damage is on
+// the other side. Change it accordingly.
 //
 // What is deliberately not here.
 //
@@ -45,8 +50,9 @@ export const BOARD_DIR = "boards";
 export const IMAGE_DIR = "images";
 export const SOUND_DIR = "sounds";
 
-// The symbol set a bare file name in layout.json belongs to - see
-// docs/obf.md, "Symbols stay references".
+// The symbol set a bare file name in layout.json belongs to. A symbol stays a
+// reference across the format rather than travelling as pixels, which is what
+// keeps a licensed collection out of a document somebody sends on.
 export const OWN_SET = "vorlaut";
 export const METACOM_SET = "metacom";
 
@@ -324,7 +330,7 @@ export async function layoutToDocument(layout, { imageLicense } = {}) {
       id: boardId,
       // The board's language, which on this device reaches only the four menu
       // labels the firmware draws itself. On a phone it is also what picks the
-      // voice - see docs/obf.md.
+      // voice.
       locale: "language" in layout ? layout.language : DEFAULT_LANGUAGE,
       name: entry.name,
       grid: grid(boardId),
