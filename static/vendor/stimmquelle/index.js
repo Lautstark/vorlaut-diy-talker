@@ -1,0 +1,919 @@
+// voices.json
+var voices_default = {
+  _: [
+    "Which piper voices may be shipped, and which of them actually speak.",
+    "",
+    "One list, one place. mitreden's Dockerfile and vorlaut's tts.py each carried their",
+    "own copy of the same four voices - same mirror, same paths, same order - and each",
+    "carried its own copy of the rule about model licences. Three copies of that rule",
+    "existed before this file did, all correct, none able to learn anything from the",
+    "other two. That is how a voice under a non-commercial licence ended up in",
+    "mitreden's browser build: it ran perfectly, and running was the only question",
+    "anything asked of it.",
+    "",
+    "So every voice anyone has considered is in here, including the ones that were",
+    "turned down, with the reason. A list that only holds what passed cannot stop a",
+    "voice being reconsidered on the strength of the same evidence that let it in the",
+    "first time.",
+    "",
+    "THREE INDEPENDENT QUESTIONS. A voice must pass all three, and passing one says",
+    "nothing about the others.",
+    "",
+    "  licence   May it be handed on? Read the MODEL_CARD next to the model, never the",
+    "            file name. CC0 and public domain qualify unconditionally. CC-BY",
+    "            qualifies if the attribution is actually rendered. CC BY-NC-SA does",
+    "            not qualify at all - a recording made for somebody else's child",
+    "            cannot carry a non-commercial condition. 'See URL' means the card",
+    "            points at a dataset instead of naming a licence, which is not a yes.",
+    "",
+    "  quality   Only medium and high survive @diffusionstudio/vits-web. Every low and",
+    "            x_low voice dies with 'idx=... must be within the inclusive range",
+    "            [-130,129]', because vits-web phonemizes against one fixed symbol",
+    "            table instead of the phoneme_id_map inside each model's own",
+    "            .onnx.json. This is a browser limit only - the container speaks them",
+    "            all perfectly.",
+    "",
+    "  reach     vits-web can only fetch what is in its hardcoded PATH_MAP. Its",
+    "            voices() call returns the mirror's index instead - 124 entries",
+    "            against 119 in the map - so five voices are advertised by the library",
+    "            and cannot be downloaded by it.",
+    "",
+    "'browser' and 'container' say ok, or which question the voice failed for that",
+    "runtime. 'licence.ship' is separate from both: a voice can run everywhere and",
+    "still not be shippable. Consumers filter on licence.ship AND the runtime they",
+    "are.",
+    "",
+    "'proof' says how the runtime answer was established, because a list that says",
+    "tested and means assumed is worth less than no list:",
+    "",
+    "  spike      run in a browser in mitreden's docs/spike",
+    "  vorlaut    run in a browser from vorlaut's tools/ttscheck.html",
+    "  container  spoken by the piper binary, which is what both images ship",
+    "  rule       medium or high and present in PATH_MAP, but never actually spoken",
+    "",
+    "Every licence and every byte count below was read from the MODEL_CARD and the",
+    "mirror on the date in 'checked', not copied from anywhere. Both mirrors were",
+    "compared and carry identical bytes for every entry.",
+    "",
+    "Roughly a third of the English medium and high voices piper publishes cannot be handed on, and none of them says so anywhere a file name would show it. hfc_female, hfc_male and ryan in both qualities are all CC BY-NC-SA. That is the reason the rejected entries are in this file rather than left out of it."
+  ],
+  revised: "2026-08-22",
+  checked: "2026-08-22",
+  library: {
+    name: "@diffusionstudio/vits-web",
+    version: "1.0.3"
+  },
+  mirrors: {
+    container: "https://huggingface.co/rhasspy/piper-voices/resolve/main",
+    browser: "https://huggingface.co/diffusionstudio/piper-voices/resolve/main"
+  },
+  voices: [
+    {
+      id: "de_DE-thorsten-medium",
+      name: "Thorsten",
+      lang: "de",
+      locale: "de_DE",
+      gender: "male",
+      quality: "medium",
+      bytes: 63201294,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "CC0",
+        ship: true
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "spike, vorlaut, container",
+      note: "The default in both browser builds, and the only single German voice that speaks in a tab."
+    },
+    {
+      id: "de_DE-thorsten-high",
+      name: "Thorsten",
+      lang: "de",
+      locale: "de_DE",
+      gender: "male",
+      quality: "high",
+      bytes: 113895201,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "CC0",
+        ship: true
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "spike",
+      note: "The same person as de_DE-thorsten-medium and nearly twice the download. A picker showing both has to say more than the name."
+    },
+    {
+      id: "de_DE-thorsten_emotional-medium",
+      name: "Thorsten (emotional)",
+      lang: "de",
+      locale: "de_DE",
+      gender: "male",
+      quality: "medium",
+      bytes: 76745905,
+      sampleRate: 22050,
+      speakers: 8,
+      licence: {
+        name: "CC0",
+        ship: true
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "spike",
+      note: "Eight speakers, one per emotion, chosen by speaker id. vits-web speaks the first and offers no way to pick another, so in a browser this is one mood and not eight."
+    },
+    {
+      id: "de_DE-mls-medium",
+      name: "MLS",
+      lang: "de",
+      locale: "de_DE",
+      gender: "mixed",
+      quality: "medium",
+      bytes: 76961079,
+      sampleRate: 22050,
+      speakers: 236,
+      licence: {
+        name: "CC-BY 4.0",
+        ship: true,
+        attribution: "Stimme: Multilingual LibriSpeech (MLS), CC BY 4.0.",
+        note: "Shippable only where the attribution is actually rendered. Nothing in the family renders one yet, so adding this voice means adding that first."
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "spike",
+      note: "A corpus, not a person: 236 speakers in one model and no name a picker can show. The closest thing to a German female voice that runs in a browser at all, which is a statement about the alternatives rather than about this. Listened to rather than assumed: a sentence came back roughly four times longer than Thorsten's. The attribution is not the only thing standing between this and a usable second German voice."
+    },
+    {
+      id: "en_US-kristin-medium",
+      name: "Kristin",
+      lang: "en",
+      locale: "en_US",
+      gender: "female",
+      quality: "medium",
+      bytes: 63531379,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "public domain",
+        ship: true
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "spike, vorlaut, container"
+    },
+    {
+      id: "en_US-ljspeech-medium",
+      name: "LJ Speech",
+      lang: "en",
+      locale: "en_US",
+      gender: "female",
+      quality: "medium",
+      bytes: 63531379,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "public domain",
+        ship: true
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "rule, mitreden",
+      note: "The name of a dataset, which reads like a mistake in a list of first names. In mitreden's list since hfc_female came out of it, and recorded in the live page before it was added rather than taken on the strength of the tier."
+    },
+    {
+      id: "de_DE-kerstin-low",
+      name: "Kerstin",
+      lang: "de",
+      locale: "de_DE",
+      gender: "female",
+      quality: "low",
+      bytes: 63104526,
+      sampleRate: 16e3,
+      speakers: 1,
+      licence: {
+        name: "CC0",
+        ship: true
+      },
+      browser: "quality",
+      container: "ok",
+      proof: "container",
+      note: "Free to ship and fine in a container - she is mitreden's container default and is in vorlaut's. Published as low only, so no other file helps. Reading each model's own phoneme_id_map instead of vits-web's fixed table is what would bring her back, and it means owning the phonemizer glue rather than calling a library. Note the 16 kHz: vorlaut's device wants exactly that, so a low voice would need no resampling at all."
+    },
+    {
+      id: "en_US-john-medium",
+      name: "John",
+      lang: "en",
+      locale: "en_US",
+      gender: "male",
+      quality: "medium",
+      bytes: 63531379,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "public domain",
+        ship: true
+      },
+      browser: "reach",
+      container: "ok",
+      proof: "container",
+      note: "Not missing from the mirror - it is on both, at the byte count above, and both container images fetch it successfully. vits-web cannot have it: predict() looks the id up in PATH_MAP, finds nothing, and asks the mirror for 'undefined.json'. voices() advertises it anyway. mitreden's docs/spike/README.md recorded this as missing files, which was wrong and has been corrected there."
+    },
+    {
+      id: "de_DE-eva_k-x_low",
+      name: "Eva K",
+      lang: "de",
+      locale: "de_DE",
+      gender: "female",
+      quality: "x_low",
+      bytes: 20628813,
+      sampleRate: 16e3,
+      speakers: 1,
+      licence: {
+        name: "unclear",
+        ship: false,
+        note: "The MODEL_CARD names no licence. It points at the M-AILABS speech dataset, https://www.caito.de/2019/01/03/the-m-ailabs-speech-dataset/, and says 'See URL'. Unclear is not a yes - this is exactly the case mitreden's README warns about."
+      },
+      browser: "quality",
+      container: "ok",
+      proof: "rule",
+      note: "The second of the three German female voices piper publishes. At 20.6 MB it is the only one that is genuinely smaller than a medium model - low is not, despite the name."
+    },
+    {
+      id: "de_DE-ramona-low",
+      name: "Ramona",
+      lang: "de",
+      locale: "de_DE",
+      gender: "female",
+      quality: "low",
+      bytes: 63104526,
+      sampleRate: 16e3,
+      speakers: 1,
+      licence: {
+        name: "unclear",
+        ship: false,
+        note: "M-AILABS, 'See URL'. Same as Eva K."
+      },
+      browser: "quality",
+      container: "ok",
+      proof: "rule",
+      note: "The third and last German female voice piper publishes."
+    },
+    {
+      id: "de_DE-karlsson-low",
+      name: "Karlsson",
+      lang: "de",
+      locale: "de_DE",
+      gender: "male",
+      quality: "low",
+      bytes: 63104526,
+      sampleRate: 16e3,
+      speakers: 1,
+      licence: {
+        name: "unclear",
+        ship: false,
+        note: "M-AILABS, 'See URL'. Same as Eva K."
+      },
+      browser: "quality",
+      container: "ok",
+      proof: "rule"
+    },
+    {
+      id: "en_US-hfc_female-medium",
+      name: "HFC female",
+      lang: "en",
+      locale: "en_US",
+      gender: "female",
+      quality: "medium",
+      bytes: 63201294,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "CC BY-NC-SA 4.0",
+        ship: false,
+        url: "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en",
+        note: "Non-commercial and share-alike. Not a condition a recording made for somebody else's child can carry."
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "spike",
+      note: "The voice this file exists for. It speaks perfectly, it was in mitreden's browser build on exactly that basis, and it cannot be shipped. Nothing failed when it was wrong; the file simply played."
+    },
+    {
+      id: "en_US-hfc_male-medium",
+      name: "HFC male",
+      lang: "en",
+      locale: "en_US",
+      gender: "male",
+      quality: "medium",
+      bytes: 63201294,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "CC BY-NC-SA 4.0",
+        ship: false,
+        url: "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en",
+        note: "Same dataset, same model card, same answer."
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "rule"
+    },
+    {
+      id: "en_US-ryan-medium",
+      name: "Ryan",
+      lang: "en",
+      locale: "en_US",
+      gender: "male",
+      quality: "medium",
+      bytes: 63201294,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "CC BY-NC-SA 4.0",
+        ship: false,
+        url: "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en",
+        note: "Non-commercial and share-alike. Not a condition a recording made for somebody else's child can carry."
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "rule",
+      note: "Runs, and cannot ship. Listed so that the next person to go looking for an English male voice finds the answer rather than the model card."
+    },
+    {
+      id: "en_US-ryan-high",
+      name: "Ryan",
+      lang: "en",
+      locale: "en_US",
+      gender: "male",
+      quality: "high",
+      bytes: 120786792,
+      sampleRate: 22050,
+      speakers: 1,
+      licence: {
+        name: "CC BY-NC-SA 4.0",
+        ship: false,
+        url: "https://creativecommons.org/licenses/by-nc-sa/4.0/deed.en",
+        note: "Non-commercial and share-alike. Not a condition a recording made for somebody else's child can carry."
+      },
+      browser: "ok",
+      container: "ok",
+      proof: "rule",
+      note: "Same model card as the medium. Both qualities, one licence."
+    }
+  ]
+};
+
+// src/catalogue.ts
+var VOICES = Object.freeze(
+  voices_default.voices.map((v) => Object.freeze(v))
+);
+var MIRRORS = Object.freeze(voices_default.mirrors);
+var LIBRARY = Object.freeze(voices_default.library);
+var CHECKED = voices_default.checked;
+var QUALITIES = ["x_low", "low", "medium", "high"];
+function shippable(runtime, offering = {}) {
+  return VOICES.filter((v) => v.licence.ship && v[runtime] === "ok" && (offering.rendersAttribution || !v.licence.attribution));
+}
+function byId(id) {
+  const model = parseVoiceId(id)?.model ?? id;
+  return VOICES.find((v) => v.id === model);
+}
+function isAllowed(id, runtime, offering = {}) {
+  const voice = byId(id);
+  return !!voice && voice.licence.ship && voice[runtime] === "ok" && (offering.rendersAttribution || !voice.licence.attribution);
+}
+function parseVoiceId(id) {
+  const at = id.indexOf(":");
+  if (at < 1 || at === id.length - 1) return null;
+  return { backend: id.slice(0, at), model: id.slice(at + 1) };
+}
+function displayName(id) {
+  const model = parseVoiceId(id)?.model ?? id;
+  const known = VOICES.find((v) => v.id === model);
+  if (known) return known.name;
+  const withoutLocale = model.includes("-") ? model.slice(model.indexOf("-") + 1) : model;
+  const stem = QUALITIES.reduce((s, q) => s.endsWith(`-${q}`) ? s.slice(0, -q.length - 1) : s, withoutLocale);
+  return stem.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function qualityOf(id) {
+  const model = parseVoiceId(id)?.model ?? id;
+  return QUALITIES.find((q) => model.endsWith(`-${q}`)) ?? null;
+}
+function attributionsFor(ids) {
+  const owed = /* @__PURE__ */ new Set();
+  for (const id of ids) {
+    const a = byId(id)?.licence.attribution;
+    if (a) owed.add(a);
+  }
+  return [...owed];
+}
+function speakerOf(voice) {
+  return voice.id.slice(voice.locale.length + 1, voice.id.length - voice.quality.length - 1);
+}
+function modelUrls(id, runtime) {
+  const voice = byId(id);
+  if (!voice) return null;
+  const base = runtime === "browser" ? MIRRORS.browser : MIRRORS.container;
+  const dir = `${voice.lang}/${voice.locale}/${speakerOf(voice)}/${voice.quality}`;
+  return { onnx: `${base}/${dir}/${voice.id}.onnx`, config: `${base}/${dir}/${voice.id}.onnx.json` };
+}
+
+// src/contract.ts
+var TARGET_LUFS = -16;
+var TARGET_PEAK_DBTP = -1.5;
+var TRIM = Object.freeze({
+  thresholdDb: -50,
+  keepHeadSec: 0.05,
+  keepTailSec: 0.05
+});
+var MEASURE_RATE = 48e3;
+var PIPELINE_VERSION = 1;
+
+// src/level.ts
+function checkRate(rate, what) {
+  if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
+    throw new TypeError(
+      `${what} must be a positive finite number, not ${JSON.stringify(rate)}. A rate that arrived as a string needs parsing first.`
+    );
+  }
+}
+var magic = (view, at) => String.fromCharCode(
+  view.getUint8(at),
+  view.getUint8(at + 1),
+  view.getUint8(at + 2),
+  view.getUint8(at + 3)
+);
+function decodeWav(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (magic(view, 0) !== "RIFF" || magic(view, 8) !== "WAVE") throw new Error("not a RIFF/WAVE file");
+  let format = 0, channels = 0, rate = 0, bits = 0;
+  let data = null;
+  for (let at = 12; at + 8 <= bytes.byteLength; ) {
+    const id = magic(view, at);
+    const size = view.getUint32(at + 4, true);
+    const body = at + 8;
+    if (id === "fmt ") {
+      format = view.getUint16(body, true);
+      channels = view.getUint16(body + 2, true);
+      rate = view.getUint32(body + 4, true);
+      bits = view.getUint16(body + 14, true);
+    } else if (id === "data") {
+      data = { at: body, size: Math.min(size, bytes.byteLength - body) };
+    }
+    at = body + size + size % 2;
+  }
+  if (!rate || !data || !channels) throw new Error("WAVE file without fmt or data");
+  const float = format === 3;
+  const width = bits / 8;
+  const frames = Math.floor(data.size / (width * channels));
+  const out = new Float32Array(frames);
+  for (let i = 0; i < frames; i++) {
+    let sum = 0;
+    for (let c = 0; c < channels; c++) {
+      const at = data.at + (i * channels + c) * width;
+      if (float) sum += bits === 64 ? view.getFloat64(at, true) : view.getFloat32(at, true);
+      else if (bits === 16) sum += view.getInt16(at, true) / 32768;
+      else if (bits === 24) sum += (view.getUint8(at) | view.getUint8(at + 1) << 8 | view.getInt8(at + 2) << 16) / 8388608;
+      else if (bits === 32) sum += view.getInt32(at, true) / 2147483648;
+      else if (bits === 8) sum += (view.getUint8(at) - 128) / 128;
+      else throw new Error(`WAVE with ${bits} bit samples`);
+    }
+    out[i] = sum / channels;
+  }
+  return { samples: out, rate };
+}
+function toPcm16(samples) {
+  const pcm = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    const v = Math.max(-1, Math.min(1, samples[i]));
+    pcm[i] = Math.round(v < 0 ? v * 32768 : v * 32767);
+  }
+  return pcm;
+}
+function encodeWav(samples, rate) {
+  checkRate(rate, "the sample rate");
+  const bytes = new Uint8Array(44 + samples.length * 2);
+  const view = new DataView(bytes.buffer);
+  const text = (at, s) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(at + i, s.charCodeAt(i));
+  };
+  text(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  text(8, "WAVEfmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  text(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  const pcm = toPcm16(samples);
+  for (let i = 0; i < pcm.length; i++) view.setInt16(44 + i * 2, pcm[i], true);
+  return bytes;
+}
+var sinc = (x) => x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
+var gcd = (a, b) => b ? gcd(b, a % b) : a;
+var ZEROS = 24;
+var MAX_PHASES = 4096;
+var kernelCache = /* @__PURE__ */ new Map();
+function kernels(inRate, outRate) {
+  const key = `${inRate}>${outRate}`;
+  const known = kernelCache.get(key);
+  if (known !== void 0) return known;
+  const common = gcd(inRate, outRate);
+  const phaseCount = outRate / common;
+  const stride = inRate / common;
+  if (phaseCount > MAX_PHASES) {
+    kernelCache.set(key, null);
+    return null;
+  }
+  const fc = 0.5 * Math.min(1, outRate / inRate);
+  const halfWidth = ZEROS / (2 * fc);
+  const phases = [];
+  for (let r = 0; r < phaseCount; r++) {
+    const exact = r * stride / phaseCount;
+    const whole = Math.floor(exact);
+    const offset = exact - whole;
+    const first = Math.ceil(offset - halfWidth);
+    const last = Math.floor(offset + halfWidth);
+    const taps = new Float64Array(last - first + 1);
+    let norm = 0;
+    for (let k = first; k <= last; k++) {
+      const t = k - offset;
+      const angle = Math.PI * t / halfWidth;
+      const h = 2 * fc * sinc(2 * fc * t) * (0.42 + 0.5 * Math.cos(angle) + 0.08 * Math.cos(2 * angle));
+      taps[k - first] = h;
+      norm += h;
+    }
+    phases.push({ start: whole + first, taps, norm });
+  }
+  const built = { phaseCount, stride, phases };
+  kernelCache.set(key, built);
+  return built;
+}
+function resample(x, inRate, outRate) {
+  checkRate(inRate, "the input rate");
+  checkRate(outRate, "the output rate");
+  if (inRate === outRate || x.length === 0) return x;
+  const outLen = Math.max(1, Math.round(x.length * outRate / inRate));
+  const y = new Float32Array(outLen);
+  const built = kernels(inRate, outRate);
+  if (built === null) return resampleSlowly(x, inRate, outRate, y);
+  const { phaseCount, stride, phases } = built;
+  for (let i = 0, r = 0, block = 0; i < outLen; i++) {
+    const phase = phases[r];
+    const taps = phase.taps;
+    const from = block * stride + phase.start;
+    let sum = 0;
+    for (let n = 0; n < taps.length; n++) {
+      const j = from + n;
+      if (j >= 0 && j < x.length) sum += x[j] * taps[n];
+    }
+    y[i] = phase.norm ? sum / phase.norm : 0;
+    if (++r === phaseCount) {
+      r = 0;
+      block++;
+    }
+  }
+  return y;
+}
+function resampleSlowly(x, inRate, outRate, y) {
+  const ratio = outRate / inRate;
+  const fc = 0.5 * Math.min(1, ratio);
+  const halfWidth = ZEROS / (2 * fc);
+  for (let i = 0; i < y.length; i++) {
+    const centre = i / ratio;
+    let sum = 0, norm = 0;
+    for (let j = Math.ceil(centre - halfWidth); j <= Math.floor(centre + halfWidth); j++) {
+      const t = j - centre;
+      const angle = Math.PI * t / halfWidth;
+      const h = 2 * fc * sinc(2 * fc * t) * (0.42 + 0.5 * Math.cos(angle) + 0.08 * Math.cos(2 * angle));
+      norm += h;
+      if (j >= 0 && j < x.length) sum += x[j] * h;
+    }
+    y[i] = norm ? sum / norm : 0;
+  }
+  return y;
+}
+function trim(x, rate, o = {}) {
+  const threshold = Math.pow(10, (o.thresholdDb ?? TRIM.thresholdDb) / 20);
+  let a = 0, b = x.length - 1;
+  while (a < x.length && Math.abs(x[a]) <= threshold) a++;
+  while (b > a && Math.abs(x[b]) <= threshold) b--;
+  if (a >= b) return x;
+  const from = Math.max(0, a - Math.round((o.keepHeadSec ?? TRIM.keepHeadSec) * rate));
+  const to = Math.min(x.length, b + Math.round((o.keepTailSec ?? TRIM.keepTailSec) * rate) + 1);
+  return x.subarray(from, to);
+}
+function fadeEnds(x, rate, seconds) {
+  const n = Math.min(Math.round(seconds * rate), Math.floor(x.length / 2));
+  const y = Float32Array.from(x);
+  for (let i = 0; i < n; i++) {
+    const g = i / n;
+    y[i] *= g;
+    y[y.length - 1 - i] *= g;
+  }
+  return y;
+}
+function pad(x, rate, seconds) {
+  const y = new Float32Array(x.length + Math.round(seconds * rate));
+  y.set(x, 0);
+  return y;
+}
+function biquad(x, b0, b1, b2, a1, a2) {
+  const y = new Float32Array(x.length);
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+    x2 = x1;
+    x1 = x[i];
+    y2 = y1;
+    y1 = v;
+    y[i] = v;
+  }
+  return y;
+}
+function integratedLufs(x) {
+  let k = biquad(
+    x,
+    1.53512485958697,
+    -2.69169618940638,
+    1.19839281085285,
+    -1.69065929318241,
+    0.73248077421585
+  );
+  k = biquad(k, 1, -2, 1, -1.99004745483398, 0.99007225036621);
+  const block = Math.round(0.4 * 48e3), step = Math.round(0.1 * 48e3);
+  const power = [];
+  for (let s = 0; s + block <= k.length; s += step) {
+    let sum = 0;
+    for (let i = s; i < s + block; i++) sum += k[i] * k[i];
+    power.push(sum / block);
+  }
+  if (!power.length && k.length) {
+    let sum = 0;
+    for (let i = 0; i < k.length; i++) sum += k[i] * k[i];
+    power.push(sum / k.length);
+  }
+  if (!power.length) return -Infinity;
+  const loudness = (v) => -0.691 + 10 * Math.log10(v || 1e-12);
+  const mean = (list) => list.reduce((a, b) => a + b, 0) / list.length;
+  let gated = power.filter((v) => loudness(v) > -70);
+  if (!gated.length) return -Infinity;
+  const relative = loudness(mean(gated)) - 10;
+  gated = gated.filter((v) => loudness(v) > relative);
+  return gated.length ? loudness(mean(gated)) : -Infinity;
+}
+function truePeakDb(x, rate) {
+  const dense = resample(x, rate, rate * 4);
+  let peak = 0;
+  for (let i = 0; i < dense.length; i++) peak = Math.max(peak, Math.abs(dense[i]));
+  for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
+  return 20 * Math.log10(peak || 1e-12);
+}
+function postprocess(wavBytes, o = {}) {
+  const rate = o.rate === void 0 ? 44100 : o.rate;
+  checkRate(rate, "the output rate");
+  const { samples, rate: inRate } = decodeWav(wavBytes);
+  let shaped = trim(samples, inRate, o);
+  if (o.fadeSec) shaped = fadeEnds(shaped, inRate, o.fadeSec);
+  if (o.padSec) shaped = pad(shaped, inRate, o.padSec);
+  const lufs = integratedLufs(resample(shaped, inRate, 48e3));
+  const out = resample(shaped, inRate, rate);
+  let gainDb = TARGET_LUFS - lufs;
+  const peakDb = truePeakDb(out, rate);
+  const headroom = TARGET_PEAK_DBTP - peakDb;
+  const clamped = gainDb > headroom;
+  if (clamped) gainDb = headroom;
+  const gain = Math.pow(10, gainDb / 20);
+  const levelled = new Float32Array(out.length);
+  for (let i = 0; i < out.length; i++) levelled[i] = out[i] * gain;
+  return {
+    wav: encodeWav(levelled, rate),
+    samples: levelled,
+    rate,
+    seconds: levelled.length / rate,
+    lufs,
+    gainDb,
+    clamped,
+    peakDb: peakDb + gainDb
+  };
+}
+
+// src/mp3.ts
+var lame = null;
+var load = () => lame ??= import("./lamejs.js");
+var DEFAULT_BITRATE = 192;
+async function encodeMp3(samples, rate, bitrate = DEFAULT_BITRATE) {
+  const { Mp3Encoder } = await load();
+  const encoder = new Mp3Encoder(1, rate, bitrate);
+  const pcm = toPcm16(samples);
+  const parts = [];
+  for (let i = 0; i < pcm.length; i += 1152) {
+    const block = encoder.encodeBuffer(pcm.subarray(i, i + 1152));
+    if (block.length) parts.push(new Uint8Array(block));
+  }
+  const rest = encoder.flush();
+  if (rest.length) parts.push(new Uint8Array(rest));
+  let total = 0;
+  for (const p of parts) total += p.length;
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
+// src/phonemes.ts
+function remapPhonemeIds(phonemes, phonemeIds, map) {
+  const bos = map["^"]?.[0], eos = map["$"]?.[0], pad2 = map["_"]?.[0];
+  if (bos === void 0 || eos === void 0 || pad2 === void 0) {
+    throw new Error("phoneme_id_map is missing '^', '$' or '_'");
+  }
+  const structural = /* @__PURE__ */ new Set([bos, eos, pad2]);
+  const out = [];
+  const dropped = [];
+  let k = 0, exact = true, dropPad = false;
+  for (const id of phonemeIds) {
+    if (structural.has(id)) {
+      if (dropPad && id === pad2) {
+        dropPad = false;
+        continue;
+      }
+      out.push(id);
+      continue;
+    }
+    const phoneme = phonemes[k++];
+    if (phoneme === void 0) {
+      out.push(id);
+      continue;
+    }
+    if (map[phoneme]) {
+      out.push(...map[phoneme]);
+      continue;
+    }
+    const previous = phonemes[k - 2];
+    const composed = previous === void 0 ? null : (previous + phoneme).normalize("NFC");
+    if (composed && [...composed].length === 1 && map[composed]) {
+      for (let i = out.length - 1; i >= 0; i--) {
+        if (!structural.has(out[i])) {
+          out.splice(i, 1, ...map[composed]);
+          break;
+        }
+      }
+      exact = false;
+      dropPad = true;
+      continue;
+    }
+    dropped.push(phoneme);
+    exact = false;
+    dropPad = true;
+  }
+  return { ids: out, dropped, exact };
+}
+
+// src/speak.ts
+var loadPiper = null;
+function usePiper(load2) {
+  loadPiper = load2;
+}
+async function piper() {
+  if (!loadPiper) {
+    throw new Error(
+      "No piper module. Call usePiper(() => import(\u2026)) with wherever this app serves @diffusionstudio/vits-web from."
+    );
+  }
+  return loadPiper();
+}
+async function downloaded() {
+  return (await piper()).stored();
+}
+async function forget() {
+  return (await piper()).flush();
+}
+async function synthesizePiper(text, model, onProgress) {
+  const tts = await piper();
+  if (!(model in tts.PATH_MAP)) {
+    throw new Error(`${model} is not in vits-web's PATH_MAP and cannot be fetched by it. See voices.json for what can.`);
+  }
+  const blob = await tts.predict({ text: text.trim(), voiceId: model }, (p) => {
+    if (onProgress && p && p.total) {
+      onProgress({ url: p.url, loaded: p.loaded, total: p.total, share: p.loaded / p.total });
+    }
+  });
+  return new Uint8Array(await blob.arrayBuffer());
+}
+var AZURE_FORMAT = "riff-16khz-16bit-mono-pcm";
+var AZURE_RATE = "-5%";
+var endpoint = (region) => `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
+var voiceList = (region) => `https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`;
+function localeOf(name) {
+  const parts = name.split("-");
+  return parts.length >= 3 ? parts.slice(0, 2).join("-") : "de-DE";
+}
+var xml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function buildSsml(text, voice, rate = AZURE_RATE) {
+  return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${xml(localeOf(voice))}"><voice name="${xml(voice)}"><prosody rate="${xml(rate)}">${xml(text.trim())}</prosody></voice></speak>`;
+}
+async function synthesizeAzure(text, voice, o) {
+  if (!o.key) throw new Error("No Azure key.");
+  const response = await fetch(endpoint(o.region), {
+    method: "POST",
+    headers: {
+      "Ocp-Apim-Subscription-Key": o.key,
+      "Content-Type": "application/ssml+xml",
+      "X-Microsoft-OutputFormat": AZURE_FORMAT
+    },
+    body: buildSsml(text, voice, o.rate ?? AZURE_RATE)
+  });
+  if (!response.ok) {
+    if (response.status === 401) throw new Error(`Azure rejected the key for ${o.region}.`);
+    throw new Error(`Azure said ${response.status}: ${(await response.text()).slice(0, 200)}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+async function azureVoices(o) {
+  const response = await fetch(voiceList(o.region), {
+    headers: { "Ocp-Apim-Subscription-Key": o.key }
+  });
+  if (!response.ok) throw new Error(`Azure said ${response.status} to the voice list.`);
+  const want = (o.languages ?? ["de-DE", "en-US"]).map((l) => l.toLowerCase());
+  const all = await response.json();
+  return all.filter((v) => want.some((w) => (v.Locale ?? "").toLowerCase() === w || (v.Locale ?? "").toLowerCase().startsWith(`${w}-`))).map((v) => v.ShortName).sort();
+}
+async function speak(text, vid, options = {}) {
+  if (!text || !text.trim()) throw new Error("Nothing to say.");
+  const parsed = parseVoiceId(vid);
+  const backend = parsed?.backend ?? "piper";
+  const model = parsed?.model ?? vid;
+  if (backend === "piper" && !isAllowed(model, "browser", options)) {
+    const known = byId(model);
+    throw new Error(
+      !known ? `${model} is not in the catalogue, so it must not be fetched.` : !known.licence.ship ? `${model} may not be shipped: ${known.licence.name}.` : known.browser !== "ok" ? `${model} does not speak in a browser: ${known.browser}.` : `${model} is ${known.licence.name} and owes an attribution. Render it, then pass { rendersAttribution: true }.`
+    );
+  }
+  const started = performance.now();
+  if (backend === "azure" && !options.azure) {
+    throw new Error("An azure: voice needs options.azure with a key and a region.");
+  }
+  const raw = backend === "azure" ? await synthesizeAzure(text, model, options.azure) : await synthesizePiper(text, model, options.onProgress);
+  const spoken = performance.now();
+  const result = postprocess(raw, options);
+  return {
+    ...result,
+    voice: vid,
+    rawBytes: raw.length,
+    synthesisMs: Math.round(spoken - started),
+    levellingMs: Math.round(performance.now() - spoken)
+  };
+}
+var asBlob = (wav) => new Blob([wav], { type: "audio/wav" });
+export {
+  AZURE_FORMAT,
+  AZURE_RATE,
+  CHECKED,
+  DEFAULT_BITRATE,
+  LIBRARY,
+  MEASURE_RATE,
+  MIRRORS,
+  PIPELINE_VERSION,
+  TARGET_LUFS,
+  TARGET_PEAK_DBTP,
+  TRIM,
+  VOICES,
+  asBlob,
+  attributionsFor,
+  azureVoices,
+  buildSsml,
+  byId,
+  decodeWav,
+  displayName,
+  downloaded,
+  encodeMp3,
+  encodeWav,
+  fadeEnds,
+  forget,
+  integratedLufs,
+  isAllowed,
+  localeOf,
+  modelUrls,
+  pad,
+  parseVoiceId,
+  postprocess,
+  qualityOf,
+  remapPhonemeIds,
+  resample,
+  shippable,
+  speak,
+  toPcm16,
+  trim,
+  truePeakDb,
+  usePiper
+};

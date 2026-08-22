@@ -90,8 +90,9 @@ The import map is part of that. `symbols.js` imports the package by its real
 name, which needs a map until there is a bundler, and a module cannot install
 one for its own import. `tools/symbolcheck.html` carries it and `ui.html`
 deliberately does not — the server-rendered app imports nothing from here yet,
-and `static/tts/speak.js` makes the same point about its own dependency. The map
-moves to whatever page the rewrite grows.
+and an entry there would name a module the page never fetches. The comment in
+`ui.html`'s own map block says the same thing about the speech dependency. The
+map moves to whatever page the rewrite grows.
 
 Not as a stopgap. Native modules with an import map are somewhere vorlaut can
 stop: its pitch is a web interface built from the standard library with no build

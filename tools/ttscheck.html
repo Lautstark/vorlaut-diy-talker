@@ -29,10 +29,10 @@
 <main>
 
 <h1>Speaking in a tab</h1>
-<p class="lede">The same two files the static site would ship —
-<code>speak.js</code> for the voice, <code>level.js</code> for the trim and the
-levelling. Nothing is uploaded; the models come from Hugging Face once and stay
-in this browser.</p>
+<p class="lede">The shared package the static site would ship —
+<code>@lautstark/stimmquelle</code>, vendored under <code>static/vendor/</code>
+and used exactly as vorlaut would use it. Nothing is uploaded; the models come
+from Hugging Face once and stay in this browser.</p>
 
 <fieldset>
   <legend>One sentence</legend>
@@ -71,8 +71,21 @@ in this browser.</p>
 { "imports": { "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js" } }
 </script>
 <script type="module">
-import * as speech from "../static/tts/speak.js";
-import { postprocess } from "../static/tts/level.js";
+import * as speech from "../static/vendor/stimmquelle/index.js";
+const { postprocess, shippable, displayName, speak, usePiper, asBlob } = speech;
+
+// What vorlaut asks the chain for: the device's rate, plus the two extras the
+// contract permits and leaves off - 12 ms of fade against clicks and 60 ms of
+// quiet for the MAX98357A. tts.py applies the same two. Written once here so
+// the page cannot drift from tools/ttscheck.mjs by editing one of them.
+const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
+
+// The package does not import piper - the consumer hands it in. That is why
+// there is no bare "@lautstark/stimmquelle" anywhere: it is a vendored file
+// with a relative path. onnxruntime-web above is still bare because vits-web's
+// own bundle asks for it, and 1.18.0 exactly because vits-web loads its wasm
+// binaries from that version's path.
+usePiper(() => import("https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/dist/vits-web.js"));
 
 const $ = (s) => document.querySelector(s);
 const log = (m) => { $("#log").textContent += m + "\n"; };
@@ -85,29 +98,32 @@ $("#env").textContent =
   + ` · ${navigator.userAgent}`;
 
 // --- the voice picker --------------------------------------------------------
-// Out of voices.json, and only out of voices.json. Offering piper's own
-// catalogue here is the mistake the whole file exists to prevent: it lists
-// voices this cannot speak with, and a voice that cannot speak turns into a
-// silent slot on the device rather than an error on this page.
-const catalogue = await speech.voices();
+// shippable("browser") and not the whole catalogue. It drops three kinds at
+// once: what cannot speak in a browser, what may not be handed on at all, and
+// what may be handed on only with an attribution this page does not render.
+// Offering piper's own list instead is the mistake the package exists to
+// prevent - a voice that cannot speak becomes a silent slot on the device
+// rather than an error here.
+const offered = shippable("browser");
 const already = await speech.downloaded().catch(() => []);
-for (const voice of catalogue.voices) {
+for (const voice of offered) {
   $("#voice").append(Object.assign(document.createElement("option"), {
     value: `piper:${voice.id}`,
-    textContent: `${voice.name} · ${voice.lang} · ${voice.quality} · `
+    textContent: `${displayName(voice.id)} · ${voice.lang} · ${voice.quality} · `
       + `${(voice.bytes / 1e6).toFixed(0)} MB`
       + (already.includes(voice.id) ? " · here already" : ""),
   }));
 }
-log(`${catalogue.voices.length} voices that work, ${catalogue.rejected.length} that do not`
-    + ` (voices.json, revised ${catalogue.revised})`);
+log(`${offered.length} of ${speech.VOICES.length} catalogue voices are offerable here`
+    + ` (stimmquelle, checked ${speech.CHECKED})`);
 if (already.length) log(`already in this browser: ${already.join(", ")}`);
 
 // --- one sentence ------------------------------------------------------------
 
 async function render(text, vid) {
   let last = -1;
-  return speech.speak(text, vid, {
+  return speak(text, vid, {
+    ...VORLAUT,
     onProgress: ({ url, share }) => {
       const percent = Math.round(share * 100);
       if (percent >= last + 25) {
@@ -131,7 +147,7 @@ function show(result) {
   ];
   $("#out").innerHTML = "<table>" + rows
     .map(([k, v]) => `<tr><td>${k}</td><td class="n">${v}</td></tr>`).join("") + "</table>";
-  const url = URL.createObjectURL(speech.asBlob(result.wav));
+  const url = URL.createObjectURL(asBlob(result.wav));
   $("#out").append(Object.assign(document.createElement("audio"), { controls: true, src: url }));
 }
 
@@ -183,7 +199,7 @@ async function batch(speakItToo) {
         note = `${result.synthesisMs} ms + ${result.levellingMs} ms`;
       } else {
         const raw = new Uint8Array(await (await fetch(`/dump/${item.id}-raw.wav`)).arrayBuffer());
-        const result = postprocess(raw);
+        const result = postprocess(raw, VORLAUT);
         wav = result.wav;
         note = `${result.lufs.toFixed(2)} LUFS ${result.gainDb >= 0 ? "+" : ""}${result.gainDb.toFixed(2)} dB`;
       }
@@ -200,5 +216,5 @@ $("#batch-level").addEventListener("click", () => batch(false));
 $("#batch-all").addEventListener("click", () => batch(true));
 
 // The console gets the same functions the buttons use, not a second copy.
-window.check = { ...speech, postprocess, render, batch };
+window.check = { ...speech, VORLAUT, render, batch };
 </script>
