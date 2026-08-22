@@ -3,6 +3,13 @@
   "produced_by": "tools/ttsfreeze.py",
   "produced_on": "2026-08-22",
   "ffmpeg": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "amended": [
+    {
+      "on": "2026-08-23",
+      "what": "burst: tts_py became limited, remeasured under stimmquelle 2.2.0 - the limiter moves this one number on purpose. quiet, loud and short never reach the ceiling, so their tts_py numbers still describe the chain that exists, and spike carries no numbers.",
+      "how": "by hand with the same instrument, ffmpeg 9.0.1 loudnorm print_format=json - tools/ttsfreeze.py is gone, and this entry stands where its rerun would have"
+    }
+  ],
   "tts_py": {
     "loudnorm": "I=-16:TP=-1.5:LRA=11",
     "silence_threshold": "-50dB",
@@ -164,16 +171,17 @@
     },
     {
       "name": "burst",
-      "why": "a consonant loud enough that reaching the target would breach the ceiling: the gain has to give way, and this is the only case where truePeakDb decides the answer",
+      "why": "a consonant loud enough that reaching the target would breach the ceiling: since stimmquelle 2.2.0 the gain holds the target and a limiter holds the ceiling, and this is the only fixture loud enough to engage it",
       "rate": 22050,
       "file": "tts/burst.wav",
       "bytes": 57374,
       "sha256": "9cae1973a718f2d4d0e3d3414511ad2317dfc0d0caa9024c13d162ede936cdb3",
       "compare": true,
-      "tts_py": {
-        "lufs": -18.05,
-        "peak": -1.5,
-        "lra": 0.0
+      "limited": {
+        "lufs": -17.25,
+        "peak": -1.48,
+        "lra": 0.0,
+        "note": "tts.py could not have produced this file: loudnorm's linear mode gives gain away at the ceiling, the limiter keeps it. So ffmpeg is the meter here, no longer the producer - it read the wav postprocess() itself wrote, 6.3 dB of limiting engaged, true peak held at -1.5 (ffmpeg reads it 0.02 high, the overshoot 'disagreements' already records)."
       }
     },
     {

@@ -180,6 +180,12 @@ function nothingSurvivesTheResampleThatShouldNot() {
  * held against ffmpeg above before being used. The order matters: the ruler
  * is checked first, then things are measured with it.
  *
+ * Since stimmquelle 2.2.0 the burst fixture is the exception: a limiter
+ * holds the ceiling there, and tts.py's chain could not have produced the
+ * file any more. Its numbers in the lock sit under "limited" rather than
+ * "tts_py", measured by ffmpeg reading this chain's own output - the meter
+ * stayed outside even where the producer could not.
+ *
  * 0.2 LU. docs/browser-tts.md measured seventeen of twenty real sentences
  * agreeing within 0.13 LU, and these four were within 0.05 when frozen. The
  * three that disagree there all had a loudness range for ffmpeg's compressor
@@ -206,19 +212,20 @@ function theWholeChainLandsWhereTtsPyLands() {
       check(`${spec.name}: gives back a finished file anyway`,
             rate === SAMPLE_RATE && samples.length > 0 && result.clamped === true,
             `${samples.length} samples at ${rate} Hz, clamped ${result.clamped}`);
-      check(`${spec.name}: the gain gave way rather than the signal`,
+      check(`${spec.name}: the ceiling is held on the way out`,
             sampledbfs(samples) <= TARGET_PEAK_DBTP + 0.01,
             `${sampledbfs(samples).toFixed(2)} dBFS`);
       continue;
     }
 
+    const ref = spec.tts_py ?? spec.limited;
     const lufs = integratedLufs(resample(samples, rate, lock.measure_rate));
-    check(`${spec.name}: ffmpeg put tts.py at ${spec.tts_py.lufs} LUFS, and this lands there`,
-          Math.abs(lufs - spec.tts_py.lufs) < 0.2,
+    check(`${spec.name}: ffmpeg ${spec.tts_py ? "put tts.py" : "read the limited chain"} at ${ref.lufs} LUFS, and this lands there`,
+          Math.abs(lufs - ref.lufs) < 0.2,
           `got ${lufs.toFixed(2)}   (${spec.why})`);
     check(`${spec.name}: and under the ${TARGET_PEAK_DBTP} dBTP ceiling, as that did`,
           truePeakDb(samples, rate) <= TARGET_PEAK_DBTP + 0.05,
-          `${truePeakDb(samples, rate).toFixed(2)} dBTP, tts.py ${spec.tts_py.peak}`);
+          `${truePeakDb(samples, rate).toFixed(2)} dBTP against ${ref.peak}`);
     check(`${spec.name}: written at ${SAMPLE_RATE} Hz for the device`,
           rate === SAMPLE_RATE, `${rate} Hz`);
   }
