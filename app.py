@@ -484,13 +484,11 @@ def settings_state(local: bool) -> dict:
             "ok": metacom.available(),
             "count": metacom.count() if metacom.available() else 0,
             "keywords": metacom.has_keywords() if metacom.available() else False,
-            # Handed in rather than saved, which in practice means the
-            # container: docker-compose.yml sets it, and what it sets is the
-            # path inside the container. Typing a host path into the field
-            # there could not take effect and would go into the .env that the
-            # mount itself is read from - so the field says where it comes
-            # from instead of pretending to be editable. post_settings()
-            # refuses the write either way.
+            # Handed in from the environment rather than saved. Typing into
+            # the field could not take effect - value() takes the environment
+            # first - and the line would go into a .env nobody rereads, so the
+            # field says where the value comes from instead of pretending to
+            # be editable. post_settings() refuses the write either way.
             "fixed": config.from_environment("VORLAUT_METACOM_DIR"),
         },
     }
@@ -711,13 +709,12 @@ class Handler(BaseHTTPRequestHandler):
         somebody's bill and it can be read back out. So it is set at the
         machine itself.
 
-        In a container the question cannot be answered - what arrives is the
-        bridge gateway, never 127.0.0.1 - and refusing there would lock
-        somebody out of their own NAS. Then it is allowed, and docs/operation.md
-        says so.
+        There used to be an exception here for running in a container, where
+        the question cannot be answered - what arrives is the bridge gateway,
+        never 127.0.0.1 - and refusing would have locked somebody out of their
+        own NAS. The container is gone, and with it the exception: the key is
+        set at the machine running this, and nowhere else.
         """
-        if Path("/.dockerenv").exists():
-            return True
         return self.client_address[0] in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
 
     # -- Pairing --
@@ -1147,11 +1144,10 @@ def post_settings(handler, body) -> None:
         config.value() takes the environment first, so a line written under a
         set variable never reaches this process: the page would save, read
         back the environment's value and show no change, which is how this
-        went unnoticed. In the container it is worse than useless.
-        VORLAUT_METACOM_DIR is /metacom there, the path *inside* it, and
-        docker-compose.yml reads the same variable for the host side of the
-        mount. Opening the gear and pressing save was enough to leave a .env
-        that no longer starts: "bind source path does not exist: /metacom".
+        went unnoticed. Worse where the variable names a path that means
+        something only to whoever set it: opening the gear and pressing save
+        was enough to leave a .env naming a path that is not there, which
+        outlives the environment that set it and fails at the next start.
 
         The sheet says so rather than dropping the write silently - see
         "fixed" in settings_state().
@@ -1318,22 +1314,13 @@ def main(argv: list[str] | None = None) -> int:
     finder = None
     if args.host in ("0.0.0.0", "::"):
         print(f"vorlaut is listening on port {args.port}", flush=True)
-        if Path("/.dockerenv").exists():
-            # Inside a container our own address would be the Docker
-            # network's and therefore useless from outside.
-            print("  In a container: use the address of the NAS with the "
-                  "published port.", flush=True)
-        else:
-            print(f"  http://localhost:{args.port}", flush=True)
-            for address in local_addresses():
-                print(f"  http://{address}:{args.port}   <- type this one into "
-                      "the phone", flush=True)
+        print(f"  http://localhost:{args.port}", flush=True)
+        for address in local_addresses():
+            print(f"  http://{address}:{args.port}   <- type this one into "
+                  "the phone", flush=True)
         # Only from here on is there anything to find: bound to 127.0.0.1
         # neither the device nor the phone could reach us anyway.
         finder = discovery.start(args.port)
-        if Path("/.dockerenv").exists():
-            print("  Neither of those two crosses a bridge network - "
-                  "see docker-compose.yml.", flush=True)
         print("Careful: there is no sign-in - whoever reaches the port can "
               "change the content.", flush=True)
     else:

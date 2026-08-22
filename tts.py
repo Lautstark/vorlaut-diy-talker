@@ -130,8 +130,8 @@ PIPELINE_VERSION = 2
 # installed piper and a computer without piper gets a different answer, and
 # the device fetches a cache it already has.
 #
-# So it is a constant, kept in step with the pin in the Dockerfile by
-# tests/test_piper_version.py. Bump both together, and expect every
+# So it is a constant, kept in step with the version doctor.py tells people to
+# install, by tests/test_piper_version.py. Bump both together, and expect every
 # piper-spoken sentence to be rendered again.
 PIPER_VERSION = "1.7.0"
 SILENCE_THRESHOLD = "-45dB"

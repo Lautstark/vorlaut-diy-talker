@@ -52,11 +52,11 @@ LEGACY_TTL = 10             # ... and a plain DNS client, which hears about no c
 def public_port(http_port: int) -> int:
     """What to tell the device, which is not always the port we bound.
 
-    Behind a published container port the two differ: inside the container the
-    interface listens on 8771, while from outside the NAS it is whatever
-    docker-compose published. Nothing on this side can work that out, so
-    VORLAUT_PUBLIC_PORT says it. Unset, or nonsense, and it is the port we
-    listen on - which is the answer in every case that is not a container.
+    Behind any kind of port forwarding the two differ: this process listens on
+    one port while the device has to be told another. Nothing on this side can
+    work that out, so VORLAUT_PUBLIC_PORT says it. Unset, or nonsense, and it
+    is the port we listen on - which is the answer whenever nothing is in the
+    way.
     """
     value = (os.environ.get("VORLAUT_PUBLIC_PORT") or "").strip()
     return int(value) if value.isdigit() and 0 < int(value) < 65536 else http_port

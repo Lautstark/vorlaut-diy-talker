@@ -17,8 +17,7 @@ document, [software.md](software.md).
 | arduino-cli or Arduino IDE | compiling and flashing the firmware |
 | ESP32 core 3.x | for the Feather |
 
-Alternatively the web interface runs in the included Docker image — then only
-the Arduino tools for flashing are needed locally.
+`python3 doctor.py` checks every row of that table and says what to install.
 
 ## For the speech output
 
@@ -28,12 +27,14 @@ Two routes, and the choice is made per installation:
 English voices, all four public domain. Once:
 
 ```bash
-pip install piper-tts
+pip install piper-tts==1.7.0
 python3 tools/voices.py
 ```
 
-In the Docker image all four are there already, and neither line above is
-needed — see [piper](software.md#piper).
+The version is pinned on purpose: it goes into the fingerprint that names a
+recording, so a different piper renames every piper-spoken file. `doctor.py`
+prints the same line, and `tests/test_piper_version.py` keeps the two in step
+with `tts.PIPER_VERSION` — see [piper](software.md#piper).
 
 The models can also be fetched from the interface, which is the route that
 does not ask anybody to open a terminal: the voice picker in the header offers
@@ -263,16 +264,18 @@ If the variable is not set, everything runs as before: search returns ARASAAC
 only, and `metacom:` references yield the placeholder tile instead of an abort.
 That keeps the same `layout.json` usable on a computer without a licence.
 
-In the container it is set up by hand, because a licensed collection lives
-outside everything the image knows about. Two lines in a
-`docker-compose.override.yml` — the mount that carries the folder in read-only,
-and `VORLAUT_METACOM_DIR` pointing at where it lands. Inside the container the
-path is always `/metacom`, so the same setup works on a Mac and on a NAS; only
-the folder on the left is yours. The lines are written out in
-[operation.md](operation.md#a-licensed-metacom-collection).
+It is set up by hand, because a licensed collection is yours and lives outside
+anything this project ships. One variable names the folder:
 
-Both or neither. Nothing set is the ordinary case — the search runs on ARASAAC
-alone and the gear says so.
+```bash
+VORLAUT_METACOM_DIR=~/METACOM_9_Desktop
+```
+
+in the environment or in `.env`. `python3 doctor.py` says whether the path is
+readable and what it found there.
+
+Nothing set is the ordinary case — the search runs on ARASAAC alone and the
+gear says so.
 
 `python doctor.py` shows under "Wahlweise" whether the collection was found and
 whether the keywords could be read.

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Checks that the piper version is written down the same way in both places.
 
-It has to be in two: the Dockerfile pins what gets installed, and tts.py names
-what the fingerprint counts. Neither can read the other. The Dockerfile is not
-running when a fingerprint is computed, and tts.py must not ask the installed
+It has to be in two: doctor.py tells people which version to install, and
+tts.py names what the fingerprint counts. Neither can read the other. Nothing
+is installing piper when a fingerprint is computed, and tts.py must not ask the installed
 package - voice_config() promises a name derived from the voice id alone, so
 that a computer which cannot render a WAV still knows what it would have been
 called. Ask the installed piper, and a machine without piper disagrees about
@@ -16,7 +16,13 @@ Two places, no link, and the drift would be silent both ways round:
   * constant bumped, pin left behind - every sentence is rendered again by the
     piper that made the old ones, for nothing
 
-So this test is the link. It reads the pin out of the Dockerfile and compares.
+So this test is the link. It reads the pin out of doctor.py and compares.
+
+The pin used to live in the Dockerfile, which installed piper for the
+container. The container is gone and doctor.py is now the only place that
+tells anybody how to install it, so the instruction it prints is the pin -
+which also means the instruction has to carry a version at all, and this test
+is what says so.
 """
 
 from __future__ import annotations
@@ -40,26 +46,26 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         failures.append(name)
 
 
-def pinned_in_dockerfile() -> str | None:
-    """The version the image installs, or None if it is not pinned at all."""
-    text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+def pinned_in_doctor() -> str | None:
+    """The version doctor.py says to install, or None if it says no version."""
+    text = (ROOT / "doctor.py").read_text(encoding="utf-8")
     found = PIN.search(text)
     return found.group(1) if found else None
 
 
 def main() -> int:
-    pinned = pinned_in_dockerfile()
+    pinned = pinned_in_doctor()
 
-    # An unpinned install is its own failure: the image would then take
-    # whatever is current on build day, and no constant here could describe it.
-    check("the Dockerfile pins piper-tts to an exact version",
+    # An unpinned instruction is its own failure: whoever follows it gets
+    # whatever is current that day, and no constant here could describe it.
+    check("doctor.py pins piper-tts to an exact version",
           pinned is not None,
           "found no piper-tts==... line" if pinned is None else pinned)
 
     if pinned is not None:
         check("tts.PIPER_VERSION matches the pin",
               tts.PIPER_VERSION == pinned,
-              f"tts.py says {tts.PIPER_VERSION!r}, Dockerfile says {pinned!r}")
+              f"tts.py says {tts.PIPER_VERSION!r}, doctor.py says {pinned!r}")
 
     # --- and that it actually reaches the fingerprint --------------------
     # Naming it in a constant nobody reads would look exactly like this test
