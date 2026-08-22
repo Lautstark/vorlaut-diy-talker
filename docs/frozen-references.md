@@ -278,6 +278,32 @@ characters* the same rule, so a `.jpeg` is the only thing in the set that can
 tell those two apart. Without it a mutation doing the latter passed every
 check — found by mutation testing, not by reading.
 
+### And one check that needs no oracle at all
+
+Every lock file answers only for the cases in it, and for the OBF converter
+that limit bites hardest: `obf.py` is gone, so no case can ever be added.
+
+[`tests/browser/obf_roundtrip.test.mjs`](../tests/browser/obf_roundtrip.test.mjs)
+asks something a lock file structurally cannot:
+`documentToLayout(layoutToDocument(x)) == x`. That holds for any correct
+mapping on any input, recorded or not, and needs nothing outside the converter
+— which is why it survives having no Python. The idea is the seam session's.
+
+It caught something on its first run. A layout with **no sets** cannot round
+trip: Open Board Format carries the locale *on a board*, and a layout with no
+sets becomes a document with no boards, so the language has nowhere to travel
+and comes back as the default. No change to the converter could fix that
+without inventing a field nobody else would read. The case is kept, with
+`language` exempted by name and the reason beside it — the only exemption in
+the file.
+
+What it cannot see is the half of the format that exists for other programs.
+Breaking `border_color` on the way out passes every check in it, because the
+converter reads the colour back out of `ext_vorlaut_color`. A round trip is
+blind to every field written for somebody else's software, and those are the
+fields that make an interchange format worth having. The lock is the only
+opinion on those, for the boards in it, and there is no third thing.
+
 ## How we know the checks bite
 
 Every claim above was tested by breaking the implementation and confirming the
@@ -291,6 +317,9 @@ Representative, with the check that fired:
 | broken on purpose | caught by |
 |---|---|
 | the adapter dropping four characters instead of finding the dot | the one `.jpeg` case, and nothing else |
+| the OBF sleep timeout or a set colour dropped, either direction | the round trip, naming the field that went |
+| the OBF set order reversed on import | the round trip, naming the first set that moved |
+| OBF `border_color` written from the wrong field | **nothing** — written for other programs, read back from elsewhere |
 | the adapter cutting at the first dot | the fixture whose name carries a dot that is not the extension |
 | K-weighting head shelf removed | 10000 Hz and 1000 Hz tones |
 | K-weighting high pass removed | the 60 Hz tone, and only that |
