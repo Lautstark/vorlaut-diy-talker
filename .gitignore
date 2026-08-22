@@ -3,20 +3,24 @@
 .env.*
 !.env.example
 
-# Your content: layout, symbols, spoken sentences. Deliberately not
-# versioned - the names, photos and sentences of your child are in here.
-# On the first start the folder is filled from example/.
+# Your content: layout, symbols, spoken sentences, written by app.py when
+# there was an app.py. Deliberately not versioned - the names, photos and
+# sentences of your child were in here. The browser keeps all of it in
+# IndexedDB now, so this only matters for a clone that predates that.
 #
-# No trailing slash on purpose. "content/" matches a directory only, and a
-# content that is a symlink onto a network share - which is one of the ways
-# this is meant to be moved - is not a directory to git. It would have been
-# offered up for committing like any other new file.
-content
+# **Anchored, and that is not tidiness.** These were written as bare `content`
+# and `data`, which match a file or directory of that name *at any depth* - so
+# the moment the front end grew a src/data/ holding the format modules, five
+# files stopped being offered up for committing and nobody was told. They were
+# on disk, every local check passed, and CI failed on a tree that did not have
+# them. The leading slash pins each to the root, where the thing being ignored
+# actually was.
+/content
 
-# The same content again, seen from the container: docker-compose.yml hands
-# data/ in as /data, so this is where it lands when the container is run from
-# a clone. No trailing slash for the same reason as above.
-data
+# The same content again, seen from a container that no longer exists:
+# docker-compose.yml handed data/ in as /data, so this is where it landed when
+# the container was run from a clone.
+/data
 
 # arduino-cli puts its intermediate directory inside the sketch folder
 firmware/vorlaut/build/
