@@ -41,3 +41,7 @@ firmware/vorlaut/littlefs.bin
 .venv
 __pycache__/
 *.pyc
+
+# What tools/leveling.py renders for the browser to level and hand back.
+# Twenty WAVs three times over, none of them worth keeping.
+/dump/
