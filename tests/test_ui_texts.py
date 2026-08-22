@@ -58,7 +58,19 @@ NOT_ON_THE_PAGE = {
     # be copied into mitreden rather than kept twice.
     "tts/level.js": "tests/test_browser_tts.py",
     "tts/speak.js": "tests/test_browser_tts.py",
+    # Symbol search. Not a port: bildhaft had written it, so it was lifted into
+    # a package the two share and this is the adapter. The test checks the one
+    # thing the two halves must agree on — the metacom: reference.
+    "symbols.js": "tests/test_symbol_reference.py",
 }
+
+# Code that is not ours. static/vendor/ holds built copies of packages, with
+# their provenance in a VENDORED.md beside them, and none of the rules below
+# are rules they agreed to: they are not written in vorlaut's style, they do
+# not use vorlaut's text table, and nothing imports them by a relative path
+# because an import map resolves them by name. Checking them would only ever
+# report that somebody else writes code differently.
+VENDOR = "vendor"
 
 
 def scripts() -> list[Path]:
@@ -70,7 +82,8 @@ def scripts() -> list[Path]:
     for asking after a text that does not exist. It was exempt from all of it
     by being one directory down, and nothing said so.
     """
-    return sorted(app.STATIC.rglob("*.js"))
+    return sorted(path for path in app.STATIC.rglob("*.js")
+                  if VENDOR not in path.relative_to(app.STATIC).parts)
 
 
 def module_name(path: Path) -> str:

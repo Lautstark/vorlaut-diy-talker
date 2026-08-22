@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>vorlaut · finding a symbol in a tab</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 48rem; margin: 2rem auto;
+         padding: 0 1rem; }
+  h1 { font-size: 1.35rem; margin-bottom: .2rem; }
+  p.lede { color: #777; margin-top: 0; }
+  fieldset { border: 1px solid #8884; border-radius: .4rem; margin: 1rem 0; padding: .7rem 1rem; }
+  legend { font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+  input, button { font: inherit; padding: .35rem .6rem; }
+  button { cursor: pointer; }
+  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin-top: .6rem; }
+  #log { font: 13px/1.45 ui-monospace, monospace; white-space: pre-wrap;
+         background: #8881; padding: .7rem; border-radius: .3rem; min-height: 4rem; }
+  #results { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .6rem; }
+  figure { margin: 0; width: 7rem; text-align: center; }
+  figure img { width: 100%; background: #fff; border-radius: .3rem; }
+  figcaption { font-size: .8rem; color: #777; word-break: break-word; }
+  small { color: #777; }
+</style>
+<main>
+<h1>Finding a symbol in a tab</h1>
+<p class="lede">
+  Whether <code>static/symbols.js</code> can do what <code>/api/search</code>
+  does today, with no server behind it. The bench for
+  <a href="../docs/symbol-search.md">docs/symbol-search.md</a>, the way
+  <a href="ttscheck.html">ttscheck.html</a> is the bench for speech.
+</p>
+
+<fieldset>
+  <legend>ARASAAC</legend>
+  <p><small>Needs the network. Nothing to set up — this is the path a
+  first-time visitor gets.</small></p>
+  <div class="row">
+    <input id="q" value="Apfel" size="18">
+    <button id="go">Search</button>
+    <button id="canvas">Search, then draw the first hit to a canvas</button>
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>The fallback</legend>
+  <p><small>The one that will not fail here by accident. When an image fetch
+  fails, bildquelle hands back ARASAAC's own URL so the &lt;img&gt; can still
+  try — and a canvas drawn from a cross-origin image is tainted, so
+  <code>getImageData</code> throws and a tile fails at build time after looking
+  right on screen. This forces that path instead of waiting for a bad
+  network.</small></p>
+  <div class="row"><button id="fallback">Run</button></div>
+  <div id="fallbackLog"></div>
+</fieldset>
+
+<fieldset>
+  <legend>METACOM</legend>
+  <p><small>Needs your own licensed folder. Nothing is uploaded, nothing is
+  copied, and nothing is written anywhere but this browser.</small></p>
+  <div class="row">
+    <button id="pick">Choose folder</button>
+    <input type="file" id="files" webkitdirectory directory multiple>
+    <button id="forget">Forget</button>
+  </div>
+  <div class="row"><input id="mq" value="Apfel" size="18"><button id="mgo">Search</button></div>
+</fieldset>
+
+<div id="log">ready</div>
+<div id="results"></div>
+</main>
+
+<script type="importmap">
+{ "imports": { "@lautstark/bildquelle": "../static/vendor/bildquelle/index.js" } }
+</script>
+
+<script type="module">
+import * as symbols from "../static/symbols.js";
+
+const log = (line) => { document.getElementById("log").textContent = line; };
+const box = document.getElementById("results");
+
+function show(hits) {
+  box.innerHTML = "";
+  for (const hit of hits) {
+    const figure = document.createElement("figure");
+    const image = document.createElement("img");
+    image.src = hit.url;
+    image.loading = "lazy";
+    const caption = document.createElement("figcaption");
+    caption.textContent = `${hit.label}\n${hit.ref || hit.id}`;
+    figure.append(image, caption);
+    box.appendChild(figure);
+  }
+}
+
+async function run(word, source) {
+  log(`searching ${source} for "${word}" …`);
+  const started = performance.now();
+  const hits = await symbols.search(word, source);
+  const took = Math.round(performance.now() - started);
+  show(hits);
+  const blobs = hits.filter((h) => h.url.startsWith("blob:")).length;
+  log(`${hits.length} hits in ${took} ms · ${blobs} served from cache as blob URLs\n`
+    + `attribution owed: ${JSON.stringify(symbols.attributionFor([source]))}`);
+}
+
+document.getElementById("go").onclick = () => run(document.getElementById("q").value, "arasaac");
+document.getElementById("mgo").onclick = () => run(document.getElementById("mq").value, "metacom");
+
+// The one that matters for the device: a symbol has to survive getImageData,
+// or renderSymbol() in tiles.js throws instead of producing a tile.
+document.getElementById("canvas").onclick = async () => {
+  const hits = await symbols.search(document.getElementById("q").value, "arasaac");
+  show(hits);
+  if (!hits.length) return log("nothing to draw");
+  try {
+    const image = await symbols.loadImage(hits[0].url);
+    const canvas = Object.assign(document.createElement("canvas"), { width: 32, height: 32 });
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, 32, 32);
+    const pixels = context.getImageData(0, 0, 32, 32);
+    log(`canvas readable: ${pixels.data.length} bytes of RGBA out of `
+      + `${hits[0].url.slice(0, 40)}…\nthis is what tiles.js needs to make RGB565`);
+  } catch (error) {
+    log(`TAINTED or failed: ${error.message}`);
+  }
+};
+
+// Forces the cross-origin path rather than waiting for a flaky network to
+// produce it. Fails loudly if loadImage() ever stops setting crossOrigin, which
+// is the regression that would otherwise only show up in the field.
+document.getElementById("fallback").onclick = async () => {
+  const out = document.getElementById("fallbackLog");
+  const remote = "https://static.arasaac.org/pictograms/2462/2462_500.png";
+
+  const readBack = (image) => {
+    const canvas = Object.assign(document.createElement("canvas"), { width: 8, height: 8 });
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, 8, 8);
+    return context.getImageData(0, 0, 8, 8).data.length;
+  };
+
+  const naive = (url) => new Promise((resolve) => {
+    const image = new Image();               // deliberately no crossOrigin
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = url;
+  });
+
+  const lines = [];
+  let ok = true;
+
+  // 1. What a caller building its own <img> would get. Must be tainted, or the
+  //    guard in loadImage() is not actually guarding anything.
+  const plain = await naive(remote + "?plain");
+  try {
+    readBack(plain);
+    lines.push("FAIL  a plain <img> read back — the canvas was not tainted, so this test proves nothing");
+    ok = false;
+  } catch (error) {
+    lines.push(`ok    a plain <img> is tainted (${error.name}) — the hazard is real`);
+  }
+
+  // 2. What symbols.js does. Must read back.
+  try {
+    const bytes = readBack(await symbols.loadImage(remote + "?guarded"));
+    lines.push(`ok    loadImage() read back ${bytes} bytes — crossOrigin is doing its job`);
+  } catch (error) {
+    lines.push(`FAIL  loadImage() could not be read back: ${error.name}`);
+    ok = false;
+  }
+
+  // textContent, not innerHTML: these lines talk about <img> and would otherwise
+  // be parsed as one.
+  const pre = document.createElement("div");
+  pre.id = "log";
+  pre.textContent = `${lines.join("\n")}\n\n${ok ? "PASS" : "FAILED"}`;
+  out.replaceChildren(pre);
+};
+
+document.getElementById("pick").onclick = async () => {
+  try {
+    await symbols.chooseMetacomFolder();
+    log(`folder read · ${JSON.stringify(symbols.metacomStatus())}`);
+  } catch (error) { log(String(error.message)); }
+};
+document.getElementById("files").onchange = async (event) => {
+  await symbols.readMetacomFiles(event.target.files);
+  log(`folder read · ${JSON.stringify(symbols.metacomStatus())}`);
+};
+document.getElementById("forget").onclick = async () => {
+  await symbols.forgetMetacom();
+  log("forgotten");
+};
+
+symbols.restoreMetacom().then((back) => {
+  if (back) log(`METACOM folder restored · ${JSON.stringify(symbols.metacomStatus())}`);
+});
+</script>

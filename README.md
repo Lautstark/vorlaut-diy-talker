@@ -107,3 +107,35 @@ Code under [MIT](LICENSE). Three things in here are not:
 | [`example/symbols/LIZENZ.md`](example/symbols/LIZENZ.md) | The ARASAAC pictograms, author Sergio Palao, **CC BY-NC-SA** — same for every symbol the search loads |
 | [`example/speech/LIZENZ.md`](example/speech/LIZENZ.md) | The example recordings, made with Azure Speech |
 | [`voices/LIZENZ.md`](voices/LIZENZ.md) | The four piper voices, public domain, fetched rather than stored here |
+
+### METACOM on the device
+
+METACOM is a **commercial symbol set with a per-person licence.** A talker built
+here can show METACOM symbols on its keys, because that is what the licence is
+for: making communication material for the person you support. A 116×116 tile on
+a display is the same object as a laminated card, and nobody thinks laminating
+one is a licensing question.
+
+Four boundaries keep it that way, and they are the same rule vorlaut already
+follows for files:
+
+- **Nothing this repository ships ever contains METACOM-derived pixels.** No
+  example content, no container image, no CI artefact, no `.bin` in a release.
+  That is the line that would actually be redistribution.
+- **The symbols are read from your own licensed folder, and stay there.** They
+  are neither downloaded nor copied — the layout holds a `metacom:` reference
+  and the picture is fetched at build time.
+- **The build runs on your machine and goes to your device.** Not through
+  anybody's server.
+- **A board you share stays a reference.** `.obf` and `.obz` are not picture
+  containers — see [docs/obf.md](docs/obf.md) — so a board sent to someone else
+  carries the names of the symbols, and renders for them only if they hold a
+  licence too.
+
+Building a talker **for somebody else** is a different question, and a per-person
+licence is unlikely to cover it. That is not about the device: it would be the
+same answer for printed cards. If you get there, ask
+[the publisher](https://www.metacom-symbole.de) first.
+
+Without your own METACOM licence none of this applies — the feature simply does
+not work, and ARASAAC covers the whole device on its own.
