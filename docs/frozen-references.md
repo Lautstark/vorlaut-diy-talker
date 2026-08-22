@@ -37,6 +37,16 @@ produced it, when, and what would invalidate it, in the shape
 measures again and changes nothing; that is the command to run after upgrading
 `ffmpeg` or Pillow.
 
+**One trap when adding or regenerating a fixture: `git add -A` before running
+the suite.** `tests/test_language.py` and `tests/test_links.py` take their file
+list from `git ls-files`, so an untracked file is invisible to them. The suite
+is green before the commit and red immediately after it, which reads exactly
+like a regression somebody else caused and is not one. The WebSerial session
+lost time to this on a fixture whose name carried an umlaut and had passed a
+dozen runs before it was committed.
+Freezing adds files in batches — twenty-seven of them at once, here — so this
+is the workflow most likely to walk into it.
+
 The direction only goes one way, and it is the whole point:
 
 > Changes to `static/` never invalidate a lock file. That is the thing being
