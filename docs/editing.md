@@ -65,6 +65,15 @@ itself — there is no bundler and no build step, and there is not meant to be
 one. `static/state.js` says which values are shared between them and why the
 rest are not.
 
+One module is not reached that way yet. `static/layout_format.js` writes
+`layout.bin`, the table the device reads its sets out of, and is the browser's
+copy of `layout_format.py` — it exists because the app is being turned into a
+static site, and nothing in the page loads it while the server still writes
+that file. What holds it to the Python in the meantime is
+`tests/test_layout_format.py`: both write the same layouts, the bytes have to
+be identical to the byte, and the firmware's own reader reads what JavaScript
+produced.
+
 The one thing `app.py` puts into the page is a JSON block, `#bootstrap`: the
 language, the text table for that language, the list of languages, the palette
 and the set limits. It used to be five placeholders substituted into live

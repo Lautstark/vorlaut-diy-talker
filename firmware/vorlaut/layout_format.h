@@ -6,7 +6,8 @@
 // device it only shows once it has been flashed.
 //
 // The file is produced by build.py - the same structure is written down in
-// layout_format.py.
+// layout_format.py, and in static/layout_format.js, which writes it in the
+// browser.
 
 #pragma once
 #include <stdint.h>

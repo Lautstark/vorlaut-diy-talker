@@ -23,11 +23,13 @@ read field by field, without a parser.
           1     1 = audio present
           1     reserved
 
-This is the one contract in the project that is written down twice - here and
-in firmware/vorlaut/layout_format.h. tests/test_layout_format.py compiles the
-firmware's reader and compares it field by field with what this module writes,
-which is why the strides below are spelled out as sums rather than as numbers:
-the sum is the thing that has to keep agreeing.
+This is the one contract in the project that is written down three times -
+here, in firmware/vorlaut/layout_format.h, and in static/layout_format.js,
+which writes the same file in the browser now that the app is becoming a
+static site. tests/test_layout_format.py is what keeps the three one contract:
+it compiles the firmware's reader, has both writers produce the same layouts,
+and compares the bytes. Which is why the strides below are spelled out as sums
+rather than as numbers: the sum is the thing that has to keep agreeing.
 """
 
 from __future__ import annotations
