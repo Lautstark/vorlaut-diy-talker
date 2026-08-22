@@ -383,6 +383,8 @@ CLIENT_ONLY = [
     ("badcrc", "a file that arrived wrong is refused, and says so"),
     ("short", "a transfer that stopped leaves the session shut until hello"),
     ("nospace", "a device with no room refuses before a byte is sent"),
+    ("truncated", "a file of the wrong length is sent again, not kept for its name"),
+    ("cancel", "an abort stops between files and never sends done"),
 ]
 
 

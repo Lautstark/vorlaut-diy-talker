@@ -183,6 +183,67 @@ const CLIENT_ONLY = {
     return { caught, afterwards, recovered };
   },
 
+  // A file already there under the right name but the wrong length.
+  //
+  // Under the device's own rules this cannot happen - it writes to /.part and
+  // renames only on a matching checksum, so a name never exists until the
+  // bytes under it are whole. This is the net under that: if it ever were to
+  // happen, keeping the file on its name alone would mean never sending it
+  // again, and layout.bin would end up pointing at something truncated.
+  async truncated() {
+    const made = payload(11, 3);
+    const [name, file] = [...made.entries()][0];
+    const have = [...made.entries()].map(([n, f]) => ({ n, f }))
+      .map(({ n, f }) => ({ name: n, size: f.bytes.length }));
+    const room = { total: 1441792, free: 1400000 };
+
+    const clean = plan(made, have, room, crc32(made.get(LAYOUT_FILE).bytes));
+    if (clean.put.length !== 0) {
+      throw new Error(`nothing changed, yet ${clean.put.length} would be sent`);
+    }
+
+    // The same device, with one file short of what it should be.
+    const short = have.map((f) =>
+      f.name === name ? { name: f.name, size: f.size - 100 } : f);
+    const repaired = plan(made, short, room, crc32(made.get(LAYOUT_FILE).bytes));
+    const names = repaired.put.map((f) => f.name);
+    if (!names.includes(name)) {
+      throw new Error("a file of the wrong length was kept for its name alone");
+    }
+    if (repaired.keep.includes(name)) throw new Error("kept and sent at once");
+    return { kept: clean.keep.length, resent: names, bytes: file.bytes.length };
+  },
+
+  // Stopping partway. Nothing after the abort, and above all no "done" - that
+  // is what makes the device read its new layout in.
+  async cancel() {
+    const device = new MockDevice({});
+    const made = payload(12, 6);
+    const cable = new Cable(device.open(), { onLog: () => {} });
+    const hello = await cable.hello();
+    const work = plan(made, await cable.list(), hello, null);
+
+    const stop = new AbortController();
+    let stopped = null;
+    try {
+      await push(cable, made, work, {
+        signal: stop.signal,
+        onStep: (_what, _name, index) => { if (index === 2) stop.abort(); },
+      });
+    } catch (error) {
+      stopped = error.name;
+    }
+    const sent = new TextDecoder().decode(device.transcript());
+    await cable.close();
+
+    if (stopped !== "AbortError") throw new Error(`stopped with ${stopped}`);
+    if (sent.includes("> done")) throw new Error("done was sent after an abort");
+    // The device is still usable: an abort between files leaves nothing in
+    // flight, which is the whole reason it is checked there.
+    if (device.broken) throw new Error("aborting left the session shut");
+    return { stopped, stored: device.stored, of: work.put.length };
+  },
+
   // Room the device has not got. Refused before "go", so nothing is sent.
   async nospace() {
     const device = new MockDevice({ total: 300 });   // smaller than the first file
