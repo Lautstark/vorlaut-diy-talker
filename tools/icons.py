@@ -11,7 +11,7 @@ changes the SVG runs this once.
 from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
-GROESSEN = (192, 512)
+SIZES = (192, 512)
 
 
 def main() -> None:
@@ -19,15 +19,15 @@ def main() -> None:
         import cairosvg
     except ImportError:
         raise SystemExit(
-            "cairosvg fehlt.  pip install cairosvg\n"
+            "cairosvg is missing.  pip install cairosvg\n"
             "On macOS additionally:  brew install cairo")
 
-    quelle = ASSETS / "icon.svg"
-    for groesse in GROESSEN:
-        ziel = ASSETS / f"icon-{groesse}.png"
-        cairosvg.svg2png(url=str(quelle), write_to=str(ziel),
-                         output_width=groesse, output_height=groesse)
-        print(f"  {ziel.name}  {ziel.stat().st_size // 1024} KB")
+    source = ASSETS / "icon.svg"
+    for size in SIZES:
+        target = ASSETS / f"icon-{size}.png"
+        cairosvg.svg2png(url=str(source), write_to=str(target),
+                         output_width=size, output_height=size)
+        print(f"  {target.name}  {target.stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":
