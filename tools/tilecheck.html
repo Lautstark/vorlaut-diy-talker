@@ -1,0 +1,109 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>tilecheck</title>
+<!--
+  The browser half of tools/tilecheck.py. It renders every fixture with every
+  renderer static/tiles.js offers and PUTs the raw RGB565 back, where Python
+  compares it against tiles.render_symbol().
+
+  It draws the tiles as well, which is not decoration: a run that comes out
+  99% different because a fixture failed to decode looks exactly like a run
+  that came out 99% different because the resampling disagrees, and one glance
+  at the pictures tells the two apart.
+-->
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 60rem; }
+  h1 { font-size: 1.2rem; }
+  #status { padding: .5rem .75rem; background: #eef1f6; border-radius: 4px; }
+  .row { display: flex; gap: .75rem; align-items: center; margin: .6rem 0;
+         border-top: 1px solid #e3e6ec; padding-top: .6rem; }
+  .row canvas { image-rendering: pixelated; width: 116px; height: 116px;
+                border: 1px solid #ccd; }
+  .name { width: 14rem; font-family: ui-monospace, monospace; }
+  .what { color: #667; }
+</style>
+
+<h1>tilecheck — static/tiles.js against tiles.py</h1>
+<p id="status">starting…</p>
+<div id="tiles"></div>
+
+<script type="module">
+import { renderSymbol, TILE_SIZE } from "/tiles.js";
+
+const status = document.getElementById("status");
+const list = document.getElementById("tiles");
+
+/** The decoded picture, or null for a symbol that does not resolve.
+ *
+ * colorSpaceConversion is off on purpose. Pillow reads the pixels a PNG
+ * stores and nothing else, so a browser applying a display profile on the way
+ * in would show up in the comparison as a resampling difference, which it is
+ * not. None of the fixtures carry a profile - this keeps it that way if one
+ * ever does.
+ */
+async function decode(name) {
+  const response = await fetch("/fixtures/" + encodeURIComponent(name));
+  if (!response.ok) return null;
+  return await createImageBitmap(await response.blob(), {
+    premultiplyAlpha: "none",
+    colorSpaceConversion: "none",
+  });
+}
+
+function show(row, bytes) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = TILE_SIZE;
+  const image = new ImageData(TILE_SIZE, TILE_SIZE);
+  for (let i = 0; i < TILE_SIZE * TILE_SIZE; i++) {
+    const value = (bytes[i * 2] << 8) | bytes[i * 2 + 1];
+    const r = (value >> 11) & 0x1f, g = (value >> 5) & 0x3f, b = value & 0x1f;
+    image.data.set([r << 3 | r >> 2, g << 2 | g >> 4, b << 3 | b >> 2, 255], i * 4);
+  }
+  canvas.getContext("2d").putImageData(image, 0, 0);
+  row.appendChild(canvas);
+}
+
+async function main() {
+  const plan = await (await fetch("/plan.json")).json();
+  let sent = 0;
+  const total = plan.symbols.length * plan.renderers.length;
+
+  for (const name of plan.symbols) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const label = document.createElement("span");
+    label.className = "name";
+    label.textContent = name;
+    row.append(label);
+    list.append(row);
+
+    // The missing symbol is the placeholder, and asking the server for it
+    // would only get a 404 - the point is that renderSymbol takes null.
+    const bitmap = name === plan.missing ? null : await decode(name);
+    if (name !== plan.missing && !bitmap) {
+      label.textContent += "  (could not decode)";
+    }
+
+    for (const resample of plan.renderers) {
+      const started = performance.now();
+      const bytes = renderSymbol(bitmap, { resample });
+      const took = performance.now() - started;
+      show(row, bytes);
+      await fetch(`/dump/${resample}/${encodeURIComponent(name)}`, {
+        method: "PUT", body: bytes,
+      });
+      const note = document.createElement("span");
+      note.className = "what";
+      note.textContent = `${resample} ${took.toFixed(0)}ms`;
+      row.append(note);
+      status.textContent = `${++sent} / ${total} sent`;
+    }
+  }
+  status.textContent = `all ${total} sent — the report is in the terminal`;
+}
+
+main().catch((error) => {
+  status.textContent = "failed: " + error;
+  throw error;
+});
+</script>
