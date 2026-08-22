@@ -301,10 +301,114 @@ report a connection — but nothing should ever drive the pair in sequence.
   anything deletes `/version`, the note the Wi-Fi sync keeps about what it last
   fetched, so a later sync cannot believe a stamp describing content the cable
   has since replaced.
-- **It has not run on real hardware.** Everything below has been checked on a
-  computer — see the next section — but no board has spoken this protocol yet.
-  The parts that most want a real device are the three timing rules above, none
-  of which a test without a clock can exercise.
+- **It has not run on real hardware yet.** Everything below has been checked
+  on a computer — see [Where it lives](#where-it-lives-and-what-is-checked) —
+  but no board has spoken this protocol. The parts that most want a real device
+  are the three timing rules above, none of which a test without a clock can
+  exercise. What a first run has to show is set out in
+  [Before the Wi-Fi path can go](#before-the-wi-fi-path-can-go).
+
+## Running it on a device
+
+Nothing here needs Wi-Fi, sound or the case — a flashed board and a cable are
+enough, so this can be tried well before [bring-up.md](bring-up.md) reaches its
+last stage.
+
+**1. Check the one setting that stops everything.** *Tools → USB CDC On Boot*
+must be **Enabled**, or `Serial` is not the USB CDC and no part of this can
+work. Under `arduino-cli` it is already the default for this board.
+
+**2. Flash the firmware.** The content does not have to go with it — that is
+what the cable is for — so the program alone is enough:
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
+```
+
+Upload it with the same `--fqbn` and `-p /dev/cu.usbmodemXXXX`, as in
+[firmware.md](firmware.md). A device with an empty file system is a fine
+starting point here and is worth using at least once: it is the first row of
+the table below.
+
+**3. Build something to send, and serve the bench.**
+
+```bash
+.venv/bin/python build.py
+.venv/bin/python app.py --port 8798
+```
+
+**4. Open <http://localhost:8798/tools/serialcheck.html>**, press *Take the
+build from the editor*, then *Connect to a device* and pick the port. Then
+*Work out what is missing, then send it*.
+
+Close the serial monitor first if one is open. Two programs cannot hold the
+same port, and the symptom is a port that simply will not open.
+
+**5. Watch the device, not only the page.** All five displays should show
+*Kabel* with a count climbing, and the talker should come back by itself
+afterwards holding the new content. The page's log shows the device's own
+serial output inline — that is where a mount failure or a wrong partition
+scheme will say so.
+
+If nothing answers, the page says so within a moment rather than hanging: a
+port that does not reply `vorlaut` to `hello` is not the talker, and that is a
+different problem from a transfer that failed.
+
+## Before the Wi-Fi path can go
+
+The Wi-Fi stack — `sync.h`, `discover.h`, `networks.h`, `pairing.h` and the
+five digits — is still compiled in, and is meant to stay until this one has
+earned its place. Two things about how that ends, both deliberate.
+
+**Prove first, delete second, in separate commits.** Not the same change. A
+commit that added the cable and removed Wi-Fi in one motion cannot be reverted
+without losing both, and the device would then have no working way to receive
+content at all. The old path is the fallback while the new one earns trust, and
+it costs nothing to keep for a week.
+
+**Its bar is lower than the Python's, and the two should not be confused.**
+`tiles.py`, `tts.py` and `layout_format.py` are *oracles*: they are the only
+reason anybody knows the browser ports are right, so deleting them destroys the
+proof and their bar is the whole rewrite being finished and measured. The
+firmware Wi-Fi stack is an oracle for nothing. It is just the old transport, and
+its bar is one real end-to-end success. Whoever is next asked to reduce
+complexity should not read the second as permission for the first.
+
+What has to be true, written down before the run rather than remembered after
+it. **Results belong in this table as they come in** — a row that was checked
+once and remembered is a row nobody can audit later:
+
+| | |
+|---|---|
+| a full payload transfers | all five sets, worst case near the 1.5 MB partition |
+| an incremental transfer moves only what changed | the whole point of the content-addressed names |
+| an interrupted transfer leaves a fragment | pull the cable mid-transfer: `.part` and no half-file under a real name |
+| the device *speaks* the new content | not merely reports success |
+| a second transfer needs no port picker | `getPorts()` finds the device again |
+| a device that already holds content is updated | rather than confused by what is already there |
+
+None of the six has been run. The bench can produce every one of them except
+the third — pulling the cable out mid-transfer is a thing only hands can do —
+and the third is the one whose device-side behaviour has no test at all, since
+it is the timeout, the drain and the refusal that only `hello` clears.
+
+Three things about the hardware that bear on that list, from
+[bring-up.md](bring-up.md):
+
+- ***Tools → USB CDC On Boot* has to be Enabled.** Without it `Serial` is not
+  the USB CDC at all and none of this can work. It is already the default under
+  `arduino-cli` for this board and a setting to check in the IDE.
+- **The S3 re-enumerates when it resets**, and can come back under a different
+  `/dev/cu.usbmodem…`. That is the one thing likely to make the fifth row above
+  fail for a reason that is not this protocol's fault, so it is worth being
+  deliberate about: reset the board between the two transfers on purpose and see
+  whether the granted port survives it.
+- **None of this needs Wi-Fi, sound or the case.** A flashed board and a cable
+  are enough, so it can be tried at the bench well before stage 8 is finished.
+
+When that list is genuinely true, the deletion is a clean follow-up — and it
+takes the five-digit pairing with it on both sides, which is a satisfying
+amount of code to remove and deserves to say so in its own commit.
 
 ## Where it lives, and what is checked
 
@@ -356,3 +460,35 @@ needs no hardware; **Make a payload up** needs nothing set up at all, and
 `firmware/vorlaut/data/`. Ticking *change two files and the layout* is how to
 see the case that matters: the second push should send three files and delete
 two, and leave the rest alone.
+
+**For the real path, serve it from `app.py` instead**, which also answers the
+API:
+
+```bash
+.venv/bin/python app.py --port 8798
+```
+
+Then <http://localhost:8798/tools/serialcheck.html>, and **Take the build from
+the editor**. That asks `buildManifest()` and `buildFile()` in
+`static/backend.js` for what `build.py` last made — the two operations the
+transport needs permanently, answered over HTTP today and out of local storage
+once the browser does its own building. Nothing of the browser build is in that
+path, so a failure is the wire or the firmware and not one of five new things
+at once.
+
+It has to be the same origin as the API, which is what the `/tools/` route in
+`app.py` exists for. The alternative was cross-origin headers on the API for
+the sake of a bench, which is the larger of the two changes.
+
+The page refuses a build whose `current` is false rather than sending it: that
+flag means `data/` no longer matches `layout.json`, and pushing then would put
+yesterday's content on the device while reporting success. It also checks each
+file against the length the manifest declared, which is what a build moving
+underneath the read looks like.
+
+Note which pair of endpoints that is. `/api/build/*` is page-facing;
+`/api/device/*` is **not**, and must never be called from a page — those sit
+behind the talker's own token, and handing that to anything served to a browser
+hands it to whoever asked for the page. `tests/test_routes.py` asserts both
+directions so that tidying the two pairs together fails loudly rather than
+silently.

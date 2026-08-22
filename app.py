@@ -69,6 +69,13 @@ STATIC_TYPES = {
     # catalogue rather than a missing file.
     ".json": "application/json; charset=utf-8",
 }
+# The standalone harnesses under tools/. They are not part of the interface
+# and are not reachable from it - this is here so they can be opened from the
+# same origin as the API, which is what a page needs in order to call
+# /api/build/* without running into cross-origin rules. tilecheck and ttscheck
+# bring their own servers; serialcheck cannot, because it also has to reach the
+# build the editor has just made.
+TOOL_TYPES = dict(STATIC_TYPES, **{".html": "text/html; charset=utf-8"})
 SYMBOLS_DIR = tiles.SYMBOLS_DIR
 THUMB_CACHE = config.CONTENT / "cache" / "thumbs"
 PORT = 8771
@@ -816,6 +823,34 @@ def static_file(handler, query) -> None:
     handler._send(200, target.read_bytes(), kind)
 
 
+@route("GET", "/tools/", prefix=True)
+def tool_file(handler, query) -> None:
+    """The benches under tools/, so they can be opened same-origin.
+
+    Same shape and the same containment check as /static/ above, and for the
+    same reason: what decides is not whether the name looks harmless but
+    whether the answer is still inside the folder once "..", a symlink and the
+    folder itself have all been resolved.
+
+    This exists for serialcheck.html. It has to reach /api/build/* to get at
+    what the build left, and a page served from a second server would be a
+    different origin - so either the API grows cross-origin headers for the
+    sake of a bench, or the bench is served from here. This is the smaller of
+    the two.
+    """
+    name = urllib.parse.unquote(handler.route_path[len("/tools/"):])
+    here = (config.ROOT / "tools").resolve()
+    target = (here / name).resolve()
+    if not target.is_file() or here not in target.parents:
+        handler._error("err.not_found", 404)
+        return
+    kind = TOOL_TYPES.get(target.suffix)
+    if kind is None:
+        handler._error("err.not_found", 404)
+        return
+    handler._send(200, target.read_bytes(), kind)
+
+
 @route("GET", "/api/layout")
 def get_layout(handler, query) -> None:
     try:
@@ -1013,8 +1048,8 @@ def webmanifest(handler, query) -> None:
         "start_url": "/",
         "display": "standalone",
         "orientation": "portrait",
-        "background_color": "#16181d",
-        "theme_color": "#16181d",
+        "background_color": "#161618",
+        "theme_color": "#161618",
         "icons": [
             {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
