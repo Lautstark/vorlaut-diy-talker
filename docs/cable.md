@@ -552,6 +552,45 @@ read them back.
 
 That needs a compiler and Node, like the other format tests.
 
+### How we know those checks bite
+
+A fixture that catches nothing looks exactly like one that catches everything,
+because both of them pass. So the faults are introduced on purpose and the
+suite is watched:
+
+```bash
+python3 tools/cablemutate.py
+```
+
+Twenty-three of them, one at a time, plus two changes that alter no behaviour
+and are expected to survive — a run in which everything fails proves only that
+the harness is broken. **23 of 23 caught, both controls surviving.**
+
+It did not start there. The first run caught 12, and each of the five misses
+was a real hole rather than a missing assertion:
+
+| what went unnoticed | why |
+|---|---|
+| a checksum losing its zero padding | every value in the fixture happened to have eight significant digits, so the case the format string exists for was the one case not present |
+| `done` sent after an abort | the check inside the loop covered everything except aborting on the *last* step, which is the only case the guard before `done` is for |
+| `layout.bin` no longer sent last | nothing looked at the order at all |
+| the browser no longer skipping unknown keywords | it read the timing line where it expected `ok`, took a number out of it, and nothing compared that number with what was sent |
+| the device no longer reporting its timings | nothing asked for them |
+
+Two of those were worth fixing in the code rather than in the test. `put()` now
+compares the length the device echoes back with what was sent — agreeing on the
+name but not the length is what a slipped stream looks like from this end, and
+it was the one failure that would have stayed quiet, because the next command
+would still have been answered normally. And the transcript is now walked the
+way the device walks it, counting the bytes after each `put` instead of
+searching for text: a file's content is followed straight by the next command
+with no newline between them, so counting is the only exactly right reading.
+
+**What none of this reaches is `cable.h`.** It needs Arduino and LittleFS and
+is not compiled here, so the `.part` rule, the timeouts and the drain have no
+mutation testing behind them — they are the same half a run on the bench has to
+answer for.
+
 ## Trying it without a device
 
 `tools/serialcheck.html` runs against the mock with nothing plugged in, which

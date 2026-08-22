@@ -32,6 +32,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -133,12 +134,37 @@ NAMES = [
 
 
 def check_names(reader: Path, problems: list[str]) -> int:
+    """Both ways in: the validator on its own, and a whole command.
+
+    Separately, because they refuse different things and each can hide a fault
+    in the other. A command with two words is refused for its word count
+    before the name is ever looked at, so an empty name never reaches the
+    validator that way - and cable.h calls the validator directly on every
+    entry of the directory, where nothing has counted words first.
+    """
+    # The names are newline-separated, so a name containing one cannot be
+    # asked about this way. It cannot arrive over the wire either: a newline
+    # ends the command.
+    asked = [name for _, name, _ in NAMES if "\n" not in name]
+    answers = subprocess.run([str(reader), "names"],
+                             input="".join(n + "\n" for n in asked),
+                             capture_output=True, text=True,
+                             check=True).stdout.split()
+    if len(answers) != len(asked):
+        raise SystemExit(f"the validator answered {len(answers)} of "
+                         f"{len(asked)} names")
+    direct = dict(zip(asked, answers))
+
     for what, name, allowed in NAMES:
+        if direct.get(name, "ok" if allowed else "no") != ("ok" if allowed else "no"):
+            problems.append(f"{what} ({name!r}): the validator says "
+                            f"{direct[name]}, expected "
+                            f"{'ok' if allowed else 'no'}")
         got = subprocess.run([str(reader), "parse"], input=f"> rm {name}\n",
                              capture_output=True, text=True, check=True).stdout
         complete = got.split()[1] == "1"
         if complete != allowed:
-            problems.append(f"{what} ({name!r}): the device would "
+            problems.append(f"{what} ({name!r}): as a command the device would "
                             f"{'take' if complete else 'refuse'} it, expected "
                             f"the other")
     return len(NAMES)
@@ -275,6 +301,7 @@ ANSWERS = """\
 < err nospace
 < err crc layout.bin
 < crc layout.bin deadbeef
+< crc layout.bin 0000beef
 """
 
 
@@ -307,6 +334,8 @@ def check_readback(node: str, problems: list[str], answers: str) -> None:
         "crc": "1a2b3c4d",
         # The one where a signed shift would turn eight digits into eleven.
         "big": "deadbeef",
+        # And the one that a lost zero padding would shorten to four.
+        "padded": "0000beef",
     }
     for key, want in expected.items():
         if seen.get(key) != want:
@@ -322,6 +351,93 @@ SESSIONS = [
     ("noise", "the device chattering into the same wire the whole time"),
     ("tight", "no room for the old content and the new at once"),
 ]
+
+
+def walk(raw: bytes) -> list[tuple[str, str, int]]:
+    """The transcript as the device reads it: lines, and after a put exactly
+    as many raw bytes as it said.
+
+    Parsed rather than searched for. A file's content is followed immediately
+    by the next command with no newline between them, so anything looking for
+    "> put" at a line start misses the command after every file - and a plain
+    substring search would instead find one inside a WAV sooner or later.
+    Counting the bytes is the only reading that is exactly right, and getting
+    the same answer the device gets is itself worth checking: if this walk runs
+    off the end, the stream is not framed the way both sides believe.
+    """
+    out: list[tuple[str, str, int]] = []
+    at = 0
+    while at < len(raw):
+        end = raw.find(b"\n", at)
+        if end < 0:
+            break
+        line = raw[at:end].decode("utf-8", "replace")
+        at = end + 1
+        if not line.startswith("> "):
+            continue
+        parts = line[2:].split(" ")
+        verb = parts[0]
+        if verb == "put":
+            size = int(parts[2])
+            out.append(("put", parts[1], size))
+            at += size                      # the content, exactly as promised
+        else:
+            out.append((verb, parts[1] if len(parts) > 1 else "", 0))
+    return out
+
+
+def check_order(name: str, raw: bytes, problems: list[str]) -> None:
+    """layout.bin last, and the sweep wholly on one side of the sending.
+
+    Read off the wire rather than out of the plan the client made, because
+    what protects the device is the order the bytes really went in. layout.bin
+    is the commit: until it lands the device reads the old layout, and every
+    file the old layout names is still there. Sending it early, or deleting
+    before sending, both leave a window in which the device would come up with
+    silent keys - and neither shows up as an error anywhere.
+
+    A session at a time, since one transcript may hold several.
+    """
+    steps = walk(raw)
+    if not steps:
+        problems.append(f"{name}: nothing could be read off the wire at all")
+        return
+    if steps[0][0] != "hello":
+        problems.append(f"{name}: the first thing said was {steps[0][0]!r}, "
+                        f"not hello")
+
+    session: list[tuple[str, str, int]] = []
+    sessions = []
+    for step in steps:
+        if step[0] == "hello" and session:
+            sessions.append(session)
+            session = []
+        session.append(step)
+    sessions.append(session)
+
+    for part in sessions:
+        puts = [name_ for verb, name_, _ in part if verb == "put"]
+        order = [verb for verb, _, _ in part if verb in ("put", "rm")]
+        if not puts:
+            continue
+        if puts.count("layout.bin") != 1:
+            problems.append(f"{name}: layout.bin was sent "
+                            f"{puts.count('layout.bin')} times in one session")
+        elif puts[-1] != "layout.bin":
+            problems.append(
+                f"{name}: layout.bin was not the last thing sent ({puts[-1]} "
+                f"was) - it is the commit, and sending it early points the "
+                f"device at files that have not arrived")
+        # Which side the sweep falls on is the plan's choice, but it has to be
+        # wholly on one side: interleaved, it would delete a file the layout
+        # currently on the device still names.
+        squashed = []
+        for v in order:
+            if not squashed or squashed[-1] != v:
+                squashed.append(v)
+        if len(squashed) > 2:
+            problems.append(f"{name}: sending and sweeping are interleaved "
+                            f"({'-'.join(squashed)})")
 
 
 def check_sessions(reader: Path, node: str, problems: list[str]) -> list[str]:
@@ -341,6 +457,7 @@ def check_sessions(reader: Path, node: str, problems: list[str]) -> list[str]:
             continue
 
         raw = base64.b64decode(report["transcript"])
+        check_order(name, raw, problems)
         result = subprocess.run([str(reader), "session"], input=raw,
                                 capture_output=True)
         held = sorted(
@@ -381,6 +498,8 @@ def check_sessions(reader: Path, node: str, problems: list[str]) -> list[str]:
 
 CLIENT_ONLY = [
     ("badcrc", "a file that arrived wrong is refused, and says so"),
+    ("cancelLast", "aborting on the last step still never sends done"),
+    ("timings", "the device's gap and stall arrive, and are stepped over"),
     ("short", "a transfer that stopped leaves the session shut until hello"),
     ("nospace", "a device with no room refuses before a byte is sent"),
     ("truncated", "a file of the wrong length is sent again, not kept for its name"),
