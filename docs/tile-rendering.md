@@ -106,7 +106,9 @@ can sit side by side for as long as the rewrite takes.
 
 Everything in `static/tiles.js` except decoding the PNG is arithmetic on plain
 arrays, so [`tests/test_tile_render_js.py`](../tests/test_tile_render_js.py)
-runs it under node against Pillow on every CI run — no browser needed. It also
+runs it under node against tiles frozen from Pillow on every CI run — no
+browser and, since [`tools/tilefreeze.py`](../tools/tilefreeze.py) wrote those
+down, no Pillow either; see [frozen-references.md](frozen-references.md). It also
 checks that `TILE_PIPELINE` in the JavaScript still matches the one in
 `tiles.py`, which is the failure that would otherwise be silent.
 

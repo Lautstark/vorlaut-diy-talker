@@ -1,0 +1,295 @@
+{
+  "what": "The tiles Pillow renders for the inputs in tests/reference/tiles/, frozen so that static/tiles.js can be checked without a live Pillow deciding what the answer is.",
+  "produced_by": "tools/tilefreeze.py",
+  "produced_on": "2026-08-22",
+  "pillow": "12.3.0",
+  "python": "3.14.6",
+  "tile_pipeline": 2,
+  "tile_size": 116,
+  "img_size": 128,
+  "border": 6,
+  "format": "16 bit RGB565, big-endian, row by row, no header - what the ST7735 is handed. tile_size squared pixels, so expected_bytes is 2 * tile_size * tile_size.",
+  "pixel_format": "raw RGBA, 8 bits a channel, row by row, gzipped. pixels_sha256 is over the ungzipped bytes, so it is about the picture and not about the compression.",
+  "invalidated_by": [
+    "a bump of TILE_PIPELINE - that is the number whose whole job is to say the rendering changed, and every tile is named after it",
+    "any change to render_symbol() in tiles.py, or to the Pillow it calls: these bytes are what that pair produced",
+    "a change to a symbol under example/symbols/, which is why pixels_sha256 is here"
+  ],
+  "not_invalidated_by": [
+    "changes to static/tiles.js - that is the thing being checked. Refreezing to make it pass would leave the test comparing the browser renderer against itself, which is what this file exists to stop"
+  ],
+  "fixtures": [
+    {
+      "name": "hilfe",
+      "why": "example/symbols/hilfe.png - what a fresh clone ships and what is actually on a device",
+      "width": 500,
+      "height": 500,
+      "pixels": "tiles/hilfe.rgba.gz",
+      "pixels_sha256": "ccee5cd194d1392f97b6462217f74ce709e9794782f764c869aebebdc4571b3b",
+      "thumbnail": [
+        116,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/hilfe.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "de0318beaad7c9a323090ba70eb74f2a79e69cd1d9a5e21362bc804704d87576"
+    },
+    {
+      "name": "ja",
+      "why": "example/symbols/ja.png - what a fresh clone ships and what is actually on a device",
+      "width": 500,
+      "height": 500,
+      "pixels": "tiles/ja.rgba.gz",
+      "pixels_sha256": "b8c115c61655eca07d093dcae1252155e0cfb6f2f713ae4824392139166ebf2b",
+      "thumbnail": [
+        116,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/ja.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "14fcc581f49a01079e457329c4e262ae75ddb489f48c689e4b22c16a6727c254"
+    },
+    {
+      "name": "nein",
+      "why": "example/symbols/nein.png - what a fresh clone ships and what is actually on a device",
+      "width": 500,
+      "height": 500,
+      "pixels": "tiles/nein.rgba.gz",
+      "pixels_sha256": "526e644cec2cd5c7fcb54ca45cb082b057ddbd22d7716cad39b34a2e7ccfcb48",
+      "thumbnail": [
+        116,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/nein.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "d4e7ee4ee0a5ce10f0fff7569c98bccc0c3a44512f8b1f1ec13f6a9a74f9422e"
+    },
+    {
+      "name": "start",
+      "why": "example/symbols/start.png - what a fresh clone ships and what is actually on a device",
+      "width": 500,
+      "height": 500,
+      "pixels": "tiles/start.rgba.gz",
+      "pixels_sha256": "e7437721d450f52bbaf32e15464090d5744981fd194e9bee3209f53fb723e32e",
+      "thumbnail": [
+        116,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/start.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "2afa4d32eee07dcddd0182f1cc437b06c22c4cf089247cfa568124c704ca40ed"
+    },
+    {
+      "name": "stopp",
+      "why": "example/symbols/stopp.png - what a fresh clone ships and what is actually on a device",
+      "width": 500,
+      "height": 500,
+      "pixels": "tiles/stopp.rgba.gz",
+      "pixels_sha256": "66e116c1351115dea5a5e27ebb797983a9fe2d7641a9ddc98e7b1380ef61aa09",
+      "thumbnail": [
+        116,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/stopp.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "4579e0d5c805d9ae4ba7f5732aa22a9dc0e206faabe03284c59a2b984a7de74d"
+    },
+    {
+      "name": "wide-opaque",
+      "why": "706x589 like METACOM's own, opaque to the edge with all four corners one colour - so the leftover strip takes that colour instead of white. Checkerboard in the middle, which is the hardest thing there is to resample",
+      "width": 706,
+      "height": 589,
+      "pixels": "tiles/wide-opaque.rgba.gz",
+      "pixels_sha256": "29511a359fe4a831fef6e2602fca7ba77c78e55e1f6a515d709bdff110a750cf",
+      "thumbnail": [
+        116,
+        97
+      ],
+      "ground": [
+        36,
+        122,
+        84
+      ],
+      "expected": "tiles/wide-opaque.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "ce3cfe3d69eeb203ac52da96710f4d6a7f892b3074d69bec931e43fbe2f41235"
+    },
+    {
+      "name": "tall-soft",
+      "why": "taller than wide and soft-edged all round, so the premultiply, the resample and the unpremultiply all see partial alpha - and the leftover strip is at the sides for once",
+      "width": 240,
+      "height": 460,
+      "pixels": "tiles/tall-soft.rgba.gz",
+      "pixels_sha256": "5f6de05c5de54f82a9c41e94a4302f31f5d1b1aca27f636022d14f95bb5ec4e9",
+      "thumbnail": [
+        61,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/tall-soft.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "ec52c66dd7d5c42f6ae797319dbb9bff42793c1ef9db6943dcbbecb03581eec8"
+    },
+    {
+      "name": "small-wider",
+      "why": "smaller than the tile in both directions, so nothing is resampled at all and the whole answer is where it gets centred",
+      "width": 61,
+      "height": 44,
+      "pixels": "tiles/small-wider.rgba.gz",
+      "pixels_sha256": "3d20387a31fd65414ee79a86e827958b635f649594879f0d3f4f0a550e259d78",
+      "thumbnail": [
+        61,
+        44
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/small-wider.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "6509f74c40c5f40db09016d91da5441e6523a1fbcd321f7a04bda8e3e9dbffb7"
+    },
+    {
+      "name": "corners-differ",
+      "why": "fully opaque, but one corner is a different colour from the other three - so the ground is white, decided by the corners and not by the alpha channel",
+      "width": 400,
+      "height": 400,
+      "pixels": "tiles/corners-differ.rgba.gz",
+      "pixels_sha256": "7e640cfa43c5c8bf1c56440efc782df40b60c13ad6325db4c329460add3b36d2",
+      "thumbnail": [
+        116,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/corners-differ.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "f88693f4734d04cda824232ecee146282723d2717803afec511cdcfed086c152"
+    },
+    {
+      "name": "nearly-opaque",
+      "why": "opaque everywhere except one pixel at alpha 254, with all four corners the same colour - so the ground is white only if the alpha is read as < 255 rather than as 'about 255'. Read the other way it comes out red, and the strip shows it",
+      "width": 300,
+      "height": 200,
+      "pixels": "tiles/nearly-opaque.rgba.gz",
+      "pixels_sha256": "51b1d0235790853605ce867857cef05e1d32c167a93245b03667de815807588d",
+      "thumbnail": [
+        116,
+        77
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/nearly-opaque.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "ada00b7f4126f1ad2071797edd36136f961501bf90fb3cb5c2318268315adccc"
+    },
+    {
+      "name": "odd-leftover",
+      "why": "shrinks to 116x57, leaving 59 rows to divide in two - so the symbol sits 29 above and 30 below, and rounding instead of flooring moves every pixel",
+      "width": 407,
+      "height": 200,
+      "pixels": "tiles/odd-leftover.rgba.gz",
+      "pixels_sha256": "6d3c46357428aed7e85bca89edcf13c1daf5f3843a8a14ebf501beaf1750b548",
+      "thumbnail": [
+        116,
+        57
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/odd-leftover.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "1432b2c3dad6ed0824cc2ffea6b8b17e9a57a99c7009a4763b7b99d952d09d49"
+    },
+    {
+      "name": "quantisation",
+      "why": "already the tile's size, so nothing is resampled and the RGB565 conversion is alone. The values sit either side of every bit it throws away",
+      "width": 116,
+      "height": 116,
+      "pixels": "tiles/quantisation.rgba.gz",
+      "pixels_sha256": "da2e96c7d56ea0f61fc0cd421e9669f5b9c9d9fff5ea0c4399c198f3f6bb9bd7",
+      "thumbnail": [
+        116,
+        116
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/quantisation.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "f3fcb9cf05f713123666ec8d48cf4599aa13f756d7969947991f9582a769ad00"
+    },
+    {
+      "name": "fully-transparent",
+      "why": "every pixel transparent, over a colour - which must be dropped, not smeared into the edges by the resample",
+      "width": 200,
+      "height": 150,
+      "pixels": "tiles/fully-transparent.rgba.gz",
+      "pixels_sha256": "82f71d6e878c9534d8b86691366e6bd1739493f499d448658e5e0d26ac8d184c",
+      "thumbnail": [
+        116,
+        87
+      ],
+      "ground": [
+        255,
+        255,
+        255
+      ],
+      "expected": "tiles/fully-transparent.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "411e2f0f909b737a255be6da5e8ab58e602e1973567e6faa4fa2e7a9ecb709b5"
+    },
+    {
+      "name": "placeholder",
+      "why": "no symbol at all - the grey cross a reference that resolves to nothing renders as",
+      "width": null,
+      "height": null,
+      "pixels": null,
+      "thumbnail": null,
+      "ground": null,
+      "expected": "tiles/placeholder.rgb565",
+      "expected_bytes": 26912,
+      "expected_sha256": "9ff9b4c6106c8f47b7f526c76bbabd3afa5840d277b57371b7979d55493fca22"
+    }
+  ]
+}

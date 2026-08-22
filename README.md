@@ -112,6 +112,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/obf.md](docs/obf.md) | layout.json as an Open Board Format document, field by field |
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
 | [docs/cable.md](docs/cable.md) | Pushing content down the USB-C cable, for when there is no server to fetch from |
+| [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
 
 ## Licence
 

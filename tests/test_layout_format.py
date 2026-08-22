@@ -257,12 +257,51 @@ def writer_cases() -> list[tuple]:
     ]
 
 
+def frozen_is_still_current() -> int:
+    """Are the frozen inputs still what normalize_layout() produces?
+
+    tests/reference/layout.lock.json holds every case already normalized,
+    because static/layout_format.js has no normalizeLayout to do it with and
+    the frozen half of this check has to run without layout.py. That makes the
+    lock file a copy of this function's output, and copies go stale.
+
+    Nothing else would notice: the frozen cases would keep passing against the
+    C reader and the JavaScript writer, all three agreeing about a layout
+    normalize_layout() no longer produces. So this is asked here, in the file
+    that still has a normalize_layout() to ask.
+    """
+    lock_path = ROOT / "tests" / "reference" / "layout.lock.json"
+    if not lock_path.is_file():
+        print("  tests/reference/layout.lock.json is missing - "
+              "tools/layoutfreeze.py writes it")
+        return 1
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    frozen = {case["name"]: case["layout"] for case in lock["cases"]}
+
+    stale = []
+    for name, layout, _, _, _ in prepared(cases()):
+        if name not in frozen:
+            stale.append(f"{name} (not frozen)")
+        elif frozen[name] != json.loads(json.dumps(layout)):
+            stale.append(name)
+    if stale:
+        print(f"  the frozen layouts are no longer what normalize_layout "
+              f"produces: {', '.join(stale)}")
+        print("  Refreeze with tools/layoutfreeze.py, and read the diff "
+              "before you do - the browser has no normalize_layout to follow "
+              "this one with.")
+        return 1
+    print(f"  the {len(frozen)} frozen layouts are still what "
+          f"normalize_layout produces")
+    return 0
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as raw_tmp:
         tmp = Path(raw_tmp)
         reader = tmp / "layout_dump"
         build_reader(reader)
-        failures = 0
+        failures = frozen_is_still_current()
 
         # The first list is compared field by field with the C reader, the
         # second byte for byte between the two writers. Both go through both
