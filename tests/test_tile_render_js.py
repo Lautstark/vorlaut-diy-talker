@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Checks that src/data/tiles.ts still renders the tiles tiles.py rendered.
 
-The app is moving into the browser, so render_symbol() exists twice now. Two
-implementations of one thing drift, and this one drifting is expensive in a
-particular way: the tile file name is a hash over the symbol and
+The app moved into the browser, and render_symbol() existed twice while it
+did. Two implementations of one thing drift, and this one drifting is
+expensive in a particular way: the tile file name is a hash over the symbol and
 TILE_PIPELINE, so the day the JavaScript starts producing different bytes
 under the same name, every device carries a mixture of old and new tiles and
 nothing says so.
@@ -13,9 +13,12 @@ Image.new() and take its expected bytes from tiles.render_symbol(), which made
 both sides of the comparison things Pillow worked out afresh on every run -
 fine while Pillow was installed, and nothing at all once it was not. So
 tools/tilefreeze.py wrote down what a known Pillow produced while there was
-still one to ask, and this reads that. The tool and the renderer have since
-been deleted; the recording is what is left of them, and the provenance of it
-is in tests/reference/tiles.lock.json.
+still one to ask, and this reads that. The tool and the renderer went with the
+Python half, 2026-08-22; the recording is what is left of them, its provenance
+is in tests/reference/tiles.lock.json, and nothing in the repository can write
+it again. If TILE_PIPELINE ever bumps on purpose, refreezing means restoring
+tiles.py and the tool from git for as long as that takes, not editing the lock
+by hand (docs/frozen-references.md, "Tile rendering").
 
 The Python half is now gone, and this is what is left of that comparison:
 
@@ -30,9 +33,11 @@ Nothing replaces it: from here the frozen bytes are the only opinion there is
 about what a tile should look like, and they only answer for the fourteen
 symbols in tests/reference/tiles/.
 
-tools/tilecheck.py is still the thorough version and still needs a browser:
-the one step left out here is decoding the PNG, which the fixtures are frozen
-after. That measured lossless for these symbols.
+tools/tilecheck.py was the thorough version, in a real browser: the one step
+left out here is decoding the PNG, which the fixtures are frozen after. It
+measured that lossless for these symbols - once, by hand - and it went with
+the Python half too, so the decode is now checked by nothing.
+docs/frozen-references.md lists that among the gaps.
 """
 
 from __future__ import annotations
@@ -103,8 +108,10 @@ def check_constants(lock: dict) -> None:
     check("and it is the number the frozen tiles were rendered under", agrees,
           "" if agrees else
           f"js {constant(source, 'TILE_PIPELINE')} vs frozen "
-          f"{lock['tile_pipeline']} - if the bump is deliberate, refreeze with "
-          f"tools/tilefreeze.py")
+          f"{lock['tile_pipeline']} - if the bump is deliberate, refreezing "
+          f"means restoring tiles.py and tools/tilefreeze.py from git for as "
+          f"long as that takes - docs/frozen-references.md, under Tile "
+          f"rendering")
     check("IMG_SIZE agrees", constant(source, "IMG_SIZE") == str(lock["img_size"]))
     check("BORDER agrees", constant(source, "BORDER") == str(lock["border"]))
 
@@ -168,8 +175,10 @@ def check_fixtures_are_intact(lock: dict) -> None:
             bad.append(entry["name"] + " (size)")
     check("every frozen input is the picture that was rendered", not bad,
           "" if not bad else
-          f"changed: {', '.join(bad)} - regenerate with tools/tilefreeze.py "
-          f"rather than editing, and expect the tiles to change with them")
+          f"changed: {', '.join(bad)} - restore them from git rather than "
+          f"editing. A deliberately different input is a refreeze - restore "
+          f"tiles.py and tools/tilefreeze.py from git for as long as that "
+          f"takes - and the tiles change with it")
 
 
 def check_against_node(lock: dict, work: Path) -> None:
@@ -207,9 +216,9 @@ def main() -> int:
         print(f"  {MODULE} is missing")
         return 1
     if not LOCK.is_file():
-        print(f"  {LOCK} is missing - the frozen tiles are the reference, and "
-              f"there is nothing to compare against without them. "
-              f"tools/tilefreeze.py writes them.")
+        print(f"  {LOCK} is missing - restore it from git. It is frozen "
+              f"Pillow output, the tool that wrote it went with the Python "
+              f"half, and there is nothing to compare against without it.")
         return 1
 
     lock = json.loads(LOCK.read_text(encoding="utf-8"))
