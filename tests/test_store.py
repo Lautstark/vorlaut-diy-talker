@@ -53,10 +53,15 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         failures.append(name)
 
 
-# Three layouts rather than one: a plain one, one with the non-ASCII that
-# German content is full of, and one holding the characters that a careless
-# encoder mangles. The stamp is over bytes, so the encoding is the thing most
-# likely to differ between two implementations that both look right.
+# Three layouts rather than one. The stamp is taken over bytes, so what is
+# most likely to separate two implementations that both look correct is the
+# encoding, not the arithmetic.
+#
+# The second one is the encoding case and it is deliberately not prose. One
+# character from each width UTF-8 has - ASCII, two bytes, three, and an emoji,
+# which is four bytes and a surrogate pair in JavaScript's own string
+# representation. A layout whose content happened to be German would exercise
+# the two-byte case alone and read as though the language were the point.
 LAYOUTS = {
     "a plain layout": {
         "sleep_timeout_seconds": 600,
@@ -64,11 +69,13 @@ LAYOUTS = {
         "sets": [{"name": "Grundset", "symbol": "start.png", "color": "#3B5BDB",
                   "slots": [{"text": "Ja!", "symbol": "ja.png"}]}],
     },
-    "one with umlauts": {
+    "one of every UTF-8 width": {
         "sleep_timeout_seconds": 600,
         "language": "de",
-        "sets": [{"name": "Draußen", "symbol": "raus.png", "color": "#2F9E44",
-                  "slots": [{"text": "Können wir rausgehen?", "symbol": "x.png"}]}],
+        "sets": [{"name": "a \u00df \u20ac \U0001f600", "symbol": "w.png",
+                  "color": "#2F9E44",
+                  "slots": [{"text": "\u00e4\u00f6\u00fc \u2014 \u2018x\u2019 \U0001f9e9",
+                             "symbol": "x.png"}]}],
     },
     "one with markup and quotes in the content": {
         "sleep_timeout_seconds": 600,
