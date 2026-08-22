@@ -240,7 +240,12 @@ export async function voiceFetchState() {
 export async function startVoiceFetch() {}
 
 export async function synthesise(text, voice) {
-  const spoken = await speak(text, voice || "", VORLAUT);
+  // No voice named means the board's chosen one - the meaning "" always had.
+  // app.py filled that in on the server, and this file forgot to when it took
+  // over: every play press on a board without a voice went to the catalogue as
+  // the empty string and came back as a refusal with no name in it.
+  const chosen = voice || (await store.readLayout()).layout?.voice || "";
+  const spoken = await speak(text, chosen, VORLAUT);
   return asBlob(spoken.wav);
 }
 

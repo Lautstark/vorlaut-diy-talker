@@ -8,9 +8,16 @@
 //
 // The stylesheets are imported rather than linked, so the bundler knows they
 // exist: it hashes them, inlines what is small enough and fails the build on a
-// url() pointing at nothing. tokens.css first - ui.css reads the custom
-// properties it defines.
-import "./styles/tokens.css";
+// url() pointing at nothing. Tokens first - ui.css reads the custom properties
+// they define.
+//
+// The tokens come from @lautstark/design, generated per product from one line
+// of input (vorlaut's accent) - see that repo's README for how every value that
+// has to clear a contrast ratio is solved for it. There used to be a copy of
+// this file checked in here, byte-identical to the package's; a copy that is
+// identical today is a copy that drifts tomorrow, and the lockfile pin is what
+// says which version this page wears.
+import "@lautstark/design/tokens/vorlaut.css";
 import "./styles/ui.css";
 
 // The page's structure. Each of these sits beside the module that owns it;

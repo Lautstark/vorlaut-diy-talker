@@ -1,13 +1,15 @@
-# The two shared packages
+# The three shared packages
 
-vorlaut uses two packages of its own, shared with the other tools in this
-organisation. Neither is on npm. Both are **git dependencies pinned by commit**
-in `package.json`, which npm resolves and builds through each package's own
-`prepare` script:
+vorlaut uses three packages of its own, shared with the other tools in this
+organisation. None is on npm. All are **git dependencies pinned by release
+tag** in `package.json`, which npm resolves and builds through each package's
+own `prepare` script — the same pin style mitreden uses, so the two can be
+compared at a glance:
 
 ```json
-"@lautstark/bildquelle": "github:Lautstark/bildquelle#<sha>",
-"@lautstark/stimmquelle": "github:Lautstark/stimmquelle#<sha>"
+"@lautstark/bildquelle": "github:Lautstark/bildquelle#v1.0.0",
+"@lautstark/design": "github:Lautstark/design#v1.0.1",
+"@lautstark/stimmquelle": "github:Lautstark/stimmquelle#v2.0.2"
 ```
 
 They used to be copied into `static/vendor/` by hand, with a `VENDORED.md`
@@ -17,8 +19,20 @@ upstream**, so a copy could sit twelve commits behind and the only way anybody
 found out was by asking. The pin is in the lockfile now instead of in prose.
 
 > **This does not fix staleness on its own.** Dependabot and Renovate do not
-> reliably bump a `github:` dependency pinned to a commit. Publishing both to a
-> registry is what would buy that, and it is not done yet.
+> reliably bump a `github:` dependency, tag or sha. Publishing to a registry is
+> what would buy that, and it is not done yet. A tag is still worth having over
+> a sha: `#v2.0.2` can be read against the package's CHANGELOG without asking
+> git what the sha was.
+
+## design — the tokens
+
+One JSON line per product in Lautstark/design (vorlaut's is its accent,
+`#9B7BFF`) generates `tokens/vorlaut.css`; `src/main.ts` imports it ahead of
+`ui.css`, exactly the way mitreden imports its own. Every value that has to
+clear a contrast ratio is solved for it rather than picked by eye — the design
+repo's README carries the receipts. There used to be a byte-identical copy of
+the generated file checked in here; a copy that is identical today drifts
+tomorrow, so the pin is the only statement of which version this page wears.
 
 ## bildquelle — symbols
 
@@ -60,7 +74,9 @@ npm test
 ```
 
 Read the package's own `CHANGELOG.md` first — stimmquelle's says which edits a
-consumer needs, and moving to 2.0.0 needed exactly one here.
+consumer needs, and it means it: 2.0.0 needed exactly one edit here, and 2.0.1's
+entry names the `tsconfig` workaround consumers had built and says to delete it,
+which this repository did.
 
 **A refresh that moves §1 or §2 of stimmquelle's contract re-renders every
 recording on every device, so it is a decision and not an update.**

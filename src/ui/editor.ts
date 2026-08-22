@@ -69,8 +69,14 @@ function thumb(symbol, onClick) {
     const image = document.createElement("img");
     symbolInto(image, symbol);
     image.onerror = () => {
-      box.replaceChildren(placeholder(symbol, document.createElement("br"),
-                                      t("ui.symbol_missing")));
+      // Two different absences. A metacom: reference resolves out of the
+      // licensed folder, so its picture being unreachable means the folder is
+      // not connected in this browser - remediable in the gear, and the words
+      // should point there. Anything else is a file this browser's store does
+      // not hold, which is what a board imported from elsewhere looks like.
+      const why = symbol.startsWith("metacom:")
+        ? t("ui.symbol_needs_folder") : t("ui.symbol_missing");
+      box.replaceChildren(placeholder(symbol, document.createElement("br"), why));
     };
     box.appendChild(image);
   } else {

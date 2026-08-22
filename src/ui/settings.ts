@@ -121,7 +121,13 @@ export function wireBoard() {
       link.href = url;
       link.download = "board.obz";
       link.click();
-      URL.revokeObjectURL(url);
+      // Revoked later rather than here. The click returns before the browser
+      // has opened the URL, and a blob revoked in that gap is a download that
+      // silently never begins - the e2e's waitForEvent("download") is what
+      // caught it. A minute is arbitrary and generous; the cost of holding a
+      // small blob that long is nothing next to an export that sometimes
+      // does not happen.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
       $("boardState").textContent = t("ui.board_exported");
     } catch (error) {
       $("boardState").textContent = t("ui.board_failed", { error: reason(error) });
