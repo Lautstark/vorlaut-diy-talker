@@ -56,15 +56,19 @@ function actualSize(symbol, colour) {
 // layout.json, and a value out of there has no business being parsed as HTML -
 // the same reason picker.js gives its captions textContent.
 function placeholder(...parts) {
-  const line = document.createElement("div");
+  // A span, not a div: this lands inside the thumb, which is a <button> now,
+  // and phrasing content is all a button may hold. The thumb is a flex box,
+  // so the span is blockified and text-align centres it all the same.
+  const line = document.createElement("span");
   line.className = "empty";
   line.append(...parts);
   return line;
 }
 
 function thumb(symbol, onClick) {
-  const box = document.createElement("div");
+  const box = document.createElement("button");
   box.className = "thumb";
+  box.setAttribute("aria-label", t("ui.pick_symbol"));
   if (symbol) {
     const image = document.createElement("img");
     symbolInto(image, symbol);
@@ -103,7 +107,20 @@ export function render() {
     dot.style.background = entry.color;
     tab.appendChild(dot);
     tab.append(entry.name || t("ui.set_n", { n: index + 1 }));
-    tab.onclick = () => { state.current = index; render(); };
+    const open = () => { state.current = index; render(); };
+    tab.onclick = open;
+    // Not a <button>, although it is pressed like one: the tab is dragged to
+    // reorder, and engines disagree on what dragging a button means. So the
+    // div stays, and the two things the element would have brought - a place
+    // in the tab order, acting on Enter and Space - are written out.
+    tab.setAttribute("role", "button");
+    tab.tabIndex = 0;
+    if (index === state.current) tab.setAttribute("aria-current", "true");
+    tab.onkeydown = (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      open();
+    };
 
     // Reorder sets: the order determines how the set key cycles through.
     tab.draggable = true;
@@ -134,7 +151,7 @@ export function render() {
     tabs.appendChild(tab);
   });
   if (state.layout.sets.length < limits.maxSets) {
-    const add = document.createElement("div");
+    const add = document.createElement("button");
     add.className = "tab add";
     add.textContent = t("ui.add_set");
     add.onclick = async () => {
@@ -237,9 +254,10 @@ export function render() {
   const swatches = document.createElement("div");
   swatches.className = "swatches";
   palette.forEach((hex) => {
-    const swatch = document.createElement("span");
+    const swatch = document.createElement("button");
     const isActive = hex.toUpperCase() === (color || "").toUpperCase();
     swatch.className = "swatch" + (isActive ? " active" : "");
+    swatch.setAttribute("aria-pressed", String(isActive));
     swatch.style.background = hex;
     swatch.title = hex;
     swatch.onclick = () => applyColor(hex);

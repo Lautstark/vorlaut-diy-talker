@@ -83,6 +83,30 @@ test("a second set can be added and removed again", async ({ page }) => {
   await expect(tabs).toHaveCount(1);
 });
 
+test("tabs, swatches and thumbs answer the keyboard", async ({ page }) => {
+  await openBoard(page);
+
+  // A second set, then back to the first, without touching the mouse.
+  await page.locator("#tabs .tab.add").focus();
+  await page.keyboard.press("Enter");
+  const tabs = page.locator("#tabs .tab:not(.add)");
+  await expect(tabs).toHaveCount(2);
+  await tabs.first().focus();
+  await page.keyboard.press("Enter");
+  await expect(tabs.first()).toHaveClass(/active/);
+
+  // Space recolours through a swatch...
+  const swatch = page.locator("#device .setTile .swatch").nth(1);
+  await swatch.focus();
+  await page.keyboard.press("Space");
+  await expect(swatch).toHaveClass(/active/);
+
+  // ...and Enter on a key's thumb opens the picker.
+  await page.locator("#device .tile:not(.setTile) .thumb").first().focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#picker")).toBeVisible();
+});
+
 test("an own picture lands on a key and renders", async ({ page }) => {
   await openBoard(page);
 
