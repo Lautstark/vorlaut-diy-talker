@@ -16,7 +16,7 @@ files played. Nothing said anything.
 
 So: one recording, both paths, and the loudness of each result measured by the
 real ffmpeg, which is neither of them. What counts is the last column - how
-far the browser lands from the container on the same sentence.
+far the browser lands from tts.py on the same sentence.
 
 One recording, emphatically. piper is a VITS model with a stochastic duration
 predictor and does not render the same sentence the same way twice - three
@@ -25,9 +25,9 @@ once per path would measure that and report it as a disagreement.
 
 The three paths, and what each of them proves:
 
-  container   piper on this machine, then ffmpeg      the oracle
-  node        the same recording through level.js     is the arithmetic right
-  browser     piper-wasm in a tab, then level.js      is the tab the same
+  python      piper on this machine, then ffmpeg     the oracle
+  node        the same recording through level.js    is the arithmetic right
+  browser     piper-wasm in a tab, then level.js     is the tab the same
 
 The third one cannot run from here; it needs tools/ttscheck.html open in a
 browser. --serve renders the batch, puts it where that page can fetch it and
@@ -152,8 +152,8 @@ def render(work: Path, browser: Path | None, languages: list[str]) -> list[dict]
             if not raw.exists():
                 raw.write_bytes(tts.piper_synthesize(text, model))
 
-            container = work / f"{name}-container.wav"
-            tts.postprocess(raw.read_bytes(), container)
+            oracle = work / f"{name}-python.wav"
+            tts.postprocess(raw.read_bytes(), oracle)
 
             node_out = work / f"{name}-node.wav"
             claimed = node_level(raw, node_out)
@@ -161,7 +161,7 @@ def render(work: Path, browser: Path | None, languages: list[str]) -> list[dict]
             row = {
                 "id": name,
                 "text": text,
-                "container": measure(container),
+                "python": measure(oracle),
                 "node": measure(node_out),
                 "claimed": claimed,
             }
@@ -177,7 +177,7 @@ def render(work: Path, browser: Path | None, languages: list[str]) -> list[dict]
 
 
 def table(rows: list[dict], with_browser: bool) -> None:
-    head = f"{'id':<7} {'text':<30} {'container':>10} {'node':>8} {'Δ':>7}"
+    head = f"{'id':<7} {'text':<30} {'tts.py':>10} {'node':>8} {'Δ':>7}"
     if with_browser:
         head += f" {'browser':>8} {'Δ':>7}"
     head += f" {'TP node':>8} {'LRA':>5}"
@@ -187,17 +187,17 @@ def table(rows: list[dict], with_browser: bool) -> None:
     over = []
     for row in rows:
         shown = row["text"] if len(row["text"]) <= 30 else row["text"][:27] + "..."
-        delta = row["node"]["lufs"] - row["container"]["lufs"]
+        delta = row["node"]["lufs"] - row["python"]["lufs"]
         worst = max(worst, abs(delta))
-        line = (f"{row['id']:<7} {shown:<30} {row['container']['lufs']:>10.2f}"
+        line = (f"{row['id']:<7} {shown:<30} {row['python']['lufs']:>10.2f}"
                 f" {row['node']['lufs']:>8.2f} {delta:>+7.2f}")
         if with_browser:
             if "browser" in row:
-                bdelta = row["browser"]["lufs"] - row["container"]["lufs"]
+                bdelta = row["browser"]["lufs"] - row["python"]["lufs"]
                 line += f" {row['browser']['lufs']:>8.2f} {bdelta:>+7.2f}"
             else:
                 line += f" {'-':>8} {'-':>7}"
-        line += f" {row['node']['peak']:>8.2f} {row['container']['lra']:>5.2f}"
+        line += f" {row['node']['peak']:>8.2f} {row['python']['lra']:>5.2f}"
         print(line)
         # The ceiling is not a target that can be missed by a little. Above it
         # the recording clips on a device whose amplifier has no headroom.
@@ -209,11 +209,11 @@ def table(rows: list[dict], with_browser: bool) -> None:
     # compresses after that; level.js never compresses. A sentence with no
     # loudness range gives its compressor nothing to do, and the two agree to
     # the second decimal. So the honest summary is two numbers, not one.
-    flat = [r for r in rows if r["container"]["lra"] == 0]
-    ranged = [r for r in rows if r["container"]["lra"] > 0]
-    off = lambda group: max((abs(r["node"]["lufs"] - r["container"]["lufs"])
+    flat = [r for r in rows if r["python"]["lra"] == 0]
+    ranged = [r for r in rows if r["python"]["lra"] > 0]
+    off = lambda group: max((abs(r["node"]["lufs"] - r["python"]["lufs"])
                              for r in group), default=0.0)
-    print(f"\n  worst difference from the container: {worst:.2f} LU over {len(rows)} sentences")
+    print(f"\n  worst difference from tts.py: {worst:.2f} LU over {len(rows)} sentences")
     print(f"    of the {len(flat)} with no loudness range to compress: {off(flat):.2f} LU")
     print(f"    of the {len(ranged)} with some:                        {off(ranged):.2f} LU"
           if ranged else "    none of them had any")
@@ -318,7 +318,7 @@ def main(argv: list[str]) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         # --browser names the folder --serve rendered into, so that is where
         # the work happens too. Rendering somewhere else would give the
-        # container and the browser two different recordings of each sentence
+        # Python side and the browser two different recordings of each sentence
         # - and piper does not render one sentence the same way twice, so the
         # table would show that noise in the browser column and call it a
         # difference between the two paths. Found by doing exactly that.

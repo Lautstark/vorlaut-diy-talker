@@ -10,7 +10,7 @@ way: silently, because nothing in either half reads the other.
 What drift would look like:
 
   * KEEP_TAIL changed here, not there - the browser leaves a different amount
-    of room at the end of a word than the container does, and two recordings
+    of room at the end of a word than tts.py does, and two recordings
     of the same sentence differ while claiming the same fingerprint
   * a voice added to VOICE_CATALOGUE that no browser can speak with - it works
     for whoever added it, on the server, and turns into a silent slot for
@@ -114,7 +114,7 @@ def main() -> int:
               f"why is {voice.get('why')!r}")
 
     # --- the link to VOICE_CATALOGUE --------------------------------------
-    # The one that matters. Adding a voice to the container's catalogue is
+    # The one that matters. Adding a voice to tts.py's catalogue is
     # easy and looks harmless; whether a browser can speak with it is a
     # separate question that nothing else asks.
     shipped = [entry.rsplit("/", 1)[-1]
@@ -125,7 +125,7 @@ def main() -> int:
               "not mentioned either way - add it, or say why it cannot work")
 
     # And the finding this list was written for, asserted rather than left in
-    # a document: two of the four voices the container ships cannot be spoken
+    # a document: two of the four voices tts.py ships cannot be spoken
     # in a browser, and one of them is the only German female voice there.
     unusable = [v for v in shipped if v in rejected]
     check("the browser list still knows which shipped voices it cannot speak",
