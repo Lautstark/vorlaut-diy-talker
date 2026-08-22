@@ -44,11 +44,6 @@ The reason is in `tests/run.py`'s docstring and in the Tests section of
 [`software.md`](software.md), where it applies to any new file. Freezing is the
 worst case of it: these arrived twenty-seven files at a time.
 
-**`git add -A` before running the suite, when you have just added fixtures.**
-The reason is in `tests/run.py`'s docstring and in the Tests section of
-[`software.md`](software.md), where it applies to any new file. Freezing is the
-worst case of it: these arrived twenty-seven files at a time.
-
 The direction only goes one way, and it is the whole point:
 
 > Changes to `static/` never invalidate a lock file. That is the thing being
