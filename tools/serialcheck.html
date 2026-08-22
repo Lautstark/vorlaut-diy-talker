@@ -141,6 +141,7 @@ let cable = null;      // the open connection
 let serial = null;     // the SerialPort behind it, when it is a real one
 let made = null;       // Map name -> {bytes}: what we would like on the device
 let sent = null;       // what the last push believed it put there
+let mocked = false;    // is there a real device on the end of this?
 
 function ready(on) {
   for (const id of ["#list", "#verify", "#forget"]) $(id).disabled = !on;
@@ -167,7 +168,11 @@ async function attach(port, how) {
 
 async function greet(streams, how) {
   cable = new Cable(streams, { onLog: (line) => log(`  device: ${line}`) });
-  const hello = await cable.hello();
+  // Three tries on a first connect. If opening the port resets the board -
+  // see docs/cable.md on DTR and RTS - the first hello lands while it is
+  // still booting, and the difference between one try and three is the
+  // difference between "unreliable protocol" and a second's wait.
+  const hello = await cable.hello({ tries: 3 });
   if (hello.version !== CABLE_VERSION) {
     log(`  it speaks protocol ${hello.version}, this page speaks ${CABLE_VERSION}`,
         "bad");
@@ -201,6 +206,7 @@ $("#mock").addEventListener("click", async () => {
   await detach();
   const device = new MockDevice({ noise: true });
   window.mock = device;                 // for poking at from the console
+  mocked = true;
   await greet(device.open(), "the mock, no hardware involved");
   log("  this is tools/cable_mock.js. It answers the way cable.h is written to,");
   log("  and it chatters unmarked log lines into the same stream on purpose.");
@@ -423,6 +429,25 @@ $("#push").addEventListener("click", async () => {
         + (result.bytes ? ` — ${(result.bytes / 1024 / took).toFixed(0)} KB/s` : ""),
         "good");
     log("the device has read its new layout in and is a talker again");
+
+    // The numbers that say how close the timeout came. A run that worked
+    // proves the pause did not exceed four seconds once; this says by how
+    // much, which is the difference between "it worked" and evidence.
+    const QUIET_MS = 4000;               // CABLE_QUIET_MS in cable_format.h
+    const margin = QUIET_MS - cable.worstGap;
+    log(`worst gap ${cable.worstGap} ms, worst LittleFS write `
+        + `${cable.worstStall} ms — the timeout is ${QUIET_MS} ms, so the `
+        + `margin was ${margin} ms`,
+        margin < QUIET_MS / 2 ? "bad" : "good");
+    if (mocked) {
+      log("  the mock reports fixed numbers. This is NOT a measurement of "
+          + "anything — it only shows the reporting path works.", "bad");
+    } else if (cable.worstGap === 0 && cable.worstStall === 0) {
+      log("  the device reported no timings — this firmware predates them, so "
+          + "the margin above is not real", "bad");
+    } else {
+      log("  a real measurement: these belong in the table in docs/cable.md");
+    }
   } catch (error) {
     if (error instanceof CableError) {
       log(`the device refused: ${error.word}${error.detail ? " " + error.detail : ""}`, "bad");

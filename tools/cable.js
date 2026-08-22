@@ -88,6 +88,11 @@ export class Cable {
     this.rest = "";           // a line that has not finished arriving
     this.closed = false;
     this.failure = null;
+    // The longest the device waited for bytes, and the longest a single write
+    // into LittleFS took, over every file this connection has carried. These
+    // are what say how close CABLE_QUIET_MS came - see docs/cable.md.
+    this.worstGap = 0;
+    this.worstStall = 0;
     this.queue = Promise.resolve();   // one command at a time, in order
     this.reader = port.readable.getReader();
     this.writer = port.writable.getWriter();
@@ -172,6 +177,35 @@ export class Cable {
     return { key, rest };
   }
 
+  /**
+   * Reads until one of these keywords arrives, stepping over anything else.
+   *
+   * This is the rule the protocol states everywhere - a reader skips keywords
+   * it does not know, so the other side can gain a field without this one
+   * falling over - and until the device started reporting its timings it was
+   * a rule this client did not actually follow. Waiting for exactly one line
+   * would have turned the first extra keyword the firmware ever sends into a
+   * failed transfer.
+   */
+  async expectOneOf(want, timeout = this.timeout) {
+    for (;;) {
+      const answer = await this.expect(timeout);
+      if (want.includes(answer.key)) return answer;
+      this.noted(answer.key, answer.rest);
+    }
+  }
+
+  /** A keyword this client does not act on. Recorded, not discarded: the
+   *  timings the device reports arrive this way. */
+  noted(key, rest) {
+    if (key === "gap" || key === "stall") {
+      const ms = Number(rest);
+      const worst = key === "gap" ? "worstGap" : "worstStall";
+      if (Number.isFinite(ms) && ms > this[worst]) this[worst] = ms;
+    }
+    this.onLog(`(${key} ${rest})`);
+  }
+
   /** Runs commands strictly one after another. Two at once would interleave
    *  their answers, and the second one's "ok" would be read as the first's. */
   #serial(work) {
@@ -184,9 +218,27 @@ export class Cable {
 
   /** Who is on the other end. Also the only way to tell a vorlaut from
    *  whatever else the person picked in the port dialog. */
-  hello() {
+  hello({ tries = 1 } = {}) {
     return this.#serial(async () => {
-      await this.send("hello");
+      for (let attempt = 1; ; attempt++) {
+        try {
+          return await this.#greet();
+        } catch (error) {
+          // Opening the port may reset the board - the ESP32-S3's USB stack
+          // watches for the DTR/RTS pattern esptool uses, and what Chrome
+          // asserts on open() is not something this can find out from here.
+          // If that happens the first hello lands while the device is still
+          // booting, and the answer is to ask again rather than to give up.
+          if (attempt >= tries) throw error;
+          await new Promise((r) => setTimeout(r, 700));
+        }
+      }
+    });
+  }
+
+  async #greet() {
+    await this.send("hello");
+    {
       const answer = { version: 0, total: 0, free: 0, files: 0 };
       for (;;) {
         const { key, rest } = await this.expect();
@@ -198,7 +250,7 @@ export class Cable {
         // Anything else is skipped: a newer device may say more than this
         // one knows how to ask about.
       }
-    });
+    }
   }
 
   /** Everything the device holds, as [{name, size}]. The device does no
@@ -224,7 +276,7 @@ export class Cable {
   crc(name) {
     return this.#serial(async () => {
       await this.send(`crc ${name}`);
-      const { rest } = await this.expect();
+      const { rest } = await this.expectOneOf(["crc"]);
       return parseInt(rest.slice(rest.lastIndexOf(" ") + 1), 16) >>> 0;
     });
   }
@@ -239,16 +291,16 @@ export class Cable {
     return this.#serial(async () => {
       const sum = crc32(bytes);
       await this.send(`put ${name} ${bytes.length} ${hex8(sum)}`);
-      const { key } = await this.expect();
-      if (key !== "go") throw new Error(`expected "go", got "${key}"`);
+      await this.expectOneOf(["go"]);
       for (let at = 0; at < bytes.length; at += chunk) {
         await this.writer.write(bytes.subarray(at, Math.min(at + chunk, bytes.length)));
         if (onProgress) onProgress(Math.min(at + chunk, bytes.length), bytes.length);
       }
       // Writing is quick and storing is not: the device is still emptying its
       // buffer into flash when the last chunk is accepted here.
-      const { key: verdict, rest } = await this.expect(this.timeout);
-      if (verdict !== "ok") throw new Error(`expected "ok", got "${verdict}"`);
+      // "ok", with whatever the device chose to say first stepped over. That
+      // is where its gap and stall timings arrive.
+      const { rest } = await this.expectOneOf(["ok"]);
       return { name, size: Number(rest.slice(rest.lastIndexOf(" ") + 1)) };
     });
   }
@@ -256,7 +308,7 @@ export class Cable {
   rm(name) {
     return this.#serial(async () => {
       await this.send(`rm ${name}`);
-      const { rest } = await this.expect();
+      const { rest } = await this.expectOneOf(["gone"]);
       return rest;
     });
   }
@@ -265,7 +317,7 @@ export class Cable {
   done() {
     return this.#serial(async () => {
       await this.send("done");
-      const { rest } = await this.expect();
+      const { rest } = await this.expectOneOf(["bye"]);
       const [stored, removed, bytes] = rest.split(" ").map(Number);
       return { stored, removed, bytes };
     });

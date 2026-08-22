@@ -233,6 +233,44 @@ real device to be tried on:
    to contain `\n> hello\n` would have to be chosen on purpose, and whoever is
    holding the cable has easier things to do.
 
+### The four seconds are a guess until they are a measurement
+
+`CABLE_QUIET_MS` is the one constant here with a real design risk behind it: it
+has to be longer than any pause LittleFS can take in the middle of a transfer,
+and nothing on a computer can say what that is. A run that works only shows the
+pause did not exceed four seconds *once*. It says nothing about the margin, and
+a constant that survived one evening is not evidence.
+
+So the device measures and reports, before every `ok`:
+
+```
+< gap 12         longest stretch this file spent with nothing arriving
+< stall 340      longest single write into LittleFS
+```
+
+Two numbers, because they are two different risks and one would hide the
+other. `gap` is what `CABLE_QUIET_MS` is actually compared against. `stall` is
+where a garbage collection pause shows up — and it does **not** appear in `gap`,
+because while it happens the device is inside `file.write()` rather than
+waiting for bytes.
+
+Both are ordinary keyword lines, so a reader that does not know them steps over
+them. That rule is stated all through this document; these are the first lines
+to depend on it, which is worth saying because until they existed the browser
+client did not actually follow it. It does now, and the mock reports fixed
+values so every test run goes through that path rather than only the one test
+aimed at it.
+
+The bench shows the worst of each after a push, with the margin. **When a full
+transfer has run on real hardware, the numbers belong here** — and then 4000
+either has a measurement behind it or is changed to one:
+
+| | |
+|---|---|
+| longest `gap` over a full payload | *not yet measured* |
+| longest `stall` over a full payload | *not yet measured* |
+| `CABLE_QUIET_MS` | 4000 |
+
 That third rule is not a special case. **A device that has not been greeted is
 in exactly the same state as one that has just lost a transfer** — refusing
 everything but `hello`. One rule, two uses, and no separate idea of "in a
@@ -384,13 +422,39 @@ once and remembered is a row nobody can audit later:
 | an incremental transfer moves only what changed | the whole point of the content-addressed names |
 | an interrupted transfer leaves a fragment | pull the cable mid-transfer: `.part` and no half-file under a real name |
 | the device *speaks* the new content | not merely reports success |
-| a second transfer needs no port picker | `getPorts()` finds the device again |
+| a second transfer needs no port picker | `getPorts()` finds the device again — **this one decides an interface question, see below** |
 | a device that already holds content is updated | rather than confused by what is already there |
 
 None of the six has been run. The bench can produce every one of them except
 the third — pulling the cable out mid-transfer is a thing only hands can do —
 and the third is the one whose device-side behaviour has no test at all, since
 it is the timeout, the drain and the refusal that only `hello` clears.
+
+**Row five is not a convenience.** The plan is that the editor's existing
+*Freigeben* button becomes the button that puts content on the talker: one
+press, no dialog. That rests entirely on `getPorts()` returning a
+previously-granted port without a gesture. If a granted port does not survive
+the device re-enumerating, there is a picker on *every* transfer and that
+promise has to be withdrawn — so this row settles an interface question rather
+than measuring a nicety, and it should be reported as such.
+
+**Before blaming the wire format, check whether opening the port resets the
+board.** On classic ESP32 boards the USB-UART bridge has DTR and RTS wired to
+EN and BOOT, so merely opening a connection reboots the chip. The Feather S3
+has no such circuit — it is the S3's own USB — but the Arduino core's CDC stack
+watches for the DTR/RTS pattern `esptool` uses and resets in software, which is
+why flashing needs no buttons pressed. Whether a plain `port.open()` from
+Chrome trips that depends on which signals Chrome asserts, and that is not
+knowable from here.
+
+If it does trip it, every transfer starts with a reboot, the port handle goes
+stale mid-session, and the whole thing presents as an unreliable protocol
+rather than as a reset. `setSignals({ dataTerminalReady, requestToSend })` is
+the lever; the bench already raises DTR alone and never drives the pair in
+sequence. It also asks `hello` up to three times on a first connect, so that a
+board which *is* rebooting costs a second rather than looking dead — if that
+retry turns out to be load-bearing, that is the symptom, and it is worth
+knowing rather than being quietly absorbed.
 
 Three things about the hardware that bear on that list, from
 [bring-up.md](bring-up.md):
