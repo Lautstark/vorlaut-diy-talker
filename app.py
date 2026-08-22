@@ -62,6 +62,12 @@ STATIC = ROOT / "static"  # its stylesheet and its JavaScript, likewise
 STATIC_TYPES = {
     ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    # static/tts/voices.json, which speak.js asks for by a URL relative to
+    # itself. Without this the route answers 404 with a JSON body, so the
+    # fetch succeeds, .json() succeeds, and the caller gets {"error": ...}
+    # where it expected a voice list - a failure that looks like an empty
+    # catalogue rather than a missing file.
+    ".json": "application/json; charset=utf-8",
 }
 SYMBOLS_DIR = tiles.SYMBOLS_DIR
 THUMB_CACHE = config.CONTENT / "cache" / "thumbs"

@@ -63,6 +63,10 @@ NOT_ON_THE_PAGE = {
     # database itself is tools/storecheck.html, because IndexedDB needs a
     # browser and this list is about what CI can reach.
     "store.js": "tests/test_store.py",
+    # The other half of the seam. Written, and not chosen: backend.js still
+    # names server.js, so nothing on the page reaches this or the four modules
+    # it is built out of. Choosing it is what takes all five off this list.
+    "backend/local.js": "tools/localcheck.html",
 }
 
 # Code that is not ours. static/vendor/ holds built copies of packages, with
@@ -323,27 +327,60 @@ def check_every_module_is_reachable() -> int:
     the loop below fails if a name on that list is not a file any more, so
     the exception cannot outlive the module it was written for.
     """
-    imported = {"main.js"} | set(NOT_ON_THE_PAGE)
-    for path in scripts():
-        # Resolved against the importing file rather than taken as a name:
-        # "./level.js" in static/tts/speak.js is static/tts/level.js, and in a
-        # flat reading it would have been a top-level level.js that is not
-        # there - or, worse, one that is and is a different file.
+    failures = 0
+
+    def imports_of(path: Path) -> list[str]:
+        """The modules one file names, as paths under static/.
+
+        Resolved against the importing file rather than taken as a name:
+        "./level.js" in static/tts/speak.js is static/tts/level.js, and in a
+        flat reading it would have been a top-level level.js that is not
+        there - or, worse, one that is and is a different file.
+        """
+        nonlocal failures
+        out = []
         for target in re.findall(r'from\s+"(\.\.?/[\w./-]+\.js)"',
                                  path.read_text(encoding="utf-8")):
             resolved = (path.parent / target).resolve()
             try:
-                imported.add(resolved.relative_to(app.STATIC).as_posix())
+                out.append(resolved.relative_to(app.STATIC).as_posix())
             except ValueError:
                 print(f"  FAIL  {module_name(path)} imports {target}, which is "
                       f"outside static/")
-    failures = 0
+                failures += 1
+        return out
+
+    # A walk from main.js, not a census of who imports whom. The two differ
+    # once a module exists that is written but not yet chosen: backend/local.js
+    # imports store.js, tiles.js and the speech pair, and under a flat reading
+    # that alone would have made all four look like part of the page. They are
+    # not - main.js reaches backend.js, which still names server.js - and the
+    # line this test prints says "reached from main.js", which has to stay
+    # true or the exception list quietly stops meaning anything.
+    reached: set[str] = set()
+    queue = ["main.js"]
+    while queue:
+        name = queue.pop()
+        if name in reached:
+            continue
+        reached.add(name)
+        target = app.STATIC / name
+        if target.is_file():
+            queue.extend(imports_of(target))
+
+    # Every import in the tree is still checked for pointing at a real file,
+    # including from modules the page never reaches - a broken import in one
+    # of those is a module that will not load on the day it is wired up.
+    named = set(reached)
     for path in scripts():
-        if module_name(path) not in imported:
+        named.update(imports_of(path))
+
+    for path in scripts():
+        if module_name(path) not in reached and module_name(path) not in NOT_ON_THE_PAGE:
             print(f"  FAIL  nothing imports {module_name(path)}, so the page never "
                   f"loads it")
             failures += 1
-    for name in sorted(imported):
+    for name in sorted(named):
         if not (app.STATIC / name).is_file():
             print(f"  FAIL  something imports {name}, which is not in "
                   f"{app.STATIC}")
