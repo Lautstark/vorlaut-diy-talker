@@ -27,6 +27,11 @@ header h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .3px; 
 header .status { margin-left: auto; }
 main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
 
+/* The focus ring design.md fixes for every product: one rule, one appearance,
+   everywhere. The :focus-visible rules further down add their hover look on
+   top of it; none of them stands in for it. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .tab {
   display: flex; align-items: center; gap: 8px;
@@ -47,7 +52,7 @@ main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
 .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
 .swatch {
   width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
-  border: 2px solid transparent; box-sizing: border-box;
+  border: 2px solid transparent; box-sizing: border-box; padding: 0;
 }
 .swatch:hover { border-color: var(--text-dim); }
 .swatch.active { border-color: var(--text); }
@@ -58,7 +63,7 @@ main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
 .thumb {
   aspect-ratio: 1/1; flex: 0 0 auto; background: #fff; border-radius: 8px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
-  position: relative;
+  position: relative; border: none; padding: 0;
 }
 .thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
 .thumb .empty { color: #b9bfc9; font-size: 13px; text-align: center; padding: 8px; }
@@ -169,6 +174,8 @@ button.danger { color: var(--danger); }
   color: var(--text-dim); font-size: 13px; white-space: nowrap;
 }
 .toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+/* The box is 0x0 and invisible - the ring it earns goes on the pill below. */
+.toggle input:focus-visible { outline: none; }
 .pill {
   width: 38px; height: 22px; border-radius: 11px; flex: none;
   background: var(--line); position: relative; transition: background .15s;
