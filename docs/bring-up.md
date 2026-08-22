@@ -58,11 +58,21 @@ settled:
   `PANEL_INITR` in `pins.h`, which is where stages 3 and 4 and the real
   firmware read it from. Until it is written there they all keep using the
   default, and stage 3 will look like a CS fault.
+- **Inversion.** A swap is not the only way colours come out wrong, and it was
+  not the way these panels did. If every colour shows as its own *complement*
+  — red as cyan, green as violet, blue as yellow — nothing is swapped: the
+  panel is an IPS type that wants `INVON`, and the library's init sequence
+  sends `INVOFF`. That is `PANEL_INVERT` in `pins.h`, and it is **1** for the
+  real ScreenKeys, settled on hardware on 2026-08-22. It hides the offset
+  check as well, because an inverted black background is white and the white
+  border on it is black — so there is no border to judge until this is right.
 - **Offset.** After that a white border exactly at the outermost edge, with a
   coloured square in every corner and a crosshair. If the border is equally
   wide all round and all four corners are complete, `PANEL_COL_OFFSET` and
   `PANEL_ROW_OFFSET` in `pins.h` are right. If something is missing at the top
-  or left and a strip remains at the bottom or right, adjust them there.
+  or left and a strip remains at the bottom or right, adjust them there. The
+  calculated 2 and 3 turned out to be correct on hardware — border even all
+  round, all four corners whole — so they are measured now, not guessed.
 
 If it stays black: check CLK, DIN, DC, RST and the power supply.
 

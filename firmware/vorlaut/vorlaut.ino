@@ -191,6 +191,7 @@ static void setupDisplays() {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     display[i] = new Panel(&SPI, PIN_CS[i], PIN_DC, -1);
     display[i]->initR(PANEL_INITR);  // 128x128, settled in stage 2
+    display[i]->invertDisplay(PANEL_INVERT);  // IPS panels, settled in stage 2
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
     display[i]->setRotation(PANEL_ROTATION);
     // Without this the font treats bytes above 0x7F as a legacy special case
