@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@lautstark/bildquelle": "github:Lautstark/bildquelle#f62dfcc085a69fa90c562f8ce8f137e74c659a55",
-    "@lautstark/stimmquelle": "github:Lautstark/stimmquelle#26d7819a7564f51486c837a225806d89e284c398"
+    "@lautstark/stimmquelle": "github:Lautstark/stimmquelle#v2.0.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",

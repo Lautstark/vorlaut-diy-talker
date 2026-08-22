@@ -6,23 +6,6 @@
     "moduleResolution": "bundler",
     "types": ["vite/client"],
 
-    /* @lautstark/stimmquelle ships its declarations but does not point at them
-       from the entry we use. Its exports map gives types for "." and none for
-       "./browser", and "." does not resolve at all - it names ./dist/index.js,
-       which tsc emits to ./dist/src/index.js instead - so the only entry that
-       loads at runtime is the one with no types attached, and the map's lack of
-       a wildcard means the declarations cannot be reached by path either.
-
-       This maps the types by hand. Vite still resolves the runtime through the
-       exports map, so only the compiler is being told anything here. Delete it
-       when upstream fixes the map, and `npm run typecheck` will say whether it
-       was needed. */
-    "paths": {
-      "@lautstark/stimmquelle/browser": [
-        "./node_modules/@lautstark/stimmquelle/dist/src/index.d.ts"
-      ]
-    },
-
     "strict": true,
     /* The port from JavaScript was a rename, not a rewrite: the modules came
        across unchanged so that the frozen references still measure the same
