@@ -4,8 +4,8 @@
     python3 tools/ttsfreeze.py            # rewrite tests/reference/tts.lock.json
     python3 tools/ttsfreeze.py --check    # measure again, change nothing, report
 
-static/tts/level.js is the browser's copy of the ffmpeg chain in tts.py, and
-until now nothing in the suite ran it. tests/test_browser_tts.py reads the
+The browser's copy of the ffmpeg chain in tts.py - @lautstark/stimmquelle,
+vendored under static/vendor/ - was for a while not run by the suite at all. tests/test_browser_tts.py reads the
 constants out of it and compares them with tts.py - correct constants over
 wrong arithmetic passes every one of those checks. The arithmetic was only
 ever measured by hand, through tools/ttscheck.py, and the result lives as a
@@ -21,7 +21,7 @@ output with the same function that had decided the gain.
 So this runs while there is still an ffmpeg and a tts.py to run, and writes
 down what they said. tests/browser/level.test.mjs then checks level.js against
 those numbers without needing either. The numbers are an outside opinion,
-frozen; if they and level.js ever disagree, the fault is in level.js.
+frozen; if they and the chain ever disagree, the fault is in the chain.
 
 Three kinds of reference, and each answers a different question:
 

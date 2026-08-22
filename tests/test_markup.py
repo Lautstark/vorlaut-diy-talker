@@ -93,9 +93,8 @@ def scripts() -> list[Path]:
 
     rglob rather than glob, which is a fix and not a tidy-up: this used to
     look only at the top level, so a module in a subfolder could hand the HTML
-    parser a string it composed and nothing here would see it. static/tts/
-    level.js and speak.js were exempt from the whole rule by being one
-    directory down, and nothing said so. tests/test_ui_texts.py had the same
+    parser a string it composed and nothing here would see it. The speech modules were exempt
+    from the whole rule by being one directory down, and nothing said so. tests/test_ui_texts.py had the same
     hole in the same call and closed it; this is that fix, arriving late.
     """
     return sorted(path for path in app.STATIC.rglob("*.js")

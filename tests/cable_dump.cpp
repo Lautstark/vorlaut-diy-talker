@@ -63,6 +63,22 @@ static int parse(void) {
   return 0;
 }
 
+// cableNameOk on its own, one name per line. Worth asking separately from the
+// parse mode: through a command the word count refuses some names before the
+// validator ever sees them, so a fault in the validator can hide behind the
+// parser. cable.h also calls it directly, on every entry of the directory.
+static int names(void) {
+  char line[4096];
+  while (fgets(line, sizeof(line), stdin)) {
+    size_t length = strlen(line);
+    while (length && (line[length - 1] == '\n' || line[length - 1] == '\r')) {
+      line[--length] = '\0';
+    }
+    printf("%s\n", cableNameOk(line) ? "ok" : "no");
+  }
+  return 0;
+}
+
 static int crc(void) {
   uint32_t value = CABLE_CRC_INIT;
   uint8_t buffer[4096];
@@ -103,6 +119,10 @@ static int sayAll(void) {
   // A checksum whose top bit is set, because that is where an int that should
   // have been unsigned turns into "ffffffff8..." and eight digits into eleven.
   cableSayNameHex(out, sizeof(out), "crc", "layout.bin", 0xdeadbeefu); say(out);
+  // And one with leading zeros, which is the other half of the same question.
+  // Every value above happens to have eight significant digits, so all of them
+  // survive a format string that lost its zero padding - this one does not.
+  cableSayNameHex(out, sizeof(out), "crc", "layout.bin", 0x0000beefu); say(out);
   return 0;
 }
 
@@ -267,9 +287,11 @@ static int session(void) {
 int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "limits") == 0) return limits();
   if (argc >= 2 && strcmp(argv[1], "parse") == 0) return parse();
+  if (argc >= 2 && strcmp(argv[1], "names") == 0) return names();
   if (argc >= 2 && strcmp(argv[1], "crc") == 0) return crc();
   if (argc >= 2 && strcmp(argv[1], "say") == 0) return sayAll();
   if (argc >= 2 && strcmp(argv[1], "session") == 0) return session();
-  fprintf(stderr, "usage: cable_dump limits | parse | crc | say | session\n");
+  fprintf(stderr,
+          "usage: cable_dump limits | parse | names | crc | say | session\n");
   return 2;
 }

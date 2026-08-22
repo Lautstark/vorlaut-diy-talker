@@ -301,7 +301,17 @@ export class Cable {
       // "ok", with whatever the device chose to say first stepped over. That
       // is where its gap and stall timings arrive.
       const { rest } = await this.expectOneOf(["ok"]);
-      return { name, size: Number(rest.slice(rest.lastIndexOf(" ") + 1)) };
+      const stored = Number(rest.slice(rest.lastIndexOf(" ") + 1));
+      // The device echoes back what it stored, and it is worth reading rather
+      // than assuming. Agreeing on the name but not the length is what a
+      // stream that has slipped looks like from here - and it is the one
+      // failure that would otherwise be silent, because the next command
+      // would still be answered normally.
+      if (stored !== bytes.length) {
+        throw new Error(`sent ${bytes.length} bytes of ${name}, `
+                        + `the device stored ${stored}`);
+      }
+      return { name, size: stored };
     });
   }
 

@@ -20,22 +20,53 @@ things this one takes as given: piper runs in a browser through
 `@diffusionstudio/vits-web`, and **`ffmpeg.wasm` must not be used for the
 levelling** — the newest `@ffmpeg/core` is built from ffmpeg 5.1.4, whose
 `loudnorm` came out about 13.6 dB too quiet on six of twelve sentences, silently.
-That finding is why `static/tts/level.js` exists at all.
+That finding is why the chain is written out by hand at all.
 
 ## What was built
 
 | | |
 |---|---|
-| [`static/tts/level.js`](../static/tts/level.js) | The `ffmpeg` half: trim, fade, pad, measure, level, write a 16 kHz mono 16 bit WAV. No browser needed — no `AudioContext`, no DOM — so it can be run and measured outside one |
-| [`static/tts/speak.js`](../static/tts/speak.js) | The voice: piper through vits-web, or Azure straight from the tab. Same `piper:`/`azure:` ids as `layout.json` |
-| [`static/tts/voices.json`](../static/tts/voices.json) | Which voices actually work in a browser. Meant to be vendored by vorlaut and mitreden rather than kept twice |
-| [`tools/ttscheck.html`](../tools/ttscheck.html) | The page that drives both in a real tab |
+| [`static/vendor/stimmquelle/`](../static/vendor/stimmquelle/VENDORED.md) | The chain and the catalogue, vendored from [Lautstark/stimmquelle](https://github.com/Lautstark/stimmquelle) and shared with mitreden |
+| [`tools/ttscheck.html`](../tools/ttscheck.html) | The page that drives it in a real tab |
 | [`tools/ttscheck.py`](../tools/ttscheck.py) | The harness. Also `--serve`, which hands the batch to that page |
-| [`tests/test_browser_tts.py`](../tests/test_browser_tts.py) | Stops the two implementations drifting apart in silence |
+| [`tests/test_browser_tts.py`](../tests/test_browser_tts.py) | Holds `tts.py` to the contract the package carries |
 
-vorlaut needs WAV, so there is no MP3 encoder here — the spike's `lamejs` is
-gone and the WAV header is nine lines. The whole levelling path is one file with
-no dependencies.
+**This started as two files written here**, `static/tts/level.js` and
+`speak.js`, and they are gone from this repository — extracted into the shared
+package, which is where they should be: mitreden needs the same chain, and two
+copies of a loudness pipeline is exactly the duplication this document spends
+its length arguing against. Everything measured below was measured on that code;
+the package is it, in TypeScript, with the tests it grew on the way.
+
+What vorlaut asks the package for is one line, in `tools/ttscheck.mjs` and on
+the page:
+
+```js
+postprocess(wav, { rate: 16000, fadeSec: 0.012, padSec: 0.06 })
+```
+
+The rate is the device's. The other two are CONTRACT.md's "permitted device
+extras", off by default and switched on here because of the MAX98357A. No MP3
+encoder is ever loaded: vorlaut writes WAV, and `encodeMp3` sits behind a
+dynamic `import()` that nothing here calls.
+
+## Adopting the contract
+
+vorlaut trimmed at −45 dB keeping 60/100 ms. The contract says −50 dB keeping
+50/50, and calls the difference drift rather than a device extra — which it was:
+nothing had decided it, it was just what `tts.py` happened to say. `tts.py` now
+follows the contract, `PIPELINE_VERSION` went to 3, and **every recording ever
+made here was re-rendered once**, including the four shipped in
+`example/speech/`.
+
+The fade and the tail pad stayed. They are CONTRACT.md §2's "permitted device
+extras", off by default and switched on here, because the MAX98357A clicks when
+a waveform starts away from zero and cuts off mid-syllable when the signal
+simply stops. Neither changes measured loudness, which is why they are allowed
+to differ between the two products.
+
+The whole justification for moving was that the two halves would then agree, so
+that was measured rather than assumed — the table below is from after the move.
 
 ## The levelling
 
@@ -105,6 +136,26 @@ quiet on one sentence in twenty is the smaller fault.
 Two-pass `loudnorm` was checked as well, in case `tts.py`'s own numbers
 were an artefact of measuring and normalising in one go. They are not: two-pass
 gives the same answer to the second decimal on every row tried.
+
+### After the move, all three still agree
+
+Re-run against the vendored package, with `tts.py` on the contract's numbers:
+**17 of 20 within 0.10 LU**, nothing above the ceiling, and the three that
+diverge are still exactly the three with a non-zero loudness range. Same shape
+as before the move, which is the result that mattered — adopting a shared
+contract was supposed to keep the two halves together, not merely make them
+share a file.
+
+The tab was checked too, and the twenty WAVs it produced through the vendored
+bundle are **byte-identical** to the twenty node produced through the same
+bundle.
+
+One behavioural difference worth knowing: the page now offers five voices where
+it used to offer six. `shippable("browser")` withholds `de_DE-mls-medium`
+because it is CC-BY and the page renders no attribution — a conditional
+permission is not a permission until the condition is met. Passing
+`{ rendersAttribution: true }` brings it back, once something actually shows the
+notice.
 
 ### Somebody else's ffmpeg agrees too
 
@@ -210,7 +261,7 @@ four voices are public domain is that this is what lets them be handed on, and
 warns to read the MODEL_CARD rather than the file name. So a voice that works is
 still not a voice that can ship, and `voices.json` keeps that distinction.
 
-`static/tts/voices.json` is the list, and it says of every entry how it was
+The package's `voices.json` is the list, and it says of every entry how it was
 established: measured in the spike, measured here, or inferred from the rule and
 never actually spoken. `tests/test_browser_tts.py` fails if a voice is added to
 `VOICE_CATALOGUE` without an answer in it.

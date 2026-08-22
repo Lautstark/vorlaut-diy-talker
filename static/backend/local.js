@@ -2,7 +2,8 @@
 //
 // backend/server.js sends each of these to app.py. This answers them out of
 // the browser: the content from store.js, the pictures from symbols.js and the
-// package behind it, the tiles from tiles.js, the speech from tts/speak.js.
+// package behind it, the tiles from tiles.js, the speech from the vendored
+// @lautstark/stimmquelle.
 // Those four were written and measured against the Python one at a time; this
 // is the file where they stop being spare parts.
 //
@@ -14,7 +15,20 @@
 import * as store from "../store.js";
 import * as tiles from "../tiles.js";
 import * as symbols from "../symbols.js";
-import { speak, asBlob, voices as catalogue, labelFor } from "../tts/speak.js";
+import {
+  speak, asBlob, shippable, displayName, usePiper,
+} from "../vendor/stimmquelle/index.js";
+
+// What vorlaut asks the shared chain for. The rate is the device's; the fade
+// and the tail pad are CONTRACT.md §2's permitted device extras, off unless
+// asked for, and asked for here because of the MAX98357A. tts.py applies the
+// same two - tests/test_browser_tts.py is what holds them together.
+const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
+
+// The package does not import piper; the consumer hands it in. Kept lazy, so
+// opening the page costs nothing until somebody actually speaks.
+usePiper(() => import(
+  "https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web@1.0.3/dist/vits-web.js"));
 
 // --- The layout --------------------------------------------------------------
 
@@ -145,15 +159,20 @@ export async function previewInto(image, symbol, colour) {
 // --- Voices and speech -------------------------------------------------------
 
 export async function listVoices() {
-  const known = await catalogue();
+  // shippable("browser") rather than the whole catalogue: it drops what cannot
+  // speak in a tab, what may not be handed on at all, and what may be handed
+  // on only with an attribution this interface does not render yet. The last
+  // one costs a voice - de_DE-mls-medium is CC-BY - and that is the option
+  // doing its job, not a bug. Pass { rendersAttribution: true } once the
+  // notices are on screen.
   const layout = (await store.readLayout()).layout;
   const chosen = layout && layout.voice ? layout.voice : "";
-  const list = await Promise.all(known.voices.map(async (voice) => ({
+  const list = shippable("browser").map((voice) => ({
     id: `piper:${voice.id}`,
-    label: await labelFor(`piper:${voice.id}`),
-    language: voice.language || "",
+    label: displayName(voice.id),
+    language: voice.lang || "",
     ready: true,
-  })));
+  }));
   return { voices: list, active: chosen, backend: "browser" };
 }
 
@@ -168,7 +187,7 @@ export async function voiceFetchState() {
 export async function startVoiceFetch() {}
 
 export async function synthesise(text, voice) {
-  const spoken = await speak(text, voice || "");
+  const spoken = await speak(text, voice || "", VORLAUT);
   return asBlob(spoken.wav);
 }
 

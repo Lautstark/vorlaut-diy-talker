@@ -161,12 +161,14 @@
      its own import either - the map has to be parsed before the first module
      loads, which is why it sits here rather than beside the code needing it.
 
-     Adding to it: static/tts/speak.js will want
+     Adding to it: speech will want
        "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js"
      when it is wired up, because vits-web's bundle imports that by bare name.
-     It is written out here rather than mapped, because nothing this page loads
-     asks for it yet and a live entry would name a CDN the page never fetches
-     from. tools/ttscheck.html carries it in the meantime. -->
+     Only that one - the chain itself is vendored under static/vendor/ and is
+     reached by path, and it does not import piper either, it is handed it.
+     Written out here rather than mapped, because nothing this page loads asks
+     for it yet and a live entry would name a CDN the page never fetches from.
+     tools/ttscheck.html carries it in the meantime. -->
 <script type="importmap">
 {
   "imports": {

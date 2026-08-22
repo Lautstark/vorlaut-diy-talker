@@ -117,7 +117,11 @@ FALLBACK_VOICE = f"azure:{SEED_VOICE or 'de-DE-GiselaNeural'}"
 SAMPLE_RATE = 16000
 
 # Post-processing. Bump the version when the ffmpeg chain changes.
-PIPELINE_VERSION = 2
+#
+# 3 because the trim moved onto the shared contract - see SILENCE_THRESHOLD
+# below. Every recording ever made here was named under the old numbers, so
+# every one of them is re-rendered once.
+PIPELINE_VERSION = 3
 # Which piper rendered a recording. It belongs in the fingerprint because
 # piper is what makes the audio, and a release that changed how a voice sounds
 # would otherwise leave old recordings in the cache under names claiming they
@@ -134,12 +138,26 @@ PIPELINE_VERSION = 2
 # install, by tests/test_piper_version.py. Bump both together, and expect every
 # piper-spoken sentence to be rendered again.
 PIPER_VERSION = "1.7.0"
-SILENCE_THRESHOLD = "-45dB"
+# These four are not ours any more. They are CONTRACT.md §1 and §2 in
+# static/vendor/stimmquelle/, which mitreden keeps too, and the whole point of
+# a shared contract is that neither product edits its copy alone.
+# tests/test_browser_tts.py reads the contract out of the vendored package and
+# fails if these drift from it.
+#
+# They used to be -45 dB keeping 60/100 ms. That was not a considered
+# difference from anything, it was simply what this file happened to say, and
+# the contract calls it drift and settles it at -50 keeping 50/50. Adopting it
+# is why PIPELINE_VERSION went to 3.
+SILENCE_THRESHOLD = "-50dB"
 LOUDNORM = "I=-16:TP=-1.5:LRA=11"
-# Do not trim down to the last audible sample: a little room tone stays, or
-# short words like "Ja" end up sounding clipped.
-KEEP_HEAD = 0.06   # seconds of silence before the word
-KEEP_TAIL = 0.10   # seconds after the word, so it can ring out
+KEEP_HEAD = 0.05   # seconds of silence kept before the word
+KEEP_TAIL = 0.05   # seconds kept after it
+
+# These two are ours, and the contract says so: "permitted device extras",
+# off unless a consumer asks. Neither changes measured loudness. They are here
+# because of the amplifier this thing has - a class-D MAX98357A, which clicks
+# when a waveform starts away from zero and cuts off mid-syllable when the
+# signal simply stops.
 FADE = 0.012       # short fade at both ends against clicks
 TAIL_PAD = 0.06    # quiet at the end, before the amplifier switches off
 
@@ -251,7 +269,7 @@ VOICE_SOURCE = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 #
 # The list below is deliberately not trimmed for that. Both voices work here,
 # and here is what this list is for: what tts.py downloads and speaks with. What a browser can speak with is a different list with different
-# reasons behind it, and it is written down in static/tts/voices.json - one
+# reasons behind it, and it is the catalogue in the shared package - one
 # list per question rather than one list that answers neither. What keeps them
 # from drifting apart is tests/test_browser_tts.py, which fails if a voice is
 # added here without an answer over there. The measurements are in

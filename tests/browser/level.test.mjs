@@ -1,4 +1,5 @@
-/* What static/tts/level.js does, checked against something that is not itself.
+/* What the vendored recording chain does, checked against something that is
+ * not itself.
  *
  *     node tests/browser/level.test.mjs
  *
@@ -35,10 +36,29 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import {
-  SAMPLE_RATE, TARGET_LUFS, TARGET_PEAK_DBTP, KEEP_HEAD, KEEP_TAIL,
+  TARGET_LUFS, TARGET_PEAK_DBTP, TRIM,
   decodeWav, encodeWav, resample, trim, fadeEnds, pad,
   integratedLufs, truePeakDb, postprocess,
-} from "../../static/tts/level.js";
+} from "../../static/vendor/stimmquelle/index.js";
+
+/* The chain moved into @lautstark/stimmquelle, shared with mitreden, and took
+ * three names with it. They are rebuilt here rather than the checks below
+ * being rewritten, because the checks are the valuable part and none of them
+ * changed meaning:
+ *
+ *   the trim numbers are the contract's now, so they are read off TRIM rather
+ *   than being module constants of ours - which is the point of a contract
+ *   the sample rate and the two device extras are vorlaut's own, and the
+ *   package leaves them to the consumer, so the consumer states them
+ *
+ * VORLAUT is the same object static/backend/local.js and tools/ttscheck.mjs
+ * pass. If those three ever disagree, this file is where it shows up first. */
+const SAMPLE_RATE = 16000;
+const KEEP_HEAD = TRIM.keepHeadSec;
+const KEEP_TAIL = TRIM.keepTailSec;
+const FADE = 0.012;
+const TAIL_PAD = 0.06;
+const VORLAUT = { rate: SAMPLE_RATE, fadeSec: FADE, padSec: TAIL_PAD };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REFERENCE = join(HERE, "..", "reference");
@@ -181,7 +201,7 @@ function theWholeChainLandsWhereTtsPyLands() {
           + ` - regenerate with tools/ttsfreeze.py, do not edit`);
     if (digest !== spec.sha256) continue;
 
-    const result = postprocess(bytes);
+    const result = postprocess(bytes, VORLAUT);
     const { samples, rate } = decodeWav(result.wav);
 
     if (!spec.compare) {
@@ -228,7 +248,7 @@ function theShapingDoesWhatItSays() {
     x[i] = 0.3 * Math.cos(2 * Math.PI * 300 * (i - from) / rate);
   }
 
-  const cut = trim(x, rate);
+  const cut = trim(x, rate, TRIM);
   // Some silence is kept on purpose - a word starting on sample zero sounds
   // cut off - and how much is KEEP_HEAD at the front and KEEP_TAIL at the
   // back. Those two are different numbers (a word needs longer to ring out
@@ -247,13 +267,13 @@ function theShapingDoesWhatItSays() {
         cut[head] === x[from] && cut[head - 1] === 0,
         `head ${head} samples`);
 
-  const faded = fadeEnds(cut, rate);
+  const faded = fadeEnds(cut, rate, FADE);
   check("the fade starts at silence and does not touch the middle",
         Math.abs(faded[0]) < 1e-9
         && Math.abs(faded[faded.length - 1]) < 1e-9
         && faded[Math.floor(faded.length / 2)] === cut[Math.floor(cut.length / 2)]);
 
-  const padded = pad(faded, rate);
+  const padded = pad(faded, rate, TAIL_PAD);
   check("pad adds quiet at the end and nothing else",
         padded.length > faded.length
         && padded[padded.length - 1] === 0
@@ -283,7 +303,7 @@ function itRefusesWhatWouldComeOutEmpty() {
   for (const rate of ["-5%", 0, -16000, NaN, undefined]) {
     let threw = false;
     try {
-      postprocess(new Uint8Array(bytes), { rate });
+      postprocess(new Uint8Array(bytes), { ...VORLAUT, rate });
     } catch {
       threw = true;
     }
@@ -307,11 +327,23 @@ function theReferenceIsStillAboutThisChain() {
   check("the lock file says what made it and when",
         Boolean(lock.produced_by && lock.produced_on && lock.ffmpeg),
         `${lock.produced_by} on ${lock.produced_on}`);
-  check("and it was frozen against the constants level.js still carries",
+  /* The trim is in here as well as the levelling, and it was not always. The
+   * chain moved to the shared contract - -50 dB keeping 50/50 where tts.py
+   * had -45 and 60/100 - and this check went on passing, because it only ever
+   * looked at loudnorm and the rate. A lock file describing a chain that no
+   * longer exists is worth less than no lock file: it reads like an outside
+   * opinion and is a memory of one. */
+  const frozenTrim = `${lock.tts_py.silence_threshold} ${lock.tts_py.keep_head}/`
+    + `${lock.tts_py.keep_tail}`;
+  const nowTrim = `${TRIM.thresholdDb}dB ${KEEP_HEAD}/${KEEP_TAIL}`;
+  check("and it was frozen against the constants the chain still carries",
         lock.tts_py.sample_rate === SAMPLE_RATE
         && lock.tts_py.loudnorm.includes(`I=${TARGET_LUFS}`)
-        && lock.tts_py.loudnorm.includes(`TP=${TARGET_PEAK_DBTP}`),
-        `lock ${lock.tts_py.loudnorm} at ${lock.tts_py.sample_rate} Hz`);
+        && lock.tts_py.loudnorm.includes(`TP=${TARGET_PEAK_DBTP}`)
+        && frozenTrim === nowTrim
+        && lock.tts_py.fade === FADE && lock.tts_py.tail_pad === TAIL_PAD,
+        `lock ${lock.tts_py.loudnorm} at ${lock.tts_py.sample_rate} Hz, trim `
+        + `${frozenTrim} against ${nowTrim} - regenerate with tools/ttsfreeze.py`);
 }
 
 theRulerAgreesWithFfmpeg();
