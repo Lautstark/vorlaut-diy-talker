@@ -3,9 +3,12 @@
 __pycache__/
 *.pyc
 content/
+# What the container writes, when it is run from a clone. It is what the
+# image exists to keep out of itself.
+data/
 firmware/vorlaut/data/
 firmware/vorlaut/littlefs.bin
 
 # The Azure key does not belong in an image layer. At runtime it comes from
-# the mounted project folder.
+# the mounted data folder, as /data/.env.
 .env

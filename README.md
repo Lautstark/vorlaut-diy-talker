@@ -18,22 +18,25 @@ speak yet.
 
 ## Quick start
 
-With Docker, and nothing else:
+With Docker, and nothing else — no clone, one file:
 
 ```bash
-git clone https://github.com/SteffiPeTaffy/vorlaut.git
-cd vorlaut
-./start.sh
+mkdir -p vorlaut/data && cd vorlaut
+curl -O https://raw.githubusercontent.com/SteffiPeTaffy/vorlaut/main/docker-compose.yml
+docker compose up -d --wait
 ```
 
 Then open [localhost:8771](http://localhost:8771). No Python, no ffmpeg, no
 key and no `.env` — every setting has a default, and the image carries four
 piper voices, so it speaks from the first minute.
 
-There is content there too: on the first start `content/` fills itself from
-`example/`, so a set with four keys is ready right away. The four example
-sentences come along as finished recordings, so the example can be built and
-flashed before any voice exists.
+There is content there too: on the first start `data/` fills itself from the
+examples in the image, so a set with four keys is ready right away. The four
+example sentences come along as finished recordings, so the example can be
+built and flashed before any voice exists.
+
+`data/` is the only folder that is yours and the only one to back up; the code
+stays in the image, so `docker compose pull` is the whole of updating.
 
 Another port, a NAS, building the image yourself:
 [docs/operation.md](docs/operation.md).

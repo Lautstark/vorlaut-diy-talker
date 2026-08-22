@@ -450,10 +450,11 @@ moment it starts instead of waiting for somebody to press Fetch voices. They
 are fetched during the build by `tools/voices.py` itself, so the catalogue
 stays the one place that says where a voice comes from.
 
-Deliberately not under `/app`: `docker-compose.yml` mounts the project over
-that path, and the mount replaces the directory wholesale. A voice baked into
-`/app/voices` would be invisible the moment the container ran, and would look
-exactly like a download that never happened. `/voices` is outside the mount.
+Deliberately not under `/app`: `docker-compose.build.yml` mounts the source
+folder over that path for developing, and the mount replaces the directory
+wholesale. A voice baked into `/app/voices` would be invisible the moment such
+a container ran, and would look exactly like a download that never happened.
+`/voices` is outside the mount.
 
 None of that closes the folder on the NAS. The search carries on into
 `content/voices/`, so a fifth voice still drops in there, is still found, is

@@ -3,10 +3,16 @@ name: Container image
 on:
   push:
     branches: [main]
-    paths:
-      - Dockerfile
-      - requirements.txt
-      - .github/workflows/docker.yml
+    # Deliberately no paths filter any more. There used to be one - Dockerfile
+    # and requirements.txt - and it was right while docker-compose.yml mounted
+    # the project over /app: the image held the runtime, the folder held the
+    # code, and a changed app.py reached a container without a new image.
+    #
+    # That mount is gone. The code in the image is now the code that runs, so
+    # every change to main changes what a "docker compose pull" fetches, and a
+    # filter would leave people running whatever was current the last time the
+    # Dockerfile happened to change.
+    tags: ['v*']
 
 jobs:
   image:
@@ -33,6 +39,31 @@ jobs:
           echo "ABBILD=ghcr.io/$(echo '${{ github.repository }}' \
             | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
+      # What the image is called, worked out from what was pushed. Only
+      # :latest used to be published, which meant there was nothing to pin to
+      # and nothing to go back to - and now that the image carries the code,
+      # that is the whole question of which version is running.
+      #
+      # A tag v0.2 gives :0.2 and :0.2.0 - release.yml already builds the
+      # firmware from the same tags, so the image and the device that talks to
+      # it carry the same number. A push to main gives :sha-abc1234, because
+      # between two releases the commit is the only thing there is to name.
+      # :latest moves either way; it is what docker-compose.yml asks for.
+      #
+      # The labels come along for the same reason: "docker inspect" then says
+      # which commit an image was built from, without having to work it out
+      # from a tag.
+      - name: Work out the tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.ABBILD }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=raw,value=latest
+
       # amd64 and arm64, so that NAS models with ARM can pull it too,
       # rather than having to build it themselves.
       - name: Build and push
@@ -41,4 +72,5 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.ABBILD }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
