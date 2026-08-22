@@ -292,6 +292,53 @@ TEXTS: dict[str, dict[str, str]] = {
                                    "program has grown into it - nothing was "
                                    "written.",
 
+        # --- the Open Board Format converter --------------------------------
+        # What stops a conversion, and what a document is only told about.
+        # See docs/obf.md; obf.py is what raises them.
+        "obf.err.metacom_pixels": "Image {name} comes from the METACOM "
+                                  "collection, so it may be referred to but "
+                                  "never stored: {field} would carry the "
+                                  "picture itself. Nothing was written.",
+        "obf.err.not_a_zip": "{name} is not a readable .obz: {reason}",
+        "obf.err.no_boards": "{name} has no board in it.",
+        "obf.check.no_root": "The manifest names {name} as the root board, "
+                             "and no such board is here.",
+        "obf.check.format": "Board {board} says format {found}, expected "
+                            "{expected}.",
+        "obf.check.no_image": "Board {board}, key {button}: there is no image "
+                              "{image} in this board.",
+        "obf.check.no_sound": "Board {board}, key {button}: there is no sound "
+                              "{sound} in this board.",
+        "obf.check.not_a_reference": "Board {board}, image {image} is not a "
+                                     "symbol reference. A picture carried as "
+                                     "pixels has nowhere to go in layout.json.",
+        "obf.check.unknown_set": "Board {board}, image {image} comes from the "
+                                 "collection {set}, which is not one this "
+                                 "installation can resolve.",
+        "obf.check.metacom_pixels": "Board {board}, image {image} is METACOM "
+                                    "and carries {field}. That collection may "
+                                    "only be referred to.",
+        "obf.check.broken_link": "Board {board}, key {button} leads to "
+                                 "{target}, which is not in this document.",
+        "obf.check.orphan": "Board {board} is not reachable from the root - "
+                            "nothing links to it.",
+        "obf.check.too_many_boards": "{found} boards are switched on, {profile} "
+                                     "takes {max}.",
+        "obf.check.too_many_keys": "Board {board} has {found} speech keys, "
+                                   "{profile} has {max}.",
+        "obf.check.grid": "Board {board} is a {found} grid, {profile} draws "
+                          "{expected}.",
+        "obf.check.not_a_ring": "Board {board} leads to {found} other boards, "
+                                "{profile} has one set key and therefore "
+                                "exactly one.",
+        "obf.check.action": "Board {board}, key {button} performs {action}. "
+                            "{profile} speaks stored sentences and does "
+                            "nothing else.",
+        "obf.check.hidden": "Board {board}, key {button} is hidden. On "
+                            "{profile} a key is a display and cannot be.",
+        "obf.check.too_big": "The document comes to at least {used} KiB, and "
+                             "{profile} holds {fits} KiB.",
+
         # --- speech output ---------------------------------------------------
         "tts.err.azure": "Azure error {code}: {detail}",
         "tts.err.unreachable": "Azure not reachable: {reason}",
@@ -569,6 +616,55 @@ TEXTS: dict[str, dict[str, str]] = {
                                    "ist das Partitionsschema ein anderes oder "
                                    "das Programm ist hineingewachsen - es "
                                    "wurde nichts geschrieben.",
+
+        # --- the Open Board Format converter --------------------------------
+        "obf.err.metacom_pixels": "Das Bild {name} kommt aus der "
+                                  "METACOM-Sammlung, darf also verwiesen, aber "
+                                  "nie gespeichert werden: {field} würde das "
+                                  "Bild selbst mitnehmen. Es wurde nichts "
+                                  "geschrieben.",
+        "obf.err.not_a_zip": "{name} ist kein lesbares .obz: {reason}",
+        "obf.err.no_boards": "In {name} steht kein einziges Board.",
+        "obf.check.no_root": "Das Manifest nennt {name} als Wurzel-Board, und "
+                             "ein solches Board ist nicht dabei.",
+        "obf.check.format": "Board {board} sagt Format {found}, erwartet ist "
+                            "{expected}.",
+        "obf.check.no_image": "Board {board}, Taste {button}: ein Bild {image} "
+                              "gibt es in diesem Board nicht.",
+        "obf.check.no_sound": "Board {board}, Taste {button}: einen Ton "
+                              "{sound} gibt es in diesem Board nicht.",
+        "obf.check.not_a_reference": "Board {board}, Bild {image} ist kein "
+                                     "Symbolverweis. Ein Bild, das die Pixel "
+                                     "mitbringt, hat in layout.json keinen "
+                                     "Platz.",
+        "obf.check.unknown_set": "Board {board}, Bild {image} kommt aus der "
+                                 "Sammlung {set}, die diese Installation nicht "
+                                 "auflösen kann.",
+        "obf.check.metacom_pixels": "Board {board}, Bild {image} ist METACOM "
+                                    "und führt {field} mit. Auf diese Sammlung "
+                                    "darf nur verwiesen werden.",
+        "obf.check.broken_link": "Board {board}, Taste {button} führt zu "
+                                 "{target} - das steht nicht in diesem "
+                                 "Dokument.",
+        "obf.check.orphan": "Board {board} ist von der Wurzel aus nicht "
+                            "erreichbar - nichts verweist darauf.",
+        "obf.check.too_many_boards": "{found} Boards sind eingeschaltet, "
+                                     "{profile} nimmt {max}.",
+        "obf.check.too_many_keys": "Board {board} hat {found} Sprechtasten, "
+                                   "{profile} hat {max}.",
+        "obf.check.grid": "Board {board} ist ein {found}-Raster, {profile} "
+                          "zeichnet {expected}.",
+        "obf.check.not_a_ring": "Board {board} führt zu {found} anderen "
+                                "Boards, {profile} hat eine Set-Taste und "
+                                "damit genau eines.",
+        "obf.check.action": "Board {board}, Taste {button} führt {action} aus. "
+                            "{profile} spricht gespeicherte Sätze und sonst "
+                            "nichts.",
+        "obf.check.hidden": "Board {board}, Taste {button} ist versteckt. Auf "
+                            "{profile} ist eine Taste ein Display und kann das "
+                            "nicht sein.",
+        "obf.check.too_big": "Das Dokument kommt auf mindestens {used} KiB, "
+                             "und {profile} fasst {fits} KiB.",
 
         # --- speech output ---------------------------------------------------
         "tts.err.azure": "Azure-Fehler {code}: {detail}",
