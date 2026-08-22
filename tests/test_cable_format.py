@@ -126,7 +126,7 @@ NAMES = [
     ("the Wi-Fi sync's own note", "version", False),
     ("a space in it", "two words.bin", False),
     ("a tab in it", "tab\there.bin", False),
-    ("something above ASCII", "grüße.bin", False),
+    ("a byte above ASCII", "tile\u00ff.bin", False),
     ("64 characters", "x" * 64, False),
     ("63 characters", "x" * 63, True),
 ]
