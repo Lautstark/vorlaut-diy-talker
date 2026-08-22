@@ -52,6 +52,10 @@ PLACEHOLDER = re.compile(r"\{(\w+)\}")
 NOT_ON_THE_PAGE = {
     "tiles.js": "tests/test_tile_render_js.py",
     "layout_format.js": "tests/test_layout_format.py",
+    # The Open Board Format converter, measured against obf.py document by
+    # document. backend/local.js reaches it; the page reaches local.js on the
+    # day backend.js names it, and both come off this list together.
+    "obf.js": "tests/test_obf_js.py",
     # Where the content goes when there is no content/ folder. The stamp that
     # guards a stale tab is what test_store.py checks against app.py; the
     # database itself is tools/storecheck.html, because IndexedDB needs a
