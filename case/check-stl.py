@@ -171,7 +171,9 @@ def main():
         L.probe(w, 'web next to the grille hole',
                 (G('spk_mx') + G('grille_pitch') / 2 + .05, G('spk_my') + .11, zf), True)
         yc = G('feather_y') + G('feather_b') / 2
-        xw = -G('inner_margin') - G('wall') / 2 + .11
+        # The USB window is in the +x wall - the wall the speaker and the set
+        # key are nearest, so the child's left.
+        xw = G('env_b') + G('inner_margin') + G('wall') / 2 + .11
         L.probe(w, 'USB window is open', (xw, yc + .37, G('usb_z')), False)
         L.probe(w, 'wall below the USB window', (xw, yc + .37, G('usb_z') - 4.5), True)
         L.probe(w, 'wall next to the USB window', (xw, yc + 12, G('usb_z')), True)
@@ -188,8 +190,9 @@ def main():
         L.probe(w, 'lid boss bottom centre stands',
                 (G('env_b') / 2 + 2.0, -G('boss_e') + 0.5, 10.0), True)
         L.probe(w, 'chamber wall stands',
-                (G('chamber_x') + G('chamber_wall') / 2, 60.11, 20.0), True)
-        L.probe(w, 'chamber is hollow inside', (20.11, 60.07, 30.0), False)
+                (G('chamber_x') - G('chamber_wall') / 2, 60.11, 20.0), True)
+        L.probe(w, 'chamber is hollow inside',
+                (G('spk_mx') + .11, 60.07, 30.0), False)
         L.probe(w, 'inner space is hollow', (G('env_b') / 2 + .37, G('env_h') / 2 + .29, 28.0), False)
 
     if 'carrier' in parts:
@@ -213,18 +216,25 @@ def main():
                 (d[0] + 1.27, d[1] + 1.29, z_csink), False)
 
         # The two upper screws of the set key reach into the chamber cutout
-        # and each keeps a tab of plate under it.
+        # and each keeps a tab of plate under it. The probe has to sit above
+        # the edge of the cutout to be testing that tab and not simply the
+        # plate below it: the cutout starts at chamber_y - carrier_chamber_gap
+        # and the pad reaches sk_pad_d / 2 past the screw, so 2.2 mm up from
+        # the screw is inside both.
         t = (G('set_mx') - G('sk_hole_dx'), G('set_my') + G('sk_hole_dy'))
-        L.probe(c, 'tab under the set key screw', (t[0] + 1.06, t[1] + 1.7,
+        cut_y = G('chamber_y') - G('carrier_chamber_gap')
+        assert t[1] + 2.2 > cut_y, 'the tab probe fell below the cutout'
+        L.probe(c, 'tab under the set key screw', (t[0] + 0.53, t[1] + 2.2,
                                                    z_plate), True)
         # ... and this is the one that would have caught the first build. The
         # horizontal chamber wall sits between chamber_y and chamber_y +
         # chamber_wall. The carrier used to have material right there and
         # therefore would not go in.
         L.probe(c, 'carrier is cut away where the chamber wall is',
-                (20.11, G('chamber_y') + G('chamber_wall') / 2, z_plate), False)
+                (G('spk_mx') + .11, G('chamber_y') + G('chamber_wall') / 2,
+                 z_plate), False)
         L.probe(c, 'carrier is cut away under the speaker',
-                (20.11, G('spk_my') + 0.07, z_plate), False)
+                (G('spk_mx') + .11, G('spk_my') + 0.07, z_plate), False)
 
     print()
     if L.failed:
