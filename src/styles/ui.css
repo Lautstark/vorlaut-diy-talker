@@ -502,6 +502,14 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
 /* Where it comes from, what it speaks, whose voice it is, and what it costs -
    the four facts the old picker withheld, on the line under the name. */
 .voice__facts { display: block; font-size: 12px; color: var(--text-faint); }
+/* A note the catalogue attaches to a voice, under the facts and deliberately
+   in the same size and the same faint colour. It is a sentence rather than a
+   fact, so it wraps - and it takes no accent, no border and no icon, because
+   every one of those would say "this voice is broken" about a voice that is
+   not. See voiceRow() for the argument. */
+.voice__hint {
+  display: block; margin-top: 3px; font-size: 12px; color: var(--text-faint);
+}
 .voiceRow.blank { color: var(--text-dim); display: block; padding: 6px 16px; }
 /* The button and, under it, what it will fetch. Set off by a line, because
    it is an errand of its own and not one of the voices. */
@@ -563,3 +571,12 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
 .legal .address { white-space: pre-line; }
 .legal__links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .legal .stand { margin-top: 18px; color: var(--text-faint); }
+
+/* The standing Sicherung's block. The line and the buttons come from
+   components.css; what is left is the room around them, which is product
+   spacing and stays here. Hidden outright - not disabled - where the browser
+   has no folder picker: a control that cannot exist should not spend a
+   paragraph telling somebody their browser is wrong. */
+.folderbox { margin: 2px 0 10px; }
+.folderbox[hidden] { display: none; }
+.folderbox .row { margin-top: 8px; }

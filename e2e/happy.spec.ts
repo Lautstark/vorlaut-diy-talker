@@ -244,6 +244,35 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   await page.locator("#voiceClose").click();
 });
 
+test("the voice that rushes a single word says so, on its row alone", async ({ page }) => {
+  /* The failure this pins is not a wrong string, it is a silent one. The
+   * catalogue flags a voice that crams an unpunctuated word into a fixed slot;
+   * nothing about that is audible until somebody has recorded a whole board of
+   * one-word keys, so if the note stops rendering nothing else here goes red.
+   *
+   * Two rows are asserted rather than a count, on purpose. The catalogue owns
+   * which voices carry the flag, and a second one arriving must not make this
+   * test wrong - it would only have to make the note appear in one more place.
+   * What is checked is the shape: the flagged voice has it, an unflagged one
+   * does not. Nothing here synthesises; the note is drawn from the list. */
+  await openBoard(page);
+  await page.locator("#gear").click();
+  await page.locator("#voicePanel summary").click();
+  await expect(page.locator("#voiceList .voiceRow").first()).toBeVisible();
+
+  const kerstin = page.locator("#voiceList .voiceRow", { hasText: "Kerstin" });
+  await expect(kerstin).toHaveCount(1);
+  await expect(kerstin.locator(".voice__hint")).toHaveText(label("ui.voice_rushes"));
+
+  // Two Thorstens are offered and neither is flagged, so this counts across
+  // both rather than picking one of them.
+  const thorsten = page.locator("#voiceList .voiceRow", { hasText: "Thorsten" });
+  expect(await thorsten.count()).toBeGreaterThan(0);
+  await expect(thorsten.locator(".voice__hint")).toHaveCount(0);
+
+  await page.locator("#voiceClose").click();
+});
+
 test("pressing play with no voice says what to do, not that it failed", async ({ page }) => {
   await openBoard(page);
   await keyText(page).first().fill("Hallo");

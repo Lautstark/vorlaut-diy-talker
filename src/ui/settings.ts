@@ -15,6 +15,9 @@ import { LANG } from "../core/boot.js";
 import { replaceLayout } from "../core/save.js";
 import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
+import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
+import { wireBackupFolder } from "./backupFolder.js";
+import type { Sicherung } from "@lautstark/sicherung";
 
 let settings: Settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
                  metacom: { path: "", ok: false, count: 0, keywords: false,
@@ -319,6 +322,65 @@ export function wireBoard() {
       $("boardState").textContent = t("ui.board_imported");
     } catch (error) {
       $("boardState").textContent = t("ui.board_failed", { error: reason(error) });
+    }
+  };
+}
+
+/** The Daten panel: the standing backup, and the one-file Sicherung under it.
+ *
+ * Separate from wireBoard above, and the separation is the point. That panel
+ * hands out an .obz - a board, in the format other AAC software reads. This
+ * one is about this browser's whole state, in a shape only vorlaut reads, and
+ * the two would blur into "export" if they shared a panel. */
+export function wireData(backup: Sicherung) {
+  wireBackupFolder(backup, (message) => { $("dataState").textContent = message; });
+
+  $<HTMLButtonElement>("dataExport").onclick = async () => {
+    $("dataState").textContent = "";
+    try {
+      const blob = new Blob([JSON.stringify(await exportEverything(t("ui.data_notice")), null, 2)],
+        { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const stamp = new Date().toISOString().slice(0, 10);
+      link.download = `vorlaut-sicherung-${stamp}.json`;
+      link.click();
+      // Revoked later rather than here, for the reason wireBoard records: the
+      // click returns before the browser has opened the URL, and a blob
+      // revoked in that gap is a download that silently never begins.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      $("dataState").textContent = t("ui.data_exported");
+    } catch (error) {
+      $("dataState").textContent = t("ui.data_failed", { error: reason(error) });
+    }
+  };
+
+  $<HTMLButtonElement>("dataImport").onclick = () => $<HTMLInputElement>("dataFile").click();
+  $<HTMLInputElement>("dataFile").onchange = async () => {
+    const file = $<HTMLInputElement>("dataFile").files[0];
+    $<HTMLInputElement>("dataFile").value = "";
+    if (!file) return;
+    $("dataState").textContent = "";
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!isBackup(parsed)) throw new Error(t("ui.data_failed", { error: file.name }));
+      // Read first, ask second: a file that turns out to be unreadable should
+      // not have cost anybody a question, and this restore replaces the board
+      // rather than merging into it - there is one board here, not a library
+      // of them, and "merge two layouts" is not a thing anybody could describe.
+      if (!confirm(t("ui.data_replace_ask"))) return;
+      const done = await importBackup(parsed);
+      // The store has it; the page is still holding the old one until it is
+      // told. This is that telling.
+      if (done.layout) await replaceLayout(done.layout);
+      $("dataState").textContent = t("ui.data_imported", { symbols: done.symbols });
+    } catch (error) {
+      // The data layer has no language and answers with a code; this is where
+      // the code becomes a sentence.
+      $("dataState").textContent = error instanceof Error && error.message === TOO_NEW
+        ? t("ui.data_too_new")
+        : t("ui.data_failed", { error: reason(error) });
     }
   };
 }

@@ -82,6 +82,14 @@ export function applyTexts() {
   $("metacomLabel").textContent = t("ui.metacom_path");
   $("boardSection").textContent = t("ui.board");
   $("boardNote").textContent = t("ui.board_note");
+  $("dataSection").textContent = t("ui.data_section");
+  $("dataNote").textContent = t("ui.data_note");
+  $("dataExport").textContent = t("ui.data_export");
+  $("dataImport").textContent = t("ui.data_import");
+  // The standing backup's own line and buttons are NOT set here. They are
+  // rebuilt from the table on every status change instead, because the state
+  // decides which words and which buttons there are - see ui/backupFolder.ts.
+  $("folderLead").textContent = t("ui.folder_lead");
   $<HTMLButtonElement>("boardExport").textContent = t("ui.board_export");
   $<HTMLButtonElement>("boardImport").textContent = t("ui.board_import");
   $<HTMLButtonElement>("gear").title = t("ui.settings");

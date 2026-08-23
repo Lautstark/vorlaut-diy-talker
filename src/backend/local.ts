@@ -322,6 +322,12 @@ export async function listVoices(): Promise<VoiceList> {
     quality: voice.quality || "",
     downloadBytes: voice.bytes || 0,
     needsKey: false,
+    // Off the catalogue entry in hand, like the tier above it. This one is
+    // worth saying out loud: it is the whole of what vorlaut knows about which
+    // voice rushes a single word, and it must stay the whole of it. The moment
+    // a model stem is compared against here, the catalogue has stopped being
+    // the source and a second voice carrying the flag would show nothing.
+    rushesFragments: voice.rushesFragments,
   }));
 
   // Azure's voices, when a key is stored. app.py listed them and this file

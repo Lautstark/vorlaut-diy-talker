@@ -193,6 +193,37 @@ export const markup = `
     </div>
   </details>
 
+  <!-- Daten, which bildhaft and mitreden both already have and vorlaut did
+       not. The board panel above it is a different act and stays: an .obz is
+       a board in a format other programs read, this is the whole of what is
+       in this browser, in a shape only vorlaut reads. store.ts has said since
+       it was written that this was owed. -->
+  <details class="panel" id="dataPanel">
+    <summary>
+      <span class="section" id="dataSection"></span>
+    </summary>
+    <div class="setting">
+      <p class="lead" id="dataNote"></p>
+
+      <!-- The folder first, because it is the one that keeps working after
+           somebody stops thinking about it. Hidden outright where the browser
+           has no picker - Safari, Firefox, anything on Android - and then the
+           two buttons below are the whole offer, unchanged. -->
+      <div id="folderBox" class="folderbox">
+        <p class="lead" id="folderLead"></p>
+        <p class="standing" id="folderState"></p>
+        <div class="row" id="folderActions"></div>
+      </div>
+
+      <div class="row">
+        <button id="dataExport" class="btn" type="button"></button>
+        <button id="dataImport" class="btn" type="button"></button>
+        <input type="file" id="dataFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="note" id="dataState"></p>
+    </div>
+  </details>
+
   </div>
 </dialog>
 `;
