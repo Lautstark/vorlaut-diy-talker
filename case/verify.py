@@ -171,7 +171,8 @@ def compute(p, bed_x, bed_y):
              note='the five keys read as one row of five')
     # Gap around the cap: wide enough not to jam, too narrow for a finger
     b.check(g, 'clearance around the cap (must not jam)', G('gap_cap'),
-             '>=', 0.4)
+             '>=', 0.25,
+             note='a printer running fat and the key catches')
     b.check(g, "clearance around the cap (no child finger)", G('gap_cap'),
              '<=', 2.0, note='a finger could get in')
     b.check(g, 'chamfer at the key cutout', G('chamfer_key'), '>=', 0.4,
@@ -179,32 +180,66 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'outer corner radius', G('corner_r'), '>=', 3.0)
     b.check(g, 'chamfer on the front edge', G('chamfer_front'), '>=', 0.8)
 
-    # --- 2. The one adjustment --------------------------------------------
-    g = '2. cap_offset_y - the biggest open unknown'
+    # --- 2. How the ScreenKeys are held ------------------------------------
+    # This used to be the section about cap_offset_y, and about the 0.595 mm
+    # of budget it had before a boss on the front plate had to be dropped.
+    # The poles stand on the CARRIER now, behind the board, where the cap
+    # never reaches - so that budget does not exist any more. What is left to
+    # check is the pole itself and the screw that goes through it.
+    g = '2. How the ScreenKeys are held - off the mid plate'
     clear_hb = (G('sk_cap_b') + 2 * G('gap_cap')) / 2
     clear_hh = (G('sk_cap_h') + 2 * G('gap_cap')) / 2
     hole_dx = G('sk_board_b') / 2 - G('sk_hole_margin')
     hole_dy = G('sk_board_h') / 2 - G('sk_hole_margin')
-    needed = G('sk_boss_core') / 2 + G('sk_boss_wall')
 
-    bosses = []
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            free = max(abs(hole_dx * sx - offset_x) - clear_hb,
-                       abs(hole_dy * sy - offset_y) - clear_hh)
-            if free >= needed:
-                bosses.append((sx, sy))
-    budget = hole_dy - clear_hh - needed
-
-    b.info(g, 'configured offset', '%.3f mm' % offset_y)
-    b.info(g, 'budget until the first boss drops', '%.3f mm' % budget)
-    b.check(g, 'bosses per ScreenKey', len(bosses), '>=', 2, unit='pcs',
-             note='board has nothing left holding it')
-    if len(bosses) == 4:
-        b.info(g, 'board support', 'four bosses, all round')
-    else:
-        b.info(g, 'board support',
-               '%d bosses - only ONE edge, it can wobble!' % len(bosses))
+    b.info(g, 'fixing', '4 x M2 per key, from the mid plate side into the '
+                        "module's own threaded spacers")
+    b.info(g, 'standoff', "the module's own spacers, %.1f mm - nothing "
+                          'printed in that gap' % G('sk_spacer_l'))
+    b.info(g, 'screw length', '%.1f mm (%.1f plate + %.1f into the spacer) '
+                              '-> M2x6'
+           % (G('sk_screw_l'), G('carrier_d'), G('sk_screw_engage')))
+    # The spacers ARE the standoff, so the plate has to land exactly one
+    # spacer behind the module. This is the check the whole fixing rests on.
+    b.check(g, 'mid plate lands one spacer behind the module',
+             G('carrier_z_bottom') - G('sk_behind_front'), '==',
+             G('sk_spacer_l'),
+             note='the screws would pull the plate out of place')
+    b.check(g, 'screw does not bottom out in the spacer',
+             G('sk_spacer_l') - G('sk_screw_engage'), '>=', 0.0,
+             note='the screw is longer than the spacer')
+    b.check(g, 'plate left round the countersink mouth',
+             G('sk_pad_wall'), '>=', 0.4,
+             note='the countersink breaks out sideways')
+    b.info(g, 'key cap', '%.1f mm proud, %.1f mm pressed (travel %.1f)'
+           % (G('sk_cap_overhang'), G('sk_cap_overhang') - G('sk_cap_travel'),
+              G('sk_cap_travel')))
+    # A key pressed flush is a key a child cannot find again.
+    b.check(g, 'cap still proud when pressed',
+             G('sk_cap_overhang') - G('sk_cap_travel'), '>=', 3.0,
+             note='a fingernail finds it, a hand does not')
+    b.check(g, 'screw hole stays on the board (x)',
+             G('sk_board_b') / 2 - (hole_dx + G('sk_screw_d') / 2), '>=', 0.0,
+             note='the hole runs off the board edge')
+    b.check(g, 'screw hole stays on the board (y)',
+             G('sk_board_h') / 2 - (hole_dy + G('sk_screw_d') / 2), '>=', 0.0,
+             note='the hole runs off the board edge')
+    # The battery lies flat on the carrier, so the head has to disappear.
+    b.check(g, 'countersink for the screw head',
+             G('sk_csink_d'), '>=', G('sk_screw_d') + 1.0,
+             note='the head does not go in')
+    b.check(g, 'plate left under the countersink',
+             G('carrier_d') - G('sk_csink_t'), '>=', 0.8,
+             note='the head breaks through the carrier')
+    # 90 degrees, the angle the head itself has - so it seats on the whole
+    # cone and not on the sharp rim of the mouth.
+    b.check(g, 'countersink is a 90 degree cone',
+             abs(G('sk_csink_t') - (G('sk_csink_d') - G('sk_screw_d')) / 2),
+             '<=', 0.001, unit='',
+             note='the head seats on the mouth edge, not in the cone')
+    b.info(g, 'configured cap offset', '%.3f / %.3f mm - free now, nothing '
+                                       'in front of the board holds it'
+           % (offset_x, offset_y))
     # The clearance has to be deeper than the cap body, otherwise something
     # is back in the way behind the front plate.
     b.check(g, 'clearance reaches behind the cap body',
@@ -243,6 +278,16 @@ def compute(p, bed_x, bed_y):
                         'carrier %.1f | parts %.1f | lid %.1f'
            % (G('front_d'), G('sk_behind_front'), G('cable_space'),
               G('carrier_d'), free_above_carrier, G('lid_d')))
+    b.info(g, 'above the carrier', '%.1f mm the parts need + %.1f mm added '
+                                   'after the first build = %.1f mm'
+           % (G('stack_max') + G('part_clearance'), G('extra_above_carrier'),
+              free_above_carrier))
+    # The extra room goes entirely BEHIND the carrier. If it went in front,
+    # the five ScreenKeys would move with it and so would the cap protrusion.
+    b.check(g, 'the extra room is all behind the carrier',
+             G('inner_z_h') - G('carrier_z_top'), '==',
+             G('stack_max') + G('part_clearance') + G('extra_above_carrier'),
+             note='the front of the device moves with it')
     b.check(g, 'room above the carrier for the battery',
              free_above_carrier, '>=', G('battery_d') + G('part_clearance'))
     b.check(g, 'room above the carrier for the Feather',
@@ -301,13 +346,25 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'protrudes past the inner wall', len(sticking_out), '==', 0,
              unit='pcs', note=', '.join(sticking_out))
 
+    # The horizontal chamber wall runs the full height of the inner space, so
+    # it passes straight THROUGH the carrier plane and the carrier has to stop
+    # short of it. On the first build it did not: the cutout began 0.2 mm past
+    # the FAR side of that wall, so the plate ran through 2 mm of solid PLA
+    # and the carrier would not drop in. This is the check that was missing.
+    cut_y = G('chamber_y') - G('carrier_chamber_gap')
+    cut_x = G('chamber_x') + G('chamber_wall') + G('carrier_chamber_x')
+    b.check(g, 'carrier stops below the horizontal chamber wall',
+             G('chamber_y') - cut_y, '>=', 0.4,
+             note='the plate runs into the wall and will not go in')
+    b.check(g, 'carrier clears the vertical chamber wall',
+             cut_x - G('chamber_x') - G('chamber_wall'), '>=', 0.4,
+             note='the plate runs into the wall and will not go in')
+
     # The carrier is cut away under the chamber - nothing may stand there
-    cutout_x = G('chamber_x') + G('chamber_wall') + G('inner_margin') + 1.8
     for name, r in parts:
-        if r[3] > G('chamber_y') + G('chamber_wall'):
+        if r[3] > cut_y:
             b.check(g, '%s stands on carrier material' % name, r[0], '>=',
-                     cutout_x - G('inner_margin') - 1.0,
-                     note='sits over the chamber cutout')
+                     cut_x, note='sits over the chamber cutout')
 
     # Peg holes in the carrier must not sit under a Feather standoff -
     # otherwise the standoff starts printing over the edge of a hole.
@@ -327,6 +384,61 @@ def compute(p, bed_x, bed_y):
                     math.hypot(px - sx, py - sy) - hole_r - 2.5)
     b.check(g, 'Feather standoff to nearest peg hole', nearest_peg, '>=', 0.5,
              note='standoff prints over a hole edge')
+
+    # --- 5b. The ScreenKey screws on the carrier --------------------------
+    # Twenty places on this plate have to be plate: a clearance hole through
+    # it, a countersink in its back face, and material all round both. So all
+    # twenty are held against everything else that is cut out of, or stands
+    # on, that plate.
+    g = '5b. ScreenKey screws - what else lives on the carrier'
+    pad_r = G('sk_pad_d') / 2
+    pole_pos = [(px + ix * hole_dx, py + iy * hole_dy)
+                for px, py in sk_pos for ix in (-1, 1) for iy in (-1, 1)]
+    # carrier_slots is a list literal in the .scad and is mirrored here, the
+    # same way sk_pos and boss_pos are.
+    mid_x = (G('blk_mx1') + G('blk_mx2')) / 2
+    set_x = (G('set_mx') + G('blk_mx1')) / 2
+    slots = [(mid_x - 2.5, G('blk_my1') - 13, mid_x + 2.5, G('blk_my1') + 13),
+             (mid_x - 2.5, G('blk_my2') - 13, mid_x + 2.5, G('blk_my2') + 13),
+             (set_x - 3, 20.0, set_x + 3, 50.0),
+             (env_b / 2 - 4, env_h + G('inner_margin') - 6,
+              env_b / 2 + 4, env_h + G('inner_margin') + 2)]
+    on_slot = [q for q in pole_pos for sl in slots
+               if overlaps((q[0] - pad_r, q[1] - pad_r,
+                            q[0] + pad_r, q[1] + pad_r), sl)]
+    b.check(g, 'screws standing over a cable slot', len(on_slot), '==', 0,
+             unit='pcs', note='a screw there has nothing to pull against')
+
+    # The set key sits low enough that its two upper poles reach into the
+    # chamber cutout. The cutout keeps a tab under each of them - and a tab is
+    # only allowed while it still stops short of the chamber wall.
+    tabs = [q[1] + pad_r for q in pole_pos
+            if q[0] - pad_r < cut_x and q[1] + pad_r > cut_y]
+    b.info(g, 'screws reaching into the chamber cutout',
+           '%d - the cutout keeps a tab under each' % len(tabs))
+    b.check(g, 'tab under a screw stops short of the chamber wall',
+             G('chamber_y') - (max(tabs) if tabs else cut_y), '>=', 1.0,
+             note='the tab runs into the wall the cutout was widened for')
+
+    b.check(g, 'screw to the relief round a lid boss',
+             min(math.hypot(q[0] - d[0], q[1] - d[1])
+                 - pad_r - (G('boss_d') + 1.2) / 2
+                 for q in pole_pos for d in boss_pos), '>=', 0.2,
+             note='the countersink breaks into the relief')
+    # The locating pegs come up through the same plate the screws go down through.
+    b.check(g, 'screw to a carrier support post',
+             min(math.hypot(q[0] - sx, q[1] - sy) - pad_r - G('support_d') / 2
+                 for q in pole_pos for sx, sy in support_pos), '>=', 0.5,
+             note='they overlap in plan')
+    plate = (env_b / 2 - (G('inner_b') - G('carrier_play')) / 2,
+             env_h / 2 - (G('inner_h') - G('carrier_play')) / 2,
+             env_b / 2 + (G('inner_b') - G('carrier_play')) / 2,
+             env_h / 2 + (G('inner_h') - G('carrier_play')) / 2)
+    off_plate = [q for q in pole_pos
+                 if q[0] - pad_r < plate[0] or q[1] - pad_r < plate[1]
+                 or q[0] + pad_r > plate[2] or q[1] + pad_r > plate[3]]
+    b.check(g, 'screws sitting over the carrier edge', len(off_plate), '==', 0,
+             unit='pcs')
 
     # --- 6. USB-C ---------------------------------------------------------
     g = '6. USB-C - the only connection to the outside'
@@ -445,11 +557,21 @@ def compute(p, bed_x, bed_y):
                  abs(n - round(n)), '<=', 0.001, unit='',
                  note='the last layer gets cut into')
     b.check(g, 'wall thickness load-bearing', G('wall'), '>=', 1.6)
-    b.check(g, 'logo embossing high enough', G('logo_lid_h'), '>=', 0.6,
+    word = 'engraving' if G('logo_recessed') else 'embossing'
+    b.check(g, 'logo %s deep enough' % word, G('logo_lid_h'), '>=', 0.6,
              note='no longer visible on a tired printer')
-    b.check(g, 'logo embossing = whole layers at 0.2 mm',
+    b.check(g, 'logo %s = whole layers at 0.2 mm' % word,
              abs(G('logo_lid_h') / 0.2 - round(G('logo_lid_h') / 0.2)),
              '<=', 0.001, unit='')
+    if G('logo_recessed'):
+        b.check(g, 'lid left under the engraving',
+                 G('lid_d') - G('logo_lid_h'), '>=', 1.2,
+                 note='the bubble is a window')
+        b.check(g, 'wall left behind the logo on the bottom edge',
+                 G('wall') - G('logo_side_h'), '>=', 1.2,
+                 note='the engraving cuts through the side wall')
+    b.info(g, 'carrier', 'flat, ribs up, no support - the modules stand off '
+                         'it on their own spacers')
 
     # The inner space gets wider towards the back in steps. Every step is
     # therefore an upward-facing bearing surface instead of an overhang.
@@ -469,9 +591,11 @@ def compute(p, bed_x, bed_y):
     b.check(g, 'tub onto the bed (Y)', G('outer_h'), '<=', bed_y)
     b.info(g, 'build height tub', '%.1f mm (front face down, opening up)'
            % G('outer_t'))
-    b.info(g, 'build height carrier', '%.1f mm' % (G('carrier_d') + G('battery_d')
+    b.info(g, 'build height carrier', '%.1f mm'
+           % (G('carrier_d') + G('battery_d')
                                                + 0.2))
-    lid_proud = max(G('logo_lid_h'), G('feet_h') if G('feet_on') else 0.0)
+    lid_proud = max(0.0 if G('logo_recessed') else G('logo_lid_h'),
+                    G('feet_h') if G('feet_on') else 0.0)
     b.info(g, 'build height lid', '%.1f mm (inside face down, logo up)'
            % (G('lid_d') + lid_proud))
 
@@ -489,6 +613,16 @@ def compute(p, bed_x, bed_y):
              note='the screw head breaks through')
     b.check(g, 'screw head smaller than the boss', G('csink_d'), '<=',
              G('boss_d') + 0.4, note='the head stands proud of the boss')
+    # The six lid bosses grew with the case: they run from the front plate all
+    # the way to the lid, and above the carrier ledge the wall steps back, so
+    # from there up each one is a free column merely touching the wall. They
+    # are loaded in compression by their own screw, which is the easy
+    # direction - but the number is worth seeing when the case gets taller.
+    boss_h = G('inner_z_h') - G('front_d')
+    b.info(g, 'lid boss', '%.1f mm tall, %.1f mm of that free above the ledge'
+           % (boss_h, G('inner_z_h') - G('carrier_z_bottom')))
+    b.check(g, 'lid boss slenderness', boss_h / G('boss_d'), '<=', 12.0,
+             unit='x', note='that thin a column flexes as the screw is pulled up')
     b.info(g, 'screw fixing', '6 x M3 %s'
            % ('threaded insert' if G('threaded_insert') else 'self-tapping'))
 
@@ -509,9 +643,16 @@ def compute(p, bed_x, bed_y):
              abs(sp_y - env_h / 2), '<=', 8.0,
              note='top-heavy')
 
-    # The lid is the back of the device. Whatever stands proudest of it is what
-    # the device rests on - and until there were feet, that was the logo.
-    if not G('feet_on'):
+    # The lid is the back of the device. Whatever stands proudest of it is
+    # what the device rests on. There are two ways to be right about that and
+    # one way to be wrong.
+    if not G('feet_on') and G('logo_recessed'):
+        b.info(g, 'the device rests on', 'the whole flat back of the lid - '
+                                         'the logo is cut into it')
+        b.check(g, 'nothing standing proud of the lid', 0.0, '==', 0.0,
+                 unit='mm')
+        b.info(g, 'device lying on the table', '%.1f mm tall' % G('outer_t'))
+    elif not G('feet_on'):
         b.check(g, 'the device rests on its feet, not on the logo',
                  0.0, '>=', 1.0, unit='pcs',
                  note='it rocks on the speech bubble and wears it through')
