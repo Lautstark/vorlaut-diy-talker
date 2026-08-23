@@ -515,3 +515,110 @@ test("the build can be written into a folder, and says what it wrote",
   })()`) as Record<string, number>;
   expect(held).toEqual(built.sizes);
 });
+
+/* The press that builds must never open a port picker.
+ *
+ * It did once, and it had to: requestPort() needs transient activation that
+ * expires in about five seconds, so a picker on this button could only come
+ * before the build. Dismissing it then cost a whole build - minutes of speech
+ * synthesis - to be told nothing was sent. Choosing a port is its own button
+ * in the settings now, with nothing slow behind it.
+ *
+ * This is the rule stated as a test rather than as a comment, because the
+ * failure it guards is a plausible refactor away and looks like a feature
+ * while somebody writes it.
+ */
+test("building never opens a picker, and says where to connect one",
+     async ({ page }) => {
+  await page.addInitScript(() => {
+    (globalThis as Record<string, unknown>).__asked = 0;
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        // Nothing granted: the state a first-time page is in.
+        getPorts: async () => [],
+        requestPort: async () => {
+          const counted = globalThis as Record<string, unknown>;
+          counted.__asked = (counted.__asked as number) + 1;
+          throw new DOMException("no", "NotFoundError");
+        },
+        addEventListener: () => {},
+      },
+    });
+  });
+  await seed(page);
+
+  const built = await release(page);
+
+  expect(await page.evaluate("globalThis.__asked")).toBe(0);
+  // The build still happened - which is also what makes the folder export
+  // reachable on a machine that has no talker on it at all.
+  expect(built.names).toContain("layout.bin");
+  expect(built.log).toContain(SPEAKS["cable.no_device_chosen"]);
+});
+
+/* Connect once, then one press for ever after - the shape docs/cable.md
+ * concluded from the two facts about the browser, walked through end to end.
+ *
+ * The first half is what the old arrangement got wrong: a page with nothing
+ * granted builds and stops, and the picker is somewhere else entirely, so
+ * closing it can never cost a build.
+ */
+test("connecting once in the settings is what the press then uses",
+     async ({ page }) => {
+  for (const name of ["cable.js", "cable_mock.js"]) {
+    await page.route(`**/__cable/${name}`, (route) => route.fulfill({
+      contentType: "text/javascript",
+      body: readFileSync(join(HERE, "..", "tools", name), "utf8"),
+    }));
+  }
+  await page.addInitScript(() => {
+    const ready = import(new URL("__cable/cable_mock.js", location.href).href)
+      .then(({ MockDevice }) => {
+        const device = new MockDevice({ noise: true });
+        (globalThis as Record<string, unknown>).__device = device;
+        let streams: { readable: ReadableStream; writable: WritableStream } | null = null;
+        return {
+          async open() { streams = device.open(); },
+          async close() { streams = null; },
+          get readable() { return streams!.readable; },
+          get writable() { return streams!.writable; },
+          getInfo: () => ({}),
+          async setSignals() {},
+        };
+      });
+    // Nothing granted until the picker has been through: getPorts() answers
+    // with what requestPort() has handed over, which is what a browser does.
+    let granted: unknown = null;
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: async () => (granted ? [granted] : []),
+        requestPort: async () => { granted = await ready; return granted; },
+        addEventListener: () => {},
+      },
+    });
+  });
+  await seed(page);
+
+  // Nothing granted: it builds, and says where to go.
+  const first = await release(page);
+  expect(first.log).toContain(SPEAKS["cable.no_device_chosen"]);
+  // The mock exists from the moment its module loads; what says nothing was
+  // sent is that it is holding nothing.
+  expect((await onDevice(page)).names).toEqual([]);
+
+  await page.locator("#gear").click();
+  const panel = page.locator("#devicePanel");
+  await panel.locator("summary").click();
+  await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_none"]);
+  await panel.locator("#deviceConnect").click();
+  await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_connected"]);
+  await page.locator("#voiceClose").click();
+
+  // And now the same press reaches the talker, with no dialog in between.
+  const second = await release(page);
+  const held = await onDevice(page);
+  expect(second.log).not.toContain(SPEAKS["cable.no_device_chosen"]);
+  expect(held.names).toEqual([...second.names].sort());
+});

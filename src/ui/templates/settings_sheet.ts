@@ -204,7 +204,18 @@ export const markup = `
       <span class="section" id="deviceSection"></span>
     </summary>
     <div class="setting">
+      <!-- Choosing the port, and it is here rather than behind the button in
+           the header for the reason ui/device.ts gives: the picker has to be
+           opened by a click with nothing slow waiting behind it, or dismissing
+           it costs a build. Once granted, it is remembered and never asked
+           for again. -->
       <p class="lead" id="deviceNote"></p>
+      <div class="row">
+        <button id="deviceConnect" class="btn" type="button"></button>
+      </div>
+      <p class="note" id="deviceLink"></p>
+
+      <p class="lead" id="buildNote"></p>
       <div class="row">
         <button id="buildExport" class="btn" type="button"></button>
       </div>

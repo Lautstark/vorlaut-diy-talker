@@ -6,32 +6,18 @@
 // and it brought a port, a progress line and a way to stop with it. That is
 // more than a page-wiring file should hold, so it is here.
 //
-// The order inside the press is not a style: requestPort() needs the transient
-// activation this press is, and Chrome expires that in about five seconds. A
-// build with speech in it takes longer than five seconds. So the port is asked
-// for first, before anything that can await for long, and every later press
-// needs no dialog at all because getPorts() has no such rule. That is the whole
-// reason this reads as one button rather than as connect-then-send.
+// This press never opens a dialog. It builds, and then sends to whatever the
+// person has already granted - which getPorts() answers with no gesture at
+// all. Choosing a port is a button of its own in the settings, for the reason
+// ui/device.ts sets out: a picker here would have to come before the build,
+// and then dismissing it costs a build nobody asked for.
 import { $, status } from "./dom.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import { markReleaseState, saveNow } from "../core/save.js";
-import {
-  runBuild,
-  askForDevice, cableSupported, grantedDevices, sendToDevice, watchDevices,
-  type Plan,
-} from "../backend/index.js";
+import { runBuild, cableSupported, sendToDevice, type Plan } from "../backend/index.js";
+import { devices, haveDevice, watchForDevices } from "./device.js";
 import { Trouble } from "../core/errors.js";
-
-/* Ports the person has already granted. Asked for on load rather than in the
- * press, because by the press it is too late to be slow - see above. */
-let known: SerialPort[] = [];
-
-/* Set when nothing on the wire answered as a talker. The next press then opens
- * the picker again, which is the way back for somebody who granted the wrong
- * port once: without it, a page that holds one useless port would keep trying
- * that one for ever and never offer the dialog. */
-let askAgain = false;
 
 let stopper: AbortController | null = null;
 let lines: string[] = [];
@@ -51,25 +37,11 @@ export function wireRelease(): void {
   const button = $<HTMLButtonElement>("releaseBtn");
   const stop = $<HTMLButtonElement>("releaseStop");
 
-  grantedDevices().then((ports) => { known = ports; });
-  // A cable plugged in after the page was opened, or pulled out. Without this
-  // the first press of the day would open a picker for a device that is
-  // already granted and already sitting there.
-  watchDevices(() => { grantedDevices().then((ports) => { known = ports; }); });
+  watchForDevices();
 
   stop.onclick = () => stopper?.abort();
 
   button.onclick = async () => {
-    // First, and before any await that could be slow. A cancelled dialog
-    // answers null, and that is not an error: it means build and do not send.
-    if (cableSupported() && (!known.length || askAgain)) {
-      const got = await askForDevice();
-      if (got) {
-        known = [got];
-        askAgain = false;
-      }
-    }
-
     // Releasing what is on screen, not what the last debounce happened to
     // catch: saveNow() writes and cancels the pending one, otherwise it fires
     // afterwards and writes the same thing a second time.
@@ -107,7 +79,7 @@ export function wireRelease(): void {
 async function send(stop: HTMLButtonElement): Promise<void> {
   say("");
   if (!cableSupported()) return say(t("cable.no_serial"));
-  if (!known.length) return say(t("cable.no_device_chosen"));
+  if (!haveDevice()) return say(t("cable.no_device_chosen"));
 
   // What the plan turned out to be, kept because the message for a cancelled
   // transfer depends on it: stopping is free in the ordinary order and is not
@@ -119,7 +91,7 @@ async function send(stop: HTMLButtonElement): Promise<void> {
   status(t("cable.looking"));
   say(t("cable.looking"));
   try {
-    const sent = await sendToDevice(known, {
+    const sent = await sendToDevice(devices(), {
       signal: stopper.signal,
       // The device's own serial output. Indented, because it is the device
       // talking and not this page, and it is the most useful thing on the wire
@@ -159,9 +131,6 @@ async function send(stop: HTMLButtonElement): Promise<void> {
       say(t(cleared ? "cable.stopped_tight" : "cable.stopped"));
       status(t("cable.stopped_short"));
     } else if (error instanceof Trouble) {
-      // The picker again next time: whatever is on the end of that port did
-      // not answer as a talker, and the person may have granted the wrong one.
-      if (error.word === "cable_no_device") askAgain = true;
       say(t(`err.${error.word}`, {
         size: Math.round((error.facts.needed || 0) / 1024),
         free: Math.round((error.facts.free || 0) / 1024),

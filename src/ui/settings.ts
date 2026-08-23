@@ -18,6 +18,7 @@ import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
 import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
 import { paintBackupFolder, wireBackupFolder } from "./backupFolder.js";
+import { connectDevice, haveDevice, onDevices } from "./device.js";
 import type { Sicherung } from "@lautstark/sicherung";
 
 let settings: Settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
@@ -240,6 +241,12 @@ export function paintStates() {
   // the folder rather than from here - it is the one panel whose sentence is
   // built from a status this file never sees.
   paintBackupFolder();
+  // And the Device panel's, for the same reason: it says whether a port has
+  // been granted, which is a state rather than a label, so applyTexts() never
+  // touches it. Without this it kept whatever language the page started in -
+  // and the page starts in the browser's and then adopts the board's, so on a
+  // German board this line was reliably the one English sentence on screen.
+  paintDevice();
 }
 
 /** The languages this page offers, by their own names. */
@@ -331,8 +338,20 @@ export function wireBoard() {
   };
 }
 
-/** The Device panel: the build, written where something other than this page
- *  can pick it up.
+/* Whether a port has been granted, in words.
+ *
+ * Null until the panel is wired, and hidden panels have no stale sentence to
+ * fix - the same shape paintBackupFolder() uses, and for the same reason: this
+ * runs from paintStates() after a language switch, which can happen before
+ * anybody has opened the sheet. */
+let sayLink: () => void = () => {};
+
+export function paintDevice(): void {
+  sayLink();
+}
+
+/** The Device panel: connecting to a talker, and the build written where
+ *  something other than this page can pick it up.
  *
  * One button, one picker, and no state kept between runs - the reasoning for
  * all three is at the head of backend/folder.ts. The panel hides itself where
@@ -345,6 +364,31 @@ export function wireDevice() {
     box.hidden = true;
     return;
   }
+
+  // Assigned before anything calls it, and subscribed through a wrapper: a
+  // listener registered with the value of `sayLink` would hold whichever
+  // function was there at the time, which is the empty one above.
+  sayLink = () => {
+    $("deviceLink").textContent =
+      haveDevice() ? t("ui.device_connected") : t("ui.device_none");
+  };
+  sayLink();
+  onDevices(() => sayLink());
+
+  const connect = $<HTMLButtonElement>("deviceConnect");
+  connect.onclick = async () => {
+    // The gesture is why this is a button, and why it is not behind anything
+    // slow: requestPort() is refused without one and Chrome expires it in
+    // about five seconds.
+    connect.disabled = true;
+    try {
+      // A dismissed picker says nothing. Somebody closed a dialog; that is an
+      // answer, not a failure, and the line above still says what is true.
+      if (await connectDevice()) $("deviceState").textContent = "";
+    } finally {
+      connect.disabled = false;
+    }
+  };
 
   const button = $<HTMLButtonElement>("buildExport");
   button.onclick = async () => {
