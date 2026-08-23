@@ -585,14 +585,28 @@ void setup() {
   setupDisplays();
   setupAudio();
 
-  filesystemReady = LittleFS.begin(false);
+  // Formats when there is nothing to mount, and that changed with the release
+  // becoming program-only. The merged image covers the whole flash and leaves
+  // the file area as 1536 KiB of 0xFF, so a device flashed from one comes up
+  // with a partition that is there and holds no file system. With begin(false)
+  // that is a device which cannot mount, and therefore cannot be written to
+  // over the cable either - the one way content reaches it would be shut on
+  // exactly the devices that have none.
+  //
+  // It is not a silent wipe. begin(true) formats only when a partition named
+  // "spiffs" exists and carries no file system; a wrong partition scheme has
+  // no such partition and still fails, so the hints below still point at the
+  // right thing. What it can cost is the content on a file system that has
+  // become unreadable - and that content is one press away in the editor,
+  // while a talker that will not mount is a talker that cannot be given any.
+  filesystemReady = LittleFS.begin(true);
   if (!filesystemReady) {
     // Most common cause: the wrong partition scheme. The board's default
     // (tinyuf2) creates the data area as "ffat", but LittleFS looks for a
     // partition called "spiffs". The right one is "Default 8MB".
-    Serial.println("LittleFS would not mount.");
+    Serial.println("LittleFS would not mount, and would not format either.");
     Serial.println("  1. partition scheme \"Default (3MB APP/1.5MB SPIFFS)\"?");
-    Serial.println("  2. firmware/vorlaut/data/ uploaded yet?");
+    Serial.println("  2. if that is right, the flash itself is the suspect.");
   }
 
   // Only here, because the file system has to be up for it.

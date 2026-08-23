@@ -21,35 +21,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The same board setting as in CI - it is written down in only one
-      # Stelle, siehe .github/actions/firmware.
+      # The same board setting as in CI - it is written down in one place
+      # only, see .github/actions/firmware.
       - uses: ./.github/actions/firmware
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      # A device flashed from a release should speak, not show "keine Inhalte"
-      # on all five displays. So the example content goes into the image: the
-      # same content a fresh install copies into content/, built the same way
-      # build.py builds it on a laptop, written into the spiffs partition.
+      # Program only, and no step here builds content.
       #
-      # No Azure key here and none needed - the four example sentences are
-      # already spoken and lie in example/speech/, so the build finds them in
-      # the cache instead of rendering them. --require-audio is what keeps
-      # that honest: if they ever stop matching, the release stops rather than
-      # shipping an image with four silent keys.
+      # There used to be one: build.py rendered the four example sentences and
+      # merged them into the file area, so a device flashed from a release
+      # spoke as soon as it started. That was worth having and it is not
+      # coming back this way - build.py went with the Python, the build runs
+      # in a browser now, and a workflow cannot press a button in one.
       #
-      # VORLAUT_CONTENT into the runner's temp folder, not into the checkout:
-      # this way ensure_content() really does its first-run copy, which is the
-      # thing being shipped, and nothing lands next to the sources.
-      - name: Example content into the image
-        env:
-          VORLAUT_CONTENT: ${{ runner.temp }}/content
-        run: |
-          pip install -r requirements.txt
-          python build.py --require-audio \
-            --merge-into build/vorlaut/vorlaut.ino.merged.bin
+      # What replaces it is that the file area no longer has to arrive with
+      # the program. The image leaves it erased, the firmware formats it on
+      # first boot, and content is one press in the editor away over the
+      # cable. So the release is the program, and the device says "no content"
+      # until somebody sends some - which is a true sentence about a talker
+      # nobody has filled in yet.
 
       - name: Create release
         env:
@@ -74,8 +63,7 @@ jobs:
 
           All you need is \`esptool\`, no Arduino core and no libraries.
           \`vorlaut.ino.merged.bin\` contains the bootloader, the partition
-          table, the program **and** the example content, and is written at
-          address 0:
+          table and the program, and is written at address 0:
 
           \`\`\`bash
           esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\
@@ -86,18 +74,25 @@ jobs:
           it cannot find the board: hold **BOOT**, tap **RESET**, release
           **BOOT**.
 
-          After that the device talks: one set with **Ja!**, **Nein!**,
-          **Stopp** and **Hilf mir**, the same example that \`content/\` starts
-          out with. That is there so the first flash can be checked without
-          preparing anything - your own words and pictures are personal and are
-          not in the repo. They are made in the editor and pushed to the
-          device down the USB-C cable, in one press - see
-          [docs/cable.md](${docs}/docs/cable.md).
+          **The device comes up empty**, with *no content* on all five
+          displays. That is correct and not a fault: this image carries no
+          words or pictures, because yours are personal and are not in this
+          repository. It formats its own file area on the first start, and
+          content arrives afterwards from the editor, down the USB-C cable, in
+          one press - see [docs/cable.md](${docs}/docs/cable.md).
 
-          > **This image is 8 MB and covers the whole flash.** It replaces
-          > whatever content is on the device with the example. To update the
-          > program of a device that already carries your content, write the
-          > app on its own instead:
+          Earlier releases carried four example sentences so that a first
+          flash could be checked on its own. That went with the Python build:
+          the build runs in a browser now, and a workflow cannot press a
+          button in one. What the first flash still shows without any content
+          is whether the displays, the partition scheme and the file system
+          are right - **Info** in the menu says whether the file system
+          mounted, and the two menu keys respond either way.
+
+          > **This image is 8 MB and covers the whole flash.** It erases
+          > whatever content is on the device. To update the program of a
+          > device that already carries yours, write the app on its own
+          > instead:
           >
           > \`\`\`bash
           > esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\

@@ -196,12 +196,12 @@ without the editor, and the list of what a first run has to show.
 
 Only now. The procedure is in [firmware.md](firmware.md).
 
-**Flashed from a release, the device speaks straight away**: the image carries
-the example content, so after the first start there is one set with *Ja!*,
-*Nein!*, *Stopp* and *Hilf mir*. That makes this stage a real check rather than
-a formality — if the four keys speak and the fifth switches sets, then the
-partition scheme, the file system, the audio path and all five displays are
-right at once. Everything the earlier stages tested separately, now together.
+**Flashed from a release the device comes up empty**, with *no content* on
+all five displays. That is correct: the image is the program and nothing else,
+and it formats its own file area on the first start. Releases used to carry
+four example sentences, which made this stage a check of everything at once;
+they went with the Python build. So the sound and the keys are checked here by
+sending a board of your own — which is stage 6, and is why it comes first.
 
 Your own content comes afterwards, and it is one press: the editor's *Send to the
 device*, which builds the board and pushes it down the cable. There
@@ -209,13 +209,14 @@ is nothing to set up first — no network, no portal, no five digits — because
 there is nothing to prove to a device you are holding. Stage 6 is that press;
 this stage is everything else working at the same time as it.
 
-**"keine Inhalte" on all five displays** means the file area is empty. That is
-correct and not a fault after flashing a program-only image — the artifact from
-*Actions* is one, and so is `arduino-cli upload`. **From a release it is not**,
-and then it is worth looking: **Info** in the menu says whether LittleFS is
-mounted at all. If it is not, the partition scheme is the first suspect — the
-board default creates the data area as `ffat`, and `LittleFS.begin()` wants one
-called `spiffs`.
+**"keine Inhalte" on all five displays** means the file area is empty, and
+after any flash that is correct rather than a fault — a release, the artifact
+from *Actions* and `arduino-cli upload` all carry the program alone. It is only
+worth looking into once a transfer has run and the displays still say it. Then
+**Info** in the menu is the thing to read: it says whether LittleFS is mounted
+at all. If it is not, the partition scheme is the first suspect — the board
+default creates the data area as `ffat`, `LittleFS.begin()` wants one called
+`spiffs`, and formatting cannot invent a partition that is not there.
 
 Worth trying, and the whole point of the exercise: transfer at the desk, then
 take the device somewhere else entirely and use it for an afternoon. Nothing it

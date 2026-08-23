@@ -25,13 +25,18 @@ These are two separate things that go into separate flash areas: the
 or a symbol changes, the program does not have to be reflashed — steps 3 and 4
 are enough then.
 
-**For a first flash from a release, steps 3 and 4 can be skipped.** The
-ready-made image under 2a carries the example content already, so the device
-speaks as soon as it starts: one set with *Ja!*, *Nein!*, *Stopp* and *Hilf
-mir*. That is there so the very first flash can be checked on its own — if the
-keys speak, the partition scheme, the file system, the audio path and the
-displays are all right. Your own content comes afterwards, from the editor
-over the cable — [cable.md](cable.md).
+**Steps 3 and 4 are the rare route, not the normal one.** Content reaches a
+device from the editor over the cable, in one press — [cable.md](cable.md) —
+and nothing here has to be done for it. What is below is for the case where
+that is not available: a file area written straight from a computer.
+
+**A device flashed from a release comes up empty**, showing *no content* on
+all five displays, and that is correct rather than a fault. Releases used to
+carry four example sentences so the very first flash could be checked on its
+own; that went with the Python build, and the reasoning is in the release notes
+of any tag from v0.2 on. What an empty first flash still shows is most of it —
+the displays, the partition scheme and the file system, the last of these
+through **Info** in the menu.
 
 **1. Find the port.** Plug in the Feather over USB-C, then look at what
 appeared:
@@ -65,9 +70,8 @@ ordinary link, no GitHub account needed, and it stays put.
 
 Whoever needs the very latest state of `main` gets it from *Actions*: the
 *Firmware build* workflow attaches the image as the artifact `firmware`. That
-requires signing in, and after 90 days it is gone. **That one is the program
-only** — the example content is merged in by the release workflow, not by the
-CI build.
+requires signing in, and after 90 days it is gone. Both are the program only:
+neither carries content, and the two differ in nothing else.
 
 **`esptool` is what writes it**, and on this route nothing else brings it
 along. It is a Python program and installs in one line:
@@ -79,8 +83,8 @@ pip install esptool
 Inside the project's virtual environment that is
 `.venv/bin/pip install esptool`, and the command is then `.venv/bin/esptool`.
 
-`vorlaut.ino.merged.bin` from a release contains bootloader, partition table,
-program and the example content in a single file, written at address 0:
+`vorlaut.ino.merged.bin` from a release contains bootloader, partition table
+and program in a single file, written at address 0:
 
 ```bash
 esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 vorlaut.ino.merged.bin
@@ -90,11 +94,11 @@ That needs neither the Arduino core nor the libraries — only the esptool from
 above. The partition scheme is already inside the image, so it cannot be set
 wrongly either.
 
-> **The image is 8 MB and covers the whole flash**, file area included. On a
-> device that already carries your content it replaces it with the example.
-> To update only the program and leave the content alone, write the app on its
-> own — the release carries it as `vorlaut.ino.bin`, and `0x10000` is where
-> `app0` starts:
+> **The image is 8 MB and covers the whole flash**, file area included. It
+> leaves that area erased, so a device that already carries your content loses
+> it — and gets it back in one press from the editor. To update only the
+> program and leave the content alone, write the app on its own — the release
+> carries it as `vorlaut.ino.bin`, and `0x10000` is where `app0` starts:
 >
 > ```bash
 > esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x10000 vorlaut.ino.bin
@@ -111,18 +115,27 @@ If the upload reports that it cannot find the board: hold **BOOT**, tap
 **RESET** briefly, release **BOOT**. The Feather then sits in the bootloader
 and the command goes through. Press RESET once afterwards.
 
-**3. Pack the data:**
+**3. Pack the data** — only if the cable is not an option. `mklittlefs` comes
+with the ESP32 core, and the folder to pack is the one *Device → Write the
+build into a folder* writes in the editor's settings:
 
 ```bash
-.venv/bin/python build.py --fs-image
+~/Library/Arduino15/packages/esp32/tools/mklittlefs/*/mklittlefs \
+  -c <the folder> -b 4096 -p 256 -s 1572864 littlefs.bin
 ```
 
-**4. Write the data** — step 3 prints the command with the full path:
+`1572864` is 1536 KiB, the size of the `spiffs` partition — the same number as
+`FS_SIZE` in the firmware. The block and page sizes are what the ESP32 core's
+LittleFS is built with; with different ones the image mounts as empty.
+`mklittlefs -l` on the result lists what went in, which is worth a look before
+writing it.
+
+**4. Write the data:**
 
 ```bash
 ~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool \
   --chip esp32s3 --port /dev/cu.usbmodemXXXX \
-  write-flash 0x670000 firmware/vorlaut/littlefs.bin
+  write-flash 0x670000 littlefs.bin
 ```
 
 The address `0x670000` is the start of the `spiffs` partition from
@@ -138,37 +151,30 @@ arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 At start-up it says which set was loaded, which key was pressed and whether
 LittleFS could be mounted.
 
-## How the image comes about
+## What is in the images, and what is not
 
-`build.py --fs-image` packs `firmware/vorlaut/data/` with `mklittlefs` into an
-image of 1536 KiB — exactly the size of the `spiffs` partition. If the data
-does not fit, it stops with a clear message instead of producing an oversized
-image.
+`arduino-cli compile --output-dir` produces both of them. `vorlaut.ino.bin` is
+the program; `vorlaut.ino.merged.bin` is the whole flash — bootloader,
+partition table, program, and the file area padded out as 1536 KiB of `0xFF`.
 
-The image itself is gitignored: it is recreated from `data/` in seconds.
+**Nothing fills that area in.** `build.py --fs-image` and `--merge-into` used
+to, packing `firmware/vorlaut/data/` with `mklittlefs` and writing it into the
+merged image at `0x670000` so a release could ship content. Both went with the
+Python: the build runs in a browser now, and no workflow can press a button in
+one.
 
-**Into one file:** `build.py --merge-into IMAGE` writes that image into a
-whole-flash image at `0x670000`, which is what the release workflow does with
-`vorlaut.ino.merged.bin`. It works because `arduino-cli` already pads that file
-out to the full 8 MB — the file area is in there, as 1536 KiB of `0xFF`, and
-filling it in changes nothing around it. The offset lives in the partition table next to
-`FS_SIZE`, so it is written down once and both paths use the same number.
+So the file area arrives erased, and **the firmware formats it on the first
+start** — `LittleFS.begin(true)` in `vorlaut.ino`. That is what makes a
+program-only image usable at all: a partition that will not mount is a device
+the cable cannot write to either, and the cable is the only way content gets
+on. A wrong partition scheme still fails, because then there is no `spiffs`
+partition to format.
 
-It refuses if that range is not blank. Then either the partition scheme is a
-different one or the program has grown into it, and writing anyway would
-produce an image that flashes cleanly and boots wrong — which is the one
-failure the whole arrangement exists to avoid.
-
-**Where the sound in the release comes from:** the four example sentences are
-in the repo, already spoken, under `example/speech/`. So the release can build
-content with sound without an Azure key, and so can a fresh clone —
-`ensure_content()` copies them into the TTS cache along with the example
-layout. The file name is the fingerprint of the text and the voice
-configuration, so changing the voice makes them stop matching;
-`tests/test_example_speech.py` is what notices, and
-`build.py --require-audio` turns a silent key from a warning into a failed
-build. See [`example/speech/LIZENZ.md`](../example/speech/LIZENZ.md) for where
-that recording comes from.
+The four example sentences are still in the repo, already spoken, under
+[`example/speech/`](../example/speech/) — see
+[`LIZENZ.md`](../example/speech/LIZENZ.md) for where the recordings come from.
+Nothing on the release path reads them any more; they are example content for
+somebody starting a board, not payload for an image.
 
 Compiling:
 

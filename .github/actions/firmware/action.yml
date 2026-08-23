@@ -14,7 +14,7 @@ inputs:
     required: false
     default: firmware/vorlaut
   fqbn:
-    description: Board-Einstellung samt Partitionsschema.
+    description: Board setting, partition scheme included.
     required: false
     default: esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB
 
