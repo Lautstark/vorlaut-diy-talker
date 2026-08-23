@@ -34,18 +34,17 @@ jobs:
             firmware/tests/test3_displays
             firmware/tests/test4_buttons
             firmware/tests/test5_sound
-            firmware/tests/test6_wlan
-            firmware/tests/test7_sync
 
       # Ready-made image, so nobody has to install Arduino just to flash.
       # merged.bin contains bootloader, partition table and program and gets
-      # written at address 0. The content comes separately.
+      # written at address 0. The file area inside it is left erased and the
+      # firmware formats it on the first start; content arrives afterwards
+      # from the editor, over the cable.
       #
-      # Program only, deliberately: the release merges the example content in
-      # so that a first flash speaks (see release.yml), but this workflow runs
-      # on firmware changes alone. An image built here would carry whatever
-      # example content happened to be in the tree at the last firmware
-      # change, which is a worse promise than making none.
+      # The release is the same thing. It used to merge the example content in
+      # so that a first flash spoke, and that went with the Python build - so
+      # the two images no longer differ at all, and this comment no longer has
+      # a difference to explain.
       #
       # Artifacts expire after 90 days and need a login. Whoever only wants
       # to flash is better off with the release for the tag - see
