@@ -9,24 +9,20 @@
 import { $, status} from "./dom.js";
 import { reason } from "../core/errors.js";
 import { listVoices, voiceFetchState, startVoiceFetch } from "../backend/index.js";
-import { LANG, LANGUAGES } from "../core/boot.js";
+import { LANG, LANGUAGES, setLanguage } from "../core/boot.js";
 import { state } from "../core/state.js";
-import { t } from "../core/texts.js";
+import { applyTexts, t } from "../core/texts.js";
 import { save } from "../core/save.js";
+import { render as renderBoard } from "./editor.js";
+import { showSources } from "./picker.js";
 import { speak } from "./speech.js";
-import { forgetKey, loadSettings, saveSettings } from "./settings.js";
+import { forgetKey, loadSettings, paintStates, saveSettings } from "./settings.js";
 
 let voices = { voices: [], active: "", chosen: "" };
-// What is ticked in the sheet. Separate from voices.chosen, which is what
-// stands in layout.json - between opening and pressing Save the two differ,
-// and that difference is the whole point of having a Save.
-let pendingVoice = "";
-
-// Same rule as the voice below: nothing is written until Save. It matters
-// more here, because applying a language means reloading the page - doing
-// that on change would throw away an Azure key half typed into the field
-// underneath.
-let pendingLanguage = "";
+// Nothing is "pending" on this sheet any more. What is ticked IS what stands
+// in layout.json, because choosing writes - so voices.chosen is the single
+// answer to "which voice", and the gap that used to be held open between
+// opening the sheet and pressing Save no longer exists.
 
 // About 130 MB, so the server downloads in the background and is asked how far
 // it has got. Polling rather than a held-open request: this server answers one
@@ -239,7 +235,7 @@ function renderVoices() {
   // is a row too many. Instead the voice it comes out as stands marked, with
   // a word to say nobody picked it by hand. Choosing any row writes it down,
   // and from then on the layout carries a decision instead of a default.
-  const marked = pendingVoice || voices.active;
+  const marked = voices.chosen || voices.active;
   const box = document.createElement("div");
   box.className = "voices";
   box.setAttribute("role", "radiogroup");
@@ -247,7 +243,7 @@ function renderVoices() {
   for (const voice of hits) {
     box.appendChild(voiceRow(
       voice,
-      !pendingVoice && voice.id === voices.active ? t("ui.voice_auto_note") : "",
+      !voices.chosen && voice.id === voices.active ? t("ui.voice_auto_note") : "",
       false, voice.id === marked));
   }
   if (!hits.length) {
@@ -261,9 +257,9 @@ function renderVoices() {
   // a layout carried over from another machine. It stays chosen on purpose -
   // so it has to be visible, or the list would show nothing as chosen and the
   // next save would quietly drop a deliberate decision.
-  if (pendingVoice && !voices.voices.some((v) => v.id === pendingVoice)) {
+  if (voices.chosen && !voices.voices.some((v) => v.id === voices.chosen)) {
     box.appendChild(voiceRow(
-      { id: pendingVoice, label: pendingVoice, language: "", source: "",
+      { id: voices.chosen, label: voices.chosen, language: "", source: "",
         gender: "", downloadBytes: 0, needsKey: false },
       t("ui.voice_gone"), true, true));
   }
@@ -272,6 +268,19 @@ function renderVoices() {
   // part of what every sentence is spoken with, so changing it re-records all
   // of them rather than only the ones edited afterwards.
   $("voiceHint").textContent = fetchNote() || t("ui.voice_rebuild");
+  paintVoiceState();
+}
+
+/* The voice panel's heading, folded: which voice, and the two facts that say
+ * what kind of thing it is. Folded up this line is the whole answer to what
+ * the panel is asked nine times out of ten - not "which voices are there" but
+ * "which one is it speaking in". */
+function paintVoiceState() {
+  const id = voices.chosen || voices.active;
+  const voice = voices.voices.find((v) => v.id === id);
+  $("voiceState").textContent = voice
+    ? [voice.label, sourceOf(voice.source), speaks(voice.language)].filter(Boolean).join(" · ")
+    : id || t("ui.voice_state_none");
 }
 
 function renderOffer() {
@@ -338,18 +347,31 @@ function pollFetch() {
   }, 2000);
 }
 
-// Ticks a row. Nothing is written until Save - a voice changed by accident
-// would mean every recording spoken again on the next release.
-function chooseVoice(id) {
-  pendingVoice = id;
+// Ticks a row and writes it. There is no Save on this sheet any more, and a
+// voice is no more dangerous than the text on a key - both are edits to the
+// same layout, and that layout has been saving itself on a debounce for as
+// long as it has existed. What a voice change costs is said where it is
+// decided rather than guarded by a button: the hint under the list is the
+// standing note that every recording is spoken again on the next release.
+async function chooseVoice(id) {
+  if (id === voices.chosen) return;
+  state.layout.voice = id;
+  voices.chosen = id;
   renderVoices();
+  await save();
 }
 
-// One Save for the whole sheet, because that is how it reads: two panels and
-// one button. The voice goes into layout.json, the rest into .env - which is
-// the server's business, not something the page should make anybody think
-// about.
-export async function saveVoice() {
+/* The one Save left, and it belongs to the Azure panel rather than the sheet.
+ *
+ * A key is the one field here that cannot be written as it is typed: half a
+ * key is not a key, and the empty field has to keep meaning "leave the stored
+ * one alone" rather than "drop it" - dropping it is the button beside this.
+ *
+ * The sheet stays open afterwards, and that was true before this was a panel
+ * button: the whole point of the errand is to change where voices come from,
+ * so the refreshed list and the panel's own state line are the answer, and
+ * they are on the screen the question was asked from. */
+export async function saveAzure() {
   let azureChanged = false;
   try {
     ({ azureChanged } = await saveSettings());
@@ -357,42 +379,41 @@ export async function saveVoice() {
     status(t("ui.save_failed", { error: reason(error) }));
     return;                       // stay open, the message is in the header
   }
-  let changed = false;
-  if (pendingVoice && pendingVoice !== voices.chosen) {
-    state.layout.voice = pendingVoice;
-    changed = true;
-    // The server decides what the entry resolves to, so ask rather than guess -
-    // and the release button has to light up, which save() already does.
-  }
-  const switching = pendingLanguage && pendingLanguage !== LANG;
-  if (switching) {
-    state.layout.language = pendingLanguage;
-    changed = true;
-  }
-  if (changed) await save();
-  // The labels are baked into the page by the server, so a new language is a
-  // reload rather than a re-render - anything else would mean a second copy
-  // of every string in the browser. Last, and only once the writing is done.
-  if (switching) {
-    location.reload();
-    return;
-  }
   // A key that has just arrived can mean Azure voices that were not there
-  // when the sheet opened.
-  await loadVoices();
-  if (azureChanged) {
-    // Stay open. This save's whole point was to change where the voices come
-    // from, and closing meant the person who typed a key had to reopen the
-    // sheet to learn what it did - the panel's state line and the refreshed
-    // list are the answer, and they belong on the screen the question was
-    // asked from. Picking a voice still closes, below: that save is the end
-    // of the errand, this one is the middle of it.
-    renderVoices();
-    status(t("ui.settings_saved"));
-    return;
-  }
+  // when the sheet opened - and one that has just been corrected can mean
+  // rows that were missing come back.
+  if (azureChanged) await loadVoices();
+  renderVoices();
+  // No paintStates() here: saveSettings() has already run renderSettings(),
+  // which sets the Azure line and starts the probe that replaces it. Painting
+  // again would put "stored" back on top of the probe's answer.
   status(t("ui.settings_saved"));
-  $<HTMLDialogElement>("voices").close();
+}
+
+/* Switching language in place, which is what lets this sheet have no Save.
+ *
+ * It used to be a reload, and the reload was the reason for the Save: a page
+ * that reloads on `change` throws away whatever is half-typed in the Azure
+ * field two panels down. Nothing has to reload now - boot.ts holds both
+ * tables, setLanguage() moves the two live bindings every label is read
+ * through, and everything below re-reads them.
+ *
+ * The language also travels to the device, which is why it is written to the
+ * layout rather than kept beside it. */
+async function chooseLanguage(code: string) {
+  if (!code || code === LANG) return;
+  setLanguage(code);
+  document.documentElement.lang = code;
+  state.layout.language = code;
+  // Every fixed label, then everything drawn from one: the board, the voice
+  // list with its facts and filters, the settings panels' own state lines,
+  // and the picker's source line.
+  applyTexts();
+  paintStates();
+  renderVoices();
+  renderBoard();
+  showSources();
+  await save();
 }
 
 // Removing the key is the same shape of errand as saving one: the list it
@@ -426,8 +447,7 @@ export function wireLanguage() {
     pick.appendChild(option);
   }
   pick.value = LANG;
-  pendingLanguage = LANG;
-  pick.onchange = () => { pendingLanguage = pick.value; };
+  pick.onchange = () => { void chooseLanguage(pick.value); };
 
   // Typed into once and read on every render afterwards. The field is in the
   // sheet's markup rather than rebuilt with the list, so the caret survives.
@@ -453,12 +473,9 @@ export async function openVoices() {
   $<HTMLDetailsElement>("symbolsPanel").open = false;
   $<HTMLDialogElement>("voices").showModal();
   await Promise.all([loadVoices(), readFetch(), loadSettings()]);
-  pendingVoice = voices.chosen;
-  // Reopening after Cancel has to show the language the page is actually in,
-  // not the one that was picked and then dropped.
-  pendingLanguage = LANG;
   $<HTMLSelectElement>("langPick").value = LANG;
   renderVoices();
+  paintStates();
   // A download started before this dialog was opened - in another tab, or
   // before a reload - still has something to report.
   if (fetching.running) pollFetch();

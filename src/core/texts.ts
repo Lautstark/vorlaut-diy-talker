@@ -40,7 +40,6 @@ export function applyTexts() {
   $<HTMLButtonElement>("uploadBtn").textContent = t("ui.own_image");
   $<HTMLButtonElement>("closeBtn").textContent = t("ui.close");
   $<HTMLInputElement>("q").placeholder = t("ui.search_arasaac");
-  $("credits").textContent = t("ui.credits_arasaac");
   $("settingsHeading").textContent = t("ui.settings");
   $("voiceSection").textContent = t("ui.voice");
   $<HTMLInputElement>("voiceQuery").placeholder = t("ui.voice_search_hint");
@@ -66,8 +65,8 @@ export function applyTexts() {
   $<HTMLButtonElement>("boardImport").textContent = t("ui.board_import");
   $<HTMLButtonElement>("gear").title = t("ui.settings");
   $<HTMLButtonElement>("gear").setAttribute("aria-label", t("ui.settings"));
-  $<HTMLButtonElement>("voiceSave").textContent = t("ui.save");
-  $<HTMLButtonElement>("voiceCancel").textContent = t("ui.cancel");
+  $<HTMLButtonElement>("azureSave").textContent = t("ui.azure_save");
+  $("arasaacSection").textContent = t("ui.arasaac");
   $<HTMLButtonElement>("voiceClose").setAttribute("aria-label", t("ui.close"));
   $<HTMLButtonElement>("voiceClose").title = t("ui.close");
   $("pairTitle").textContent = t("ui.pair_title");

@@ -40,7 +40,16 @@ async function typeKeyAndSave(page: Page, region: string) {
   await page.locator("#azurePanel summary").click();
   await page.locator("#azureKey").fill("0000fakekeyfakekeyfakekey0000");
   await page.locator("#azureRegion").fill(region);
-  await page.locator("#voiceSave").click();
+  await page.locator("#azureSave").click();
+}
+
+/** Unfolds the Voice panel, whatever state the <details> was left in - it
+ *  keeps its fold across closings of the sheet, so a blind click toggles. */
+async function openVoicePanel(page: Page) {
+  const panel = page.locator("#voicePanel");
+  if ((await panel.getAttribute("open")) === null) {
+    await panel.locator("summary").click();
+  }
 }
 
 test("a working key answers with its voices, sheet still open", async ({ page }) => {
@@ -59,14 +68,17 @@ test("a working key answers with its voices, sheet still open", async ({ page })
   // the refreshed list plus the panel's answer belong on this screen.
   await expect(page.locator("#voices")).toBeVisible();
   await expect(page.locator("#azureState")).toHaveText(AZURE_OK);
+  await openVoicePanel(page);
   await expect(page.locator("#voiceList .voiceRow", { hasText: "Katja" }))
     .toBeVisible();
 
-  // And the choice completes: pick Katja, save - that save closes.
+  // And the choice completes: picking Katja writes her, with no Save to press
+  // and no dialog closing underneath the person who picked. The board's own
+  // status line is what says it landed.
   await page.locator("#voiceList .voiceRow", { hasText: "Katja" })
     .locator("button.voice").click();
-  await page.locator("#voiceSave").click();
-  await expect(page.locator("#voices")).not.toBeVisible();
+  await expect(page.locator('#voiceList .voice[aria-checked="true"]')).toHaveCount(1);
+  await expect(page.locator("#voices")).toBeVisible();
 });
 
 test("a region that is not one gets said on the panel, not swallowed", async ({ page }) => {
@@ -76,10 +88,9 @@ test("a region that is not one gets said on the panel, not swallowed", async ({ 
   await expect(page.locator("#voices")).toBeVisible();
   await expect(page.locator("#azureState")).toHaveText(AZURE_UNREACHABLE);
   // The piper voices survive a broken Azure - that part of the old behaviour
-  // was right and stays. The stay-open save already unfolds the list (there
-  // is nothing chosen to fold to), so no "show all" click: the button there
-  // now reads "show less", and pressing it was how the first version of this
-  // test hid the very rows it asserted.
+  // was right and stays. The list is inside a folded panel now, so it has to
+  // be unfolded before anything in it can be asserted visible.
+  await openVoicePanel(page);
   await expect(page.locator("#voiceList .voiceRow", { hasText: "Thorsten" }).first())
     .toBeVisible();
 });
@@ -93,6 +104,7 @@ test("a stored key can be removed, and the azure rows leave with it", async ({ p
     ]),
   }));
   await typeKeyAndSave(page, "westeurope");
+  await openVoicePanel(page);
   await expect(page.locator("#voiceList .voiceRow", { hasText: "Katja" }))
     .toBeVisible();
 

@@ -64,6 +64,19 @@ export const readMetacomFiles = (files) => metacom.useFileList(files);
 export const readMetacomZip = (file) => metacom.useZip(file);
 export const forgetMetacom = () => metacom.forget();
 
+/* METACOM ships the same symbols several times over - with and without a
+ * frame, with and without the word printed on - as parallel folders holding
+ * identical file names. bildquelle derives the list from the index rather than
+ * from any list of known folder names, because a user's copy is theirs:
+ * renamed, partial, or organised for a language nobody here has seen.
+ *
+ * Preferring one is ordering only. Nothing is filtered out, so a symbol that
+ * exists in a single folder stays reachable, and a key that already holds a
+ * picture keeps exactly the picture it holds. */
+export const metacomRenderings = () => metacom.renderings();
+export const preferredRendering = () => metacom.preferredRendering;
+export const preferRendering = (segment: string | null) => metacom.preferRendering(segment);
+
 /* -------------------------------------------------------------- search --- */
 
 /**

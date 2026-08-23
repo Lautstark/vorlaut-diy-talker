@@ -15,7 +15,6 @@ export const markup = `
 <header>
   <img src="${logo}" alt="" class="logo">
   <h1>vorlaut</h1>
-  <button id="gear" class="btn quiet icon gear" type="button">⚙</button>
   <span class="status" id="status"></span>
   <label class="toggle" id="previewLabel">
     <input type="checkbox" id="previewToggle">
@@ -23,6 +22,10 @@ export const markup = `
     <span id="previewText"></span>
   </label>
   <button class="btn primary" id="releaseBtn" type="button"></button>
+  <!-- Last, past Release. The gear is the way out of this page rather than a
+       thing to do on it, and it sat second - between the name and the status -
+       where it read as the first of the actions. -->
+  <button id="gear" class="btn quiet icon gear" type="button">⚙</button>
 </header>
 `;
 

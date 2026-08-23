@@ -7,6 +7,7 @@ import { $, say, status} from "./dom.js";
 import { reason } from "../core/errors.js";
 import { pickSymbol, uploadSymbol } from "../backend/index.js";
 import * as symbols from "../data/symbols.js";
+import type { ProviderId } from "@lautstark/bildquelle";
 import { state } from "../core/state.js";
 import { t } from "../core/texts.js";
 import { save } from "../core/save.js";
@@ -147,18 +148,28 @@ export async function loadSources() {
   showSources();
 }
 
-function showSources() {
+export function showSources() {
   const metacom = symbols.metacomReady();
   $<HTMLInputElement>("q").placeholder = t(metacom ? "ui.search_both" : "ui.search_arasaac");
-  if (metacom) {
-    $("credits").textContent = t("ui.credits_both");
-  } else {
-    // Where somebody is standing when they wish the pictograms were better.
-    // Nobody opens settings to find out that a licence they own would be
-    // searched too.
-    $("credits").textContent =
-      t("ui.metacom_offer") + " " + t("ui.credits_arasaac");
-  }
+
+  // The notice is not written here and is not in the text table. ARASAAC is
+  // CC BY-NC-SA and the wording is a condition of the licence, so it comes
+  // from the package that owns the provider - a translated paraphrase beside
+  // it is how the two drifted apart, and the copy that was here had lost both
+  // arasaac.org and the Regierung von Aragón. METACOM returns nothing, on
+  // purpose: it is the user's own licensed copy and owes no notice.
+  //
+  // Which sources, not which one: a board may hold keys from both, and
+  // attributionsFor() exists for exactly that.
+  const sources: ProviderId[] = metacom ? ["arasaac", "metacom"] : ["arasaac"];
+  const owed = symbols.attributionFor(sources).join(" ");
+
+  // What is ours to say stays ours to say and stays translated: that METACOM
+  // is only referenced, and - where no folder is connected - that a licence
+  // somebody owns would be searched too. Nobody opens settings to find that
+  // out, so it is said where they are standing.
+  const ours = metacom ? t("ui.credits_metacom") : t("ui.metacom_offer");
+  $("credits").textContent = `${ours} ${owed}`.trim();
 }
 
 export function wirePicker() {
