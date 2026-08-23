@@ -581,6 +581,11 @@ export async function loadSettings() {
     // this is the source the picker can actually search.
     symbols.setActiveSource(settings.activeProvider || "arasaac");
     renderSettings();
+    // The line above can move the source without anybody pressing anything -
+    // a folder chosen on another machine, or one that has gone away since -
+    // and the picker's field and credit line are drawn from it. useSource()
+    // repaints them because it is a button; this one has to say so itself.
+    showSources();
   } catch (error) {
     status(t("ui.voice_failed", { error: reason(error) }));
   }
