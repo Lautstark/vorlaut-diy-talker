@@ -320,10 +320,18 @@ dialog {
 }
 /* Dimming, not tinting: black at 60% in dark, lighter in light, so the sheet
    stays the brightest thing on screen either way. */
+/* Three rules rather than two, for the same reason the token file has three:
+   the media query is what "follows the OS" means, and the two attribute rules
+   are what a choice in Darstellung means. The dark one has to restate the
+   default it agrees with - it is beating the light media query above rather
+   than replacing it, so on a light OS with the page set dark there is a .32 to
+   put back to .6. */
 dialog::backdrop { background: rgba(0, 0, 0, .6); }
 @media (prefers-color-scheme: light) {
   dialog::backdrop { background: rgba(0, 0, 0, .32); }
 }
+:root[data-theme="light"] dialog::backdrop { background: rgba(0, 0, 0, .32); }
+:root[data-theme="dark"] dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .dlgHead {
   display: flex; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line);
   align-items: center;

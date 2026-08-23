@@ -8,6 +8,8 @@ import { $, status} from "./dom.js";
 import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
 import { readSettings, writeSettings, exportBoard, importBoard, azureState } from "../backend/index.js";
+import { applyTheme, readTheme, saveTheme, THEMES, type Theme }
+  from "@lautstark/design/theme";
 import { t } from "../core/texts.js";
 import { LANG } from "../core/boot.js";
 import { replaceLayout } from "../core/save.js";
@@ -160,8 +162,52 @@ export function wireSources() {
   $<HTMLButtonElement>("metacomUse").onclick = () => void useSource("metacom");
 }
 
+/* ------------------------------------------------------------ the scheme ---
+ *
+ * localStorage rather than the settings this module otherwise reads and writes,
+ * and the reason is timing rather than taste: the scheme has to be readable
+ * before the first paint or the page comes up in the OS's answer and corrects
+ * itself a frame later, which is a white flash on exactly the setup somebody
+ * chose dark to avoid. readSettings() is asynchronous. The inline script in
+ * index.html is the half that runs before this module exists;
+ * @lautstark/design/theme carries the rest, and both siblings share it.
+ *
+ * It is not written into the board either. A board travels - it is exported,
+ * imported and flashed onto a device - and how bright this browser is on this
+ * tablet is not a property of the board.
+ */
+const THEME_KEY = "vorlaut.theme";
+
+const themeLabel = (theme: Theme): string => t(`ui.theme_${theme}`);
+
+/** The three answers, with the one in force pressed. */
+export function paintTheme() {
+  const current = readTheme(THEME_KEY);
+  const box = $("themePick");
+  box.textContent = "";
+  for (const theme of THEMES) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = themeLabel(theme);
+    button.setAttribute("aria-pressed", String(theme === current));
+    button.onclick = () => {
+      saveTheme(THEME_KEY, theme);
+      applyTheme(theme);
+      // This control and its heading, and nothing else: the tokens carry the
+      // scheme to everything else on the page, which is what tokens are for.
+      paintTheme();
+      $("themeState").textContent = themeLabel(theme);
+    };
+    box.appendChild(button);
+  }
+}
+
 export function paintStates() {
   $("languageState").textContent = LANGUAGE_NAMES[LANG] || LANG;
+  $("themeState").textContent = themeLabel(readTheme(THEME_KEY));
+  // The three labels are drawn from here rather than carried by the markup, so
+  // applyTexts() cannot reach them and a language switch has to redraw them.
+  paintTheme();
   const active = settings.activeProvider || "arasaac";
   $("arasaacState").textContent =
     active === "arasaac" ? t("ui.source_active") : t("ui.arasaac_state");

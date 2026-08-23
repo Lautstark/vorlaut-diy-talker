@@ -7,7 +7,20 @@
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#161618">
+<!-- No content: the scheme decides it. #161618 was vorlaut's dark --bg, from
+     when this page committed to a dark ground and was the only product that
+     did; it stopped being true when the product moved to "both" and left the
+     address bar describing a page that may well be white. main.ts sets it from
+     the resolved --bg and keeps it there. -->
+<meta name="theme-color">
+<!-- Before the stylesheet, and inline rather than in the bundle: a module is
+     deferred, so a scheme read there lands after the first paint and the page
+     flashes the OS's answer before correcting itself. bootSnippet() from
+     @lautstark/design/theme, copied in because there is nothing earlier than
+     this to import it from. It touches one attribute and nothing else. -->
+<script>
+try{var t=localStorage.getItem("vorlaut.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="vorlaut">

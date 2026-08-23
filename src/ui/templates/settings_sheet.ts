@@ -43,6 +43,29 @@ export const markup = `
     </div>
   </details>
 
+  <!-- Beside the language, because both are what this page is rather than what
+       is on the board. Three answers and not a switch: "follows the OS" is an
+       answer too, and the default one - a two-state toggle has to open in light
+       or dark and so has to guess, which is how a tablet that dims itself at
+       dusk ends up pinned bright.
+       It says "in this browser, not on the device" because on this page that
+       distinction is real: the language above it does travel to the device, and
+       somebody who has just set one would reasonably assume the other does. -->
+  <details class="panel" id="themePanel">
+    <summary>
+      <span class="section" id="themeSection"></span>
+      <span class="state" id="themeState"></span>
+    </summary>
+    <div class="setting">
+      <!-- role=group, not radiogroup: components.css marks the choice with
+           aria-pressed, which is the vocabulary bildhaft's print dialog already
+           uses, and a radiogroup whose children are not radios reads worse than
+           a labelled group of buttons. -->
+      <div class="segmented" id="themePick" role="group"></div>
+      <p class="note" id="themeNote"></p>
+    </div>
+  </details>
+
   <details class="panel" id="voicePanel">
     <summary>
       <span class="section" id="voiceSection"></span>

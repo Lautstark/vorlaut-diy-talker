@@ -67,6 +67,14 @@ export function applyTexts() {
   // the heading above already says Language. What it adds is the half nobody
   // guesses - that this switch reaches the device as well.
   $("languageNote").textContent = t("ui.language_title");
+  $("themeSection").textContent = t("ui.theme");
+  // The panel's accessible name as well as its heading: the group of buttons
+  // inside it is three unlabelled words without one.
+  $("themePick").setAttribute("aria-label", t("ui.theme"));
+  // The counterpart to the note above, and it exists for the same reason: this
+  // switch is the one that does NOT reach the device, and the language sitting
+  // directly above it is the reason somebody would assume it did.
+  $("themeNote").textContent = t("ui.theme_note");
   $("symbolsSection").textContent = t("ui.symbols");
   $("metacomIntro").textContent = t("ui.metacom_intro");
   outward("metacomLink", "ui.metacom_link", "ui.metacom_link_url");

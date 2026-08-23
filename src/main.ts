@@ -37,6 +37,13 @@ import * as footer from "./ui/templates/footer.js";
 import * as picker from "./ui/templates/picker.js";
 import * as settingsSheet from "./ui/templates/settings_sheet.js";
 import * as legal from "./ui/templates/legal.js";
+import { initTheme } from "@lautstark/design/theme";
+
+// Before anything renders, though the attribute it would set is already set by
+// the inline script in index.html. What this adds is the address bar, which
+// needs the token import above to have a --bg to read, and the listener that
+// keeps it right when the OS turns over under a page that is following it.
+initTheme("vorlaut.theme");
 
 header.render();
 board.render();
