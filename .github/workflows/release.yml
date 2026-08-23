@@ -90,9 +90,9 @@ jobs:
           **Stopp** and **Hilf mir**, the same example that \`content/\` starts
           out with. That is there so the first flash can be checked without
           preparing anything - your own words and pictures are personal and are
-          not in the repo. They are produced by \`build.py --fs-image\` from
-          your own content and written separately, or fetched by the device
-          over Wi-Fi. See [docs/firmware.md](${docs}/docs/firmware.md).
+          not in the repo. They are made in the editor and pushed to the
+          device down the USB-C cable, in one press - see
+          [docs/cable.md](${docs}/docs/cable.md).
 
           > **This image is 8 MB and covers the whole flash.** It replaces
           > whatever content is on the device with the example. To update the

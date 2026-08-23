@@ -40,14 +40,13 @@ runs:
           https://espressif.github.io/arduino-esp32/package_esp32_index.json
         arduino-cli core update-index
         arduino-cli core install esp32:esp32
-        # WiFiManager brings the setup portal. It has been needed since the
-        # firmware fetches content by itself, and this workflow went red for
-        # four runs because the sketch went into the matrix and the library
-        # did not.
+        # Two, and there used to be three: WiFiManager brought the setup
+        # portal, and went with the radio. The note it carried is worth
+        # keeping in spirit - this workflow went red for four runs once
+        # because a sketch entered the matrix and its library did not.
         arduino-cli lib install \
           "Adafruit GFX Library" \
-          "Adafruit ST7735 and ST7789 Library" \
-          "WiFiManager"
+          "Adafruit ST7735 and ST7789 Library"
         arduino-cli core list
         arduino-cli lib list
 
