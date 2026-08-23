@@ -77,8 +77,14 @@ sk_image             = 15.21;  // [M] visible display area (for reference only)
 cap_offset_y     =  0.00;  // [A] 0 = the cap sits centred
 cap_offset_x     =  0.00;  // [A] the same sideways
 
-// Mounting holes in the four board corners
-sk_hole_margin        =  2.00;  // [A] hole centre from the board edge
+// Mounting holes in the four board corners. Measured centre to centre on the
+// module itself, not worked out from a margin off the board edge - that was
+// the earlier guess (2.00 mm all round, so 21.94 x 31.29) and it was out by
+// about a millimetre across and two thirds of one up. It is also not a single
+// margin: 20 x 30 on a 25.94 x 35.29 board leaves 2.97 mm at the sides and
+// 2.645 mm at top and bottom.
+sk_hole_pitch_x   = 20.00;  // [M] spacing of the module's poles, across
+sk_hole_pitch_y   = 30.00;  // [M] ... and up
 sk_hole_d           =  2.20;  // [A] hole diameter (M2)
 
 /* --- Speaker 40 mm --- */
@@ -493,8 +499,8 @@ assert(gap_set_block >= 1.3 * gap_block,
 // - they are here because the echo and verify.py report them.
 clear_hb = (sk_cap_b + 2*gap_cap)/2;      // [G] 11.30
 clear_hh = (sk_cap_h + 2*gap_cap)/2;      // [G] 12.95
-sk_hole_dx  = sk_board_b/2 - sk_hole_margin;       // [G] 10.97
-sk_hole_dy  = sk_board_h/2 - sk_hole_margin;       // [G] 15.645
+sk_hole_dx  = sk_hole_pitch_x/2;                   // [G] 10.00
+sk_hole_dy  = sk_hole_pitch_y/2;                   // [G] 15.00
 sk_pad_r    = sk_pad_d/2;                          // [G]  2.50
 
 // All twenty screw positions, in component coordinates.
@@ -520,8 +526,9 @@ assert(sk_pad_wall >= 0.4,
 
 assert(sk_hole_dx + sk_screw_d/2 <= sk_board_b/2 &&
        sk_hole_dy + sk_screw_d/2 <= sk_board_h/2,
-  str("The screw holes run off the edge of the ScreenKey board. Measure ",
-      "sk_hole_margin on the real module."));
+  str("The screw holes run off the edge of the ScreenKey board: the pitch is ",
+      sk_hole_pitch_x, " x ", sk_hole_pitch_y, " on a board ", sk_board_b,
+      " x ", sk_board_h, ". One of the two was measured on the wrong thing."));
 
 assert(sk_csink_t <= carrier_d - 0.8,
   str("The countersink is ", sk_csink_t, " mm deep in a ", carrier_d,
@@ -743,6 +750,11 @@ echo(str("cap offset          : ", cap_offset_x, " / ", cap_offset_y,
 echo(str("ScreenKey fixing    : 4 x M2 per key from the mid plate side into ",
          "the module's own ", sk_spacer_l, " mm spacers, screw ", sk_screw_l,
          " mm -> M2x6. Nothing printed in that gap."));
+echo(str("ScreenKey hole grid : ", sk_hole_pitch_x, " x ", sk_hole_pitch_y,
+         " mm, leaving ", round((sk_board_b - sk_hole_pitch_x)/2*1000)/1000,
+         " mm at the sides and ",
+         round((sk_board_h - sk_hole_pitch_y)/2*1000)/1000,
+         " mm top and bottom of the board"));
 echo(str("key cap             : ", sk_cap_overhang, " mm proud, ",
          sk_cap_overhang - sk_cap_travel, " mm pressed (travel ",
          sk_cap_travel, " mm)"));
