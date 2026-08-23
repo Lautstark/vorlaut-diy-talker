@@ -11,6 +11,7 @@ import { readSettings, writeSettings, exportBoard, importBoard, azureState } fro
 import { t } from "../core/texts.js";
 import { LANG } from "../core/boot.js";
 import { replaceLayout } from "../core/save.js";
+import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
 
 let settings: Settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
@@ -123,12 +124,52 @@ function renderRenderings() {
  * the sheet opens, after a save, and after a language switch - which is the
  * one that matters, because a heading that keeps its old language while the
  * body changes is worse than one that never changed at all. */
+/* Which collection the picker offers, and the one control that changes it.
+ *
+ * Marked on both panels rather than only on the active one: a heading saying
+ * "Aktive Quelle" tells you which is on, and a heading that says nothing tells
+ * you the other is off only if you already knew that is what silence meant.
+ * The button appears on the panel that is NOT active, because a button saying
+ * "use this" on the thing already in use is a no-op somebody has to read
+ * twice.
+ *
+ * METACOM cannot be chosen without a folder, so its button is absent then -
+ * the panel above already says why, and readSettings() refuses the value. */
+function paintSources() {
+  const active = settings.activeProvider || "arasaac";
+
+  const useArasaac = $<HTMLButtonElement>("arasaacUse");
+  useArasaac.textContent = t("ui.source_use");
+  useArasaac.hidden = active === "arasaac";
+
+  const useMetacom = $<HTMLButtonElement>("metacomUse");
+  useMetacom.textContent = t("ui.source_use");
+  useMetacom.hidden = active === "metacom" || !symbols.metacomReady();
+}
+
+/** Switches the collection the picker offers. Nothing on any board moves. */
+async function useSource(source: "arasaac" | "metacom") {
+  if ((settings.activeProvider || "arasaac") === source) return;
+  symbols.setActiveSource(source);
+  await saveSettings({ activeProvider: source });
+  showSources();
+}
+
+export function wireSources() {
+  $<HTMLButtonElement>("arasaacUse").onclick = () => void useSource("arasaac");
+  $<HTMLButtonElement>("metacomUse").onclick = () => void useSource("metacom");
+}
+
 export function paintStates() {
   $("languageState").textContent = LANGUAGE_NAMES[LANG] || LANG;
-  $("arasaacState").textContent = t("ui.arasaac_state");
+  const active = settings.activeProvider || "arasaac";
+  $("arasaacState").textContent =
+    active === "arasaac" ? t("ui.source_active") : t("ui.arasaac_state");
   $("arasaacIntro").textContent = t("ui.arasaac_intro");
   $("arasaacCredit").textContent = symbols.attributionFor(["arasaac"]).join(" ");
-  $("symbolsState").textContent = metacomWord(true);
+  $("symbolsState").textContent =
+    active === "metacom" ? t("ui.source_active") : metacomWord(true);
+  paintSources();
   // Base line first, then ask Azure - the same pair renderSettings() draws,
   // and in the same order. Setting only the base here is what broke the two
   // Azure tests: "stored" describes this database and would sit on top of the
@@ -255,7 +296,18 @@ export function wireSymbolFolder() {
     input.value = "";
     if (files && files.length) await symbols.readMetacomFiles(files);
   };
-  $<HTMLButtonElement>("metacomForget").onclick = () => symbols.forgetMetacom();
+  // Forgetting the folder cannot leave METACOM as the source: the picker
+  // would have nothing to search and would say so on every keystroke. The
+  // fallback is written down rather than left to readSettings() to infer on
+  // the next visit, so the answer is the same before and after a reload.
+  $<HTMLButtonElement>("metacomForget").onclick = async () => {
+    await symbols.forgetMetacom();
+    if ((settings.activeProvider || "arasaac") === "metacom") {
+      symbols.setActiveSource("arasaac");
+      await saveSettings({ activeProvider: "arasaac" });
+      showSources();
+    }
+  };
 
   // The provider says when a folder arrives or goes; nothing here polls.
   symbols.subscribeMetacom(renderHere);
@@ -306,6 +358,9 @@ export async function loadSettings() {
     // so a preference that arrives after the first search would silently not
     // have applied to it.
     symbols.preferRendering(settings.metacomRendering ?? null);
+    // readSettings() has already refused "metacom" when no folder answers, so
+    // this is the source the picker can actually search.
+    symbols.setActiveSource(settings.activeProvider || "arasaac");
     renderSettings();
   } catch (error) {
     status(t("ui.voice_failed", { error: reason(error) }));

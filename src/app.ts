@@ -21,7 +21,7 @@ import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
 import { confirmPair, watchPair } from "./ui/pairing.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
-import { wireSymbolFolder, wireBoard } from "./ui/settings.js";
+import { wireSymbolFolder, wireBoard, wireSources } from "./ui/settings.js";
 import { subscribeMetacom } from "./data/symbols.js";
 
 export function start(): void {
@@ -34,6 +34,7 @@ subscribeMetacom(render);
   wireEditor();
   wirePicker();
   wireSymbolFolder();
+  wireSources();
   wireBoard();
   wireLanguage();
 

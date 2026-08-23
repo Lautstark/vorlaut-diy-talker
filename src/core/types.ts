@@ -70,6 +70,15 @@ export interface Settings {
     keywords: boolean;
     fixed: boolean;
   };
+  /** Which collection the picker offers. One at a time, deliberately: a board
+   *  read by a child is easier to read when its five keys are drawn in one
+   *  hand, and two illustration styles side by side is a cost paid by the
+   *  person least able to say so. bildhaft settled on the same rule.
+   *
+   *  Only the picker is bound by it. A key already holding a picture keeps
+   *  exactly the picture it holds - switching source is a decision about what
+   *  to choose from next, never a reason to take symbols off a board. */
+  activeProvider?: "arasaac" | "metacom";
   /** Which of METACOM's parallel renderings the search should prefer, or null
    *  for none. Ordering only - nothing is ever filtered out by it.
    *
@@ -96,6 +105,7 @@ export interface WantedSettings {
    *  azureKey above, and for the same reason: a save that is about something
    *  else must not wipe a choice it never asked about. */
   metacomRendering?: string | null;
+  activeProvider?: "arasaac" | "metacom";
 }
 
 /** A voice as the picker shows it.

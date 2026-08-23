@@ -102,6 +102,7 @@ export const markup = `
       <!-- Not written here and not in the text table: the wording is a
            condition of the licence, so it comes from bildquelle. -->
       <p class="note" id="arasaacCredit"></p>
+      <div class="row"><button id="arasaacUse" class="btn" type="button"></button></div>
     </div>
   </details>
 
@@ -125,6 +126,7 @@ export const markup = `
       <input type="text" id="metacomPath" class="field" autocomplete="off">
       <p class="note" id="metacomState"></p>
       <p class="note" id="metacomBuildNote"></p>
+      <div class="row"><button id="metacomUse" class="btn" type="button"></button></div>
 
       <!-- METACOM ships the same symbols several times over - with and without
            a frame, with and without the word printed on. Only shown when the

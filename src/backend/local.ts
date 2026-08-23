@@ -403,6 +403,9 @@ const NO_SETTINGS: Settings = {
   azureKey: { set: false, hint: "" },
   azureRegion: "",
   metacom: { path: "", ok: false, count: 0, keywords: false, fixed: false },
+  // ARASAAC until somebody says otherwise: it needs no licence and no folder,
+  // so it is the only source a first visit can actually search.
+  activeProvider: "arasaac",
   local: true,
 };
 
@@ -414,6 +417,12 @@ export async function readSettings(): Promise<Settings> {
   return {
     ...NO_SETTINGS,
     ...held,
+    // A folder that is not there cannot be the source the picker offers. This
+    // is not a preference being overridden - it is the only answer that is
+    // true, and without it a METACOM chosen on another machine would leave the
+    // picker with nothing to search at all.
+    activeProvider: held.activeProvider === "metacom" && symbols.metacomReady()
+      ? "metacom" : "arasaac",
     metacom: {
       path: symbols.metacomRoot() || "",
       ok: symbols.metacomReady(),
@@ -431,6 +440,9 @@ export async function writeSettings(wanted: WantedSettings): Promise<Settings> {
   // key below follows, so a save about the region cannot drop the rendering.
   if (wanted.metacomRendering !== undefined) {
     next.metacomRendering = wanted.metacomRendering;
+  }
+  if (wanted.activeProvider !== undefined) {
+    next.activeProvider = wanted.activeProvider;
   }
   // An untouched field must not wipe the key - the same rule settings.js
   // follows on the way in. Which left removal with no door at all: this

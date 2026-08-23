@@ -28,7 +28,6 @@ export function openPicker(target, seed) {
 // Searching happens here now, not on the server. /api/search and /api/thumb
 // still exist and still work; nothing on this page calls them. See
 // docs/symbol-search.md.
-const ask = (word, source) => symbols.search(word, source);
 
 async function doSearch() {
   const word = $<HTMLInputElement>("q").value.trim();
@@ -37,15 +36,10 @@ async function doSearch() {
   const mine = ++searchToken;
   say(box, t("ui.searching"));
 
-  let cleared = false;
-  let total = 0;
-  const show = (title, items) => {
-    if (!cleared) { box.innerHTML = ""; cleared = true; }
-    if (!items.length) return;
-    const head = document.createElement("div");
-    head.className = "group";
-    head.textContent = title;
-    box.appendChild(head);
+  // No group heading any more: there is one collection to show, and a heading
+  // over the whole of it named the only thing on screen.
+  const show = (items) => {
+    box.innerHTML = "";
     items.forEach((item) => {
       const figure = document.createElement("figure");
       const image = document.createElement("img");
@@ -62,31 +56,16 @@ async function doSearch() {
       figure.onclick = () => pick(item);
       box.appendChild(figure);
     });
-    total += items.length;
   };
 
   try {
-    // The licensed collection sits locally and is there at once. ARASAAC
-    // goes over the network and comes afterwards - that way something is
-    // already on screen while the second source is still answering.
-    if (symbols.metacomReady()) {
-      const hits = await ask(word, "metacom");
-      if (mine !== searchToken) return;
-      show("METACOM", hits);
-    }
-    const remote = await ask(word, "arasaac");
+    const hits = await symbols.searchActive(word);
     if (mine !== searchToken) return;
-    show("ARASAAC", remote);
-    if (!total) say(box, t("ui.nothing_found", { word: word }));
+    show(hits);
+    if (!hits.length) say(box, t("ui.nothing_found", { word: word }));
   } catch (error) {
     if (mine !== searchToken) return;
-    if (total) {
-      const note = document.createElement("p");
-      note.textContent = t("ui.arasaac_down");
-      box.appendChild(note);
-    } else {
-      say(box, reason(error));
-    }
+    say(box, reason(error));
   }
 }
 
@@ -149,8 +128,8 @@ export async function loadSources() {
 }
 
 export function showSources() {
-  const metacom = symbols.metacomReady();
-  $<HTMLInputElement>("q").placeholder = t(metacom ? "ui.search_both" : "ui.search_arasaac");
+  const metacom = symbols.activeSource() === "metacom";
+  $<HTMLInputElement>("q").placeholder = t(metacom ? "ui.search_metacom" : "ui.search_arasaac");
 
   // The notice is not written here and is not in the text table. ARASAAC is
   // CC BY-NC-SA and the wording is a condition of the licence, so it comes
@@ -159,16 +138,21 @@ export function showSources() {
   // arasaac.org and the Regierung von Aragón. METACOM returns nothing, on
   // purpose: it is the user's own licensed copy and owes no notice.
   //
-  // Which sources, not which one: a board may hold keys from both, and
-  // attributionsFor() exists for exactly that.
-  const sources: ProviderId[] = metacom ? ["arasaac", "metacom"] : ["arasaac"];
+  // The one source the picker is offering. A key already on the board may
+  // have come from the other one - switching source never took anything off a
+  // board - but what is owed here is owed for what is on this screen.
+  const sources: ProviderId[] = [symbols.activeSource()];
   const owed = symbols.attributionFor(sources).join(" ");
 
   // What is ours to say stays ours to say and stays translated: that METACOM
   // is only referenced, and - where no folder is connected - that a licence
   // somebody owns would be searched too. Nobody opens settings to find that
   // out, so it is said where they are standing.
-  const ours = metacom ? t("ui.credits_metacom") : t("ui.metacom_offer");
+  // Ours to say, and only where it applies: that METACOM is referenced rather
+  // than copied, or - when it is not the source - that a licence somebody owns
+  // could be one. Nobody opens settings to find that out.
+  const ours = metacom ? t("ui.credits_metacom")
+    : symbols.metacomReady() ? "" : t("ui.metacom_offer");
   $("credits").textContent = `${ours} ${owed}`.trim();
 }
 

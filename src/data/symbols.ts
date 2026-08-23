@@ -173,13 +173,19 @@ export async function search(word, source) {
   }));
 }
 
-/** Both sources, the local one first because it answers without a network. */
-export async function searchAll(word) {
-  const groups = [];
-  if (metacomReady()) groups.push(["METACOM", await search(word, "metacom")]);
-  groups.push(["ARASAAC", await search(word, "arasaac")]);
-  return groups;
-}
+/* Which collection the picker offers. One, not both.
+ *
+ * Held here rather than read out of the settings at each call, for the same
+ * reason preferRendering is: the picker asks on every keystroke and must not
+ * wait on storage to answer. loadSettings() sets it, and readSettings() has
+ * already refused "metacom" when no folder is connected. */
+let active: ProviderId = "arasaac";
+
+export const activeSource = (): ProviderId => active;
+export const setActiveSource = (source: ProviderId) => { active = source; };
+
+/** The active collection's answer. */
+export const searchActive = (word: string) => search(word, active);
 
 /* --------------------------------------------------------------- image --- */
 
