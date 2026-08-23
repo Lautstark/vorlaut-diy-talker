@@ -552,3 +552,19 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
 .folderbox { margin: 2px 0 10px; }
 .folderbox[hidden] { display: none; }
 .folderbox .row { margin-top: 8px; }
+
+/* The visible half of menuitemradio. aria-checked told a reader which option
+   was in force and nothing told anyone else: components.css styles .danger and
+   :disabled but has no rule for a checked item, so vorlaut has been shipping
+   two menus whose selection could only be inferred from the button behind the
+   open list. The mark is the accent, which is what .voice[aria-checked] uses a
+   few rules up — being "the one in force" already looks like this here.
+
+   Local because @lautstark/design is pinned by tag and this belongs in
+   components.css beside .menu button.danger. Move it there at the next bump
+   and delete this block from all three products. */
+.menu button[role="menuitemradio"] { position: relative; padding-right: 30px; }
+.menu button[aria-checked="true"] { color: var(--accent-strong); font-weight: 650; }
+.menu button[aria-checked="true"]::after {
+  content: "\2713"; position: absolute; right: 11px;
+}

@@ -7,18 +7,51 @@ import { $, status} from "../ui/dom.js";
 import { reason } from "./errors.js";
 import { loadLayout, saveLayout } from "../backend/index.js";
 import { state } from "./state.js";
-import { t } from "./texts.js";
+import { applyTexts, t } from "./texts.js";
+import { LANG, setLanguage } from "./boot.js";
 import { render } from "../ui/editor.js";
+import { paintLanguage } from "../ui/voices.js";
 
 let saveTimer = null;
 let layoutVersion = null;   // the state this page loaded
 let unsaved = false;        // there are changes not yet in the file
 
+/* The language the arriving layout was written in, put in force.
+ *
+ * boot.ts opens the page in the reader's own language because that is the only
+ * answer it has before the store has said anything - and it says so: the one
+ * in the layout wins once it has been read. This is the reading. Without it
+ * the choice was written on every switch and read back on none, so it lasted
+ * exactly as long as the tab did.
+ *
+ * At every arrival rather than only at load, because an imported board is
+ * saved as it lands: a page that kept the old language here would come up in
+ * the board's at the next reload anyway, and the two answers must not differ.
+ *
+ * Only the fixed labels and the button naming the language. applyTexts() also
+ * carries the lang attribute on <html>, so that is not set again here. The
+ * caller renders the board, and the settings sheet paints its own state lines
+ * when it opens - which is why nothing here reaches into a sheet that has
+ * never been opened and has nothing loaded to paint. */
+function adoptLanguage(layout) {
+  // setLanguage() refuses a code the page does not speak, so an unreadable
+  // language in a layout leaves everything as it was rather than emptying it.
+  if (!layout.language || layout.language === LANG) return;
+  setLanguage(layout.language);
+  applyTexts();
+  paintLanguage();
+}
+
 export async function load() {
   const fresh = await loadLayout();
   layoutVersion = fresh.version;
-  markReleaseState(fresh.buildCurrent);
   state.layout = fresh.layout;
+  // Before the two below, and that is the order rather than the arrangement:
+  // markReleaseState() writes the button's title through t() and render()
+  // draws the board, so a language adopted after them would leave both saying
+  // what the browser guessed until something else happened to redraw them.
+  adoptLanguage(state.layout);
+  markReleaseState(fresh.buildCurrent);
   if (state.current >= state.layout.sets.length) {
     state.current = Math.max(0, state.layout.sets.length - 1);
   }
@@ -68,6 +101,7 @@ export function saveNow() {
  */
 export async function replaceLayout(layout) {
   state.layout = layout;
+  adoptLanguage(state.layout);
   if (state.current >= state.layout.sets.length) {
     state.current = Math.max(0, state.layout.sets.length - 1);
   }

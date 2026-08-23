@@ -77,7 +77,7 @@ That last one is the only Python left, and it is not going anywhere:
 `layout.bin`, the cable protocol and the panel's text each have two
 implementations that have to agree, one of them C++.
 
-The two shared packages are git dependencies pinned by commit — see
+The four shared packages are git dependencies pinned by release tag — see
 [docs/packages.md](docs/packages.md).
 
 ### If you have a METACOM licence
@@ -127,7 +127,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/languages.md](docs/languages.md) | German and English in the product, English in the code |
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
 | [docs/cable.md](docs/cable.md) | Pushing content down the USB-C cable, for when there is no server to fetch from |
-| [docs/packages.md](docs/packages.md) | The two shared packages, how they are pinned, and what vorlaut asks of them |
+| [docs/packages.md](docs/packages.md) | The four shared packages, how they are pinned, and what vorlaut asks of them |
 | [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
 
 ## Licence

@@ -47,12 +47,59 @@ export const status = (text: string): void => { $("status").textContent = text; 
  * components.css's - the trigger moved into the shared layer at v1.7.0 on this
  * page's account. Nothing here draws anything.
  */
-type AddItem = (label: string, current: boolean, run: () => void) => void;
+/**
+ * What an item is besides its label. All three optional, because the common
+ * item is a plain command and should read as one at the callsite.
+ *
+ * `checked` is deliberately a tri-state: left off, the item is a command and
+ * gets role="menuitem"; set either way, the menu is a set of alternatives and
+ * the item gets role="menuitemradio". Both of vorlaut's menus are the second
+ * kind and every item here passes it, which is why this file could get away
+ * with a positional boolean for so long - but the same third argument meant
+ * "this is destructive" in mitreden, and one function announcing opposite
+ * things in two products is what naming the field is for.
+ */
+export type ItemOpts = { danger?: boolean; checked?: boolean; disabled?: boolean };
+
+export type AddItem = (label: string, run: () => void, opts?: ItemOpts) => void;
+
+/** The trigger the open menu belongs to, so focus has somewhere to go back to. */
+let opener: HTMLElement | null = null;
+
+/** The items worth landing on. A disabled one is skipped, not stepped through. */
+const rows = (menu: Element): HTMLElement[] =>
+  [...menu.querySelectorAll<HTMLElement>("button:not(:disabled)")];
 
 export function closeMenus(): void {
-  for (const menu of document.querySelectorAll(".menu")) menu.remove();
+  for (const menu of document.querySelectorAll(".menu")) {
+    // Focus returns to the trigger only when it was inside the menu to begin
+    // with. Escape and an activated item both arrive here with focus in the
+    // list, and both want it back on the button that opened it; a click
+    // somewhere else on the page arrives here too, and pulling focus back
+    // would yank it out of whatever that click just gave it to.
+    if (menu.contains(document.activeElement)) opener?.focus();
+    menu.remove();
+  }
+  opener = null;
   for (const button of document.querySelectorAll('[aria-expanded="true"]'))
     button.setAttribute("aria-expanded", "false");
+}
+
+/** Home/End and the arrows, so the open list is reachable without a mouse. */
+function stepMenu(event: KeyboardEvent): void {
+  const keys = ["ArrowDown", "ArrowUp", "Home", "End"];
+  if (!keys.includes(event.key)) return;
+  const menu = event.currentTarget as HTMLElement;
+  const list = rows(menu);
+  const at = list.indexOf(document.activeElement as HTMLElement);
+  if (at < 0 || !list.length) return;
+  event.preventDefault();
+  const to = event.key === "Home" ? 0
+    : event.key === "End" ? list.length - 1
+      : event.key === "ArrowDown"
+        ? (at + 1) % list.length
+        : (at - 1 + list.length) % list.length;
+  list[to]!.focus();
 }
 
 /** Opens a menu under `button`, or closes the one already there. */
@@ -61,23 +108,30 @@ export function menuOn(button: HTMLElement, build: (add: AddItem) => void): void
   closeMenus();
   if (open) return;                       // a second press is a dismissal
   button.setAttribute("aria-expanded", "true");
+  // "menu" rather than "true": both open a menu as far as the ARIA spec goes,
+  // but the first says which kind.
+  button.setAttribute("aria-haspopup", "menu");
   const menu = document.createElement("div");
   menu.className = "menu";
-  // A menu of alternatives, one of which is in force. aria-checked on
-  // menuitemradio is what says which; a plain list would read as five equal
-  // commands and leave the current one to be inferred from the drawing.
   menu.setAttribute("role", "menu");
-  build((label, current, run) => {
+  build((label, run, opts = {}) => {
     const item = document.createElement("button");
     item.type = "button";
     item.textContent = label;
-    item.setAttribute("role", "menuitemradio");
-    item.setAttribute("aria-checked", String(current));
+    // A menu of alternatives, one of which is in force. aria-checked on
+    // menuitemradio is what says which; a plain list would read as five equal
+    // commands and leave the current one to be inferred from the drawing.
+    item.setAttribute("role", opts.checked === undefined ? "menuitem" : "menuitemradio");
+    if (opts.checked !== undefined) item.setAttribute("aria-checked", String(opts.checked));
+    if (opts.danger) item.className = "danger";
+    if (opts.disabled) item.disabled = true;
     item.onclick = (event) => { event.stopPropagation(); run(); };
     menu.appendChild(item);
   });
+  menu.addEventListener("keydown", stepMenu);
   button.parentNode?.appendChild(menu);
-  menu.querySelector<HTMLElement>("button")?.focus();
+  opener = button;
+  rows(menu)[0]?.focus();
 }
 
 /* Dismissal, both ways round. The click listener asks whether the press landed
