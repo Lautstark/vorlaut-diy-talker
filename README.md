@@ -13,7 +13,8 @@ speak yet.
 - Four speech keys per set, up to five sets on the device
 - Every set has a colour, drawn as a border around all five displays
 - Editing happens in the browser: find a symbol, type a sentence, listen to it
-- One command turns that into pictures and speech files for the device
+- One press turns that into pictures and speech files, and sends them down
+  the cable to the device
 - Falls asleep by itself, wakes on any key press
 
 ## Running it
@@ -49,12 +50,14 @@ The piper voices are one press away in the voice picker in the header, and
 Azure Speech is the other route, against a key of your own. Both are in
 [docs/browser-tts.md](docs/browser-tts.md).
 
-> **The one thing that is not here yet.** *Release* — turning a board into the
-> tiles and WAVs the device reads — still reports that it is unwritten. The
-> pieces exist and are proven against the Python they were ported from, in
-> [docs/browser-tts.md](docs/browser-tts.md) and
-> [docs/tile-rendering.md](docs/tile-rendering.md); what is missing is the
-> orchestration that was `builder.py`. Everything else on the page works.
+> **The one thing that is not here yet.** No board has run any of this. *Send
+> to the device* builds a board into tiles and WAVs and pushes them down the
+> cable, and every part of that is checked — against the Python it was ported
+> from in [docs/browser-tts.md](docs/browser-tts.md) and
+> [docs/tile-rendering.md](docs/tile-rendering.md), and against the firmware's
+> own reader, compiled, in `tests/test_cable_format.py`. What none of it has
+> met is a talker. What a first run has to show is the table at the end of
+> [docs/cable.md](docs/cable.md).
 
 ## Working on it
 
@@ -89,13 +92,6 @@ files leaves the browser; see [METACOM on the device](#metacom-on-the-device).
 The build runs in the browser too, so there is nothing to configure and no
 path to set — the folder picker is the whole of it. A `metacom:` reference is
 a file name, so a board keeps working against any copy of the collection.
-
-> **The one thing that is not here yet.** *Release* — turning a board into the
-> tiles and WAVs the device reads — still reports that it is unwritten. The
-> pieces exist and are proven against the Python they were ported from, in
-> [docs/browser-tts.md](docs/browser-tts.md) and
-> [docs/tile-rendering.md](docs/tile-rendering.md); what is missing is the
-> orchestration that was `builder.py`. Everything else on the page works.
 
 ## What it is made of
 

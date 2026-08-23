@@ -14,9 +14,9 @@
 // module graph rather than a convention somebody has to keep.
 import { reason } from "./core/errors.js";
 import { $, status} from "./ui/dom.js";
-import { runBuild } from "./backend/index.js";
 import { t, applyTexts } from "./core/texts.js";
-import { load, saveNow, markReleaseState, wireConflict } from "./core/save.js";
+import { load, wireConflict } from "./core/save.js";
+import { wireRelease } from "./ui/release.js";
 import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
 import { confirmPair, watchPair } from "./ui/pairing.js";
@@ -40,27 +40,10 @@ subscribeMetacom(render);
   wireLanguage();
   wireLegal();
 
-  $<HTMLButtonElement>("releaseBtn").onclick = async () => {
-    // Releasing what is on screen, not what the last debounce happened to
-    // catch: saveNow() writes and cancels the pending one, otherwise it fires
-    // afterwards and writes the same thing a second time.
-    await saveNow();
-    $<HTMLButtonElement>("releaseBtn").disabled = true;
-    status(t("ui.releasing"));
-    $("log").style.display = "block";
-    $("log").textContent = t("ui.running");
-    try {
-      const result = await runBuild();
-      $("log").textContent = result.log.join("\n");
-      markReleaseState("1");
-      status(t("ui.released"));
-    } catch (error) {
-      $("log").textContent = t("ui.log_error", { error: reason(error) });
-      status(t("ui.release_failed"));
-    } finally {
-      $<HTMLButtonElement>("releaseBtn").disabled = false;
-    }
-  };
+  // Build, and then put it on the talker. It was four lines here while it was
+  // only the build; the cable brought a port, a progress line and a way to
+  // stop with it, and all three live in ui/release.ts.
+  wireRelease();
 
   $<HTMLButtonElement>("pairConfirm").onclick = confirmPair;
   $<HTMLButtonElement>("gear").onclick = openVoices;

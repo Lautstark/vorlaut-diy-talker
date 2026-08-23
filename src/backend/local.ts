@@ -816,15 +816,14 @@ export async function runBuild(): Promise<{ log: string[] }> {
   });
   if (!audioOk) note("build.audio_missing");
 
-  // Building only produces files. Nothing changes on the device from that -
-  // it is a separate step, and without this note one wonders why. The Python
-  // named `python build.py --fs-image` here; whether that command comes back
-  // is open, so this says where the files are and where the rest is written
-  // down instead of naming something that may not exist.
-  note("");
-  note("build.next_steps");
-  note("build.next_cable");
-  note("build.next_docs");
+  // Where the files go next is not this function's sentence to write. It used
+  // to be - three lines saying that a build does not reach the device and
+  // where to read about the ways that might - and they were true for as long
+  // as nothing here could send. ui/release.ts sends now, and it says what
+  // happened to these files immediately below this log: which of them the
+  // talker was missing, which went down the cable, what it holds afterwards.
+  // Two accounts of the same moment, one of them written before the fact, is
+  // how a log starts lying.
   return { log };
 }
 

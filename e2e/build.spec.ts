@@ -1,4 +1,10 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
+/* The labels are asserted out of the table the page reads them from, rather
+ * than written out here in one language. */
+import { TEXTS } from "../src/core/boot_data.js";
 /* Out of the modules that decide them rather than written here: a stride
  * this test spelled out for itself would agree with nothing. */
 import { HEADER_BYTES, SET_BYTES } from "../src/data/layout_format.js";
@@ -294,4 +300,138 @@ test("a second build replaces what changed and leaves nothing behind", async ({ 
   expect(third.names).toEqual(second.names);
   expect(third.spoken).toEqual(second.spoken);
   expect(third.log).not.toMatch(/^(removed|entfernt): /m);
+});
+
+/* --- and onto a device ------------------------------------------------------
+ *
+ * Everything above stops where builder.py stopped: files in a store. This is
+ * the half that was missing until the cable was wired into the page, and it is
+ * the only place that half can be checked without a talker on the desk.
+ *
+ * The device is tools/cable_mock.js - a Map that answers the way cable.h is
+ * written to answer. On its own that would be a comfortable lie, because a
+ * mock and a client written by the same hand agree with each other by
+ * construction; what stops it being one is tests/test_cable_format.py, which
+ * records the bytes this same client writes and replays them into the C reader
+ * compiled out of the sketch. So the format is held by the C, and what is held
+ * here is the wiring the C knows nothing about: that a press builds, that the
+ * build is what gets read back out of the store, that the diff is against what
+ * the device really holds, and that a second press sends nothing.
+ *
+ * It is served into the page rather than bundled with it. The page has no
+ * business importing a mock, and a route is the whole of what it takes to let
+ * one arrive as a module the way any other would.
+ */
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+async function withDevice(page: import("@playwright/test").Page) {
+  for (const name of ["cable.js", "cable_mock.js"]) {
+    await page.route(`**/__cable/${name}`, (route) => route.fulfill({
+      contentType: "text/javascript",
+      body: readFileSync(join(HERE, "..", "tools", name), "utf8"),
+    }));
+  }
+  /* Installed before anything of the page runs, because wireRelease() asks
+     getPorts() on load - that question, asked early, is what lets one press be
+     enough later. A port that only appeared afterwards would be a page that
+     had already decided it had none. */
+  await page.addInitScript(() => {
+    const ready = import(new URL("__cable/cable_mock.js", location.href).href)
+      .then(({ MockDevice }) => {
+        /* Chattering on purpose: a real device prints its own serial log
+           straight through a transfer, and a client that only works on a
+           silent wire does not work. */
+        const device = new MockDevice({ noise: true });
+        (globalThis as Record<string, unknown>).__device = device;
+        let streams: { readable: ReadableStream; writable: WritableStream } | null = null;
+        return {
+          async open() { streams = device.open(); },
+          async close() { streams = null; },
+          get readable() { return streams!.readable; },
+          get writable() { return streams!.writable; },
+          getInfo: () => ({}),
+          async setSignals() {},
+        };
+      });
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: () => ready.then((port) => [port]),
+        requestPort: () => ready,
+        addEventListener: () => {},
+      },
+    });
+  });
+}
+
+/** One line of the page's own log, with its blanks filled in - the same
+ *  substitution t() does, so that a count is asserted against the sentence the
+ *  person actually reads rather than against a fragment of it. */
+const filled = (key: string, params: Record<string, string | number>) =>
+  Object.entries(params).reduce(
+    (line, [name, value]) => line.split(`{${name}}`).join(String(value)),
+    TEXTS.en[key] as string);
+
+/** What the device is holding. The counters are not read here: the device
+ *  clears them when it says goodbye, exactly as cable.h does, so what it did
+ *  is in the log rather than on the object. */
+async function onDevice(page: import("@playwright/test").Page) {
+  return await page.evaluate(`(() => {
+    const device = globalThis.__device;
+    return {
+      names: [...device.files.keys()].sort(),
+      sizes: Object.fromEntries([...device.files].map(([n, b]) => [n, b.length])),
+    };
+  })()`) as { names: string[]; sizes: Record<string, number> };
+}
+
+test("one press builds it and puts it on the talker", async ({ page }) => {
+  await withDevice(page);
+  await seed(page);
+  await page.waitForFunction("globalThis.__device !== undefined");
+
+  const built = await release(page);
+  const held = await onDevice(page);
+
+  /* The device holds the build. Not a file more, not a file fewer, and every
+     one of them the length the store says - which is the whole claim, because
+     a name here is a hash of what went into the file and says nothing about
+     what arrived. */
+  expect(held.names).toEqual([...built.names].sort());
+  expect(held.sizes).toEqual(built.sizes);
+  /* And it says what it did, with the numbers in it. The third one is what
+     went down the wire this session rather than what the device holds - the
+     firmware adds command.size per put - so it is the size of the payload. */
+  const payload = Object.values(built.sizes).reduce((sum, n) => sum + n, 0);
+  expect(built.log).toContain(filled("cable.sent", {
+    stored: built.names.length, removed: 0, size: Math.round(payload / 1024),
+  }));
+
+  /* The two numbers docs/cable.md is waiting for reach the log, because that
+     table is meant to be filled in from a run and this is where a run says
+     them. */
+  expect(built.log).toContain(TEXTS.en["cable.timings"].split("{")[0].trim());
+});
+
+test("a second press sends nothing, because the device already has it",
+     async ({ page }) => {
+  await withDevice(page);
+  await seed(page);
+  await page.waitForFunction("globalThis.__device !== undefined");
+
+  const first = await release(page);
+  const after = await onDevice(page);
+  expect(after.names).toEqual([...first.names].sort());
+
+  /* Nothing has changed on the board, so nothing is missing on the device.
+     layout.bin is the one that cannot be answered by its name - it never
+     changes - so this is also the check that its checksum is asked for and
+     believed. */
+  const again = await release(page);
+  const held = await onDevice(page);
+  expect(held.names).toEqual([...again.names].sort());
+  expect(held.sizes).toEqual(after.sizes);
+  expect(again.log).toContain(TEXTS.en["cable.nothing"]);
+  expect(again.log).toContain(filled("cable.sent",
+                                     { stored: 0, removed: 0, size: 0 }));
 });

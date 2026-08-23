@@ -20,6 +20,13 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
+    /* tools/cable.js is JavaScript on purpose and is included below, so the
+       compiler has to be willing to read it. checkJs stays off: that file is
+       held to the C reader by tests/test_cable_format.py, which is a stronger
+       statement about it than tsc would make, and turning it on would ask for
+       annotations in a file two other runtimes import raw. */
+    "allowJs": true,
+
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
@@ -28,5 +35,10 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   },
-  "include": ["src"]
+  /* The one file outside src/ the page imports. It stays in tools/ because the
+     bench and the node harness import it from there as it is written, and
+     because a copy under src/ would be a second implementation of a protocol
+     whose whole point is that one implementation is checked against the
+     firmware's. See the head of src/backend/cable.ts. */
+  "include": ["src", "tools/cable.js"]
 }

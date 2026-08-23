@@ -343,40 +343,35 @@ is missing stops the work. The deletion on 2026-08-22 took both, and only the
 first was noticed at the time. The WebSerial session read the commit rather
 than its summary and found the rest.
 
-**Nothing can build content.** `build.py`, `builder.py`, `manifest.py`,
-`tiles.py`, `tts.py`, `layout.py` and `layout_format.py` are gone, and the
-browser cannot stand in yet — `runBuild()` in
-[`src/backend/local.ts`](../src/backend/local.ts) throws by its own
-admission: *"Building in the browser is not written yet — tiles.js and
-layout_format.js are here, builder.py's orchestration is not."* So both sides
-refuse. Change a symbol or a sentence and there is currently no way to render
-it.
+**Nothing could build content, and now something can.** `build.py`,
+`builder.py`, `manifest.py`, `tiles.py`, `tts.py`, `layout.py` and
+`layout_format.py` are gone, and for a while nothing stood in for them:
+`runBuild()` in [`src/backend/local.ts`](../src/backend/local.ts) threw by its
+own admission and both sides refused. It is written now — the orchestration
+that was `builder.py`, against the ports of `tiles.py` and `tts.py` that were
+already here and already measured. Changing a symbol or a sentence renders
+again.
 
 **Both routes onto a device went, not one.** `flashing.py` made the LittleFS
 image and drove `esptool`, so the cable is not merely the only *new* path — it
 is the only path, and it had never touched hardware when the Python was
-deleted.
+deleted. It still has not. What has changed is that the page can now drive it
+end to end: *Send to the device* builds and pushes in one press, and
+`e2e/build.spec.ts` holds that against the mock. The wire format was never the
+doubtful part — `tests/test_cable_format.py` feeds the client's own bytes to
+the firmware's reader — and a talker is still the thing none of it has met.
 
 **Content is not backed up, and that is deliberate.** `firmware/vorlaut/data/`
 and `content/` are both gitignored, so they survived the deletion by never
 having been in git — the last built payload, the board being worked on, its
-symbols and twenty recorded sentences. None of it can be rebuilt while
-`runBuild()` throws, and the recordings could not be rebuilt anyway because
-piper renders the same sentence differently every time.
+symbols and twenty recorded sentences. A board can be built again now; the
+recordings cannot be reproduced whatever happens, because piper renders the
+same sentence differently every time.
 
 It is test data and its loss was accepted deliberately when this was raised.
 Recorded here only so that nobody later mistakes the gitignore for an
 oversight, or spends an afternoon trying to recover something nobody wanted
-kept. **The thing that actually needs fixing is `runBuild()`,** not the data
-it would have produced.
-
-Two instructions in [`cable.md`](cable.md) still say to run `app.py` to serve
-the bench. The WebSerial session is fixing those. The seam half is done:
-`backend/server.js` was deleted with the routes it fetched, and
-`src/backend/index.ts` resolves `vorlaut:backend` through index.html's import map to
-`backend/local.js`, which answers `buildManifest`/`buildFile` out of the store.
-The bench itself is not blocked: its *Pick a `data/` folder* button reads the
-payload straight off disk, so `python3 -m http.server` is enough.
+kept.
 
 ## What is still only checked against itself
 

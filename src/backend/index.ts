@@ -11,10 +11,9 @@
 // So the requests that used to be written out in eight modules are named here
 // instead, once. editor.js, picker.js, voices.js and settings.js ask for what
 // they need and are not told who answers.
-// Not the whole page, though - getting the result onto the talker is not among
-// them and cannot come across this way. The note at the foot of this file says
-// why, and is there so that the gap is a reserved place rather than a
-// discovery.
+// Getting the result onto the talker is here too now, and it is the one entry
+// that does not come from local.js. The note at the foot of this file says why
+// it has a shape of its own.
 //
 // The list shrinks as the rewrite lands. Searching and asking which sources
 // exist were here until the browser took both; what is left of symbols is the
@@ -84,34 +83,52 @@ export {
 // to nothing else, which is what the seam promised in the first place.
 
 
-// --- Reserved: getting it onto the device ------------------------------------
+// --- Getting it onto the device ---------------------------------------------
 //
-// Nothing above sends anything to the talker, and today that is correct: the
-// device pulls over Wi-Fi on its own schedule and the page is not in the
-// conversation at all. Over a cable it will be, and that operation is the one
-// thing in the eventual contract that does not fit the shape of the rest.
+// This was a reserved place for a long time, and the note that held it open
+// said what the shape would have to be. It turned out to be right, so what
+// follows is that note in the past tense.
 //
-// Everything named above is one shot - ask, get a value, done. A sync over
-// WebSerial is not: a gesture, a port the user grants, an open stream, about
-// 1.5 MB with progress worth watching, a cancel that has to be able to arrive
+// Everything above is one shot - ask, get a value, done. A sync over WebSerial
+// is not: a gesture, a port the user grants, an open stream, about a megabyte
+// with progress worth watching, a cancel that has to be able to arrive
 // mid-flight, and a close. Written as one more async function returning one
-// more value, it would have to keep its progress and its cancellation
-// somewhere else, and that is the shape that is expensive to undo once other
-// code has grown around it. So it is left unwritten rather than written small.
-// Whoever brings WebSerial is expected to add a slot of its own here, against
-// the grain of the list above, and that is not a mistake.
-//
-// What it will not get is the files as an argument. That was written here
-// before the cable was, and half of it was wrong: the transport does have to
-// be handed them, it just is not handed them by runBuild(). The build leaves
-// its files where something else comes and reads them - builder.py writes
-// data/ and the device fetches out of it - and the browser keeps exactly that
-// arrangement rather than inventing one. runBuild() still writes through
-// storage and still answers with nothing but its log; buildManifest() and
-// buildFile() read the result back afterwards, by name, the same way the
-// device has always read it. So the artefacts never travel in a return value,
-// which is the reason runBuild does not change meaning when it moves, and the
-// reason 1.5 MB does not pass through it.
+// more value it would have had to keep its progress and its cancellation
+// somewhere else, which is the shape that is expensive to undo once other code
+// has grown around it. So it is four names rather than one, and it sits in a
+// module of its own rather than in local.js: the two ways the page reaches the
+// outside are storage and a cable, and they have nothing in common but this
+// file.
+export {
+  // Whether this browser can talk to a cable at all - Chrome and Edge can,
+  // Firefox and Safari edit boards and cannot send them. Asked before the
+  // page promises anything it would then have to take back.
+  cableSupported,
+
+  // The ports already granted, and the dialog that grants one. Two names
+  // rather than one because only one of them needs a click, and which of the
+  // two the press calls is the whole difference between one press and a
+  // dialog every time. See the head of ui/release.ts.
+  grantedDevices,
+  askForDevice,
+  watchDevices,
+
+  // The transfer. Takes the ports, not the files.
+  sendToDevice,
+  CableTrouble,
+} from "./cable.js";
+export type { Plan, Sending, Sent } from "./cable.js";
+
+// What it does not take is the files, and that was written here before the
+// cable was: the transport does have to be handed them, it just is not handed
+// them by runBuild(). The build leaves its files where something else comes
+// and reads them - builder.py wrote data/ and the device fetched out of it -
+// and the browser keeps exactly that arrangement rather than inventing one.
+// runBuild() still writes through storage and still answers with nothing but
+// its log; buildManifest() and buildFile() read the result back afterwards, by
+// name, the same way the device has always read it. So the artefacts never
+// travel in a return value, which is the reason runBuild() did not change
+// meaning when it moved, and the reason a megabyte does not pass through it.
 //
 // The list above is at its longest today. Most of it is here because the
 // server can do something the browser cannot do yet, and each of those leaves

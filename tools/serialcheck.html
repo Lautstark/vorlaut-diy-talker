@@ -78,7 +78,6 @@
 <fieldset>
   <legend>Something to push</legend>
   <div class="row">
-    <button id="build">Take the build from the editor</button>
     <button id="invent">Make a payload up</button>
     <button id="folder">Pick a <code>data/</code> folder</button>
     <label><input type="checkbox" id="restyle"> change two files and the layout</label>
@@ -90,14 +89,14 @@
   An invented payload needs nothing set up at all and proves the protocol on its
   own. Ticking the box changes part of an invented payload, which is how the
   case that matters gets tested: almost nothing should transfer the second time.
-  <br><b>Take the build from the editor does not work at the moment.</b> It asks
-  <code>buildManifest()</code>/<code>buildFile()</code>, which
-  <code>static/backend.js</code> still routes to <code>backend/server.js</code>
-  and thence to <code>/api/build/*</code> on the deleted <code>app.py</code>.
-  The two operations are staying — <code>backend/local.js</code> implements both
-  against local storage — but nothing fills that storage until
-  <code>runBuild()</code> exists in the browser. It is left in place because it
-  is the path that comes back, not one that is going away.</small></p>
+  <br><b>The editor sends by itself now.</b> There used to be a button here
+  that asked it for its build, and it could not work: this bench is served on
+  its own port, and a different origin is a different IndexedDB — there is
+  nothing of the editor's for it to read. What replaced it is the editor's own
+  <i>Send to the device</i>, which builds and pushes down this same
+  <code>tools/cable.js</code> in one press. This page is what is left over for
+  the cases that button cannot reach: an invented payload, a folder off the
+  disk, and the mock.</small></p>
   <div id="payload"></div>
 </fieldset>
 
@@ -126,7 +125,6 @@ import { Cable, CableError, plan, push, crc32, hex8, LAYOUT_FILE, CABLE_VERSION 
 import { MockDevice } from "./cable_mock.js";
 // The seam the static site reaches the outside through. Only the two build
 // operations are wanted here - this bench has no business with the rest of it.
-import { buildManifest, buildFile } from "../static/backend.js";
 
 const $ = (s) => document.querySelector(s);
 const log = (m, cls) => {
@@ -324,48 +322,11 @@ function describe(what) {
   $("#push").disabled = !cable;
 }
 
-// The real path, and deliberately the only one that is: these are the two
-// operations the transport needs permanently. Nothing of the browser build is
-// involved - the bytes are what Python already produced - so a failure here is
-// the wire or the firmware and nothing else.
-$("#build").addEventListener("click", async () => {
-  $("#build").disabled = true;
-  try {
-    const manifest = await buildManifest();
-    if (manifest.current === false) {
-      log("the build in data/ no longer matches layout.json — this would send "
-          + "yesterday's content. Press Build in the editor first.", "bad");
-      return;
-    }
-    log(`the editor has build ${manifest.version || "(none)"}: `
-        + `${manifest.files.length} file(s), ${manifest.bytes} bytes, `
-        + `${manifest.sets} set(s)`);
-    const files = new Map();
-    for (const entry of manifest.files) {
-      const bytes = new Uint8Array(await buildFile(entry.name));
-      // The manifest says how long each one is. A length that disagrees means
-      // the build moved underneath us while this was reading it.
-      if (bytes.length !== entry.size) {
-        log(`  ${entry.name} came back ${bytes.length} bytes, the manifest `
-            + `said ${entry.size}`, "bad");
-        return;
-      }
-      files.set(entry.name, { bytes });
-    }
-    made = files;
-    describe("took the build from the editor");
-  } catch (error) {
-    log(`could not read the build: ${error.message}`, "bad");
-    log("  This button does not work at the moment. backend.js still asks "
-        + "backend/server.js,", "bad");
-    log("  which fetches /api/build/* from app.py - and app.py has been "
-        + "deleted. Use", "bad");
-    log("  \u201cPick a data/ folder\u201d instead; see docs/cable.md.", "bad");
-  } finally {
-    $("#build").disabled = false;
-  }
-});
-
+// Neither of these is the real path any more - the editor's own button is, and
+// it goes through the same tools/cable.js. What is left here is what that
+// button cannot be: a payload with no build behind it, so that a failure is
+// the wire or the firmware and nothing else, and a folder read straight off
+// the disk for a first run on hardware.
 $("#invent").addEventListener("click", () => {
   made = invent($("#restyle").checked);
   describe($("#restyle").checked ? "invented a changed payload" : "invented a payload");

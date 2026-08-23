@@ -21,6 +21,19 @@
  *  firmware/vorlaut/cable_format.h. */
 export const CABLE_VERSION = 1;
 
+/* The shapes of the answers, so that this file says what it hands back rather
+ * than leaving each of its three consumers - the bench, the node harness and
+ * src/backend/cable.ts - to find out. They are comments: nothing here is
+ * compiled, and tests/test_cable_format.py remains what actually holds this
+ * client to the device's own reader.
+ *
+ * @typedef {{version: number, total: number, free: number, files: number}} Greeting
+ * @typedef {{name: string, size: number}} Held
+ * @typedef {{stored: number, removed: number, bytes: number}} Farewell
+ * @typedef {{put: {name: string, size: number, crc: number}[], remove: string[],
+ *            keep: string[], needed: number, tight: boolean, fits: boolean}} Plan
+ */
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -217,7 +230,9 @@ export class Cable {
   // --- The six verbs ---------------------------------------------------------
 
   /** Who is on the other end. Also the only way to tell a vorlaut from
-   *  whatever else the person picked in the port dialog. */
+   *  whatever else the person picked in the port dialog.
+   *  @param {{tries?: number}} [options]
+   *  @returns {Promise<Greeting>} */
   hello({ tries = 1 } = {}) {
     return this.#serial(async () => {
       for (let attempt = 1; ; attempt++) {
@@ -254,7 +269,8 @@ export class Cable {
   }
 
   /** Everything the device holds, as [{name, size}]. The device does no
-   *  comparing - this list is the raw truth and the diff happens here. */
+   *  comparing - this list is the raw truth and the diff happens here.
+   *  @returns {Promise<Held[]>} */
   list() {
     return this.#serial(async () => {
       await this.send("list");
@@ -323,7 +339,8 @@ export class Cable {
     });
   }
 
-  /** The device reads its new layout in and goes back to being a talker. */
+  /** The device reads its new layout in and goes back to being a talker.
+   *  @returns {Promise<Farewell>} */
   done() {
     return this.#serial(async () => {
       await this.send("done");
@@ -378,6 +395,8 @@ export const LAYOUT_FILE = "layout.bin";
  * to be compared by checksum, and it is sent last because it is the file that
  * decides what everything else means. Until it lands the device still reads
  * the old one, and the old one still points at files that are all still there.
+ *
+ * @returns {Plan}
  */
 export function plan(want, have, room, layoutCrc = null) {
   const present = new Map(have.map((f) => [f.name, f]));
@@ -444,6 +463,8 @@ export function plan(want, have, room, layoutCrc = null) {
  * down its four seconds to a transfer that will not finish, after which the
  * session is shut until hello. A step boundary is at most one file away - well
  * under a second - and leaves the connection usable.
+ *
+ * @returns {Promise<Farewell>}
  */
 export async function push(cable, made, theplan, options = {}) {
   const { onStep = () => {}, signal = null } = typeof options === "function"

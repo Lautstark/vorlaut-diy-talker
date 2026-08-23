@@ -421,21 +421,23 @@ the table below.
 python3 -m http.server 8799
 ```
 
-**4. Open <http://localhost:8799/tools/serialcheck.html>**, press *Pick a
-`data/` folder* and choose `firmware/vorlaut/data/`. Then *Connect to a
-device* and pick the port, and *Work out what is missing, then send it*.
+**4. Press *Send to the device* in the editor.** That is the whole of it: the
+first press opens the port picker, every press after it finds the same port
+again by itself, and in between it builds the board, works out what the talker
+is missing and sends that. The page's log carries the device's own serial
+output inline while it happens.
 
-**There is no longer a way to build that folder.** `build.py` was deleted along
-with the rest of the Python, and the browser cannot stand in yet —
-`runBuild()` in `src/backend/local.ts` throws and says so. So what is in
-`firmware/vorlaut/data/` is whatever the last build left there, it is
-gitignored, and nothing can make a new one. For proving the wire that is
-enough; for changing what the device says it is not, and that is the gap to
-close next. See [What no longer works at all](frozen-references.md) for the
-rest of what went with it.
+**The bench is still here for what that button cannot be.** `tools/serialcheck.html`
+is where a payload can be invented with no build behind it — so that a failure
+is the wire or the firmware and not one of several new things at once — or read
+straight off the disk out of `firmware/vorlaut/data/`. Serve it as in step 3 and
+open <http://localhost:8799/tools/serialcheck.html>. It cannot take the
+editor's build: it is served on its own port, and a different origin is a
+different IndexedDB.
 
-Close the serial monitor first if one is open. Two programs cannot hold the
-same port, and the symptom is a port that simply will not open.
+Close the serial monitor first if one is open, and close whichever of the page
+and the bench you are not using. Two programs cannot hold the same port, and
+the symptom is a port that simply will not open.
 
 **5. Watch the device, not only the page.** All five displays should show
 *Kabel* with a count climbing, and the talker should come back by itself
@@ -499,13 +501,25 @@ the third — pulling the cable out mid-transfer is a thing only hands can do �
 and the third is the one whose device-side behaviour has no test at all, since
 it is the timeout, the drain and the refusal that only `hello` clears.
 
-**Row five is not a convenience.** The plan is that the editor's existing
-*Freigeben* button becomes the button that puts content on the talker: one
-press, no dialog. That rests entirely on `getPorts()` returning a
-previously-granted port without a gesture. If a granted port does not survive
-the device re-enumerating, there is a picker on *every* transfer and that
-promise has to be withdrawn — so this row settles an interface question rather
-than measuring a nicety, and it should be reported as such.
+Two of them now have a version that runs in a browser: `e2e/build.spec.ts`
+presses the editor's button against `cable_mock.js` and checks that the device
+ends up holding exactly the build, and that a second press sends nothing. That
+is the second and sixth rows in everything except the part that matters here —
+there is no flash, no re-enumeration and no clock in it. It is what says the
+wiring is right, so that a failure on the bench is about the hardware rather
+than about which file the page read. The rows stay unticked until a board has
+done it.
+
+**Row five is not a convenience.** The editor's one button *is* the way content
+reaches the talker now — it builds and it sends, in one press, with no dialog
+after the first. That rests entirely on `getPorts()` returning a
+previously-granted port without a gesture, because the press that would open
+the picker is the same press that starts the build, and by the time a build is
+over the transient activation `requestPort()` needs has long expired. If a
+granted port does not survive the device re-enumerating, there is a picker on
+*every* transfer and that promise has to be withdrawn — so this row settles an
+interface question rather than measuring a nicety, and it should be reported as
+such.
 
 **Before blaming the wire format, check whether opening the port resets the
 board.** On classic ESP32 boards the USB-UART bridge has DTR and RTS wired to
@@ -552,7 +566,18 @@ amount of code to remove and deserves to say so in its own commit.
 | [`tools/cable.js`](../tools/cable.js) | the browser's half, and the diff |
 | [`tools/cable_mock.js`](../tools/cable_mock.js) | a device made of a `Map`, for when there is no board |
 | [`tools/serialcheck.html`](../tools/serialcheck.html) | the bench, standalone |
-| `tests/test_cable_format.py` | all of the above, held against each other |
+| [`src/backend/cable.ts`](../src/backend/cable.ts) | the page's side: which port, where the files come from, what the page is told |
+| [`src/ui/release.ts`](../src/ui/release.ts) | the one button — build, then send, with progress and a way to stop |
+| `tests/test_cable_format.py` | the wire format, held against the firmware's own reader |
+| `e2e/build.spec.ts` | the wiring: a press, against the mock served into a real browser |
+
+The split between the last two is the useful one. `tools/cable.js` is the
+protocol and is checked by the C; nothing above it in `src/` has any business
+knowing what a `put` line looks like. What the page adds is everything the C
+cannot see — that a press builds, that the build is read back out of storage
+rather than passed around, that the diff is against what the device really
+holds, and that a second press sends nothing. Those are the two tests, and they
+are deliberately not the same test.
 
 The format header is deliberately free of any Arduino dependency, like
 `layout_format.h` and `pair_format.h`, so that the same code the device runs
@@ -634,29 +659,30 @@ nothing can make a new one. Ticking *change two files and the layout* is how to
 see the case that matters: the second push should send three files and delete
 two, and leave the rest alone.
 
-**Take the build from the editor** is the fourth button, and it does not work
-at the moment. It asks `buildManifest()` and `buildFile()` in
-`src/backend/index.ts`, which are still wired to `backend/server.js` and fetch
-`/api/build/*` from `app.py` — and `app.py` has been deleted. The two
-operations themselves are not going anywhere: they are what the transport needs
-permanently, and `src/backend/local.ts` already implements both against
-local storage. What is missing is the line in `backend.js` that points at it,
-and something to fill that storage, which is `runBuild()` — deleted in Python
-and not yet written in the browser.
+**Take the build from the editor** was a fourth button here, and it has gone.
+It could not have worked: this bench is served on its own port so that
+`localhost` gives it a secure context, and a different origin is a different
+IndexedDB — there is nothing of the editor's for it to read. The editor sends
+its own build now, through this same `tools/cable.js`, which is the answer that
+button was standing in for.
 
-Until then the directory picker is the way in, and it is the better one for a
-first bench run anyway: it reads the bytes off the disk with nothing between,
-so a failure is the wire or the firmware rather than one of several new things
-at once.
+What is left here is what that button cannot be: a payload with no build behind
+it, and a folder read straight off the disk. Both are better for a first bench
+run than anything that goes through a build, because a failure is then the wire
+or the firmware rather than one of several new things at once.
 
-Two things that were worth having and are worth keeping when that button comes
-back:
+Two things it did that the editor's own path does instead, and both are worth
+naming because they are easy to leave out:
 
-- The page refuses a build whose `current` is false rather than sending it.
-  That flag means `data/` no longer matches `layout.json`, and pushing then
-  would put yesterday's content on the device while reporting success.
-- It checks each file against the length the manifest declared, which is what
-  a build moving underneath the read looks like.
+- **Yesterday's content is not sendable.** The bench had to check the build's
+  `current` flag, because it could be pointed at a stale `data/`. The editor
+  cannot be: the press builds first and then sends what that build produced, so
+  there is no window in which the two disagree.
+- **Each file is checked against the length the manifest declared**, which is
+  what a build moving underneath the read looks like. `src/backend/cable.ts`
+  does this and refuses the whole transfer rather than sending a mixture of two
+  builds — a device that is half one and half another is wrong in a way nothing
+  downstream would notice.
 
 And one rule that outlives all of it. `/api/build/*` was page-facing;
 `/api/device/*` was **not**, and must never be called from a page — those sat

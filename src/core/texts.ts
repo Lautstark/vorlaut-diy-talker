@@ -45,6 +45,7 @@ export function applyTexts() {
   $("previewLabel").title = t("ui.preview_title");
   $("previewText").textContent = t("ui.preview");
   $<HTMLButtonElement>("releaseBtn").textContent = t("ui.release");
+  $<HTMLButtonElement>("releaseStop").textContent = t("ui.stop");
   $<HTMLButtonElement>("overwriteBtn").textContent = t("ui.keep_mine");
   $<HTMLButtonElement>("reloadBtn").textContent = t("ui.reload");
   $<HTMLButtonElement>("removeSet").textContent = t("ui.remove_set");

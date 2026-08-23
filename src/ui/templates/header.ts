@@ -28,6 +28,11 @@ export const markup = `
     <span id="previewText"></span>
   </label>
   <button class="btn primary" id="releaseBtn" type="button"></button>
+  <!-- Only while something is going down the cable. Hidden rather than
+       disabled: a stop that is there but greyed out most of the time reads as
+       a thing that is broken, and there is genuinely nothing to stop until a
+       transfer is running. -->
+  <button class="btn quiet" id="releaseStop" type="button" hidden></button>
   <!-- Last, past Release. The gear is the way out of this page rather than a
        thing to do on it, and it sat second - between the name and the status -
        where it read as the first of the actions. -->
