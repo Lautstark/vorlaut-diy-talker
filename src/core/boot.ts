@@ -42,8 +42,30 @@ function preferred() {
   return DEFAULT_LANGUAGE;
 }
 
-export const LANG = preferred();
+/* `let`, not `const`, and that is the whole of what makes a language switch a
+ * re-render rather than a reload.
+ *
+ * An ES import is a live binding: a module that does `import { LANG }` reads
+ * this variable, not a copy taken when it loaded. So reassigning it here is
+ * seen everywhere at once, and t() starts answering out of the other table on
+ * the very next call. Nothing may capture either value into a local - that is
+ * the one rule this arrangement asks for.
+ *
+ * The settings sheet used to reload the page for this, because the labels were
+ * baked in by the server and a second copy of every string in the browser was
+ * the alternative. Both halves of that are gone: boot_data.ts carries both
+ * languages already, and the reload was the reason the sheet needed a Save
+ * button - it would have thrown away a half-typed Azure key. */
+export let LANG = preferred();
 export const LANGUAGES = BUILT_IN_LANGUAGES;
-export const TEXTS = BUILT_IN_TEXTS[LANG];
+export let TEXTS = BUILT_IN_TEXTS[LANG];
+
+/** Switch language in place. Callers re-apply the labels; this only moves the
+ *  two values every label is read through. */
+export function setLanguage(code: string): void {
+  if (!BUILT_IN_LANGUAGES.includes(code) || code === LANG) return;
+  LANG = code;
+  TEXTS = BUILT_IN_TEXTS[code];
+}
 export const palette = PALETTE;
 export const limits = LIMITS;

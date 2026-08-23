@@ -9,6 +9,7 @@ import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
 import { readSettings, writeSettings, exportBoard, importBoard, azureState } from "../backend/index.js";
 import { t } from "../core/texts.js";
+import { LANG } from "../core/boot.js";
 import { replaceLayout } from "../core/save.js";
 import * as symbols from "../data/symbols.js";
 
@@ -72,7 +73,72 @@ function renderSettings() {
   }
 
   renderHere();
+  renderRenderings();
 }
+
+/* The rendering chooser. METACOM ships the same symbols several times over -
+ * with and without a frame, with and without the word printed on the picture -
+ * as parallel folders holding identical file names, and bildquelle derives the
+ * list from the index rather than from any list of known folder names, because
+ * a user's copy is theirs.
+ *
+ * Ordering only: nothing is filtered out, so a symbol that lives in just one
+ * of them stays reachable, and a key that already holds a picture keeps it.
+ * Only shown when the folder holds more than one - a copy pointed straight at
+ * a single rendering has nothing to choose between, and an empty dropdown is
+ * a question with one answer. */
+function renderRenderings() {
+  const box = $("renderingBox");
+  const pick = $<HTMLSelectElement>("renderingPick");
+  const found = symbols.metacomReady() ? symbols.metacomRenderings() : [];
+  box.hidden = found.length < 2;
+  if (box.hidden) return;
+
+  $("renderingLabel").textContent = t("ui.rendering");
+  $("renderingNote").textContent = t("ui.rendering_note");
+  pick.innerHTML = "";
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = t("ui.rendering_none");
+  pick.appendChild(none);
+  for (const entry of found) {
+    const option = document.createElement("option");
+    option.value = entry.segment;
+    option.textContent = t("ui.rendering_option",
+                           { segment: entry.segment, count: entry.count });
+    pick.appendChild(option);
+  }
+  pick.value = symbols.preferredRendering() || "";
+  pick.onchange = () => {
+    symbols.preferRendering(pick.value || null);
+    settings.metacom.rendering = pick.value || null;
+    void saveSettings();
+  };
+}
+
+/* The state line of every panel, re-read rather than remembered. Called when
+ * the sheet opens, after a save, and after a language switch - which is the
+ * one that matters, because a heading that keeps its old language while the
+ * body changes is worse than one that never changed at all. */
+export function paintStates() {
+  $("languageState").textContent = LANGUAGE_NAMES[LANG] || LANG;
+  $("arasaacState").textContent = t("ui.arasaac_state");
+  $("arasaacIntro").textContent = t("ui.arasaac_intro");
+  $("arasaacCredit").textContent = symbols.attributionFor(["arasaac"]).join(" ");
+  $("symbolsState").textContent = metacomWord(true);
+  // Base line first, then ask Azure - the same pair renderSettings() draws,
+  // and in the same order. Setting only the base here is what broke the two
+  // Azure tests: "stored" describes this database and would sit on top of the
+  // probe's answer, which is the only line that describes whether the key
+  // works. That answer is the whole reason azureState() exists.
+  $("azureState").textContent = settings.azureKey.set
+    ? t("ui.azure_key_stored")
+    : t("ui.azure_key_none");
+  probeAzure();
+}
+
+/** The languages this page offers, by their own names. */
+export const LANGUAGE_NAMES: Record<string, string> = { de: "Deutsch", en: "English" };
 
 /* --------------------------------------- the folder this browser can read ---
 
@@ -233,6 +299,10 @@ async function probeAzure() {
 export async function loadSettings() {
   try {
     settings = await readSettings();
+    // Before anything draws: the provider ranks its search results by this,
+    // so a preference that arrives after the first search would silently not
+    // have applied to it.
+    symbols.preferRendering(settings.metacom?.rendering ?? null);
     renderSettings();
   } catch (error) {
     status(t("ui.voice_failed", { error: reason(error) }));

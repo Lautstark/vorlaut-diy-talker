@@ -184,7 +184,7 @@ test("the board leaves as a .obz and comes back whole", async ({ page }) => {
 
   // Scribble over the sentence, then bring the exported board back and watch
   // the scribble go: import is only real if it replaces.
-  await page.locator("#voiceCancel").click();
+  await page.locator("#voiceClose").click();
   await keyText(page).first().fill("Uebergeschrieben");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
@@ -197,7 +197,7 @@ test("the board leaves as a .obz and comes back whole", async ({ page }) => {
   await importChooser.setFiles(file!);
   await expect(page.locator("#boardState")).toHaveText(label("ui.board_imported"));
 
-  await page.locator("#voiceCancel").click();
+  await page.locator("#voiceClose").click();
   await expect(keyText(page).first()).toHaveValue("Das bleibt");
 });
 
@@ -210,6 +210,8 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   // narrowed by the search field and the language chips above it rather than
   // by a "show all" row. A fresh board has nothing chosen, and what the sheet
   // opens on is the whole list.
+  // The voice list lives in a folded panel now, like every other section.
+  await page.locator("#voicePanel summary").click();
   const rows = page.locator("#voiceList .voiceRow");
   await expect(rows.first()).toBeVisible();
 
@@ -225,17 +227,21 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   const picked = (await rows.first().locator(".voice__name").textContent())!;
   await rows.first().locator("button.voice").click();
   await expect(page.locator('#voiceList .voice[aria-checked="true"]')).toHaveCount(1);
-  await page.locator("#voiceSave").click();
+  // No Save: choosing wrote it. The board's own status line is the proof,
+  // and it is what every other edit on this page already says.
+  await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
+  await page.locator("#voiceClose").click();
   await expect(page.locator("#voices")).not.toBeVisible();
 
   // Reopened, exactly one row is marked and it is the one that was picked.
   // The regression this pins: listVoices() once dropped `chosen`, and the
   // sheet opened with nothing marked every time.
   await page.locator("#gear").click();
+  await page.locator("#voicePanel summary").click();
   const on = page.locator('#voiceList .voice[aria-checked="true"]');
   await expect(on).toHaveCount(1);
   await expect(on.locator(".voice__name")).toHaveText(picked);
-  await page.locator("#voiceCancel").click();
+  await page.locator("#voiceClose").click();
 });
 
 test("pressing play with no voice says what to do, not that it failed", async ({ page }) => {

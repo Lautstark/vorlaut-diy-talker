@@ -20,7 +20,7 @@ import { load, saveNow, markReleaseState, wireConflict } from "./core/save.js";
 import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
 import { confirmPair, watchPair } from "./ui/pairing.js";
-import { forgetAzureKey, openVoices, saveVoice, wireLanguage } from "./ui/voices.js";
+import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
 import { wireSymbolFolder, wireBoard } from "./ui/settings.js";
 import { subscribeMetacom } from "./data/symbols.js";
 
@@ -61,10 +61,11 @@ subscribeMetacom(render);
 
   $<HTMLButtonElement>("pairConfirm").onclick = confirmPair;
   $<HTMLButtonElement>("gear").onclick = openVoices;
+  // The cross in the corner is the only way out now, because there is nothing
+  // to confirm or to abandon: everything in the sheet is already written.
   $<HTMLButtonElement>("voiceClose").onclick = () => $<HTMLDialogElement>("voices").close();
-  $<HTMLButtonElement>("voiceSave").onclick = saveVoice;
+  $<HTMLButtonElement>("azureSave").onclick = saveAzure;
   $<HTMLButtonElement>("azureForget").onclick = forgetAzureKey;
-  $<HTMLButtonElement>("voiceCancel").onclick = () => $<HTMLDialogElement>("voices").close();
 
   // Labels first: without them the page shows empty buttons for as long as
   // the first request takes.

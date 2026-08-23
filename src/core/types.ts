@@ -69,6 +69,9 @@ export interface Settings {
     count: number;
     keywords: boolean;
     fixed: boolean;
+    /** Which of METACOM's parallel renderings the search should prefer, or
+     *  null for none. Ordering only - nothing is ever filtered out by it. */
+    rendering?: string | null;
   };
   local?: boolean;
 }

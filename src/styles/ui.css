@@ -16,13 +16,20 @@ body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
+/* A raised plane, not the page's own ground: --surface is what "sits above
+   --bg" means in the token set, and the bar carrying the name and the one
+   irreversible button on the page should read as furniture rather than as the
+   top of the content. */
 header {
-  display: flex; align-items: center; gap: 16px;
-  padding: 12px 24px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 14px;
+  padding: 11px 20px; border-bottom: 1px solid var(--line);
+  background: var(--surface);
 }
 /* "vorlaut" is the name of the thing, not a label: it stays this word in
-   every language and therefore stands in the markup, not in texts.py. */
-header h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+   every language and therefore stands in the markup, not in texts.py. The
+   weight and the tightened tracking are bildhaft's brand wordmark, so the
+   family's three products say their own names the same way. */
+header h1 { font-size: 18px; margin: 0; font-weight: 650; letter-spacing: -.02em; }
 .logo { width: 26px; height: 26px; flex: none; }
 header .status { margin-left: auto; }
 main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
@@ -61,16 +68,26 @@ main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
    mark's eyes stay plain #fff. */
 .thumb {
   aspect-ratio: 1/1; flex: 0 0 auto; background: #fff; border-radius: 8px; cursor: pointer;
+  /* The sheet needs an edge now that the ground can be light: white on a dark
+     tile drew its own boundary, white on a light one does not, and the symbol
+     area stopped being findable. An inset ring rather than a border, so the
+     box does not change size between the two schemes. */
+  box-shadow: inset 0 0 0 1px var(--line);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
   position: relative; border: none; padding: 0;
 }
 .thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
 /* Not .empty: components.css owns that name for the empty-state block, whose
    dashed border and 34px of padding would land on this caption. */
-.thumb .blank { color: #b9bfc9; font-size: 13px; text-align: center; padding: 8px; }
+/* On the white sheet below, not on a surface - so this one keeps a literal in
+   both schemes, for the same reason the sheet does. A token would follow the
+   scheme and go invisible on white the moment the page went light. */
+.thumb .blank { color: #8b93a1; font-size: 13px; text-align: center; padding: 8px; }
 .thumb:hover::after {
   content: var(--pick-label); position: absolute; inset: auto 0 0 0;
-  background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 4px;
+  /* Also on the sheet rather than on a surface: black at 65% over white reads
+     in both schemes, and a token here would vanish in one of them. */
+  background: rgba(0, 0, 0, .65); color: #fff; font-size: 11px; padding: 4px;
   text-align: center;
 }
 .row { display: flex; gap: 8px; }
@@ -118,26 +135,37 @@ button, select, input, textarea { font-family: inherit; }
    appearance: none stays, and for the reason it always had: otherwise the
    operating system draws its own arrow and imposes its own height, with a
    chevron sitting wherever macOS likes. */
-#langPick {
-  appearance: none; -webkit-appearance: none;
-  /* Note the order: the background shorthand resets background-color, so the
-     surface colour has to come after it, not before.
+/* One wrapper per select, and it exists for the arrow. A data URI is its own
+   document and cannot read a custom property, so the chevron used to carry
+   --text-dim written out by hand as %239c9ba5 - one copy, and the comment
+   here said what would happen when the token moved without it. Two schemes
+   would have made it two copies. components.css draws its panel chevron out
+   of two borders and a rotation for exactly this reason, and names it the
+   desync trap "in the one place it keeps appearing"; this is that place, so
+   it is drawn the same way and takes its colour from the token like
+   everything else.
 
-     The %239c9ba5 in the chevron is --text-dim written out by hand: a data URI
-     is its own document and cannot read a custom property. It is a copy, and
-     the only one in this file - when that token moves, this moves with it or
-     the arrow quietly stops matching the type beside it. */
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239c9ba5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    no-repeat right 11px center;
-  background-color: var(--surface-2);
+   appearance: none stays, and for the reason it always had: otherwise the
+   operating system draws its own arrow and imposes its own height, with a
+   chevron sitting wherever macOS likes. */
+.selectwrap { position: relative; display: inline-flex; align-self: flex-start; max-width: 100%; }
+.selectwrap::after {
+  content: ""; position: absolute; right: 12px; top: 50%;
+  width: 7px; height: 7px; pointer-events: none;
+  border-right: 1.6px solid var(--text-dim);
+  border-bottom: 1.6px solid var(--text-dim);
+  transform: translateY(-70%) rotate(45deg);
+}
+.selectwrap select {
+  appearance: none; -webkit-appearance: none;
+  background: var(--surface-2);
   color: var(--text); border: 1px solid var(--line);
-  border-radius: 8px; padding: 8px 30px 8px 12px; cursor: pointer;
+  border-radius: 8px; padding: 8px 32px 8px 12px; cursor: pointer;
   font-size: 14px; line-height: normal;   /* like the inputs below it */
-  align-self: flex-start;                 /* as wide as the longest name */
+  width: 100%;
   transition: border-color .12s;
 }
-#langPick:hover, #langPick:focus-visible { border-color: var(--text-dim); }
+.selectwrap select:hover, .selectwrap select:focus-visible { border-color: var(--text-dim); }
 /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. That reasoning
    is now a token - --accent-ink is the same idea solved rather than guessed,
    and it comes out at 6.0:1. */
@@ -178,8 +206,10 @@ button, select, input, textarea { font-family: inherit; }
 }
 .pill::after {
   content: ""; position: absolute; top: 2px; left: 2px;
-  width: 18px; height: 18px; border-radius: 50%; background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .45); transition: transform .15s;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--surface);
+  /* --shadow-sm rather than a hand-mixed black: the token is solved for the
+     scheme, and a .45 black under a white knob on a light ground was a smudge. */
+  box-shadow: var(--shadow-sm); transition: transform .15s;
 }
 .toggle input:checked + .pill { background: var(--accent); }
 .toggle input:checked + .pill::after { transform: translateX(16px); }
@@ -224,12 +254,16 @@ header .status { margin-left: auto; }
   justify-content: flex-start;
 }
 #removeSet { width: 100%; }
-/* #101216 is a plane below --bg, which the token set has no name for - a log
-   sunk into the page rather than sitting on it. It keeps its literal until
-   there is a token to point at. */
+/* A plane BELOW --bg - a log sunk into the page rather than sitting on it -
+   and the token set has no name for that in either scheme. It used to be the
+   literal #101216, which was a step down from a dark ground and a hole in a
+   light one. Mixed out of the two tokens that do exist instead, so the step
+   is in the same direction whichever ground is underneath. */
 pre.log {
-  margin-top: 12px; background: #101216; border: 1px solid var(--line);
-  border-radius: 10px; padding: 14px; font-size: 12.5px; color: #c8d0dc;
+  margin-top: 12px; border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--bg) 88%, var(--text));
+  color: var(--text-dim);
+  border-radius: 10px; padding: 14px; font-size: 12.5px;
   max-height: 260px; overflow: auto; white-space: pre-wrap; display: none;
 }
 
@@ -254,23 +288,18 @@ pre.log {
     position: absolute; width: 1px; height: 1px; margin: -1px;
     overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
-  /* The gear stays beside the mark, which is where a wide screen puts it.
-     It used to be pulled into the group on the right, and at order: 3 that
-     also put the device preview in front of it - so the settings button
-     sat in a different place, and in a different order, depending on how
-     wide the window happened to be. At order: 0 it keeps the logo's
-     company; the wordmark that separates them on a wide screen is hidden
-     just above.
+  /* No `order` here any more, and that is the point. It existed to pull the
+     gear back beside the mark because the markup put it second, between the
+     name and the status - so the settings button sat in a different place
+     depending on how wide the window was. The markup puts it last now, past
+     Release, on every width; re-ordering it here would put the difference
+     back that removing it was meant to end.
 
-     The rest stand against the right edge. On a wide screen the status
-     carries the auto margin that pushes them there; here it sits next to
-     the logo instead, so the margin moves to the first of them. */
-  /* All scoped to the header: .toggle is also the active switch on the
-     set tile, and an auto margin sent that one to the right edge too. */
-  header #gear { order: 0; }
-  header .status { order: 1; margin-left: 0; }
-  header .toggle { order: 2; margin-left: auto; }
-  header #releaseBtn { order: 3; }
+     The status keeps its auto margin: with the wordmark hidden just above,
+     that margin is what still pushes the group against the right edge.
+
+     Scoped to the header on purpose - .toggle is also the active switch on
+     the set tile, and an auto margin sent that one to the right edge too. */
 
   /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
      sets past the edge with nothing to say they are there - and the sets
@@ -289,7 +318,12 @@ dialog {
   background: var(--surface); color: var(--text); border: 1px solid var(--line);
   border-radius: 14px; padding: 0; width: min(760px, 92vw);
 }
-dialog::backdrop { background: rgba(0,0,0,.6); }
+/* Dimming, not tinting: black at 60% in dark, lighter in light, so the sheet
+   stays the brightest thing on screen either way. */
+dialog::backdrop { background: rgba(0, 0, 0, .6); }
+@media (prefers-color-scheme: light) {
+  dialog::backdrop { background: rgba(0, 0, 0, .32); }
+}
 .dlgHead {
   display: flex; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line);
   align-items: center;
@@ -309,7 +343,12 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .results img {
   /* White for the reason .thumb is white: the pictogram's sheet. */
   width: 100%; aspect-ratio: 1/1; object-fit: contain; background: #fff;
-  border-radius: 8px; padding: 4px; border: 2px solid transparent;
+  border-radius: 8px; padding: 4px;
+  /* Same as the thumb: the sheet is white in both schemes, so on a light
+     ground it needs an edge of its own. The transparent border is the slot
+     the hover accent fills, and it must stay the same width either way or
+     the grid reflows under the pointer. */
+  border: 2px solid transparent; box-shadow: inset 0 0 0 1px var(--line);
 }
 .results figure:hover img { border-color: var(--accent); }
 .results figcaption { font-size: 11px; color: var(--text-dim); margin-top: 4px;
