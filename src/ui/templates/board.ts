@@ -8,8 +8,8 @@ export const markup = `
 <main>
   <div class="conflict" id="conflict">
     <span id="conflictText"></span>
-    <button id="overwriteBtn"></button>
-    <button id="reloadBtn"></button>
+    <button id="overwriteBtn" class="btn" type="button"></button>
+    <button id="reloadBtn" class="btn" type="button"></button>
   </div>
   <div class="pairing" id="pairing">
     <div class="pairHead">
@@ -18,7 +18,7 @@ export const markup = `
     </div>
     <div class="pairKeys" id="pairKeys"></div>
     <div class="pairFoot">
-      <button class="primary" id="pairConfirm"></button>
+      <button class="btn primary" id="pairConfirm" type="button"></button>
       <span class="note" id="pairError"></span>
     </div>
   </div>
@@ -26,7 +26,7 @@ export const markup = `
   <div class="slots" id="slots"></div>
   <div class="device" id="device"></div>
 
-  <button id="removeSet" class="danger"></button>
+  <button id="removeSet" class="btn destructive" type="button"></button>
   <pre class="log" id="log"></pre>
 <input type="file" id="fileInput" accept="image/*" hidden>
 <input type="file" id="boardFile" accept=".obf,.obz,application/zip" hidden>

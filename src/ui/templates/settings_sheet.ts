@@ -10,20 +10,26 @@ import { mount } from "./mount.js";
 
 export const markup = `
 <dialog id="voices" class="sheet">
-  <div class="dlgHead">
+  <div class="head">
     <strong id="settingsHeading"></strong>
-    <button id="voiceClose" class="closeX">×</button>
+    <button id="voiceClose" class="btn quiet icon closeX" type="button">×</button>
   </div>
-  <div class="sheetBody">
+  <div class="body">
   <!-- First, and deliberately: somebody who cannot read the page needs this
        one before anything else. The options name themselves - see voices.js. -->
   <div class="section" id="languageSection"></div>
-  <div class="field">
+  <div class="setting">
     <select id="langPick"></select>
     <p class="note" id="languageNote"></p>
   </div>
 
   <div class="section" id="voiceSection"></div>
+  <!-- The search field lives here rather than being rebuilt with the list:
+       redrawing an input somebody is typing into takes the caret with it. -->
+  <div class="setting">
+    <input type="search" id="voiceQuery" class="field" autocomplete="off">
+  </div>
+  <div class="voicefilters" id="voiceFilters"></div>
   <div class="voiceList" id="voiceList"></div>
   <div class="hint" id="voiceHint"></div>
   <!-- The offer to fetch the offline voices. Below the note about the
@@ -39,17 +45,17 @@ export const markup = `
       <span class="section" id="azureSection"></span>
       <span class="state" id="azureState"></span>
     </summary>
-    <div class="field">
+    <div class="setting">
       <p class="lead" id="azureIntro"></p>
       <p class="lead"><a id="azureLink" target="_blank" rel="noopener noreferrer"></a></p>
       <label id="azureKeyLabel" for="azureKey"></label>
-      <input type="password" id="azureKey" autocomplete="off">
+      <input type="password" id="azureKey" class="field" autocomplete="off">
       <p class="note" id="azureKeyState"></p>
       <!-- Removing the key is its own button: the empty field already means
            "leave the key alone", so it cannot also mean "drop it". -->
-      <button id="azureForget" type="button"></button>
+      <button id="azureForget" class="btn" type="button"></button>
       <label id="azureRegionLabel" for="azureRegion"></label>
-      <input type="text" id="azureRegion" autocomplete="off">
+      <input type="text" id="azureRegion" class="field" autocomplete="off">
     </div>
   </details>
 
@@ -58,19 +64,19 @@ export const markup = `
       <span class="section" id="symbolsSection"></span>
       <span class="state" id="symbolsState"></span>
     </summary>
-    <div class="field">
+    <div class="setting">
       <p class="lead" id="metacomIntro"></p>
       <p class="lead"><a id="metacomLink" target="_blank" rel="noopener noreferrer"></a></p>
       <label id="metacomHereLabel"></label>
       <div class="row">
-        <button id="metacomChoose" type="button"></button>
+        <button id="metacomChoose" class="btn" type="button"></button>
         <input type="file" id="metacomFiles" webkitdirectory directory multiple hidden>
-        <button id="metacomForget" type="button"></button>
+        <button id="metacomForget" class="btn" type="button"></button>
       </div>
       <p class="note" id="metacomHereState"></p>
 
       <label id="metacomLabel" for="metacomPath"></label>
-      <input type="text" id="metacomPath" autocomplete="off">
+      <input type="text" id="metacomPath" class="field" autocomplete="off">
       <p class="note" id="metacomState"></p>
       <p class="note" id="metacomBuildNote"></p>
     </div>
@@ -80,19 +86,19 @@ export const markup = `
     <summary>
       <span class="section" id="boardSection"></span>
     </summary>
-    <div class="field">
+    <div class="setting">
       <p class="lead" id="boardNote"></p>
-      <button id="boardExport"></button>
-      <button id="boardImport"></button>
+      <button id="boardExport" class="btn" type="button"></button>
+      <button id="boardImport" class="btn" type="button"></button>
       <p class="note" id="boardState"></p>
     </div>
   </details>
 
   </div>
 
-  <div class="sheetFoot">
-    <button class="primary" id="voiceSave"></button>
-    <button id="voiceCancel"></button>
+  <div class="foot">
+    <button class="btn primary" id="voiceSave" type="button"></button>
+    <button id="voiceCancel" class="btn" type="button"></button>
   </div>
 </dialog>
 `;

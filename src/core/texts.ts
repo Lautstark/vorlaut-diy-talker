@@ -43,6 +43,8 @@ export function applyTexts() {
   $("credits").textContent = t("ui.credits_arasaac");
   $("settingsHeading").textContent = t("ui.settings");
   $("voiceSection").textContent = t("ui.voice");
+  $<HTMLInputElement>("voiceQuery").placeholder = t("ui.voice_search_hint");
+  $<HTMLInputElement>("voiceQuery").setAttribute("aria-label", t("ui.voice_search_hint"));
   $("azureSection").textContent = t("ui.azure");
   $("azureIntro").textContent = t("ui.azure_intro");
   outward("azureLink", "ui.azure_link", "ui.azure_link_url");

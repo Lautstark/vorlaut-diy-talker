@@ -15,14 +15,14 @@ export const markup = `
 <header>
   <img src="${logo}" alt="" class="logo">
   <h1>vorlaut</h1>
-  <button id="gear" class="gear">⚙</button>
+  <button id="gear" class="btn quiet icon gear" type="button">⚙</button>
   <span class="status" id="status"></span>
   <label class="toggle" id="previewLabel">
     <input type="checkbox" id="previewToggle">
     <span class="pill"></span>
     <span id="previewText"></span>
   </label>
-  <button class="primary" id="releaseBtn"></button>
+  <button class="btn primary" id="releaseBtn" type="button"></button>
 </header>
 `;
 

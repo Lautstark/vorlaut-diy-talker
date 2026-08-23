@@ -39,12 +39,16 @@ let fetchDone = false;   // finished in this dialog - worth saying so
 // would otherwise leave two of them polling and rendering over each other.
 let polling = false;
 
-// Whether the whole list is unfolded. A key of your own brings twenty voices
-// and more, and all of them at once pushed everything below the voice section
-// out of the sheet - the panel that holds the key among them, which is the one
-// thing somebody with no voices has come here to find. So the list shows the
-// one voice that is chosen, and says how many others there are.
-let showAll = false;
+// How the list narrows. A key of your own brings hundreds of voices, and all
+// of them at once pushed everything below the voice section out of the sheet -
+// the panel that holds the key among them, which is the one thing somebody
+// with no voices has come here to find. The old answer was to fold the list
+// down to the chosen voice and offer "show all"; this is mitreden's answer
+// instead, and it is better: the list scrolls in a box of its own, and what
+// somebody is looking for is reached by typing or by language rather than by
+// unfolding everything and scrolling past what they did not want.
+let query = "";
+let onlyLang: string | null = null;
 
 async function loadVoices() {
   try {
@@ -63,37 +67,134 @@ function sampleText() {
   return slot ? slot.text.trim() : t("ui.voice_sample");
 }
 
-function voiceRow(id, name, note, mute, on) {
+/* stimmquelle publishes three, and a corpus of several speakers is `mixed`
+ * rather than a guess. Anything it adds later is shown as it came, which is
+ * honest, rather than as the name of a missing translation. */
+function genderOf(gender: string): string {
+  return gender === "female" || gender === "male" || gender === "mixed"
+    ? t(`ui.gender_${gender}`) : gender;
+}
+
+/* Who renders it. Not the model's name or the vendor's product name: what
+ * somebody choosing is deciding is whether it is already here or has to be
+ * fetched from a company. */
+function sourceOf(source: string): string {
+  // Empty is not a backend, and the one row that has none is the voice that
+  // is chosen but not here: it must not claim to be bundled while saying in
+  // the same line that it cannot be found.
+  if (!source) return "";
+  return t(source === "azure" ? "ui.source_azure"
+         : source === "system" ? "ui.source_system" : "ui.source_piper");
+}
+
+/* What it speaks, named in the language of whoever is reading. */
+function speaks(code: string): string {
+  const tag = (code || "").replaceAll("_", "-");
+  if (!tag) return "";
+  try {
+    return new Intl.DisplayNames([LANG], { type: "language" }).of(tag) ?? tag;
+  } catch {
+    return tag;
+  }
+}
+
+/** What this voice costs to have before it will speak. */
+function weighs(bytes: number): string {
+  return `${Math.round(bytes / 1e6)} MB`;
+}
+
+/** stimmquelle's rule: `de_DE`, `de-DE` and `de` all compare equal. */
+function language(code: string): string {
+  return (code || "").toLowerCase().replaceAll("_", "-").split("-")[0];
+}
+
+function matches(voice) {
+  if (onlyLang && language(voice.language) !== onlyLang) return false;
+  if (!query) return true;
+  const hay = `${voice.label} ${voice.language} ${sourceOf(voice.source)} ${speaks(voice.language)}`;
+  return hay.toLowerCase().includes(query);
+}
+
+/* One voice, in the four facts that decide between two of them: who renders
+ * it, what it speaks, whose voice it is, and what it costs to have. The list
+ * used to be bare names, where "Thorsten" and "Katja" were indistinguishable
+ * in every way that matters - one is on this machine, the other is a request
+ * to Microsoft per sentence.
+ *
+ * Four facts and no verdict. stimmquelle's `recommended` is not among them and
+ * deliberately is not carried into OfferedVoice either - see the note there.
+ *
+ * Two buttons per row, still: hearing a voice and choosing it are two
+ * different decisions, and the first must not commit to the second. That is
+ * why the row is a wrapper and not itself the button mitreden makes it - a
+ * button inside a button is not a thing a browser will render. */
+function voiceRow(voice, note: string, mute: boolean, on: boolean) {
   const row = document.createElement("div");
-  row.className = "voiceRow" + (on ? " on" : "");
+  row.className = "voiceRow";
 
   const play = document.createElement("button");
-  play.className = "play";
+  play.className = "btn play";
+  play.type = "button";
   play.textContent = "▶";
   play.title = t("ui.play_title");
   // Nothing to listen to for a voice that is not here. The button stays, so
   // the row keeps its shape, but it cannot be pressed.
-  play.disabled = !!mute;
+  play.disabled = mute;
   // The voice of this row, not the saved one - otherwise trying one out would
   // mean committing to it first.
-  play.onclick = () => speak(sampleText(), play, id || voices.active);
+  play.onclick = () => speak(sampleText(), play, voice.id || voices.active);
 
   const pick = document.createElement("button");
-  pick.className = "pick";
-  const naming = document.createElement("span");
-  naming.textContent = name;
-  pick.appendChild(naming);
-  if (note) {
-    const extra = document.createElement("span");
-    extra.className = "note";
-    extra.textContent = " " + note;
-    pick.appendChild(extra);
-  }
-  pick.onclick = () => chooseVoice(id);
+  pick.className = "voice";
+  pick.type = "button";
+  pick.setAttribute("role", "radio");
+  pick.setAttribute("aria-checked", String(on));
 
-  row.appendChild(play);
-  row.appendChild(pick);
+  const naming = document.createElement("span");
+  naming.className = "voice__name";
+  naming.textContent = voice.label;
+
+  const facts = document.createElement("span");
+  facts.className = "voice__facts";
+  facts.textContent = [
+    sourceOf(voice.source),
+    speaks(voice.language),
+    genderOf(voice.gender || ""),
+    voice.needsKey ? t("ui.voice_needs_key")
+      : voice.downloadBytes ? weighs(voice.downloadBytes) : "",
+    note,
+  ].filter(Boolean).join(" · ");
+
+  pick.append(naming, facts);
+  pick.onclick = () => chooseVoice(voice.id);
+
+  row.append(play, pick);
   return row;
+}
+
+/* One chip per language the list actually holds, plus "all". Built from the
+ * voices in hand rather than from LANGUAGES: the page speaks two, the
+ * catalogue speaks a good many more, and a filter offering a language nothing
+ * can speak is a filter that answers with nothing. */
+function renderFilters() {
+  const box = $("voiceFilters");
+  box.innerHTML = "";
+  const codes = [...new Set(voices.voices.map((v) => language(v.language)))]
+    .filter(Boolean).sort();
+  // Nothing to narrow with one language in the list.
+  if (codes.length < 2) return;
+
+  const chip = (label: string, code: string | null) => {
+    const button = document.createElement("button");
+    button.className = "chip";
+    button.type = "button";
+    button.textContent = label;
+    button.setAttribute("aria-pressed", String(onlyLang === code));
+    button.onclick = () => { onlyLang = code; renderVoices(); };
+    box.appendChild(button);
+  };
+  chip(t("ui.voice_lang_all"), null);
+  for (const code of codes) chip(speaks(code), code);
 }
 
 // The button that fetches what is missing. Under the voice section whether or
@@ -119,27 +220,13 @@ function fetchRow() {
   return row;
 }
 
-// Unfolds the list, and folds it back. Only worth showing when there is more
-// than the one row underneath it.
-function moreRow() {
-  const row = document.createElement("div");
-  row.className = "voiceMore";
-  const button = document.createElement("button");
-  button.className = "linkish";
-  button.textContent = showAll
-    ? t("ui.voice_show_less")
-    : t("ui.voice_show_all", { n: voices.voices.length });
-  button.onclick = () => { showAll = !showAll; renderVoices(); };
-  row.appendChild(button);
-  return row;
-}
-
 function renderVoices() {
   const list = $("voiceList");
   list.innerHTML = "";
+  renderFilters();
   if (!voices.voices.length) {
     const empty = document.createElement("div");
-    empty.className = "voiceRow empty";
+    empty.className = "voiceRow blank";
     empty.textContent = t("ui.voice_none");
     list.appendChild(empty);
     renderOffer();
@@ -153,25 +240,33 @@ function renderVoices() {
   // a word to say nobody picked it by hand. Choosing any row writes it down,
   // and from then on the layout carries a decision instead of a default.
   const marked = pendingVoice || voices.active;
-  for (const voice of voices.voices) {
-    // Folded up, the chosen one is the list. Which is what the section is
-    // asked for nine times out of ten: not "which voices are there" but
-    // "which one is it speaking in".
-    if (!showAll && voice.id !== marked) continue;
-    list.appendChild(voiceRow(
-      voice.id, voice.label,
+  const box = document.createElement("div");
+  box.className = "voices";
+  box.setAttribute("role", "radiogroup");
+  const hits = voices.voices.filter(matches);
+  for (const voice of hits) {
+    box.appendChild(voiceRow(
+      voice,
       !pendingVoice && voice.id === voices.active ? t("ui.voice_auto_note") : "",
       false, voice.id === marked));
   }
+  if (!hits.length) {
+    const none = document.createElement("p");
+    none.className = "note";
+    none.textContent = t("ui.voice_no_match");
+    box.appendChild(none);
+  }
+  list.appendChild(box);
   // A voice can be chosen and not be here: a key withdrawn, a model deleted,
   // a layout carried over from another machine. It stays chosen on purpose -
   // so it has to be visible, or the list would show nothing as chosen and the
   // next save would quietly drop a deliberate decision.
   if (pendingVoice && !voices.voices.some((v) => v.id === pendingVoice)) {
-    list.appendChild(voiceRow(pendingVoice, pendingVoice,
-                              t("ui.voice_gone"), true, true));
+    box.appendChild(voiceRow(
+      { id: pendingVoice, label: pendingVoice, language: "", source: "",
+        gender: "", downloadBytes: 0, needsKey: false },
+      t("ui.voice_gone"), true, true));
   }
-  if (voices.voices.length > 1) list.appendChild(moreRow());
   renderOffer();
   // The standing rule, whether or not anything was just ticked: a voice is
   // part of what every sentence is spoken with, so changing it re-records all
@@ -292,7 +387,6 @@ export async function saveVoice() {
     // list are the answer, and they belong on the screen the question was
     // asked from. Picking a voice still closes, below: that save is the end
     // of the errand, this one is the middle of it.
-    showAll = true;
     renderVoices();
     status(t("ui.settings_saved"));
     return;
@@ -334,6 +428,11 @@ export function wireLanguage() {
   pick.value = LANG;
   pendingLanguage = LANG;
   pick.onchange = () => { pendingLanguage = pick.value; };
+
+  // Typed into once and read on every render afterwards. The field is in the
+  // sheet's markup rather than rebuilt with the list, so the caret survives.
+  const search = $<HTMLInputElement>("voiceQuery");
+  search.oninput = () => { query = search.value.trim().toLowerCase(); renderVoices(); };
 }
 
 export async function openVoices() {
@@ -341,12 +440,15 @@ export async function openVoices() {
   $("voiceHint").textContent = "";
   $("voiceOffer").innerHTML = "";
   fetchDone = false;
-  // Folded again on every open, all three of them. Somebody who unfolded one
-  // last time was after a single thing in it, not after a preference. The
-  // headings say what is inside, so nothing is hidden by folding them - and
+  // Folded again on every open, both of them. Somebody who unfolded one last
+  // time was after a single thing in it, not after a preference. The headings
+  // say what is inside, so nothing is hidden by folding them - and
   // loadSettings() below unfolds the symbols panel again if what is in there
-  // is broken.
-  showAll = false;
+  // is broken. The voice list is narrowed back the same way, for the same
+  // reason: a filter left on would hide voices with no sign that it had.
+  query = "";
+  onlyLang = null;
+  $<HTMLInputElement>("voiceQuery").value = "";
   $<HTMLDetailsElement>("azurePanel").open = false;
   $<HTMLDetailsElement>("symbolsPanel").open = false;
   $<HTMLDialogElement>("voices").showModal();

@@ -18,6 +18,14 @@
 // identical today is a copy that drifts tomorrow, and the lockfile pin is what
 // says which version this page wears.
 import "@lautstark/design/tokens/vorlaut.css";
+// The components layer, between the tokens and this page's own rules: the
+// button, the field, the chip, the menu, the sheet and the folded panel,
+// each written once against the token names. It restyles nothing by itself
+// except :focus-visible - everything else is opt-in by class - which is why
+// ui.css below is now the layout that is vorlaut's alone, and no longer a
+// second copy of the vocabulary. The panel in it came from here in the first
+// place and has gone home.
+import "@lautstark/design/components.css";
 import "./styles/ui.css";
 
 // The page's structure. Each of these sits beside the module that owns it;

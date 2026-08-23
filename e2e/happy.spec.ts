@@ -206,10 +206,10 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   await page.locator("#gear").click();
   await expect(page.locator("#voices")).toBeVisible();
 
-  // A fresh board folds the list to the chosen voice - which is none - so
-  // the sheet opens on nothing but the "show all" row. That is the exact
-  // state the deployed screenshot showed.
-  await page.locator("#voiceList .voiceMore button").click();
+  // The list is not folded any more - it stands open in a box that scrolls,
+  // narrowed by the search field and the language chips above it rather than
+  // by a "show all" row. A fresh board has nothing chosen, and what the sheet
+  // opens on is the whole list.
   const rows = page.locator("#voiceList .voiceRow");
   await expect(rows.first()).toBeVisible();
 
@@ -222,19 +222,19 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   await expect(page.locator("#voiceList .voiceRow", { hasText: "John" }))
     .toHaveCount(1);
 
-  const picked = (await rows.first().locator(".pick span").first().textContent())!;
-  await rows.first().locator("button.pick").click();
-  await expect(page.locator("#voiceList .voiceRow.on")).toHaveCount(1);
+  const picked = (await rows.first().locator(".voice__name").textContent())!;
+  await rows.first().locator("button.voice").click();
+  await expect(page.locator('#voiceList .voice[aria-checked="true"]')).toHaveCount(1);
   await page.locator("#voiceSave").click();
   await expect(page.locator("#voices")).not.toBeVisible();
 
-  // Reopened, the folded list is the chosen row, marked. The regression this
-  // pins: listVoices() once dropped `chosen`, and the sheet opened with
-  // nothing marked every time.
+  // Reopened, exactly one row is marked and it is the one that was picked.
+  // The regression this pins: listVoices() once dropped `chosen`, and the
+  // sheet opened with nothing marked every time.
   await page.locator("#gear").click();
-  const on = page.locator("#voiceList .voiceRow.on");
+  const on = page.locator('#voiceList .voice[aria-checked="true"]');
   await expect(on).toHaveCount(1);
-  await expect(on.locator(".pick span").first()).toHaveText(picked);
+  await expect(on.locator(".voice__name")).toHaveText(picked);
   await page.locator("#voiceCancel").click();
 });
 

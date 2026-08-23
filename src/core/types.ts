@@ -84,12 +84,36 @@ export interface WantedSettings {
   azureKey?: string | null;
 }
 
-/** A voice as the picker shows it. */
+/** A voice as the picker shows it.
+ *
+ * Four facts beyond the name, and they are the four that decide between two
+ * voices: who renders it, what it speaks, whose voice it is, and what it costs
+ * to have. The catalogue carried all of them all along and this seam used to
+ * drop them on the floor - a picker of bare names made "Thorsten" and "Katja"
+ * look like the same kind of thing, when one is on this machine and the other
+ * is a request to Microsoft per sentence.
+ *
+ * stimmquelle's `recommended` is deliberately NOT here. It is editorial, and
+ * its own documentation says it is always false for a cloud backend "which
+ * publishes hundreds and about which this package has no opinion" - so with an
+ * Azure key a handful of rows would carry a badge and several hundred would
+ * not, and "no opinion" is indistinguishable from "not as good" to anyone
+ * reading the list. mitreden took the same badge out for the same reason. The
+ * flag stays out of the type rather than being carried unused, because an
+ * unused field is where a use gets invented later. */
 export interface OfferedVoice {
   id: string;
   label: string;
   language: string;
   ready: boolean;
+  /** What actually renders it. Decides what the other fields can promise. */
+  source: "piper" | "azure" | "system";
+  /** `female`, `male`, or `mixed` for a multi-speaker corpus. Empty if unknown. */
+  gender: string;
+  /** Fetched before this voice first speaks. 0 for a cloud backend. */
+  downloadBytes: number;
+  /** True when it needs a key, and so a network call for every sentence. */
+  needsKey: boolean;
 }
 
 export interface VoiceList {

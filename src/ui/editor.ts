@@ -93,7 +93,7 @@ function placeholder(...parts) {
   // and phrasing content is all a button may hold. The thumb is a flex box,
   // so the span is blockified and text-align centres it all the same.
   const line = document.createElement("span");
-  line.className = "empty";
+  line.className = "blank";
   line.append(...parts);
   return line;
 }
@@ -210,7 +210,7 @@ export function render() {
   }
 
   const used = activeCount();
-  $("slots").classList.toggle("empty", used === 0 && state.layout.sets.length > 0);
+  $("slots").classList.toggle("warn", used === 0 && state.layout.sets.length > 0);
   $("slots").textContent = used === 0 && state.layout.sets.length > 0
     ? t("ui.none_active", { n: state.layout.sets.length })
     : t("ui.slots_used", { used: used, max: limits.maxActive })
@@ -243,6 +243,7 @@ export function render() {
   if (preview) setTile.appendChild(actualSize(entry.symbol, color));
 
   const nameInput = document.createElement("input");
+  nameInput.className = "field";
   nameInput.type = "text";
   nameInput.value = entry.name;
   nameInput.placeholder = t("ui.set_name");
@@ -282,6 +283,7 @@ export function render() {
   colorInput.value = color;
   colorInput.title = t("ui.colour_title");
   const hexInput = document.createElement("input");
+  hexInput.className = "field";
   hexInput.type = "text";
   hexInput.value = color;
   const applyColor = (value) => {
@@ -405,12 +407,13 @@ export function render() {
     const row = document.createElement("div");
     row.className = "row";
     const textInput = document.createElement("input");
+    textInput.className = "field";
     textInput.type = "text";
     textInput.value = slot.text;
     textInput.placeholder = t("ui.text_placeholder");
     textInput.oninput = () => { slot.text = textInput.value; saveSoon(); };
     const playBtn = document.createElement("button");
-    playBtn.className = "play";
+    playBtn.className = "btn play";
     playBtn.textContent = "▶";
     playBtn.title = t("ui.play_title");
     playBtn.onclick = () => speak(slot.text, playBtn);
