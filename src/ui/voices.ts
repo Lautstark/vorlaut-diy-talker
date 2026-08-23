@@ -18,7 +18,7 @@ import { showSources } from "./picker.js";
 import { speak } from "./speech.js";
 import { forgetKey, loadSettings, paintStates, saveSettings } from "./settings.js";
 
-let voices = { voices: [], active: "", chosen: "" };
+let voices = { voices: [], active: "", chosen: "", chosenLabel: "" };
 // Nothing is "pending" on this sheet any more. What is ticked IS what stands
 // in layout.json, because choosing writes - so voices.chosen is the single
 // answer to "which voice", and the gap that used to be held open between
@@ -300,8 +300,9 @@ function renderVoices() {
   // next save would quietly drop a deliberate decision.
   if (voices.chosen && !voices.voices.some((v) => v.id === voices.chosen)) {
     box.appendChild(voiceRow(
-      { id: voices.chosen, label: voices.chosen, language: "", source: "",
-        gender: "", quality: "", downloadBytes: 0, needsKey: false },
+      { id: voices.chosen, label: voices.chosenLabel || voices.chosen,
+        language: "", source: "", gender: "", quality: "", downloadBytes: 0,
+        needsKey: false },
       t("ui.voice_gone"), true, true, false));
   }
   renderOffer();
@@ -319,9 +320,12 @@ function renderVoices() {
 function paintVoiceState() {
   const id = voices.chosen || voices.active;
   const voice = voices.voices.find((v) => v.id === id);
+  // The same name the row below uses when the voice is not here. Falling back
+  // to the id put `azure:de-DE-KatjaNeural` in the one line that is the whole
+  // answer nine times out of ten.
   $("voiceState").textContent = voice
     ? [voice.label, sourceOf(voice.source), speaks(voice.language)].filter(Boolean).join(" · ")
-    : id || t("ui.voice_state_none");
+    : voices.chosenLabel || id || t("ui.voice_state_none");
 }
 
 function renderOffer() {

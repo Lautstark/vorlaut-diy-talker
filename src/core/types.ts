@@ -157,6 +157,16 @@ export interface VoiceList {
   /** What layout.json says. The settings sheet opens on this one; between
    *  opening it and pressing Save the two can differ. */
   chosen: string;
+  /** What to call `chosen`, worked out from the id alone.
+   *
+   *  For the row that shows a voice the layout still holds but this machine
+   *  cannot offer - a key withdrawn, a model deleted, a layout carried over
+   *  from another machine. That row used to print the raw id, and for an Azure
+   *  voice the id is the one thing nobody chose it by: `azure:de-DE-Katja-
+   *  Neural` where the sheet had said "Katja". The name has to come from here
+   *  because the backend is where the naming rules are; the page has no way to
+   *  turn an id into a name and should not learn one. */
+  chosenLabel: string;
   backend: string;
 }
 

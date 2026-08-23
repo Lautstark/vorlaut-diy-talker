@@ -27,7 +27,8 @@ import {
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import {
-  speak, asBlob, shippable, displayName, usePiperRuntime, PIPELINE_VERSION,
+  speak, asBlob, shippable, displayName, parseVoiceId, usePiperRuntime,
+  PIPELINE_VERSION,
   listVoices as catalogueVoices,
   type OnnxModule, type PhonemizerFactory,
 } from "@lautstark/stimmquelle/browser";
@@ -245,6 +246,41 @@ export async function symbolInto(image, reference) {
 
 // --- Voices and speech -------------------------------------------------------
 
+/* What to call an Azure voice when Azure cannot be asked.
+ *
+ * The friendly name in the list is `LocalName` out of the catalogue, which is
+ * a network answer - and a network answer is exactly what is missing in the
+ * one case this exists for: a stored key that has stopped working, and a row
+ * that still has to say which voice the board is holding on to.
+ *
+ * displayName() cannot do it, and not by oversight. Its fallback cuts the
+ * locale off at the FIRST dash, which is right for the piper stem it is meant
+ * for - `de_DE-thorsten-medium`, whose locale carries an underscore - and
+ * wrong for a ShortName whose locale carries the dash itself:
+ * `de-DE-KatjaNeural` came out as `DE-KatjaNeural`, which is not a name.
+ *
+ * So this reads Azure's own convention, the same one stimmquelle's localeOf()
+ * reads from the other end: a ShortName is `<lang>-<REGION>-<Name>`, and the
+ * name is camel case with `Neural` stuck on it. Katja is Katja. The
+ * multilingual ones keep the word, because "Jenny Multilingual" is a different
+ * voice from Jenny and Azure's own DisplayName says so too. */
+function azureName(model: string): string {
+  const parts = model.split("-");
+  const stem = (parts.length >= 3 ? parts.slice(2).join(" ") : model)
+    .replace(/Neural$/, "");
+  return stem.replace(/([a-z0-9])([A-Z])/g, "$1 $2").trim() || model;
+}
+
+/* A voice's name from its id and nothing else - no key, no network, no
+ * catalogue entry. Which backend minted the id decides how it is read, because
+ * the two write names differently and only one of them is stimmquelle's own. */
+function nameOf(id: string): string {
+  if (!id) return "";
+  const parsed = parseVoiceId(id);
+  return parsed && parsed.backend === "azure"
+    ? azureName(parsed.model) : displayName(id);
+}
+
 export async function listVoices(): Promise<VoiceList> {
   // shippable() rather than the whole catalogue: it drops what cannot speak
   // here, what may not be handed on at all, and what may be handed on only
@@ -312,7 +348,12 @@ export async function listVoices(): Promise<VoiceList> {
   // is what stands in layout.json. Without a server they are the same value.
   // Returning only `active` left the settings sheet opening with nothing
   // ticked, because it reads `chosen` to decide.
-  return { voices: list, active: chosen, chosen, backend: "browser" };
+  // chosenLabel travels with them because the page cannot work it out: naming
+  // a voice is stimmquelle's business and this file is where stimmquelle is.
+  // It is filled in whether or not the voice is on offer - the row that needs
+  // it is precisely the one whose voice is missing from `list`.
+  return { voices: list, active: chosen, chosen, chosenLabel: nameOf(chosen),
+           backend: "browser" };
 }
 
 // Piper's models arrive from a CDN on first use rather than being fetched

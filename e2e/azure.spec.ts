@@ -25,6 +25,8 @@ const AZURE_UNREACHABLE = new RegExp(`^(${table("ui.azure_unreachable")
   .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 const AZURE_NONE = new RegExp(`^(${table("ui.azure_key_none")
   .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
+const VOICE_GONE = new RegExp(`(${table("ui.voice_gone")
+  .map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`);
 
 /* A regex, not a glob: the region rides in the SUBDOMAIN
  * (westeurope.tts.speech...), and a glob's "**\/" wants a slash exactly where
@@ -127,4 +129,44 @@ test("a stored key can be removed, and the azure rows leave with it", async ({ p
   await expect(page.locator("#device .tile")).toHaveCount(5);
   await page.locator("#gear").click();
   await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
+});
+
+
+test("a chosen Azure voice keeps its name after the key stops working", async ({ page }) => {
+  await page.route(VOICES_LIST, (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify([
+      { ShortName: "de-DE-KatjaNeural", Locale: "de-DE", Gender: "Female",
+        DisplayName: "Katja", LocalName: "Katja" },
+    ]),
+  }));
+  await typeKeyAndSave(page, "westeurope");
+  await openVoicePanel(page);
+
+  // Chosen while the key still works, which is the only moment anybody ever
+  // sees this voice called anything.
+  const katja = page.locator("#voiceList .voiceRow", { hasText: "Katja" });
+  await expect(katja).toBeVisible();
+  await katja.locator("button.voice").click();
+  await expect(page.locator('#voiceList .voice[aria-checked="true"]')).toHaveCount(1);
+
+  // And now the key goes. The voice stays chosen on purpose - dropping it
+  // would throw away a deliberate decision - so it has to keep being shown,
+  // and what it is shown as is the whole of this test.
+  await page.locator("#azureForget").click();
+  await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
+
+  const gone = page.locator("#voiceList .voiceRow", { hasText: VOICE_GONE });
+  await expect(gone).toHaveCount(1);
+  // The name somebody picked her by, not the id she is stored under. This row
+  // printed `azure:de-DE-KatjaNeural` before there was a name to print, and
+  // stimmquelle's displayName() would have made it `DE-KatjaNeural`, which is
+  // not better - it is the same string with less of it.
+  await expect(gone.locator(".voice__name")).toHaveText("Katja");
+  await expect(gone).not.toContainText("azure:");
+  await expect(gone).not.toContainText("Neural");
+  // The folded heading is the same answer in one line, and it fell back to the
+  // same raw id.
+  await expect(page.locator("#voiceState")).toContainText("Katja");
+  await expect(page.locator("#voiceState")).not.toContainText("azure:");
 });
