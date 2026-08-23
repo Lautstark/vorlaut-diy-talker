@@ -375,6 +375,7 @@ nothing else does:
 | `sk_total_depth` | 23.0 mm — cap face to the back of the PCB, key not pressed |
 | `sk_total_depth_pressed` | 20.0 mm — the same with the key held down, so 3.0 mm of travel |
 | `sk_spacer_l` | 8.0 mm — the threaded spacers off the back of the PCB |
+| `sk_hole_pitch_x/y` | 20 × 30 mm — where those spacers sit, centre to centre |
 
 The mid plate lies against the ends of those spacers, so the plate sits
 23.0 − 9.6 + 8.0 = **21.4 mm** behind the front face, and the caps stand
@@ -409,11 +410,23 @@ The only limit left is the obvious one: the cap has to stay over its own board.
 That leaves roughly 5 mm of room vertically and 2 mm sideways, and `verify.py`
 says so if it runs out.
 
+### Where the mounting holes sit
+
+Measured on the module, **20 × 30 mm centre to centre** — not worked out from a
+margin off the board edge, which is what the first version did and got wrong by
+about a millimetre. It could not have got it right, either: a single margin
+cannot describe this pattern. 20 × 30 on a 25.94 × 35.29 board leaves 2.97 mm
+at the sides and 2.645 mm top and bottom.
+
+So `sk_hole_pitch_x` and `sk_hole_pitch_y` are the input and the twenty screw
+positions follow. Everything they have to clear on the mid plate — cable slots,
+lid bosses, support posts, the chamber cutout — got roomier when the real
+figures went in, which is the usual sign that a guess had been drifting.
+
 ### The remaining assumptions
 
 | Variable | Assumed | Check |
 |---|---|---|
-| `sk_hole_margin` | 2.00 mm | where do the mounting holes really sit? They set the twenty screw positions |
 | `sk_screw_d` | 2.40 mm | is the spacer thread M2? If it is M2.5, this and `sk_csink_d` both move |
 | `sk_screw_engage` | 4.00 mm | how far into the spacer the screw goes — it sets the screw length |
 | `sk_hole_d` | 2.20 mm | hole diameter |

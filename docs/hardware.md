@@ -105,9 +105,14 @@ settled in stage 2 of [bring-up.md](bring-up.md).
 
 ## Case
 
-Measured parts: ScreenKey board 25.94 x 35.29 mm, key cap 22.00 x 25.30 mm with
-8.6 mm overhang, visible picture only **15.21 x 15.21 mm**. Speaker
-40.3 x 40.3 x 25.3 mm.
+Measured parts: ScreenKey board 25.94 x 35.29 mm, mounting holes
+**20 x 30 mm** centre to centre, key cap 22.00 x 25.30 mm, whole module 23.0 mm
+deep (20.0 pressed) with 8.0 mm threaded spacers behind it, visible picture
+only **15.21 x 15.21 mm**. Speaker 40.3 x 40.3 x 25.3 mm.
+
+The cap's overhang is not in that list because it is not a property of the
+module: it follows from how deep the module is mounted. See
+[case/building.md](../case/building.md) — it comes out at 9.6 mm.
 
 | | Dimension |
 |---|---|

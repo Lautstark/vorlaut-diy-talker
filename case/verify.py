@@ -189,8 +189,11 @@ def compute(p, bed_x, bed_y):
     g = '2. How the ScreenKeys are held - off the mid plate'
     clear_hb = (G('sk_cap_b') + 2 * G('gap_cap')) / 2
     clear_hh = (G('sk_cap_h') + 2 * G('gap_cap')) / 2
-    hole_dx = G('sk_board_b') / 2 - G('sk_hole_margin')
-    hole_dy = G('sk_board_h') / 2 - G('sk_hole_margin')
+    # Measured centre to centre on the module, not derived from a margin off
+    # the board edge - and it is not one margin either, 20 x 30 on a
+    # 25.94 x 35.29 board sits 2.97 mm in at the sides and 2.645 top and bottom.
+    hole_dx = G('sk_hole_pitch_x') / 2
+    hole_dy = G('sk_hole_pitch_y') / 2
 
     b.info(g, 'fixing', '4 x M2 per key, from the mid plate side into the '
                         "module's own threaded spacers")
