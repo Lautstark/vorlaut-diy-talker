@@ -134,6 +134,16 @@ export interface OfferedVoice {
   source: "piper" | "azure" | "system";
   /** `female`, `male`, or `mixed` for a multi-speaker corpus. Empty if unknown. */
   gender: string;
+  /** The model's quality tier - `medium`, `high`, and the `low` that only a
+   *  page driving piper itself can speak. Empty where the backend has no such
+   *  thing to say, which is every cloud voice.
+   *
+   *  Here because the name alone cannot carry it: stimmquelle's displayName()
+   *  answers with the catalogue's name and nothing else, on purpose, so both
+   *  Thorstens are "Thorsten" and the two rows differed only in a download
+   *  size that said nothing about why. What the picker does with it is a
+   *  narrower question than "show the tier" - see voiceRow(). */
+  quality: string;
   /** Fetched before this voice first speaks. 0 for a cloud backend. */
   downloadBytes: number;
   /** True when it needs a key, and so a network call for every sentence. */

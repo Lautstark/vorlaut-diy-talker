@@ -269,6 +269,10 @@ export async function listVoices(): Promise<VoiceList> {
     // them, and the picker could only ever show a name because of it.
     source: "piper" as const,
     gender: voice.gender || "",
+    // Straight off the catalogue entry in hand rather than through
+    // qualityOf(), which would re-derive from the id what this object is
+    // already holding.
+    quality: voice.quality || "",
     downloadBytes: voice.bytes || 0,
     needsKey: false,
   }));
@@ -289,6 +293,9 @@ export async function listVoices(): Promise<VoiceList> {
           // Nothing is fetched for a cloud voice; what it costs is the key and
           // a request per sentence, which is what needsKey says.
           source: "azure" as const, gender: voice.gender,
+          // No tier: a quality tier is a piper model's file stem, and Azure
+          // publishes nothing of the kind. Empty says so; a guess would not.
+          quality: "",
           downloadBytes: 0, needsKey: voice.needsKey,
         });
       }

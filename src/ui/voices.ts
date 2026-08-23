@@ -71,6 +71,16 @@ function genderOf(gender: string): string {
     ? t(`ui.gender_${gender}`) : gender;
 }
 
+/* The quality tier, in words. stimmquelle publishes four; anything it adds
+ * later is shown as it came, the way genderOf() does, rather than as the name
+ * of a missing translation. Where this is said at all is voiceRow()'s
+ * question, not this one's. */
+function tierOf(quality: string): string {
+  return quality === "x_low" || quality === "low"
+      || quality === "medium" || quality === "high"
+    ? t(`ui.quality_${quality}`) : quality;
+}
+
 /* Who renders it. Not the model's name or the vendor's product name: what
  * somebody choosing is deciding is whether it is already here or has to be
  * fetched from a company. */
@@ -104,6 +114,22 @@ function language(code: string): string {
   return (code || "").toLowerCase().replaceAll("_", "-").split("-")[0];
 }
 
+/* The display names this list holds more than one of.
+ *
+ * Read from every offered voice rather than from what the filter left
+ * standing, so that typing in the search field cannot change what a row says
+ * about itself. A row's facts are facts about the voice; they must not shift
+ * under somebody who is narrowing the list. */
+function twiceNamed(): Set<string> {
+  const seen = new Set<string>();
+  const twice = new Set<string>();
+  for (const voice of voices.voices) {
+    if (seen.has(voice.label)) twice.add(voice.label);
+    seen.add(voice.label);
+  }
+  return twice;
+}
+
 function matches(voice) {
   if (onlyLang && language(voice.language) !== onlyLang) return false;
   if (!query) return true;
@@ -120,11 +146,22 @@ function matches(voice) {
  * Four facts and no verdict. stimmquelle's `recommended` is not among them and
  * deliberately is not carried into OfferedVoice either - see the note there.
  *
+ * The quality tier is the fifth fact, and `shared` is why it is not simply the
+ * fifth column. A tier is not neutral the way the other four are: "low" beside
+ * "high" reads as a ranking, and Kerstin is `low` for a reason that is
+ * vits-web's fault rather than hers - a word that steers somebody away from a
+ * good voice is the same harm `recommended` was kept out for. Between two
+ * voices that stimmquelle names identically it is not a ranking at all but the
+ * answer to a question the row otherwise leaves standing: why one Thorsten
+ * costs 63 MB and the other 114. So it is said exactly where it decides
+ * something, and nowhere else.
+ *
  * Two buttons per row, still: hearing a voice and choosing it are two
  * different decisions, and the first must not commit to the second. That is
  * why the row is a wrapper and not itself the button mitreden makes it - a
  * button inside a button is not a thing a browser will render. */
-function voiceRow(voice, note: string, mute: boolean, on: boolean) {
+function voiceRow(voice, note: string, mute: boolean, on: boolean,
+                  shared: boolean) {
   const row = document.createElement("div");
   row.className = "voiceRow";
 
@@ -156,6 +193,9 @@ function voiceRow(voice, note: string, mute: boolean, on: boolean) {
     sourceOf(voice.source),
     speaks(voice.language),
     genderOf(voice.gender || ""),
+    // Beside the size rather than after the name, because the size is what it
+    // explains.
+    shared && voice.quality ? tierOf(voice.quality) : "",
     voice.needsKey ? t("ui.voice_needs_key")
       : voice.downloadBytes ? weighs(voice.downloadBytes) : "",
     note,
@@ -240,11 +280,12 @@ function renderVoices() {
   box.className = "voices";
   box.setAttribute("role", "radiogroup");
   const hits = voices.voices.filter(matches);
+  const twice = twiceNamed();
   for (const voice of hits) {
     box.appendChild(voiceRow(
       voice,
       !voices.chosen && voice.id === voices.active ? t("ui.voice_auto_note") : "",
-      false, voice.id === marked));
+      false, voice.id === marked, twice.has(voice.label)));
   }
   if (!hits.length) {
     const none = document.createElement("p");
@@ -260,8 +301,8 @@ function renderVoices() {
   if (voices.chosen && !voices.voices.some((v) => v.id === voices.chosen)) {
     box.appendChild(voiceRow(
       { id: voices.chosen, label: voices.chosen, language: "", source: "",
-        gender: "", downloadBytes: 0, needsKey: false },
-      t("ui.voice_gone"), true, true));
+        gender: "", quality: "", downloadBytes: 0, needsKey: false },
+      t("ui.voice_gone"), true, true, false));
   }
   renderOffer();
   // The standing rule, whether or not anything was just ticked: a voice is
