@@ -26,14 +26,29 @@ const STEPS: [limit: number, unit: Intl.RelativeTimeFormatUnit, per: number][] =
   [Infinity, "day", 86_400_000],
 ];
 
-/** "vor 3 Minuten" / "3 minutes ago". The page is served in one language and
- *  reloads when it changes, so the formatter can be built once. */
-const RELATIVE = new Intl.RelativeTimeFormat(LANG, { numeric: "auto" });
+/* The formatter behind "vor 3 Minuten" / "3 minutes ago".
+ *
+ * Built for the language in force rather than once at import, and that is the
+ * rule boot.ts asks for rather than a preference: LANG is a live binding that
+ * moves under a language switch, and nothing may capture it into a local. This
+ * did - it was written when the switch was still a reload, so a formatter made
+ * once was a formatter made once per language - and the sentence in the Daten
+ * panel went on being English under a page that had gone German.
+ *
+ * Kept between calls all the same. Every state line here is built through
+ * ago(), several of them per repaint, and building a formatter per sentence to
+ * answer a question whose answer changes twice a year is waste. */
+let relative: Intl.RelativeTimeFormat | null = null;
+let relativeLang = "";
 
 export function ago(at: number, now = Date.now()): string {
+  if (!relative || relativeLang !== LANG) {
+    relative = new Intl.RelativeTimeFormat(LANG, { numeric: "auto" });
+    relativeLang = LANG;
+  }
   const gap = Math.max(0, now - at);
   const [, unit, per] = STEPS.find(([limit]) => gap < limit)!;
-  return RELATIVE.format(-Math.round(gap / per), unit);
+  return relative.format(-Math.round(gap / per), unit);
 }
 
 /** The age of the last real copy, or the admission that there has never been one. */
@@ -56,6 +71,25 @@ function sentence(status: Status): string {
     case "failed":
       return t("ui.folder_failed", { reason: status.reason, age: lastCopy(status.lastWrite) });
   }
+}
+
+/* Redrawing the panel with nothing having happened to it.
+ *
+ * Every sentence and every button in here is written through t(), and the
+ * panel is otherwise redrawn only when the Sicherung's status moves - so after
+ * a language switch it sat in the old language until some save happened to
+ * change something, which on a quiet page is never. paintStates() calls this
+ * alongside the panels above it, for the reason it gives there: a heading that
+ * keeps its old language while the body changes is worse than one that never
+ * changed at all.
+ *
+ * Null where the browser has no folder to offer. wireBackupFolder() leaves
+ * before there is anything drawn, and a panel that is hidden has no stale
+ * language to fix. */
+let repaint: (() => void) | null = null;
+
+export function paintBackupFolder(): void {
+  repaint?.();
 }
 
 export function wireBackupFolder(backup: Sicherung, say: (message: string) => void): void {
@@ -131,4 +165,5 @@ export function wireBackupFolder(backup: Sicherung, say: (message: string) => vo
 
   paint(backup.status);
   backup.subscribe(paint);
+  repaint = () => paint(backup.status);
 }

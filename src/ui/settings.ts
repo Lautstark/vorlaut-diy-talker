@@ -16,7 +16,7 @@ import { replaceLayout } from "../core/save.js";
 import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
 import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
-import { wireBackupFolder } from "./backupFolder.js";
+import { paintBackupFolder, wireBackupFolder } from "./backupFolder.js";
 import type { Sicherung } from "@lautstark/sicherung";
 
 let settings: Settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
@@ -235,6 +235,10 @@ export function paintStates() {
     ? t("ui.azure_key_stored")
     : t("ui.azure_key_none");
   probeAzure();
+  // The Daten panel's own state line, which is drawn by the module that owns
+  // the folder rather than from here - it is the one panel whose sentence is
+  // built from a status this file never sees.
+  paintBackupFolder();
 }
 
 /** The languages this page offers, by their own names. */

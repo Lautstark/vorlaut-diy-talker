@@ -364,13 +364,21 @@ async function withDevice(page: import("@playwright/test").Page) {
   });
 }
 
+/* The language the log comes back in, which is the board's rather than the
+ * runner's. BOARD says "de" and the page follows what the layout says, so
+ * pinning a language here asserts against a page nobody is looking at - it
+ * only passed while the layout's language was written and never read back.
+ * Taken from the same field the page reads, so that changing BOARD moves
+ * these assertions with it rather than breaking them. */
+const SPEAKS = (TEXTS as Record<string, Record<string, string>>)[BOARD.language];
+
 /** One line of the page's own log, with its blanks filled in - the same
  *  substitution t() does, so that a count is asserted against the sentence the
  *  person actually reads rather than against a fragment of it. */
 const filled = (key: string, params: Record<string, string | number>) =>
   Object.entries(params).reduce(
     (line, [name, value]) => line.split(`{${name}}`).join(String(value)),
-    TEXTS.en[key] as string);
+    SPEAKS[key]);
 
 /** What the device is holding. The counters are not read here: the device
  *  clears them when it says goodbye, exactly as cable.h does, so what it did
@@ -410,7 +418,7 @@ test("one press builds it and puts it on the talker", async ({ page }) => {
   /* The two numbers docs/cable.md is waiting for reach the log, because that
      table is meant to be filled in from a run and this is where a run says
      them. */
-  expect(built.log).toContain(TEXTS.en["cable.timings"].split("{")[0].trim());
+  expect(built.log).toContain(SPEAKS["cable.timings"].split("{")[0].trim());
 });
 
 test("a second press sends nothing, because the device already has it",
@@ -431,7 +439,7 @@ test("a second press sends nothing, because the device already has it",
   const held = await onDevice(page);
   expect(held.names).toEqual([...again.names].sort());
   expect(held.sizes).toEqual(after.sizes);
-  expect(again.log).toContain(TEXTS.en["cable.nothing"]);
+  expect(again.log).toContain(SPEAKS["cable.nothing"]);
   expect(again.log).toContain(filled("cable.sent",
                                      { stored: 0, removed: 0, size: 0 }));
 });
