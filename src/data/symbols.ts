@@ -137,9 +137,9 @@ export const folderOf = (path, root) => {
  * a URL for the preview, and whichever identifier the pick step needs — `ref`
  * for METACOM, `id` for ARASAAC.
  *
- * Never throws. A source that cannot answer contributes nothing, because a
- * licensed collection that is there is worth more than an error about the one
- * that is not.
+ * Shaping only, and it throws what it is handed: the "never throws" this
+ * paragraph used to promise was search()'s rule, written above the wrong
+ * function, and it read as a licence to swallow one layer further out.
  */
 async function decorate(hits, source) {
   const wanted = hits.slice(0, SEARCH_LIMIT);
@@ -163,6 +163,10 @@ async function decorate(hits, source) {
   }));
 }
 
+/** Hits from one *named* source. Never throws: this is the shape for asking
+ *  several collections at once - tools/symbolcheck.html and the unit tests -
+ *  where one that cannot answer should cost its own hits and nothing else.
+ *  What the picker calls is searchActive() below, which does throw. */
 export async function search(word, source) {
   const term = (word || "").trim();
   if (!term) return [];
@@ -206,25 +210,42 @@ export const setActiveSource = (source: ProviderId) => { active = source; };
  * over the wire - and they are worth nothing until a word is typed into the
  * picker. Loading them with the page would spend that on every visit,
  * including the ones that only press a key to hear it. The promise is kept so
- * the second keystroke does not ask again. */
+ * the second keystroke does not ask again.
+ *
+ * A chunk that failed to arrive stays failed for the life of the document, and
+ * clearing this variable on a rejection does not change that: the browser's
+ * module map remembers the failure against the URL, so the retried import()
+ * rejects again without a request going out. Measured, not assumed. That is
+ * why the failure is reported rather than retried - see ui.search_failed,
+ * which says to reload the page, because reloading is what actually helps. */
 let german: Promise<typeof import("@lautstark/bildquelle/german")> | null = null;
 const loadGerman = () => (german ??= import("@lautstark/bildquelle/german"));
 
+/* Throws, unlike search() above, and the difference is what the caller can do
+ * about it. search() answers for one named source out of several, where a
+ * source that cannot answer should cost its own hits and nothing else. This
+ * one *is* the picker's answer: there is no second collection behind it, so
+ * swallowing left the dialog saying "nothing found for X" whether the
+ * collection held nothing or the page had never managed to ask. Those are
+ * different sentences, and picker.ts writes both. */
 export async function searchActive(word: string) {
   const term = (word || "").trim();
   if (!term) return [];
-  try {
-    const { suggest, tokenize } = await loadGerman();
-    const single = tokenize(term).length <= 1;
-    const hits = await suggest(term, {
-      provider: getProvider(active),
-      stopwords: single ? [] : undefined,
-    });
-    return await decorate(hits, active);
-  } catch {
-    return [];
-  }
+  const { suggest, tokenize } = await loadGerman();
+  const single = tokenize(term).length <= 1;
+  const hits = await suggest(term, {
+    provider: getProvider(active),
+    stopwords: single ? [] : undefined,
+  });
+  return await decorate(hits, active);
 }
+
+/* How the active collection is doing, for telling an empty answer apart from
+ * one that was never given. A provider's search() must not throw - that is
+ * bildquelle's contract, and ARASAAC keeps to it by returning [] when the
+ * fetch fails - so an empty list is the only thing a failed network hands
+ * back, and this is the only place that says which of the two it was. */
+export const activeStatus = () => getProvider(active).status();
 
 /* --------------------------------------------------------------- image --- */
 
