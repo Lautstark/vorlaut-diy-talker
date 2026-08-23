@@ -20,7 +20,7 @@ export const markup = `
 <dialog id="legal" class="sheet legal" aria-labelledby="legalHeading">
   <div class="head">
     <strong id="legalHeading"></strong>
-    <button id="legalClose" class="btn quiet icon closeX" type="button">&times;</button>
+    <button id="legalClose" class="btn quiet icon" type="button">✕</button>
   </div>
   <div class="body">
 

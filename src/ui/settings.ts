@@ -4,7 +4,7 @@
 //
 // This is the lower half of the settings sheet. The sheet itself, and its one
 // Save, are in voices.js.
-import { $, status} from "./dom.js";
+import { $, closeMenus, menuOn, status } from "./dom.js";
 import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
 import { readSettings, writeSettings, exportBoard, importBoard, azureState } from "../backend/index.js";
@@ -92,34 +92,41 @@ function renderSettings() {
  * a question with one answer. */
 function renderRenderings() {
   const box = $("renderingBox");
-  const pick = $<HTMLSelectElement>("renderingPick");
+  const pick = $("renderingPick");
   const found = symbols.metacomReady() ? symbols.metacomRenderings() : [];
   box.hidden = found.length < 2;
   if (box.hidden) return;
 
   $("renderingLabel").textContent = t("ui.rendering");
   $("renderingNote").textContent = t("ui.rendering_note");
-  pick.innerHTML = "";
-  const none = document.createElement("option");
-  none.value = "";
-  none.textContent = t("ui.rendering_none");
-  pick.appendChild(none);
-  for (const entry of found) {
-    const option = document.createElement("option");
-    option.value = entry.segment;
-    option.textContent = t("ui.rendering_option",
-                           { segment: entry.segment, count: entry.count });
-    pick.appendChild(option);
-  }
-  pick.value = symbols.preferredRendering() || "";
-  pick.onchange = () => {
-    const chosen = pick.value || null;
-    // Told to the provider and written down, in that order: the provider ranks
-    // the next search by it, and without the second half the choice lasted
-    // exactly as long as the tab did.
-    symbols.preferRendering(chosen);
-    void saveSettings({ metacomRendering: chosen });
-  };
+
+  /* A button and a menu rather than a select, for the reason dom.ts gives:
+     the open list of a select is the operating system's drawing and is the
+     one thing on this page that cannot follow the tokens. */
+  const label = (segment: string | null): string =>
+    segment === null
+      ? t("ui.rendering_none")
+      : t("ui.rendering_option",
+          { segment, count: found.find((e) => e.segment === segment)?.count ?? 0 });
+
+  const paint = (): void => { pick.textContent = label(symbols.preferredRendering() || null); };
+  paint();
+
+  pick.onclick = () => menuOn(pick, (add) => {
+    const live = symbols.preferredRendering() || null;
+    const choose = (chosen: string | null) => () => {
+      closeMenus();
+      // Told to the provider and written down, in that order: the provider
+      // ranks the next search by it, and without the second half the choice
+      // lasted exactly as long as the tab did.
+      symbols.preferRendering(chosen);
+      void saveSettings({ metacomRendering: chosen });
+      paint();
+    };
+    add(label(null), live === null, choose(null));
+    for (const entry of found)
+      add(label(entry.segment), live === entry.segment, choose(entry.segment));
+  });
 }
 
 /* The state line of every panel, re-read rather than remembered. Called when

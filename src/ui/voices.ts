@@ -6,7 +6,7 @@
 // This file also owns the settings sheet itself - opening it and its one Save
 // - because that Save is mostly about the voice. The Azure and METACOM panel
 // inside it is settings.js, which this calls into.
-import { $, status} from "./dom.js";
+import { $, closeMenus, menuOn, status } from "./dom.js";
 import { reason } from "../core/errors.js";
 import { listVoices, voiceFetchState, startVoiceFetch } from "../backend/index.js";
 import { LANG, LANGUAGES, setLanguage } from "../core/boot.js";
@@ -454,6 +454,11 @@ async function chooseLanguage(code: string) {
   // list with its facts and filters, the settings panels' own state lines,
   // and the picker's source line.
   applyTexts();
+  // The trigger names the language in force, and that name is ours to keep now.
+  // A <select> showed its own selected option and this line was not needed;
+  // the button is drawn from LANG and would otherwise sit there still saying
+  // the language somebody just switched away from.
+  paintLanguage();
   paintStates();
   renderVoices();
   renderBoard();
@@ -482,17 +487,26 @@ export async function forgetAzureKey() {
 // depend on being able to read the interface around it. In the header it was
 // "DE"/"EN", because the full words cost a third of the bar on a phone; in a
 // dialog there is room to say it properly.
+const LANGUAGE_NAMES: Record<string, string> = { de: "Deutsch", en: "English" };
+
+/** The button says which language is in force; the menu offers the others. */
+export function paintLanguage() {
+  $("langPick").textContent = LANGUAGE_NAMES[LANG] || LANG;
+}
+
 export function wireLanguage() {
-  const pick = $<HTMLSelectElement>("langPick");
-  const names = { de: "Deutsch", en: "English" };
-  for (const code of LANGUAGES) {
-    const option = document.createElement("option");
-    option.value = code;
-    option.textContent = names[code] || code;
-    pick.appendChild(option);
-  }
-  pick.value = LANG;
-  pick.onchange = () => { void chooseLanguage(pick.value); };
+  const pick = $("langPick");
+  paintLanguage();
+  // The accessible name is bilingual and fixed - see the aria-label in the
+  // template. It is the one label on this page that must not be translated,
+  // because somebody who cannot read the page is who reaches for it.
+  pick.onclick = () => menuOn(pick, (add) => {
+    for (const code of LANGUAGES)
+      add(LANGUAGE_NAMES[code] || code, code === LANG, () => {
+        closeMenus();
+        void chooseLanguage(code);
+      });
+  });
 
   // Typed into once and read on every render afterwards. The field is in the
   // sheet's markup rather than rebuilt with the list, so the caret survives.
@@ -518,7 +532,7 @@ export async function openVoices() {
   $<HTMLDetailsElement>("symbolsPanel").open = false;
   $<HTMLDialogElement>("voices").showModal();
   await Promise.all([loadVoices(), readFetch(), loadSettings()]);
-  $<HTMLSelectElement>("langPick").value = LANG;
+  paintLanguage();
   renderVoices();
   paintStates();
   // A download started before this dialog was opened - in another tab, or

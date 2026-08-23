@@ -135,37 +135,14 @@ button, select, input, textarea { font-family: inherit; }
    appearance: none stays, and for the reason it always had: otherwise the
    operating system draws its own arrow and imposes its own height, with a
    chevron sitting wherever macOS likes. */
-/* One wrapper per select, and it exists for the arrow. A data URI is its own
-   document and cannot read a custom property, so the chevron used to carry
-   --text-dim written out by hand as %239c9ba5 - one copy, and the comment
-   here said what would happen when the token moved without it. Two schemes
-   would have made it two copies. components.css draws its panel chevron out
-   of two borders and a rotation for exactly this reason, and names it the
-   desync trap "in the one place it keeps appearing"; this is that place, so
-   it is drawn the same way and takes its colour from the token like
-   everything else.
-
-   appearance: none stays, and for the reason it always had: otherwise the
-   operating system draws its own arrow and imposes its own height, with a
-   chevron sitting wherever macOS likes. */
-.selectwrap { position: relative; display: inline-flex; align-self: flex-start; max-width: 100%; }
-.selectwrap::after {
-  content: ""; position: absolute; right: 12px; top: 50%;
-  width: 7px; height: 7px; pointer-events: none;
-  border-right: 1.6px solid var(--text-dim);
-  border-bottom: 1.6px solid var(--text-dim);
-  transform: translateY(-70%) rotate(45deg);
-}
-.selectwrap select {
-  appearance: none; -webkit-appearance: none;
-  background: var(--surface-2);
-  color: var(--text); border: 1px solid var(--line);
-  border-radius: 8px; padding: 8px 32px 8px 12px; cursor: pointer;
-  font-size: 14px; line-height: normal;   /* like the inputs below it */
-  width: 100%;
-  transition: border-color .12s;
-}
-.selectwrap select:hover, .selectwrap select:focus-visible { border-color: var(--text-dim); }
+/* The wrapper that used to sit here went with the two selects it wrapped. It
+   existed for the arrow: a data URI is its own document and cannot read a
+   custom property, so the chevron carried --text-dim written out by hand, and
+   two schemes would have made that two copies of one value. It was redrawn
+   from borders to avoid that, and is now components.css's .dropdown - masked
+   rather than drawn, taking the button's own colour, and shared with mitreden
+   rather than solved twice. See ui/dom.ts for why the selects themselves
+   went. */
 /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. That reasoning
    is now a token - --accent-ink is the same idea solved rather than guessed,
    and it comes out at 6.0:1. */
@@ -487,7 +464,6 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
    anything that reads the page out. It is .btn.quiet.icon and nothing else
    now; the glyph is the only thing about it that is not already the shared
    quiet icon button. */
-.closeX { font-size: 20px; }
 
 /* The voice list. Two buttons per row on purpose: hearing a voice and
    choosing it are two different decisions, and the first should not commit

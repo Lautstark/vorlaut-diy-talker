@@ -15,7 +15,13 @@ export const markup = `
 <header>
   <img src="${logo}" alt="" class="logo">
   <h1>vorlaut</h1>
-  <span class="status" id="status"></span>
+  <!-- role="status" is aria-live="polite". It belongs on the element rather
+       than being set when there is something to say: a live region has to be
+       in the accessibility tree already when the text lands, or the reader has
+       nothing to notice a change in. This one is never hidden and never
+       replaced, so it qualifies as it stands - what was missing was the role,
+       and without it every "saved", "released" and failure here was silent. -->
+  <span class="status" id="status" role="status"></span>
   <label class="toggle" id="previewLabel">
     <input type="checkbox" id="previewToggle">
     <span class="pill"></span>

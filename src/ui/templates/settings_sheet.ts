@@ -25,7 +25,7 @@ export const markup = `
 <dialog id="voices" class="sheet">
   <div class="head">
     <strong id="settingsHeading"></strong>
-    <button id="voiceClose" class="btn quiet icon closeX" type="button">×</button>
+    <button id="voiceClose" class="btn quiet icon" type="button">✕</button>
   </div>
   <div class="body">
 
@@ -38,7 +38,13 @@ export const markup = `
       <span class="state" id="languageState"></span>
     </summary>
     <div class="setting">
-      <span class="selectwrap"><select id="langPick"></select></span>
+      <!-- A button and a menu, not a select. The open list of a select is drawn
+           by the operating system and so cannot follow the tokens - which was
+           survivable while this page committed to a dark ground and stopped
+           being when the scheme became a choice. -->
+      <span class="menu-anchor start"><button id="langPick" class="btn quiet sm dropdown"
+        type="button" aria-haspopup="true" aria-expanded="false"
+        aria-label="Sprache / Language"></button></span>
       <p class="note" id="languageNote"></p>
     </div>
   </details>
@@ -156,8 +162,13 @@ export const markup = `
            folder actually holds more than one; a copy pointed straight at one
            rendering has nothing to choose between. -->
       <div id="renderingBox" hidden>
-        <label id="renderingLabel" for="renderingPick"></label>
-        <span class="selectwrap"><select id="renderingPick"></select></span>
+        <!-- .lbl and not <label for>: the control is a button now, and a button
+             is not a labelable element - the association has to be
+             aria-labelledby rather than "for", which would silently do nothing. -->
+        <span class="lbl" id="renderingLabel"></span>
+        <span class="menu-anchor start"><button id="renderingPick" class="btn quiet sm dropdown"
+          type="button" aria-haspopup="true" aria-expanded="false"
+          aria-labelledby="renderingLabel"></button></span>
         <p class="note" id="renderingNote"></p>
       </div>
     </div>
