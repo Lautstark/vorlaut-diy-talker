@@ -30,8 +30,9 @@ import {
   speak, asBlob, shippable, displayName, parseVoiceId, usePiperRuntime,
   PIPELINE_VERSION,
   listVoices as catalogueVoices,
-  type OnnxModule, type PhonemizerFactory,
+  type OnnxModule,
 } from "@lautstark/stimmquelle/browser";
+import { piperRuntime } from "@lautstark/stimmquelle/runtime";
 import { LANGUAGES } from "../core/boot_data.js";
 
 // What vorlaut asks the shared chain for. The rate is the device's; the fade
@@ -58,49 +59,27 @@ const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
 // path, and unreachable. The import map in index.html went with it; nothing
 // imports a bare name from the browser any more.
 //
-// Three pieces, three transports, each for a reason:
-//  - the phonemizer is an npm package Vite bundles, lazily, so opening the
-//    page still costs nothing until somebody speaks. Its file is Emscripten's
-//    UMD, whose exports only exist for a bundler - a browser importing the
-//    URL gets a module with nothing in it, so the CDN route vits-web took is
-//    not open to it.
-//  - onnxruntime is the module the import map used to name, from the same
-//    pinned URL - see src/types/cdn.d.ts for why it stays one.
-//  - the wasm binaries behind both are served beside the page: wasmBase is
-//    one directory answering for the phonemizer's wasm and data and for
-//    onnxruntime's binaries together, and no CDN serves those four files
-//    from one place. vite.config.ts is what fills vendor/.
-/** onnxruntime, told to stay on one thread.
- *
- * It sizes its pool off `hardwareConcurrency` and then warns that threads want
- * a cross-origin-isolated page, which GitHub Pages sends none of the headers
- * for. It falls back by itself, so this changes no behaviour - what it changes
- * is that the single-threaded arrangement is the arrangement rather than a
- * recovery, and that a first recording stops writing a warning nobody can act
- * on into a console this page otherwise keeps quiet. It also matches what
- * vite.config.ts vendors, which is the single-threaded pair and not the four.
- *
- * Written in mitreden first (its audio.ts) and taken from there rather than
- * rediscovered. Not part of stimmquelle's `OnnxModule`, which describes only
- * what the package needs of this module; the thread count is between this page
- * and its own dependency.
- */
-function singleThreaded(onnx: OnnxModule): OnnxModule {
-  (onnx.env.wasm as { numThreads?: number }).numThreads = 1;
-  return onnx;
-}
-
-usePiperRuntime({
-  phonemizer: async () => ({
-    createPiperPhonemize:
-      (await import("@diffusionstudio/piper-wasm/build/piper_phonemize.js"))
-        .default as PhonemizerFactory,
-  }),
-  onnx: async () => singleThreaded(await import(
+// Three pieces, and stimmquelle now has an opinion about two of them:
+// piperRuntime() fills in the phonemizer - the one npm package that ships it -
+// and points wasmBase at the directory piperVendor() fills, defaulting both to
+// `vendor/` off import.meta.env.BASE_URL so the repository name stays unwritten
+// here. It also pins onnxruntime to one thread, which this file used to do for
+// itself: threads want a cross-origin-isolated page and GitHub Pages sends none
+// of the headers for one, so a pool sized off hardwareConcurrency only ever
+// warned and fell back.
+//
+// The third piece stays a choice, and the package declines to make it. Where
+// onnxruntime's module comes from is a fact about this product: the pinned CDN
+// URL keeps the engine's weight off a bundle nobody pays for until somebody
+// speaks, where mitreden bundles the same module because it promises to work
+// offline. See src/types/cdn.d.ts for why that URL is pinned to the version
+// piperVendor() copies binaries from - the module and the binaries beside the
+// page have to be the same onnxruntime.
+usePiperRuntime(piperRuntime({
+  onnx: () => import(
     "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js"
-  ) as unknown as OnnxModule),
-  wasmBase: `${import.meta.env.BASE_URL}vendor/`,
-});
+  ) as unknown as Promise<OnnxModule>,
+}));
 
 // --- The layout --------------------------------------------------------------
 

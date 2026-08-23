@@ -2,7 +2,7 @@
  *
  * The module is fetched by the browser at runtime from a pinned version, even
  * though onnxruntime-web stands in package.json - that dependency exists for
- * the wasm binaries vite.config.ts copies into vendor/, which have to be
+ * the wasm binaries piperVendor() copies into vendor/, which have to be
  * exactly the ones this module expects, so the two pins name one version.
  * Bundling the module from node_modules instead would also work; what the URL
  * keeps is vorlaut's arrangement that piper's runtime weight stays off the
