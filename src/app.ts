@@ -21,12 +21,34 @@ import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
 import { confirmPair, watchPair } from "./ui/pairing.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
-import { wireSymbolFolder, wireBoard, wireSources } from "./ui/settings.js";
+import { wireSymbolFolder, wireBoard, wireData, wireSources } from "./ui/settings.js";
 import { wireLegal } from "./ui/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
+import { exportEverything } from "./data/backup.js";
+import { onChanged } from "./data/store.js";
+import { Sicherung } from "@lautstark/sicherung";
+
+/* The standing backup. `exportEverything` is what it is handed and the only
+ * thing it is ever handed - the audited artefact, which carries the board and
+ * the pictures in symbols/ and drops the Azure key and the METACOM folder
+ * path on the way out. A chosen folder is very likely inside Dropbox, so what
+ * goes in it leaves the machine: a credential there would be posted to
+ * somebody's cloud, and a METACOM path is derived from a folder that is
+ * licensed per person. tests/unit/backup_payload.test.ts holds this wiring in
+ * place, and a failure there is a licence or a leak rather than a bug. */
+const backup = new Sicherung({ app: "vorlaut", produce: exportEverything });
+
+// Every write that changes what a Sicherung would contain, through the one
+// notifier in data/store.ts. Debounced inside Sicherung, so a burst of edits
+// on a board is one file.
+onChanged(() => backup.schedule());
 
 export function start(): void {
   wireConflict();
+  // Never prompts - there is no gesture here. A folder that needs its
+  // permission re-confirmed lands in needs-permission and says so in the
+  // Daten panel, which is where the click can happen.
+  void backup.restore().catch(() => undefined);
 // The board's own pictures follow the METACOM provider: a folder arriving -
 // restored on load, reconnected, or freshly picked - re-renders the board, or
 // every metacom: key keeps the placeholder it drew while there was no folder,
@@ -37,6 +59,7 @@ subscribeMetacom(render);
   wireSymbolFolder();
   wireSources();
   wireBoard();
+  wireData(backup);
   wireLanguage();
   wireLegal();
 

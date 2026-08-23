@@ -15,5 +15,9 @@ export default defineConfig({
   test: {
     include: ["tests/unit/**/*.test.ts"],
     environment: "node",
+    // data/store.ts and data/backup.ts talk to a real IndexedDB. An in-memory
+    // one lets the licensing checks read what actually landed in it rather
+    // than what a mock was told to say.
+    setupFiles: ["./tests/unit/setup.ts"],
   },
 });

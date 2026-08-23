@@ -42,6 +42,33 @@ const BUILT = "built";          // the layout version a build last ran against
 // so that "nothing saved yet" reads the same on both sides.
 const EMPTY = "empty";
 
+/* --- Change ------------------------------------------------------------------
+ *
+ * Every write that changes what a Sicherung would contain says so here, and
+ * the standing backup listens.
+ *
+ * The alternative was calling schedule() from each place in the interface that
+ * edits something, and it is the wrong shape: the next one would be added by
+ * somebody who had never heard of the backup, nothing would fail, and a
+ * child's talker would quietly stop being saved. That is this feature's whole
+ * failure mode, so the notifier sits at the writes.
+ *
+ * Two writes deliberately stay quiet, and both are worth naming rather than
+ * discovering. recordBuild() only stamps which layout a build ran against.
+ * Anything in data/ is build output, which a build makes again out of the
+ * layout and the symbols - so neither is in the backup, and announcing them
+ * would rewrite the file to say nothing new. */
+const watchers = new Set<() => void>();
+
+export function onChanged(listener: () => void): () => void {
+  watchers.add(listener);
+  return () => watchers.delete(listener);
+}
+
+function touched(): void {
+  for (const listener of watchers) listener();
+}
+
 let opening: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
@@ -189,6 +216,11 @@ export async function writeLayout(layout: Layout, expected: string | null): Prom
         out.buildCurrent = built.result === version ? "1" : "0";
       };
     };
+  }).then((result) => {
+    // Only a write that actually landed. A conflict wrote nothing, and
+    // announcing one would back up the layout this tab lost.
+    if (!result.conflict) touched();
+    return result;
   });
 }
 
@@ -206,6 +238,7 @@ export async function writeSettings(settings: Settings): Promise<Settings> {
   await run(db, [CONTENT], "readwrite", (tx) => {
     tx.objectStore(CONTENT).put(settings, SETTINGS);
   });
+  touched();
   return settings;
 }
 
@@ -243,6 +276,9 @@ export async function putFile(which: StoreName, name: string, bytes: ArrayBuffer
   await run(db, [folder(which)], "readwrite", (tx) => {
     tx.objectStore(folder(which)).put(bytes, name);
   });
+  // symbols/ is pictures somebody chose and is in the backup; data/ is what a
+  // build made out of them and is not.
+  if (which === "symbols") touched();
 }
 
 export async function getFile(which: StoreName, name: string): Promise<ArrayBuffer | null> {
@@ -279,6 +315,7 @@ export async function dropFile(which: StoreName, name: string): Promise<void> {
   await run(db, [folder(which)], "readwrite", (tx) => {
     tx.objectStore(folder(which)).delete(name);
   });
+  if (which === "symbols") touched();
 }
 
 /** Everything, gone. What a build does to data/ before it fills it again. */
@@ -287,4 +324,7 @@ export async function empty(which: StoreName): Promise<void> {
   await run(db, [folder(which)], "readwrite", (tx) => {
     tx.objectStore(folder(which)).clear();
   });
+  // A build empties data/ before it fills it again, which is the common case
+  // here and is not news. Emptying symbols/ is.
+  if (which === "symbols") touched();
 }
