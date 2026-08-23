@@ -75,7 +75,19 @@ const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
 // offline. See src/types/cdn.d.ts for why that URL is pinned to the version
 // piperVendor() copies binaries from - the module and the binaries beside the
 // page have to be the same onnxruntime.
+//
+// base is passed rather than left to the package, which would rather default
+// it and cannot here. Its default reads import.meta.env.BASE_URL through a
+// local alias, and vite only substitutes that name written out in full, so the
+// expression survives into the bundle and finds no env at run time. It falls
+// back to "/", which is right in dev and wrong on Pages: the phonemizer would
+// be fetched from /vendor/ on a site served at /vorlaut/, and the first
+// sentence would fail on a 404 that no test sees, because e2e stands the
+// phonemizer chunk in and never loads the real files. Written out here, vite
+// substitutes it at build time. mitreden hit the same edge and passes it too;
+// it belongs back in stimmquelle, and this line can go when it lands there.
 usePiperRuntime(piperRuntime({
+  base: import.meta.env.BASE_URL,
   onnx: () => import(
     "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js"
   ) as unknown as Promise<OnnxModule>,
