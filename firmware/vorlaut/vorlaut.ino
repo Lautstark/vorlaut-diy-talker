@@ -82,6 +82,9 @@ static const uint8_t MENU_KEY_B = 1;            // key 2, diagonally opposite
 static const uint32_t MENU_IDLE_MS = 30000;
 static const uint32_t SAMPLE_RATE = 16000; // the rate build.py writes the WAVs at
 static const size_t AUDIO_CHUNK = 1024;
+// Chunks of silence pushed after a word, before the amplifier is switched
+// off. 1024 bytes is 512 samples, so at 16 kHz each of these is 32 ms.
+static const uint8_t AUDIO_TAIL_CHUNKS = 3;
 
 // --- Zustand -----------------------------------------------------------------
 
@@ -513,11 +516,19 @@ static void playWav(const char *path) {
                 (unsigned)(millis() - began),
                 (int)peak, (int)((int32_t)peak * 100 / 32767));
 
-  // Push a little silence after it, otherwise it clicks on switch-off.
+  // Silence before the amplifier is switched off, or it clicks. Three chunks
+  // and not the eight it was: at AUDIO_CHUNK and SAMPLE_RATE that is 96 ms
+  // rather than 256, and those 160 ms were the fattest part of the ~740 ms a
+  // press costs. The shorter that is, the less often two presses land inside
+  // one word - which is the whole of what is still being lost.
+  //
+  // If the click comes back, this is the number that brought it back. It is
+  // not the click stage 5 measured, though: that one was the I2S stream
+  // running dry, and no amount of tail here addresses it.
   memset(chunk, 0, AUDIO_CHUNK);
-  for (uint8_t i = 0; i < 8; i++) {
+  for (uint8_t i = 0; i < AUDIO_TAIL_CHUNKS; i++) {
     i2s.write(chunk, AUDIO_CHUNK);
-    const int8_t caught = pollButtons();   // 256 ms, and it counted too
+    const int8_t caught = pollButtons();   // this counts too
     if (caught >= 0) pendingKey = caught;
   }
   digitalWrite(PIN_AMP_SD, LOW);
