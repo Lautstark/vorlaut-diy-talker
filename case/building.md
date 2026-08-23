@@ -310,8 +310,8 @@ one beneath it.
    Then cut a block of **open-cell** foam to roughly 40 × 40 × 8 mm and lay it
    in behind the magnet: 6.7 mm of chamber depth are free there, so it goes in
    with a little compression. That block is what holds the driver — the lid
-   presses on it in step 10. Lead the wires out to the right through the
-   passage in the chamber wall.
+   presses on it in step 10. Lead the wires out through the passage in the
+   chamber wall — it goes through on the amplifier's side of that wall.
 
 3. **Seal the chamber passage.** The cable passage is deliberately generous
    (7 × 5 mm). After threading, close it with hot glue — that is the only
@@ -341,13 +341,14 @@ one beneath it.
    stop and read [Measure first](#measure-first) below.
 
 7. **Feather onto the carrier.** Onto the four standoffs, USB-C socket into the
-   window of the left wall. The socket has to **reach** the wall and not jam in
-   it: side loads on the cable should be taken by the wall, not by the soldered
-   socket.
+   window in the side wall the speaker chamber stands against — the same end of
+   the case as the speaker and the set key, which from the front is the child's
+   left. The socket has to **reach** the wall and not jam in it: side loads on
+   the cable should be taken by the wall, not by the soldered socket.
 
-8. **Amplifier.** Into the rib bed to the right of the chamber wall, with a
-   strip of double-sided tape. Two screw holes would be guesswork as long as
-   the hole positions have not been measured.
+8. **Amplifier.** Into the rib bed on the far side of the chamber wall from
+   the speaker, with a strip of double-sided tape. Two screw holes would be
+   guesswork as long as the hole positions have not been measured.
 
 9. **Battery.** Flat into the four corner brackets, JST connector to the
    Feather. The battery is **not** glued — it is the part the case can be
