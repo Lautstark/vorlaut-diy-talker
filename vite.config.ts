@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 /* A project site is served from /<repo>/, so the bundle needs that base.
@@ -26,7 +26,16 @@ const base = process.env.BASE_PATH ?? "/";
  * asked for on a cross-origin-isolated page, and GitHub Pages sends none of
  * the headers that make one. A missing file here means the first sentence
  * fails at run time with a fetch error nobody connects to a build, so it
- * stops the build instead. */
+ * stops the build instead - and the same is checked of what arrives, not
+ * only of what is read. A copy that stops early leaves a file that exists,
+ * has the right name, and is a prefix of the right bytes: 1 MB of an 18 MB
+ * espeak archive was found in a local dist/ this way. Nothing downstream
+ * notices. The wasm still instantiates, and the phonemizer fails later on a
+ * language whose data was in the part that never arrived, which reads as a
+ * broken voice rather than as a broken build. Nor can the tests see it -
+ * e2e/build.spec.ts stands in for the phonemizer chunk precisely so that no
+ * commit waits on 30 MB of wasm, so the real files are never loaded there.
+ * Comparing the two sizes is the only place this is cheap to catch. */
 const VENDORED: [string, string][] = [
   ["@diffusionstudio/piper-wasm/build/piper_phonemize.wasm", "piper_phonemize.wasm"],
   ["@diffusionstudio/piper-wasm/build/piper_phonemize.data", "piper_phonemize.data"],
@@ -64,7 +73,16 @@ export default defineConfig({
           if (!existsSync(source)) {
             throw new Error(`Cannot serve ${name} from this origin: ${from} is missing.`);
           }
-          copyFileSync(source, resolve(out, name));
+          const target = resolve(out, name);
+          copyFileSync(source, target);
+          const wanted = statSync(source).size;
+          const arrived = statSync(target).size;
+          if (arrived !== wanted) {
+            throw new Error(
+              `${name} was copied short: ${arrived} bytes of ${wanted}. The published ` +
+              "runtime would be incomplete in a way nothing downstream reports, so this " +
+              `build stops. Delete dist/vendor/${name} and build again.`);
+          }
         }
       },
     },
