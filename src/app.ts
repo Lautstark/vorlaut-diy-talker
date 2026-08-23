@@ -22,6 +22,7 @@ import { loadSources, wirePicker } from "./ui/picker.js";
 import { confirmPair, watchPair } from "./ui/pairing.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
 import { wireSymbolFolder, wireBoard } from "./ui/settings.js";
+import { wireLegal } from "./ui/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
 
 export function start(): void {
@@ -36,6 +37,7 @@ subscribeMetacom(render);
   wireSymbolFolder();
   wireBoard();
   wireLanguage();
+  wireLegal();
 
   $<HTMLButtonElement>("releaseBtn").onclick = async () => {
     // Releasing what is on screen, not what the last debounce happened to

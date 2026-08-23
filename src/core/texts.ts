@@ -15,6 +15,18 @@ function outward(id: string, labelKey: string, urlKey: string) {
   link.href = url.startsWith("https://") ? url : "";
 }
 
+// The same for an address somebody is meant to write to. It is its own setter
+// rather than a second call to outward() with a "mailto:" already glued on,
+// because then the table would hold the scheme and the guard above would have
+// to let one more through. Here the table holds an address and nothing else,
+// and this is the only place that can turn one into a link.
+function mailward(id: string, key: string) {
+  const link = $<HTMLAnchorElement>(id);
+  const address = t(key);
+  link.textContent = address;
+  link.href = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ? `mailto:${address}` : "";
+}
+
 export function t(key: string, params?: Record<string, string | number>): string {
   let out = TEXTS[key] || key;
   if (params) {
@@ -72,6 +84,65 @@ export function applyTexts() {
   $("pairTitle").textContent = t("ui.pair_title");
   $("pairNote").textContent = t("ui.pair_note");
   $<HTMLButtonElement>("pairConfirm").textContent = t("ui.pair_confirm");
+
+  // The footer and the three pages it opens. Filled here with everything else
+  // rather than when a dialog is opened: the labels on the footer itself are
+  // on screen from the first paint, and a page whose prose arrives only on the
+  // second visit is a page that was empty on the first.
+  $<HTMLButtonElement>("aboutLink").textContent = t("ui.legal_about");
+  $<HTMLButtonElement>("impressumLink").textContent = t("ui.legal_impressum");
+  $<HTMLButtonElement>("privacyLink").textContent = t("ui.legal_privacy");
+  outward("sourceLink", "ui.legal_source", "ui.legal_source_url");
+
+  $("aboutLead").textContent = t("ui.about_lead");
+  $("aboutLeavesHead").textContent = t("ui.about_leaves_head");
+  $("aboutLeaves").textContent = t("ui.about_leaves");
+  $("aboutSymbolsHead").textContent = t("ui.about_symbols_head");
+  $("aboutSymbols").textContent = t("ui.about_symbols");
+  $("aboutSourceHead").textContent = t("ui.about_source_head");
+  $("aboutSource").textContent = t("ui.about_source");
+  outward("aboutRepo", "ui.about_repo", "ui.about_repo_url");
+  outward("aboutMitreden", "ui.about_mitreden", "ui.about_mitreden_url");
+  outward("aboutBildhaft", "ui.about_bildhaft", "ui.about_bildhaft_url");
+
+  $("impAngabenHead").textContent = t("ui.imp_angaben_head");
+  $("impAddress").textContent = t("ui.imp_address");
+  $("impContactHead").textContent = t("ui.imp_contact_head");
+  $("impContactLead").textContent = t("ui.imp_contact_lead");
+  mailward("impMail", "ui.legal_email");
+  outward("impIssues", "ui.imp_issues", "ui.imp_issues_url");
+  $("impResponsibleHead").textContent = t("ui.imp_responsible_head");
+  $("impResponsible").textContent = t("ui.imp_responsible");
+  $("impSymbolsHead").textContent = t("ui.imp_symbols_head");
+  $("impSymbols").textContent = t("ui.imp_symbols");
+  $("impLinksHead").textContent = t("ui.imp_links_head");
+  $("impLinks").textContent = t("ui.imp_links");
+  $("impDisputeHead").textContent = t("ui.imp_dispute_head");
+  $("impDispute").textContent = t("ui.imp_dispute");
+
+  $("dsgLead").textContent = t("ui.dsg_lead");
+  $("dsgControllerHead").textContent = t("ui.dsg_controller_head");
+  $("dsgController").textContent = t("ui.dsg_controller");
+  mailward("dsgMail", "ui.legal_email");
+  $("dsgHostingHead").textContent = t("ui.dsg_hosting_head");
+  $("dsgHosting").textContent = t("ui.dsg_hosting");
+  $("dsgArasaacHead").textContent = t("ui.dsg_arasaac_head");
+  $("dsgArasaac").textContent = t("ui.dsg_arasaac");
+  $("dsgCdnHead").textContent = t("ui.dsg_cdn_head");
+  $("dsgCdn").textContent = t("ui.dsg_cdn");
+  $("dsgVoicesHead").textContent = t("ui.dsg_voices_head");
+  $("dsgVoices").textContent = t("ui.dsg_voices");
+  $("dsgAzureHead").textContent = t("ui.dsg_azure_head");
+  $("dsgAzure").textContent = t("ui.dsg_azure");
+  $("dsgStorageHead").textContent = t("ui.dsg_storage_head");
+  $("dsgStorage").textContent = t("ui.dsg_storage");
+  $("dsgDeviceHead").textContent = t("ui.dsg_device_head");
+  $("dsgDevice").textContent = t("ui.dsg_device");
+  $("dsgNoneHead").textContent = t("ui.dsg_none_head");
+  $("dsgNone").textContent = t("ui.dsg_none");
+  $("dsgRightsHead").textContent = t("ui.dsg_rights_head");
+  $("dsgRights").textContent = t("ui.dsg_rights");
+  $("dsgStand").textContent = t("ui.dsg_stand");
 
   // Set here rather than in the markup: the language is one of the values the
   // server hands over in the bootstrap block, and that block is now the only
