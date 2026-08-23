@@ -524,10 +524,10 @@ export function wireLanguage() {
   // because somebody who cannot read the page is who reaches for it.
   pick.onclick = () => menuOn(pick, (add) => {
     for (const code of LANGUAGES)
-      add(LANGUAGE_NAMES[code] || code, code === LANG, () => {
+      add(LANGUAGE_NAMES[code] || code, () => {
         closeMenus();
         void chooseLanguage(code);
-      });
+      }, { checked: code === LANG });
   });
 
   // Typed into once and read on every render afterwards. The field is in the

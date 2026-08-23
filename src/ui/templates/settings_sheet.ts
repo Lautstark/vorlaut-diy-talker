@@ -43,7 +43,7 @@ export const markup = `
            survivable while this page committed to a dark ground and stopped
            being when the scheme became a choice. -->
       <span class="menu-anchor start"><button id="langPick" class="btn quiet sm dropdown"
-        type="button" aria-haspopup="true" aria-expanded="false"
+        type="button" aria-haspopup="menu" aria-expanded="false"
         aria-label="Sprache / Language"></button></span>
       <p class="note" id="languageNote"></p>
     </div>
@@ -167,7 +167,7 @@ export const markup = `
              aria-labelledby rather than "for", which would silently do nothing. -->
         <span class="lbl" id="renderingLabel"></span>
         <span class="menu-anchor start"><button id="renderingPick" class="btn quiet sm dropdown"
-          type="button" aria-haspopup="true" aria-expanded="false"
+          type="button" aria-haspopup="menu" aria-expanded="false"
           aria-labelledby="renderingLabel"></button></span>
         <p class="note" id="renderingNote"></p>
       </div>

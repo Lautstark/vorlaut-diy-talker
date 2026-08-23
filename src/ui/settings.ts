@@ -126,9 +126,9 @@ function renderRenderings() {
       void saveSettings({ metacomRendering: chosen });
       paint();
     };
-    add(label(null), live === null, choose(null));
+    add(label(null), choose(null), { checked: live === null });
     for (const entry of found)
-      add(label(entry.segment), live === entry.segment, choose(entry.segment));
+      add(label(entry.segment), choose(entry.segment), { checked: live === entry.segment });
   });
 }
 

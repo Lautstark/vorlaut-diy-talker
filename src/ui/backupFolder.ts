@@ -112,7 +112,13 @@ export function wireBackupFolder(backup: Sicherung, say: (message: string) => vo
         actions.append(button("ui.folder_retry", "primary", () => backup.save()), forget);
         break;
       case "idle":
-        actions.append(button("ui.folder_now", "", () => backup.save()), forget);
+        // No "save now". The folder is written on every change already, so a
+        // button offering to do it again sat directly above the one that
+        // writes a file, and differed from it by a word naming the wrong axis
+        // - timing rather than destination. "Erneut versuchen" below is not
+        // the same button: after a failure there is nothing happening to be
+        // redundant with.
+        actions.append(forget);
         break;
       case "saving":
         // Nothing while it writes. Two greyed buttons flickering on every
