@@ -62,10 +62,23 @@ async function doSearch() {
     const hits = await symbols.searchActive(word);
     if (mine !== searchToken) return;
     show(hits);
-    if (!hits.length) say(box, t("ui.nothing_found", { word: word }));
+    // An empty answer has two causes and they need different sentences. A
+    // provider's search() must not throw - bildquelle's contract - so ARASAAC
+    // returns [] when the fetch fails, and "nothing found for X" was what a
+    // browser with no network was told about a word the collection holds
+    // thousands of. The status is the only place the difference survives.
+    if (!hits.length) {
+      const state = symbols.activeStatus();
+      say(box, state.kind === "ready"
+        ? t("ui.nothing_found", { word: word })
+        : t("ui.search_no_answer", { word: word }));
+    }
   } catch (error) {
     if (mine !== searchToken) return;
-    say(box, reason(error));
+    // Reachable now, and it was not: searchActive() returned [] for anything
+    // that went wrong in it, so this arm was dead and the dialog said
+    // "nothing found" when the page had failed to ask at all.
+    say(box, t("ui.search_failed", { error: reason(error) }));
   }
 }
 
