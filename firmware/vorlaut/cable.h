@@ -397,6 +397,13 @@ class Cable {
         const uint32_t waited = millis() - lastByte;
         if (waited > gap_) gap_ = waited;
         if (waited > CABLE_QUIET_MS) {
+          // Unmarked, so it is the device's log rather than an answer - the
+          // browser steps over it and a person reading the wire gets the one
+          // number that says whether this was a trickle of loss or a wall.
+          Serial.printf("cable: short after %u of %u bytes"
+                        " (gap %u ms, longest flash write %u ms)\n",
+                        (unsigned)got, (unsigned)command.size,
+                        (unsigned)gap_, (unsigned)stall_);
           file.close();
           LittleFS.remove(CABLE_PART_FILE);
           return "short";

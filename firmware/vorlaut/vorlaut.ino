@@ -571,6 +571,18 @@ static void goToSleep() {
 // --- Arduino -----------------------------------------------------------------
 
 void setup() {
+  // Room for the browser to be ahead of the flash. A push arrives in 4096
+  // byte chunks as fast as USB will carry them, and this loop can only take
+  // CABLE_CHUNK at a time and then spends tens of milliseconds inside
+  // file.write() - during which nothing is read and everything that lands is
+  // dropped. USB CDC has no way to say it overflowed, so the loss is silent:
+  // the browser reports every chunk written, the device never sees the end of
+  // the file, and it times out with "short" pointing at a browser that did
+  // nothing wrong. The default 256 bytes is a quarter of one USB frame's
+  // worth of that burst.
+  //
+  // Has to come before begin() - the buffer is allocated there.
+  Serial.setRxBufferSize(CABLE_RX_BUFFER);
   Serial.begin(115200);
 
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {

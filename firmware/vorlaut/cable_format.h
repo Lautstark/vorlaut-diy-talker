@@ -60,6 +60,27 @@
 // one thing it is for - the same rule as the setup portal's timeout.
 #define CABLE_QUIET_MS 4000
 
+// How much the device can be behind the browser without losing anything.
+//
+// This is not a comfort figure, it is an arithmetic one, and the first real
+// hardware supplied both numbers. USB fills an empty buffer at about
+// 490 KB/s - measured, 20480 bytes accepted in 42 ms - and the longest single
+// LittleFS write was 46 ms, during which the loop reads nothing at all. That
+// is 22 KB arriving with nowhere to put it. Once the buffer is full the
+// interrupt reads the USB FIFO, finds no room and discards, and CDC has no
+// way to tell the other end it happened: the browser reports every chunk
+// written and the device is quietly short.
+//
+// 16 KB was tried first and lost 214 bytes of 26912 - too small by about what
+// the sum above says. 64 KB is that worst case with room over it.
+//
+// It is a bound, not a guarantee: a longer stall than 46 ms on a fuller file
+// system would overrun this too. The fix that would not need a number here at
+// all is the device acknowledging each chunk so the browser waits while the
+// flash is busy - a change to both halves of the protocol, and worth doing
+// before this device is out of reach of a cable.
+#define CABLE_RX_BUFFER 65536
+
 // How long the device waits for a whole line before it has been greeted.
 // Deliberately far shorter than CABLE_QUIET_MS: until a browser has said
 // hello, anything on this wire is as likely to be a serial monitor or one

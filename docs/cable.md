@@ -292,9 +292,21 @@ either has a measurement behind it or is changed to one:
 
 | | |
 |---|---|
-| longest `gap` over a full payload | *not yet measured* |
-| longest `stall` over a full payload | *not yet measured* |
+| longest `gap` over a full payload | **0 ms** |
+| longest `stall` over a full payload | **53 ms** |
 | `CABLE_QUIET_MS` | 4000 |
+
+Measured on 2026-08-23, the first hardware to run this: a full payload of ten
+files and 199 KiB, across in 3.3 s at 60 KB/s. So 4000 has a measurement behind
+it now, and an enormous one — the margin is the timeout itself, near enough.
+
+**That margin is only real because of `CABLE_RX_BUFFER`, and the two have to be
+read together.** Before it, the same transfer reported a `gap` of 4001 ms and
+died on the first file, and no value of `CABLE_QUIET_MS` would have saved it:
+the device was not waiting for bytes that were late, it was waiting for bytes
+that had been thrown away. The gap being 0 now does not mean the wire got
+faster - it means nothing is being discarded, so the device never waits at
+all.
 
 That third rule is not a special case. **A device that has not been greeted is
 in exactly the same state as one that has just lost a transfer** — refusing
