@@ -30,6 +30,17 @@
 #define BREITE 128
 #define HOEHE  128
 
+// Which of the five to drive, 0..4 - display 1 is 0, the set key is 4. Stage 2
+// is about display 1 and defaults to it, but when a later stage leaves exactly
+// one panel dark, pointing this at that panel takes the other four, the shared
+// bus and their power draw out of the picture:
+//
+//   arduino-cli compile --build-property \
+//     "compiler.cpp.extra_flags=-DPANEL_INDEX=3" ...
+#ifndef PANEL_INDEX
+#define PANEL_INDEX 0
+#endif
+
 class Panel : public Adafruit_ST7735 {
  public:
   using Adafruit_ST7735::Adafruit_ST7735;
@@ -56,7 +67,7 @@ void setup() {
   digitalWrite(PIN_RST, HIGH); delay(150);
 
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
-  tft = new Panel(&SPI, PIN_CS[0], PIN_DC, -1);
+  tft = new Panel(&SPI, PIN_CS[PANEL_INDEX], PIN_DC, -1);
   tft->initR(PANEL_INITR);
   tft->invertDisplay(PANEL_INVERT);
   tft->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);

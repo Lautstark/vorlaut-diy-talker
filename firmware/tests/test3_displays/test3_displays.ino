@@ -46,17 +46,31 @@ void setup() {
   pinMode(PIN_BL, OUTPUT);
   digitalWrite(PIN_BL, HIGH);
 
-  // RST is common to all five: pulse it once by hand, then hand the drivers
-  // -1. Otherwise initialising display 3 would reset displays 1 and 2 again.
   pinMode(PIN_RST, OUTPUT);
-  digitalWrite(PIN_RST, HIGH); delay(10);
-  digitalWrite(PIN_RST, LOW);  delay(20);
-  digitalWrite(PIN_RST, HIGH); delay(150);
 
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     Serial.printf("display %u on CS GPIO %d\n", i + 1, PIN_CS[i]);
     display[i] = new Panel(&SPI, PIN_CS[i], PIN_DC, -1);
+  }
+  Serial.println("Check the order against docs/hardware.md: 1 2 top, 3 4 bottom, S left.");
+  Serial.println("Redrawing every 3 s - move a wire and watch, no reset needed.");
+}
+
+// A panel keeps its picture in its own memory, so drawing once in setup()
+// means the displays go on showing it whatever happens to the wiring
+// afterwards - a moved CS line changes nothing until something redraws. That
+// makes the one thing this stage exists for, finding a wire, needlessly slow:
+// reset, look, reset, look. So the whole init and draw runs again every few
+// seconds, and a panel that was just reconnected joins in by itself.
+static void alleZeichnen() {
+  // RST is common to all five: pulse it once by hand, then hand the drivers
+  // -1. Otherwise initialising display 3 would reset displays 1 and 2 again.
+  digitalWrite(PIN_RST, HIGH); delay(10);
+  digitalWrite(PIN_RST, LOW);  delay(20);
+  digitalWrite(PIN_RST, HIGH); delay(150);
+
+  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     display[i]->initR(PANEL_INITR);
     display[i]->invertDisplay(PANEL_INVERT);
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
@@ -68,9 +82,9 @@ void setup() {
     display[i]->setCursor(128 / 2 - 18, 128 / 2 - 24);
     display[i]->print(LABEL[i]);
   }
-  Serial.println("Check the order against docs/hardware.md: 1 2 top, 3 4 bottom, S left.");
 }
 
 void loop() {
-  delay(1000);
+  alleZeichnen();
+  delay(3000);
 }
