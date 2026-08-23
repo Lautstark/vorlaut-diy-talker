@@ -141,17 +141,7 @@ export const folderOf = (path, root) => {
  * licensed collection that is there is worth more than an error about the one
  * that is not.
  */
-export async function search(word, source) {
-  const term = (word || "").trim();
-  if (!term) return [];
-
-  let hits;
-  try {
-    hits = await getProvider(source).search(term);
-  } catch {
-    return [];
-  }
-
+async function decorate(hits, source) {
   const wanted = hits.slice(0, SEARCH_LIMIT);
   // Four METACOM tiles all captioned "ja" are told apart only by picture, so
   // when a label repeats within one answer, the tile also names the folder its
@@ -173,6 +163,16 @@ export async function search(word, source) {
   }));
 }
 
+export async function search(word, source) {
+  const term = (word || "").trim();
+  if (!term) return [];
+  try {
+    return await decorate(await getProvider(source).search(term), source);
+  } catch {
+    return [];
+  }
+}
+
 /* Which collection the picker offers. One, not both.
  *
  * Held here rather than read out of the settings at each call, for the same
@@ -184,8 +184,47 @@ let active: ProviderId = "arasaac";
 export const activeSource = (): ProviderId => active;
 export const setActiveSource = (source: ProviderId) => { active = source; };
 
-/** The active collection's answer. */
-export const searchActive = (word: string) => search(word, active);
+/* What the active collection has for what somebody typed.
+ *
+ * Not the raw string against the labels any more. A key on this board says
+ * "Ich habe Durst" and the collection holds "durstig": comparing the two as
+ * strings finds nothing, and since the picker offers one collection there is
+ * no second one to fall back on. bildquelle's German half turns the text into
+ * the words worth looking up - lemma, then the compound it probably is, then a
+ * synonym - and suggest() flattens what they found into one ranked list, which
+ * is the shape a grid of tiles wants.
+ *
+ * Stopwords are dropped only when there is more than one word. A search box is
+ * not a sentence: somebody who types a single function word means that word,
+ * and answering nothing because the list calls it furniture would be answering
+ * a question they did not ask. Several words *is* a sentence, and there the
+ * function words really are noise.
+ */
+/* Fetched the first time somebody searches, and not before.
+ *
+ * The lemma, baseword and synonym tables behind it are about 170 KB - 42 KB
+ * over the wire - and they are worth nothing until a word is typed into the
+ * picker. Loading them with the page would spend that on every visit,
+ * including the ones that only press a key to hear it. The promise is kept so
+ * the second keystroke does not ask again. */
+let german: Promise<typeof import("@lautstark/bildquelle/german")> | null = null;
+const loadGerman = () => (german ??= import("@lautstark/bildquelle/german"));
+
+export async function searchActive(word: string) {
+  const term = (word || "").trim();
+  if (!term) return [];
+  try {
+    const { suggest, tokenize } = await loadGerman();
+    const single = tokenize(term).length <= 1;
+    const hits = await suggest(term, {
+      provider: getProvider(active),
+      stopwords: single ? [] : undefined,
+    });
+    return await decorate(hits, active);
+  } catch {
+    return [];
+  }
+}
 
 /* --------------------------------------------------------------- image --- */
 

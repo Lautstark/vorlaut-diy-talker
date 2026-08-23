@@ -252,3 +252,36 @@ test("pressing play with no voice says what to do, not that it failed", async ({
   // refusal of an empty name, which is what every press produced before.
   await expect(page.locator("#status")).toHaveText(label("ui.no_voice_yet"));
 });
+
+test("a whole sentence finds the symbol its words point at", async ({ page }) => {
+  // The collection answers for one word only: the lemma. Everything the picker
+  // is typed at below has to be reduced to it before ARASAAC is ever asked,
+  // which is the whole of what bildquelle's German half is for.
+  const asked: string[] = [];
+  await page.route("**/api.arasaac.org/**", (route) => {
+    const term = decodeURIComponent(new URL(route.request().url()).pathname.split("/").pop()!);
+    asked.push(term);
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(term.toLowerCase() === "durstig"
+        ? [{ _id: 4242, keywords: [{ keyword: "durstig" }] }]
+        : []),
+    });
+  });
+  await page.route("**/static.arasaac.org/**", (route) =>
+    route.fulfill({ contentType: "image/png", body: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }));
+
+  await openBoard(page);
+  await page.locator("#device .tile:not(.setTile) .thumb").first().click();
+  await expect(page.locator("#picker")).toBeVisible();
+
+  // Typed as somebody would write it on a key: a sentence, with a full stop.
+  // Before this, the raw string went to the collection and came back empty.
+  await page.locator("#q").fill("Ich bin durstig.");
+  await page.locator("#searchBtn").click();
+  await expect(page.locator("#results figure")).toHaveCount(1);
+
+  // And it got there by asking for the word, not the sentence.
+  expect(asked).toContain("durstig");
+  expect(asked).not.toContain("Ich bin durstig.");
+});
