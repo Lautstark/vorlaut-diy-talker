@@ -2,6 +2,7 @@
 // this page goes through t(), so no string sits in the markup twice.
 import { $ } from "../ui/dom.js";
 import { LANG, TEXTS } from "./boot.js";
+import { activeSource } from "../data/symbols.js";
 
 // A label and its address, both out of the table. Everything else on this page
 // arrives through textContent, which is inert whatever it says; an href is the
@@ -52,7 +53,15 @@ export function applyTexts() {
   $<HTMLButtonElement>("searchBtn").textContent = t("ui.search");
   $<HTMLButtonElement>("uploadBtn").textContent = t("ui.own_image");
   $<HTMLButtonElement>("closeBtn").textContent = t("ui.close");
-  $<HTMLInputElement>("q").placeholder = t("ui.search_arasaac");
+  // Named after the collection actually being offered, not after ARASAAC.
+  // This line said "ui.search_arasaac" flat, which was true of a first visit
+  // and of nothing else: applyTexts() runs again on every language switch and
+  // on a board arriving in another language, and each of those put ARASAAC
+  // back over a field that was searching METACOM. picker.ts writes the same
+  // placeholder when the source changes; this is the same answer at the one
+  // moment the picker has nothing to react to.
+  $<HTMLInputElement>("q").placeholder =
+    t(activeSource() === "metacom" ? "ui.search_metacom" : "ui.search_arasaac");
   $("settingsHeading").textContent = t("ui.settings");
   $("voiceSection").textContent = t("ui.voice");
   $<HTMLInputElement>("voiceQuery").placeholder = t("ui.voice_search_hint");

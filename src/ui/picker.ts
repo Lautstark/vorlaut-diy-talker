@@ -5,7 +5,7 @@
 // available is bildquelle's answer now, not a variable of ours.
 import { $, say, status} from "./dom.js";
 import { reason } from "../core/errors.js";
-import { pickSymbol, uploadSymbol } from "../backend/index.js";
+import { pickSymbol, readSettings, uploadSymbol } from "../backend/index.js";
 import * as symbols from "../data/symbols.js";
 import type { ProviderId } from "@lautstark/bildquelle";
 import { state } from "../core/state.js";
@@ -123,6 +123,23 @@ async function pick(item) {
 // this runs again whenever the provider says something changed.
 export async function loadSources() {
   await symbols.restoreMetacom();
+  // And which of them the picker offers is a setting, so it has to be read
+  // here too. Nothing did: the only caller of loadSettings() is the settings
+  // sheet opening, so until somebody pressed the gear the page ran on the
+  // "arasaac" that symbols.ts starts life with. A METACOM chosen last visit
+  // was searched as ARASAAC, the field said ARASAAC, and both quietly changed
+  // their mind the first time the sheet was opened.
+  //
+  // After restoreMetacom() and not before: readSettings() only hands back
+  // "metacom" once the folder has actually answered, and asking early would
+  // read that as a folder that is not there.
+  try {
+    const settings = await readSettings();
+    symbols.setActiveSource(settings.activeProvider || "arasaac");
+  } catch {
+    // The picker still opens, on the source that needs no folder. This runs
+    // unawaited from start(), so a throw here would be nobody's to catch.
+  }
   symbols.subscribeMetacom(showSources);
   showSources();
 }
