@@ -191,6 +191,42 @@ sketches are gone with the radio and the server they talked to. What replaced
 them is one wire and [cable.md](cable.md), which has the bench for driving it
 without the editor, and the list of what a first run has to show.
 
+### What the first real run found, 2026-08-23
+
+Stage 6 failed on the first file, every time, with `short` — and the word is
+misleading enough to be worth writing down. It reads as though the browser
+stopped talking, and the device says exactly that. The browser had not: its
+console showed all seven chunks of a 26912 byte file written and resolved
+inside a second. The bytes were leaving and not arriving.
+
+`Serial.begin()` was being called without `setRxBufferSize()`, so the receive
+buffer was the default 256 bytes. USB fills an empty buffer at about 490 KB/s,
+and the loop disappears into `file.write()` for up to 60 ms at a time, reading
+nothing. Everything landing in that window has nowhere to go, and the interrupt
+discards it. CDC cannot report an overflow, so the loss is perfectly silent at
+both ends: the browser reports success on every chunk, the device is quietly
+short, and four seconds later it blames the browser.
+
+The size is arithmetic, not taste: 490 KB/s against a 60 ms stall is 30 KB
+that has to sit somewhere. 16 KB was tried on the way and lost 214 bytes of
+26912 — small enough to look like noise, fatal all the same, because a file is
+whole or it is not. `CABLE_RX_BUFFER` is 64 KB.
+
+**Three things this stage should be trusted to catch, and did not:**
+
+- **`tests/cable_format.py` passes either way.** It hands `cable.js` a Node
+  stream, where every byte written is a byte delivered — there is no buffer to
+  overflow in a test harness. Its own closing note says the case is *"not
+  coverable without hardware"*, and this was it.
+- **`short` names the symptom at the wrong end.** The device knows how many
+  bytes it got; it now says so, and `short after 26698 of 26912` is the line
+  that turned a guess into arithmetic. A count is cheap and a word is not
+  enough.
+- **The invented payload's `layout.bin` is 942 random bytes.** A transfer that
+  works still ends in `layout.bin unusable (reason 2)` and five displays saying
+  no content. That is correct, and it looks exactly like failure. Prove the
+  transport with the bench; prove the device with real content from the editor.
+
 ## Stage 7 — The real firmware
 
 

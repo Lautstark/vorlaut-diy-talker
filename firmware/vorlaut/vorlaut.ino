@@ -60,6 +60,12 @@
 
 // --- Behaviour ---------------------------------------------------------------
 
+// How long the MAX98357A gets between SD going high and the first sample.
+// 5 ms was a guess and audibly too short - the start of every word arrived
+// while the amplifier was still coming up. 50 ms is inaudible as latency and
+// well past its settling time.
+static const uint32_t AMP_WAKE_MS = 50;
+
 static const uint32_t DEBOUNCE_MS = 80;    // this long a key has to stay down
 // The set key needs longer. An accidental switch takes away the word she was
 // about to say, and she first has to find her way back - that is more annoying
@@ -76,6 +82,9 @@ static const uint8_t MENU_KEY_B = 1;            // key 2, diagonally opposite
 static const uint32_t MENU_IDLE_MS = 30000;
 static const uint32_t SAMPLE_RATE = 16000; // the rate build.py writes the WAVs at
 static const size_t AUDIO_CHUNK = 1024;
+// Chunks of silence pushed after a word, before the amplifier is switched
+// off. 1024 bytes is 512 samples, so at 16 kHz each of these is 32 ms.
+static const uint8_t AUDIO_TAIL_CHUNKS = 3;
 
 // --- Zustand -----------------------------------------------------------------
 
@@ -314,6 +323,18 @@ static void drawMenu() {
 // Defined further down with the other key handling. Needed up here because a
 // transfer has to be interruptible while it is running.
 static bool isDown(uint8_t index);
+static int8_t pollButtons();
+
+// A key pressed while a word was playing. playWav() blocks for the length of
+// the word, and nothing read the buttons during it - so on real hardware four
+// presses in ten simply never happened. Not because they were too quick or
+// too weak: the device was inside playWav() and deaf.
+//
+// Interrupting the word was tried and was worse; dropping the press is what
+// made a third of them do nothing. So it is remembered instead, and spoken
+// when the word it arrived during has finished. One press, not a queue: after
+// several the last one is what she still means.
+static int8_t pendingKey = -1;
 
 static void showOnAll(const char *first, const char *second) {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
@@ -440,19 +461,76 @@ static void playWav(const char *path) {
 
   static uint8_t chunk[AUDIO_CHUNK];
   digitalWrite(PIN_AMP_SD, HIGH);
-  delay(5);  // let the amplifier wake up
+  // AMP_WAKE_MS and not the 5 ms this had: the MAX98357A is nowhere near full
+  // gain that quickly, so every word began quiet and a word cut short by the
+  // next key was mostly ramp - which is what made the loudness differ between
+  // presses on real hardware.
+  //
+  // Holding it on for the whole waking time was tried instead and was worse:
+  // with nothing feeding I2S between words the amplifier sits there
+  // amplifying an idle bus, and it hisses audibly. Stage 5 had already shown
+  // the pair of them - SD high AND silence written through the gaps was the
+  // combination that was clean - and keeping I2S fed everywhere needs loop()
+  // restructured or an audio task of its own, not a line moved.
+  delay(AMP_WAKE_MS);
+
+  // A word is not interrupted, and that is a decision rather than an
+  // omission. Letting the next key cut this one off was tried on real
+  // hardware and was worse: pressed quickly, nine presses out of ten were
+  // clipped after a few tens of milliseconds, which is far too short to
+  // recognise. Every press did start a word - the log said so - and it still
+  // sounded exactly like a device ignoring a third of them.
+  //
+  // So a press during a word is dropped, and pressing quickly gives fewer
+  // words rather than broken ones. For someone learning that a key makes the
+  // device speak, a whole word she did not ask for is a better wrong answer
+  // than a fragment she cannot make out.
+  // How loud this word actually is, measured on the way past. Nothing in the
+  // browser normalises any more - that went with the Python - so one word can
+  // be a fraction of another and there is no volume control to make up for
+  // it. A word that is merely quiet and a word that is silent look identical
+  // from the outside, and this is the difference between them.
+  int16_t peak = 0;
+  const uint32_t sampleBytes = remaining;
+  const uint32_t began = millis();
 
   while (remaining > 0) {
     size_t want = remaining < AUDIO_CHUNK ? remaining : AUDIO_CHUNK;
     size_t got = file.read(chunk, want);
     if (got == 0) break;
+    for (size_t i = 0; i + 1 < got; i += 2) {
+      int16_t sample = (int16_t)((uint16_t)chunk[i] | ((uint16_t)chunk[i + 1] << 8));
+      if (sample == INT16_MIN) sample = INT16_MAX;
+      if (sample < 0) sample = (int16_t)-sample;
+      if (sample > peak) peak = sample;
+    }
     i2s.write(chunk, got);
     remaining -= got;
+
+    const int8_t caught = pollButtons();
+    if (caught >= 0) pendingKey = caught;
   }
 
-  // Push a little silence after it, otherwise it clicks on switch-off.
+  Serial.printf("  %u bytes, %u ms, peak %d of 32767 (%d%%)\n",
+                (unsigned)sampleBytes,
+                (unsigned)(millis() - began),
+                (int)peak, (int)((int32_t)peak * 100 / 32767));
+
+  // Silence before the amplifier is switched off, or it clicks. Three chunks
+  // and not the eight it was: at AUDIO_CHUNK and SAMPLE_RATE that is 96 ms
+  // rather than 256, and those 160 ms were the fattest part of the ~740 ms a
+  // press costs. The shorter that is, the less often two presses land inside
+  // one word - which is the whole of what is still being lost.
+  //
+  // If the click comes back, this is the number that brought it back. It is
+  // not the click stage 5 measured, though: that one was the I2S stream
+  // running dry, and no amount of tail here addresses it.
   memset(chunk, 0, AUDIO_CHUNK);
-  for (uint8_t i = 0; i < 8; i++) i2s.write(chunk, AUDIO_CHUNK);
+  for (uint8_t i = 0; i < AUDIO_TAIL_CHUNKS; i++) {
+    i2s.write(chunk, AUDIO_CHUNK);
+    const int8_t caught = pollButtons();   // this counts too
+    if (caught >= 0) pendingKey = caught;
+  }
   digitalWrite(PIN_AMP_SD, LOW);
   file.close();
 }
@@ -571,7 +649,20 @@ static void goToSleep() {
 // --- Arduino -----------------------------------------------------------------
 
 void setup() {
+  // Room for the browser to be ahead of the flash. A push arrives in 4096
+  // byte chunks as fast as USB will carry them, and this loop can only take
+  // CABLE_CHUNK at a time and then spends tens of milliseconds inside
+  // file.write() - during which nothing is read and everything that lands is
+  // dropped. USB CDC has no way to say it overflowed, so the loss is silent:
+  // the browser reports every chunk written, the device never sees the end of
+  // the file, and it times out with "short" pointing at a browser that did
+  // nothing wrong. The default 256 bytes is a quarter of one USB frame's
+  // worth of that burst.
+  //
+  // Has to come before begin() - the buffer is allocated there.
+  Serial.setRxBufferSize(CABLE_RX_BUFFER);
   Serial.begin(115200);
+
 
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     pinMode(PIN_BUTTON[i], INPUT_PULLUP);
@@ -622,6 +713,19 @@ void setup() {
     waitForRelease();
   }
 
+  // Which build is actually running, and the settings that are usually the
+  // question. On a device flashed a dozen times in an evening "did that
+  // upload take?" is a real question, and guessing wastes more than the line
+  // costs. Deep sleep restarts the sketch, so waking reprints it.
+  //
+  // Down here rather than beside Serial.begin(): on the S3's native USB the
+  // port is not enumerated for the first moment after begin(), and anything
+  // printed into that gap is simply lost. It was, which is how this comment
+  // came to be written.
+  Serial.printf("vorlaut build %s %s (amp wake %u ms, rx buffer %u)\n",
+                __DATE__, __TIME__, (unsigned)AMP_WAKE_MS,
+                (unsigned)CABLE_RX_BUFFER);
+
   lastActivity = millis();
 }
 
@@ -670,7 +774,12 @@ void loop() {
     return;   // while the countdown runs, nothing else may trigger
   }
 
-  const int8_t pressed = pollButtons();
+  int8_t pressed = pollButtons();
+  if (pressed < 0 && pendingKey >= 0) {
+    pressed = pendingKey;
+    Serial.printf("key %d: was pressed while the last word played\n", pressed + 1);
+  }
+  pendingKey = -1;
 
   if (mode == MODE_MENU) {
     if (pressed == SET_BUTTON) {
