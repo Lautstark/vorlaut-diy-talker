@@ -70,15 +70,35 @@ const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
 //    one directory answering for the phonemizer's wasm and data and for
 //    onnxruntime's binaries together, and no CDN serves those four files
 //    from one place. vite.config.ts is what fills vendor/.
+/** onnxruntime, told to stay on one thread.
+ *
+ * It sizes its pool off `hardwareConcurrency` and then warns that threads want
+ * a cross-origin-isolated page, which GitHub Pages sends none of the headers
+ * for. It falls back by itself, so this changes no behaviour - what it changes
+ * is that the single-threaded arrangement is the arrangement rather than a
+ * recovery, and that a first recording stops writing a warning nobody can act
+ * on into a console this page otherwise keeps quiet. It also matches what
+ * vite.config.ts vendors, which is the single-threaded pair and not the four.
+ *
+ * Written in mitreden first (its audio.ts) and taken from there rather than
+ * rediscovered. Not part of stimmquelle's `OnnxModule`, which describes only
+ * what the package needs of this module; the thread count is between this page
+ * and its own dependency.
+ */
+function singleThreaded(onnx: OnnxModule): OnnxModule {
+  (onnx.env.wasm as { numThreads?: number }).numThreads = 1;
+  return onnx;
+}
+
 usePiperRuntime({
   phonemizer: async () => ({
     createPiperPhonemize:
       (await import("@diffusionstudio/piper-wasm/build/piper_phonemize.js"))
         .default as PhonemizerFactory,
   }),
-  onnx: () => import(
+  onnx: async () => singleThreaded(await import(
     "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js"
-  ) as unknown as Promise<OnnxModule>,
+  ) as unknown as OnnxModule),
   wasmBase: `${import.meta.env.BASE_URL}vendor/`,
 });
 
