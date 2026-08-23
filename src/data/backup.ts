@@ -77,12 +77,9 @@ export interface Backup {
   notice: string;
 }
 
-const NOTICE =
-  "Diese Datei enthält das Board, die eigenen und die ARASAAC-Bilder sowie "
-  + "einige Einstellungen. Nicht enthalten sind METACOM-Bilder und der Pfad zum "
-  + "METACOM-Ordner — METACOM ist personengebunden lizenziert. Ein "
-  + "Azure-Schlüssel ist ebenfalls nicht enthalten. Beides muss nach dem "
-  + "Wiederherstellen neu verbunden werden.";
+/** Thrown when the file is from a later vorlaut. A code rather than a
+ *  sentence: this module has no language, and the caller has the table. */
+export const TOO_NEW = "backup:too-new";
 
 /** Copies across exactly the fields named, and nothing else.
  *
@@ -118,7 +115,14 @@ const fromBase64 = (data: string): ArrayBuffer => {
   return bytes.buffer;
 };
 
-export async function exportEverything(): Promise<Backup> {
+/** The notice is passed in rather than written here, and that is the layering
+ *  rather than a preference. This module has no language: `t()` reaches the
+ *  table through core/boot.js, which reads navigator.languages at import time
+ *  and so cannot be loaded by anything that must also run under node - which
+ *  the licensing tests do. The caller has both the table and the page's
+ *  language, so the caller supplies the sentence. tests/test_language.py
+ *  enforces the general form of this: German lives in boot_data.ts alone. */
+export async function exportEverything(notice: string): Promise<Backup> {
   const held = await store.readLayout();
   const listed = await store.listFiles("symbols");
 
@@ -137,7 +141,7 @@ export async function exportEverything(): Promise<Backup> {
     layout: held.layout,
     symbols,
     settings: stripSecrets(await store.readSettings<Partial<Settings>>({})),
-    notice: NOTICE,
+    notice,
   };
 }
 
@@ -161,7 +165,7 @@ export interface Restored {
  * exactly that for an .obz, and this follows it. */
 export async function importBackup(backup: Backup): Promise<Restored> {
   if (typeof backup.version !== "number" || backup.version > BACKUP_VERSION) {
-    throw new Error("Diese Datei stammt aus einer neueren Version von vorlaut.");
+    throw new Error(TOO_NEW);
   }
 
   // Symbols first. A layout landing before its pictures would draw a board of

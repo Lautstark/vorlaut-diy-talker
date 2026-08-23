@@ -15,7 +15,7 @@ import { LANG } from "../core/boot.js";
 import { replaceLayout } from "../core/save.js";
 import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
-import { exportEverything, importBackup, isBackup } from "../data/backup.js";
+import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
 import { wireBackupFolder } from "./backupFolder.js";
 import type { Sicherung } from "@lautstark/sicherung";
 
@@ -338,7 +338,7 @@ export function wireData(backup: Sicherung) {
   $<HTMLButtonElement>("dataExport").onclick = async () => {
     $("dataState").textContent = "";
     try {
-      const blob = new Blob([JSON.stringify(await exportEverything(), null, 2)],
+      const blob = new Blob([JSON.stringify(await exportEverything(t("ui.data_notice")), null, 2)],
         { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -376,7 +376,11 @@ export function wireData(backup: Sicherung) {
       if (done.layout) await replaceLayout(done.layout);
       $("dataState").textContent = t("ui.data_imported", { symbols: done.symbols });
     } catch (error) {
-      $("dataState").textContent = t("ui.data_failed", { error: reason(error) });
+      // The data layer has no language and answers with a code; this is where
+      // the code becomes a sentence.
+      $("dataState").textContent = error instanceof Error && error.message === TOO_NEW
+        ? t("ui.data_too_new")
+        : t("ui.data_failed", { error: reason(error) });
     }
   };
 }

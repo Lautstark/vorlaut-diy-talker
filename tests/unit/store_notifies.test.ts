@@ -27,16 +27,16 @@ describe("the change notifier", () => {
   });
 
   it("writeLayout() announces the write", async () => {
-    await store.writeLayout(board("Küche"), null);
+    await store.writeLayout(board("Kitchen"), null);
     expect(heard).toBe(1);
   });
 
   /* A conflict wrote nothing. Announcing one would back up the layout this tab
    * lost, which is the opposite of what a backup is for. */
   it("writeLayout() stays quiet when it lost a conflict and wrote nothing", async () => {
-    await store.writeLayout(board("Erste"), null);
+    await store.writeLayout(board("First"), null);
     heard = 0;
-    const result = await store.writeLayout(board("Zweite"), "eine-version-die-nicht-stimmt");
+    const result = await store.writeLayout(board("Second"), "a-version-that-does-not-match");
     expect(result.conflict).toBe(true);
     expect(heard).toBe(0);
   });
@@ -86,7 +86,7 @@ describe("the change notifier", () => {
 
   it("stops telling a listener that unsubscribed", async () => {
     stop();
-    await store.writeLayout(board("Küche"), null);
+    await store.writeLayout(board("Kitchen"), null);
     expect(heard).toBe(0);
   });
 });

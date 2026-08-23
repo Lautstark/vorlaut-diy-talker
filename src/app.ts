@@ -36,7 +36,13 @@ import { Sicherung } from "@lautstark/sicherung";
  * somebody's cloud, and a METACOM path is derived from a folder that is
  * licensed per person. tests/unit/backup_payload.test.ts holds this wiring in
  * place, and a failure there is a licence or a leak rather than a bug. */
-const backup = new Sicherung({ app: "vorlaut", produce: exportEverything });
+const backup = new Sicherung({
+  app: "vorlaut",
+  // The notice travels inside the file, so it is written in the language the
+  // page is in - and it comes from the table, because this repository keeps
+  // German in boot_data.ts alone (tests/test_language.py).
+  produce: () => exportEverything(t("ui.data_notice")),
+});
 
 // Every write that changes what a Sicherung would contain, through the one
 // notifier in data/store.ts. Debounced inside Sicherung, so a burst of edits
