@@ -16,6 +16,7 @@ speak yet.
 - One press turns that into pictures and speech files, and sends them down
   the cable to the device
 - Falls asleep by itself, wakes on any key press
+- No radio at all: the device has no Wi-Fi, and the cable is the only way in
 
 ## Running it
 
@@ -72,8 +73,8 @@ TypeScript, bundled by Vite, with no framework: the interface is plain DOM, and
 | `npm run test:e2e` | Playwright: the page, built and opened in a real browser, under the base a project site is served from |
 | `python3 tests/run.py` | the checks that need a C++ compiler — the firmware's own readers, compiled and fed the browser's bytes |
 
-That last one is the only Python left, and it is not going anywhere: `layout.bin`,
-the cable protocol, the pairing codes and the panel's text each have two
+That last one is the only Python left, and it is not going anywhere:
+`layout.bin`, the cable protocol and the panel's text each have two
 implementations that have to agree, one of them C++.
 
 The two shared packages are git dependencies pinned by commit — see
@@ -119,7 +120,7 @@ of it, including what the display's font can and cannot draw, is in
 | | |
 |---|---|
 | [docs/hardware.md](docs/hardware.md) | Parts, pin assignment, case dimensions |
-| [docs/software.md](docs/software.md) | How it works: discovery, pairing, sync, build, speech |
+| [docs/software.md](docs/software.md) | How it works: the build, the file formats, speech |
 | [docs/tile-rendering.md](docs/tile-rendering.md) | The symbol renderer in Python and in the browser, and how far apart they are |
 | [docs/bring-up.md](docs/bring-up.md) | First assembly in stages, with small test sketches |
 | [docs/firmware.md](docs/firmware.md) | Ready-made image or compile it yourself, partition scheme, flashing |

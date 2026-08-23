@@ -171,72 +171,28 @@ which on a talker is not 1.5 seconds but minutes. Feeding the bus for as long
 as the device is awake, and stopping it properly on the way into deep sleep,
 is what this measurement asks for. It is **not changed yet**: it trades
 against idle current, it needs the amplifier question answered alongside it,
-and neither can be judged until stage 8 runs. The silence `playWav()` already
+and neither can be judged until stage 7 runs. The silence `playWav()` already
 pushes before switching off is fine and was never the problem.
 
 A faint click survives all of this and is still unaccounted for.
 
-## Stage 6 — Wi-Fi
+## Stage 6 — Content over the cable
 
-`test6_wlan` — only needed if the device is meant to fetch content by itself.
+No sketch of its own, and that is the point: the real firmware answers a
+browser without anything being chosen on the device, so this stage is the
+firmware from stage 7 with a cable in it. Flash it, open the editor, press
+*Send to the device*. All five displays should show **Kabel** with a count
+climbing, and the talker should come back by itself afterwards holding the new
+content.
 
-Without stored credentials it opens an access point called
-**"vorlaut einrichten"**. Connect with a phone, enter network and password;
-after that the ESP32 remembers them itself. The serial monitor reports the IP
-address and signal strength, then a status line every five seconds.
+Stages 6 and 7 used to be **Wi-Fi** and **Fetching content** — `test6_wlan`
+opened a captive portal and `test7_sync` pulled a manifest off `app.py`. Both
+sketches are gone with the radio and the server they talked to. What replaced
+them is one wire and [cable.md](cable.md), which has the bench for driving it
+without the editor, and the list of what a first run has to show.
 
-Switch the network off for a moment: it should report the loss and keep
-trying. The setup portal runs into a time limit after three minutes and gives
-up — a talker that hangs during setup no longer speaks.
+## Stage 7 — The real firmware
 
-This stage stores one network, which is all it needs. The real firmware keeps
-four of them, so the device connects at home and at a second place without
-anybody entering anything again — see **Several networks** in
-[firmware.md](firmware.md).
-
-## Stage 7 — Fetching content
-
-`test7_sync` — the sync and nothing else. No displays, no sound, no sleep, so
-that a problem here is this one problem and not one of six at the same time.
-
-It needs nothing typed in but the Wi-Fi. **The address it finds by itself:**
-one UDP broadcast, and whoever runs `app.py` answers with the port it listens
-on — the address is the one the answer came from. The monitor shows the search
-before the sync.
-
-If nothing answers, the network is not carrying the broadcast; a guest network
-usually does not, and neither does anything that puts the server on a different
-network from the device. The device then falls back on whatever answered
-last time, and the portal still has a field to type an address into, which
-beats the search whenever it is filled in.
-
-**The key is not typed in either.** The sketch pairs by itself: it makes up
-five digits and prints them in the monitor, laid out the way they will later
-sit on the displays — 1 and 2 on top, the set key on the left, 3 and 4 below.
-Type those five into the web interface and the sketch is handed
-`VORLAUT_DEVICE_TOKEN` and stores it. The code is good for about three minutes.
-How the whole exchange works is in [software.md](software.md#pairing).
-
-The second run does not ask again: the key is in NVS and stays valid even if
-the computer turns up at a different address later.
-
-What should happen: **the first run fetches everything, the second fetches
-`layout.bin` only.** That difference is the whole point of the design — the
-file names are hashes of their input, so anything already there can stay. If
-the second run fetches everything again, the fault is on the device side; the
-server side has been played through by `tests/test_device_sync.py` since before
-this sketch existed.
-
-Worth trying while you are here: switch a set off in the web interface,
-release, sync again. The device should delete the files that fell out of the
-manifest and say so.
-
-Also worth trying, since this is the stage where it is cheap: **restart the
-computer's server on a different port** (`--port 8798`). The device should find
-it anyway — the port it asks on is fixed, the port it fetches from is whatever
-the answer said.
-
-## Stage 8 — The real firmware
 
 Only now. The procedure is in [firmware.md](firmware.md).
 
@@ -247,21 +203,11 @@ a formality — if the four keys speak and the fifth switches sets, then the
 partition scheme, the file system, the audio path and all five displays are
 right at once. Everything the earlier stages tested separately, now together.
 
-Your own content comes afterwards, and **in this order:** first **neues WLAN**
-— that is the key that opens the portal from stages 6 and 7, for the network
-and the key. Then **Inhalte holen**, which does what stage 7 did, this time
-with the displays showing progress — including the pairing, with one digit on
-each of the five displays instead of a line in the monitor. **Koppeln** on key
-4 does only that part, for when the key on the server has been replaced. A
-device set up before pairing existed has its key in the same place and goes
-straight past all of it. Or over USB, `build.py --fs-image` and step
-4 in [firmware.md](firmware.md).
-
-The two are apart on purpose. **Inhalte holen** never opens a portal: where the
-device knows no network it says `kein WLAN` and is back in the menu in a few
-seconds, rather than putting up a three-minute access point somewhere out in
-the world. Press **neues WLAN** again at the next place — the networks add up,
-they do not replace each other.
+Your own content comes afterwards, and it is one press: the editor's *Send to the
+device*, which builds the board and pushes it down the cable. There
+is nothing to set up first — no network, no portal, no five digits — because
+there is nothing to prove to a device you are holding. Stage 6 is that press;
+this stage is everything else working at the same time as it.
 
 **"keine Inhalte" on all five displays** means the file area is empty. That is
 correct and not a fault after flashing a program-only image — the artifact from
@@ -271,11 +217,10 @@ mounted at all. If it is not, the partition scheme is the first suspect — the
 board default creates the data area as `ffat`, and `LittleFS.begin()` wants one
 called `spiffs`.
 
-Worth trying, and the whole point of the exercise: sync at home, then take the
-device to a network where `app.py` is not running and press **Inhalte holen**
-there. It should say `nicht da` after a few seconds and then go on speaking
-normally. Nothing hangs, and everything it could say before it can still say —
-the content is on the file system.
+Worth trying, and the whole point of the exercise: transfer at the desk, then
+take the device somewhere else entirely and use it for an afternoon. Nothing it
+does depends on being near a computer — the content is on its own file system,
+and there is no longer anything it could try to reach and fail to find.
 
 ---
 

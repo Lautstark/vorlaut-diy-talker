@@ -61,6 +61,31 @@ def dump() -> list[str]:
                               text=True, check=True).stdout.strip().split("\n")
 
 
+def out_of_step() -> int:
+    """Struct field order against each language table's comment order."""
+    source = (ROOT / "firmware" / "vorlaut" / "texts.h").read_text(encoding="utf-8")
+    struct = re.search(r"struct Strings \{(.*?)\n\};", source, re.S)
+    if not struct:
+        print("  FAIL  texts.h has no struct Strings")
+        return 1
+    declared = re.findall(r"const char \*(\w+);", struct.group(1))
+
+    problems = 0
+    for table in re.findall(r"\{\s*//\s*\d+ - .*?\n(.*?)\n  \},", source, re.S):
+        named = re.findall(r"/\* (\w+)\s*\*/", table)
+        if named != declared:
+            first = next((i for i, (a, b) in enumerate(zip(named, declared))
+                          if a != b), min(len(named), len(declared)))
+            print(f"  FAIL  texts.h: the initialiser and the struct disagree "
+                  f"from position {first} on - the struct says "
+                  f"{declared[first:first + 3]}, the table says "
+                  f"{named[first:first + 3]}. The comments are comments; the "
+                  f"compiler goes by position, so the device would show the "
+                  f"wrong word.")
+            problems += 1
+    return problems
+
+
 def main() -> int:
     lines = dump()
     limit = int(next(l for l in lines if l.startswith("max ")).split()[1])
@@ -95,6 +120,16 @@ def main() -> int:
         print(f"  FAIL  texts.h has {fields} labels, texts_dump.cpp prints "
               f"{dumped} - the missing ones are not checked at all")
         failures += 1
+
+    # The initialisers are positional, and their /* name */ comments are only
+    # comments. When the two lists drift apart the compiler is happy, every
+    # string still fits, every glyph still draws, and the device shows the
+    # wrong word - which is what happened: the struct said cable, done, failed
+    # while the tables said done, failed, cable, so a running transfer drew
+    # "failed" and a finished one drew "cable". Nothing here could see it,
+    # because everything above measures the strings rather than which field
+    # holds them. This reads the two orders as text and requires them to match.
+    failures += out_of_step()
 
     # The two tables have to agree on how many languages there are - the file
     # carries an index into one of them and is written by the other.

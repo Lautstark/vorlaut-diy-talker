@@ -89,7 +89,6 @@ class Cable {
                            CableAbort abort = nullptr) {
     CableResult result = {false, false, 0, 0, 0, nullptr};
     bool open = false;                     // a hello has been answered
-    bool touched = false;                  // something on disk has changed
     const uint32_t began = millis();
     uint32_t lastLine = millis();
     CableLine line = {0, {0}};
@@ -151,7 +150,6 @@ class Cable {
           } else if (!LittleFS.remove(path(command.name))) {
             say("err", "write", command.name);
           } else {
-            touched = forget(touched);
             result.removed++;
             sayWord("gone", command.name);
             if (progress) progress("rm", result.removed, result.bytes);
@@ -159,7 +157,6 @@ class Cable {
           break;
 
         case CABLE_PUT: {
-          touched = forget(touched);
           const char *why = receive(command, abort);
           if (why) {
             say("err", why, command.name);
@@ -281,7 +278,7 @@ class Cable {
       for (File entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
         if (entry.isDirectory()) continue;
         const char *name = bare(entry.name());
-        if (!cableNameOk(name)) continue;   // the half-written file, /version
+        if (!cableNameOk(name)) continue;   // the half-written file
         put(cableSayNameNumber(out, sizeof(out), "file", name,
                                (uint32_t)entry.size()), out);
         found++;
@@ -473,15 +470,6 @@ class Cable {
     }
   }
 
-  // The Wi-Fi sync writes down which version it last fetched. Once the cable
-  // has changed anything, that note describes content which is no longer
-  // there, so it goes. The two paths are compiled in together until the cable
-  // has been proven on hardware, and this is the one place they could quietly
-  // mislead each other.
-  static bool forget(bool alreadyTouched) {
-    if (!alreadyTouched) LittleFS.remove(CABLE_VERSION_FILE);
-    return true;
-  }
 };
 
 // One sketch, one copy. Defined out of line rather than as inline members so

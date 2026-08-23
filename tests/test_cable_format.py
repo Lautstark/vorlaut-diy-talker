@@ -99,8 +99,7 @@ def check_limits(reader: Path, problems: list[str]) -> None:
     got = fields(subprocess.run([str(reader), "limits"], capture_output=True,
                                 text=True, check=True).stdout)
     expected = {"version": "1", "line_max": "128", "name_max": "63",
-                "host_sigil": ">", "device_sigil": "<", "part": "/.part",
-                "version_file": "/version"}
+                "host_sigil": ">", "device_sigil": "<", "part": "/.part"}
     for key, value in expected.items():
         if got.get(key) != value:
             problems.append(f"{key} is {got.get(key)}, the contract says {value}")
@@ -128,7 +127,7 @@ NAMES = [
     ("a bare walk up", "..", False),
     ("the half-written file", ".part", False),
     ("anything hidden", ".hidden", False),
-    ("the Wi-Fi sync's own note", "version", False),
+    ("what the Wi-Fi sync used to leave behind", "version", True),
     ("a space in it", "two words.bin", False),
     ("a tab in it", "tab\there.bin", False),
     ("a byte above ASCII", "tile\u00ff.bin", False),

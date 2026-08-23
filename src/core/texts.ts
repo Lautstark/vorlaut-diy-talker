@@ -98,9 +98,6 @@ export function applyTexts() {
   $("arasaacSection").textContent = t("ui.arasaac");
   $<HTMLButtonElement>("voiceClose").setAttribute("aria-label", t("ui.close"));
   $<HTMLButtonElement>("voiceClose").title = t("ui.close");
-  $("pairTitle").textContent = t("ui.pair_title");
-  $("pairNote").textContent = t("ui.pair_note");
-  $<HTMLButtonElement>("pairConfirm").textContent = t("ui.pair_confirm");
 
   // The footer and the three pages it opens. Filled here with everything else
   // rather than when a dialog is opened: the labels on the footer itself are

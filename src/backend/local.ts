@@ -15,7 +15,7 @@
 // to call them, what to throw away, lived in builder.py and threw here - and
 // it is at the foot of this file now.
 
-import type { Layout, OfferedVoice, PairAnswer, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
+import type { Layout, OfferedVoice, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
 import * as obf from "../data/obf.js";
 import * as store from "../data/store.js";
 import * as tiles from "../data/tiles.js";
@@ -849,20 +849,4 @@ export async function buildFile(name) {
   const bytes = await store.getFile("data", name);
   if (!bytes) throw new Error(`no such file in data/: ${name}`);
   return bytes;
-}
-
-// --- Pairing -----------------------------------------------------------------
-//
-// There is none. The five digits prove that a talker reaching this over a
-// network is the one in the room; a cable does not need proving, and there is
-// no network here to reach over. pairState answers "nobody is waiting" rather
-// than throwing, because watchPair() asks every five seconds and an error each
-// time would be noise about something that is not going to happen.
-
-export async function pairState() {
-  return { waiting: [] };
-}
-
-export async function confirmPairCode(_code: string): Promise<PairAnswer> {
-  return { ok: false, error: "There is no pairing here - the cable is the way in." };
 }

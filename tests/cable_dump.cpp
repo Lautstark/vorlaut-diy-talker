@@ -42,7 +42,6 @@ static int limits(void) {
   printf("host_sigil %c\n", CABLE_HOST_SIGIL);
   printf("device_sigil %c\n", CABLE_DEVICE_SIGIL);
   printf("part %s\n", CABLE_PART_FILE);
-  printf("version_file %s\n", CABLE_VERSION_FILE);
   printf("quiet_ms %d\n", CABLE_QUIET_MS);
   printf("drain_ms %d\n", CABLE_DRAIN_MS);
   return 0;

@@ -9,10 +9,10 @@ looks for `data/` right next to it. Both point at the same structure.
 ## What is needed
 
 - **Arduino ESP32 Core 3.x** (board: *Adafruit Feather ESP32-S3 No PSRAM*)
-- Libraries: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`,
-  `WiFiManager`
-- `mklittlefs` and `esptool` for the file area — both come with the ESP32
-  core, `build.py --fs-image` finds them by itself
+- Libraries: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`
+- `mklittlefs` and `esptool` if you want to write the file area from a
+  computer — both come with the ESP32 core. Content does not normally go that
+  way: the editor pushes it down the cable, see [cable.md](cable.md).
 
 Board setting: USB CDC On Boot **enabled**.
 
@@ -28,8 +28,8 @@ ready-made image under 2a carries the example content already, so the device
 speaks as soon as it starts: one set with *Ja!*, *Nein!*, *Stopp* and *Hilf
 mir*. That is there so the very first flash can be checked on its own — if the
 keys speak, the partition scheme, the file system, the audio path and the
-displays are all right. Your own content comes afterwards, through steps 3
-and 4 or over Wi-Fi.
+displays are all right. Your own content comes afterwards, from the editor
+over the cable — [cable.md](cable.md).
 
 **1. Find the port.** Plug in the Feather over USB-C, then look at what
 appeared:
@@ -181,11 +181,13 @@ arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:Partitio
 > **"Default (3MB APP/1.5MB SPIFFS)"**, on the command line append
 > `PartitionScheme=default_8MB`.
 
-Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0,
-WiFiManager 2.0.17: 1288 KB program (39 % of 3 MB), 82 KB RAM (25 %).
+Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0:
+**467 KB program (14 % of 3 MB), 58 KB RAM (18 %)**.
 
-Wi-Fi is what makes that big — without it the sketch was 472 KB. The 3 MB app
-partition still has room to spare, but it is worth knowing where it went.
+It was 1304 KB and 82 KB while the Wi-Fi path was compiled in, and this
+document said so, with a note that the radio was what made it big — the sketch
+without it had been measured at 472 KB. Removing it landed almost exactly
+there. The 3 MB app partition now has a great deal of room to spare.
 
 The file area holds 1536 KiB. A full layout with five sets takes around
 630 KiB of that, so a good 40 %.
@@ -214,109 +216,33 @@ In the menu the keys label themselves. Currently:
 | Key | |
 |---|---|
 | 1 | **Info** — number of sets, is the file system there |
-| 2 | **Fetch content** — bring up Wi-Fi and sync with the web interface |
-| 3 | **new Wi-Fi** — open the setup portal and teach it another network |
-| 4 | **Pair** — fetch a new key from the web interface |
 | Set | **back** to normal operation |
 
-The rest stay empty. Entries appear once the function behind them exists.
+The other three stay dark. They were *Fetch content*, *new Wi-Fi* and *Pair*,
+and all three went with the radio: content arrives over the cable now, and
+nothing about that is chosen here. A transfer can start while the menu is open
+or closed — the device answers a browser either way.
 
 ## Fetching content
 
-**Wi-Fi is off during normal use.** The device wakes on a key press and has to
-speak immediately; bringing up a radio on every wake would cost seconds and
-most of the battery, for something that is needed once a week at most. So it
-comes up only when somebody asks for it here, and goes off again straight
-afterwards.
+Over the cable, and there is nothing to choose on the device: the browser
+starts talking and the device answers. [cable.md](cable.md) is the whole of it.
 
-**Setting up is its own key.** `new Wi-Fi` opens the portal: join the network
-**"vorlaut einrichten"** with a phone and enter the Wi-Fi. It is kept in NVS
-and survives a reflash. The portal gives up after three minutes — a device
-stuck in a portal no longer speaks.
+While a transfer runs, all five displays show `cable` with a count climbing,
+and `done` with the number of files at the end. **Holding the set key stops
+it** — the same 400 ms as everywhere else. A transfer that is interrupted, by
+that key or by the cable coming out, leaves a fragment under `/.part` and never
+a half-written file under a real name.
 
-What is entered there does not replace what is stored: the network joins the
-list, so home and the grandparents' both keep working. Press `new Wi-Fi` again
-at the next place.
+New content is read in as soon as the browser says it has finished, so the
+device shows it without a restart.
 
-**Neither the address nor the key is asked for.** Once the Wi-Fi is up the
-device shouts one UDP packet into the network and takes the answer, so a new
-address from the router changes nothing and the same device works in another
-household. That takes about a second, with `searching` on the displays. The
-portal keeps a field for an address anyway, for the networks that swallow
-broadcasts — filled in, it beats the search.
-
-The key it fetches itself the first time, by pairing: five digits on the
-displays, typed into the web interface. `Pair` on key 4 does it again on
-demand — when the key on the server has been replaced, or when the device is
-to talk to a different computer. The whole of it is in
-[software.md](software.md#pairing).
-
-`Fetch content` never opens the portal. It used to, whenever it found no
-network, and while the device stood in one place that was the same thing as
-setting it up. It is not the same thing for a talker that travels: an access
-point that stays up for three minutes in the middle of a kindergarten, because
-somebody pressed the wrong key, is exactly what must not happen. Without a
-known network it now says `no Wi-Fi` and is back in the menu in a few seconds.
-
-While it runs, all five displays show the same thing: `Wi-Fi`, then `loading`
-with a count, then `done` with the number of files. On failure they show
-`failed` and, underneath, the reason in one word:
-
-| | |
-|---|---|
-| `no Wi-Fi` | the network was not reached, or the portal timed out |
-| `no server` | nobody answered the search, and nothing was remembered or typed in |
-| `wrong key` | the key does not match `VORLAUT_DEVICE_TOKEN` |
-| `shut` | no key set on the server, so the endpoints answer 503 |
-| `no answer` | nothing at that address — usually the editor is not running, or this is a network it is not on |
-| `too late` | the pairing code expired before anybody typed it |
-| `denied` | too many wrong attempts at the pairing code |
-
-The serial monitor gets the same in a full sentence. The one-word version
-exists because the alternative is fetching a USB cable to find out that a
-character is missing from a key that was typed on a phone.
-
-New content is loaded straight after a successful sync, so the device shows it
-without a restart.
-
-## Pairing
-
-**A 32-character key typed character by character into a captive portal on a
-phone was the worst step in the whole setup**, and it is gone. Instead the
-device makes up **five digits and puts one on each display**, in the
-arrangement of the keys — 1 and 2 on top, 3 and 4 below, the set key on the
-left under the speaker. The web interface shows five boxes in the same places;
-each box gets what the display in that position shows. Type them, and the
-device is handed `VORLAUT_DEVICE_TOKEN` and stores it in NVS next to the Wi-Fi
-credentials.
-
-The digits are the proof that somebody is standing in front of the device: a
-device that has never been paired holds no shared secret and cannot prove
-anything to the server, but whoever can read its displays is in the room with
-it. That is why the device makes the code up and the browser confirms it, and
-not the other way round. The exchange itself is written down in
-[software.md](software.md#pairing).
-
-It happens **once**. `Fetch content` pairs only when there is no key stored, so
-a device already set up — including one from before pairing existed — goes
-straight past it. `Pair` on key 3 does it deliberately, for when the key on the
-server has been replaced or the device is to talk to a different computer. And
-a sync that comes back with `wrong key` throws the useless key away and pairs
-again by itself, because the portal no longer has a field to correct it in.
-
-While the code is up, **holding the set key ends the pairing** — the same
-400 ms as everywhere else, so brushing past it does not throw away a code
-somebody has already started typing. Otherwise it gives up by itself after
-three minutes, for the same reason the portal does.
-
-**The key is not tied to an address.** Address and key are stored separately,
-so a device carried to another network where the computer has a different
-address only needs the new address — nothing is paired again.
-
-`pair_format.h` holds the wire format with no Arduino dependency, the way
-`layout_format.h` and `panel_text.h` do, so `tests/test_pair_format.py` can
-check the five digits and the answers on the computer instead of on a device
-that shows the wrong digit and says nothing about why.
+There was a page and a half here about the other way: bringing up Wi-Fi,
+finding the computer with a UDP broadcast, five digits on the displays to prove
+somebody was standing in front of the device, a token in NVS, and seven
+one-word reasons a sync could fail. None of it exists any more —
+[software.md](software.md#how-content-reaches-the-device) says what it was and
+why it went.
 
 All of those labels sit in [`texts.h`](../firmware/vorlaut/texts.h), one table
 per language, and the device picks one by the `language` field from
@@ -343,31 +269,6 @@ glance that this is not the talker.
 
 **After 30 seconds without input it returns by itself.** A device stuck in the
 menu no longer speaks — that must not happen.
-
-## Several networks
-
-The talker goes to kindergarten, to the grandparents, on holiday. It stores
-**four networks**, most recently used first; a fifth pushes out the one nobody
-has connected to for longest. Every trip through `new Wi-Fi` adds one, it does
-not replace what is there — home keeps working after the grandparents' has
-been added.
-
-The ESP32 itself remembers exactly one network and WiFiManager hands it
-exactly one, so the list lives in
-[`networks.h`](../firmware/vorlaut/networks.h), next to the address of the
-computer. Connecting scans first and takes the strongest network it knows out
-of the ones really in the air — at home that is home, at the grandparents'
-theirs, and neither needs a decision from anybody. A network that is somewhere
-else costs nothing: it is not in the scan.
-
-**Where the editor is not, nothing happens.** The address of the computer is
-one setting, not one per network, so away from home the sync usually finds
-nobody at it. That is a no-op and not a fault: the reason word appears for a
-few seconds, the device goes back to being a talker, and everything it can
-already say it can still say — the content is on the file system, not on the
-network. Connecting is bounded (a scan plus one attempt), and so is reaching
-the computer (four seconds), so the whole detour costs seconds rather than the
-minute the defaults would take.
 
 ## Waking up
 

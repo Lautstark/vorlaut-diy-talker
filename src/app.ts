@@ -19,7 +19,6 @@ import { load, wireConflict } from "./core/save.js";
 import { wireRelease } from "./ui/release.js";
 import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
-import { confirmPair, watchPair } from "./ui/pairing.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
 import { wireSymbolFolder, wireBoard, wireData, wireSources } from "./ui/settings.js";
 import { wireLegal } from "./ui/legal.js";
@@ -74,7 +73,6 @@ subscribeMetacom(render);
   // stop with it, and all three live in ui/release.ts.
   wireRelease();
 
-  $<HTMLButtonElement>("pairConfirm").onclick = confirmPair;
   $<HTMLButtonElement>("gear").onclick = openVoices;
   // The cross in the corner is the only way out now, because there is nothing
   // to confirm or to abandon: everything in the sheet is already written.
@@ -88,6 +86,5 @@ subscribeMetacom(render);
   loadSources();
   // The voices are not asked for here: nothing outside the settings shows them,
   // and the sheet fetches them itself when it opens.
-  watchPair();
   load().catch((error) => status(t("ui.load_failed", { error: reason(error) })));
 }

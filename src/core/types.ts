@@ -184,14 +184,6 @@ export interface VoiceList {
   backend: string;
 }
 
-/** A refused pairing code is an answer, not a failure - it says how many tries
- *  are left - so it comes back as a value the way a save conflict does. */
-export interface PairAnswer {
-  ok: boolean;
-  error?: string;
-  left?: number;
-}
-
 /** Whether Azure answers for the stored key and region. `code` is for the
  *  text table to branch on - "unreachable" is a region that is not one (the
  *  hostname never resolves), "refused" is a live region rejecting the key,

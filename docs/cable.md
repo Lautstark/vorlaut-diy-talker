@@ -127,7 +127,7 @@ right content.** The browser lists, subtracts, and sends the difference. In use
 that means almost nothing moves — changing one symbol and one sentence in a
 five-set layout sends three files and deletes two.
 
-`layout.bin` is the exception at both ends, exactly as it is over Wi-Fi. Its
+`layout.bin` is the exception at both ends, exactly as it was over Wi-Fi. Its
 name never changes, so presence proves nothing about it, which is why `crc`
 exists as a verb. It is the only file the browser has to ask about, and asking
 about it costs one line.
@@ -182,9 +182,9 @@ payload is simply too big for the partition and nothing is sent at all.
 Files land under `/.part` and are renamed only once they are whole and their
 checksum agrees — the same rule `sync.h` follows, for the same reason. **A
 transfer that breaks off leaves a fragment behind, never half a file under a
-name that promises whole content.** The name `.part` is shared with the Wi-Fi
-sync deliberately: the two never run at once, and that sweep already knows to
-leave it alone.
+name that promises whole content.** The name was shared with the Wi-Fi sync
+while both existed — deliberately, since the two never ran at once — and it is
+this one's alone now.
 
 The `go` in the middle of a `put` is the other half of that:
 
@@ -379,22 +379,23 @@ report a connection — but nothing should ever drive the pair in sequence.
   into deep sleep, and USB traffic is not one of the things that wakes it.
   Press any key first, then push. The device stays awake for the whole session
   because every line resets the idle timer.
-- **It does not touch the Wi-Fi path.** `sync.h`, `discover.h`, `networks.h`
-  and `pairing.h` are all still compiled in and all still work. The one place
-  the two could mislead each other is closed: a cable session that changes
-  anything deletes `/version`, the note the Wi-Fi sync keeps about what it last
-  fetched, so a later sync cannot believe a stamp describing content the cable
-  has since replaced.
+- **There is no other path to fall back to.** `sync.h`, `discover.h`,
+  `networks.h`, `pairing.h` and `pair_format.h` were deleted on 2026-08-23,
+  along with the radio and the five digits — see [The Wi-Fi path is
+  gone](#the-wi-fi-path-is-gone) for why that happened before this had run once.
+  The one thing the two used to share is handled: a device that was synced
+  before still has `/version` on it, and because the name is now an ordinary one
+  the first cable session sweeps it off.
 - **It has not run on real hardware yet.** Everything below has been checked
   on a computer — see [Where it lives](#where-it-lives-and-what-is-checked) —
   but no board has spoken this protocol. The parts that most want a real device
   are the three timing rules above, none of which a test without a clock can
   exercise. What a first run has to show is set out in
-  [Before the Wi-Fi path can go](#before-the-wi-fi-path-can-go).
+  [The Wi-Fi path is gone](#the-wi-fi-path-is-gone).
 
 ## Running it on a device
 
-Nothing here needs Wi-Fi, sound or the case — a flashed board and a cable are
+Nothing here needs sound or the case — a flashed board and a cable are
 enough, so this can be tried well before [bring-up.md](bring-up.md) reaches its
 last stage.
 
@@ -449,39 +450,43 @@ If nothing answers, the page says so within a moment rather than hanging: a
 port that does not reply `vorlaut` to `hello` is not the talker, and that is a
 different problem from a transfer that failed.
 
-## Before the Wi-Fi path can go
+## The Wi-Fi path is gone
 
-The Wi-Fi stack — `sync.h`, `discover.h`, `networks.h`, `pairing.h` and the
-five digits — is still compiled in, and is meant to stay until this one has
-earned its place. Two things about how that ends, both deliberate.
+It was deleted on 2026-08-23, and none of the six rows below had been ticked.
+This section used to say that must not happen, so it says what changed instead.
 
-**Prove first, delete second, in separate commits.** Not the same change. A
-commit that added the cable and removed Wi-Fi in one motion cannot be reverted
-without losing both, and the device would then have no working way to receive
-content at all. The old path is the fallback while the new one earns trust, and
-it costs nothing to keep for a week.
+**The bar was one real end-to-end success**, and the reasoning behind it was
+sound: `tiles.py`, `tts.py` and `layout_format.py` had been *oracles* — the only
+reason anybody knew the browser ports were right — but the firmware Wi-Fi stack
+was an oracle for nothing. It was just the old transport, kept because a working
+way to get content onto a device is worth having while the new one is unproven.
 
-**Its bar is lower than the Python's was, and the two were never the same
-question.** `tiles.py`, `tts.py` and `layout_format.py` were *oracles*: the only
-reason anybody knew the browser ports were right. The firmware Wi-Fi stack is an
-oracle for nothing — it is just the old transport, and its bar is one real
-end-to-end success.
+**What expired was not the bar but the fallback.** That argument rests entirely
+on the Wi-Fi path still being a way in, and it stopped being one when `app.py`
+was deleted: the device could still find a network, and there was nothing on it
+to find. `build.py` and `flashing.py` went the same day. So what was being kept
+as insurance was a radio, a captive portal, four stored networks and a token in
+NVS, all serving a path whose other end no longer existed — 850 KB of program
+space and 24 KB of RAM, and a device that would have spent seconds looking for a
+server nobody was running.
 
-Past tense, because on 2026-08-22 the Python was deleted anyway, before the
-cable had run once. Four of the oracles were frozen first, as reference bytes
-under `tests/reference/`, so those checks survive their source; the OBF
-converter was not, and is now checked by nothing. The whole of it is in
-[frozen-references.md](frozen-references.md).
+**Prove first, delete second, in separate commits** was the other rule, and that
+one was kept. The cable landed on its own, with the browser test that drives it
+against the mock; the deletion is the commit after it. A revert of either is
+still a revert of one thing.
 
-**That does not lower the bar here, it raises it.** The reason for keeping the
-Wi-Fi stack was that it is a working way to get content onto a device while the
-cable is unproven. That argument is stronger now than when it was written, not
-weaker: with `build.py` and `flashing.py` both gone, the cable is not merely the
-newest way in — it is the only one, and it has still never run. Deleting the
-old path now would leave a device with no route at all if the new one turns out
-to be wrong on hardware.
+**What is genuinely lost, and it should be said plainly.** If the cable turns
+out to be wrong on hardware, there is now no way at all to put content on a
+device — not because the radio went, but because nothing writes the files to
+disk any more. `build.py` wrote `firmware/vorlaut/data/`, and the browser build
+writes IndexedDB; the backup export deliberately leaves build output out, since
+a build makes it again. So `mklittlefs` has nothing to image and the bench's
+folder picker has nothing to pick. Closing that is one small feature — an export
+of `data/` to a folder — and it is the thing to write if the first hardware run
+goes badly.
 
-So the table below is unchanged and none of it has been ticked.
+So the table is unchanged and none of it has been ticked. It is no longer the
+gate on a deletion; it is the gate on trusting the only path there is.
 
 What has to be true, written down before the run rather than remembered after
 it. **Results belong in this table as they come in** — a row that was checked
@@ -550,8 +555,8 @@ Three things about the hardware that bear on that list, from
   fail for a reason that is not this protocol's fault, so it is worth being
   deliberate about: reset the board between the two transfers on purpose and see
   whether the granted port survives it.
-- **None of this needs Wi-Fi, sound or the case.** A flashed board and a cable
-  are enough, so it can be tried at the bench well before stage 8 is finished.
+- **None of this needs sound or the case.** A flashed board and a cable are
+  enough, so it can be tried at the bench well before stage 7 is finished.
 
 When that list is genuinely true, the deletion is a clean follow-up — and it
 takes the five-digit pairing with it on both sides, which is a satisfying

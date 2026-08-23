@@ -64,8 +64,6 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str]] = [
      "a leading dot is allowed in a name"),
     (FORMAT, "if (length == 0 || length > CABLE_NAME_MAX) return false;",
      "if (length > CABLE_NAME_MAX) return false;", "an empty name is allowed"),
-    (FORMAT, "if (strcmp(name, &CABLE_VERSION_FILE[1]) == 0) return false;", "",
-     "the Wi-Fi sync's own note becomes writable"),
     (FORMAT, "if (digits != 8) return false;", "if (digits > 8) return false;",
      "a checksum shorter than eight digits is accepted"),
     (FORMAT, "          words == 1 &&", "          words >= 1 &&",

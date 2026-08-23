@@ -1,361 +1,59 @@
 # How the software works
 
-The protocols, the file formats and the reasoning behind them: how the device
-finds the server, how it gets its key, how content reaches it, how the build
-and the speech output work, and what the repository does and does not hold.
-
-Installing any of it and editing the content is a separate document,
-[cable.md](cable.md).
-
-## Finding the server
-
-The device used to be told where the computer is: an address field in the setup
-portal, typed in on a phone. That is right until the router hands out a
-different number, and it is wrong from the start as soon as the device is
-carried into another network.
-
-So it asks instead. One UDP packet to the broadcast address of the local
-network, port 8771:
-
-```
-vorlaut? 1
-```
-
-and whoever runs `app.py` answers, straight back to where the packet came from:
-
-```
-vorlaut 1
-port 8771
-name vorlaut
-```
-
-**The answer deliberately carries no address.** It arrived from one, and the
-device reads it off the envelope — that is the one address it is certain to be
-able to reach the server at, which is more than the server could promise about
-any address it named itself. A machine with Wi-Fi and a cable has several, and
-which of them is the useful one depends on who is asking.
-
-Lines again, and unknown keywords skipped, for the same reason as the
-manifest: on the other end sits an ESP32 without a parser.
-
-**The port asked on is fixed; the port in the answer is not.** UDP 8771 is the
-one number both sides have to agree on in advance. What the answer carries is
-where the web interface really listens, so `--port 8798` stays findable.
-
-Three attempts, 400 ms each, and then the device gives up. What counts, in this
-order:
-
-| | |
-|---|---|
-| an address typed into the portal | beats everything — for networks where a broadcast goes nowhere |
-| whoever answered the search | … and is kept for next time |
-| whoever answered the time before | so one bad day on the network costs nothing |
-
-A search that finds nothing is not an error, it is a guest network. Nothing
-here may hang and nothing here may stop the device speaking: the content is on
-LittleFS and works with no network at all.
-
-**`vorlaut.local` comes out of the same work.** `discovery.py` also answers
-mDNS queries for that name, so the interface can be bookmarked as
-<http://vorlaut.local:8771> instead of as a number that changes. That one is
-for the person — the device has its search and needs no resolver.
-
-It claims the name without asking, which a complete mDNS implementation would
-not do: there is no probing and no conflict detection. If something else on the
-network is already called `vorlaut`, both answer and the quicker one wins. For
-one of these on a home network that has not been worth the rest of the
-protocol.
-
-**Whoever is on the network can answer a search.** The endpoints stay behind
-the key, but a device asking who has the content will hand its key to whatever
-says "me" first. That is the same trust the project already places in the local
-network — the interface has no sign-in either — but it is worth knowing before
-the device goes into a network that is not yours. An address typed into the
-portal takes the search out of the loop.
-
-The two sides are `firmware/vorlaut/discover.h` and `discovery.py`;
-`tests/test_discovery.py` plays the answers through.
-
-## Pairing on the server
-
-The device's half of this is in `firmware/vorlaut/pairing.h`, the wire format
-in `pair_format.h`, and the whole protocol under [Pairing](#pairing) below.
-The server's half sits in `app.py`:
-
-`pair_start`, `pair_poll`, `pair_waiting` and `pair_confirm` hold the pending
-pairings in memory behind one lock — deliberately not on disk. A pairing lives
-about three minutes; a server restart in the middle of one is rare, and
-starting again at the device is a shorter way back than any file would be.
-
-Two decisions worth keeping:
-
-**An unknown device and a wrong secret answer the same 404.** The device id is
-the Wi-Fi MAC, which anybody on the network can read out of an ARP table; if a
-wrong secret said something different, that would tell an attacker which ids
-are worth guessing at.
-
-**A wrong code counts against every pairing that is waiting.** The person is
-standing at one device typing what they see, so with one on the table that is
-exactly right, and it stops a wrong code from being retried against each
-pending pairing in turn.
-
-`tests/test_pairing.py` starts the real server and plays a pairing through
-from both ends, including the parts a mistake would be quiet in: the key
-handed over only once, leading zeros in a code surviving, and nothing being
-handed out at all while `VORLAUT_DEVICE_TOKEN` is unset.
-
-## Sync with the talker
-
-So the device can fetch its content by itself, the server exposes two
-endpoints. Both require a key:
-
-```
-GET /api/device/manifest        version stamp and file list
-GET /api/device/file?name=<n>   one file from data/
-```
-
-The key sits in `.env` as `VORLAUT_DEVICE_TOKEN` and is sent as the header
-`X-Vorlaut-Token` — **not** in the URL, because URLs end up in logs. Comparison
-uses `hmac.compare_digest`, so the response time gives nothing away about the
-key.
-
-**Without a key set, both endpoints answer with 503.** Deliberately that way
-round: what lies in `data/` are the recordings and pictures of your child, and a
-sync nobody set up should not hand anything out. Generating a key:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(24))"
-```
-
-**Nobody types that key into the device.** It used to be pasted into `.env` and
-then entered character by character into a captive portal on a phone, which was
-the worst step in the whole setup — see [Pairing](#pairing) below.
-
-The sync is simple because a file name always means the same content: the
-device fetches the manifest, compares the version stamp with the stored one,
-and on a mismatch fetches only the files it does not have and throws away what
-is no longer in the list. `layout.bin` always has the same name and is fetched
-every time.
-
-To be precise, the names are hashes of the **input** - source image plus
-pipeline version, or text plus voice configuration - not of the output bytes.
-Same input, same name, so a file is transferred once no matter how many sets
-it appears in. `TILE_PIPELINE` in [`src/data/tiles.ts`](../src/data/tiles.ts) is what keeps that honest: bump it
-when the rendering changes, and every name changes with it.
-
-**The version stamp describes the files, not the layout.** That distinction
-matters more than it looks. It used to be derived from `layout.json`, and the
-effect only showed in use: edit without releasing, and the manifest advertised
-a new version over the old files. The device fetched them and stored the new
-stamp - and after the release the stamp did not move any more, because the
-layout had not changed since. From then on the device saw its own version,
-believed it was up to date, and never fetched anything again. The manifest also
-carries `current`, which says whether what lies there is still what the layout
-asks for.
-
-`tests/test_device_sync.py` plays the whole thing through against a real
-server. It was written before the firmware side existed, which is how the
-version-stamp mistake above was found.
-
-The manifest comes as **lines, not JSON**:
-
-```
-version 3f2a...
-current 1
-sets 5
-bytes 949888
-file t3bd7....bin 26912
-file a8c1....wav 41008
-```
-
-Same reason `layout.bin` is binary: a JSON parser on the ESP32 means a
-library, a heap and a class of failure that a fixed line format does not have.
-A reader is meant to skip keywords it does not know, so a field can be added
-later without a device already in the field falling over.
-
-The device side is `firmware/vorlaut/sync.h`, shared by the real firmware and
-by `firmware/tests/test7_sync`, which does nothing but this. Files land under
-`/.part` first and are renamed only once they are complete — a transfer that
-breaks off leaves a fragment behind, not half a file under a name that
-promises whole content.
-
-**All of this needs a server, and there is not going to be one.** Once the
-editor is a page and nothing else, the device cannot pull: a tab has no address
-to fetch from, and a page on HTTPS may not talk to a plain-HTTP device on the
-LAN at all. The replacement pushes down the USB-C cable instead, and reuses
-every idea on this page except the transport — the line format, the file names
-that say what changed, `/.part`. It is written up on its own in
-[cable.md](cable.md), which is also where the reasons it is *not* simply this
-protocol over a different wire are set out. Both are compiled into the firmware
-until the cable has been proven on real hardware.
-
----
-
-## Pairing
-
-How the key gets onto the device without anybody typing it.
-
-The device shows **five digits, one per display**, and whoever is standing in
-front of it types them into the web interface. That is the whole idea: a device
-that has never been paired holds no shared secret, so it cannot prove anything
-to the server — but somebody who can read its displays is in the room with it.
-Physical presence is the proof, which is why **the device makes the code up and
-the browser confirms it**, and not the other way round.
-
-```
-   device                          server                        browser
-
-   1  POST /api/device/pair  ---->  remembers id, code, secret
-      id, code, secret
-
-   2  five digits on the
-      displays
-
-   3                                <----  POST /api/pair/confirm   somebody
-                                                                    types the
-                                                                    five digits
-
-   4  POST /api/device/pair/poll -> hands out VORLAUT_DEVICE_TOKEN
-      id, secret            <----   token
-```
-
-The device stores the token in NVS next to the Wi-Fi credentials, so it
-survives a reflash and pairing happens exactly once.
-
-### The digits sit where the keys sit
-
-The five digits are shown in the arrangement of the keys — 1 and 2 on top, 3
-and 4 below, the set key on the left under the speaker, the same drawing as in
-[hardware.md](hardware.md). **The web interface has to lay its five boxes out
-the same way.** Then nobody has to be told an order: each box gets what the
-display in that position shows.
-
-As one string the code runs `key1 key2 key3 key4 setkey` — that order is the
-only part of the arrangement the two sides have to agree on in writing.
-
-Leading zeros are kept, so a code is always five characters. Otherwise one of
-the five displays would stay empty and nobody could tell which.
-
-### The two device endpoints
-
-Lines, not JSON, and no key — this is where a device that has no key yet comes
-to get one. Same reasoning as the manifest: a JSON parser on the ESP32 means a
-library, a heap and a class of failure a fixed line format does not have. A
-reader skips keywords it does not know, so either side can gain a field without
-the other falling over.
-
-```
-POST /api/device/pair
-     device <12 hex>        the Wi-Fi MAC, stable across a reflash
-     code <5 digits>        what is on the displays
-     secret <32 hex>        16 random bytes, never shown anywhere
-
-  200 ok 1
-      expires 180
-      interval 3
-```
-
-```
-POST /api/device/pair/poll
-     device <12 hex>
-     secret <32 hex>
-
-  200 state waiting                    nobody has typed it yet
-  200 state ready
-      token <VORLAUT_DEVICE_TOKEN>     confirmed
-  200 state expired                    the code was too old
-  200 state denied                     too many wrong attempts
-```
-
-Status codes both endpoints may answer with: **503** when the server has no
-`VORLAUT_DEVICE_TOKEN` to hand out at all, **404** or **410** for a pairing the
-server does not know or no longer holds, **429** when too many pairings are
-being started at once. The device turns each of those into one word on its
-displays.
-
-**The secret is not the code.** Without it the poll would be authenticated by
-the device id alone — and that is the Wi-Fi MAC, which anybody on the network
-can read out of an ARP table. They could then poll along and take the token in
-the moment it is confirmed. Sixteen random bytes close that, and the secret
-never appears on a display or in the interface.
-
-### The two browser endpoints
-
-JSON, like the rest of the interface — this side has a parser.
-
-```
-GET  /api/pair
-     → {"waiting": [{"device": "aabbccddeeff", "since": 12}]}
-
-POST /api/pair/confirm   {"code": "12345"}
-     → {"ok": true, "device": "aabbccddeeff"}
-     → 400 {"error": "err.pair_wrong_code", "left": 3}
-     → 410 {"error": "err.pair_expired"}
-```
-
-`GET /api/pair` is what lets the interface offer the five boxes only when a
-device is actually waiting. `since` is seconds, so the page can show how much
-of the code's life is left.
-
-The user types five digits and nothing else — no device is picked. The server
-looks for the pending pairing carrying that code. A code matching none of them
-is a wrong attempt and counts against every pairing currently waiting, which
-with one device on the table is exactly right.
-
-### Expiry and attempts
-
-**A code lives about three minutes and dies after a handful of wrong
-attempts.** Both are on the server, because the server is the side that can be
-guessed at: five digits are a hundred thousand possibilities, which is plenty
-against somebody typing and nothing at all against a script.
-
-The device carries its own end of the same limit: it takes the `expires` the
-server sends but never keeps a code up for more than 200 seconds, and it polls
-no faster than every 2 and no slower than every 10 seconds whatever `interval`
-says. A server that answers with a year must not be able to park the device in
-a pairing for a year — the same reason the setup portal gives up after three
-minutes. **A device that hangs in setup no longer speaks**, and speaking is the
-one thing it is for.
-
-Holding the set key ends the pairing at the device. Deliberately the same
-400 ms as everywhere else, so brushing past it does not throw away a code
-somebody has already started typing.
-
-### The token is not tied to an address
-
-The device stores the token and the address of the computer as two separate
-things. Carried to another network where the computer has a different address,
-only the address changes — the key stays valid and nothing has to be paired
-again. That is why the token is a plain secret and carries no host in it.
-
-The other way round is handled too: a stored key the server does not know is
-worth nothing, and since the portal no longer has a field to correct it in, the
-device throws it away and pairs once more by itself. That is the way back when
-`VORLAUT_DEVICE_TOKEN` on the server has been replaced.
-
-### What this does not do
-
-All of it runs over plain HTTP on the home network, exactly like the sync it
-sets up. Somebody already listening on that network sees the token go past —
-but they would see it on every sync afterwards as well, so pairing does not
-make that better or worse. What pairing does close is the case of a second
-machine on the network claiming to be the device, which the secret and the
-five digits together prevent.
-
-`firmware/vorlaut/pair_format.h` holds the device's side of the format with no
-Arduino dependency, and `tests/test_pair_format.py` compiles it here and checks
-it against the answers described above — including the ones that are easy to
-get wrong, such as `state ready` arriving without a token.
+The file formats and the reasoning behind them: how content reaches the device,
+how the build and the speech output work, and what the repository does and does
+not hold.
+
+The cable that carries the content has a document of its own,
+[cable.md](cable.md), and so does putting the firmware on a board,
+[firmware.md](firmware.md).
+
+## How content reaches the device
+
+Down the USB-C cable, pushed by the page. The protocol, the diff, the order the
+files go in and why `layout.bin` is last are all in [cable.md](cable.md); this
+section exists so that nobody looks for them here.
+
+There used to be a great deal here instead. The device found the computer with
+a UDP broadcast on port 8771, proved it was the one in the room by showing five
+digits on its displays, was given a token it kept in NVS, and then pulled a
+manifest and fetched what it did not have. Three sections of this document
+described it, `discover.h`, `networks.h`, `sync.h`, `pairing.h` and
+`pair_format.h` implemented it, and `tests/test_pair_format.py` held the last of
+those against the browser.
+
+All of it is gone, and the reason is worth keeping. The editor became a page
+with nothing behind it, and a page cannot be a server for a device to fetch
+from — so the direction had to reverse, and the only wire left between the two
+was the cable that charges the battery. For a while both paths were compiled in,
+on the argument that the Wi-Fi one was a working way to get content onto a
+device while the cable was unproven. That argument expired quietly when `app.py`
+was deleted: the device could still connect to a network, and there was nothing
+on it to connect to. What was left was a radio, a captive portal, a stored
+password and a pairing token, all serving a path with no other end.
+
+Removing it took about 850 KB of program space and 24 KB of RAM with it — the
+sketch went from 39% of flash to 14% — and the five digits went from both sides
+at once, which they had to: they proved physical presence over a wire that
+anybody on the network shares, and a cable is that proof by itself.
+
+**The talker has no radio at all now.** Not "off by default": there is no
+`WiFi.begin()` in the firmware. That is a smaller claim than it sounds for
+battery life, because the radio was already only powered up while somebody
+stood at the menu asking for content — but it is a much larger one for what the
+device is, and it is the sentence the privacy notice now makes.
 
 ---
 
 ## Building
 
-```bash
-.venv/bin/python build.py
-```
+*Send to the device* in the editor, which builds and then pushes. The build on
+its own is what the rest of this section describes; where the files go
+afterwards is [cable.md](cable.md).
 
-Writes into `firmware/vorlaut/data/` (gitignored, uploaded to the device):
+It used to be `build.py`, writing into `firmware/vorlaut/data/`. It runs in the
+browser now and writes into IndexedDB, under the same names, and the device
+reads them the same way:
 
 | File            | Content                                     |
 |-----------------|---------------------------------------------|
@@ -386,15 +84,13 @@ symbol area; the six pixels of border are drawn by the firmware itself from
 and a colour change would rewrite every image of a set. This way a colour change
 costs **zero** image data.
 
-Files from earlier runs that are no longer needed are cleared away by `build.py`
-itself.
+Files from earlier runs that are no longer needed are cleared away by the build
+itself: anything in the store that this run did not produce goes.
 
-Useful switches:
-
-```bash
-.venv/bin/python build.py --no-audio      # images and layout only
-.venv/bin/python build.py --force-audio   # re-render all WAVs
-```
+There are no switches. `build.py` had `--no-audio` and `--force-audio`, and
+neither survived the move: nothing is re-rendered that has not changed, because
+a WAV is named for the text, the voice and the pipeline version that made it, so
+"force" is what changing any of those already does.
 
 ---
 
@@ -524,8 +220,8 @@ VORLAUT_VOICE=piper:en_US-john-medium .venv/bin/python tts.py "Let us go out"
 ## Tests
 
 ```bash
-.venv/bin/python tests/run.py            # all of them
-.venv/bin/python tests/run.py pairing    # only the matching ones
+python3 tests/run.py            # all of them
+python3 tests/run.py cable      # only the matching ones
 ```
 
 Every file called `tests/test_*.py` runs, and that is the whole rule — the
@@ -534,7 +230,7 @@ anywhere. Each one also still works on its own, which is how they are referred
 to throughout this document:
 
 ```bash
-.venv/bin/python tests/test_language.py
+python3 tests/test_language.py
 ```
 
 What a test is for is in its own docstring. A few of them compile C from the

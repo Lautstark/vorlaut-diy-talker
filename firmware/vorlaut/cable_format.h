@@ -52,7 +52,6 @@
 // The one file the Wi-Fi sync keeps its bookkeeping in. A cable session that
 // changed anything deletes it, so a later Wi-Fi sync does not believe a
 // stamp that describes content the cable has since replaced.
-#define CABLE_VERSION_FILE "/version"
 
 // What the device does when the bytes of a file stop arriving. Short enough
 // that a browser tab that was closed mid-transfer does not leave the device
@@ -165,9 +164,11 @@ static inline bool cableNameOk(const char *name) {
     const unsigned char c = (unsigned char)name[i];
     if (c <= ' ' || c >= 0x7f || c == '/') return false;
   }
-  // The two names the device keeps for itself. CABLE_PART_FILE is caught by
-  // the leading dot already; this is the other one.
-  if (strcmp(name, &CABLE_VERSION_FILE[1]) == 0) return false;
+  // CABLE_PART_FILE, the one name the device keeps for itself, is caught by
+  // the leading dot already. There was a second - "version", the note the
+  // Wi-Fi sync kept about what it last fetched - and it went with the sync.
+  // Nothing writes that file now, and letting the name through is what sweeps
+  // it off a device that was synced before the radio was removed.
   return true;
 }
 

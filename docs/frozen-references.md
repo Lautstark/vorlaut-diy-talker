@@ -361,6 +361,14 @@ end to end: *Send to the device* builds and pushes in one press, and
 doubtful part — `tests/test_cable_format.py` feeds the client's own bytes to
 the firmware's reader — and a talker is still the thing none of it has met.
 
+The Wi-Fi stack went too, on 2026-08-23, with the six-row table still unticked.
+[`cable.md`](cable.md#the-wi-fi-path-is-gone) has the reasoning; the part that
+belongs in this document is the consequence. **Nothing writes the build to
+disk.** `build.py` wrote `firmware/vorlaut/data/`, the browser writes IndexedDB,
+and the backup export leaves build output out on purpose. So if the cable is
+wrong on hardware there is no second way in — not for want of a radio, but for
+want of a folder. An export of `data/` would close it, and it is small.
+
 **Content is not backed up, and that is deliberate.** `firmware/vorlaut/data/`
 and `content/` are both gitignored, so they survived the deletion by never
 having been in git — the last built payload, the board being worked on, its

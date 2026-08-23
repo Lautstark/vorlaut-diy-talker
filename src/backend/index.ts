@@ -69,10 +69,6 @@ export {
   buildManifest,
   buildFile,
 
-  // The five digits. On the way out with the Wi-Fi sync that needs them - see
-  // the note at the foot of backend/local.js.
-  pairState,
-  confirmPairCode,
 } from "./local.js";
 
 // One implementation, named directly. This was a bare specifier resolved by an
