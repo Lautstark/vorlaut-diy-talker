@@ -19,7 +19,8 @@
 // about: which port out of the several a laptop has, where the files come
 // from, and what the page is told while it happens.
 import { Cable, LAYOUT_FILE, plan, push } from "../../tools/cable.js";
-import { buildFile, buildManifest } from "./local.js";
+import { builtFiles } from "../data/built.js";
+import { Trouble } from "../core/errors.js";
 
 // 115200 because port.open() will not run without a number and vorlaut.ino
 // says Serial.begin(115200). On the S3's native USB there is no UART in the
@@ -81,18 +82,6 @@ export function watchDevices(changed: () => void): void {
   navigator.serial!.addEventListener("disconnect", changed);
 }
 
-/** Something the page can put words to, rather than a message to show raw. */
-export class CableTrouble extends Error {
-  word: string;
-  facts: Record<string, number>;
-  constructor(word: string, facts: Record<string, number> = {}) {
-    super(word);
-    this.name = "CableTrouble";
-    this.word = word;
-    this.facts = facts;
-  }
-}
-
 export type Plan = {
   put: number; remove: number; keep: number; needed: number; tight: boolean;
 };
@@ -114,28 +103,6 @@ export type Sent = {
    *  CABLE_QUIET_MS is 4000 and has never been measured against anything. */
   worstGap: number; worstStall: number;
 };
-
-/** What the last build left, by name, the way the device reads it.
- *
- * Through buildManifest() and buildFile() rather than out of the store
- * directly, because that is the arrangement builder.py had with data/ and the
- * reason a megabyte never travels through runBuild()'s return value. The
- * manifest's sizes are checked against what comes back: a length that
- * disagrees means a build ran while this was reading, and sending half of one
- * build and half of another would produce a device that is wrong in a way
- * nothing afterwards would notice.
- */
-async function whatWasBuilt(): Promise<Map<string, { bytes: Uint8Array }>> {
-  const manifest = await buildManifest();
-  const made = new Map<string, { bytes: Uint8Array }>();
-  for (const entry of manifest.files) {
-    const bytes = new Uint8Array(await buildFile(entry.name));
-    if (bytes.length !== entry.size) throw new CableTrouble("moved");
-    made.set(entry.name, { bytes });
-  }
-  if (!made.has(LAYOUT_FILE)) throw new CableTrouble("nothing_built");
-  return made;
-}
 
 /** Opens each granted port in turn and keeps the one that says it is a vorlaut.
  *
@@ -170,7 +137,7 @@ async function findTalker(ports: SerialPort[], onLog: (line: string) => void) {
       await port.close().catch(() => {});
     }
   }
-  throw new CableTrouble("no_device");
+  throw new Trouble("cable_no_device");
 }
 
 /**
@@ -193,7 +160,7 @@ export async function sendToDevice(
   ports: SerialPort[], options: Sending = {},
 ): Promise<Sent> {
   const { onLog = () => {}, onPlan = () => {}, onStep = () => {}, signal } = options;
-  const made = await whatWasBuilt();
+  const made = await builtFiles();
   const { port, cable, hello } = await findTalker(ports, onLog);
   try {
     const have = await cable.list();
@@ -210,7 +177,7 @@ export async function sendToDevice(
       needed: work.needed, tight: work.tight,
     });
     if (!work.fits) {
-      throw new CableTrouble("too_big", { needed: work.needed, free: hello.free });
+      throw new Trouble("cable_too_big", { needed: work.needed, free: hello.free });
     }
 
     const total = work.put.length + work.remove.length;

@@ -193,6 +193,25 @@ export const markup = `
     </div>
   </details>
 
+  <!-- Device. A third act, and it is here rather than in Daten below for the
+       reason wireData() gives for keeping Daten and the board apart: an .obz
+       is a board other software reads, a Sicherung is this browser's whole
+       state, and this is neither - it is the shape the talker's file system
+       should have. Sharing a panel with either would blur all three into
+       "export". Hidden outright where there is no picker. -->
+  <details class="panel" id="devicePanel">
+    <summary>
+      <span class="section" id="deviceSection"></span>
+    </summary>
+    <div class="setting">
+      <p class="lead" id="deviceNote"></p>
+      <div class="row">
+        <button id="buildExport" class="btn" type="button"></button>
+      </div>
+      <p class="note" id="deviceState"></p>
+    </div>
+  </details>
+
   <!-- Daten, which bildhaft and mitreden both already have and vorlaut did
        not. The board panel above it is a different act and stays: an .obz is
        a board in a format other programs read, this is the whole of what is

@@ -443,3 +443,75 @@ test("a second press sends nothing, because the device already has it",
   expect(again.log).toContain(filled("cable.sent",
                                      { stored: 0, removed: 0, size: 0 }));
 });
+
+/* --- and into a folder ------------------------------------------------------
+ *
+ * The other way out of the store, and the one that matters when the cable is
+ * wrong: the same files on a disk, where the bench and mklittlefs can reach
+ * them. tests/unit/build_export.test.ts holds the part that could destroy
+ * something - which names the tidy-up is allowed to remove - against a
+ * directory made of a Map. What is left for here is the wiring that unit test
+ * cannot see: that the panel exists, that its labels resolve, that the button
+ * runs the export the seam names, and that the sentence afterwards carries the
+ * counts.
+ *
+ * showDirectoryPicker() opens a dialog no test can answer, so it is stood in
+ * for. Everything on this side of it is the real article.
+ */
+async function withPicker(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    const files = new Map<string, number[]>();
+    (globalThis as Record<string, unknown>).__folder = files;
+    const directory = {
+      kind: "directory", name: "bench",
+      async getFileHandle(name: string) {
+        return {
+          async createWritable() {
+            const chunks: number[] = [];
+            return {
+              async write(chunk: Uint8Array) { chunks.push(...chunk); },
+              async close() { files.set(name, chunks); },
+            };
+          },
+        };
+      },
+      async *values() {
+        for (const name of [...files.keys()]) yield { kind: "file", name };
+      },
+      async removeEntry(name: string) { files.delete(name); },
+    };
+    (window as unknown as Record<string, unknown>).showDirectoryPicker =
+      async () => directory;
+  });
+}
+
+test("the build can be written into a folder, and says what it wrote",
+     async ({ page }) => {
+  await withPicker(page);
+  await seed(page);
+  const built = await release(page);
+
+  await page.locator("#gear").click();
+  await expect(page.locator("#voices")).toBeVisible();
+  const panel = page.locator("#devicePanel");
+  // Chromium has the picker, so the panel is offered rather than hidden.
+  await expect(panel).toBeVisible();
+  await panel.locator("summary").click();
+  await panel.locator("#buildExport").click();
+
+  const written = filled("ui.build_written", {
+    folder: "bench", written: built.names.length, removed: 0,
+    size: Math.round(
+      Object.values(built.sizes).reduce((sum, n) => sum + n, 0) / 1024),
+  });
+  await expect(page.locator("#deviceState")).toHaveText(written);
+
+  /* And the folder really holds the build - every name, with the length the
+     store says. A sentence about files that were never written is the failure
+     this is aimed at. */
+  const held = await page.evaluate(`(() => {
+    const files = globalThis.__folder;
+    return Object.fromEntries([...files].map(([name, bytes]) => [name, bytes.length]));
+  })()`) as Record<string, number>;
+  expect(held).toEqual(built.sizes);
+});

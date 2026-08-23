@@ -111,9 +111,18 @@ export {
 
   // The transfer. Takes the ports, not the files.
   sendToDevice,
-  CableTrouble,
 } from "./cable.js";
 export type { Plan, Sending, Sent } from "./cable.js";
+
+// --- Getting it into a folder ------------------------------------------------
+//
+// The same files, written where mklittlefs and the bench can reach them. It is
+// here rather than in the Daten panel's export because it is not this
+// browser's state and not a board: it is the shape the device's file system
+// should have, and it is the only thing standing between a cable that turns
+// out to be wrong on hardware and no way in at all. See the head of folder.ts.
+export { folderExportSupported, exportBuild, isBuildFile } from "./folder.js";
+export type { Exported, Exporting } from "./folder.js";
 
 // What it does not take is the files, and that was written here before the
 // cable was: the transport does have to be handed them, it just is not handed

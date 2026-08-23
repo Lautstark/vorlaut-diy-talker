@@ -431,10 +431,10 @@ output inline while it happens.
 **The bench is still here for what that button cannot be.** `tools/serialcheck.html`
 is where a payload can be invented with no build behind it — so that a failure
 is the wire or the firmware and not one of several new things at once — or read
-straight off the disk out of `firmware/vorlaut/data/`. Serve it as in step 3 and
-open <http://localhost:8799/tools/serialcheck.html>. It cannot take the
-editor's build: it is served on its own port, and a different origin is a
-different IndexedDB.
+off the disk with *Pick a `data/` folder*. Serve it as in step 3 and open
+<http://localhost:8799/tools/serialcheck.html>. It cannot reach into the
+editor's storage — a different origin is a different IndexedDB — which is why
+the editor writes the folder and the bench reads it.
 
 Close the serial monitor first if one is open, and close whichever of the page
 and the bench you are not using. Two programs cannot hold the same port, and
@@ -475,15 +475,28 @@ one was kept. The cable landed on its own, with the browser test that drives it
 against the mock; the deletion is the commit after it. A revert of either is
 still a revert of one thing.
 
-**What is genuinely lost, and it should be said plainly.** If the cable turns
-out to be wrong on hardware, there is now no way at all to put content on a
-device — not because the radio went, but because nothing writes the files to
-disk any more. `build.py` wrote `firmware/vorlaut/data/`, and the browser build
-writes IndexedDB; the backup export deliberately leaves build output out, since
-a build makes it again. So `mklittlefs` has nothing to image and the bench's
-folder picker has nothing to pick. Closing that is one small feature — an export
-of `data/` to a folder — and it is the thing to write if the first hardware run
-goes badly.
+**What that cost, and what closed it.** For a day it cost the only way back:
+if the cable turned out to be wrong on hardware there was no way at all to put
+content on a device — not because the radio went, but because nothing wrote the
+files to disk. `build.py` had written `firmware/vorlaut/data/`, the browser
+build writes IndexedDB, and the backup export leaves build output out on
+purpose, so `mklittlefs` had nothing to image and this bench's folder picker
+had nothing to pick.
+
+That is what *Device → Write the build into a folder* in the editor's
+settings is for. It writes exactly what the cable would send, into a folder you
+choose, and it is the second way in:
+
+- **The bench can send it.** Pick that folder under *Pick a `data/` folder*
+  below. The page and the bench are then two independent clients of the same
+  protocol, which is worth having when one of them is the suspect.
+- **`mklittlefs` can image it**, and `esptool` writes the image straight into
+  the partition. That path uses no cable protocol at all, so it is the one that
+  still works when the wire itself is wrong.
+
+It refuses to write a build that no longer matches the board, which is the one
+failure a folder cannot show you: yesterday's content looks exactly like
+today's once it is on a disk.
 
 So the table is unchanged and none of it has been ticked. It is no longer the
 gate on a deletion; it is the gate on trusting the only path there is.

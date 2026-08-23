@@ -362,12 +362,13 @@ doubtful part — `tests/test_cable_format.py` feeds the client's own bytes to
 the firmware's reader — and a talker is still the thing none of it has met.
 
 The Wi-Fi stack went too, on 2026-08-23, with the six-row table still unticked.
-[`cable.md`](cable.md#the-wi-fi-path-is-gone) has the reasoning; the part that
-belongs in this document is the consequence. **Nothing writes the build to
-disk.** `build.py` wrote `firmware/vorlaut/data/`, the browser writes IndexedDB,
-and the backup export leaves build output out on purpose. So if the cable is
-wrong on hardware there is no second way in — not for want of a radio, but for
-want of a folder. An export of `data/` would close it, and it is small.
+[`cable.md`](cable.md#the-wi-fi-path-is-gone) has the reasoning. For a day it
+left this document's worst entry: nothing wrote the build to disk, so if the
+cable turned out wrong on hardware there was no second way in — not for want of
+a radio, but for want of a folder. **That is closed.** The Device panel writes
+the build into a folder somebody picks, and from there the bench can send it and
+`mklittlefs` can image it. `tests/unit/build_export.test.ts` holds the half that
+could destroy something: which names the tidy-up may remove.
 
 **Content is not backed up, and that is deliberate.** `firmware/vorlaut/data/`
 and `content/` are both gitignored, so they survived the deletion by never

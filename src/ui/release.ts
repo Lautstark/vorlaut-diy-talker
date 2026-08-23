@@ -19,8 +19,9 @@ import { markReleaseState, saveNow } from "../core/save.js";
 import {
   runBuild,
   askForDevice, cableSupported, grantedDevices, sendToDevice, watchDevices,
-  CableTrouble, type Plan,
+  type Plan,
 } from "../backend/index.js";
+import { Trouble } from "../core/errors.js";
 
 /* Ports the person has already granted. Asked for on load rather than in the
  * press, because by the press it is too late to be slow - see above. */
@@ -157,11 +158,11 @@ async function send(stop: HTMLButtonElement): Promise<void> {
     if ((error as Error)?.name === "AbortError") {
       say(t(cleared ? "cable.stopped_tight" : "cable.stopped"));
       status(t("cable.stopped_short"));
-    } else if (error instanceof CableTrouble) {
+    } else if (error instanceof Trouble) {
       // The picker again next time: whatever is on the end of that port did
       // not answer as a talker, and the person may have granted the wrong one.
-      if (error.word === "no_device") askAgain = true;
-      say(t(`cable.${error.word}`, {
+      if (error.word === "cable_no_device") askAgain = true;
+      say(t(`err.${error.word}`, {
         size: Math.round((error.facts.needed || 0) / 1024),
         free: Math.round((error.facts.free || 0) / 1024),
       }));

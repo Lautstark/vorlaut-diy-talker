@@ -82,6 +82,9 @@ export function applyTexts() {
   $("metacomLabel").textContent = t("ui.metacom_path");
   $("boardSection").textContent = t("ui.board");
   $("boardNote").textContent = t("ui.board_note");
+  $("deviceSection").textContent = t("ui.device_section");
+  $("deviceNote").textContent = t("ui.device_note");
+  $<HTMLButtonElement>("buildExport").textContent = t("ui.build_export");
   $("dataSection").textContent = t("ui.data_section");
   $("dataNote").textContent = t("ui.data_note");
   $("dataExport").textContent = t("ui.data_export");

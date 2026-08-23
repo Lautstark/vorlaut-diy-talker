@@ -51,6 +51,12 @@ device is, and it is the sentence the privacy notice now makes.
 its own is what the rest of this section describes; where the files go
 afterwards is [cable.md](cable.md).
 
+There is one other way out of the store, and it exists because the cable is the
+only way in: *Device → Write the build into a folder*, in the settings,
+writes the same files into a folder. `tools/serialcheck.html` can send that
+folder and `mklittlefs` can turn it into an image, so a cable that turns out
+wrong on hardware is not the end of the road.
+
 It used to be `build.py`, writing into `firmware/vorlaut/data/`. It runs in the
 browser now and writes into IndexedDB, under the same names, and the device
 reads them the same way:

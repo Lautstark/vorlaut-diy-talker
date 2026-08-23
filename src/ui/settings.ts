@@ -5,9 +5,10 @@
 // This is the lower half of the settings sheet. The sheet itself, and its one
 // Save, are in voices.js.
 import { $, closeMenus, menuOn, status } from "./dom.js";
-import { reason } from "../core/errors.js";
+import { reason, Trouble } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
-import { readSettings, writeSettings, exportBoard, importBoard, azureState } from "../backend/index.js";
+import { readSettings, writeSettings, exportBoard, importBoard, azureState,
+  exportBuild, folderExportSupported } from "../backend/index.js";
 import { applyTheme, readTheme, saveTheme, THEMES, type Theme }
   from "@lautstark/design/theme";
 import { t } from "../core/texts.js";
@@ -326,6 +327,48 @@ export function wireBoard() {
       $("boardState").textContent = t("ui.board_imported");
     } catch (error) {
       $("boardState").textContent = t("ui.board_failed", { error: reason(error) });
+    }
+  };
+}
+
+/** The Device panel: the build, written where something other than this page
+ *  can pick it up.
+ *
+ * One button, one picker, and no state kept between runs - the reasoning for
+ * all three is at the head of backend/folder.ts. The panel hides itself where
+ * there is no picker rather than explaining, the way the backup folder does:
+ * a browser that cannot do this should not be handed a paragraph about it.
+ */
+export function wireDevice() {
+  const box = $("devicePanel");
+  if (!folderExportSupported()) {
+    box.hidden = true;
+    return;
+  }
+
+  const button = $<HTMLButtonElement>("buildExport");
+  button.onclick = async () => {
+    $("deviceState").textContent = "";
+    button.disabled = true;
+    try {
+      // The gesture is why this is a button: showDirectoryPicker() is refused
+      // without one.
+      const done = await exportBuild({
+        onFile: (_name, at, total) =>
+          { $("deviceState").textContent = t("ui.build_writing", { done: at, total }); },
+      });
+      // Dismissed. Somebody changed their mind, and the panel says nothing.
+      if (!done) { $("deviceState").textContent = ""; return; }
+      $("deviceState").textContent = t("ui.build_written", {
+        folder: done.folder, written: done.written, removed: done.removed,
+        size: Math.round(done.bytes / 1024),
+      });
+    } catch (error) {
+      $("deviceState").textContent = error instanceof Trouble
+        ? t(`err.${error.word}`)
+        : t("ui.data_failed", { error: reason(error) });
+    } finally {
+      button.disabled = false;
     }
   };
 }

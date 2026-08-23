@@ -12,7 +12,9 @@ looks for `data/` right next to it. Both point at the same structure.
 - Libraries: `Adafruit GFX Library`, `Adafruit ST7735 and ST7789 Library`
 - `mklittlefs` and `esptool` if you want to write the file area from a
   computer — both come with the ESP32 core. Content does not normally go that
-  way: the editor pushes it down the cable, see [cable.md](cable.md).
+  way: the editor pushes it down the cable, see [cable.md](cable.md). The
+  folder to image is the one *Device → Write the build into a folder*
+  writes in the editor's settings.
 
 Board setting: USB CDC On Boot **enabled**.
 

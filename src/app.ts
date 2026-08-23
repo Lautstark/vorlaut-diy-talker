@@ -20,7 +20,7 @@ import { wireRelease } from "./ui/release.js";
 import { render, wireEditor } from "./ui/editor.js";
 import { loadSources, wirePicker } from "./ui/picker.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
-import { wireSymbolFolder, wireBoard, wireData, wireSources } from "./ui/settings.js";
+import { wireSymbolFolder, wireBoard, wireData, wireDevice, wireSources } from "./ui/settings.js";
 import { wireLegal } from "./ui/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
 import { exportEverything } from "./data/backup.js";
@@ -65,6 +65,7 @@ subscribeMetacom(render);
   wireSources();
   wireBoard();
   wireData(backup);
+  wireDevice();
   wireLanguage();
   wireLegal();
 

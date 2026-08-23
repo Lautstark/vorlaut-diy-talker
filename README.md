@@ -17,6 +17,7 @@ speak yet.
   the cable to the device
 - Falls asleep by itself, wakes on any key press
 - No radio at all: the device has no Wi-Fi, and the cable is the only way in
+- The build can also be written into a folder, for the bench and for `mklittlefs`
 
 ## Running it
 
