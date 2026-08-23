@@ -158,7 +158,6 @@ const CONFIG = JSON.stringify({
   phoneme_id_map: { "^": [1], "$": [2], "_": [0], "a": [5] },
 });
 
-/** Everything the page needs
 /** Everything the page needs before the button is worth pressing. */
 async function seed(page: import("@playwright/test").Page) {
   await page.route("**/piper_phonemize*.js", (route) =>
