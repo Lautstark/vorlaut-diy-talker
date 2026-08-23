@@ -33,13 +33,20 @@ import "./styles/ui.css";
 // appear on screen.
 import * as header from "./ui/templates/header.js";
 import * as board from "./ui/templates/board.js";
+import * as footer from "./ui/templates/footer.js";
 import * as picker from "./ui/templates/picker.js";
 import * as settingsSheet from "./ui/templates/settings_sheet.js";
+import * as legal from "./ui/templates/legal.js";
 
 header.render();
 board.render();
+// Under the board, and it is the last thing in the page's flow. The three
+// after it are dialogs: they sit over everything when they are open and take
+// no room at all when they are not, so where they mount decides nothing.
+footer.render();
 picker.render();
 settingsSheet.render();
+legal.render();
 
 const { start } = await import("./app.js");
 start();

@@ -539,3 +539,43 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
    of a copy rather than a copy. Nothing is left to say about them here: the
    uppercase group label above no longer reaches into a summary, so the
    heading inside one is the shared component's and nothing else. */
+
+/* -------------------------------------------------------------- the footer
+
+   Aligned on main's column rather than running the width of the window: it
+   belongs to the page under it, not to the browser. Quiet - it is the last
+   thing anybody comes here for - but never folded away or shortened to a
+   single "Legal", because two of these four have to be findable and to be
+   called what they are called. */
+.footer { max-width: 640px; margin: 0 auto; padding: 6px 20px 28px; }
+.footer__links {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0;
+  padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px;
+}
+/* The anchor beside them is not a .linklike - that class is for a button
+   pretending to be a link, and this one really is one - so it is given the
+   same quiet colour and the same underline here rather than the accent that
+   links carry inside the sheets. A row of four in which one is purple, or one
+   is the only one not underlined, reads as one of them being the odd one out;
+   the difference between them is where they lead, not how they rank. */
+.footer__links a { color: var(--text-dim); text-decoration: underline; }
+.footer__links a:hover { color: var(--text); }
+
+/* ------------------------------------------------- what the footer opens
+
+   Prose, where the settings sheet is controls. So the body carries its own
+   padding here - .setting, which supplies it there, has no business wrapping
+   a paragraph - and the headings are the small kind: they divide a page that
+   is already inside a dialog with a title of its own. */
+.legal > .body { padding: 12px 16px 20px; }
+.legal h3 { font-size: 14px; margin: 18px 0 6px; }
+.legal section > :first-child { margin-top: 0; }
+.legal p { margin: 0 0 6px; font-size: 13px; color: var(--text-dim); }
+.legal a { color: var(--accent); }
+.legal a:hover { text-decoration: none; }
+/* A postal address is four lines and has to stay four lines - it is one value
+   in the table, so that a translation cannot lose one of them, and this is
+   what makes the newlines in it count. */
+.legal .address { white-space: pre-line; }
+.legal__links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.legal .stand { margin-top: 18px; color: var(--text-faint); }
