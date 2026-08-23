@@ -121,7 +121,8 @@ export type { Plan, Sending, Sent } from "./cable.js";
 // browser's state and not a board: it is the shape the device's file system
 // should have, and it is the only thing standing between a cable that turns
 // out to be wrong on hardware and no way in at all. See the head of folder.ts.
-export { folderExportSupported, exportBuild, isBuildFile } from "./folder.js";
+export { folderExportSupported, chooseBuildFolder, writeBuildTo, isBuildFile }
+  from "./folder.js";
 export type { Exported, Exporting } from "./folder.js";
 
 // What it does not take is the files, and that was written here before the

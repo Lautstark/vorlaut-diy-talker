@@ -428,6 +428,13 @@ again by itself, and in between it builds the board, works out what the talker
 is missing and sends that. The page's log carries the device's own serial
 output inline while it happens.
 
+**Closing that dialog does nothing at all** — no build, no log, nothing on the
+screen changed. The dialog has to come before the build, because the activation
+`requestPort()` needs expires in about five seconds and a build with speech in
+it takes longer; so a dismissal that went on to build anyway read as the dialog
+having been ignored, which is what it did once. Choosing a different port later
+is in the settings, under *Device*, along with the folder export.
+
 **The bench is still here for what that button cannot be.** `tools/serialcheck.html`
 is where a payload can be invented with no build behind it — so that a failure
 is the wire or the firmware and not one of several new things at once — or read

@@ -24,6 +24,10 @@
 // runs when somebody asks it to, before a bench run or an image, so a picker
 // each time costs one click and saves a stored handle whose permission can
 // lapse without anybody noticing.
+//
+// Asking and writing are two functions, the way the cable's are, and for the
+// same reason: a picker needs a user gesture that expires in about five
+// seconds, so whatever is slow has to come after it.
 import { buildIsCurrent, builtFiles } from "../data/built.js";
 import { HASH_BYTES, LAYOUT_BIN } from "../data/layout_format.js";
 import { Trouble } from "../core/errors.js";
@@ -70,38 +74,44 @@ export type Exporting = {
 };
 
 /**
- * Asks for a folder and writes the build into it.
+ * Asks which folder. From a click, and from nothing else.
  *
- * Answers null when the picker was dismissed, which is not a failure: it is
- * somebody changing their mind, and it should not put an error on the screen.
+ * Separate from the writing for the reason askForDevice() is separate from
+ * sendToDevice(): a picker needs transient activation, which expires in about
+ * five seconds, so anything slow has to happen *after* it rather than before.
+ * The caller may need to run a build in between, and a build takes longer than
+ * the activation lasts.
  *
- * Must be called from a user gesture. Nothing slow happens before the picker
- * opens - the build is read afterwards - so unlike the cable there is no
- * activation to spend carefully here.
+ * Answers null when the dialog was dismissed, which is not a failure: it is
+ * somebody changing their mind, and nothing should happen.
  */
-export async function exportBuild(options: Exporting = {}): Promise<Exported | null> {
-  const { onFile = () => {} } = options;
-
-  // Both before the picker, because a folder chosen for a build that cannot be
-  // written is a click nobody should have had to make.
-  //
-  // A folder holding yesterday's content looks exactly like one holding
-  // today's, and everything downstream of it - an image, a bench push - would
-  // carry the difference all the way to the device without a word. The cable
-  // cannot reach this state, because the press that sends is the press that
-  // builds; this can, because it is a button somewhere else.
-  const made = await builtFiles();
-  if (!await buildIsCurrent()) throw new Trouble("folder_stale");
-
-  let directory: FileSystemDirectoryHandle;
+export async function chooseBuildFolder(): Promise<FileSystemDirectoryHandle | null> {
+  if (!folderExportSupported()) return null;
   try {
-    directory = await window.showDirectoryPicker({
+    return await window.showDirectoryPicker({
       mode: "readwrite", id: "vorlaut-build", startIn: "documents",
     });
   } catch {
     // Dismissed, or refused for want of a gesture. Neither is worth a message.
     return null;
   }
+}
+
+/**
+ * Writes the build into a folder that has already been chosen.
+ *
+ * Both refusals are backstops rather than the normal path - the caller builds
+ * first if it has to - but they stay, because the failure they prevent is the
+ * one a folder cannot show you afterwards: yesterday's content looks exactly
+ * like today's on a disk, and everything downstream of it, an image or a bench
+ * push, would carry the difference all the way to a device without a word.
+ */
+export async function writeBuildTo(
+  directory: FileSystemDirectoryHandle, options: Exporting = {},
+): Promise<Exported> {
+  const { onFile = () => {} } = options;
+  const made = await builtFiles();
+  if (!await buildIsCurrent()) throw new Trouble("folder_stale");
 
   let written = 0;
   let bytes = 0;

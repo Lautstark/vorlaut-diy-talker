@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as store from "../../src/data/store.js";
-import { exportBuild, isBuildFile } from "../../src/backend/folder.js";
+import { chooseBuildFolder, isBuildFile, writeBuildTo }
+  from "../../src/backend/folder.js";
 import { Trouble } from "../../src/core/errors.js";
 import type { Layout } from "../../src/core/types.js";
 
@@ -125,7 +126,7 @@ describe("writing the build into a folder", () => {
   });
 
   it("writes every file, with the bytes the store holds", async () => {
-    const done = await exportBuild();
+    const done = await writeBuildTo(offered!);
 
     expect(done).not.toBeNull();
     expect(done!.folder).toBe("bench");
@@ -140,7 +141,7 @@ describe("writing the build into a folder", () => {
     const old = `t${hash("c")}.bin`;
     offered!.files.set(old, new FakeFile(new Uint8Array([9])));
 
-    const done = await exportBuild();
+    const done = await writeBuildTo(offered!);
 
     expect(done!.removed).toBe(1);
     expect(offered!.files.has(old)).toBe(false);
@@ -151,7 +152,7 @@ describe("writing the build into a folder", () => {
     offered!.files.set("Steuer 2025.pdf", new FakeFile(new Uint8Array([7])));
     offered!.files.set("IMG_1234.jpg", new FakeFile(new Uint8Array([8])));
 
-    const done = await exportBuild();
+    const done = await writeBuildTo(offered!);
 
     expect(done!.removed).toBe(0);
     expect(offered!.files.has("Steuer 2025.pdf")).toBe(true);
@@ -160,7 +161,7 @@ describe("writing the build into a folder", () => {
 
   it("reports progress per file", async () => {
     const seen: string[] = [];
-    await exportBuild({ onFile: (name, at, total) => seen.push(`${name} ${at}/${total}`) });
+    await writeBuildTo(offered!, { onFile: (name, at, total) => seen.push(`${name} ${at}/${total}`) });
     expect(seen).toHaveLength(3);
     expect(seen.every((line) => line.endsWith("/3"))).toBe(true);
   });
@@ -169,19 +170,26 @@ describe("writing the build into a folder", () => {
     // An edit after the build: recordBuild() was against the older version.
     await store.writeLayout(board("Zweite"), null);
 
-    await expect(exportBuild()).rejects.toThrow(Trouble);
-    await expect(exportBuild()).rejects.toMatchObject({ word: "folder_stale" });
+    await expect(writeBuildTo(offered!)).rejects.toThrow(Trouble);
+    await expect(writeBuildTo(offered!)).rejects.toMatchObject({ word: "folder_stale" });
     expect(offered!.files.size).toBe(0);
   });
 
   it("refuses when there is no build at all", async () => {
     await store.empty("data");
-    await expect(exportBuild()).rejects.toMatchObject({ word: "build_none" });
+    await expect(writeBuildTo(offered!)).rejects.toMatchObject({ word: "build_none" });
     expect(offered!.files.size).toBe(0);
   });
 
   it("answers null when the picker is dismissed, which is not a failure", async () => {
     dismissed = true;
-    expect(await exportBuild()).toBeNull();
+    expect(await chooseBuildFolder()).toBeNull();
+  });
+
+  it("asks for the folder before anything slow, so the gesture is still there",
+     async () => {
+    // The order is the whole reason these are two functions: a build between
+    // the click and the picker would spend the activation the picker needs.
+    expect(await chooseBuildFolder()).toBe(offered);
   });
 });

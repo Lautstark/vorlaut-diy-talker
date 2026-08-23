@@ -164,6 +164,21 @@ const CONFIG = JSON.stringify({
   phoneme_id_map: { "^": [1], "$": [2], "_": [0], "a": [5] },
 });
 
+/** A browser with no WebSerial - Firefox, Safari, anything on Android.
+ *
+ * The press asks for a port before it builds, and does nothing when nobody
+ * picks one, so a test that only wants a build has to be somewhere the
+ * question is never asked. That is not a contrivance: it is the path half the
+ * browsers in the world take, where the build is the whole of what the button
+ * can do. */
+async function withoutCable(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "serial", {
+      configurable: true, value: undefined,
+    });
+  });
+}
+
 /** Everything the page needs before the button is worth pressing. */
 async function seed(page: import("@playwright/test").Page) {
   await page.route("**/piper_phonemize*.js", (route) =>
@@ -238,6 +253,7 @@ const tilesOf = (names: string[]) => names.filter((n) => /^t[0-9a-f]{32}\.bin$/.
 const wavsOf = (names: string[]) => names.filter((n) => /^a[0-9a-f]{32}\.wav$/.test(n));
 
 test("it builds a board into the store, one file per distinct thing", async ({ page }) => {
+  await withoutCable(page);
   await seed(page);
   const built = await release(page);
 
@@ -268,6 +284,7 @@ test("it builds a board into the store, one file per distinct thing", async ({ p
 });
 
 test("a second build replaces what changed and leaves nothing behind", async ({ page }) => {
+  await withoutCable(page);
   await seed(page);
   const first = await release(page);
 
@@ -488,6 +505,7 @@ async function withPicker(page: import("@playwright/test").Page) {
 test("the build can be written into a folder, and says what it wrote",
      async ({ page }) => {
   await withPicker(page);
+  await withoutCable(page);
   await seed(page);
   const built = await release(page);
 
@@ -516,31 +534,31 @@ test("the build can be written into a folder, and says what it wrote",
   expect(held).toEqual(built.sizes);
 });
 
-/* The press that builds must never open a port picker.
+/* A dismissed picker costs nothing at all.
  *
- * It did once, and it had to: requestPort() needs transient activation that
- * expires in about five seconds, so a picker on this button could only come
- * before the build. Dismissing it then cost a whole build - minutes of speech
- * synthesis - to be told nothing was sent. Choosing a port is its own button
- * in the settings now, with nothing slow behind it.
+ * This press asks for a port when none is granted, and it has to ask before
+ * the build: requestPort() needs the transient activation the press is, and it
+ * expires in about five seconds. So the case to get right is the dismissal,
+ * and it was wrong in both directions before this. It built anyway and then
+ * reported that nothing was sent, which read as the dialog having been
+ * ignored; then the picker was moved out of the press altogether, which fixed
+ * that by removing the thing somebody had pressed the button for.
  *
- * This is the rule stated as a test rather than as a comment, because the
- * failure it guards is a plausible refactor away and looks like a feature
- * while somebody writes it.
+ * Nothing here: no build in the store, no log, and the release mark still
+ * standing.
  */
-test("building never opens a picker, and says where to connect one",
-     async ({ page }) => {
+test("a dismissed picker builds nothing and says nothing", async ({ page }) => {
   await page.addInitScript(() => {
     (globalThis as Record<string, unknown>).__asked = 0;
     Object.defineProperty(navigator, "serial", {
       configurable: true,
       value: {
-        // Nothing granted: the state a first-time page is in.
         getPorts: async () => [],
         requestPort: async () => {
           const counted = globalThis as Record<string, unknown>;
           counted.__asked = (counted.__asked as number) + 1;
-          throw new DOMException("no", "NotFoundError");
+          // What a browser throws when somebody closes the dialog.
+          throw new DOMException("dismissed", "AbortError");
         },
         addEventListener: () => {},
       },
@@ -548,23 +566,21 @@ test("building never opens a picker, and says where to connect one",
   });
   await seed(page);
 
-  const built = await release(page);
+  const after = await release(page);
 
-  expect(await page.evaluate("globalThis.__asked")).toBe(0);
-  // The build still happened - which is also what makes the folder export
-  // reachable on a machine that has no talker on it at all.
-  expect(built.names).toContain("layout.bin");
-  expect(built.log).toContain(SPEAKS["cable.no_device_chosen"]);
+  expect(await page.evaluate("globalThis.__asked")).toBe(1);
+  // The build writes layout.bin first of all, so an empty data store is the
+  // whole claim: nothing ran.
+  expect(after.names).toEqual([]);
+  expect(after.log).toBe("");
+  // And the button still says a release is due, because none happened.
+  expect(after.primary).toBe(true);
 });
 
-/* Connect once, then one press for ever after - the shape docs/cable.md
- * concluded from the two facts about the browser, walked through end to end.
- *
- * The first half is what the old arrangement got wrong: a page with nothing
- * granted builds and stops, and the picker is somewhere else entirely, so
- * closing it can never cost a build.
+/* Asked once, then never again - the shape docs/cable.md concluded from the
+ * two facts about the browser, walked through end to end.
  */
-test("connecting once in the settings is what the press then uses",
+test("the port is asked for once, and the next press goes straight through",
      async ({ page }) => {
   for (const name of ["cable.js", "cable_mock.js"]) {
     await page.route(`**/__cable/${name}`, (route) => route.fulfill({
@@ -587,38 +603,72 @@ test("connecting once in the settings is what the press then uses",
           async setSignals() {},
         };
       });
-    // Nothing granted until the picker has been through: getPorts() answers
-    // with what requestPort() has handed over, which is what a browser does.
+    // getPorts() answers with what requestPort() has handed over, which is
+    // what a browser does with a granted port.
     let granted: unknown = null;
+    (globalThis as Record<string, unknown>).__asked = 0;
     Object.defineProperty(navigator, "serial", {
       configurable: true,
       value: {
         getPorts: async () => (granted ? [granted] : []),
-        requestPort: async () => { granted = await ready; return granted; },
+        requestPort: async () => {
+          const counted = globalThis as Record<string, unknown>;
+          counted.__asked = (counted.__asked as number) + 1;
+          granted = await ready;
+          return granted;
+        },
         addEventListener: () => {},
       },
     });
   });
   await seed(page);
 
-  // Nothing granted: it builds, and says where to go.
   const first = await release(page);
-  expect(first.log).toContain(SPEAKS["cable.no_device_chosen"]);
-  // The mock exists from the moment its module loads; what says nothing was
-  // sent is that it is holding nothing.
-  expect((await onDevice(page)).names).toEqual([]);
+  expect(await page.evaluate("globalThis.__asked")).toBe(1);
+  expect((await onDevice(page)).names).toEqual([...first.names].sort());
 
+  // And again, with no dialog in between.
+  const second = await release(page);
+  expect(await page.evaluate("globalThis.__asked")).toBe(1);
+  expect(second.log).toContain(SPEAKS["cable.nothing"]);
+
+  // The settings still offer a way to change it, which is the other half of
+  // "asked once": a wrong port must not be a page reload to undo.
   await page.locator("#gear").click();
   const panel = page.locator("#devicePanel");
   await panel.locator("summary").click();
-  await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_none"]);
-  await panel.locator("#deviceConnect").click();
   await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_connected"]);
-  await page.locator("#voiceClose").click();
+  await panel.locator("#deviceConnect").click();
+  expect(await page.evaluate("globalThis.__asked")).toBe(2);
+});
 
-  // And now the same press reaches the talker, with no dialog in between.
-  const second = await release(page);
-  const held = await onDevice(page);
-  expect(second.log).not.toContain(SPEAKS["cable.no_device_chosen"]);
-  expect(held.names).toEqual([...second.names].sort());
+/* The export stands on its own, and it has to.
+ *
+ * The press that usually builds asks for a port first and does nothing without
+ * one - so on a machine with no talker on it, this button is the only way to
+ * produce the files. That machine is exactly the one that needs them: the
+ * folder is what the bench sends and what mklittlefs images when the cable is
+ * the thing that is wrong.
+ */
+test("the folder export builds first when there is nothing built",
+     async ({ page }) => {
+  await withPicker(page);
+  await withoutCable(page);
+  await seed(page);
+
+  // Deliberately no press of the release button: nothing has been built.
+  await page.locator("#gear").click();
+  const panel = page.locator("#devicePanel");
+  await panel.locator("summary").click();
+  await panel.locator("#buildExport").click();
+
+  await expect(panel.locator("#deviceState"))
+    .toContainText(SPEAKS["ui.build_written"].split("{")[0].trim(), { timeout: 15_000 });
+
+  const held = await page.evaluate(`(() => {
+    const files = globalThis.__folder;
+    return Object.fromEntries([...files].map(([name, bytes]) => [name, bytes.length]));
+  })()`) as Record<string, number>;
+  expect(Object.keys(held)).toContain("layout.bin");
+  expect(Object.keys(held).length).toBeGreaterThan(1);
 });

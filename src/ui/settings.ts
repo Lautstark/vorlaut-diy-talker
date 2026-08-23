@@ -8,7 +8,7 @@ import { $, closeMenus, menuOn, status } from "./dom.js";
 import { reason, Trouble } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
 import { readSettings, writeSettings, exportBoard, importBoard, azureState,
-  exportBuild, folderExportSupported } from "../backend/index.js";
+  chooseBuildFolder, writeBuildTo, folderExportSupported } from "../backend/index.js";
 import { applyTheme, readTheme, saveTheme, THEMES, type Theme }
   from "@lautstark/design/theme";
 import { t } from "../core/texts.js";
@@ -19,6 +19,8 @@ import * as symbols from "../data/symbols.js";
 import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
 import { paintBackupFolder, wireBackupFolder } from "./backupFolder.js";
 import { connectDevice, haveDevice, onDevices } from "./device.js";
+import { buildNow } from "./release.js";
+import { buildIsCurrent } from "../data/built.js";
 import type { Sicherung } from "@lautstark/sicherung";
 
 let settings: Settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
@@ -395,14 +397,25 @@ export function wireDevice() {
     $("deviceState").textContent = "";
     button.disabled = true;
     try {
-      // The gesture is why this is a button: showDirectoryPicker() is refused
-      // without one.
-      const done = await exportBuild({
+      // The folder first: showDirectoryPicker() needs the activation this
+      // click is, and it expires in about five seconds - so a build cannot
+      // come before it. A dismissed dialog ends here and says nothing.
+      const folder = await chooseBuildFolder();
+      if (!folder) { $("deviceState").textContent = ""; return; }
+
+      // Then a build, if there is not a current one. The press that usually
+      // builds asks for a port and does nothing without one, so on a machine
+      // with no talker on it this is the only way to produce the files - and
+      // it is exactly the machine that needs them.
+      if (!await buildIsCurrent()) {
+        $("deviceState").textContent = t("ui.building");
+        await buildNow();
+      }
+
+      const done = await writeBuildTo(folder, {
         onFile: (_name, at, total) =>
           { $("deviceState").textContent = t("ui.build_writing", { done: at, total }); },
       });
-      // Dismissed. Somebody changed their mind, and the panel says nothing.
-      if (!done) { $("deviceState").textContent = ""; return; }
       $("deviceState").textContent = t("ui.build_written", {
         folder: done.folder, written: done.written, removed: done.removed,
         size: Math.round(done.bytes / 1024),

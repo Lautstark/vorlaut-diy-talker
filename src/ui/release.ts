@@ -6,18 +6,33 @@
 // and it brought a port, a progress line and a way to stop with it. That is
 // more than a page-wiring file should hold, so it is here.
 //
-// This press never opens a dialog. It builds, and then sends to whatever the
-// person has already granted - which getPorts() answers with no gesture at
-// all. Choosing a port is a button of its own in the settings, for the reason
-// ui/device.ts sets out: a picker here would have to come before the build,
-// and then dismissing it costs a build nobody asked for.
+// The first press asks which port the talker is, and every press after it goes
+// straight through - getPorts() hands back a granted port with no gesture at
+// all. That ordering is forced: requestPort() needs the transient activation
+// this press is, and Chrome expires it in about five seconds, so the dialog
+// cannot come after a build.
+//
+// Which makes the dismissal the case to get right, and it was wrong once in
+// each direction. It used to build anyway and then report that nothing was
+// sent, so closing a dialog cost minutes of synthesis. Then the picker moved
+// out of the press altogether, which fixed that by taking away the thing
+// somebody had actually pressed the button for. It is here, and dismissing it
+// does nothing at all: no build, no log, nothing on the screen changed.
+//
+// Changing the port later is in the settings, under Device.
 import { $, status } from "./dom.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import { markReleaseState, saveNow } from "../core/save.js";
 import { runBuild, cableSupported, sendToDevice, type Plan } from "../backend/index.js";
-import { devices, haveDevice, watchForDevices } from "./device.js";
+import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js";
 import { Trouble } from "../core/errors.js";
+
+/* Set when nothing on the wire answered as a talker. The next press asks for
+ * the port again, which is the way back for somebody who chose the wrong one:
+ * without it a page holding one useless port would keep trying that one and
+ * never offer the dialog again. */
+let askAgain = false;
 
 let stopper: AbortController | null = null;
 let lines: string[] = [];
@@ -33,6 +48,40 @@ function say(line: string): void {
   show();
 }
 
+/** Build what is on the screen, and say so while it happens.
+ *
+ * Two callers: this button, and the folder export in the settings. The second
+ * is why it is a function rather than a stretch of the press - the export
+ * cannot write a build that is not there, and sending somebody back to a
+ * button they have already pressed to fix that is not an answer. One build
+ * path also means one place where the log is written and one where the
+ * "release is due" mark is cleared.
+ *
+ * Throws when the build does, having already written the reason where the
+ * caller would have written it. The caller's own job is only to stop.
+ */
+export async function buildNow(): Promise<void> {
+  // Building what is on screen, not what the last debounce happened to catch:
+  // saveNow() writes and cancels the pending one, otherwise it fires
+  // afterwards and writes the same thing a second time.
+  await saveNow();
+  lines = [];
+  $("log").style.display = "block";
+  $("log").textContent = t("ui.running");
+  status(t("ui.building"));
+  try {
+    const result = await runBuild();
+    lines = result.log.slice();
+    show();
+    markReleaseState("1");
+    status(t("ui.built"));
+  } catch (error) {
+    $("log").textContent = t("ui.log_error", { error: reason(error) });
+    status(t("ui.build_failed"));
+    throw error;
+  }
+}
+
 export function wireRelease(): void {
   const button = $<HTMLButtonElement>("releaseBtn");
   const stop = $<HTMLButtonElement>("releaseStop");
@@ -42,25 +91,21 @@ export function wireRelease(): void {
   stop.onclick = () => stopper?.abort();
 
   button.onclick = async () => {
-    // Releasing what is on screen, not what the last debounce happened to
-    // catch: saveNow() writes and cancels the pending one, otherwise it fires
-    // afterwards and writes the same thing a second time.
-    await saveNow();
-    button.disabled = true;
-    lines = [];
-    $("log").style.display = "block";
-    $("log").textContent = t("ui.running");
-    status(t("ui.building"));
+    // The port first, and before anything that can await for long. A dismissed
+    // picker ends the press here: this button says it puts content on a
+    // talker, and without one there is nothing for it to do that somebody
+    // asked for. Building anyway is what it used to do, and it read as the
+    // dialog having been ignored.
+    if (cableSupported() && (!haveDevice() || askAgain)) {
+      if (!await connectDevice()) return;
+      askAgain = false;
+    }
 
+    button.disabled = true;
     try {
-      const result = await runBuild();
-      lines = result.log.slice();
-      show();
-      markReleaseState("1");
-      status(t("ui.built"));
-    } catch (error) {
-      $("log").textContent = t("ui.log_error", { error: reason(error) });
-      status(t("ui.build_failed"));
+      await buildNow();
+    } catch {
+      // buildNow() has already put the reason on the screen.
       button.disabled = false;
       return;
     }
@@ -131,6 +176,9 @@ async function send(stop: HTMLButtonElement): Promise<void> {
       say(t(cleared ? "cable.stopped_tight" : "cable.stopped"));
       status(t("cable.stopped_short"));
     } else if (error instanceof Trouble) {
+      // Ask which port again next time: whatever is on the end of this one did
+      // not answer as a talker.
+      if (error.word === "cable_no_device") askAgain = true;
       say(t(`err.${error.word}`, {
         size: Math.round((error.facts.needed || 0) / 1024),
         free: Math.round((error.facts.free || 0) / 1024),
