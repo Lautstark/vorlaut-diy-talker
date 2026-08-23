@@ -46,12 +46,27 @@ sk_board_h        = 35.29;  // [M] board height
 sk_board_d        = 1.60;   // [A] board thickness, typical FR4
 sk_cap_b          = 22.00;  // [M] key cap width
 sk_cap_h          = 25.30;  // [M] key cap height
-sk_cap_overhang =  8.60;  // [M] how far the cap stands proud of the front
-sk_total_depth      = 24.00;  // [M] cap front face to module back
+sk_total_depth        = 23.00;  // [M] cap front face to the back of the PCB,
+                                //     key not pressed
+sk_total_depth_pressed = 20.00; // [M] the same with the key pressed
+sk_cap_travel = sk_total_depth - sk_total_depth_pressed;   // [G] 3.00
+
+// Threaded spacers stand off the back of the PCB. THEY are what the mid plate
+// bolts to, and they are the reason there is nothing printed in that gap: the
+// module brings its own standoffs and they are 8 mm long.
+sk_spacer_l   =  8.00;  // [M] length of the threaded spacers
+
+// How far the cap stands proud of the front. Not a property of the module on
+// its own - it follows from how deep the module is mounted, and the mounting
+// depth is set by the mid plate and the spacers. 8.60 was what the first build
+// came out at, screwed to bosses on the front plate, and it read as too sunken.
+// Hung off the mid plate instead, the same module stands 1.0 mm further out.
+sk_cap_overhang =  9.60;  // [K] and everything behind it follows
+
 // How far the MOVING cap body reaches behind the front plate. That space has
 // to stay clear over its whole depth, otherwise the key jams. When in doubt
 // set it too large — this is the worst case (the whole module).
-sk_cap_depth      = 15.40;  // [A] = sk_total_depth - sk_cap_overhang
+sk_cap_depth  = sk_total_depth - sk_cap_overhang;   // [G] 13.40
 sk_image             = 15.21;  // [M] visible display area (for reference only)
 
 // >>> THE number that is most likely wrong once the parts are unpacked. <<<
@@ -187,6 +202,8 @@ boss_d     = threaded_insert ? 8.00 : 6.00;   // [G] outer diameter of the lid b
 boss_core  = threaded_insert ? 4.20 : 2.50;   // [G] pilot hole
 csink_d    = 6.20;   // [K] head diameter, M3 countersunk screw
 csink_t    = 1.80;   // [K] countersink depth
+boss_thread_l = 14.00;  // [K] how far the M3 bites into the boss. Not the
+                     //     whole boss: a 46 mm pilot hole would be a pipe.
 boss_clearance  = 1.00;   // [K] boss edge to the component rectangle
 
 // Clearance between the component rectangle and the inner wall at carrier
@@ -197,17 +214,19 @@ boss_clearance  = 1.00;   // [K] boss edge to the component rectangle
 inner_margin    = max(7.00, boss_d + boss_clearance);   // [G] 7.0 or 9.0
 
 /* --- Depth budget --- */
-sk_behind_front = sk_total_depth - sk_cap_overhang;   // [G] 15.40
-cable_space       = 6.00;   // [K] behind the ScreenKey back: header,
-                          //     FPC connector and wires. Without this gap
-                          //     the battery presses on the connector pins.
+sk_behind_front = sk_total_depth - sk_cap_overhang;   // [G] 13.40
+// The gap between the back of the module and the mid plate is not a choice any
+// more: it is exactly as long as the threaded spacers the module brings with
+// it. Header, FPC connector and wires live in that same band, around the
+// spacers - which is what the 6.00 mm here used to be reserving room for.
+cable_space   = sk_spacer_l;   // [G] 8.00
 part_clearance    = 0.60;   // [K] clearance between the tallest part and the lid
 feather_support = 2.00;   // [K] standoff under the Feather. Do not make it
                           //     smaller: the solder pins of the headers
                           //     stick out that far underneath.
 amp_support     = 2.00;   // [K] same under the amplifier
 
-sk_board_z_v  = sk_behind_front - sk_board_d;         // [G] 13.80 front face
+sk_board_z_v  = sk_behind_front - sk_board_d;         // [G] 11.80 front face
 carrier_z_bottom     = sk_behind_front + cable_space;            // [G] 21.40 carrier underside
 carrier_z_top     = carrier_z_bottom + carrier_d;                // [G] 23.80 carrier top side
 
@@ -220,8 +239,16 @@ stack_feather  = feather_support + feather_h;  // [G] 10.00  <- the governing on
 stack_amp      = amp_support + amp_d;          // [G]  5.00
 stack_max      = max(stack_battery, stack_feather, stack_amp);   // [G] 10.00
 
-inner_z_h       = carrier_z_top + stack_max + part_clearance;  // [G] 34.40
-outer_t        = inner_z_h + lid_d;                     // [G] 37.40 total depth
+// Room ON TOP of what the parts themselves need. Measured on the first
+// build: with the wiring actually in it the parts do not lie as flat as the
+// stack-up says - the battery lead, the JST plug and the ribbon cables coming
+// up through the carrier all want their bend radius, and the lid pressed on
+// them. The carrier stays exactly where it is; the case grows backwards only.
+extra_above_carrier = 14.00;  // [M] Stefanie, first hardware, August 2026
+
+inner_z_h       = carrier_z_top + stack_max + part_clearance
+                  + extra_above_carrier;                // [G] 48.40
+outer_t        = inner_z_h + lid_d;                     // [G] 51.40 total depth
 
 /* --- Outer dimensions --- */
 inner_b  = env_b + 2*inner_margin;      // [G] 141.12
@@ -232,22 +259,56 @@ centre_x  = env_b/2;                   // [G]
 centre_y  = env_h/2;                   // [G]
 
 /* --- Tolerances --- */
-gap_cap   = 0.60;   // [K] air all round the key cap in the front cutout.
-                        //     Large enough that the key never jams; too narrow
-                        //     for a child's finger to get in.
+gap_cap   = 0.30;   // [M] air all round the key cap in the front cutout.
+                        //     0.60 came out visibly loose on the first build -
+                        //     the cap floated in its hole. Still large enough
+                        //     that the key never jams, still too narrow for a
+                        //     child's finger to get in.
 chamfer_key    = 0.80;   // [K] chamfer on the edge of the key cutout
 cap_r       = 2.00;   // [K] corner radius of the key cutout
 lid_play  = 0.40;   // [K] total play of the lid in the rebate
 carrier_play = 0.40;   // [K] total play of the carrier
 
-/* --- ScreenKey fixings --- */
-sk_boss_d    = 4.50;  // [K] ScreenKey boss outer diameter
-sk_boss_core = 1.60;  // [K] pilot hole for self-tapping M2
-sk_boss_foot = 1.50;  // [K] 45° foot cone, so the boss does not snap off
-sk_boss_wall = 1.00;  // [K] minimum wall around the pilot hole. A boss that
-                     //     would fall below it next to the cap clearance is
-                     //     left out instead of cut into - see sk_boss().
-sk_boss_h    = sk_board_z_v - front_d;   // [G] 11.40
+/* --- ScreenKey fixings -------------------------------------------------
+   The modules screw from BEHIND, and the case contributes nothing to that but
+   twenty holes. The thread is in the ScreenKey, the standoff is the module's
+   own 8 mm threaded spacer, and the mid plate is simply what the screw pulls
+   against: screw in from the lid side, through the plate, into the spacer.
+
+   Two earlier attempts are worth remembering, because both were wrong in the
+   same way - they had the case supplying something the module already brings.
+   First the poles stood on the FRONT PLATE and the screw was meant to
+   self-tap into printed plastic; that needs clearance holes in the board and
+   the board has none. Then the poles moved to the mid plate and reached
+   forward across the gap; but the gap is where the spacers are, so those
+   poles were bridging a bridge. There is nothing printed here at all now, and
+   the mid plate goes back to being a flat plate.                          */
+sk_screw_d   = 2.40;  // [A] clearance hole for M2. MEASURE the spacer thread -
+                     //     if it is M2.5 this and sk_csink_d both move.
+sk_pad_d     = 5.00;  // [K] plate that has to stay round each hole: the
+                     //     countersink plus half a millimetre of material
+// The battery lies flat on the carrier, so the screw head has to disappear
+// into it. 4.00 is a DIN 965 M2 head (3.8) plus clearance, and the depth is
+// NOT free: at (d_head - d_shank)/2 the pocket is a 90 degree cone, which is
+// the angle the head already has. Any deeper and the head only touches the
+// mouth with its top edge, which on printed plastic is a line load on a sharp
+// rim rather than a cone seating on a cone.
+sk_csink_d   = 4.00;  // [K]
+sk_csink_t   = (sk_csink_d - sk_screw_d)/2;   // [G] 0.80
+sk_pad_wall  = (sk_pad_d - sk_csink_d)/2;     // [G] 0.50
+sk_screw_engage = 4.00;  // [A] how deep the screw goes into the spacer.
+                        //     Not more than sk_spacer_l, obviously.
+sk_screw_l   = carrier_d + sk_screw_engage;   // [G] 6.40 -> M2x6
+
+/* --- Carrier against the speaker chamber -------------------------------
+   The horizontal chamber wall runs the full height of the inner space, so it
+   passes straight THROUGH the carrier plane. The carrier has to stop short of
+   it - and in the first draft it did not: its cutout started at
+   chamber_y + chamber_wall + 0.2, which is 0.2 mm past the FAR side of that
+   wall, so the plate ran through 2 mm of solid wall and the carrier would not
+   go in. Measured on the first build; this is the number that fixes it.   */
+carrier_chamber_gap = 2.80;  // [M] air below the horizontal chamber wall
+carrier_chamber_x   = 0.80;  // [K] air beside the vertical chamber wall
 
 /* --- Speaker chamber --- */
 // As closed a volume as possible behind the driver. The chamber is formed by
@@ -328,13 +389,29 @@ support_pos = [
   [ (set_mx + blk_mx1)/2, 4.0 ]                        // 46.15 / 4
 ];
 
+/* --- Cable passages in the carrier --- */
+// Rectangles [x1, y1, x2, y2]. These used to live inside carrier_outline().
+// They are out here because the checks in section 4 have to know where they
+// are: a ScreenKey screw that lands on one has nothing to pull against.
+carrier_slots = [
+  [ (blk_mx1+blk_mx2)/2 - 2.5, blk_my1 - 13,
+    (blk_mx1+blk_mx2)/2 + 2.5, blk_my1 + 13 ],
+  [ (blk_mx1+blk_mx2)/2 - 2.5, blk_my2 - 13,
+    (blk_mx1+blk_mx2)/2 + 2.5, blk_my2 + 13 ],
+  [ (set_mx+blk_mx1)/2 - 3,  20, (set_mx+blk_mx1)/2 + 3,  50 ],
+  [ env_b/2 - 4, env_h + inner_margin - 6, env_b/2 + 4, env_h + inner_margin + 2 ]
+];
+
+
 /* --- Feet on the lid --- */
-// The lid is the BACK of the device, and the logo stands 0.8 mm proud of it.
-// Without feet the thing lies on its speech bubble and nothing else: it rocks,
-// and the logo is the first thing to wear through. Four pads, taller than the
-// logo, on the SAME face - so they print upward in the lid's print orientation
-// (inside on the bed, logo up) and need no support.
-feet_on      = true;    // [K]
+// The feet only ever existed because the logo stood proud of the lid: without
+// them the device lay on a 70 mm speech bubble and nothing else, rocked, and
+// wore the embossing through. The logo is cut INTO the lid now (see below),
+// so the lid is a flat face again and rests on all of itself. The feet have
+// nothing left to do - and a flat back is the better back for a device a
+// child pushes around a table.
+// One word brings them back: the geometry and every check below still stand.
+feet_on      = false;   // [K]
 feet_d       = 10.00;   // [K]
 feet_h       =  1.60;   // [K] 8 layers - leaves 0.8 mm of air under the logo
 feet_x       = 58.00;   // [K] from the lid centre. Clear of the corner screws
@@ -344,8 +421,16 @@ feet_chamfer =  0.40;   // [K] broken edge, so the pad does not peel
 /* --- Logo --- */
 // Speech bubble with two eyes and a smile, rebuilt from assets/icon.svg
 // (not imported - see building.md).
+//
+// Cut IN, not standing out. Proud was the earlier decision, and it cost the
+// four feet to make it work at all - the lid is the back of the device, and
+// whatever stands proudest of it is what the device lies on. Recessed, the
+// lid is flat again, nothing wears through, and the feet go away with it.
+// The two numbers below stop being heights and become depths; nothing else
+// about them changes.
+logo_recessed = true;   // [K] false = the old raised logo, feet needed again
 logo_lid_b   = 70.00;  // [K] width of the speech bubble on the lid
-logo_lid_h   =  0.80;  // [K] embossing height, 4 layers at 0.2 mm
+logo_lid_h   =  0.80;  // [K] depth of the engraving, 4 layers at 0.2 mm
 logo_side_on   = true;   // [K] small logo on the bottom edge
 logo_side_b    = 20.00;  // [K]
 logo_side_h    =  0.60;  // [K]
@@ -382,46 +467,78 @@ assert(gap_set_block >= 1.3 * gap_block,
       gap_block, " mm inside the block. The five keys then read as one row ",
       "of five instead of one plus a group of four."));
 
-/* --- Cap clearance against the ScreenKey bosses ---------------------
-   This is the most delicate place in the whole design.
+/* --- The ScreenKey screw holes ---------------------------------------
+   This used to be the most delicate place in the whole design, and it is not
+   any more. Worth knowing why, because the reasoning is now the other way up.
 
-   The key cap is 22.00 x 25.30 mm, the board 25.94 x 35.29 mm. Vertically
-   there are only 2.995 mm between the cap edge (12.65 from the centre) and
-   the hole centre (15.645). A boss with a 1.6 pilot hole and 1.0 mm of wall
-   needs 1.8 mm of that, and the air gap around the cap 0.6 mm.
-   About 0.6 mm remain - that is the ENTIRE budget by which the cap may sit
-   off the board centre before the corner bosses no longer fit.
+   While the bosses stood on the FRONT PLATE they sat between plate and board,
+   right beside the moving cap. The cap is 25.30 mm high, its holes 15.645 mm
+   off centre: 2.995 mm between cap edge and hole centre, of which the boss
+   wanted 1.8 mm and the air gap 0.6 mm. That left 0.595 mm of budget for
+   cap_offset_y before a boss had to be dropped, and a whole apparatus to drop
+   it with.
 
-   The design catches that without anyone having to recalculate:
-   `cap_clearance()` cuts the cap's path free, and `sk_boss()` drops every
-   boss that would be cut into. If a key pair ends up with nothing holding
-   it, the assert below says so.                                        */
+   There is no boss anywhere now. The module hangs off the mid plate on its
+   own threaded spacers and the case contributes twenty holes, all of them
+   behind the board, in a place the cap never reaches. cap_offset_y has no
+   budget left to run out of - it only has to keep the cap over its own board,
+   which is the assert below.
 
-clear_hb = (sk_cap_b + 2*gap_cap)/2;      // [G] 11.60
-clear_hh = (sk_cap_h + 2*gap_cap)/2;      // [G] 13.25
+   What the holes have to clear instead is what else is on the CARRIER: the
+   cable slots, the lid bosses, the carrier's own support posts and the
+   cut-away over the speaker chamber. All four are checked further down, where
+   the rest of the carrier is checked.                                    */
+
+// Half-sizes of the front cutout. Nothing structural hangs off them any more
+// - they are here because the echo and verify.py report them.
+clear_hb = (sk_cap_b + 2*gap_cap)/2;      // [G] 11.30
+clear_hh = (sk_cap_h + 2*gap_cap)/2;      // [G] 12.95
 sk_hole_dx  = sk_board_b/2 - sk_hole_margin;       // [G] 10.97
 sk_hole_dy  = sk_board_h/2 - sk_hole_margin;       // [G] 15.645
-boss_needed = sk_boss_core/2 + sk_boss_wall;         // [G]  1.80
+sk_pad_r    = sk_pad_d/2;                          // [G]  2.50
 
-// How far does a boss stand clear of the cap's path? It survives as soon as
-// it sticks out of the rectangle in ONE axis - hence max() and not min().
-function boss_clear(sx, sy) =
-  max(abs(sk_hole_dx*sx - cap_offset_x) - clear_hb,
-      abs(sk_hole_dy*sy - cap_offset_y) - clear_hh);
+// All twenty screw positions, in component coordinates.
+sk_pole_pos = [ for (p = sk_pos, sx = [-1,1], sy = [-1,1])
+                  [ p[0] + sx*sk_hole_dx, p[1] + sy*sk_hole_dy ] ];
 
-boss_kept      = [ for (sx=[-1,1], sy=[-1,1]) if (boss_clear(sx,sy) >= boss_needed) 1 ];
-bosses_per_key = len(boss_kept);
+// The spacers are the standoff, so the mid plate has to land exactly one
+// spacer behind the module. Both sides of this come from measurements, and if
+// they stop agreeing the caps stand at the wrong depth.
+assert(abs(carrier_z_bottom - (sk_behind_front + sk_spacer_l)) < 0.001,
+  str("The mid plate sits at ", carrier_z_bottom, " mm but the module plus ",
+      "its ", sk_spacer_l, " mm spacers reaches ", sk_behind_front + sk_spacer_l,
+      " mm. The screws would have to pull the plate ",
+      carrier_z_bottom - sk_behind_front - sk_spacer_l, " mm out of place."));
 
-// Budget for cap_offset_y before the first boss is dropped
-offset_y_max = sk_hole_dy - clear_hh - boss_needed;   // [G] 0.595
+assert(sk_screw_engage <= sk_spacer_l,
+  str("The screw is meant to go ", sk_screw_engage, " mm into a spacer only ",
+      sk_spacer_l, " mm long."));
 
-assert(bosses_per_key >= 2,
-  str("At cap_offset_y = ", cap_offset_y, " mm only ", bosses_per_key,
-      " of 4 bosses per ScreenKey are left. Allowed are ",
-      round(offset_y_max*100)/100, " mm. More offset means the corner holes ",
-      "of the board sit too close to the cap. Then do NOT talk the number ",
-      "down, but measure sk_hole_margin on the real module - the holes may ",
-      "sit somewhere else entirely."));
+assert(sk_pad_wall >= 0.4,
+  str("Only ", sk_pad_wall, " mm of plate left round the countersink mouth. ",
+      "Widen sk_pad_d."));
+
+assert(sk_hole_dx + sk_screw_d/2 <= sk_board_b/2 &&
+       sk_hole_dy + sk_screw_d/2 <= sk_board_h/2,
+  str("The screw holes run off the edge of the ScreenKey board. Measure ",
+      "sk_hole_margin on the real module."));
+
+assert(sk_csink_t <= carrier_d - 0.8,
+  str("The countersink is ", sk_csink_t, " mm deep in a ", carrier_d,
+      " mm plate - less than 0.8 mm of plate left under the screw head."));
+
+// The key has to still be a key when it is pressed all the way in.
+assert(sk_cap_overhang - sk_cap_travel >= 3.0,
+  str("Pressed all the way, the cap stands only ",
+      sk_cap_overhang - sk_cap_travel, " mm out of the front plate. A child ",
+      "finds that with a fingernail, not with a hand."));
+
+// The one thing cap_offset_y still has to do.
+assert(sk_board_h/2 - (sk_cap_h/2 + abs(cap_offset_y)) >= 0.5 &&
+       sk_board_b/2 - (sk_cap_b/2 + abs(cap_offset_x)) >= 0.5,
+  str("At cap_offset = [", cap_offset_x, ", ", cap_offset_y, "] the cap hangs ",
+      "over the edge of its own board. That is no longer a question of what ",
+      "holds it - measure the module again."));
 
 /* --- Depth budget --- */
 inner_t = inner_z_h - front_d;    // usable inner depth
@@ -487,6 +604,73 @@ outside = [ for (b = carrier_items)
 assert(len(outside) == 0,
   str("Sticks out past the inner wall: ", outside));
 
+/* --- The ScreenKey screws against the rest of the carrier -------------
+   Twenty places on this plate have to be plate: a clearance hole through, a
+   countersink in the back face, and material all round both. So every one of
+   them is held against everything else that is cut out of, or stands on, that
+   plate.                                                                */
+
+carrier_cut_y = chamber_y - carrier_chamber_gap;                // [G] 34.49
+carrier_cut_x = chamber_x + chamber_wall + carrier_chamber_x;   // [G] 45.10
+
+carrier_plate = [ centre_x - (inner_b - carrier_play)/2,
+                  centre_y - (inner_h - carrier_play)/2,
+                  centre_x + (inner_b - carrier_play)/2,
+                  centre_y + (inner_h - carrier_play)/2 ];
+
+function pad_rect(q) = [ q[0] - sk_pad_r, q[1] - sk_pad_r,
+                         q[0] + sk_pad_r, q[1] + sk_pad_r ];
+
+// a) a screw over a cable slot has nothing to pull against
+poles_on_slots = [ for (q = sk_pole_pos, sl = carrier_slots)
+                     if (overlaps(pad_rect(q), sl))
+                       str("[", q[0], ", ", q[1], "]") ];
+assert(len(poles_on_slots) == 0,
+  str("These ScreenKey screws land on a cable slot in the carrier: ",
+      poles_on_slots, ". Move the slot in carrier_slots, not the screw - the ",
+      "positions come from the module."));
+
+// b) the cut-away over the speaker chamber. The set key sits low enough that
+//    its two upper screws reach into that cutout, so the cutout keeps a tab
+//    under each of them (see carrier_outline()). A tab is only allowed as
+//    long as it still stops short of the chamber wall.
+pole_tabs = [ for (q = sk_pole_pos)
+                if (q[0] - sk_pad_r < carrier_cut_x && q[1] + sk_pad_r > carrier_cut_y)
+                  q[1] + sk_pad_r ];
+tab_top = len(pole_tabs) > 0 ? max(pole_tabs) : carrier_cut_y;
+assert(tab_top <= chamber_y - 1.0,
+  str("A tab under a ScreenKey screw reaches to y = ", tab_top,
+      " and the chamber wall starts at ", chamber_y,
+      ". That is the collision the carrier was rebuilt to get rid of - the ",
+      "plate would run into the wall again."));
+
+// c) lid bosses. The carrier is relieved around each of them by 0.6 mm, and
+//    that relief must not eat into the material round a screw.
+pole_to_boss = min([ for (q = sk_pole_pos, d = boss_pos)
+                       norm([q[0]-d[0], q[1]-d[1]]) - sk_pad_r - (boss_d + 1.2)/2 ]);
+assert(pole_to_boss >= 0.2,
+  str("A ScreenKey screw and the relief round a lid boss are ", pole_to_boss,
+      " mm apart. Below that the countersink breaks into the relief."));
+
+// d) the carrier's own support posts. Their locating pegs come up through the
+//    same plate the screws go down through.
+pole_to_support = min([ for (q = sk_pole_pos, sp = support_pos)
+                          norm([q[0]-sp[0], q[1]-sp[1]]) - sk_pad_r - support_d/2 ]);
+assert(pole_to_support >= 0.5,
+  str("A ScreenKey screw and a carrier support post are ", pole_to_support,
+      " mm apart in plan. They overlap."));
+
+// e) and all twenty have to be ON the plate in the first place
+poles_off_plate = [ for (q = sk_pole_pos)
+                      if (q[0] - sk_pad_r < carrier_plate[0] ||
+                          q[1] - sk_pad_r < carrier_plate[1] ||
+                          q[0] + sk_pad_r > carrier_plate[2] ||
+                          q[1] + sk_pad_r > carrier_plate[3])
+                        str("[", q[0], ", ", q[1], "]") ];
+assert(len(poles_off_plate) == 0,
+  str("These ScreenKey screws sit over the edge of the carrier: ",
+      poles_off_plate));
+
 /* --- USB-C window has to fit between carrier and lid --- */
 usb_z    = carrier_z_top + feather_support + feather_pcb_d + usb_centre_above_pcb;
 usb_win_h = usb_socket_h + 1.4;
@@ -504,14 +688,24 @@ boss_spacing_min = min([ for (p = boss_pos)
 assert(boss_spacing_min > 0,
   str("A lid boss touches a ScreenKey board (", boss_spacing_min, " mm)."));
 
-/* --- Feet clear of the screws, and taller than the logo --- */
+/* --- What the device lies on -----------------------------------------
+   The lid is the back, so whatever stands proudest of it is what the device
+   rests on. There are two ways to be right about that and one way to be
+   wrong. Right: the logo is cut in and the lid is flat (feet pointless), or
+   the logo stands proud and feet stand higher still. Wrong: a raised logo and
+   no feet - then the thing rocks on its speech bubble and wears it through.*/
+assert(logo_recessed || feet_on,
+  str("A raised logo and no feet: the device would lie on the speech bubble, ",
+      "rock on the table and wear the embossing through. Either set ",
+      "logo_recessed = true, or feet_on = true."));
+
 // A foot no taller than the logo does nothing at all, and one that grows into
 // a countersink stops the screw sitting flush.
 feet_to_screw = min([ for (p = boss_pos)
                       norm([abs(p[0] - centre_x) - feet_x,
                             abs(p[1] - centre_y) - feet_y]) ])
                 - feet_d/2 - csink_d/2;
-assert(!feet_on || feet_h > logo_lid_h + 0.3,
+assert(!feet_on || logo_recessed || feet_h > logo_lid_h + 0.3,
   str("The feet (", feet_h, " mm) do not stand clear of the logo (",
       logo_lid_h, " mm) - the device would go on rocking on the bubble."));
 assert(!feet_on || feet_to_screw > 0,
@@ -540,24 +734,34 @@ echo(str("chamber volume gross approx. ",
 echo(str("centre of gravity battery+speaker: x=", round(sp_x*10)/10,
          " (middle ", round(centre_x*10)/10, "), y=", round(sp_y*10)/10,
          " (middle ", round(centre_y*10)/10, ")"));
-echo(str("cap offset          : ", cap_offset_y, " mm entered, ",
-         round(offset_y_max*1000)/1000, " mm is the budget -> ",
-         bosses_per_key, " of 4 bosses per ScreenKey"));
-if (bosses_per_key < 4)
-  echo(str("!! CAREFUL: only ", bosses_per_key, " bosses per ScreenKey. The ",
-           "board then hangs off ONE edge and can wobble. Check whether ",
-           "sk_hole_margin is really right before printing."));
+echo(str("cap offset          : ", cap_offset_x, " / ", cap_offset_y,
+         " mm - free, nothing in front of the board holds it. Room left over ",
+         "the board: ", round((sk_board_h/2 - sk_cap_h/2 - abs(cap_offset_y))*100)/100,
+         " mm up, ",
+         round((sk_board_b/2 - sk_cap_b/2 - abs(cap_offset_x))*100)/100,
+         " mm across"));
+echo(str("ScreenKey fixing    : 4 x M2 per key from the mid plate side into ",
+         "the module's own ", sk_spacer_l, " mm spacers, screw ", sk_screw_l,
+         " mm -> M2x6. Nothing printed in that gap."));
+echo(str("key cap             : ", sk_cap_overhang, " mm proud, ",
+         sk_cap_overhang - sk_cap_travel, " mm pressed (travel ",
+         sk_cap_travel, " mm)"));
 echo(str("speaker fixing      : ", spk_front_screws ?
          "4 x M2.5 through the front, heads visible, nut in the chamber" :
          "none - foam behind the driver, the lid clamps it"));
+echo(str("logo                : ", logo_recessed ?
+         str(logo_lid_h, " mm deep, cut into the lid") :
+         str(logo_lid_h, " mm proud of the lid")));
 echo(str("lid feet            : ", feet_on ?
-         str(feet_h, " mm proud, ", feet_h - logo_lid_h, " mm clear of the logo")
-         : "none - the device rests on its logo"));
+         str(feet_h, " mm proud") :
+         logo_recessed ? "none - the lid is flat and lies on all of itself"
+                       : "none - the device rests on its logo!"));
 echo(str("screws              : ", threaded_insert ? "M3 threaded inserts" :
          "M3 self-tapping", ", boss ", boss_d, " mm, pilot hole ", boss_core));
 echo(str("wall ", wall, " mm = ", wall/0.4, " passes with a 0.4 nozzle"));
 echo(str("print bed needed    : tub ", outer_b, " x ", outer_h,
          " mm, ", outer_t, " mm tall"));
+echo(str("carrier printing    : flat, ribs up, no support"));
 echo(str("tallest stack on the carrier: ",
          stack_max == stack_feather ? "Feather" :
          stack_max == stack_battery ? "battery" : "amplifier",
@@ -637,6 +841,19 @@ module logo_3d(width, height) {
   translate([0,0,height - step]) linear_extrude(step) offset(r = -0.4) logo_2d(width);
 }
 
+// The same shape as a pocket, to be subtracted. The two steps survive, turned
+// over: narrow at the floor, full width at the MOUTH. That is also the
+// printable way round - the void only ever widens going up, so every layer of
+// material stands on a layer that had more of it. Exactly the argument the
+// screw countersinks in the lid are already built on.
+// The mouth is extruded 0.02 mm proud so the difference() has no coplanar
+// faces to argue about.
+module logo_pocket(width, depth) {
+  step = min(0.4, depth/2);
+  linear_extrude(depth - step) offset(r = -0.4) logo_2d(width);
+  translate([0,0,depth - step]) linear_extrude(step + 0.02) logo_2d(width);
+}
+
 
 /* =====================================================================
    7.  TUB  (front plate + walls + everything hanging off them)
@@ -680,14 +897,14 @@ module cavity() {
    the front opening, breaks its outer edge and clears the path behind it over
    the full cap depth.
 
-   The first draft had only a flat hole through the front plate here and left
-   the boss foot cones standing. Recalculated, those reached 0.755 mm into the
-   cap - the key would have jammed, and at all five places at once.
+   The first draft had only a flat hole through the front plate here, and back
+   then there were also boss foot cones standing in the way - recalculated,
+   those reached 0.755 mm into the cap and the key would have jammed at all
+   five places at once. The bosses are gone from the tub entirely now, but the
+   solid stays: the cap still has to be able to move.
 
-   Because this solid moves along with cap_offset_y, the path stays clear
-   whatever is entered there. That is half of what makes the "one number"
-   work; the other half is sk_boss(), which leaves out the bosses that would
-   be in the way.                                                        */
+   It moves along with cap_offset, so the path stays clear whatever is entered
+   there. Nothing else in the tub depends on that number any more.       */
 module cap_clearance() {
   ob = sk_cap_b + 2*gap_cap;
   oh = sk_cap_h + 2*gap_cap;
@@ -702,27 +919,11 @@ module cap_clearance() {
   }
 }
 
-/* --- ScreenKey mounting bosses --- */
-// A boss only appears if it keeps enough material next to the cap clearance.
-// Bosses cut into with a 0.3 mm remaining wall are worse than none: they snap
-// off at the first screw and then lie loose inside the device.
-module sk_boss() {
-  for (p = sk_pos) translate([p[0], p[1], front_d])
-    for (sx = [-1,1], sy = [-1,1])
-      if (boss_clear(sx, sy) >= boss_needed)
-        translate([sx*sk_hole_dx, sy*sk_hole_dy, 0]) {
-          cylinder(d = sk_boss_d, h = sk_boss_h);
-          cylinder(d1 = sk_boss_d + 2*sk_boss_foot, d2 = sk_boss_d, h = sk_boss_foot);
-        }
-}
-
-module sk_dome_core() {
-  for (p = sk_pos) translate([p[0], p[1], 0])
-    for (sx = [-1,1], sy = [-1,1])
-      if (boss_clear(sx, sy) >= boss_needed)
-        translate([sx*sk_hole_dx, sy*sk_hole_dy, front_d + 1.0])
-          cylinder(d = sk_boss_core, h = sk_boss_h);
-}
+/* --- The ScreenKeys are NOT held by the tub --------------------------
+   There is deliberately nothing here. The five modules hang off the carrier
+   (section 8) and the front plate only gives their caps a hole to come
+   through. What the tub still owes them is clearance, and that is
+   cap_clearance() above.                                                */
 
 /* --- Speaker: grille, screws, locating ribs --- */
 // Only WHOLE holes. The first draft cut the hex field with a cylinder
@@ -791,8 +992,8 @@ module lid_dome() {
     cylinder(d = boss_d, h = inner_z_h - front_d);
 }
 module lid_dome_core() {
-  for (p = boss_pos) translate([p[0], p[1], inner_z_h - 14])
-    cylinder(d = boss_core, h = 15);
+  for (p = boss_pos) translate([p[0], p[1], inner_z_h - boss_thread_l])
+    cylinder(d = boss_core, h = boss_thread_l + 1);
 }
 
 /* --- Carrier supports --- */
@@ -818,59 +1019,99 @@ module usb_window() {
 }
 
 /* --- Logo on the bottom edge --- */
+// Placed the same way round whether it stands out or is cut in; only the
+// solid changes. The pocket starts logo_side_h further INTO the wall, so that
+// what ends up on the outer face is its mouth and not its floor.
 module logo_bottom_edge() {
   if (logo_side_on)
-    translate([centre_x, -inner_margin - wall, outer_t/2])
-      rotate([90,0,0]) rotate([0,0,180]) mirror([1,0,0])
-        logo_3d(logo_side_b, logo_side_h);
+    translate([centre_x,
+               -inner_margin - wall + (logo_recessed ? logo_side_h : 0),
+               outer_t/2])
+      rotate([90,0,0]) rotate([0,0,180]) mirror([1,0,0]) {
+        if (logo_recessed) logo_pocket(logo_side_b, logo_side_h);
+        else               logo_3d(logo_side_b, logo_side_h);
+      }
 }
 
 module tub() {
-  union() {
-    difference() {
-      union() {
-        difference() { outer_body(); cavity(); }
-        sk_boss();
-        lid_dome();
-        carrier_supports();
-        chamber_walls();
-        spk_ribs();
-      }
-      cap_clearance();
-      spk_grille();
-      spk_screws();
-      sk_dome_core();
-      lid_dome_core();
-      usb_window();
-      chamber_cable();
+  difference() {
+    union() {
+      difference() { outer_body(); cavity(); }
+      lid_dome();
+      carrier_supports();
+      chamber_walls();
+      spk_ribs();
+      if (!logo_recessed) logo_bottom_edge();
     }
-    logo_bottom_edge();
+    cap_clearance();
+    spk_grille();
+    spk_screws();
+    lid_dome_core();
+    usb_window();
+    chamber_cable();
+    if (logo_recessed) logo_bottom_edge();
   }
 }
 
 /* =====================================================================
    8.  CARRIER  (intermediate floor)
-   Separates the ScreenKey wiring from the battery - a LiPo must never
-   press on connector pins. Prints flat, ribs upwards.
+   Separates the ScreenKey wiring from the battery - a LiPo must never press
+   on connector pins - and, since the first build, HOLDS the five ScreenKeys.
+   It does that second job with nothing but holes: the modules stand off it on
+   their own 8 mm threaded spacers, so this is still a flat plate with ribs on
+   one side, and it still prints flat with no support anywhere.
    ===================================================================== */
+
+// The footprint that has to stay behind under every screw: the countersink
+// mouth plus a little material. Used to keep the chamber cutout from eating
+// into one - see the tabs in carrier_outline().
+module sk_pole_pads_2d() {
+  for (q = sk_pole_pos) translate(q) circle(d = sk_pad_d);
+}
 
 module carrier_outline() {
   difference() {
     translate([centre_x, centre_y])
       rrect(inner_b - carrier_play, inner_h - carrier_play, corner_r - wall);
-    // cutout for the speaker chamber (the carrier rests on its step)
-    translate([-inner_margin - 1, chamber_y + chamber_wall + 0.2])
-      square([chamber_x + chamber_wall + inner_margin + 1 - 0.2 + 1,
-              env_h + inner_margin - chamber_y + 2]);
+    // Cutout for the speaker chamber. It stops BELOW the horizontal chamber
+    // wall now. It used to stop 0.2 mm past the far side of that wall, which
+    // is a place the wall itself already occupies - so the plate ran through
+    // 2 mm of solid PLA and the carrier simply would not go in.
+    // The two upper screws of the set key reach into this region, so the
+    // cutout gives each of them its pad back. Without that, the cut would run
+    // straight through their countersinks.
+    difference() {
+      translate([-inner_margin - 1, carrier_cut_y])
+        square([carrier_cut_x + inner_margin + 1,
+                env_h + inner_margin - carrier_cut_y + 2]);
+      sk_pole_pads_2d();
+    }
     // reliefs around the lid bosses
     for (p = boss_pos) translate(p) circle(d = boss_d + 1.2);
     // holes over the locating pegs
     for (p = support_pos) translate(p) circle(d = peg_d + 0.4);
     // cable passages: slots in the gaps between the boards
-    for (y = [blk_my1, blk_my2]) translate([(blk_mx1+blk_mx2)/2, y])
-      square([5, 26], center = true);
-    translate([(set_mx + blk_mx1)/2 - 3, 20]) square([6, 30]);
-    translate([env_b/2 - 4, env_h + inner_margin - 6]) square([8, 8]);
+    for (sl = carrier_slots)
+      translate([sl[0], sl[1]]) square([sl[2] - sl[0], sl[3] - sl[1]]);
+  }
+}
+
+/* --- The ScreenKey screw holes ---------------------------------------
+   All the carrier contributes to holding five modules: twenty clearance holes
+   and twenty countersinks. The standoff is the module's own threaded spacer,
+   so there is nothing to print here - which is also why this part still lies
+   flat on the bed.
+
+   The countersink goes in the BACK face, because the battery lies flat on
+   that face and a proud head would press into it. Cut before the retaining
+   ribs go on, so a rib that happens to cross a countersink bridges it instead
+   of being slotted through its whole height - two of the four battery
+   brackets do exactly that.                                              */
+module sk_screw_holes() {
+  for (q = sk_pole_pos) translate([q[0], q[1], 0]) {
+    translate([0, 0, -1]) cylinder(d = sk_screw_d, h = carrier_d + 2);
+    translate([0, 0, carrier_d - sk_csink_t])
+      cylinder(d1 = sk_screw_d, d2 = sk_csink_d, h = sk_csink_t + 0.01);
   }
 }
 
@@ -934,7 +1175,10 @@ module carrier_additions() {
 
 module carrier() {
   translate([0, 0, carrier_z_bottom]) {
-    linear_extrude(carrier_d) carrier_outline();
+    difference() {
+      linear_extrude(carrier_d) carrier_outline();
+      sk_screw_holes();
+    }
     translate([0, 0, carrier_d]) carrier_additions();
   }
 }
@@ -943,8 +1187,10 @@ module carrier() {
 /* =====================================================================
    9.  LID
    Flat plate, completely smooth on the inside. Prints with the inside on the
-   bed and the logo upwards — that way the embossing is pure upward geometry
-   and succeeds even on a tired printer.
+   bed and the logo upwards. Cut in rather than raised, the logo asks even
+   less of the printer than the embossing did: it is a pocket that only ever
+   widens going up, so there is no overhang anywhere on this part and nothing
+   at all standing proud of the outer face.
    ===================================================================== */
 
 // Four pads on the outside of the lid, chamfered at the top edge.
@@ -964,9 +1210,11 @@ module lid() {
   translate([centre_x, centre_y, inner_z_h]) difference() {
     union() {
       rprism_chamfer_top(db, dh, corner_r - lip, lid_d, chamfer_lid);
-      translate([0, 0, lid_d]) logo_3d(logo_lid_b, logo_lid_h);
+      if (!logo_recessed) translate([0, 0, lid_d]) logo_3d(logo_lid_b, logo_lid_h);
       lid_feet();
     }
+    if (logo_recessed)
+      translate([0, 0, lid_d - logo_lid_h]) logo_pocket(logo_lid_b, logo_lid_h);
     for (p = boss_pos) translate([p[0] - centre_x, p[1] - centre_y, 0]) {
       translate([0,0,-1]) cylinder(d = boss_core + 0.9, h = lid_d + 2);
       // countersink from outside: widening upwards, therefore printable
@@ -1016,8 +1264,8 @@ else if (part == "assembly") {
 else if (part == "exploded") {
   color("#dcd8e8") tub();
   if (show_parts) dummies();
-  color("#c8c0e0") translate([0,0,28]) carrier();
-  color("#b8aed8") translate([0,0,60]) lid();
+  color("#c8c0e0") translate([0,0,45]) carrier();
+  color("#b8aed8") translate([0,0,85]) lid();
 }
 else if (part == "printbed") {
   // all three parts side by side, each in its print orientation

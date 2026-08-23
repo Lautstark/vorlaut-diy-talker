@@ -121,18 +121,23 @@ def main():
     print('----------------')
     if 'tub' in parts:
         b = bbox(parts['tub'])
-        # The logo on the bottom edge stands 0.6 mm proud of the wall -
-        # it is part of the piece, but not part of the case's size.
+        # A raised logo on the bottom edge stands 0.6 mm proud of the wall -
+        # part of the piece, but not part of the case's size. Cut in, it takes
+        # nothing away from the bounding box either.
         L.measure('tub width', b[3] - b[0], G('outer_b'))
-        L.measure('tub height (with logo at the bottom edge)', b[4] - b[1],
-               G('outer_h') + G('logo_side_h'))
+        L.measure('tub height', b[4] - b[1],
+               G('outer_h') + (0.0 if G('logo_recessed') else G('logo_side_h')))
         L.measure('tub depth', b[5] - b[2], G('outer_t'))
     if 'carrier' in parts:
         b = bbox(parts['carrier'])
         L.measure('carrier width', b[3] - b[0],
                G('inner_b') - G('carrier_play'))
         L.measure('carrier height', b[4] - b[1], G('inner_h') - G('carrier_play'))
-        L.measure('carrier build height', b[5] - b[2], G('carrier_d') + G('battery_d') + 0.2)
+        # Plate plus battery brackets, and nothing below the plate - the
+        # modules stand off it on their own spacers, so this part is still
+        # flat on one side and still prints without support.
+        L.measure('carrier build height', b[5] - b[2],
+               G('carrier_d') + G('battery_d') + 0.2)
     if 'lid' in parts:
         b = bbox(parts['lid'])
         L.measure('lid width', b[3] - b[0],
@@ -140,9 +145,10 @@ def main():
         L.measure('lid height', b[4] - b[1],
                G('outer_h') - 2 * G('lip') - G('lid_play'))
         # Whichever stands proudest of the lid sets its build height - the
-        # logo, or the feet if there are any.
+        # logo, or the feet if there are any. A logo that is cut in stands
+        # proud of nothing, and then the lid is just a plate.
         L.measure('lid build height', b[5] - b[2],
-               G('lid_d') + max(G('logo_lid_h'),
+               G('lid_d') + max(0.0 if G('logo_recessed') else G('logo_lid_h'),
                                 G('feet_h') if G('feet_on') else 0.0))
 
     if 'tub' in parts:
@@ -169,15 +175,56 @@ def main():
         L.probe(w, 'USB window is open', (xw, yc + .37, G('usb_z')), False)
         L.probe(w, 'wall below the USB window', (xw, yc + .37, G('usb_z') - 4.5), True)
         L.probe(w, 'wall next to the USB window', (xw, yc + 12, G('usb_z')), True)
+        # Nothing of the ScreenKey fixing is left in the tub. Where a boss
+        # used to stand there has to be air now, and the band between the back
+        # of the board and the carrier has to be clear over its whole depth -
+        # that is where the module's threaded spacers sit.
         d = (G('blk_mx1') + G('sk_hole_dx'), G('blk_my1') + G('sk_hole_dy'))
-        L.probe(w, 'ScreenKey boss has material', (d[0] + 1.06, d[1] + 1.06, 8.0), True)
-        L.probe(w, 'next to the ScreenKey boss is air', (d[0] + 4.0, d[1] + 4.0, 8.0), False)
+        L.probe(w, 'no ScreenKey boss left in the tub',
+                (d[0] + 1.06, d[1] + 1.06, 8.0), False)
+        L.probe(w, 'the spacer band through the tub is clear',
+                (d[0] + 1.06, d[1] + 1.06,
+                 (G('sk_behind_front') + G('carrier_z_bottom')) / 2), False)
         L.probe(w, 'lid boss bottom centre stands',
                 (G('env_b') / 2 + 2.0, -G('boss_e') + 0.5, 10.0), True)
         L.probe(w, 'chamber wall stands',
                 (G('chamber_x') + G('chamber_wall') / 2, 60.11, 20.0), True)
         L.probe(w, 'chamber is hollow inside', (20.11, 60.07, 30.0), False)
         L.probe(w, 'inner space is hollow', (G('env_b') / 2 + .37, G('env_h') / 2 + .29, 28.0), False)
+
+    if 'carrier' in parts:
+        c = parts['carrier']
+        print('\nPoint probes in the carrier')
+        print('--------------------------')
+        # In the carrier's own STL z = 0 is the underside of the plate.
+        z_plate = G('carrier_d') / 2
+        z_csink = G('carrier_d') - 0.1
+        d = (G('blk_mx1') + G('sk_hole_dx'), G('blk_my1') + G('sk_hole_dy'))
+        L.probe(c, 'plate around the screw hole is plate',
+                (d[0] + 4.07, d[1] + 4.11, z_plate), True)
+        L.probe(c, 'screw hole through the plate is open',
+                (d[0] + 0.09, d[1] + 0.13, z_plate), False)
+        # A pair that only comes out right if the countersink is really there:
+        # 1.8 mm off the axis is material down in the plate and air up at the
+        # back face, where the cone has opened out to 3.8 mm.
+        L.probe(c, 'below the countersink is solid plate',
+                (d[0] + 1.27, d[1] + 1.29, z_plate), True)
+        L.probe(c, 'countersink has opened out at the back face',
+                (d[0] + 1.27, d[1] + 1.29, z_csink), False)
+
+        # The two upper screws of the set key reach into the chamber cutout
+        # and each keeps a tab of plate under it.
+        t = (G('set_mx') - G('sk_hole_dx'), G('set_my') + G('sk_hole_dy'))
+        L.probe(c, 'tab under the set key screw', (t[0] + 1.06, t[1] + 1.7,
+                                                   z_plate), True)
+        # ... and this is the one that would have caught the first build. The
+        # horizontal chamber wall sits between chamber_y and chamber_y +
+        # chamber_wall. The carrier used to have material right there and
+        # therefore would not go in.
+        L.probe(c, 'carrier is cut away where the chamber wall is',
+                (20.11, G('chamber_y') + G('chamber_wall') / 2, z_plate), False)
+        L.probe(c, 'carrier is cut away under the speaker',
+                (20.11, G('spk_my') + 0.07, z_plate), False)
 
     print()
     if L.failed:
