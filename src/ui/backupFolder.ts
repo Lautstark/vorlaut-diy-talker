@@ -17,39 +17,26 @@
 import { Sicherung, type Status } from "@lautstark/sicherung";
 import { LANG } from "../core/boot.js";
 import { t } from "../core/texts.js";
+import { actionsFor, ago as relative } from "@lautstark/sicherung/ui";
 import { $ } from "./dom.js";
 
-const STEPS: [limit: number, unit: Intl.RelativeTimeFormatUnit, per: number][] = [
-  [60_000, "second", 1000],
-  [3_600_000, "minute", 60_000],
-  [86_400_000, "hour", 3_600_000],
-  [Infinity, "day", 86_400_000],
-];
-
-/* The formatter behind "vor 3 Minuten" / "3 minutes ago".
+/* "vor 3 Minuten" / "3 minutes ago", against the language in force.
  *
- * Built for the language in force rather than once at import, and that is the
- * rule boot.ts asks for rather than a preference: LANG is a live binding that
- * moves under a language switch, and nothing may capture it into a local. This
- * did - it was written when the switch was still a reload, so a formatter made
- * once was a formatter made once per language - and the sentence in the Daten
- * panel went on being English under a page that had gone German.
+ * The arithmetic and the unit boundaries are @lautstark/sicherung/ui's as of
+ * v1.1.0; what stays here is where the locale comes from. LANG is a live
+ * binding that moves under a language switch, and nothing may capture it into
+ * a local - this file once did, back when the switch was still a reload, and
+ * the Daten panel went on being English under a page that had gone German.
  *
- * Kept between calls all the same. Every state line here is built through
- * ago(), several of them per repaint, and building a formatter per sentence to
- * answer a question whose answer changes twice a year is waste. */
-let relative: Intl.RelativeTimeFormat | null = null;
-let relativeLang = "";
-
-export function ago(at: number, now = Date.now()): string {
-  if (!relative || relativeLang !== LANG) {
-    relative = new Intl.RelativeTimeFormat(LANG, { numeric: "auto" });
-    relativeLang = LANG;
-  }
-  const gap = Math.max(0, now - at);
-  const [, unit, per] = STEPS.find(([limit]) => gap < limit)!;
-  return relative.format(-Math.round(gap / per), unit);
-}
+ * The cache that used to sit here is gone with the arithmetic. It kept one
+ * formatter and rebuilt it when LANG moved, defended in the margin as avoiding
+ * "several per repaint" - but sentence() calls this exactly once per repaint,
+ * on every branch, and a repaint happens when a backup is written rather than
+ * per frame. That was one Intl construction saved on a rare event, in exchange
+ * for a piece of invalidation logic that had already been wrong once. The
+ * package builds its formatter per call and says why; this is the cheaper
+ * arrangement in the only currency that turned out to matter. */
+export const ago = (at: number, now = Date.now()): string => relative(at, LANG, now);
 
 /** The age of the last real copy, or the admission that there has never been one. */
 const lastCopy = (at: number | null): string =>
@@ -129,38 +116,29 @@ export function wireBackupFolder(backup: Sicherung, say: (message: string) => vo
     words.textContent = sentence(status);
     line.append(dot, words);
 
-    const forget = button("ui.folder_forget", "quiet", async () => {
-      await backup.forget();
-      say(t("ui.folder_forgotten"));
-    });
-
+    /* Which buttons belong to this state is the package's answer now. It was
+     * the same six-branch switch in all three products - one contract with
+     * three copies and nothing checking they agreed, which is the arrangement
+     * where one of them quietly stops offering a way out of `failed`. What
+     * stays here is the drawing and the words: the ids the table returns are
+     * the i18n keys after "ui.folder_", so this is a lookup rather than a
+     * mapping table that could disagree with it.
+     *
+     * Two of that table's decisions were argued in this margin and are worth
+     * keeping findable. `idle` offers no "save now": the folder is written on
+     * every change already, so the button sat directly above the one that
+     * writes a file and differed from it by a word naming the wrong axis -
+     * timing rather than destination. `saving` offers nothing rather than
+     * disabled buttons, which would flicker greyed on every debounce. */
     actions.textContent = "";
-    switch (status.kind) {
-      case "off":
-        actions.append(button("ui.folder_choose", "primary", () => backup.choose()));
-        break;
-      case "needs-permission":
-        actions.append(button("ui.folder_confirm", "primary", () => backup.confirm()), forget);
-        break;
-      case "failed":
-        actions.append(button("ui.folder_retry", "primary", () => backup.save()), forget);
-        break;
-      case "idle":
-        // No "save now". The folder is written on every change already, so a
-        // button offering to do it again sat directly above the one that
-        // writes a file, and differed from it by a word naming the wrong axis
-        // - timing rather than destination. "Erneut versuchen" below is not
-        // the same button: after a failure there is nothing happening to be
-        // redundant with.
-        actions.append(forget);
-        break;
-      case "saving":
-        // Nothing while it writes. Two greyed buttons flickering on every
-        // debounce is worse than a moment with none.
-        break;
-      case "unsupported":
-        break;
-    }
+    for (const action of actionsFor(backup, status))
+      actions.append(button(`ui.folder_${action.id}`, action.primary ? "primary" : "quiet",
+        async () => {
+          await action.run();
+          // The only one that says anything out loud: the rest are reported by
+          // the status line repainting underneath.
+          if (action.id === "forget") say(t("ui.folder_forgotten"));
+        }));
   }
 
   paint(backup.status);
