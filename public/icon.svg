@@ -1,10 +1,12 @@
 <svg viewBox="0 0 512 512" width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Weiße Platte mit runden Ecken. Nicht nur Optik: iOS legt bei
-       apple-touch-icon hinter Transparenz Schwarz, und Android schneidet
-       das Symbol in eine Form. Beides braucht eine deckende Fläche. -->
-  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="#FFFFFF" />
+  <!-- Keine Platte mehr. Sie war für iOS und Android da - beide brauchen eine
+       deckende Fläche - aber die brauchen sie in icon-192.png und icon-512.png,
+       und dort steht sie weiterhin. Hier ist sie nur im Weg gewesen: als
+       Favicon ist das Bild 16 px breit, und die Platte hat davon ein Drittel
+       gefressen, bevor das Zeichen überhaupt anfing. bildhaft trägt dieselbe
+       Sprechblase ohne Platte; das ist die Angleichung. -->
 
-  <!-- Sprechblase -->
+  <!-- Sprechblase. Derselbe Pfad wie in bildhaft, Wort für Wort. -->
   <path
     d="M 128 76 H 384 Q 436 76 436 128 V 272 Q 436 324 384 324 H 314 L 256 408 L 198 324 H 128 Q 76 324 76 272 V 128 Q 76 76 128 76 Z"
     fill="#9B7BFF"
@@ -13,15 +15,18 @@
   <!-- offenes Auge -->
   <circle cx="200" cy="174" r="22" fill="white" />
 
-  <!-- Zwinkern -->
+  <!-- Zwinkern. Strichstärke 26 statt 21: das ist bildhafts Gewicht für den
+       Mund, und zwei verschiedene Strichstärken in einer Familie sind zwei zu
+       viel. Bei 16 px ist der Unterschied der zwischen sichtbar und weg. -->
   <path
     d="M 290 174 A 22 22 0 0 1 334 174"
     fill="none"
     stroke="white"
-    stroke-width="21"
+    stroke-width="26"
     stroke-linecap="round"
   />
 
-  <!-- offener Mund -->
-  <ellipse cx="256" cy="254" rx="44" ry="36" fill="white" />
+  <!-- offener Mund. Bleibt offen und bleibt eine Ellipse: bildhaft lächelt,
+       vorlaut redet dazwischen. Das ist der Name und nicht die Abweichung. -->
+  <ellipse cx="256" cy="256" rx="46" ry="38" fill="white" />
 </svg>

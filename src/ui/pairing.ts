@@ -17,6 +17,7 @@ function buildPairKeys() {
   grid.innerHTML = "";
   pairBoxes = PAIR_ORDER.map(() => {
     const box = document.createElement("input");
+    box.className = "field";
     box.type = "text";
     box.inputMode = "numeric";
     box.maxLength = 1;

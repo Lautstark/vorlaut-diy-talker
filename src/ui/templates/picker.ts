@@ -5,10 +5,10 @@ import { mount } from "./mount.js";
 export const markup = `
 <dialog id="picker">
   <div class="dlgHead">
-    <input type="text" id="q">
-    <button id="searchBtn"></button>
-    <button id="uploadBtn"></button>
-    <button id="closeBtn"></button>
+    <input type="text" id="q" class="field">
+    <button id="searchBtn" class="btn" type="button"></button>
+    <button id="uploadBtn" class="btn" type="button"></button>
+    <button id="closeBtn" class="btn" type="button"></button>
   </div>
   <div class="results" id="results"></div>
   <div class="hint" id="credits"></div>

@@ -27,10 +27,9 @@ header h1 { font-size: 19px; margin: 0; font-weight: 600; letter-spacing: .3px; 
 header .status { margin-left: auto; }
 main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
 
-/* The focus ring design.md fixes for every product: one rule, one appearance,
-   everywhere. The :focus-visible rules further down add their hover look on
-   top of it; none of them stands in for it. */
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The focus ring is components.css's - one rule, one appearance, every
+   product. The :focus-visible rules further down add their hover look on top
+   of it; none of them stands in for it. */
 
 .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .tab {
@@ -66,30 +65,30 @@ main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
   position: relative; border: none; padding: 0;
 }
 .thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
-.thumb .empty { color: #b9bfc9; font-size: 13px; text-align: center; padding: 8px; }
+/* Not .empty: components.css owns that name for the empty-state block, whose
+   dashed border and 34px of padding would land on this caption. */
+.thumb .blank { color: #b9bfc9; font-size: 13px; text-align: center; padding: 8px; }
 .thumb:hover::after {
   content: var(--pick-label); position: absolute; inset: auto 0 0 0;
   background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 4px;
   text-align: center;
 }
 .row { display: flex; gap: 8px; }
-input[type=text], input[type=password] {
-  width: 100%; min-width: 0; background: var(--surface-2); border: 1px solid var(--line);
-  color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 14px;
-  flex: 0 1 auto; align-self: flex-start;
-}
+/* .field carries the fill, the border and the focus lift; what stays here is
+   how a field sits in vorlaut's boxes, which is layout and not vocabulary. */
+.field { flex: 0 1 auto; align-self: flex-start; }
 /* A field somebody may look at but not set: the Azure key away from the
    machine it runs on, the METACOM path when docker-compose.yml hands it in.
    Both were already disabled and neither looked it - a field that takes no
    typing has to say so before it is typed in, not after. The note underneath
    says why; this only has to make the difference visible. */
-input:disabled { background: var(--surface); color: var(--text-dim); cursor: not-allowed; }
+.field:disabled { background: var(--surface); color: var(--text-dim); cursor: not-allowed; }
 /* Placeholders had no colour of their own and fell back to whatever the
    browser picks. --text-faint is solved against --surface-2, the fill of the
    fields it actually prints on, not against --bg: a sibling product measured
    the same value 3.92:1 where it checked it and 3.18:1 where it landed. */
-input::placeholder, textarea::placeholder { color: var(--text-faint); }
-.row input[type=text] { flex: 1 1 auto; }
+textarea::placeholder { color: var(--text-faint); }
+.row .field { flex: 1 1 auto; }
 .colorRow { display: flex; gap: 8px; }
 input[type=color] {
   width: 42px; height: 36px; flex: none; padding: 2px; background: var(--surface-2);
@@ -97,18 +96,17 @@ input[type=color] {
 }
 input[type=color]:hover { border-color: var(--text-dim); }
 /* Set slightly narrower so that "#4A90D9" fits in completely. */
-.colorRow input[type=text] {
+.colorRow .field {
   flex: 1 1 auto; padding: 8px 6px; font-family: ui-monospace, monospace;
   font-size: 13px;
 }
-button {
-  background: var(--surface-2); color: var(--text); border: 1px solid var(--line);
-  border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px;
-}
-button:hover { background: var(--surface-3); }
-/* Form elements do not inherit the page font by themselves - without this
-   the header sits in the browser's default face while everything around it
-   is the system font. */
+/* No rule for the button element any more: .btn in components.css is the
+   button, in three tiers, and styling the element underneath it meant every
+   control on the page opted in to a look whether or not it wanted one.
+   What is left is the font. That is a reset and not a look, and it has to
+   keep covering the button element: .btn brings `font: inherit` with it, but
+   the tab, the swatch, the thumb and the grip are buttons that are none of
+   the three tiers, and without this they come out in the browser's face. */
 button, select, input, textarea { font-family: inherit; }
 
 /* The language picker sits in the settings sheet and looks like the fields
@@ -143,13 +141,7 @@ button, select, input, textarea { font-family: inherit; }
 /* Dark type on the purple: 5.5:1 instead of 3.2:1 with white. That reasoning
    is now a token - --accent-ink is the same idea solved rather than guessed,
    and it comes out at 6.0:1. */
-button.primary {
-  background: var(--accent); border-color: transparent; color: var(--accent-ink);
-  font-weight: 600;
-}
-button.primary:hover { background: var(--accent-hover); }
-button.danger { color: var(--danger); }
-.play { width: 40px; flex: none; }
+.play { width: 40px; flex: none; justify-content: center; padding: 8px 0; }
 .slotNr {
   color: var(--text-dim); font-size: 12px; letter-spacing: .5px;
   display: flex; align-items: center; gap: 6px;
@@ -209,7 +201,7 @@ header .status { margin-left: auto; }
    the line drawn between them has no token, so it is mixed out of --danger
    rather than written down a third time. Declared on both users - the buttons
    inside the banner inherit it - so that it stays one value. */
-.conflict, .slots.empty {
+.conflict, .slots.warn {
   --danger-line: color-mix(in oklab, var(--danger) 40%, var(--danger-soft));
 }
 
@@ -305,7 +297,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 /* The buttons keep their width, the search field yields - otherwise the
    labels wrap and get cut off. */
 .dlgHead button { flex: none; white-space: nowrap; }
-.dlgHead input[type=text] { flex: 1 1 auto; width: auto; min-width: 4rem; }
+.dlgHead .field { flex: 1 1 auto; width: auto; min-width: 4rem; align-self: auto; }
 .results {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 10px; padding: 16px; max-height: 60vh; overflow: auto;
@@ -337,7 +329,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
    save conflict, only as a narrow field instead of a banner. That sharing was
    already claimed in this sentence and implemented by copying three hex
    values; now both rules read the same tokens. */
-.slots.empty {
+.slots.warn {
   color: var(--text); background: var(--danger-soft);
   border: 1px solid var(--danger-line);
   border-radius: 8px; padding: 6px 10px; display: inline-block;
@@ -370,17 +362,17 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
   max-width: 300px; margin: 12px 0;
 }
-.pairKeys input {
+.pairKeys .field {
   width: 100%; text-align: center; font-size: 22px; padding: 10px 0;
   font-family: ui-monospace, monospace;
-  /* The general rule for text fields pins them to the top of their line;
-     here they should fill the box they are in. */
+  /* .field pins a field to the top of its line; here they should fill the
+     box they are in. */
   align-self: stretch;
 }
 /* The set key sits under the speaker, beside both rows of keys - so its box
    spans both and its digit sits level with the gap between them. */
 .pairKeys .setBox { grid-row: span 2; display: flex; align-items: center; }
-.pairKeys .setBox input { align-self: center; }
+.pairKeys .setBox .field { align-self: center; }
 .pairFoot { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 /* Beside the name, where a setting for the whole page belongs - and small,
@@ -395,77 +387,99 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 }
 /* Narrower than the symbol picker: that one shows a grid of tiles, this one
    reads as a list of settings. */
+/* components.css draws the sheet - ground, border, radius, shadow. What is
+   vorlaut's is the size and the fact that its body is edge-to-edge folded
+   panels, which is why the shared 22px of padding comes back off here and the
+   head, body and foot carry their own. */
 dialog.sheet {
-  width: min(520px, 92vw); max-height: 88vh;
+  width: min(520px, 92vw); max-width: min(520px, 92vw); max-height: 88vh; padding: 0;
 }
 /* Only while it is open. An unqualified display here would beat the
    browser's own dialog:not([open]) { display: none } - the sheet would then
    sit in the page for good, below everything else, and closing it would
    take the open attribute away without taking the sheet away. */
 dialog.sheet[open] { display: flex; flex-direction: column; }
-dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
+dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
 /* One scrolling area for the whole sheet, rather than a scrolling list
    inside a scrolling dialog - two of them nested is a way to lose the Save
    button without noticing it is there. */
-.sheetBody { overflow-y: auto; }
+.sheet > .body { overflow-y: auto; }
 /* Firefox draws a wide bar even in a dark scheme; Chrome and Safari read the
    two properties as well now. The track stays out of it - a line of colour
    down the edge of the sheet is not part of the sheet. */
-.sheetBody, .results { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-.sheet .section {
+.sheet > .body, .results { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+/* Two roles wear this class and they are not the same thing. A loose label
+   above a group of controls is a group label - small, uppercase, quiet. The
+   one inside a summary is the panel's heading, and components.css says what
+   that looks like; reaching into it from here would put a group label where
+   a heading belongs. Hence the child combinators: this is the loose one only. */
+.sheet > .body > .section {
   padding: 16px 16px 0; font-size: 12px; letter-spacing: .08em;
   text-transform: uppercase; color: var(--text-dim);
 }
 .sheet .voiceList { padding-top: 10px; }
-.field { padding: 10px 16px 4px; display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 13px; color: var(--text-dim); }
-.field .lead { margin: 0 0 6px; font-size: 13px; color: var(--text-dim); }
-.field .lead a { color: var(--accent); }
-.field .lead a:hover { text-decoration: none; }
-.field .note { margin: 0; font-size: 12px; color: var(--text-dim); }
-.field input { width: 100%; }
-.field input[type=password] { font-family: ui-monospace, monospace; }
+/* One labelled setting inside the sheet: a label, a control, a note. It was
+   called .field until the components layer arrived, where .field is the
+   control itself - two different things under one name in one stylesheet is
+   how a rule stops meaning anything. */
+.setting { padding: 10px 16px 4px; display: flex; flex-direction: column; gap: 6px; }
+.setting label { font-size: 13px; color: var(--text-dim); }
+.setting .lead { margin: 0 0 6px; font-size: 13px; color: var(--text-dim); }
+.setting .lead a { color: var(--accent); }
+.setting .lead a:hover { text-decoration: none; }
+.setting .note { margin: 0; font-size: 12px; color: var(--text-dim); }
+.setting .field { width: 100%; align-self: stretch; }
+.setting .field[type=password] { font-family: ui-monospace, monospace; }
 /* A little air above the buttons: what now ends the body is the edge of a
    folded panel, which would otherwise sit straight on top of Save. */
-.sheetFoot {
-  display: flex; gap: 8px; padding: 12px 16px 16px; justify-content: flex-end;
+.sheet > .foot {
+  gap: 8px; padding: 12px 16px 16px; margin: 0; border-top: 1px solid var(--line);
 }
 /* A cross, not the word - it sits in the corner where one reaches for it,
    and it needs no room for a translation. The word stays as the label for
-   anything that reads the page out. */
-.closeX {
-  font-size: 20px; line-height: 1; padding: 4px 10px; border-radius: 999px;
-  color: var(--text-dim); border-color: transparent; background: transparent;
-}
-.closeX:hover, .closeX:focus-visible {
-  color: var(--text); background: var(--surface-2); border-color: var(--line);
-}
+   anything that reads the page out. It is .btn.quiet.icon and nothing else
+   now; the glyph is the only thing about it that is not already the shared
+   quiet icon button. */
+.closeX { font-size: 20px; }
 
 /* The voice list. Two buttons per row on purpose: hearing a voice and
    choosing it are two different decisions, and the first should not commit
    to the second. */
-.dlgHead strong { flex: 1 1 auto; font-weight: 600; }
+.sheet > .head { padding: 16px 16px 4px; margin: 0; }
+.sheet > .head strong { flex: 1 1 auto; font-weight: 600; }
 /* No scrolling of its own any more. It used to be twenty rows deep and
    carried a scrollbar inside the sheet's scrollbar; folded up it is one row,
    and unfolded it is something that was asked for, so it may take the space
    and let the sheet do the scrolling. */
 .voiceList {
-  display: flex; flex-direction: column; gap: 6px; padding: 16px;
+  display: flex; flex-direction: column; gap: 6px; padding: 6px 16px 16px;
 }
-.voiceRow {
-  display: flex; align-items: center; gap: 10px; padding: 6px;
-  border-radius: 10px; border: 2px solid transparent; background: var(--surface-2);
+.voiceList .note { padding: 6px 11px; color: var(--text-dim); font-size: 13px; }
+/* The list scrolls in a box of its own rather than growing the sheet. With a
+   key of your own this is hundreds of rows, and the panel holding that key is
+   underneath it. */
+.voices {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: min(46vh, 340px); overflow: auto; padding: 2px;
 }
-.voiceRow.on { border-color: var(--accent); }
-/* Looks like a row, behaves like a button - so it can be reached with the
-   keyboard like everything else. */
-.voiceRow .pick {
-  flex: 1 1 auto; min-width: 0; text-align: left; background: none;
-  border: none; padding: 4px 2px; color: var(--text);
+.voicefilters { display: flex; gap: 4px; flex-wrap: wrap; padding: 4px 16px 0; }
+
+.voiceRow { display: flex; align-items: center; gap: 8px; }
+/* mitreden's row, which is a button there. Here it is the second of two, so
+   the row around it holds them side by side and this is the one that chooses. */
+.voice {
+  flex: 1 1 auto; min-width: 0; display: block; text-align: left;
+  border: 1px solid transparent; background: none; color: var(--text);
+  cursor: pointer; padding: 8px 11px; border-radius: var(--radius-item);
 }
-.voiceRow .pick:hover { background: none; color: var(--accent); }
-.voiceRow .note { color: var(--text-dim); font-size: 12px; }
-.voiceRow.empty { background: none; color: var(--text-dim); display: block; }
+.voice:hover { background: var(--surface-2); }
+.voice[aria-checked="true"] { background: var(--accent-soft); }
+.voice[aria-checked="true"] .voice__name { color: var(--accent-strong); font-weight: 650; }
+.voice__name { font-size: 14.5px; }
+/* Where it comes from, what it speaks, whose voice it is, and what it costs -
+   the four facts the old picker withheld, on the line under the name. */
+.voice__facts { display: block; font-size: 12px; color: var(--text-faint); }
+.voiceRow.blank { color: var(--text-dim); display: block; padding: 6px 16px; }
 /* The button and, under it, what it will fetch. Set off by a line, because
    it is an errand of its own and not one of the voices. */
 .voiceOffer:not(:empty) { border-top: 1px solid var(--line); margin: 4px 16px 0; }
@@ -481,27 +495,8 @@ dialog.sheet .dlgHead, dialog.sheet .sheetFoot { flex: none; }
 }
 .linkish:hover, .linkish:focus-visible { background: none; text-decoration: underline; }
 
-/* The two folded panels at the foot of the sheet. The heading is the handle,
-   and it carries the state, so that what is inside can stay inside. */
-.panel { border-top: 1px solid var(--line); margin-top: 16px; }
-.panel:first-of-type { margin-top: 8px; }
-.panel > summary {
-  display: flex; align-items: baseline; gap: 10px; cursor: pointer;
-  padding: 14px 16px; list-style: none;
-}
-/* Safari puts its own triangle in front of the row, on top of the one drawn
-   below. */
-.panel > summary::-webkit-details-marker { display: none; }
-.panel > summary:hover { background: var(--surface-2); }
-.panel > summary .section { padding: 0; flex: none; }
-.panel > summary .state {
-  color: var(--text-dim); font-size: 12px; flex: 1 1 auto; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* The chevron, in the corner and pointing the way the panel will move. */
-.panel > summary::after {
-  content: ""; flex: none; width: 7px; height: 7px; margin-left: auto;
-  border-right: 1.6px solid var(--text-dim); border-bottom: 1.6px solid var(--text-dim);
-  transform: translateY(-2px) rotate(45deg); transition: transform .12s;
-}
-.panel[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+/* The folded panels are components.css's now - vorlaut wrote this component
+   first and it went into the shared file, so what was here was the original
+   of a copy rather than a copy. Nothing is left to say about them here: the
+   uppercase group label above no longer reaches into a summary, so the
+   heading inside one is the shared component's and nothing else. */

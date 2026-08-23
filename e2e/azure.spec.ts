@@ -64,7 +64,7 @@ test("a working key answers with its voices, sheet still open", async ({ page })
 
   // And the choice completes: pick Katja, save - that save closes.
   await page.locator("#voiceList .voiceRow", { hasText: "Katja" })
-    .locator("button.pick").click();
+    .locator("button.voice").click();
   await page.locator("#voiceSave").click();
   await expect(page.locator("#voices")).not.toBeVisible();
 });

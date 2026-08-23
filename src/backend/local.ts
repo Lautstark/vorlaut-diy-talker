@@ -15,7 +15,7 @@
 // to call them, what to throw away, lived in builder.py and threw here - and
 // it is at the foot of this file now.
 
-import type { Layout, PairAnswer, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
+import type { Layout, OfferedVoice, PairAnswer, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
 import * as obf from "../data/obf.js";
 import * as store from "../data/store.js";
 import * as tiles from "../data/tiles.js";
@@ -260,11 +260,17 @@ export async function listVoices(): Promise<VoiceList> {
   // either way, which is why mls still waits on its notice.
   const layout = (await store.readLayout()).layout;
   const chosen = layout && layout.voice ? layout.voice : "";
-  const list = shippable({ ownsInference: true }).map((voice) => ({
+  const list: OfferedVoice[] = shippable({ ownsInference: true }).map((voice) => ({
     id: `piper:${voice.id}`,
     label: displayName(voice.id),
     language: voice.lang || "",
     ready: true,
+    // The catalogue has carried these three all along; this map used to drop
+    // them, and the picker could only ever show a name because of it.
+    source: "piper" as const,
+    gender: voice.gender || "",
+    downloadBytes: voice.bytes || 0,
+    needsKey: false,
   }));
 
   // Azure's voices, when a key is stored. app.py listed them and this file
@@ -278,8 +284,13 @@ export async function listVoices(): Promise<VoiceList> {
   if (held.azureSecret && held.azureRegion) {
     try {
       for (const voice of await azureCatalogue(held.azureSecret, held.azureRegion)) {
-        list.push({ id: voice.id, label: voice.name,
-                    language: voice.lang || "", ready: true });
+        list.push({
+          id: voice.id, label: voice.name, language: voice.lang || "", ready: true,
+          // Nothing is fetched for a cloud voice; what it costs is the key and
+          // a request per sentence, which is what needsKey says.
+          source: "azure" as const, gender: voice.gender,
+          downloadBytes: 0, needsKey: voice.needsKey,
+        });
       }
     } catch {
       // The rows stay absent from the LIST - a broken key must not cost the
@@ -333,7 +344,11 @@ export async function synthesise(text, voice) {
 // Azure's catalogue, memoised per key and region: one sheet-opening asks for
 // it twice - once for the voice list, once for the state line - and Azure's
 // answer does not change between the two. A new key clears it (writeSettings).
-let azureCache: { stamp: string; voices: { id: string; name: string; lang: string }[] } | null = null;
+/** One cloud voice as the Azure branch keeps it: the same four facts the
+ *  picker shows, minus the ones a cloud backend answers for by being one. */
+interface CloudVoice { id: string; name: string; lang: string; gender: string; needsKey: boolean }
+
+let azureCache: { stamp: string; voices: CloudVoice[] } | null = null;
 
 async function azureCatalogue(key: string, region: string) {
   const stamp = `${region}\u0000${key}`;
@@ -342,7 +357,10 @@ async function azureCatalogue(key: string, region: string) {
     azure: { key, region, languages: [...LANGUAGES] },
   });
   const cloud = offered.filter((voice) => voice.source === "azure")
-    .map((voice) => ({ id: voice.id, name: voice.name, lang: voice.lang || "" }));
+    .map((voice) => ({
+      id: voice.id, name: voice.name, lang: voice.lang || "",
+      gender: voice.gender || "", needsKey: voice.needsKey,
+    }));
   azureCache = { stamp, voices: cloud };
   return cloud;
 }
