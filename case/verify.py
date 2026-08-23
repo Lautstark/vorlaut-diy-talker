@@ -157,8 +157,11 @@ def compute(p, bed_x, bed_y):
              '>=', 12, note='two keys hit at once')
     b.check(g, 'cap gap vertical', G('pitch_y') - G('sk_cap_h'),
              '>=', 12, note='two keys hit at once')
+    # The set key sits at the +x end and the block below it, so this
+    # difference runs from set_mx down to blk_mx1 and not the other way
+    # round - see the coordinate note at the top of the .scad.
     b.check(g, 'set key to the block of four',
-             G('blk_mx1') - G('set_mx') - G('sk_cap_b'), '>=', 20)
+             G('set_mx') - G('blk_mx1') - G('sk_cap_b'), '>=', 20)
     # The four speech keys have to read as one group. Two things do that:
     # the same air on all four sides inside the block, and a clearly bigger
     # step out to the set key. Neither is a strength - both are legibility,
@@ -321,8 +324,10 @@ def compute(p, bed_x, bed_y):
                          G('amp_x') + G('amp_b') + bed_margin,
                          G('amp_y') + G('amp_h') + bed_margin)),
     ]
-    obstacles = [('chamber', (-G('inner_margin'), G('chamber_y'),
-                               G('chamber_x') + G('chamber_wall'),
+    # The chamber sits at the +x end: from the outer face of its wall out to
+    # the inner wall on that side.
+    obstacles = [('chamber', (G('chamber_x') - G('chamber_wall'), G('chamber_y'),
+                               env_b + G('inner_margin'),
                                env_h + G('inner_margin')))]
     obstacles += [('lid boss %d' % i,
                      (d[0] - G('boss_d') / 2, d[1] - G('boss_d') / 2,
@@ -355,18 +360,20 @@ def compute(p, bed_x, bed_y):
     # the FAR side of that wall, so the plate ran through 2 mm of solid PLA
     # and the carrier would not drop in. This is the check that was missing.
     cut_y = G('chamber_y') - G('carrier_chamber_gap')
-    cut_x = G('chamber_x') + G('chamber_wall') + G('carrier_chamber_x')
+    cut_x = G('chamber_x') - G('chamber_wall') - G('carrier_chamber_x')
     b.check(g, 'carrier stops below the horizontal chamber wall',
              G('chamber_y') - cut_y, '>=', 0.4,
              note='the plate runs into the wall and will not go in')
     b.check(g, 'carrier clears the vertical chamber wall',
-             cut_x - G('chamber_x') - G('chamber_wall'), '>=', 0.4,
+             (G('chamber_x') - G('chamber_wall')) - cut_x, '>=', 0.4,
              note='the plate runs into the wall and will not go in')
 
-    # The carrier is cut away under the chamber - nothing may stand there
+    # The carrier is cut away under the chamber - nothing may stand there.
+    # The cutout is everything beyond cut_x towards +x, so a part is safe
+    # while its FAR edge stays short of it.
     for name, r in parts:
         if r[3] > cut_y:
-            b.check(g, '%s stands on carrier material' % name, r[0], '>=',
+            b.check(g, '%s stands on carrier material' % name, r[2], '<=',
                      cut_x, note='sits over the chamber cutout')
 
     # Peg holes in the carrier must not sit under a Feather standoff -
@@ -416,7 +423,7 @@ def compute(p, bed_x, bed_y):
     # chamber cutout. The cutout keeps a tab under each of them - and a tab is
     # only allowed while it still stops short of the chamber wall.
     tabs = [q[1] + pad_r for q in pole_pos
-            if q[0] - pad_r < cut_x and q[1] + pad_r > cut_y]
+            if q[0] + pad_r > cut_x and q[1] + pad_r > cut_y]
     b.info(g, 'screws reaching into the chamber cutout',
            '%d - the cutout keeps a tab under each' % len(tabs))
     b.check(g, 'tab under a screw stops short of the chamber wall',
@@ -445,8 +452,12 @@ def compute(p, bed_x, bed_y):
 
     # --- 6. USB-C ---------------------------------------------------------
     g = '6. USB-C - the only connection to the outside'
+    # The +x wall, the one the speaker and the set key are nearest - the
+    # child's left. The board reaches no other, so the window can be nowhere
+    # else either.
     b.check(g, 'Feather edge at the inner wall',
-             abs(G('feather_x') + G('inner_margin')), '<=', 0.01,
+             abs(G('feather_x') + G('feather_l') - env_b - G('inner_margin')),
+             '<=', 0.01,
              note='the socket does not reach the case edge')
     b.check(g, 'socket reaches into the wall',
              G('usb_overhang'), '>=', 0.5)
@@ -463,7 +474,7 @@ def compute(p, bed_x, bed_y):
 
     # --- 7. Speaker -------------------------------------------------------
     g = '7. Speaker - closed at the back, open to the front'
-    chamber_b = G('chamber_x') + G('chamber_wall') + G('inner_margin')
+    chamber_b = env_b + G('inner_margin') - G('chamber_x') + G('chamber_wall')
     chamber_h = env_h + G('inner_margin') - G('chamber_y')
     chamber_t = G('inner_z_h') - G('front_d')
     gross = chamber_b * chamber_h * chamber_t / 1000.0

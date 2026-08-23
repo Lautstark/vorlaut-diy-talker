@@ -17,10 +17,25 @@
 //  board, one number changes there and all five front cutouts move with
 //  it. Nothing else.
 //
-//  Coordinates: origin = lower left corner of the component rectangle
-//  (127.12 x 80.59 mm), seen from the front, y points up. z = 0 is the
-//  OUTSIDE of the front plate, +z points backwards. All three parts are
-//  printed in that orientation too.
+//  Coordinates: y points up, z = 0 is the OUTSIDE of the front plate and +z
+//  points BACKWARDS, into the case. Those two together already fix x, and not
+//  the way one tends to read it: the child stands in FRONT of the device and
+//  looks along +z, so for the child +x runs to their LEFT. Every x/y sketch
+//  in this file is therefore the view from BEHIND - which is the view you
+//  have with the tub's opening towards you, so it is also the view you
+//  assemble in and the view the parts are printed in.
+//
+//  Origin = the corner of the component rectangle (127.12 x 80.59 mm) at
+//  x = 0, y = 0. That is the bottom left of the sketches in this file and the
+//  child's bottom RIGHT. Seen from the front everything reads mirrored, and
+//  the front is the side docs/hardware.md describes: speaker top left, set
+//  key below it, the four speech keys as a 2x2 block to the right of them.
+//
+//  Where a comment below says left or right without saying whose, it is the
+//  CHILD'S - the model's x is named explicitly as +x or -x. The model was
+//  once built the other way round, from a comment that claimed x ran right
+//  for a viewer at the front while +z ran away from them; both halves cannot
+//  be true at once, and a plate got printed mirrored before anyone noticed.
 // =====================================================================
 
 
@@ -153,25 +168,36 @@ pitch_x       = sk_cap_b + gap_block; // [G] 42.0  centre spacing across
 pitch_y       = sk_cap_h + gap_block; // [G] 45.3  centre spacing up
 gap_spk_set        =  5.00;  // [M] speaker to set board
 
-/* --- the component rectangle follows from that --- */
+/* --- the component rectangle follows from that ---
+   The chain across runs the opposite way from the way the child reads the
+   front, because +x points to the child's LEFT (see the header). So the block
+   of four sits at the -x end and the speaker with the set key under it at the
+   +x end - and from the front that is what docs/hardware.md describes:
+   speaker top left, set key below it, the block to the right of them. */
 env_h  = spk_frame + gap_spk_set + sk_board_h;             // [G] 80.59
-// The set board sits sideways centred under the speaker
-set_mx = spk_frame/2;                                          // [G] 20.15
-set_my = sk_board_h/2;                                       // [G] 17.645
-// Left column of the block of four: gap_set_block of cap gap to the set cap.
-// A sideways cap offset cancels out, because ALL caps are offset the same way
-// - the distance stays as it is.
-blk_mx1 = set_mx + sk_cap_b + gap_set_block;                // [G] 72.15
-blk_mx2 = blk_mx1 + pitch_x;                                  // [G] 114.15
+// The two columns of the block are numbered the way the CHILD reads them,
+// left to right - and in the file's x that runs downwards, so blk_mx1 is the
+// larger of the two. Column 2 is the outer one; its board finishes flush with
+// x = 0, which is what puts the rectangle's edge there.
+blk_mx2 = sk_board_b/2;                                      // [G] 12.97
+blk_mx1 = blk_mx2 + pitch_x;                                  // [G] 54.97
 blk_my1 = sk_board_h/2;                                      // [G] 17.645  (flush at the bottom)
 blk_my2 = blk_my1 + pitch_y;                                  // [G] 62.945
-env_b   = blk_mx2 + sk_board_b/2;                            // [G] 127.12
+// Set key: gap_set_block of cap gap out from the near column of the block.
+// A sideways cap offset cancels out, because ALL caps are offset the same way
+// - the distance stays as it is.
+set_mx = blk_mx1 + sk_cap_b + gap_set_block;                // [G] 106.97
+set_my = sk_board_h/2;                                       // [G] 17.645
+// The speaker's outer edge is the far edge of the rectangle.
+env_b   = set_mx + spk_frame/2;                              // [G] 127.12
 
-// Speaker top left
-spk_mx = spk_frame/2;                                           // [G] 20.15
+// Speaker at the +x end, and the set board sits sideways centred under it.
+// From the front the two of them are the left-hand column, speaker on top.
+spk_mx = set_mx;                                                // [G] 106.97
 spk_my = env_h - spk_frame/2;                                   // [G] 60.44
 
-// Centre points of all five boards
+// Centre points of all five boards. Left and right in the labels are the
+// child's, as in docs/hardware.md - in the file's own x they are swapped.
 sk_pos = [ [set_mx , set_my ],      // 0 = set key
            [blk_mx1, blk_my1],      // 1 = bottom left
            [blk_mx2, blk_my1],      // 2 = bottom right
@@ -321,7 +347,11 @@ carrier_chamber_x   = 0.80;  // [K] air beside the vertical chamber wall
 // the front plate, two inset walls, two outer walls and the lid.
 chamber_wall  = 2.00;   // [K]
 chamber_clearance  = 2.00;   // [K] clearance between driver and chamber wall
-chamber_x     = spk_frame + chamber_clearance;              // [G] 42.30 inner face on the right
+// The chamber is at the +x end, with the speaker: chamber_x is its inner
+// face at the -x side, the one the wall stands against, and from there it
+// runs out to the inner wall.
+chamber_x     = env_b - spk_frame - chamber_clearance;      // [G] 84.82 inner face towards -x
+chamber_b     = env_b + inner_margin - chamber_x;           // [G] 49.30 inner width of the chamber
 chamber_y     = env_h - spk_frame - chamber_clearance - 1.0;// [G] 37.29 inner face at the bottom
                                                       //     (1.0 mm extra clearance
                                                       //      to the set board)
@@ -335,30 +365,32 @@ grille_hole_d = 3.00;  // [K] sound outlet: holes, no child can get in
 grille_pitch = 4.60;  // [K]
 grille_field_d = 34.50; // [K] slightly larger than the cone
 
-/* --- Positions inside (bottom left corner of the components) --- */
+/* --- Positions inside (the -x, -y corner of each component) --- */
 // All in component coordinates. The checks in section 4 verify that nothing
 // overlaps - whoever moves something here gets an error message while
 // rendering instead of a ruined print.
-// Battery: to the right of the speaker chamber. Sideways it balances the
-// speaker (top left); vertically it sits as low as the lower middle boss
-// allows — its retaining ribs must not touch the boss. Result: centre of
-// gravity practically at the middle of the case, see the echo in section 4.
-battery_x    =  61.00;  // [K] follows the wider block of four - the battery
-                     //     is the counterweight to the speaker, and 9 mm of
-                     //     case width has to be balanced out again
+// Battery: on the other side of the speaker chamber from the speaker, so at
+// the -x end, under the block of four. Sideways it balances the speaker;
+// vertically it sits as low as the lower middle boss allows — its retaining
+// ribs must not touch the boss. Result: centre of gravity practically at the
+// middle of the case, see the echo in section 4.
+battery_x    =   3.12;  // [K] the counterweight belongs at whichever end the
+                     //     speaker is not, and the block of four is the wider
+                     //     end - 9 mm of case width to balance out again
 battery_y    =   2.50;  // [K]
 
-// Feather: board edge flush against the left inner wall, so the USB-C socket
-// reaches the case edge. Vertically into the lower strip, below the
-// speaker chamber.
-feather_x =  -inner_margin;   // [G]
+// Feather: board edge flush against the +x inner wall, so the USB-C socket
+// reaches the case edge. That is the wall the speaker and the set key are
+// nearest, the child's left-hand side, and it is the only wall this board
+// can reach. Vertically into the lower strip, below the speaker chamber.
+feather_x = env_b + inner_margin - feather_l;   // [G] 83.32
 feather_y =   8.00;         // [K]
 
-// Amplifier: to the right of the chamber wall, above the battery. The runs
+// Amplifier: on the -x side of the chamber wall, above the battery. The runs
 // to the speaker are short there and the carrier is not cut away.
-// (In the first draft it sat bottom left — there its bed protruded 1.9 mm
-//  beyond the carrier edge and hit the case wall.)
-amp_x     =  49.00;  // [K]
+// (In the first draft it sat down in a corner — there its bed protruded
+//  1.9 mm beyond the carrier edge and hit the case wall.)
+amp_x     =  58.72;  // [K]
 amp_y     =  58.50;  // [K]
 
 // Retaining ribs on the carrier. The same numbers are used by the checks in
@@ -369,11 +401,12 @@ bed_margin = rib_b + part_play;   // [G] 2.40 added all round
 
 /* --- Lid bosses: 4 corners + middle top + middle bottom --- */
 boss_e = inner_margin - boss_d/2;   // [G] 4.0 - boss axis away from the inner wall
+// Left and right are the child's here too, so -x is their right.
 boss_pos = [
-  [ -boss_e        , -boss_e        ],   // bottom left
-  [ env_b + boss_e , -boss_e        ],   // bottom right
-  [ -boss_e        , env_h + boss_e ],   // top left (sits inside the chamber)
-  [ env_b + boss_e , env_h + boss_e ],   // top right
+  [ -boss_e        , -boss_e        ],   // bottom right
+  [ env_b + boss_e , -boss_e        ],   // bottom left
+  [ -boss_e        , env_h + boss_e ],   // top right
+  [ env_b + boss_e , env_h + boss_e ],   // top left (sits inside the chamber)
   [ env_b/2       , -boss_e        ],   // middle bottom
   [ env_b/2       , env_h + boss_e ]    // middle top
 ];
@@ -385,14 +418,14 @@ peg_h     = carrier_d - 0.40;  // [G] ends just below the carrier top side,
                                   //     so nothing presses on the battery
 // Positions: in the gaps between the boards, that is where there is room.
 support_pos = [
-  [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 93.15 / 17.645
-  [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 93.15 / 40.295
-  [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 93.15 / 62.945
+  [ (blk_mx1 + blk_mx2)/2, blk_my1 ],   // 33.97 / 17.645
+  [ (blk_mx1 + blk_mx2)/2, env_h/2 ],   // 33.97 / 40.295
+  [ (blk_mx1 + blk_mx2)/2, blk_my2 ],   // 33.97 / 62.945
   // In the gap between the set board and the block of four. Do not put it
   // higher: at y = 8 the peg hole in the carrier sat 0.73 mm under one of the
   // Feather's standoffs, and the standoff would have started printing over
   // the edge of the hole.
-  [ (set_mx + blk_mx1)/2, 4.0 ]                        // 46.15 / 4
+  [ (set_mx + blk_mx1)/2, 4.0 ]                        // 80.97 / 4
 ];
 
 /* --- Cable passages in the carrier --- */
@@ -565,7 +598,7 @@ assert(inner_z_h - carrier_z_top >= amp_support + amp_d,
   "No room above the carrier for the amplifier.");
 
 /* --- What sits on the carrier must not get in each other's way --------
-   Instead of individual hand checks ("battery left of the amp?") there is a
+   Instead of individual hand checks ("is the battery beside the amp?") there is a
    list of rectangles - component plus retaining ribs - and a blunt pairwise
    comparison. Whoever moves a position gets the collision named while
    rendering, by name, instead of finding it in the print. The speaker
@@ -584,11 +617,13 @@ carrier_items = [
   ["amplifier", [amp_x - bed_margin,     amp_y - bed_margin,
                    amp_x + amp_b + bed_margin,      amp_y + amp_h + bed_margin]] ];
 
-// fixed = follows from the case itself. The top left lid boss standing
-// INSIDE the speaker chamber is intended (there is nothing but clearance
-// there anyway), so the fixed obstacles are not checked against each other.
+// fixed = follows from the case itself. Lid boss 3 standing INSIDE the
+// speaker chamber is intended (there is nothing but clearance there anyway),
+// so the fixed obstacles are not checked against each other.
+// The chamber rectangle runs from the outer face of its wall out to the +x
+// inner wall - the same band chamber_walls() builds.
 obstacles = concat(
-  [ ["chamber",  [-inner_margin, chamber_y, chamber_x + chamber_wall, env_h + inner_margin]] ],
+  [ ["chamber",  [chamber_x - chamber_wall, chamber_y, env_b + inner_margin, env_h + inner_margin]] ],
   [ for (i = [0:len(boss_pos)-1])
       [ str("lid boss ", i), [boss_pos[i][0] - boss_d/2, boss_pos[i][1] - boss_d/2,
                                boss_pos[i][0] + boss_d/2, boss_pos[i][1] + boss_d/2] ] ]);
@@ -618,7 +653,10 @@ assert(len(outside) == 0,
    plate.                                                                */
 
 carrier_cut_y = chamber_y - carrier_chamber_gap;                // [G] 34.49
-carrier_cut_x = chamber_x + chamber_wall + carrier_chamber_x;   // [G] 45.10
+// The cutout stops carrier_chamber_x short of the wall's outer face. The wall
+// is on the -x side of the chamber, so the cutout is everything ABOVE and
+// BEYOND this x, not below it.
+carrier_cut_x = chamber_x - chamber_wall - carrier_chamber_x;   // [G] 82.02
 
 carrier_plate = [ centre_x - (inner_b - carrier_play)/2,
                   centre_y - (inner_h - carrier_play)/2,
@@ -642,7 +680,7 @@ assert(len(poles_on_slots) == 0,
 //    under each of them (see carrier_outline()). A tab is only allowed as
 //    long as it still stops short of the chamber wall.
 pole_tabs = [ for (q = sk_pole_pos)
-                if (q[0] - sk_pad_r < carrier_cut_x && q[1] + sk_pad_r > carrier_cut_y)
+                if (q[0] + sk_pad_r > carrier_cut_x && q[1] + sk_pad_r > carrier_cut_y)
                   q[1] + sk_pad_r ];
 tab_top = len(pole_tabs) > 0 ? max(pole_tabs) : carrier_cut_y;
 assert(tab_top <= chamber_y - 1.0,
@@ -734,9 +772,9 @@ echo(str("board gap           : ", gap_pcb_x, " / ", gap_pcb_y, " mm"));
 echo(str("carrier sits at z = ", carrier_z_bottom, " .. ", carrier_z_top));
 echo(str("USB-C centre at z = ", usb_z));
 echo(str("chamber volume gross approx. ",
-         round((chamber_x+inner_margin)*(env_h+inner_margin-chamber_y)*inner_t/100)/10,
+         round(chamber_b*(env_h+inner_margin-chamber_y)*inner_t/100)/10,
          " cm3, less the driver approx. ",
-         round(((chamber_x+inner_margin)*(env_h+inner_margin-chamber_y)*inner_t
+         round((chamber_b*(env_h+inner_margin-chamber_y)*inner_t
                 - spk_frame*spk_frame*spk_depth)/100)/10, " cm3"));
 echo(str("centre of gravity battery+speaker: x=", round(sp_x*10)/10,
          " (middle ", round(centre_x*10)/10, "), y=", round(sp_y*10)/10,
@@ -982,19 +1020,21 @@ module spk_ribs() {   // four short walls guiding the driver sideways
 /* --- Speaker chamber --- */
 module chamber_walls() {
   h = inner_z_h - front_d;
-  // vertical wall right of the chamber, thickened at the bottom (carrier ledge)
-  translate([chamber_x, chamber_y, front_d])
+  // vertical wall on the -x side of the chamber, thickened at the bottom
+  // (carrier ledge). The thickening grows away from the chamber, into the
+  // board plane, the same way the ledge steps in all round.
+  translate([chamber_x - chamber_wall, chamber_y, front_d])
     cube([chamber_wall, env_h + inner_margin - chamber_y, h]);
-  translate([chamber_x, chamber_y, front_d])
+  translate([chamber_x - chamber_wall - standoff, chamber_y, front_d])
     cube([chamber_wall + standoff, env_h + inner_margin - chamber_y,
           carrier_z_bottom - front_d]);
   // horizontal wall under the speaker
-  translate([-inner_margin, chamber_y, front_d])
-    cube([chamber_x + chamber_wall + inner_margin, chamber_wall, h]);
+  translate([chamber_x - chamber_wall, chamber_y, front_d])
+    cube([chamber_b + chamber_wall, chamber_wall, h]);
 }
 
 module chamber_cable() {   // passage for the speaker wires
-  translate([chamber_x - 1, chamber_y + 6, front_d + 2])
+  translate([chamber_x - chamber_wall - standoff - 1, chamber_y + 6, front_d + 2])
     cube([chamber_wall + standoff + 2, 7, 5]);
 }
 
@@ -1016,17 +1056,20 @@ module carrier_supports() {
   }
 }
 
-/* --- USB-C window in the left wall --- */
+/* --- USB-C window in the +x wall --- */
+// The same wall the speaker and the set key are nearest, so from the front
+// the socket is on the child's left. The Feather lies against that wall and
+// no other, which is what puts the window here.
 // Deliberately tight: the wall takes the side loads, not the soldered socket.
 // The cable bend rests on the outside, that is the strain relief.
 module usb_window() {
   fb = usb_socket_b + 1.4;
   fh = usb_win_h;
   yc = feather_y + feather_b/2;
-  translate([-inner_margin - wall - 2, yc, usb_z]) rotate([0,90,0])
+  translate([env_b + inner_margin - 2, yc, usb_z]) rotate([0,90,0])
     linear_extrude(wall + 4) rrect(fh, fb, 1.0);
   // local wall pocket, so the socket can move into the opening
-  translate([-inner_margin - 1.2, yc, usb_z]) rotate([0,90,0])
+  translate([env_b + inner_margin - 0.2, yc, usb_z]) rotate([0,90,0])
     linear_extrude(1.4) rrect(fh + 4, fb + 5, 1.5);
 }
 
@@ -1093,8 +1136,8 @@ module carrier_outline() {
     // cutout gives each of them its pad back. Without that, the cut would run
     // straight through their countersinks.
     difference() {
-      translate([-inner_margin - 1, carrier_cut_y])
-        square([carrier_cut_x + inner_margin + 1,
+      translate([carrier_cut_x, carrier_cut_y])
+        square([env_b + inner_margin + 1 - carrier_cut_x,
                 env_h + inner_margin - carrier_cut_y + 2]);
       sk_pole_pads_2d();
     }
