@@ -69,10 +69,17 @@ export interface Settings {
     count: number;
     keywords: boolean;
     fixed: boolean;
-    /** Which of METACOM's parallel renderings the search should prefer, or
-     *  null for none. Ordering only - nothing is ever filtered out by it. */
-    rendering?: string | null;
   };
+  /** Which of METACOM's parallel renderings the search should prefer, or null
+   *  for none. Ordering only - nothing is ever filtered out by it.
+   *
+   *  Beside the metacom block rather than inside it, and that is the whole of
+   *  why it did not survive a reload: everything in there is re-derived from
+   *  the provider on every read, because a folder chosen in this browser can
+   *  be gone by the next visit and a stored "ok: true" would be a claim nobody
+   *  checked. A preference is not such a claim - it is a choice, and it has to
+   *  outlive the folder it was made about. */
+  metacomRendering?: string | null;
   local?: boolean;
 }
 
@@ -85,6 +92,10 @@ export interface WantedSettings {
   azureRegion: string;
   metacom: string;
   azureKey?: string | null;
+  /** Absent leaves the stored preference alone; null clears it. Same shape as
+   *  azureKey above, and for the same reason: a save that is about something
+   *  else must not wipe a choice it never asked about. */
+  metacomRendering?: string | null;
 }
 
 /** A voice as the picker shows it.

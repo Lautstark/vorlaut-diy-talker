@@ -427,6 +427,11 @@ export async function readSettings(): Promise<Settings> {
 export async function writeSettings(wanted: WantedSettings): Promise<Settings> {
   const held = await store.readSettings(NO_SETTINGS);
   const next = { ...held, azureRegion: wanted.azureRegion || "" };
+  // Absent means "leave it alone", null means "clear it" - the same rule the
+  // key below follows, so a save about the region cannot drop the rendering.
+  if (wanted.metacomRendering !== undefined) {
+    next.metacomRendering = wanted.metacomRendering;
+  }
   // An untouched field must not wipe the key - the same rule settings.js
   // follows on the way in. Which left removal with no door at all: this
   // branch only ever set, so a stored key was permanent until null became

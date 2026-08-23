@@ -110,9 +110,12 @@ function renderRenderings() {
   }
   pick.value = symbols.preferredRendering() || "";
   pick.onchange = () => {
-    symbols.preferRendering(pick.value || null);
-    settings.metacom.rendering = pick.value || null;
-    void saveSettings();
+    const chosen = pick.value || null;
+    // Told to the provider and written down, in that order: the provider ranks
+    // the next search by it, and without the second half the choice lasted
+    // exactly as long as the tab did.
+    symbols.preferRendering(chosen);
+    void saveSettings({ metacomRendering: chosen });
   };
 }
 
@@ -302,17 +305,26 @@ export async function loadSettings() {
     // Before anything draws: the provider ranks its search results by this,
     // so a preference that arrives after the first search would silently not
     // have applied to it.
-    symbols.preferRendering(settings.metacom?.rendering ?? null);
+    symbols.preferRendering(settings.metacomRendering ?? null);
     renderSettings();
   } catch (error) {
     status(t("ui.voice_failed", { error: reason(error) }));
   }
 }
 
-export async function saveSettings(): Promise<{ azureChanged: boolean }> {
+/** Writes what the sheet's fields hold.
+ *
+ * `extra` is for the settings that are not fields - the rendering preference
+ * is a select that acts on change, not something read back off the form when
+ * some other panel is saved. It merges in last so a caller saying nothing
+ * about a setting leaves it alone. */
+export async function saveSettings(
+  extra: Partial<WantedSettings> = {},
+): Promise<{ azureChanged: boolean }> {
   const wanted: WantedSettings = {
     azureRegion: $<HTMLInputElement>("azureRegion").value.trim(),
     metacom: $<HTMLInputElement>("metacomPath").value.trim(),
+    ...extra,
   };
   // Only when something was typed: an untouched field must not wipe the key.
   const typed = $<HTMLInputElement>("azureKey").value.trim();
