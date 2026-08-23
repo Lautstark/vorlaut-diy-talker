@@ -84,6 +84,13 @@ function renderSettings() {
 
   renderHere();
   renderRenderings();
+  // Here as well as in paintStates(), and both callers have their own reason.
+  // There it is redrawn because its label is translated and a language switch
+  // has to move it. Here it is redrawn because whether METACOM can be chosen
+  // at all is derived from whether the folder answers, which is what has just
+  // been re-read - and without this the one control that chooses METACOM
+  // stayed hidden for as long as the sheet stayed open.
+  paintSources();
 }
 
 /* The rendering chooser. METACOM ships the same symbols several times over -
@@ -511,9 +518,14 @@ export function wireSymbolFolder() {
   };
   $<HTMLInputElement>("metacomFiles").onchange = async (event) => {
     const input = event.target as HTMLInputElement;
-    const files = input.files;
+    // Copied out, not just referenced. input.files hands back the same
+    // FileList object every time, and clearing the value empties that object
+    // in place - so the length was read as 0 a line later and the folder was
+    // never read at all. This is the Firefox and Safari path, where it was
+    // the only way to connect a collection.
+    const files = Array.from(input.files || []);
     input.value = "";
-    if (files && files.length) await symbols.readMetacomFiles(files);
+    if (files.length) await symbols.readMetacomFiles(files);
   };
   // Forgetting the folder cannot leave METACOM as the source: the picker
   // would have nothing to search and would say so on every keystroke. The
@@ -529,7 +541,14 @@ export function wireSymbolFolder() {
   };
 
   // The provider says when a folder arrives or goes; nothing here polls.
-  symbols.subscribeMetacom(renderHere);
+  //
+  // The whole sheet and not just this panel. A folder arriving changes more
+  // than the line that names it: whether METACOM can be the active source is
+  // derived from whether it answers, so paintSources() was still drawing the
+  // answer from before - and the one control that chooses METACOM stayed
+  // hidden on the panel that had just become choosable. Reconnecting with the
+  // sheet open left no way to pick it short of closing and opening again.
+  symbols.subscribeMetacom(() => void loadSettings());
 }
 
 // Where the symbols come from, in one line. Twice over, because the heading
