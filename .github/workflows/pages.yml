@@ -43,6 +43,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Shared packages, and whether anything newer has shipped
+        # Warns, never fails: being a patch behind is not a reason to block a
+        # deploy that fixes something else. The pin is what stops an install
+        # moving the build; this is what stops the pin going quietly stale.
+        run: node node_modules/@lautstark/design/pins.js
+
       - name: Types
         run: npm run typecheck
 
