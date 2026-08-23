@@ -202,6 +202,28 @@ function voiceRow(voice, note: string, mute: boolean, on: boolean,
   ].filter(Boolean).join(" · ");
 
   pick.append(naming, facts);
+
+  /* The one thing a row can have to say that is not a fact about the voice's
+   * kind but about what it does to the text on a key.
+   *
+   * Not a fifth item in the facts line: those are four words that compare two
+   * voices, and a sentence among them would stop the line being scannable. Not
+   * a warning either - no colour, no icon, nothing that reads as a defect.
+   * Kerstin is a good voice, and she is the only one that reaches the device
+   * at its own sample rate; what she needs is a full stop, not avoiding. So
+   * this is a note in the meta line's own size and colour, on the row it is
+   * about, and it says the fix rather than the diagnosis.
+   *
+   * It matters here more than it would in most pickers: a talker's keys are
+   * mostly single words, so the case the catalogue flags is the ordinary case
+   * rather than an edge of it. */
+  if (voice.rushesFragments) {
+    const hint = document.createElement("span");
+    hint.className = "voice__hint";
+    hint.textContent = t("ui.voice_rushes");
+    pick.append(hint);
+  }
+
   pick.onclick = () => chooseVoice(voice.id);
 
   row.append(play, pick);

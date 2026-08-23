@@ -148,6 +148,20 @@ export interface OfferedVoice {
   downloadBytes: number;
   /** True when it needs a key, and so a network call for every sentence. */
   needsKey: boolean;
+  /** True when it crams a word carrying no terminal punctuation into a
+   *  near-fixed span, so single words arrive as mush while whole sentences are
+   *  fine. Absent rather than false everywhere else, exactly as the catalogue
+   *  states it.
+   *
+   *  It is carried rather than worked out here for the reason no field on this
+   *  interface is worked out here: which model does this is the catalogue's
+   *  answer, and the moment vorlaut decided it, a voice id would be written
+   *  down in this repository and a second voice found to do the same would
+   *  cost an edit in two places instead of none.
+   *
+   *  Wordless, like `quality` and AzureState's `code`. Whether to say anything
+   *  about it, and in what words, is voiceRow()'s question. */
+  rushesFragments?: boolean;
 }
 
 export interface VoiceList {
