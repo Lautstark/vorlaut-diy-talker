@@ -26,6 +26,7 @@
 import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
 import { confirmDialog } from "@lautstark/design/dialog";
+import { renameField, type RenameField } from "@lautstark/design/rename";
 import { reason } from "../core/errors.js";
 import {
   createCollection, deleteCollection, exportAppPackage, exportBoard,
@@ -47,6 +48,10 @@ import type { CollectionList } from "../core/types.js";
 /** The list as it was last read. Kept so that the name field and the menu do
  *  not each have to go back to the store to find out which one is open. */
 let held: CollectionList = { collections: [], current: null };
+
+/** The bound name field, once wireCollections() has bound it. Held because
+ *  paintCollections() may only reach the input through it - see there. */
+let name: RenameField | null = null;
 
 /** What to call a Sammlung nobody has named.
  *
@@ -115,19 +120,19 @@ export async function paintCollections(): Promise<void> {
 
   const at = held.collections.findIndex((one) => one.id === held.current);
   const field = $<HTMLInputElement>("collectionName");
-  /* Not while it is being typed in. mitreden's drawRail() carries the same
-   * guard and gives one reason - the caret jumps to the end mid-word - and
-   * there is a second, worse one: a repaint can be in flight while somebody is
-   * typing, and assigning here puts the stored name back over what they have
-   * just written. Making a Sammlung is exactly that case, because the field is
-   * filled the moment the row appears and the paint that made the row is still
-   * running. */
-  if (document.activeElement !== field) {
-    field.value = at < 0 ? "" : held.collections[at]!.name;
-  }
+  // Through refresh() rather than by assigning, which is the whole reason that
+  // function exists: it declines while the field is being typed in and while a
+  // keystroke is still waiting out its debounce, so a repaint cannot put the
+  // stored name back over what somebody has just written. Making a Sammlung is
+  // the case where that is guaranteed rather than likely - the field is filled
+  // the moment the row appears, and the paint that made the row is still
+  // running.
+  //
+  // Optional only because the binding is module state: app.ts wires before it
+  // paints and always has, so in practice there is always a field here.
+  name?.refresh(at < 0 ? "" : held.collections[at]!.name);
   field.placeholder = at < 0 ? t("ui.collection_name") : t("ui.collection_unnamed");
   field.disabled = at < 0;
-
 }
 
 /** There is always one, and it has a name.
@@ -309,36 +314,25 @@ async function showSidebar(open: boolean, remember = true): Promise<void> {
 
 /* --- Wiring ------------------------------------------------------------------ */
 
-let renameTimer: ReturnType<typeof setTimeout> | null = null;
-
 export function wireCollections(): void {
   $<HTMLButtonElement>("collectionNew").onclick = () => { void create(); };
   $<HTMLButtonElement>("sidebarHide").onclick = () => { void showSidebar(false); };
   $<HTMLButtonElement>("sidebarShowBtn").onclick = () => { void showSidebar(true); };
   void readSettings().then((held) => showSidebar(held.sidebarOpen !== false, false));
 
-  const field = $<HTMLInputElement>("collectionName");
-  const write = async () => {
-    if (renameTimer) clearTimeout(renameTimer);
-    renameTimer = null;
+  // The debounce, the write on the way out, and the rule that a repaint never
+  // types over you are all @lautstark/design/rename's now. What is left here is
+  // the half that is this product's: trimming, which Sammlung is being renamed,
+  // and what to say when the write fails.
+  name = renameField($<HTMLInputElement>("collectionName"), async (typed) => {
     if (!held.current) return;
     try {
-      await renameCollection(held.current, field.value.trim());
+      await renameCollection(held.current, typed.trim());
       await paintCollections();
     } catch (error) {
       status(t("ui.save_failed", { error: reason(error) }));
     }
-  };
-  // Debounced while typing, and again when the field is left, so a name typed
-  // and then clicked away from is written even if the last keystroke was inside
-  // the debounce. Repainting moves nothing under the caret: the field is only
-  // assigned in paintCollections(), and it is assigned the value it holds.
-  field.oninput = () => {
-    if (renameTimer) clearTimeout(renameTimer);
-    renameTimer = setTimeout(() => { void write(); }, 600);
-  };
-  field.onchange = () => { void write(); };
-  field.onkeydown = (event) => { if (event.key === "Enter") field.blur(); };
+  });
 
   $<HTMLButtonElement>("collectionMenu").onclick = (event) => {
     event.stopPropagation();
