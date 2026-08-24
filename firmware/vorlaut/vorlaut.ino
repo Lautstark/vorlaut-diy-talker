@@ -14,6 +14,7 @@
 #include <Adafruit_ST7735.h>
 #include <ESP_I2S.h>
 #include <driver/rtc_io.h>
+#include <driver/gpio.h>
 #include <esp_sleep.h>
 
 // --- Display ----------------------------------------------------------------
@@ -634,6 +635,20 @@ static void goToSleep() {
   digitalWrite(PIN_AMP_SD, LOW);
   i2s.end();
 
+  // Hold the backlight low through the sleep. Deep sleep stops driving the
+  // digital pins unless it is asked not to, so PIN_BL floated and the
+  // ScreenKeys lit themselves back up the moment the chip went under -
+  // displays properly off, five backlights on, all night, on a battery. It
+  // looks like a device that is awake and has nothing to say, which is the
+  // worst of both.
+  //
+  // The amplifier's SD wants the same treatment for the same reason: floating
+  // is not off, and a floating enable on a class-D amplifier is how a sleeping
+  // device hisses.
+  gpio_hold_en((gpio_num_t)PIN_BL);
+  gpio_hold_en((gpio_num_t)PIN_AMP_SD);
+  gpio_deep_sleep_hold_en();
+
   // Pull-ups have to stay active during sleep, otherwise the inputs float.
   uint64_t mask = 0;
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
@@ -667,11 +682,20 @@ void setup() {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     pinMode(PIN_BUTTON[i], INPUT_PULLUP);
   }
-  pinMode(PIN_BL, OUTPUT);
-  backlight(false);  // switch on only once there is really a picture
-
   const bool wokeFromSleep =
       esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1;
+
+  // Let go of what goToSleep() held. Until this the pins keep the level they
+  // slept at and pinMode/digitalWrite are quietly ignored, so the backlight
+  // would stay dark for the whole session rather than the whole sleep.
+  if (wokeFromSleep) {
+    gpio_deep_sleep_hold_dis();
+    gpio_hold_dis((gpio_num_t)PIN_BL);
+    gpio_hold_dis((gpio_num_t)PIN_AMP_SD);
+  }
+
+  pinMode(PIN_BL, OUTPUT);
+  backlight(false);  // switch on only once there is really a picture
 
   setupDisplays();
   setupAudio();
@@ -725,6 +749,11 @@ void setup() {
   Serial.printf("vorlaut build %s %s (amp wake %u ms, rx buffer %u)\n",
                 __DATE__, __TIME__, (unsigned)AMP_WAKE_MS,
                 (unsigned)CABLE_RX_BUFFER);
+  // How long the press-to-picture gap is. Everything up to here happens with
+  // the backlight deliberately off, so this number is exactly how long the
+  // device looks broken to somebody who has just pressed a key.
+  Serial.printf("  ready %u ms after %s\n", (unsigned)millis(),
+                wokeFromSleep ? "waking" : "power-on");
 
   lastActivity = millis();
 }
