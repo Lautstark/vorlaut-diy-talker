@@ -6,7 +6,7 @@ viewer, plus the fixtures an importer is checked against.
 | | |
 |---|---|
 | [`SPEC.md`](SPEC.md) | The specification. Version 1.0.0, **draft**. |
-| [`fixtures/`](fixtures/) | 13 `.obz` packages, each with an `.expected.json`. |
+| [`fixtures/`](fixtures/) | The `.obz` packages, each with an `.expected.json`. |
 | [`fixtures/index.json`](fixtures/index.json) | Machine-readable list of them. |
 | [`fixtures/source/`](fixtures/source/) | German fixture content, kept out of the generator. |
 | [`assets/`](assets/) | The images and audio the packages embed, committed. |
@@ -83,7 +83,9 @@ The contract:
    then `identity-a-v2`, into shared storage. Everything else is independent and
    SHOULD start from empty storage.
 
-A conformant importer produces the stated outcome for all 13.
+A conformant importer produces the stated outcome for every fixture in
+`index.json`. That file is the authoritative list — this README deliberately
+states no count, because one restated here drifts from the directory.
 
 ### What `.expected.json` says
 
