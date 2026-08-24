@@ -47,7 +47,7 @@ export const markup = `
     <div class="sidebar__part sidebar__grow">
       <h2 id="collectionsHeading"></h2>
       <!-- Filled by shell/collections.ts on every change to the list. -->
-      <nav class="sidebar__list" id="collectionList"></nav>
+      <nav class="collections sidebar__list" id="collectionList"></nav>
       <button id="collectionNew" class="btn quiet sm" type="button"></button>
     </div>
 
