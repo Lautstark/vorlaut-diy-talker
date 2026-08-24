@@ -10,9 +10,10 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --force",
-    "test": "vitest run",
+    "preflight": "node tools/installcheck.mjs",
+    "test": "node tools/installcheck.mjs && vitest run",
     "test:watch": "vitest",
-    "test:e2e": "BASE_PATH=/vorlaut/ npm run build && playwright test",
+    "test:e2e": "node tools/installcheck.mjs && BASE_PATH=/vorlaut/ npm run build && playwright test",
     "test:e2e:only": "playwright test",
     "build:pages": "BASE_PATH=/vorlaut/ npm run build"
   },

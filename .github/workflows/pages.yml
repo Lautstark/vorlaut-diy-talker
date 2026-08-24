@@ -43,6 +43,15 @@ jobs:
 
       - run: npm ci
 
+      - name: The install really is what package.json pins
+        # Before any suite, on its own, and it fails rather than warns. A stale
+        # node_modules surfaces as a test failing elsewhere with plausible
+        # numbers in it - see tools/installcheck.mjs. Distinct from the pins.js
+        # step below, which asks the opposite question of the same packages:
+        # this one asks whether the install matches the pin, that one whether
+        # the pin has fallen behind what upstream has published.
+        run: npm run preflight
+
       - name: Shared packages, and whether anything newer has shipped
         # Warns, never fails: being a patch behind is not a reason to block a
         # deploy that fixes something else. The pin is what stops an install
@@ -91,6 +100,12 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+
+      - name: The install really is what package.json pins
+        # This job installs afresh, so it is the lockfile disagreeing with
+        # package.json that would fire here rather than a stale node_modules.
+        # Cheap, and this is the job whose output people actually receive.
+        run: npm run preflight
 
       - name: Build
         # A project site is served from /<repo>/, so the bundle needs that base.
