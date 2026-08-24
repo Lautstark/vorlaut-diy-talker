@@ -53,21 +53,26 @@ export function applyTexts() {
   $<HTMLButtonElement>("overwriteBtn").textContent = t("ui.keep_mine");
   $<HTMLButtonElement>("reloadBtn").textContent = t("ui.reload");
 
-  // The sidebar. The rows in it are not here - they carry board names, which
-  // are somebody's own words, and shell/boards.ts draws them whenever the list
-  // moves. What is here is the furniture around them.
-  $("boardsHeading").textContent = t("ui.boards");
-  $<HTMLButtonElement>("boardNew").textContent = t("ui.board_new");
+  // The sidebar. The rows in it are not here - they carry names somebody typed,
+  // and shell/collections.ts draws them whenever the list moves. What is here
+  // is the furniture around them.
+  $("collectionsHeading").textContent = t("ui.collections");
+  $<HTMLButtonElement>("collectionNew").textContent = t("ui.collection_new");
   $<HTMLButtonElement>("settingsLink").textContent = t("ui.settings");
   // The same errand as the panel's own button, so the same word for it.
-  $<HTMLButtonElement>("importLink").textContent = t("ui.board_import");
-  // A field with no visible label: the board's name is its own heading, and a
-  // word in front of it would be a second one. So the name has to be said to
+  $<HTMLButtonElement>("importLink").textContent = t("ui.collection_import");
+  for (const [id, key] of [["sidebarHide", "ui.collections_hide"],
+                           ["sidebarShow", "ui.collections_show"]] as const) {
+    $<HTMLButtonElement>(id).title = t(key);
+    $<HTMLButtonElement>(id).setAttribute("aria-label", t(key));
+  }
+  // A field with no visible label: the Sammlung's name is its own heading, and
+  // a word in front of it would be a second one. So the name has to be said to
   // whoever cannot see that, and the menu beside it likewise - it is one
   // character wide and that character is not a word.
-  $<HTMLInputElement>("boardName").setAttribute("aria-label", t("ui.board_name"));
-  $<HTMLButtonElement>("boardMenu").title = t("ui.board_menu");
-  $<HTMLButtonElement>("boardMenu").setAttribute("aria-label", t("ui.board_menu"));
+  $<HTMLInputElement>("collectionName").setAttribute("aria-label", t("ui.collection_name"));
+  $<HTMLButtonElement>("collectionMenu").title = t("ui.collection_menu");
+  $<HTMLButtonElement>("collectionMenu").setAttribute("aria-label", t("ui.collection_menu"));
   $<HTMLButtonElement>("searchBtn").textContent = t("ui.search");
   $<HTMLButtonElement>("uploadBtn").textContent = t("ui.own_image");
   $<HTMLButtonElement>("closeBtn").textContent = t("ui.close");
@@ -107,8 +112,8 @@ export function applyTexts() {
   $("metacomIntro").textContent = t("ui.metacom_intro");
   outward("metacomLink", "ui.metacom_link", "ui.metacom_link_url");
   $("metacomLabel").textContent = t("ui.metacom_path");
-  $("boardSection").textContent = t("ui.board");
-  $("boardNote").textContent = t("ui.board_note");
+  $("boardSection").textContent = t("ui.collection");
+  $("boardNote").textContent = t("ui.collection_note");
   $("deviceSection").textContent = t("ui.device_section");
   $("deviceNote").textContent = t("ui.device_note");
   $<HTMLButtonElement>("deviceConnect").textContent = t("ui.device_connect");
@@ -122,8 +127,7 @@ export function applyTexts() {
   // rebuilt from the table on every status change instead, because the state
   // decides which words and which buttons there are - see ui/backupFolder.ts.
   $("folderLead").textContent = t("ui.folder_lead");
-  $<HTMLButtonElement>("boardExport").textContent = t("ui.board_export");
-  $<HTMLButtonElement>("boardImport").textContent = t("ui.board_import");
+  $<HTMLButtonElement>("boardImport").textContent = t("ui.collection_import");
   $<HTMLButtonElement>("gear").title = t("ui.settings");
   $<HTMLButtonElement>("gear").setAttribute("aria-label", t("ui.settings"));
   $<HTMLButtonElement>("azureSave").textContent = t("ui.azure_save");

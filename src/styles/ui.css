@@ -87,19 +87,50 @@ header .status { margin-left: auto; }
   align-items: flex-start; gap: 2px;
   padding-top: 10px; border-top: 1px solid var(--line);
 }
-/* One board. The name and nothing else - no set count - because at the moment
-   somebody reads this list the question is only which board this is. */
-.boardRow {
+/* One Sammlung: the name, and how much is in it. The count is the one fact
+   that tells two similarly named ones apart, and it is the number the delete
+   question will count with - so it is on screen before that question rather
+   than appearing for the first time when something is about to go. */
+.collectionRow {
+  display: flex; align-items: center; gap: 8px;
   text-align: left; width: 100%; padding: 8px 10px; border-radius: 8px;
   background: transparent; border: none; color: var(--text-dim);
   font: inherit; cursor: pointer;
-  /* A long name truncates rather than wrapping the row to two lines: the rows
-     are read as a column of names and an uneven one is harder to scan than a
-     clipped one. The full name is in the header field of whichever is open. */
+}
+/* A long name truncates rather than wrapping the row to two lines: the rows are
+   read as a column of names, and an uneven column is harder to scan than a
+   clipped one. The whole name is in the work head of whichever is open. */
+.collectionRow__name {
+  flex: 1 1 auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.boardRow:hover { background: var(--surface-2); color: var(--text); }
-.boardRow.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.collectionRow__count { flex: none; font-size: 12px; color: var(--text-dim); }
+.collectionRow:hover { background: var(--surface-2); color: var(--text); }
+.collectionRow.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+
+/* --------------------------------------------------------- the work head ---
+
+   The row above the editor: the name, the count, the one action that applies
+   to the whole Sammlung, and the ⋯. bildhaft's row, with the transfer button
+   where its print button is - the same question, answered down a cable
+   instead of on paper. */
+.workhead {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--line);
+}
+.workhead .count { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+/* The action and the ⋯ sit at the end, past whatever the name did not use. */
+.workhead .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* Put away, and the button that brings it back. Display rather than a width
+   transition: the sidebar is a grid column, and animating one costs a reflow of
+   the board beside it on every frame for a movement nobody is watching. */
+body.collapsed .sidebar { display: none; }
+body.collapsed .frame { grid-template-columns: minmax(0, 1fr); }
+.reveal {
+  position: fixed; left: 10px; top: 74px; z-index: 5;
+  background: var(--surface); border: 1px solid var(--line);
+}
 
 main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
 
@@ -330,15 +361,17 @@ pre.log {
     min-height: 0; padding: 10px 14px;
   }
   .sidebar__list { flex-direction: row; overflow-x: auto; gap: 6px; }
-  .boardRow { width: auto; flex: 0 0 auto; }
+  .collectionRow { width: auto; flex: 0 0 auto; }
   .sidebar__foot {
     flex-direction: row; align-items: center;
     margin-top: 0; padding-top: 8px;
   }
   /* The name field is the widest thing in the bar after the status line, and
-     a board named after a room and a time of day would push Release off a
-     375px screen on its own. */
+     a Sammlung named after a room and a time of day would push the transfer
+     button onto a second row on its own. */
   .title-input { max-width: 12ch; }
+  /* The work head wraps rather than squeezing, the way the header does. */
+  .workhead { flex-wrap: wrap; }
   /* Side by side the header used to need 493px - on a 375px wide display
      the right-hand end of it fell outside, with no way to scroll to it. So
      it wraps rather than being squeezed.

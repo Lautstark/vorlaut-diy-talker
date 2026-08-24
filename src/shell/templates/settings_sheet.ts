@@ -182,8 +182,10 @@ export const markup = `
     </summary>
     <div class="setting">
       <p class="lead" id="boardNote"></p>
+      <!-- Only the way in. Exporting is in the work head's ⋯, beside the
+           Sammlung it would export - it acts on one particular Sammlung and
+           this panel does not. -->
       <div class="row">
-        <button id="boardExport" class="btn" type="button"></button>
         <button id="boardImport" class="btn" type="button"></button>
       </div>
       <!-- What the last export or import did. In the body rather than the

@@ -27,10 +27,10 @@ import { useEditor } from "./core/editor.js";
 import { wireRelease } from "./editor-diy/release.js";
 import { diy, render, wireEditor } from "./editor-diy/editor.js";
 import { wireDevice } from "./editor-diy/device_panel.js";
-import { paintBoards, wireBoards } from "./shell/boards.js";
+import { ensureCollection, paintCollections, wireCollections } from "./shell/collections.js";
 import { loadSources, wirePicker } from "./shell/picker.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./shell/voices.js";
-import { wireSymbolFolder, wireBoard, wireData, wireSources } from "./shell/settings.js";
+import { wireSymbolFolder, wireImport, wireData, wireSources } from "./shell/settings.js";
 import { wireLegal } from "./shell/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
 import { exportEverything } from "./data/backup.js";
@@ -75,11 +75,11 @@ export function start(): void {
 // and connecting one looks like it did nothing.
 subscribeMetacom(render);
   wireEditor();
-  wireBoards();
+  wireCollections();
   wirePicker();
   wireSymbolFolder();
   wireSources();
-  wireBoard();
+  wireImport();
   wireData(backup);
   wireDevice();
   wireLanguage();
@@ -106,20 +106,22 @@ subscribeMetacom(render);
   // the first request takes.
   applyTexts();
   loadSources();
-  // The sidebar, before the board it points at: the list comes out of the
+  // The sidebar, before the Sammlung it points at: the list comes out of the
   // registry and does not wait on a layout, so drawing it first means the page
-  // is never briefly a board with no idea which board it is.
-  void paintBoards();
+  // is never briefly a Sammlung with no idea which one it is.
+  void paintCollections();
   // The voices are not asked for here: nothing outside the settings shows them,
   // and the sheet fetches them itself when it opens.
   //
-  // And again once the board is in force, because on a first visit that load
-  // is what *makes* the board: the registry is empty when the line above runs,
-  // and without this second pass the sidebar stayed empty until something else
-  // happened to redraw it - on the one visit where there is nothing else to
-  // click. e2e/boards.spec.ts is what caught it; a browser that had been here
-  // before never showed it.
-  load()
-    .then(paintBoards)
+  // And again once the layout is in force, because on a first visit that load
+  // is what *makes* the first Sammlung - and because the row's count and the
+  // work head's are read off the layout, which is not there until it lands.
+  // e2e/collections.spec.ts is what caught the first half; a browser that had
+  // been here before never showed it.
+  // A Sammlung to load, before loading one: the store would seed a blank layout
+  // for a browser that has none, and it has no language to name it with.
+  ensureCollection()
+    .then(load)
+    .then(paintCollections)
     .catch((error) => status(t("ui.load_failed", { error: reason(error) })));
 }

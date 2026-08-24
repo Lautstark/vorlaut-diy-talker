@@ -76,7 +76,7 @@ export interface SafeSettings {
  *  it keeps. The id travels so that a restore puts the same boards back rather
  *  than copies of them - see exchange/SPEC.md §8 for why that distinction has
  *  teeth. */
-export interface BackedBoard {
+export interface BackedCollection {
   id: string;
   name: string;
   layout: Layout;
@@ -89,7 +89,7 @@ export interface Backup {
   /** Every board, not only the one that happened to be open. A file that
    *  carried the open board alone would be a backup that silently loses two
    *  children's talkers out of three. */
-  boards: BackedBoard[];
+  boards: BackedCollection[];
   /** Which of them was open, so a restore opens it again. */
   current: string | null;
   /** Version 1 files have this instead of `boards`, and are still read. */
@@ -146,10 +146,10 @@ const fromBase64 = (data: string): ArrayBuffer => {
  *  enforces the general form of this: German lives in boot_data.ts alone. */
 export async function exportEverything(notice: string): Promise<Backup> {
   const listed = await store.listFiles("symbols");
-  const held = await store.readBoards();
+  const held = await store.readCollections();
 
-  const boards: BackedBoard[] = [];
-  for (const board of held.boards) {
+  const boards: BackedCollection[] = [];
+  for (const board of held.collections) {
     const layout = await store.readLayoutOf(board.id);
     // A row in the list with nothing behind it cannot happen through any write
     // in store.ts - both land in one transaction - but backing up a board of
@@ -222,7 +222,7 @@ export async function importBackup(backup: Backup): Promise<Restored> {
     }
   }
 
-  const incoming: store.IncomingBoard[] = backup.boards?.length
+  const incoming: store.IncomingCollection[] = backup.boards?.length
     ? backup.boards.map(({ id, name, layout }) => ({ id, name, layout }))
     // Version 1. The board it held, unnamed, with an id minted by the store.
     : backup.layout ? [{ name: "", layout: backup.layout }]
@@ -230,7 +230,7 @@ export async function importBackup(backup: Backup): Promise<Restored> {
 
   let open: Layout | null = null;
   if (incoming.length) {
-    const list = await store.replaceBoards(incoming, backup.current ?? null);
+    const list = await store.replaceCollections(incoming, backup.current ?? null);
     open = list.current ? await store.readLayoutOf(list.current) : null;
   }
 

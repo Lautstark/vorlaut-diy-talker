@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import type { BoardList, Layout } from "../../src/core/types.js";
+import type { CollectionList, Layout } from "../../src/core/types.js";
 
 /* The board somebody already had, after the page learned to hold several.
  *
@@ -87,18 +87,18 @@ describe("the upgrade from one board to a list of them", () => {
   });
 
   it("makes it board number one, and opens it", async () => {
-    const list: BoardList = await store.readBoards();
-    expect(list.boards).toHaveLength(1);
-    expect(list.current).toBe(list.boards[0]!.id);
-    expect(list.boards[0]!.id).toBeTruthy();
+    const list: CollectionList = await store.readCollections();
+    expect(list.collections).toHaveLength(1);
+    expect(list.current).toBe(list.collections[0]!.id);
+    expect(list.collections[0]!.id).toBeTruthy();
   });
 
   /* Unnamed rather than named down here. A name invented by the storage layer
    * would be in whichever language this file does not have, and the sidebar
    * already draws "Board 1" for a board nobody has named. */
   it("leaves it unnamed, for the list to draw a name for", async () => {
-    const list = await store.readBoards();
-    expect(list.boards[0]!.name).toBe("");
+    const list = await store.readCollections();
+    expect(list.collections[0]!.name).toBe("");
   });
 
   /* The stamp is a hash of the stored bytes and the build was recorded against
@@ -142,8 +142,8 @@ describe("the upgrade from one board to a list of them", () => {
     const result = await store.writeLayout(edited, held.version);
 
     expect(result.conflict).toBeFalsy();
-    const list = await store.readBoards();
-    expect(list.boards).toHaveLength(1);
+    const list = await store.readCollections();
+    expect(list.collections).toHaveLength(1);
     expect((await store.readLayout()).layout?.sets[0]?.name).toBe("Evening");
   });
 });

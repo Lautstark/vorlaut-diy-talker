@@ -101,12 +101,12 @@ test("the layout is what carries it, not this browser", async ({ page }) => {
     const open = indexedDB.open("vorlaut");
     open.onerror = () => resolve(null);
     open.onsuccess = () => {
-      // Whichever board is open: there is a list of them now, and each one's
+      // Whichever Sammlung is open: there is a list of them now, and each one's
       // layout stands under a key of its own. The language is still in the
       // layout rather than beside it, which is the whole of what this asserts.
       const content = open.result.transaction("content", "readonly")
         .objectStore("content");
-      const list = content.get("boards");
+      const list = content.get("collections");
       list.onerror = () => resolve(null);
       list.onsuccess = () => {
         const got = content.get("layout:" + (list.result as { current: string }).current);

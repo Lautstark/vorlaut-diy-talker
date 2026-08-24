@@ -18,21 +18,22 @@ export const markup = `
 <pre class="log" id="log"></pre>
 `;
 
-/* The header's slot for the two controls that are this device's rather than
- * the page's: the preview switch, which shows a tile at the 15.21 mm the
- * ScreenKeys actually have, and Release with the stop beside it.
- *
- * They were written into shell/templates/header.ts, which meant the shared bar
- * across the top carried a button about a cable. The header keeps a named
- * empty span and the editor fills it, so a page with a different editor on it
- * gets that editor's controls there and no leftovers.
- */
+/* The device preview, which belongs in the page header: it is a way of looking
+ * at what is on screen rather than a thing done to a Sammlung, and it is
+ * reached constantly. */
 export const tools = `
 <label class="toggle" id="previewLabel">
   <input type="checkbox" id="previewToggle">
   <span class="pill"></span>
   <span id="previewText"></span>
 </label>
+`;
+
+/* The one action that applies to the whole Sammlung, in the work head's slot
+ * beside its name. It was in the page header, where the object it acts on had
+ * to be inferred - which is exactly the inference that goes wrong on a page
+ * that can switch Sammlung. conventions.md §3.3. */
+export const action = `
 <button class="btn primary" id="releaseBtn" type="button"></button>
 <!-- Only while something is going down the cable. Hidden rather than
      disabled: a stop that is there but greyed out most of the time reads as
@@ -41,7 +42,8 @@ export const tools = `
 <button class="btn quiet" id="releaseStop" type="button" hidden></button>
 `;
 
-export function render(where: HTMLElement, toolbar: HTMLElement): void {
+export function render(where: HTMLElement, toolbar: HTMLElement, head: HTMLElement): void {
   mount(where, markup);
   mount(toolbar, tools);
+  mount(head, action);
 }

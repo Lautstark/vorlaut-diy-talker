@@ -24,6 +24,7 @@
  *             none, and the settings sheet has its own specimen for that.
  *   labels()  the fixed words on the editor's own controls, re-read whenever
  *             the language moves.
+ *   count()   how much is in one, for the list and for the delete question.
  */
 import type { Layout } from "./types.js";
 
@@ -38,6 +39,11 @@ export interface Editor {
   sample(): string;
   /** Re-read the fixed labels on the controls this editor owns. */
   labels(): void;
+  /** How many things are in this layout, for the sidebar's row and for the
+   *  question asked before one is deleted. What is being counted is the
+   *  device's answer - sets here, pages or sentences in whatever comes next -
+   *  so the shell asks rather than reaching into the layout and counting. */
+  count(layout: Layout): number;
 }
 
 let installed: Editor | null = null;

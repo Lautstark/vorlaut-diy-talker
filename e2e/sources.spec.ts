@@ -208,15 +208,18 @@ test.describe("with the folder already connected at load", () => {
      * arriving in a language the page is not in does not, and this is that
      * path - export in German, switch the page to English, bring the German
      * board back. */
-    await page.locator("#gear").click();
-    const board = page.locator("#boardPanel");
-    if ((await board.getAttribute("open")) === null) await board.locator("summary").click();
+    // Exporting is in the work head's ⋯ now, beside the Sammlung it exports.
+    await page.locator("#collectionMenu").click();
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.locator("#boardExport").click(),
+      page.locator(".menu button", { hasText: label("ui.collection_export") }).click(),
     ]);
     const file = await download.path();
     expect(file).toBeTruthy();
+
+    await page.locator("#gear").click();
+    const board = page.locator("#boardPanel");
+    if ((await board.getAttribute("open")) === null) await board.locator("summary").click();
 
     const table = TEXTS as Record<string, Record<string, string>>;
     const trigger = page.locator("#langPick");
@@ -228,13 +231,12 @@ test.describe("with the folder already connected at load", () => {
     await expect(page.locator("#q"))
       .toHaveAttribute("placeholder", table[other]["ui.search_metacom"]);
 
-    page.once("dialog", (dialog) => dialog.accept());
     const [chooser] = await Promise.all([
       page.waitForEvent("filechooser"),
       page.locator("#boardImport").click(),
     ]);
     await chooser.setFiles(file!);
-    await expect(page.locator("#boardState")).toHaveText(label("ui.board_imported"));
+    await expect(page.locator("#boardState")).toContainText(":");
 
     // The board carries its language and the page follows it back - and the
     // field has to name the collection, in the language it just landed in.

@@ -71,12 +71,12 @@ const IDB = `
     held.onsuccess = () => keep(held.result);
     held.onerror = () => drop(held.error);
   });
-  /* The layout of whichever board is open. There is a list of boards now, and
-     each one's layout stands under a key of its own, so a seed has to ask
-     which board the page is editing rather than write to a fixed key. The page
-     has loaded by the time this runs, so there is always one. */
+  /* The layout of whichever Sammlung is open. There is a list of them now, and
+     each one's layout stands under a key of its own, so a seed has to ask which
+     one the page is editing rather than write to a fixed key. The page has
+     loaded by the time this runs, so there is always one. */
   const seedLayout = async (db, text) => {
-    const list = await get(db, "content", "boards");
+    const list = await get(db, "content", "collections");
     await put(db, "content", { text, version: "seeded" },
               "layout:" + list.current);
   };

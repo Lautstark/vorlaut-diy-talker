@@ -99,12 +99,15 @@ usePiperRuntime(piperRuntime({
 // where the reasoning about ids, duplication and deletion lives - these are
 // here because backend/index.ts is the whole list of ways the page reaches the
 // outside, and a board list read around it would be a second door.
-export const listBoards = store.readBoards;
-export const createBoard = store.createBoard;
-export const duplicateBoard = store.duplicateBoard;
-export const renameBoard = store.renameBoard;
-export const deleteBoard = store.deleteBoard;
-export const useBoard = store.useBoard;
+export const listCollections = store.readCollections;
+export const createCollection = store.createCollection;
+export const duplicateCollection = store.duplicateCollection;
+export const renameCollection = store.renameCollection;
+export const deleteCollection = store.deleteCollection;
+export const useCollection = store.useCollection;
+// One Sammlung's layout without opening it, which is how the sidebar counts
+// what is in the ones that are not on screen.
+export const layoutOf = store.readLayoutOf;
 
 // --- The layout --------------------------------------------------------------
 
@@ -517,7 +520,9 @@ export async function readSettings(): Promise<Settings> {
 
 export async function writeSettings(wanted: WantedSettings): Promise<Settings> {
   const held = await store.readSettings(NO_SETTINGS);
-  const next = { ...held, azureRegion: wanted.azureRegion || "" };
+  const next = { ...held };
+  if (wanted.azureRegion !== undefined) next.azureRegion = wanted.azureRegion;
+  if (wanted.sidebarOpen !== undefined) next.sidebarOpen = wanted.sidebarOpen;
   // Absent means "leave it alone", null means "clear it" - the same rule the
   // key below follows, so a save about the region cannot drop the rendering.
   if (wanted.metacomRendering !== undefined) {

@@ -1,6 +1,11 @@
-/* The bar across the top: the logo, the name of the board being edited, the
- * status line, whatever controls the editor puts in it, the board menu and the
- * gear. It belongs to no one feature - app.ts is what wires it - which is
+/* The bar across the top: the logo, the wordmark, the status line, whatever
+ * the editor puts in it, and the gear.
+ *
+ * What is deliberately not here is anything that acts on the Sammlung being
+ * edited - its name, its count, its ⋯ and the button that sends it to the
+ * device are all in the work head, beside the thing they act on. A page that
+ * can switch Sammlung cannot afford an action in the bar whose object has to
+ * be inferred. It belongs to no one feature - app.ts is what wires it - which is
  * exactly why it is worth having its own file rather than being the part of
  * index.html nobody could name an owner for. */
 import { mount } from "./mount.js";
@@ -16,11 +21,6 @@ export const markup = `
 <header>
   <img src="${logo}" alt="" class="logo">
   <h1>vorlaut</h1>
-  <!-- The board's name IS the field that renames it - bildhaft's title input.
-       No dialog and no menu entry: renaming a thing you are looking at should
-       be typing over its name. Debounced while typing and written again when
-       the field is left, the same way every other edit on this page saves. -->
-  <input type="text" id="boardName" class="title-input" autocomplete="off">
   <!-- role="status" is aria-live="polite". It belongs on the element rather
        than being set when there is something to say: a live region has to be
        in the accessibility tree already when the text lands, or the reader has
@@ -29,15 +29,9 @@ export const markup = `
        and without it every "saved", "released" and failure here was silent. -->
   <span class="status" id="status" role="status"></span>
   <!-- Whatever the editor in force puts here. For the five-key talker that is
-       the device preview and Release; see editor-diy/templates/board.ts. The
-       span is named and empty, so the header can be read without knowing which
-       editor is mounted. -->
+       the device preview, and only that: the action that puts a Sammlung on
+       the talker is in the work head beside the Sammlung it acts on. -->
   <span class="tools" id="editorTools"></span>
-  <!-- What can be done to the board that is open, and only that board. It is
-       here rather than in the sidebar because a button in a list of five
-       boards can never say which one it means. -->
-  <span class="menu-anchor"><button id="boardMenu" class="btn quiet icon" type="button"
-    aria-haspopup="menu" aria-expanded="false">⋯</button></span>
   <!-- Last, past everything. The gear is the way out of this page rather than
        a thing to do on it, and it sat second - between the name and the
        status - where it read as the first of the actions. -->

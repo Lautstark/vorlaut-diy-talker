@@ -8,14 +8,14 @@ import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
-import { readSettings, writeSettings, exportBoard, importBoard, azureState }
-  from "../backend/index.js";
+import { readSettings, writeSettings, importBoard, azureState, createCollection,
+  useCollection } from "../backend/index.js";
 import { applyTheme, readTheme, saveTheme, THEMES, type Theme }
   from "@lautstark/design/theme";
 import { t } from "../core/texts.js";
 import { LANG } from "../core/boot.js";
-import { load, replaceLayout } from "../core/save.js";
-import { paintBoards } from "./boards.js";
+import { load } from "../core/save.js";
+import { paintCollections } from "./collections.js";
 import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
 import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
@@ -309,43 +309,27 @@ function renderHere() {
   }
 }
 
-/* ------------------------------------------------- the board as a document ---
+/* ------------------------------------------ a Sammlung as a document ---
  *
- * Open Board Format, which is what other AAC software reads. The buttons live
- * in the settings sheet rather than the header because this is not something
- * anybody does while editing - it is how a board leaves or arrives.
+ * Open Board Format, which is what other AAC software reads. Only the way *in*
+ * is here: exporting is in the work head's ⋯, beside the Sammlung it would
+ * export, because that is an act on one particular Sammlung and this is not.
+ *
+ * **It adds; it never replaces.** A file arriving joins the Sammlungen already
+ * here, as a new one, named after the file it came from. Replacing was the old
+ * behaviour and the argument for it was thin: the two acts are asked for in
+ * different words - "open this" and "put my machine back" - and only the second
+ * is destructive. Replacing on import made the file's contents and the
+ * library's mutually exclusive for no reason anybody asked for; the person has
+ * both, and wanted both. conventions.md §1.10.
+ *
+ * There is nothing to confirm, which is the other half of adding: nothing is
+ * lost, so nothing has to be agreed to first.
  */
-export function wireBoard() {
-  $<HTMLButtonElement>("boardExport").onclick = async () => {
-    $("boardState").textContent = "";
-    try {
-      const blob = await exportBoard();
-      // Handed to the browser as a download rather than kept anywhere: the
-      // point of the export is that it leaves.
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "board.obz";
-      link.click();
-      // Revoked later rather than here. The click returns before the browser
-      // has opened the URL, and a blob revoked in that gap is a download that
-      // silently never begins - the e2e's waitForEvent("download") is what
-      // caught it. A minute is arbitrary and generous; the cost of holding a
-      // small blob that long is nothing next to an export that sometimes
-      // does not happen.
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      $("boardState").textContent = t("ui.board_exported");
-    } catch (error) {
-      $("boardState").textContent = t("ui.board_failed", { error: reason(error) });
-    }
-  };
-
-  // Two ways in, one errand. The panel's button is where a board is exported
-  // from, so its opposite belongs beside it; the sidebar's is where somebody
-  // stands when they are thinking about boards at all, and looking for the way
-  // in there and finding nothing is how a feature goes unused. Both open the
-  // same file dialog and both replace the board that is open - which is what
-  // the question below says out loud before anything is lost.
+export function wireImport() {
+  // Two ways in, one errand. The sidebar's is where somebody stands when they
+  // are thinking about Sammlungen at all; the panel's is beside the prose that
+  // says what the format is.
   const openFile = () => $<HTMLInputElement>("boardFile").click();
   $<HTMLButtonElement>("boardImport").onclick = openFile;
   $<HTMLButtonElement>("importLink").onclick = openFile;
@@ -356,14 +340,17 @@ export function wireBoard() {
     $("boardState").textContent = "";
     try {
       const layout = await importBoard(file);
-      // Read first, ask second: a board that turns out to be unreadable should
-      // not have cost anybody a question, and this is the only chance to say
-      // what is about to be replaced while both still exist.
-      if (!confirm(t("ui.board_replace_ask"))) return;
-      await replaceLayout(layout);
-      $("boardState").textContent = t("ui.board_imported");
+      // The file's own name, minus its extension: it is what the person called
+      // the thing, and it is the only name in the transaction. An .obz carries
+      // a name per board - per OBF page - and no name for the document.
+      const name = file.name.replace(/\.[^.]+$/, "").trim() || t("ui.collection_name");
+      const id = await createCollection(name, layout);
+      await useCollection(id);
+      await load();
+      await paintCollections();
+      $("boardState").textContent = t("ui.collection_imported", { name });
     } catch (error) {
-      $("boardState").textContent = t("ui.board_failed", { error: reason(error) });
+      $("boardState").textContent = t("ui.collection_failed", { error: reason(error) });
     }
   };
 }
@@ -422,7 +409,7 @@ export function wireData(backup: Sicherung) {
       // write the restored board straight back under the version from before
       // the restore, which is this tab conflicting with itself.
       await load();
-      await paintBoards();
+      await paintCollections();
       $("dataState").textContent =
         t("ui.data_imported", { boards: done.boards, symbols: done.symbols });
     } catch (error) {

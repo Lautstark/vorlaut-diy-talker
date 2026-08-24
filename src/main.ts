@@ -58,7 +58,8 @@ frame.render();
 // templates above have just put in the document, which is why this line is
 // below them rather than beside its own import.
 board.render(document.getElementById("editor")!,
-             document.getElementById("editorTools")!);
+             document.getElementById("editorTools")!,
+             document.getElementById("collectionAction")!);
 // Under the board, and it is the last thing in the page's flow. The three
 // after it are dialogs: they sit over everything when they are open and take
 // no room at all when they are not, so where they mount decides nothing.

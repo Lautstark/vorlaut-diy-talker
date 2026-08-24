@@ -539,6 +539,13 @@ export const diy: Editor = {
     return slot ? slot.text.trim() : "";
   },
 
+  /* How many sets are in a layout. The sidebar draws it beside the name and
+   * the delete question counts with it, and neither of them knows the word
+   * "set" - they ask for a number and put the editor's own label beside it. */
+  count(layout: Layout): number {
+    return layout.sets?.length ?? 0;
+  },
+
   /* The fixed words on the controls this editor owns. They sit in the header
    * and in the board, and they are re-read on every language switch like every
    * other label - applyTexts() calls this rather than naming these five ids
