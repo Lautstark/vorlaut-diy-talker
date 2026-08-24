@@ -165,16 +165,33 @@ secondary contributor. What dominates is that the sketch writes 50 ms of
 silence and then sits in `delay(1500)` feeding the bus nothing, so the DMA
 underruns between sounds and the discontinuity lands at both edges.
 
-**The firmware does the same thing.** `playWav()` pushes its silence, drops
-`SD` and returns, and nothing writes to I2S again until the next key press —
-which on a talker is not 1.5 seconds but minutes. Feeding the bus for as long
-as the device is awake, and stopping it properly on the way into deep sleep,
-is what this measurement asks for. It is **not changed yet**: it trades
-against idle current, it needs the amplifier question answered alongside it,
-and neither can be judged until stage 7 runs. The silence `playWav()` already
-pushes before switching off is fine and was never the problem.
+**The firmware has the same gap**, and on a talker it is minutes rather than
+1.5 seconds: `playWav()` pushes its silence, drops `SD` and returns, and
+nothing writes to I2S until the next key press.
 
-A faint click survives all of this and is still unaccounted for.
+**Judged on 2026-08-24, once stage 7 had run: nothing needs doing.** Nobody
+hears it, because the amplifier is switched off across exactly the gaps where
+the bus is starving. The underrun is real and inaudible, and the two facts are
+the same fact.
+
+That is worth stating as a coupling rather than a fix, because it is the sort
+of thing that is rediscovered expensively. **The amplifier may not be held on
+until I2S is fed continuously.** Holding it on is otherwise attractive - it
+would cure the pop at switch-on, the quiet start to every word while the
+MAX98357A comes up, and a fragment cut short being mostly ramp. It was tried
+on 2026-08-24 and the device hissed audibly between words. That hiss was this
+click, amplified for the first time. Feeding the bus is the price of the
+amplifier, and it is not a line moved: `loop()` has several return paths and a
+`delay(1500)` in the cable branch, so it means silence written in place of
+every wait, or audio on a task of its own.
+
+What was done instead, and was enough: `AMP_WAKE_MS` is 50 ms rather than 5,
+so a word no longer starts inside the amplifier's ramp, and the silence after
+a word is 96 ms rather than 256. No click, no hiss, and ten presses in ten
+speak.
+
+A faint click survived all four bench experiments and was never accounted for.
+It has not been heard on the finished device.
 
 ## Stage 6 — Content over the cable
 
