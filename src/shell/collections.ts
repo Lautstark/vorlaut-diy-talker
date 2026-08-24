@@ -25,16 +25,17 @@
  */
 import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
-import { confirmDialog } from "@lautstark/design/dialog";
+import { confirmDialog, openDialog } from "@lautstark/design/dialog";
 import { renameField, type RenameField } from "@lautstark/design/rename";
 import { drawCollections } from "@lautstark/design/collections";
 import { reason } from "../core/errors.js";
 import {
-  createCollection, deleteCollection, exportAppPackage, exportBoard,
+  createCollection, deleteCollection, exportBoard,
   layoutOf, listCollections, readSettings, renameCollection, useCollection,
   writeSettings,
 } from "../backend/index.js";
-import { editor } from "../core/editor.js";
+import { editorFor, editorOf, FIRST_TARGET } from "../core/editor.js";
+import { offer, openPackageExport } from "./packageExport.js";
 import { state } from "../core/state.js";
 import { load, saveNow } from "../core/save.js";
 import { t } from "../core/texts.js";
@@ -44,7 +45,8 @@ import { t } from "../core/texts.js";
 // file name is the same question asked about a different destination.
 import { safeName } from "../data/store.js";
 import { LANG } from "../core/boot.js";
-import type { CollectionList } from "../core/types.js";
+import { isApp } from "../core/types.js";
+import type { CollectionList, Target } from "../core/types.js";
 
 /** The list as it was last read. Kept so that the name field and the menu do
  *  not each have to go back to the store to find out which one is open. */
@@ -90,9 +92,16 @@ export async function paintCollections(): Promise<void> {
    * registry and being wrong about it. */
   const counts = new Map<string, number>();
   await Promise.all(held.collections.map(async (one) => {
-    if (one.id === held.current) { counts.set(one.id, editor().count(state.layout)); return; }
+    if (one.id === held.current) {
+      counts.set(one.id, editorOf(state.layout).count(state.layout));
+      return;
+    }
     const layout = await layoutOf(one.id);
-    if (layout) counts.set(one.id, editor().count(layout));
+    // Each Sammlung counted by *its own* editor, not by whichever one is on
+    // screen. This read `editor().count(...)` while there was one, and the
+    // first tablet Sammlung in a list opened on a talker Sammlung would have
+    // been counted in sets, found none, and drawn "0" beside sixty buttons.
+    if (layout) counts.set(one.id, editorOf(layout).count(layout));
   }));
 
   const list = $("collectionList");
@@ -146,7 +155,10 @@ export async function ensureCollection(): Promise<void> {
   if (list.collections.length) return;
   // Unnamed on purpose: the language is not settled until load() has read the
   // layout this creates. nameIfUnnamed() below is what names it, afterwards.
-  await createCollection("", editor().blank());
+  // The talker's, because this is the seed a browser with nothing in it gets
+  // and there is nobody to ask yet - the target dialog belongs to a press on
+  // "+ Neue Sammlung", and this runs before the page has drawn.
+  await createCollection("", editorFor(FIRST_TARGET).blank());
 }
 
 /** Gives the open Sammlung a name if it has none, in the language the page has
@@ -178,14 +190,85 @@ async function open(id: string): Promise<void> {
   await saveNow();
   await useCollection(id);
   // load() re-reads the layout, adopts its own language, resets the version
-  // this page holds and tells the editor to let go of where it was.
+  // this page holds and tells the editor to let go of where it was - which now
+  // includes installing a different editor when the two Sammlungen are for
+  // different things.
   await load();
   await paintCollections();
 }
 
+/* Which editor a new Sammlung gets, asked once and never again.
+ *
+ * A dialog rather than two buttons in the sidebar, because "+ Neue Sammlung"
+ * is one act with a question inside it and two entries would put the whole of
+ * this decision in the width of a rail. Dismissing it makes nothing at all -
+ * the rule this page keeps everywhere, and the reason the question comes
+ * before the write rather than after.
+ *
+ * The note under the two says it does not change later. That is the one thing
+ * somebody could reasonably expect to be able to undo, and the moment to say
+ * so is while they are choosing rather than when they go looking for a switch.
+ */
+function askTarget(): Promise<Target | null> {
+  return new Promise((resolve) => {
+    /* Settled from the presses, with a guard, and the `close` event only for
+     * the ways out that are not a press. That is design.md §3.4's rule, and
+     * this file talked itself out of it once: the reasoning was that the
+     * presses close the dialog, so one exit through `close` covers everything.
+     * It does not. `close` is what a *host* fires, and a host that hides the
+     * dialog without firing it leaves this promise pending for the life of the
+     * page - what somebody sees is a button that did nothing, with no error
+     * anywhere. e2e/collections.spec.ts makes the host into exactly that one,
+     * and it is the test that caught this.
+     *
+     * So each choice resolves for itself, `close` resolves null for the
+     * dismissal, and `settled` makes the second of those a no-op. A host that
+     * fires `close` twice still resolves once; a host that fires none still
+     * resolves. */
+    let settled = false;
+    const finish = (target: Target | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(target);
+      // After resolving, so that a close event arriving as a consequence of
+      // this call finds the guard already set.
+      sheet?.close();
+    };
+
+    const body: HTMLElement[] = [];
+    for (const target of ["diy", "app"] as const) {
+      const choice = document.createElement("button");
+      choice.className = "btn choice";
+      choice.type = "button";
+      const head = document.createElement("strong");
+      head.textContent = t(`ui.collection_target_${target}`);
+      const note = document.createElement("span");
+      note.textContent = t(`ui.collection_target_${target}_note`);
+      choice.append(head, note);
+      choice.onclick = () => finish(target);
+      body.push(choice);
+    }
+    const note = document.createElement("p");
+    note.className = "note";
+    note.textContent = t("ui.collection_target_note");
+    body.push(note);
+
+    const sheet: ReturnType<typeof openDialog> | undefined = openDialog({
+      title: t("ui.collection_target"),
+      closeLabel: t("ui.close"),
+      body,
+      onClose: () => finish(null),
+    });
+  });
+}
+
 async function create(): Promise<void> {
+  const target = await askTarget();
+  // Dismissed. Nothing was written and nothing is said: a dialog somebody
+  // closes should cost exactly what it looked like it would.
+  if (!target) return;
   await saveNow();
-  const id = await createCollection(defaultName(), editor().blank());
+  const id = await createCollection(defaultName(), editorFor(target).blank());
   await useCollection(id);
   await load();
   await paintCollections();
@@ -197,30 +280,21 @@ async function create(): Promise<void> {
   field.select();
 }
 
-/** Hands a finished file to the browser as a download.
- *
- * The revoke is late rather than immediate: the click returns before the
- * browser has opened the URL, and a blob revoked in that gap is a download
- * that silently never begins.
- */
-function offer(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
+/** The open Sammlung's name as somebody would read it, fallback included. */
+const currentName = (): string => {
+  const at = held.collections.findIndex((one) => one.id === held.current);
+  return at < 0 ? "" : nameOf(held.collections[at]!.name);
+};
 
 /** The name of the Sammlung, as something a file system will take. safeName()
  *  is the store's, so a downloaded file and a file written into a folder are
  *  named by the same rule. */
-const fileStem = (): string => {
-  const at = held.collections.findIndex((one) => one.id === held.current);
-  return safeName(nameOf(held.collections[at]!.name));
-};
+const fileStem = (): string => safeName(currentName());
 
-/** The Sammlung as a document other AAC software opens: symbols by reference. */
+/** The Sammlung as a document other AAC software opens: symbols by reference.
+ *
+ *  The talker's, and only the talker's: obf.ts writes sets, the ring and the
+ *  hole where the speaker is. The ⋯ does not offer it on a tablet Sammlung. */
 async function exportOne(): Promise<void> {
   if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
   try {
@@ -238,50 +312,50 @@ async function exportOne(): Promise<void> {
  * A second entry rather than an option on the first, all the way down to the
  * backend - exchange/SPEC.md §5.2, and the note above exportAppPackage().
  *
- * It can take a while, because every sentence with no recording yet is
- * synthesised before it can be encoded. The status line says so first, since
- * this is the one thing in the menu that is not instant.
+ * Exported, because it is the one whole-Sammlung act a tablet Sammlung has and
+ * editor-app puts it in the work head's slot beside the name (conventions.md
+ * §3.3), exactly as the talker puts its transfer there. For a talker Sammlung
+ * it stays in the ⋯ with the other export - getting one onto the *device* is
+ * what that slot means there, and this is a second way out rather than the way
+ * out.
+ *
+ * The wait, the count and the way to stop are in shell/packageExport.ts, and
+ * they are there because a full tablet Sammlung is hundreds of syntheses.
  */
-async function exportApp(): Promise<void> {
+export async function exportApp(): Promise<void> {
   if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
-  try {
-    await saveNow();
-    status(t("ui.collection_exporting_app"));
-    const { blob, missing } = await exportAppPackage();
-    offer(blob, `${fileStem()}-app.obz`);
-    // Missing pictures are worth a sentence rather than a refusal: the package
-    // works, the viewer marks those buttons, and the usual cause is a METACOM
-    // folder this browser has not been given back yet.
-    status(missing
-      ? t("ui.collection_exported_app_gaps", { n: missing })
-      : t("ui.collection_exported_app"));
-  } catch (error) {
-    status(t("ui.collection_export_failed", { error: reason(error) }));
-  }
+  await saveNow();
+  openPackageExport(currentName(), fileStem());
 }
 
 /** Gone, once somebody has said so to a question that named what goes.
  *
- * The number of sets is in the question because a Sammlung is a folder somebody
- * cannot see into from the sidebar - the row shows a name and a count, and the
- * count is the thing that could change their mind. Closing the dialog any other
- * way deletes nothing.
+ * The count is in the question because a Sammlung is a folder somebody cannot
+ * see into from the sidebar - the row shows a name and a number, and the
+ * number is the thing that could change their mind. Closing the dialog any
+ * other way deletes nothing.
  */
 async function remove(): Promise<void> {
   const id = held.current;
   if (!id) return;
   const at = held.collections.findIndex((one) => one.id === id);
   const name = nameOf(held.collections[at]!.name);
-  const sets = editor().count(state.layout);
-  // One set is the common case and "1 Set(s)" is not a sentence anybody wrote.
-  // Two keys rather than a plural rule: this page has two languages and both
-  // want a different word here, and a rule covering German and English would
-  // still be wrong for the third.
-  const one = sets === 1 ? "_one" : "";
+  const which = editorOf(state.layout);
+  const n = which.count(state.layout);
+  // What is being counted is the editor's answer - sets on the device, buttons
+  // on a tablet - so the *word* is too. A shared sentence with a {unit} hole
+  // would not survive German: the two nouns take different articles, so the
+  // singular sentence differs in a word no plural rule reaches.
+  //
+  // One is the common case and "1 Set(s)" is not a sentence anybody wrote. Two
+  // keys rather than a plural rule: this page has two languages and both want
+  // a different word here, and a rule covering German and English would still
+  // be wrong for the third.
+  const one = n === 1 ? "_one" : "";
   if (!await confirmDialog({
     title: t("ui.collection_delete"),
-    body: t(`ui.collection_delete_ask${one}`, { name, n: sets }),
-    confirmLabel: t(`ui.collection_delete_go${one}`, { n: sets }),
+    body: t(`ui.collection_delete_ask_${which.unit}${one}`, { name, n }),
+    confirmLabel: t(`ui.collection_delete_go_${which.unit}${one}`, { n }),
     cancelLabel: t("ui.cancel"),
     // Never the same word as the button beside it: two dismissals sharing an
     // accessible name is ambiguous to anyone navigating by it.
@@ -335,8 +409,23 @@ export function wireCollections(): void {
   $<HTMLButtonElement>("collectionMenu").onclick = (event) => {
     event.stopPropagation();
     menuOn($("collectionMenu"), (add) => {
-      add(t("ui.collection_export"), () => { void exportOne(); });
-      add(t("ui.collection_export_app"), () => { void exportApp(); });
+      /* Both exports for a talker Sammlung; for a tablet's, neither here.
+       *
+       * The document export is obf.ts's, and obf.ts writes the five-key
+       * device: sets, the ring, the hole where the speaker is. It has nothing
+       * to say about a page of a grid, and a menu entry that would produce a
+       * wrong file is worse than no entry - exchange/SPEC.md §7.4's argument
+       * about a button that looks live and does the wrong thing, one floor up.
+       *
+       * The package export is not missing on a tablet Sammlung, it has moved:
+       * it is that Sammlung's one whole-Sammlung act, so editor-app puts it in
+       * the work head beside the name (conventions.md §3.3). Two doors to one
+       * act is two things to keep in step for no gain - the same argument that
+       * took the gear out of the page header. */
+      if (!isApp(state.layout)) {
+        add(t("ui.collection_export"), () => { void exportOne(); });
+        add(t("ui.collection_export_app"), () => { void exportApp(); });
+      }
       add(t("ui.collection_delete"), () => { void remove(); }, { danger: true });
     });
   };

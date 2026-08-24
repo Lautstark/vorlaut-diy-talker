@@ -756,3 +756,108 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .folderbox { margin: 2px 0 10px; }
 .folderbox[hidden] { display: none; }
 .folderbox .row { margin-top: 8px; }
+
+/* ---------------------------------------------------------------------------
+   The tablet editor.
+
+   Everything in here is editor-app's and nothing else uses it. It sits beside
+   the five-key board's rules rather than in a file of its own for the same
+   reason those are here: this is the layout that is vorlaut's alone, and the
+   vocabulary it is written in - .btn, .tab, the tokens - comes from
+   @lautstark/design one layer down. */
+
+.appbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.appbar .tabs { margin-bottom: 0; }
+/* The grid's size sits at the far end of the bar, away from the pages: it is a
+   fact about the Sammlung rather than about the page on screen, and putting it
+   next to the strip would read as belonging to whichever tab is current. */
+.appbar__grid { margin-left: auto; display: flex; align-items: center; gap: 6px;
+                color: var(--text-dim); font-size: 13px; }
+.appbar__grid .num { width: 4.5em; }
+
+/* A page tab wears its own colour as a bar down the side - the same colour the
+   tablet draws round the whole page. Not as a background: ten pages of filled
+   tabs is a strip that competes with the board under it, and the colour's job
+   here is only to say "this tab is that page". */
+.tab { border-left: 4px solid var(--page-color, transparent); }
+.tab.current { color: var(--text); background: var(--surface-2); }
+.tab__home, .tab__lost { font-size: 12px; line-height: 1; }
+.tab__lost { color: var(--warn, #c76a00); }
+
+/* The grid, at the shape the tablet will draw it in. `aspect-ratio` rather
+   than a fixed cell size, so that 3x5 and 6x11 both fill the column and a
+   6x11 board is legibly the denser one - which is the thing somebody is
+   deciding about when they change the numbers above. */
+/* The tablet board wants the width the five-key board does not.
+ *
+ * `main` is capped at 640px because three cards across read better centred
+ * than stretched. This board is up to eleven cells across, and 640px makes
+ * those about 45px wide - narrow enough that every label is an ellipsis, which
+ * takes away the thing the grid is *for*: knowing where a word sits without
+ * reading it.
+ *
+ * So the cap moves for this editor and only for it, chosen by what is in the
+ * page rather than by a class the shell would have to know to set. A browser
+ * without `:has()` keeps the narrow column, which is cramped rather than
+ * broken. The panel below widens with it and that is fine - it is a row of
+ * fields, not prose. */
+.content:has(#appGrid) main { max-width: 1100px; }
+
+.appgrid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows, 3), minmax(0, 1fr));
+  gap: 6px; margin-bottom: 16px;
+}
+.appcell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; aspect-ratio: 4 / 3; min-width: 0; padding: 4px;
+  border-radius: 10px; cursor: pointer; position: relative;
+  background: var(--cell-color, var(--surface)); color: #1c1f24;
+  border: 2px solid var(--line);
+}
+/* The label sits over a word-class colour, which is a light fill from the
+   Fitzgerald key - so the text on a cell is dark whatever the page's theme is.
+   A cell with no class keeps the surface colour and the theme's own text. */
+.appcell:not([style*="--cell-color"]) { color: var(--text); }
+.appcell.current { border-color: var(--accent); }
+.appcell img { max-width: 100%; max-height: 60%; object-fit: contain; }
+.appcell__label {
+  font-size: 13px; line-height: 1.2; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.appcell__act { position: absolute; top: 3px; right: 5px; font-size: 11px; opacity: .75; }
+.appcell--empty {
+  background: transparent; border-style: dashed; color: var(--text-faint);
+}
+.appcell--empty::after { content: "+"; font-size: 20px; }
+.appcell .blank { font-size: 11px; text-align: center; color: var(--text-faint); }
+
+/* The panel under the board: what can be done to the page, then to the button.
+   Two rows rather than a column beside the grid, because the grid wants the
+   width - a 6x11 board beside a sidebar of controls leaves cells too small to
+   tell apart. */
+.apppanel { display: flex; flex-direction: column; gap: 10px; }
+.apppanel__page, .apppanel__button {
+  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+  padding: 12px; border-radius: 10px; background: var(--surface);
+}
+.apppanel__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px;
+                   color: var(--text-dim); }
+.apppanel__field input[type=text] { min-width: 12em; }
+.apppanel__field input[type=color] { width: 44px; height: 32px; padding: 2px; }
+.apppanel .note { margin: 0; font-size: 13px; color: var(--text-dim); }
+
+/* The two choices a new Sammlung is made from. Stacked and full width, because
+   each is a heading and a sentence rather than a word - the sentence is what
+   makes the choice, and it is the half somebody would otherwise have to guess
+   at from two labels four words long. */
+.btn.choice {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  width: 100%; text-align: left; padding: 12px 14px; height: auto;
+  /* .btn is one line and does not wrap, which is right for a button with a
+     verb on it and wrong for one with a sentence under it - the sentence is
+     what makes the choice, and clipped it says less than nothing. */
+  white-space: normal;
+}
+.btn.choice span { font-size: 13px; color: var(--text-dim); font-weight: normal; }

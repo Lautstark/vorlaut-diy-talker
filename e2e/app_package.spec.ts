@@ -2,10 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
-import { inflateRawSync } from "node:zlib";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
-import { checkPackage, type AppPackage, type PackageBoard, type PackageManifest }
-  from "../src/data/app_package.js";
+import { checkPackage } from "../src/data/app_package.js";
+import { readPackage, unzip } from "./obz.js";
 
 /* The app package, made by the real page and read back off disk.
  *
@@ -30,6 +29,15 @@ const label = (key: string) => new RegExp(
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 
 const SAVED = label("ui.saved");
+
+/** The one open sheet, named by its heading rather than by its whole text.
+ *
+ * `hasText` matches against everything inside the element, so an anchored
+ * label matched against a <dialog> is matched against its title *and* its body
+ * *and* its buttons - which never matches, and reads like the dialog failing
+ * to open. The heading is the part that names it. */
+const sheet = (page: Page, key: string) => page.locator("dialog[open]")
+  .filter({ has: page.getByRole("heading", { name: label(key) }) });
 const VOICES_LIST = /tts\.speech\.microsoft\.com\/cognitiveservices\/voices\/list/;
 const SYNTHESIS = /tts\.speech\.microsoft\.com\/cognitiveservices\/v1/;
 
@@ -131,52 +139,6 @@ async function fill(page: Page): Promise<void> {
   await expect(page.locator("#voices")).toBeHidden();
 }
 
-/* --- reading the archive back ------------------------------------------- */
-
-interface Member { name: string; data: Uint8Array; flags: number }
-
-function unzip(bytes: Uint8Array): Map<string, Member> {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let end = -1;
-  for (let at = bytes.length - 22; at >= 0; at--) {
-    if (view.getUint32(at, true) === 0x06054b50) { end = at; break; }
-  }
-  expect(end, "no end-of-central-directory record").toBeGreaterThan(-1);
-  const count = view.getUint16(end + 10, true);
-  let at = view.getUint32(end + 16, true);
-  const out = new Map<string, Member>();
-
-  for (let n = 0; n < count; n++) {
-    const flags = view.getUint16(at + 8, true);
-    const method = view.getUint16(at + 10, true);
-    const size = view.getUint32(at + 20, true);
-    const nameLength = view.getUint16(at + 28, true);
-    const extraLength = view.getUint16(at + 30, true);
-    const commentLength = view.getUint16(at + 32, true);
-    const offset = view.getUint32(at + 42, true);
-    const name = new TextDecoder().decode(bytes.slice(at + 46, at + 46 + nameLength));
-    const start = offset + 30 + view.getUint16(offset + 26, true) + view.getUint16(offset + 28, true);
-    const raw = bytes.slice(start, start + size);
-    out.set(name, { name, flags, data: method === 0 ? raw : new Uint8Array(inflateRawSync(raw)) });
-    at += 46 + nameLength + extraLength + commentLength;
-  }
-  return out;
-}
-
-function readPackage(bytes: Uint8Array): { pkg: AppPackage; members: Map<string, Member> } {
-  const members = unzip(bytes);
-  const parse = (name: string) =>
-    JSON.parse(new TextDecoder().decode(members.get(name)!.data));
-  const manifest = parse("manifest.json") as PackageManifest;
-  const boards = Object.values(manifest.paths.boards).map((path) => parse(path) as PackageBoard);
-  const files = new Map<string, Uint8Array<ArrayBuffer>>();
-  for (const [name, member] of members) {
-    if (name === "manifest.json" || name.endsWith(".obf")) continue;
-    files.set(name, new Uint8Array(member.data));
-  }
-  return { pkg: { manifest, boards, files }, members };
-}
-
 /* --- the test ------------------------------------------------------------ */
 
 test("a Sammlung leaves as a package, and it passes the spec's own checks",
@@ -185,9 +147,16 @@ test("a Sammlung leaves as a package, and it passes the spec's own checks",
     await fill(page);
 
     await page.locator("#collectionMenu").click();
+    await page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click();
+    // The export is behind a sheet now: it names the Sammlung, counts the
+    // sentences as it speaks them and offers a way to stop, because a full
+    // tablet Sammlung is hundreds of syntheses and a status line that says one
+    // thing at the start covers a wait of minutes with silence.
+    const asked = sheet(page, "ui.package_title");
+    await expect(asked).toBeVisible();
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click(),
+      asked.locator("button", { hasText: label("ui.package_go") }).click(),
     ]);
     // Synthesis, encoding and zipping happen between the click and the file.
     const path = await download.path();
@@ -300,9 +269,11 @@ test("the two exports are two different files, not one behind a flag",
     expect(board.images[0].path).toBeUndefined();
 
     await page.locator("#collectionMenu").click();
+    await page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click();
+    const asked = sheet(page, "ui.package_title");
     const [app] = await Promise.all([
       page.waitForEvent("download"),
-      page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click(),
+      asked.locator("button", { hasText: label("ui.package_go") }).click(),
     ]);
     const packaged = unzip(new Uint8Array(readFileSync((await app.path())!)));
     expect([...packaged.keys()].filter((name) => name.startsWith("images/"))).toHaveLength(1);

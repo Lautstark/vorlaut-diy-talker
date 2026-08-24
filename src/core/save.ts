@@ -11,7 +11,8 @@ import { applyTexts, t } from "./texts.js";
 import { LANG, setLanguage } from "./boot.js";
 import { paintLanguage } from "../shell/voices.js";
 import { showSources } from "../shell/picker.js";
-import { editor } from "./editor.js";
+import { editorFor, FIRST_TARGET, showEditorFor } from "./editor.js";
+import type { Layout } from "./types.js";
 
 let saveTimer = null;
 let layoutVersion = null;   // the state this page loaded
@@ -50,38 +51,77 @@ function adoptLanguage(layout) {
 }
 
 export async function load() {
-  // The seed is the editor's, and it is only ever used on a browser that has
-  // never had a board in it. Asking for it unconditionally is cheaper than the
-  // round trip that would tell us whether it is needed.
-  const fresh = await loadLayout(editor().blank());
+  // The seed is an editor's, and it is only ever used on a browser that has
+  // never had a Sammlung in it. Asking for it unconditionally is cheaper than
+  // the round trip that would tell us whether it is needed.
+  //
+  // From the registry rather than from the editor on screen, and that is not
+  // interchangeable: on the very first load there is no editor on screen,
+  // because which one to show is read off the layout this line is fetching.
+  // FIRST_TARGET is what a browser with nothing in it gets.
+  const fresh = await loadLayout(editorFor(FIRST_TARGET).blank());
   layoutVersion = fresh.version;
   state.layout = fresh.layout;
   // Before the two below, and that is the order rather than the arrangement:
-  // markReleaseState() writes the button's title through t() and the editor
-  // draws the board, so a language adopted after them would leave both saying
-  // what the browser guessed until something else happened to redraw them.
+  // a build-mark subscriber writes its button's title through t() and the
+  // editor draws the board, so a language adopted after them would leave both
+  // saying what the browser guessed until something else redrew them.
   adoptLanguage(state.layout);
-  markReleaseState(fresh.buildCurrent);
+  tellBuildState(fresh.buildCurrent);
   $("conflict").classList.remove("show");
   unsaved = false;
   status("");
-  // Where the editor was standing may not exist in this board at all - it is a
-  // different board every time somebody picks one out of the list. adopt() is
-  // the editor letting go of that and drawing what is here now.
-  editor().adopt();
+  // Which editor this Sammlung needs, put on screen, and then told to let go
+  // of wherever it was standing. Both halves of that are core/editor.ts's:
+  // this file may not name an editor, and until there were two of them the
+  // second half was the whole of it.
+  showEditorFor(state.layout);
 }
 
-// The build button says for itself whether it is due: highlighted while
-// data/ does not match the layout, subdued otherwise. That way nobody has to
-// remember when a build is needed.
-export function markReleaseState(flag) {
+/* Whether the build in data/ still matches the layout - told, not asked.
+ *
+ * This used to be markReleaseState(), and it reached straight into
+ * `$("releaseBtn")` from here. That is a button only editor-diy mounts, and
+ * $() throws by design, so the first tablet Sammlung to be opened took the
+ * page down inside load() before it had drawn anything. Nothing could have
+ * caught it: tests/unit/layers.test.ts proves that src/shell/ imports nothing
+ * out of an editor, and this was never an import - it was an element id, which
+ * is a dependency the module graph cannot see.
+ *
+ * So the flag is published and whoever cares subscribes. That is the shape
+ * this repository already uses three times for the same reason - onChanged(),
+ * onBlocked(), subscribeMetacom() - and it puts the knowledge that a build is
+ * a thing that can be out of date back in the half that owns the build.
+ *
+ * The value itself is not the editor's to work out: it comes off the storage
+ * layer with the layout (HeldLayout.buildCurrent) and this is only the relay.
+ */
+const builds = new Set<(flag: string | null) => void>();
+
+/** Listen for the build mark. Called with whatever is currently known, so a
+ *  subscriber wired after the first load is not left waiting for the next
+ *  write to find out where it stands.
+ *
+ * Hands back a way to stop, and that is not tidiness - it is the whole reason
+ * this is safe. A listener here reaches an element in one editor's markup, and
+ * that markup is taken out of the page when a Sammlung for the other target is
+ * opened. A subscription that outlives its own elements is the same defect as
+ * the one moving this out of save.ts fixed, one layer along: the first tablet
+ * Sammlung saved after a talker Sammlung had been open reported "the page has
+ * no #releaseBtn" from inside the save loop. core/editor.ts calls this before
+ * it mounts a different editor. */
+export function onBuildState(listener: (flag: string | null) => void): () => void {
+  builds.add(listener);
+  listener(buildFlag);
+  return () => { builds.delete(listener); };
+}
+
+let buildFlag: string | null = null;
+
+function tellBuildState(flag: string | null | undefined): void {
   if (flag === null || flag === undefined) return;
-  const needed = flag !== "1";
-  const button = $<HTMLButtonElement>("releaseBtn");
-  button.classList.toggle("primary", needed);
-  button.title = needed
-    ? t("ui.release_needed")
-    : t("ui.release_current");
+  buildFlag = flag;
+  for (const listener of builds) listener(flag);
 }
 
 // One second after the last keystroke. Shorter gains nothing - it does not
@@ -112,24 +152,49 @@ export function saveNow() {
 export async function replaceLayout(layout) {
   state.layout = layout;
   adoptLanguage(state.layout);
-  editor().adopt();
+  // An imported Sammlung may be for the other target than the one on screen,
+  // so this is the same call load() makes rather than a bare adopt().
+  showEditorFor(state.layout);
   await saveNow();
 }
 
-// Brings the layout into the same shape the server makes of it. Only then can
-// the two states be compared meaningfully.
-function comparable(l) {
-  return JSON.stringify({
-    sets: (l.sets || []).map((entry) => ({
-      name: (entry.name || "").trim(),
-      symbol: (entry.symbol || "").trim(),
-      color: (entry.color || "").trim().toUpperCase(),
-      slots: (entry.slots || []).map((slot) => ({
-        text: (slot.text || "").trim(),
-        symbol: (slot.symbol || "").trim(),
-      })),
-    })),
-  });
+/* The layout as one string, so that what came back can be held against what
+ * went out.
+ *
+ * Structural, and that is a fix rather than a simplification. It used to walk
+ * `sets`, trimming and upper-casing each field, because app.py normalised a
+ * layout on the way into the file and the two ends had to be brought into one
+ * shape before they could be compared. There is no app.py - writeLayout()
+ * keeps the bytes it is handed - so the normalising was comparing against a
+ * rule nothing applies any more.
+ *
+ * Once a layout could be a tablet's it was doing worse than nothing. Every app
+ * Sammlung reduces to `{"sets":[]}`, so the one check standing between a wrong
+ * write and silence agreed with itself about all of them: the pages could have
+ * come back empty and this would have said the file holds what the screen
+ * holds.
+ *
+ * Key order is settled rather than trusted. JSON.stringify walks an object in
+ * insertion order, and the value coming back has been through a parse that
+ * need not rebuild it in the order the page built it - so two objects meaning
+ * the same thing can stringify differently, which would report a mismatch that
+ * is not one.
+ */
+function comparable(layout: Layout): string {
+  return JSON.stringify(canonical(layout));
+}
+
+/** The same value with every object's keys in sorted order, all the way down.
+ *  Arrays keep their order, because in a layout an array is a sequence
+ *  somebody arranged - the pages in the strip, the keys on a set. */
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (!value || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+    out[key] = canonical((value as Record<string, unknown>)[key]);
+  }
+  return out;
 }
 
 // Process saves one after another. Two at once would reject each other via
@@ -156,7 +221,7 @@ async function doSave() {
       return;
     }
     layoutVersion = result.version;
-    markReleaseState(result.buildCurrent);
+    tellBuildState(result.buildCurrent);
     // Do NOT replace state.layout with the answer here. The input fields hang
     // off exactly these objects; a fresh graph from the server would leave
     // their handlers pointing at nothing, and everything typed afterwards
@@ -187,9 +252,9 @@ async function doSave() {
 export function wireConflict() {
   // Deliberately force through what this page holds.
   $<HTMLButtonElement>("overwriteBtn").onclick = async () => {
-    const fresh = await loadLayout(editor().blank());
+    const fresh = await loadLayout(editorFor(FIRST_TARGET).blank());
     layoutVersion = fresh.version;
-    markReleaseState(fresh.buildCurrent);
+    tellBuildState(fresh.buildCurrent);
     await save();
   };
   $<HTMLButtonElement>("reloadBtn").onclick = () => load();

@@ -89,6 +89,18 @@ async function openCollection(page: Page) {
 async function newCollection(page: Page, name: string) {
   const before = await rows(page).count();
   await page.locator("#collectionNew").click();
+  /* Which editor it is for, asked once and never again. Nothing is written
+   * until it is answered - dismissing this makes no Sammlung at all - so this
+   * is part of making one rather than a step after it.
+   *
+   * The talker, because that is what everything below this helper is about.
+   * The tablet's own path is e2e/editor_app.spec.ts. */
+  const asked = page.locator("dialog[open]")
+    .filter({ has: page.getByRole("heading", { name: label("ui.collection_target") }) });
+  await expect(asked).toBeVisible();
+  await asked.locator("button.choice")
+    .filter({ has: page.locator("strong", { hasText: label("ui.collection_target_diy") }) })
+    .click();
   await expect(rows(page)).toHaveCount(before + 1);
   /* The row appearing is not the end of the errand - making a Sammlung writes,
    * switches, re-reads, redraws, and only then puts the caret in the name.
@@ -255,10 +267,24 @@ test("a host that closes the dialog without firing the event still answers",
     await page.addInitScript(() => {
       const real = HTMLDialogElement.prototype.close;
       HTMLDialogElement.prototype.close = function (value?: string) {
-        // What a close does, minus the one thing the promise must not depend on.
+        /* A real close, minus the one thing a promise must not depend on.
+         *
+         * This used to skip the real close and drop the `open` attribute
+         * instead, which suppressed the event but also left the dialog in the
+         * top layer - so the rest of the page stayed inert for ever after.
+         * That was invisible while only one dialog was ever opened here and
+         * nothing was pressed afterwards; it stopped being invisible when
+         * making a Sammlung grew a question of its own, and every later step
+         * failed for a reason that had nothing to do with what is under test.
+         *
+         * A capture listener on the dialog itself runs before any listener the
+         * page registered on it, so stopping propagation there swallows the
+         * event and nothing else. */
         if (value !== undefined) this.returnValue = value;
-        this.removeAttribute("open");
-        void real;
+        this.addEventListener("close",
+          (event) => event.stopImmediatePropagation(),
+          { capture: true, once: true });
+        real.call(this);
       };
     });
 

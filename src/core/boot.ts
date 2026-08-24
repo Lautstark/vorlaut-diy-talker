@@ -22,7 +22,8 @@
 // whole module tree died before rendering. A fallback that only fires when the
 // block is absent does not help when the block is present and empty of meaning.
 import { LANGUAGES as BUILT_IN_LANGUAGES, DEFAULT_LANGUAGE, TEXTS as BUILT_IN_TEXTS,
-         PALETTE, LIMITS } from "./boot_data.js";
+         PALETTE, LIMITS, GRID as GRID_DATA, WORD_CLASSES as WORD_CLASS_DATA }
+  from "./boot_data.js";
 
 /** Which language a page nobody configured should open in.
  *
@@ -69,3 +70,7 @@ export function setLanguage(code: string): void {
 }
 export const palette = PALETTE;
 export const limits = LIMITS;
+/** The tablet grid: where it starts and how far it stretches. */
+export const GRID = GRID_DATA;
+/** The Modified Fitzgerald Key, in the order it is offered. */
+export const WORD_CLASSES = WORD_CLASS_DATA;

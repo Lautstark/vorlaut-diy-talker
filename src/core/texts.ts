@@ -2,7 +2,7 @@
 // this page goes through t(), so no string sits in the markup twice.
 import { $ } from "../shell/dom.js";
 import { LANG, TEXTS } from "./boot.js";
-import { editor } from "./editor.js";
+import { editor, haveEditor } from "./editor.js";
 import { activeSource } from "../data/symbols.js";
 
 // A label and its address, both out of the table. Everything else on this page
@@ -49,7 +49,13 @@ export function applyTexts() {
   // a file that also fills in the imprint: this function would have had to
   // know about "sets" and about a cable, which are the two things the shell
   // deliberately does not. See core/editor.ts.
-  editor().labels();
+  //
+  // Guarded, and it is the one place a missing editor is a real state rather
+  // than a broken page: this runs at the first paint so that the shell's own
+  // labels are up before the first round trip, and at that moment no editor is
+  // on screen, because which editor is a fact about a Sammlung that has not
+  // been read yet. showEditorFor() calls labels() itself when one arrives.
+  if (haveEditor()) editor().labels();
   $<HTMLButtonElement>("overwriteBtn").textContent = t("ui.keep_mine");
   $<HTMLButtonElement>("reloadBtn").textContent = t("ui.reload");
 

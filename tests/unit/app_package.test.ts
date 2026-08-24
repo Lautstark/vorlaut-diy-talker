@@ -6,7 +6,9 @@ import {
   type AppPackage, type PackageInput,
 } from "../../src/data/app_package.js";
 import { readPackage, readPackageFile, unzip } from "./obz.js";
-import type { CollectionRef, Layout } from "../../src/core/types.js";
+import type {
+  AppButton, AppLayout, AppPage, CollectionRef, DiyLayout, Layout,
+} from "../../src/core/types.js";
 
 /* The app package: the mapping, and the refusals.
  *
@@ -34,7 +36,7 @@ const collection = (over: Partial<CollectionRef> = {}): CollectionRef => ({
 
 const slot = (text: string, symbol = "") => ({ text, symbol });
 
-const layout = (): Layout => ({
+const layout = (): DiyLayout => ({
   language: "de",
   voice: "piper:de_DE-thorsten-medium",
   sleep_timeout_seconds: 600,
@@ -202,6 +204,235 @@ describe("a DIY Sammlung as a board package", () => {
   it("refuses a Sammlung with nothing in it", () => {
     expect(() => buildAppPackage(input({ layout: { sets: [] } })))
       .toThrow(/nothing in this Sammlung/i);
+  });
+});
+
+/* ------------------------------------------------- a tablet Sammlung --- */
+
+const page = (over: Partial<AppPage> = {}): AppPage => ({
+  id: "p-start", name: "Start", color: "#3B5BDB", buttons: [], ...over,
+});
+
+const key = (over: Partial<AppButton> = {}): AppButton => ({
+  id: "k", row: 0, col: 0, label: "", vocalization: "", symbol: "",
+  wordClass: "", act: { kind: "append" }, ...over,
+});
+
+const tablet = (): AppLayout => ({
+  target: "app",
+  language: "de",
+  voice: "piper:de_DE-thorsten-medium",
+  grid: { rows: 2, columns: 3 },
+  home: "p-start",
+  pages: [
+    page({
+      buttons: [
+        key({ id: "k1", row: 0, col: 0, label: "ich", wordClass: "pronoun" }),
+        // Shows one word, says another - §7.3's case, and the reason the
+        // sounds map is keyed by what is spoken rather than by the label.
+        key({ id: "k2", row: 0, col: 1, label: "Apfel",
+              vocalization: "einen Apfel", wordClass: "noun",
+              symbol: "arasaac-2462.png" }),
+        key({ id: "k3", row: 0, col: 2, label: "Essen", wordClass: "category",
+              act: { kind: "goto", page: "p-food" } }),
+        key({ id: "k4", row: 1, col: 0, label: "Aua", wordClass: "social",
+              act: { kind: "speak" } }),
+        key({ id: "k5", row: 1, col: 1, label: "Sprich", act: { kind: "sayBar" } }),
+        key({ id: "k6", row: 1, col: 2, label: "Start", act: { kind: "home" } }),
+      ],
+    }),
+    page({
+      id: "p-food", name: "Essen", color: "#2F9E44",
+      buttons: [key({ id: "f1", row: 1, col: 2, label: "Mehr" })],
+    }),
+  ],
+});
+
+const tabletInput = (over: Partial<PackageInput> = {}): PackageInput => ({
+  collection: collection(),
+  layout: tablet(),
+  images: new Map([["arasaac-2462.png", baked("aaaa1111")]]),
+  sounds: new Map([
+    ["ich", { key: "1111aaaa", bytes: ogg(), seconds: 0.4 }],
+    ["einen Apfel", { key: "2222bbbb", bytes: ogg(), seconds: 0.9 }],
+    ["Aua", { key: "3333cccc", bytes: ogg(), seconds: 0.5 }],
+    ["Mehr", { key: "4444dddd", bytes: ogg(), seconds: 0.4 }],
+    // Nothing will ask for these: a navigation button and the bar controls
+    // never speak their own text. Here so that the assertion below is about
+    // the builder declining to use them rather than about them being absent.
+    ["Essen", { key: "5555eeee", bytes: ogg(), seconds: 0.6 }],
+    ["Sprich", { key: "6666ffff", bytes: ogg(), seconds: 0.6 }],
+  ]),
+  voice: "piper:de_DE-thorsten-medium",
+  ...over,
+});
+
+describe("a tablet Sammlung as a board package", () => {
+  it("writes one board per page, at the Sammlung's own grid", () => {
+    const pkg = buildAppPackage(tabletInput());
+    expect(checkPackage(pkg)).toEqual([]);
+    expect(pkg.boards.map((one) => one.name)).toEqual(["Start", "Essen"]);
+    // §7.1: exactly `rows` rows of exactly `columns` cells, on every board,
+    // including the one holding a single button - a mismatch there is a
+    // package-level fault and the viewer rejects the whole thing.
+    for (const one of pkg.boards) {
+      expect(one.grid.rows).toBe(2);
+      expect(one.grid.columns).toBe(3);
+      expect(one.grid.order).toHaveLength(2);
+      for (const row of one.grid.order) expect(row).toHaveLength(3);
+    }
+    // The grid is the Sammlung's, not the page's: a button in the same cell of
+    // two pages is under the same thumb, which is the whole reason position is
+    // learnable across pages.
+    expect(board(pkg, "board-2").grid.order[1]![2]).toBe("board-2-r2c3");
+    expect(board(pkg, "board-2").grid.order[0]).toEqual([null, null, null]);
+  });
+
+  it("puts every button in the cell it was authored in", () => {
+    const pkg = buildAppPackage(tabletInput());
+    expect(board(pkg, "board-1").grid.order).toEqual([
+      ["board-1-r1c1", "board-1-r1c2", "board-1-r1c3"],
+      ["board-1-r2c1", "board-1-r2c2", "board-1-r2c3"],
+    ]);
+  });
+
+  it("maps each act to the one thing §7.3 makes it", () => {
+    const pkg = buildAppPackage(tabletInput());
+    const at = (id: string) => button(pkg, "board-1", id);
+
+    // Appending is the default and the common case: no action, no flag, and
+    // nothing said about it at all.
+    expect(at("board-1-r1c1").action).toBeUndefined();
+    expect(at("board-1-r1c1").ext_lautstark_speak_immediately).toBeUndefined();
+    expect(at("board-1-r1c1").load_board).toBeUndefined();
+
+    // Navigation resolves to the *board* id, not the page's UUID.
+    expect(at("board-1-r1c3").load_board)
+      .toEqual({ id: "board-2", name: "Essen", path: "boards/board-2.obf" });
+    expect(at("board-1-r1c3").action).toBeUndefined();
+
+    expect(at("board-1-r2c1").ext_lautstark_speak_immediately).toBe(true);
+    expect(at("board-1-r2c2").action).toBe(":speak");
+    expect(at("board-1-r2c3").action).toBe(":home");
+  });
+
+  it("writes the vocalization, so the bar reads as the sentence it will say", () => {
+    const pkg = buildAppPackage(tabletInput());
+    const apple = button(pkg, "board-1", "board-1-r1c2");
+    // §7.3: the bar shows the vocalization and falls back to the label, so a
+    // button whose label is one word and whose vocalization is a phrase puts
+    // the phrase in the bar. Fixture `message-bar` is the authority.
+    expect(apple.label).toBe("Apfel");
+    expect(apple.vocalization).toBe("einen Apfel");
+  });
+
+  it("colours a button by its word class, from the Fitzgerald key", () => {
+    const pkg = buildAppPackage(tabletInput());
+    // The layout stores the class; this is where it becomes a colour. Values
+    // are AsTeRICS Grid's light ramp - see WORD_CLASSES in boot_data.ts.
+    expect(button(pkg, "board-1", "board-1-r1c1").background_color)
+      .toBe("rgb(253, 253, 150)");          // Pronomen, gelb
+    expect(button(pkg, "board-1", "board-1-r1c2").background_color)
+      .toBe("rgb(255, 218, 137)");          // Nomen, orange
+    // A button carrying no class says nothing, so the viewer's own default
+    // stands - which is a better answer than a colour meaning a word class
+    // nobody chose.
+    expect(button(pkg, "board-1", "board-1-r2c2").background_color).toBeUndefined();
+  });
+
+  it("carries a clip only where pressing the button speaks its own text", () => {
+    const pkg = buildAppPackage(tabletInput());
+    const at = (id: string) => button(pkg, "board-1", id);
+    // The viewer utters on Append and on SpeakImmediately, and on nothing
+    // else: navigation is silent, and `:speak` always synthesises the composed
+    // sentence because the bar has no clip of its own. A clip on those would
+    // be an archive member nothing can play, on a board that may have four
+    // hundred buttons.
+    expect(at("board-1-r1c1").sound_id).toBe("snd-1111aaaa");
+    expect(at("board-1-r2c1").sound_id).toBe("snd-3333cccc");
+    expect(at("board-1-r1c3").sound_id).toBeUndefined();   // goto
+    expect(at("board-1-r2c2").sound_id).toBeUndefined();   // :speak
+    expect(at("board-1-r2c3").sound_id).toBeUndefined();   // :home
+    // And the archive holds only the four that are used, not the six offered.
+    expect([...pkg.files.keys()].filter((one) => one.startsWith("sounds/")))
+      .toHaveLength(4);
+  });
+
+  it("keys a recording by what is spoken, not by what is shown", () => {
+    const pkg = buildAppPackage(tabletInput());
+    // The bug this is against shipped the wrong clip on exactly the buttons
+    // the vocalization field exists for.
+    expect(button(pkg, "board-1", "board-1-r1c2").sound_id).toBe("snd-2222bbbb");
+  });
+
+  it("takes the root from the page the layout names, not the first one", () => {
+    const layout = tablet();
+    layout.home = "p-food";
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    // §3's root and §7.4's `:home` are the same page. An index would mean that
+    // reordering the strip silently changed what a child's tablet opens on.
+    expect(pkg.manifest.root).toBe("boards/board-2.obf");
+    expect(checkPackage(pkg)).toEqual([]);
+  });
+
+  it("leaves a cell empty rather than writing a button with nothing on it", () => {
+    const layout = tablet();
+    layout.pages[0]!.buttons.push(key({ id: "blank", row: 1, col: 1 }));
+    layout.pages[0]!.buttons = [key({ id: "blank", row: 0, col: 0 })];
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    // §7.2 would render an empty button as an empty cell anyway; leaving it
+    // out says the same thing without asking the viewer to draw nothing.
+    expect(board(pkg, "board-1").buttons).toEqual([]);
+    expect(board(pkg, "board-1").grid.order[0]![0]).toBeNull();
+  });
+
+  it("keeps a bare control button even with nothing written on it", () => {
+    const layout = tablet();
+    layout.pages[0]!.buttons = [
+      key({ id: "bs", row: 0, col: 0, act: { kind: "backspace" } })];
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    // The exception to the rule above, and it is a real board: a backspace
+    // drawn as a symbol somebody has not chosen yet is still a button that
+    // does something, unlike an empty appending one.
+    expect(board(pkg, "board-1").buttons).toHaveLength(1);
+    expect(board(pkg, "board-1").buttons[0]!.action).toBe(":backspace");
+  });
+
+  it("drops a goto whose page is gone rather than dangling", () => {
+    const layout = tablet();
+    layout.pages = [layout.pages[0]!];
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    const gone = button(pkg, "board-1", "board-1-r1c3");
+    // Not a case the editor can produce - deletePage() turns such a button
+    // back into an appending one - and the export refuses to write it anyway,
+    // because a load_board pointing nowhere is a button that looks live on a
+    // tablet and ignores whoever presses it (§7.4).
+    expect(gone.load_board).toBeUndefined();
+    expect(gone.label).toBe("Essen");
+    expect(checkPackage(pkg)).toEqual([]);
+  });
+
+  it("refuses a Sammlung with no pages, the way it refuses one with no sets", () => {
+    const layout = tablet();
+    layout.pages = [];
+    expect(() => buildAppPackage(tabletInput({ layout })))
+      .toThrow(/nothing in this Sammlung/);
+  });
+
+  it("finds a mixed symbol source across pages", () => {
+    const layout = tablet();
+    layout.pages[1]!.buttons[0]!.symbol = "metacom:essen.png";
+    // §5.1 is one source per package, and the walker has to reach every place
+    // a symbol can sit - a new one that a walker never learned about is how
+    // that rule gets broken quietly.
+    expect(() => symbolSource(layout)).toThrow(/two symbol collections/);
+  });
+
+  it("reads one source correctly out of a tablet layout", () => {
+    const layout = tablet();
+    expect(symbolSource(layout)).toBe("arasaac");
+    layout.pages[0]!.buttons[1]!.symbol = "metacom:apfel.png";
+    expect(symbolSource(layout)).toBe("metacom");
   });
 });
 

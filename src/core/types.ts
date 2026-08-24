@@ -68,7 +68,37 @@ export interface CollectionList {
   current: string | null;
 }
 
-export interface Layout {
+/** Which editor a Sammlung is for, and therefore what is inside it.
+ *
+ * Declared once, when the Sammlung is made, and never converted: a five-key
+ * device and a tablet board are not two renderings of one thing. Four keys in
+ * a fixed ring have no answer to "which cell of a 6x11 grid", and a page of
+ * sixty-six buttons composing a sentence has no answer to "which of the five
+ * displays". A convert would therefore have to invent most of its output,
+ * which is a worse offer than exporting and starting again.
+ *
+ * The shell names this type and neither editor: it is what core/editor.ts's
+ * registry is keyed by, and it is the whole of what src/shell/ knows about
+ * there being more than one of them.
+ */
+export type Target = "diy" | "app";
+
+/** A whole Sammlung, in whichever shape its target asks for.
+ *
+ * A union rather than one interface with optional halves, and the difference
+ * shows at every reader: `layout.sets` on an app Sammlung would type-check and
+ * answer undefined, which is how the sidebar came to count every Sammlung with
+ * whichever editor happened to be installed. With a union that line does not
+ * compile until it has asked which shape it is holding.
+ */
+export type Layout = DiyLayout | AppLayout;
+
+/** The five-key talker: sets of four keys, and the ring that cycles them. */
+export interface DiyLayout {
+  /** Absent counts as "diy". Every layout written before there was a second
+   *  editor is one of these, and there is no migration - the flag arrived
+   *  after boards already existed, exactly as BoardSet.active did. */
+  target?: "diy";
   sets: BoardSet[];
   /** Which language the device's own menu speaks. */
   language?: string;
@@ -76,6 +106,135 @@ export interface Layout {
   voice?: string;
   sleep_timeout_seconds?: number;
 }
+
+/** A tablet Sammlung: pages of buttons that compose a sentence in a bar.
+ *
+ * The MetaTalk shape, and what the Android viewer already renders - see
+ * exchange/SPEC.md §7. Nothing here is an extension of that format: a page is
+ * an OBF board, a button is an OBF button, and the sentence bar is §7.3.
+ */
+export interface AppLayout {
+  target: "app";
+  language?: string;
+  voice?: string;
+  /** One size for every page in the Sammlung, not one per page.
+   *
+   *  OBF would allow a grid per board and this deliberately does not use it.
+   *  What a person learns on a board of this kind is where a word *is* - the
+   *  hand goes to the top right for "ich" before the eye has read anything -
+   *  and that only survives across pages while the pages are the same shape.
+   *  A per-page size would make the top right cell a different distance from
+   *  the thumb on every page, which is the one thing the layout is for. */
+  grid: GridSize;
+  /** Every page, in the order the editor's page strip shows them. Presentation
+   *  only: what leads where is the buttons, not this order. */
+  pages: AppPage[];
+  /** The page the tablet opens on, and what a `:home` button goes to. It
+   *  becomes `manifest.root`.
+   *
+   *  An id rather than pages[0], so that reordering the strip cannot silently
+   *  change what a child's tablet opens on - which is a thing nobody would
+   *  look for, because dragging a row is not an act that sounds like it could
+   *  do that. */
+  home: string;
+}
+
+export interface GridSize {
+  rows: number;
+  columns: number;
+}
+
+/** Which shape a layout is, for the readers that can only handle one.
+ *
+ * Type guards rather than a bare `layout.target === "app"` at each call site,
+ * because the interesting half is the *other* one: "diy" is written down on
+ * nothing that existed before there were two editors, so the test for it is
+ * `!== "app"` and not `=== "diy"`. Getting that backwards would read every
+ * board this product has ever saved as an app Sammlung with no pages in it,
+ * which is an empty screen rather than an error.
+ */
+export const isApp = (layout: Layout): layout is AppLayout =>
+  layout.target === "app";
+export const isDiy = (layout: Layout): layout is DiyLayout =>
+  layout.target !== "app";
+
+/** One page: an OBF board, with the buttons that sit on it. */
+export interface AppPage {
+  /** Minted with the page, never derived from the name or the position - the
+   *  same rule and the same reason as CollectionRef.id. Buttons point at this
+   *  value, so deriving it from anything editable would break every edge the
+   *  moment somebody renamed a page. */
+  id: string;
+  name: string;
+  /** Hex, "#RRGGBB". The whole page's colour, which is what tells one page
+   *  from another before anything on it is read - exchange/SPEC.md §4.2's
+   *  ext_lautstark_board_color. This is a different job from a button's
+   *  colour: this one marks a place, that one marks a word class. */
+  color: string;
+  /** Sparse, and each one carries where it sits. There is deliberately no
+   *  dense array of cells: growing the grid from 3x5 to 6x11 would re-index
+   *  every entry of one, and that re-indexing is the rewrite this shape exists
+   *  to avoid. A cell nothing sits in is a cell no button names. */
+  buttons: AppButton[];
+}
+
+/** One button on one page. */
+export interface AppButton {
+  id: string;
+  /** Zero-based, row-major, inside the Sammlung's grid. Two buttons may not
+   *  hold the same cell; the editor is what keeps that true. */
+  row: number;
+  col: number;
+  /** What the button shows. */
+  label: string;
+  /** What it says, when that is not what it shows: "einen Apfel" under an
+   *  "Apfel". Empty means the label is spoken, which is what OBF means by
+   *  leaving `vocalization` out - see exchange/SPEC.md §7.2. */
+  vocalization: string;
+  /** A file name in the browser's store, or "metacom:<name>". Same vocabulary
+   *  as Slot.symbol, because it is the same picker behind it. */
+  symbol: string;
+  /** Which Fitzgerald class this word belongs to, as a key into
+   *  boot_data.ts's WORD_CLASSES - or "" for a button that carries no class.
+   *
+   *  The class rather than the colour it resolves to, and that is what makes
+   *  this a convention rather than a palette: the author chose "this is a
+   *  verb", and green is a rendering of that. Storing the hex would make
+   *  re-tinting a whole Sammlung a sweep over every button, and would lose the
+   *  only thing anybody meant. */
+  wordClass: string;
+  /** What one press does. Exactly one thing.
+   *
+   *  See Act: the reason this is not a boolean beside an optional page id is
+   *  that the format cannot represent the states such a pair could express. */
+  act: Act;
+}
+
+/** What pressing a button does - exchange/SPEC.md §7.3's activation table, as
+ *  a type.
+ *
+ * That table is exclusive on the wire: `load_board` beats `action`, which
+ * beats `ext_lautstark_speak_immediately`, which beats appending. A model that
+ * carried `speakImmediately: boolean` beside `target?: string` could hold
+ * both, and the exporter would then have to pick a winner - which is the
+ * exporter guessing at what somebody meant, in a file that ends up on a child's
+ * tablet. A union can only say one thing, so there is nothing to guess.
+ */
+export type Act =
+  /** Append one entry to the sentence bar. The default and the common case. */
+  | { kind: "append" }
+  /** Speak this button at once and leave the bar alone. For an interjection -
+   *  "Aua", a greeting - which composing into a sentence first would ruin. */
+  | { kind: "speak" }
+  /** Go to another page. `page` is an AppPage.id in this same Sammlung. */
+  | { kind: "goto"; page: string }
+  /** The four sentence-bar controls, exchange/SPEC.md §7.4. `sayBar` is the
+   *  spec's `:speak`, renamed here only because "speak" above is the other
+   *  thing and two of them in one union would be read wrongly every time. */
+  | { kind: "clear" }
+  | { kind: "backspace" }
+  | { kind: "sayBar" }
+  | { kind: "home" };
 
 /** A layout as it comes out of storage, with the two stamps that say whether
  *  somebody else has written since we read and whether a build is due. */

@@ -13,20 +13,32 @@
 // main.ts mounts, then imports this. The ordering is then a fact about the
 // module graph rather than a convention somebody has to keep.
 //
-// This is also the composition root: the one module that names both halves of
-// the page. The shell owns the boards, the storage, the symbols, the voices
-// and the settings; editor-diy owns the five-key device. useEditor() below is
-// where the second is handed to the first, and it is the only place either
-// direction of that arrow exists - tests/unit/layers.test.ts holds the rest of
-// src/shell/ to importing nothing out of src/editor-diy/.
+// This is also the composition root: the one module that names all three
+// parts of the page. The shell owns the Sammlungen, the storage, the symbols,
+// the voices and the settings; editor-diy owns the five-key device; editor-app
+// owns the tablet. useEditors() below is where the two editors are handed to
+// the shell, and it is the only place any of those arrows exists -
+// tests/unit/layers.test.ts holds the rest of src/shell/ to importing nothing
+// out of either editor, and each editor to importing nothing out of the other.
+//
+// The editors' markup mounts here rather than in main.ts, and that is the
+// whole reason this file grew a mount function. Which editor a page needs is a
+// fact about the Sammlung, so it cannot be known until the store has answered
+// - and the two must not both be in the document, or a tablet Sammlung would
+// carry a #releaseBtn that the shell could reach without importing anything.
+// That is the shape of coupling this split exists to remove and the shape the
+// layers test cannot see.
 import { reason } from "./core/errors.js";
 import { $, status} from "./shell/dom.js";
 import { t, applyTexts } from "./core/texts.js";
 import { load, wireConflict } from "./core/save.js";
-import { useEditor } from "./core/editor.js";
+import { editor, haveEditor, useEditors } from "./core/editor.js";
 import { wireRelease } from "./editor-diy/release.js";
-import { diy, render, wireEditor } from "./editor-diy/editor.js";
+import { diy, wireEditor } from "./editor-diy/editor.js";
 import { wireDevice } from "./editor-diy/device_panel.js";
+import * as diyBoard from "./editor-diy/templates/board.js";
+import { app, wireEditor as wireApp } from "./editor-app/editor.js";
+import * as appBoard from "./editor-app/templates/board.js";
 import { ensureCollection, nameIfUnnamed, paintCollections, wireCollections }
   from "./shell/collections.js";
 import { loadSources, wirePicker } from "./shell/picker.js";
@@ -60,23 +72,66 @@ const backup = new Sicherung({
 // on a board is one file.
 onChanged(() => backup.schedule());
 
+/** Empties the two holes the frame leaves, so that whichever editor is coming
+ *  next is the only one in the page.
+ *
+ *  Both, and always both: the work head's slot is as much a place a stale
+ *  #releaseBtn can survive in as #editor is, and it is the one that would be
+ *  missed, because it holds one button and looks like furniture. */
+function clearEditor(): void {
+  $("editor").replaceChildren();
+  $("collectionAction").replaceChildren();
+}
+
 export function start(): void {
-  // First, and before anything that could reach for it. core/texts.ts asks the
-  // editor for its own labels, core/save.ts asks it what an empty board is,
-  // and both of those run inside the wiring below.
-  useEditor(diy);
+  // First, and before anything that could reach for one. core/texts.ts asks
+  // the editor on screen for its own labels, core/save.ts asks the registry
+  // what an empty Sammlung is, and both of those run inside the wiring below.
+  //
+  // Registering is not showing: nothing is in the page until load() has read a
+  // layout and core/editor.ts's showEditorFor() has mounted the half that
+  // layout needs.
+  useEditors({
+    diy: {
+      editor: diy,
+      mount: () => {
+        clearEditor();
+        diyBoard.render($("editor"), $("collectionAction"));
+      },
+      // Both, because wireRelease() binds #releaseBtn and #previewToggle and
+      // #removeSet are wireEditor()'s - and all three are elements the mount
+      // above has just made. wireDevice() is not here: it binds the settings
+      // sheet, which is the shell's markup and mounts once.
+      //
+      // wireRelease() answers with a teardown and this hands it on: it
+      // subscribes to the build mark, which is the shell's and outlives this
+      // editor's markup.
+      wire: () => { wireEditor(); return wireRelease(); },
+    },
+    app: {
+      editor: app,
+      mount: () => {
+        clearEditor();
+        appBoard.render($("editor"), $("collectionAction"));
+      },
+      wire: wireApp,
+    },
+  });
 
   wireConflict();
   // Never prompts - there is no gesture here. A folder that needs its
   // permission re-confirmed lands in needs-permission and says so in the
   // Daten panel, which is where the click can happen.
   void backup.restore().catch(() => undefined);
-// The board's own pictures follow the METACOM provider: a folder arriving -
-// restored on load, reconnected, or freshly picked - re-renders the board, or
-// every metacom: key keeps the placeholder it drew while there was no folder,
-// and connecting one looks like it did nothing.
-subscribeMetacom(render);
-  wireEditor();
+  /* The board's own pictures follow the METACOM provider: a folder arriving -
+   * restored on load, reconnected, or freshly picked - re-renders the board,
+   * or every metacom: key keeps the placeholder it drew while there was no
+   * folder, and connecting one looks like it did nothing.
+   *
+   * Whichever board is on screen, and guarded because there may be none: this
+   * runs before the first layout has been read, and a folder restored that
+   * quickly would otherwise ask an editor that does not exist yet to draw. */
+  subscribeMetacom(() => { if (haveEditor()) editor().render(); });
   wireCollections();
   wirePicker();
   wireSymbolFolder();
@@ -86,11 +141,6 @@ subscribeMetacom(render);
   wireDevice();
   wireLanguage();
   wireLegal();
-
-  // Build, and then put it on the talker. It was four lines here while it was
-  // only the build; the cable brought a port, a progress line and a way to
-  // stop with it, and all three live in ui/release.ts.
-  wireRelease();
 
   // One entrance, at the foot of the sidebar. There was a gear in a page-wide
   // header as well; the header has gone, and design.md §3.4 settles the
