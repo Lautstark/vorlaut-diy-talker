@@ -78,7 +78,10 @@ body {
 }
 /* The list takes the room, so the foot sits at the bottom of the column. */
 .sidebar__grow { flex: 1; min-height: 0; overflow: auto; }
-.sidebar__list { display: flex; flex-direction: column; gap: 2px; }
+/* The column itself is components.css's `.collections`; this is the one thing
+   about it that is this sidebar's - a slightly looser gap than the shared
+   rule, because these rows are taller than a sentence row. */
+.sidebar__list { gap: 2px; }
 /* The two quiet buttons at the foot, pushed there rather than placed: the list
    above them grows, and they stay at the bottom of the column. */
 /* No rule above it. The gap is the separation, the way it is between every
@@ -89,33 +92,8 @@ body {
 .sidebar__foot {
   margin-top: auto; display: flex; align-items: center; gap: 6px; padding: 0 4px;
 }
-/* One Sammlung: the name, and how much is in it. The count is the one fact
-   that tells two similarly named ones apart, and it is the number the delete
-   question will count with - so it is on screen before that question rather
-   than appearing for the first time when something is about to go. */
-.collectionRow {
-  display: flex; align-items: center; gap: 8px;
-  text-align: left; width: 100%; padding: 8px 10px; border-radius: 8px;
-  background: transparent; border: none; color: var(--text-dim);
-  font: inherit; cursor: pointer;
-}
-/* A long name truncates rather than wrapping the row to two lines: the rows are
-   read as a column of names, and an uneven column is harder to scan than a
-   clipped one. The whole name is in the work head of whichever is open. */
-.collectionRow__name {
-  flex: 1 1 auto; min-width: 0; font-size: 14px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* No colour of its own: it inherits the row, which both siblings do, so the
-   count follows the name into the accent when the row is the open one. */
-.collectionRow__count { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; }
-.collectionRow:hover { background: var(--surface-2); color: var(--text); }
-/* The accent, not another grey. Both siblings mark the open one this way -
-   --accent-soft behind --accent-strong - and a row that differs from its
-   neighbours only by being a slightly lighter grey is one to look at twice. */
-.collectionRow.active {
-  background: var(--accent-soft); color: var(--accent-strong); font-weight: 600;
-}
+/* One Sammlung's row is components.css's `.collections` now - the name, the
+   count, the ellipsis, the accent behind the open one. See §5 5b. */
 
 /* --------------------------------------------------------- the work head ---
 
@@ -429,7 +407,7 @@ pre.log {
     min-height: 0; padding: 10px 14px;
   }
   .sidebar__list { flex-direction: row; overflow-x: auto; gap: 6px; }
-  .collectionRow { width: auto; flex: 0 0 auto; }
+  .collections__item { width: auto; flex: 0 0 auto; }
   .sidebar__foot {
     flex-direction: row; align-items: center;
     margin-top: 0; padding-top: 8px;

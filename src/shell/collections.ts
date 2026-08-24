@@ -27,6 +27,7 @@ import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
 import { confirmDialog } from "@lautstark/design/dialog";
 import { renameField, type RenameField } from "@lautstark/design/rename";
+import { drawCollections } from "@lautstark/design/collections";
 import { reason } from "../core/errors.js";
 import {
   createCollection, deleteCollection, exportAppPackage, exportBoard,
@@ -95,27 +96,24 @@ export async function paintCollections(): Promise<void> {
   }));
 
   const list = $("collectionList");
-  list.textContent = "";
   list.setAttribute("aria-label", t("ui.collections"));
 
-  held.collections.forEach((one) => {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "collectionRow" + (one.id === held.current ? " active" : "");
-    const name = document.createElement("span");
-    name.className = "collectionRow__name";
-    name.textContent = nameOf(one.name);
-    // How much is in it. The one fact that tells two similarly named
-    // Sammlungen apart, and the number the delete question will count with -
-    // which is why it is on screen before that question rather than appearing
-    // for the first time at the moment something is about to go.
-    const count = document.createElement("span");
-    count.className = "collectionRow__count";
-    count.textContent = String(counts.get(one.id) ?? "");
-    row.append(name, count);
-    if (one.id === held.current) row.setAttribute("aria-current", "true");
-    row.onclick = () => { void open(one.id); };
-    list.appendChild(row);
+  /* The rows themselves are @lautstark/design/collections'. What is left here
+   * is what a row means in this product: the fallback name for an unnamed
+   * Sammlung, the count - the one fact that tells two similarly named ones
+   * apart, and the number the delete question will count with, which is why it
+   * is on screen before that question rather than appearing for the first time
+   * when something is about to go - and what pressing one does.
+   *
+   * `open` is a set of one, because a Sammlung here is a whole layout and so
+   * cannot be in two (§4.1). The additive flag the package reports is ignored
+   * for the same reason: there is no second thing to add. */
+  drawCollections(list, {
+    rows: held.collections.map((one) => ({
+      id: one.id, name: nameOf(one.name), count: counts.get(one.id),
+    })),
+    open: held.current ? [held.current] : [],
+    onPick: (id) => { void open(id); },
   });
 
   const at = held.collections.findIndex((one) => one.id === held.current);

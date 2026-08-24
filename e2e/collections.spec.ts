@@ -30,7 +30,7 @@ const label = (key: string, params: Record<string, string | number> = {}) => {
 
 const SAVED = label("ui.saved");
 
-const rows = (page: Page) => page.locator("#collectionList .collectionRow");
+const rows = (page: Page) => page.locator("#collectionList .collections__item");
 
 /** The default name, in whichever language the runner's browser picked.
  *
@@ -54,7 +54,7 @@ const namedForToday = () => new RegExp(
  *  comparing a name against a name and a number. */
 const row = (page: Page, name: string) =>
   rows(page).filter({
-    has: page.locator(".collectionRow__name", {
+    has: page.locator(".collections__name", {
       hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
     }),
   });
@@ -111,7 +111,7 @@ test("a first visit has one collection, and it is open", async ({ page }) => {
   await expect(rows(page).first()).toHaveClass(/active/);
   // Named for the day it was made, not left blank for the list to paper over.
   // The name span, not the row: the row also carries the count.
-  await expect(rows(page).first().locator(".collectionRow__name"))
+  await expect(rows(page).first().locator(".collections__name"))
     .toHaveText(namedForToday());
 });
 
@@ -119,7 +119,7 @@ test("three can be made, switched between, and keep their own words", async ({ p
   await openCollection(page);
 
   // The first visit's Sammlung is unnamed, so the list draws one for it.
-  const first = (await rows(page).first().locator(".collectionRow__name").innerText()).trim();
+  const first = (await rows(page).first().locator(".collections__name").innerText()).trim();
   await keyText(page).first().fill("The first one speaks");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
