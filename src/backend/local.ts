@@ -17,6 +17,9 @@
 
 import type { Layout, OfferedVoice, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
 import * as obf from "../data/obf.js";
+import * as appPackage from "../data/app_package.js";
+import { bakeImage, bakeSound } from "../data/app_assets.js";
+import { ENCODER_RATE } from "../data/opus.js";
 import * as store from "../data/store.js";
 import * as tiles from "../data/tiles.js";
 import * as symbols from "../data/symbols.js";
@@ -570,6 +573,76 @@ export async function exportBoard({ images = false } = {}) {
   const held = await store.readLayout();
   return new Blob([await obf.exportObz(held.layout || NOTHING)],
                   { type: "application/zip" });
+}
+
+/**
+ * The Sammlung as a Lautstark Board Package, for the Android viewer.
+ *
+ * The second door, and deliberately a door of its own: exchange/SPEC.md §5.2
+ * requires that an export baking pixels not be the same function as the
+ * talker's behind a flag, because the talker's guarantee is that it never
+ * writes a symbol as pixels and a guarantee enforced by an argument is one
+ * flag away from being untrue. exportBoard() above writes references and
+ * refuses METACOM; this writes files and asks nobody, on the narrow permission
+ * §5.2 sets out - a licensee preparing material for the person they support,
+ * sideloaded onto that person's own device. The package says so: it goes out
+ * with redistributable false.
+ *
+ * `missing` counts references that resolved to nothing. Not an error - a
+ * package without a picture on one button is a working package, and §9.2 has
+ * the viewer degrade that button rather than refuse the file - but it is worth
+ * saying out loud, because the usual cause is a METACOM folder this browser
+ * has not been given back yet, and the fix is one click away in the settings.
+ */
+export async function exportAppPackage(): Promise<{ blob: Blob; missing: number }> {
+  const list = await store.readCollections();
+  const current = list.collections.find((one) => one.id === list.current);
+  if (!current) throw new Error("There is no Sammlung open to export.");
+  const layout = (await store.readLayout()).layout || NOTHING;
+
+  // One bake per distinct reference and per distinct sentence, not per use:
+  // the same picture on three keys is one member of the archive, and the same
+  // sentence in two sets is synthesised once. The build does the same.
+  const images = new Map<string, appPackage.BakedImage>();
+  const sounds = new Map<string, appPackage.BakedSound>();
+  let missing = 0;
+
+  const voice = chosenVoice(layout);
+  const held = await store.readSettings(NO_SETTINGS);
+  // The 24 kHz §6 asks for, and none of the device's extras: fadeSec and
+  // padSec are there so a class-D amplifier does not click or cut a syllable,
+  // which is a fact about the board in the case and not about a tablet.
+  const options = held.azureSecret && held.azureRegion
+    ? { rate: ENCODER_RATE, ownsInference: true,
+        azure: { key: held.azureSecret, region: held.azureRegion } }
+    : { rate: ENCODER_RATE, ownsInference: true };
+
+  for (const set of layout.sets || []) {
+    for (const reference of [set.symbol, ...(set.slots || []).map((slot) => slot.symbol)]) {
+      const key = String(reference || "");
+      if (!key || images.has(key)) continue;
+      const source = await picture(key);
+      if (!source) { missing++; continue; }
+      images.set(key, await bakeImage(source));
+    }
+    for (const slot of set.slots || []) {
+      const text = String(slot.text || "").trim();
+      // Without a voice there is nothing to record, and that is a normal
+      // package rather than a broken one: §9.2 says a board built for text to
+      // speech is not degraded, and the viewer speaks it with its own voice.
+      if (!text || !voice || sounds.has(text)) continue;
+      const spoken = await speak(text, voice, options);
+      sounds.set(text, await bakeSound(spoken.samples));
+    }
+  }
+
+  const pkg = appPackage.buildAppPackage({
+    collection: current, layout, images, sounds, voice,
+  });
+  return {
+    blob: new Blob([await appPackage.packageBytes(pkg)], { type: "application/zip" }),
+    missing,
+  };
 }
 
 /** An .obf or .obz on the way in, as a layout. Deliberately does not save it:

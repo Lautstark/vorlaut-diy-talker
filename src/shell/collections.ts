@@ -16,7 +16,7 @@
  *
  *   the list, and "+ Neue Sammlung"   in the sidebar - this is their level
  *   the name                          in the work head, as the field that renames
- *   export, delete                    in the work head's ⋯
+ *   the two exports, delete           in the work head's ⋯
  *
  * The last line is the one worth defending. Both act on exactly the Sammlung
  * that is open, and a button sitting in a list of five can never say which one
@@ -28,7 +28,7 @@ import { menuOn } from "@lautstark/design/menu";
 import { confirmDialog } from "@lautstark/design/dialog";
 import { reason } from "../core/errors.js";
 import {
-  createCollection, deleteCollection, exportBoard,
+  createCollection, deleteCollection, exportAppPackage, exportBoard,
   layoutOf, listCollections, readSettings, renameCollection, useCollection,
   writeSettings,
 } from "../backend/index.js";
@@ -194,25 +194,66 @@ async function create(): Promise<void> {
   field.select();
 }
 
-/** The Sammlung as a document other AAC software opens. */
-async function exportOne(): Promise<void> {
+/** Hands a finished file to the browser as a download.
+ *
+ * The revoke is late rather than immediate: the click returns before the
+ * browser has opened the URL, and a blob revoked in that gap is a download
+ * that silently never begins.
+ */
+function offer(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** The name of the Sammlung, as something a file system will take. safeName()
+ *  is the store's, so a downloaded file and a file written into a folder are
+ *  named by the same rule. */
+const fileStem = (): string => {
   const at = held.collections.findIndex((one) => one.id === held.current);
-  if (at < 0) return;
+  return safeName(nameOf(held.collections[at]!.name));
+};
+
+/** The Sammlung as a document other AAC software opens: symbols by reference. */
+async function exportOne(): Promise<void> {
+  if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
   try {
     await saveNow();
-    const blob = await exportBoard();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${safeName(nameOf(held.collections[at]!.name))}.obz`;
-    link.click();
-    // Revoked later rather than here: the click returns before the browser has
-    // opened the URL, and a blob revoked in that gap is a download that
-    // silently never begins.
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    offer(await exportBoard(), `${fileStem()}.obz`);
     status(t("ui.collection_exported"));
   } catch (error) {
     status(t("ui.collection_failed", { error: reason(error) }));
+  }
+}
+
+/** The Sammlung as the package the Android viewer opens: pictures and
+ * recordings baked in as files.
+ *
+ * A second entry rather than an option on the first, all the way down to the
+ * backend - exchange/SPEC.md §5.2, and the note above exportAppPackage().
+ *
+ * It can take a while, because every sentence with no recording yet is
+ * synthesised before it can be encoded. The status line says so first, since
+ * this is the one thing in the menu that is not instant.
+ */
+async function exportApp(): Promise<void> {
+  if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
+  try {
+    await saveNow();
+    status(t("ui.collection_exporting_app"));
+    const { blob, missing } = await exportAppPackage();
+    offer(blob, `${fileStem()}-app.obz`);
+    // Missing pictures are worth a sentence rather than a refusal: the package
+    // works, the viewer marks those buttons, and the usual cause is a METACOM
+    // folder this browser has not been given back yet.
+    status(missing
+      ? t("ui.collection_exported_app_gaps", { n: missing })
+      : t("ui.collection_exported_app"));
+  } catch (error) {
+    status(t("ui.collection_export_failed", { error: reason(error) }));
   }
 }
 
@@ -303,6 +344,7 @@ export function wireCollections(): void {
     event.stopPropagation();
     menuOn($("collectionMenu"), (add) => {
       add(t("ui.collection_export"), () => { void exportOne(); });
+      add(t("ui.collection_export_app"), () => { void exportApp(); });
       add(t("ui.collection_delete"), () => { void remove(); }, { danger: true });
     });
   };
