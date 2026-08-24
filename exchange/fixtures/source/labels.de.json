@@ -1,0 +1,20 @@
+{
+  "_why": "German fixture content, kept out of the generator so that make_fixtures.mjs stays English like the rest of the code. Real boards are German and full of umlauts and eszett; a fixture set that only ever said 'Cafe' would not exercise the text that actually ships. exchange/fixtures/ is exempt from the code-language check for this reason - see the SKIP_PREFIX note in tests/test_language.py.",
+
+  "board_name": "Satzleiste",
+  "package_name": "Satzleiste",
+  "voice": "de_DE-thorsten-medium",
+
+  "word_i": "ich",
+  "word_want": "will",
+  "apple_label": "Apfel",
+  "apple_spoken": "einen Apfel",
+  "football": "Fußball",
+
+  "speak": "Sprechen",
+  "clear": "Löschen",
+  "backspace": "Zurück",
+  "ouch": "Aua!",
+
+  "sentence_spoken": "ich will einen Apfel"
+}

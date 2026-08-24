@@ -1,0 +1,49 @@
+{
+  "fixture": "identity-b",
+  "file": "identity-b.obz",
+  "spec_version": "1.0.0",
+  "summary": "Package B: the same name as A, a different id. Must not replace A.",
+  "outcome": "accepted",
+  "package": {
+    "id": "1f0a5c2e-0000-4000-8000-00000000000b",
+    "name": "Nursery",
+    "modified": "2026-08-24T09:41:00Z",
+    "root_board": "nursery"
+  },
+  "boards": [
+    {
+      "id": "nursery",
+      "name": "Nursery",
+      "rows": 1,
+      "columns": 1
+    }
+  ],
+  "buttons": [
+    {
+      "board": "nursery",
+      "id": "k1",
+      "label": "Singing",
+      "vocalization": "I want to sing",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    }
+  ],
+  "warnings": [],
+  "after_importing": {
+    "fixtures": [
+      "identity-a",
+      "identity-b"
+    ],
+    "packages_on_device": [
+      "1f0a5c2e-0000-4000-8000-00000000000a",
+      "1f0a5c2e-0000-4000-8000-00000000000b"
+    ],
+    "note": "Two packages, both named Nursery. The app must show both and distinguish them by something other than the name."
+  },
+  "notes": [
+    "This is the duplicate-then-edit case. Somebody copied A, changed a button and passed it on; the copy minted a fresh id, so it is a different vocabulary that happens to share a name.",
+    "An importer keyed on the package name would overwrite A here and destroy a vocabulary somebody depends on. That is the whole reason identity is an id and not a name.",
+    "The board id inside both packages is 'kiga' in both. Board ids are scoped to their package and are not device-unique; an importer that keys stored boards on the board id alone also fails this fixture."
+  ]
+}
