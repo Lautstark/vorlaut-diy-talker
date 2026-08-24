@@ -37,6 +37,7 @@ const option = (page: Page, code: string) =>
 /** Opens the settings sheet and picks a language. */
 async function choose(page: Page, code: string): Promise<void> {
   await page.click("#settingsLink");
+  await openPanel(page, "#languagePanel");
   await page.click("#langPick");
   await option(page, code).click();
 }
@@ -53,6 +54,14 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#device .tile")).toHaveCount(5);
   await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
 });
+
+/** Unfolds one panel. The sheet's panels are one exclusive group now - opening
+ *  one closes the rest - so anything acting inside a panel has to open that
+ *  panel first rather than assuming an earlier one stayed put. */
+async function openPanel(page: Page, id: string) {
+  const panel = page.locator(id);
+  if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
+}
 
 test("a chosen language is in force, and the menu says which", async ({ page }) => {
   await choose(page, CHOSEN);
@@ -137,7 +146,7 @@ test("the layout is what carries it, not this browser", async ({ page }) => {
  * once the formatter followed - both halves are needed and this covers both. */
 test("the folder's own line follows a switch, formatter and all", async ({ page }) => {
   await page.click("#settingsLink");
-  await page.locator("#dataPanel summary").click();
+  await openPanel(page, "#dataPanel");
   const line = page.locator("#folderState");
   await expect(line).toBeVisible();
   const before = (await line.textContent())?.trim() ?? "";
@@ -145,6 +154,7 @@ test("the folder's own line follows a switch, formatter and all", async ({ page 
   // browser asked for, which is the baseline the switch has to move.
   expect(before).toContain(says(ASKED, "ui.folder_off"));
 
+  await openPanel(page, "#languagePanel");
   await page.click("#langPick");
   await option(page, CHOSEN).click();
 

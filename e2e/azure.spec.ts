@@ -35,11 +35,19 @@ const VOICE_GONE = new RegExp(`(${table("ui.voice_gone")
  * the wrong test. */
 const VOICES_LIST = /tts\.speech\.microsoft\.com\/cognitiveservices\/voices\/list/;
 
+/** Unfolds one panel. The sheet's panels are one exclusive group now - opening
+ *  one closes the rest - so anything acting inside a panel has to open that
+ *  panel first rather than assuming an earlier one stayed put. */
+async function openPanel(page: Page, id: string) {
+  const panel = page.locator(id);
+  if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
+}
+
 async function typeKeyAndSave(page: Page, region: string) {
   await page.goto("./");
   await expect(page.locator("#device .tile")).toHaveCount(5);
   await page.locator("#settingsLink").click();
-  await page.locator("#azurePanel summary").click();
+  await openPanel(page, "#azurePanel");
   await page.locator("#azureKey").fill("0000fakekeyfakekeyfakekey0000");
   await page.locator("#azureRegion").fill(region);
   await page.locator("#azureSave").click();
@@ -47,12 +55,7 @@ async function typeKeyAndSave(page: Page, region: string) {
 
 /** Unfolds the Voice panel, whatever state the <details> was left in - it
  *  keeps its fold across closings of the sheet, so a blind click toggles. */
-async function openVoicePanel(page: Page) {
-  const panel = page.locator("#voicePanel");
-  if ((await panel.getAttribute("open")) === null) {
-    await panel.locator("summary").click();
-  }
-}
+const openVoicePanel = (page: Page) => openPanel(page, "#voicePanel");
 
 test("a working key answers with its voices, sheet still open", async ({ page }) => {
   await page.route(VOICES_LIST, (route) => route.fulfill({
@@ -113,7 +116,10 @@ test("a stored key can be removed, and the azure rows leave with it", async ({ p
   // Its own button, not a reading of the empty field - the empty field means
   // "leave the key alone". The sheet stays open: the rows this removal costs
   // leave in front of the person who asked.
+  await openPanel(page, "#azurePanel");
   await page.locator("#azureForget").click();
+  // The list is in the voice panel, which the one above just closed.
+  await openVoicePanel(page);
   await expect(page.locator("#voices")).toBeVisible();
   await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
   await expect(page.locator("#voiceList .voiceRow", { hasText: "Katja" }))
@@ -153,7 +159,10 @@ test("a chosen Azure voice keeps its name after the key stops working", async ({
   // And now the key goes. The voice stays chosen on purpose - dropping it
   // would throw away a deliberate decision - so it has to keep being shown,
   // and what it is shown as is the whole of this test.
+  await openPanel(page, "#azurePanel");
   await page.locator("#azureForget").click();
+  // The list is in the voice panel, which the one above just closed.
+  await openVoicePanel(page);
   await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
 
   const gone = page.locator("#voiceList .voiceRow", { hasText: VOICE_GONE });
