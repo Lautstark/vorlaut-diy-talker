@@ -159,7 +159,218 @@ const json = (value) => Buffer.from(JSON.stringify(value, null, 2) + "\n", "utf8
 
 const index = [];
 
-function fixture({ name, summary, members, corrupt, expected }) {
+/** Refuses to write a fixture whose expectation disagrees with its package.
+ *
+ * fixture() takes `members` and `expected` as two sibling literals. That is
+ * what makes an expectation readable next to the package it describes, and it
+ * is also what lets the two drift: nothing derives one from the other, so a
+ * board can grow a button that the expectation never hears about.
+ *
+ * Byte-reproducibility cannot catch that. Both halves regenerate from the same
+ * source, so a wrong pair regenerates consistently wrong forever, and
+ * tests/test_exchange_fixtures.py goes green on it. This is the check that can
+ * - and it has already earned its place: board `essen` in multipage carried
+ * three columns and an expectation describing two.
+ *
+ * `deliberate` names the violations a fixture is *about*. A fixture testing a
+ * missing sound has to contain a missing sound; naming it is how that stays a
+ * decision rather than an oversight nobody notices.
+ */
+function coherent(name, members, expected, deliberate) {
+  const allowed = new Set(deliberate);
+  const problems = [];
+  // A waiver has to be *exercised*, not merely declared: `waived` records the
+  // kinds that actually suppressed something, so a waiver left behind after the
+  // violation it covered is gone becomes an error rather than dead decoration.
+  const waived = new Set();
+  const fail = (kind, detail) => {
+    if (allowed.has(kind)) { waived.add(kind); return; }
+    problems.push(`[${kind}] ${detail}`);
+  };
+
+  // Archive member names, compared the way SPEC.md 2 requires: NFC on both
+  // sides. The NFD fixture stores one name decomposed on purpose.
+  const present = new Set(members.map((m) => m.name.normalize("NFC")));
+  const has = (path) => present.has(String(path ?? "").normalize("NFC"));
+
+  const read = (path) => {
+    const found = members.find((m) => m.name === path);
+    return found ? JSON.parse(found.data.toString("utf8")) : null;
+  };
+
+  const manifest = read(MANIFEST);
+  if (!manifest) { problems.push("[manifest] no manifest.json among the members"); return problems; }
+
+  const boardPaths = manifest.paths?.boards ?? {};
+  const boards = new Map();
+  for (const [id, path] of Object.entries(boardPaths)) {
+    if (!has(path)) { fail("board-unresolved", `paths.boards[${id}] -> ${path}`); continue; }
+    const board = read(path);
+    if (board) boards.set(id, board);
+  }
+  if (!Object.values(boardPaths).includes(manifest.root)) {
+    fail("root-unresolved", `root ${manifest.root} is not a value in paths.boards`);
+  }
+  for (const [id, path] of Object.entries(manifest.paths?.images ?? {})) {
+    if (!has(path)) fail("image-unresolved", `paths.images[${id}] -> ${path}`);
+  }
+  for (const [id, path] of Object.entries(manifest.paths?.sounds ?? {})) {
+    if (!has(path)) fail("sound-unresolved", `paths.sounds[${id}] -> ${path}`);
+  }
+
+  // --- inside each board ----------------------------------------------------
+  const placed = new Map();          // board id -> button ids, grid row-major
+  for (const [id, board] of boards) {
+    const buttons = new Map((board.buttons ?? []).map((b) => [b.id, b]));
+    const images = new Map((board.images ?? []).map((i) => [i.id, i]));
+    const sounds = new Map((board.sounds ?? []).map((snd) => [snd.id, snd]));
+    const grid = board.grid ?? {};
+    const order = grid.order ?? [];
+
+    if (order.length !== grid.rows) {
+      fail("grid-shape", `${id}: rows says ${grid.rows}, order has ${order.length}`);
+    }
+    for (const row of order) {
+      if (row.length !== grid.columns) {
+        fail("grid-shape", `${id}: columns says ${grid.columns}, a row has ${row.length}`);
+      }
+    }
+
+    const inOrder = order.flat().filter((cell) => cell !== null && cell !== undefined);
+    placed.set(id, inOrder);
+    for (const cell of inOrder) {
+      if (!buttons.has(cell)) fail("grid-ids", `${id}: order names ${cell}, which is not in buttons[]`);
+    }
+    for (const button of buttons.keys()) {
+      if (!inOrder.includes(button)) fail("button-unplaced", `${id}: button ${button} is in no grid cell`);
+    }
+
+    for (const button of buttons.values()) {
+      if (button.image_id !== undefined) {
+        const entry = images.get(button.image_id);
+        if (!entry) fail("image-unresolved", `${id}/${button.id}: image_id ${button.image_id} not in images[]`);
+        else if (!has(entry.path)) fail("image-unresolved", `${id}/${button.id}: ${entry.path} is not in the archive`);
+      }
+      if (button.sound_id !== undefined) {
+        const entry = sounds.get(button.sound_id);
+        if (!entry) fail("sound-unresolved", `${id}/${button.id}: sound_id ${button.sound_id} not in sounds[]`);
+        else if (!has(entry.path)) fail("sound-unresolved", `${id}/${button.id}: ${entry.path} is not in the archive`);
+      }
+      const target = button.load_board;
+      if (target) {
+        if (!boards.has(target.id)) fail("load-board", `${id}/${button.id}: load_board ${target.id} is not a board`);
+        else if (!has(target.path)) fail("load-board", `${id}/${button.id}: load_board path ${target.path} is not in the archive`);
+      }
+    }
+  }
+
+  // --- the expectation against the package ----------------------------------
+  if (expected.outcome === "accepted") {
+    const rootId = Object.entries(boardPaths).find(([, path]) => path === manifest.root)?.[0];
+    if (expected.package?.root_board !== undefined && expected.package.root_board !== rootId) {
+      fail("expected-package", `root_board says ${expected.package.root_board}, manifest.root resolves to ${rootId}`);
+    }
+    const pairs = [
+      ["id", "ext_lautstark_package_id"],
+      ["name", "ext_lautstark_package_name"],
+      ["modified", "ext_lautstark_modified"],
+      ["symbol_source", "ext_lautstark_symbol_source"],
+      ["redistributable", "ext_lautstark_redistributable"],
+      ["tts_voice", "ext_lautstark_tts_voice"],
+    ];
+    for (const [field, key] of pairs) {
+      const said = expected.package?.[field];
+      if (said !== undefined && said !== manifest[key]) {
+        fail("expected-package", `package.${field} says ${JSON.stringify(said)}, manifest ${key} is ${JSON.stringify(manifest[key])}`);
+      }
+    }
+
+    const describedBoards = new Set((expected.boards ?? []).map((b) => b.id));
+    for (const id of boards.keys()) {
+      if (!describedBoards.has(id)) fail("expected-boards", `board ${id} is in the package and not in expected.boards`);
+    }
+    for (const id of describedBoards) {
+      if (!boards.has(id)) fail("expected-boards", `expected.boards names ${id}, which is not in the package`);
+    }
+    for (const described of expected.boards ?? []) {
+      const board = boards.get(described.id);
+      if (!board) continue;
+      for (const field of ["rows", "columns"]) {
+        if (described[field] !== undefined && described[field] !== board.grid?.[field]) {
+          fail("expected-boards", `${described.id}: expected ${field} ${described[field]}, package says ${board.grid?.[field]}`);
+        }
+      }
+      if (described.name !== undefined && described.name !== board.name) {
+        fail("expected-boards", `${described.id}: expected name ${JSON.stringify(described.name)}, package says ${JSON.stringify(board.name)}`);
+      }
+    }
+
+    const describedButtons = new Set((expected.buttons ?? []).map((b) => `${b.board}/${b.id}`));
+    for (const [id, inOrder] of placed) {
+      for (const button of inOrder) {
+        if (!describedButtons.has(`${id}/${button}`)) {
+          fail("expected-buttons", `${id}/${button} is rendered by the package and absent from expected.buttons`);
+        }
+      }
+    }
+    for (const described of expected.buttons ?? []) {
+      const inOrder = placed.get(described.board);
+      if (!inOrder) { fail("expected-buttons", `expected.buttons names board ${described.board}, which is not in the package`); continue; }
+      if (!inOrder.includes(described.id)) {
+        fail("expected-buttons", `expected.buttons names ${described.board}/${described.id}, which no grid cell holds`);
+        continue;
+      }
+      const button = (boards.get(described.board).buttons ?? []).find((b) => b.id === described.id);
+      for (const field of ["label", "vocalization"]) {
+        if (described[field] !== undefined && button?.[field] !== undefined
+            && described[field] !== button[field]) {
+          fail("expected-buttons", `${described.board}/${described.id}: expected ${field} ${JSON.stringify(described[field])}, package says ${JSON.stringify(button[field])}`);
+        }
+      }
+    }
+
+    // SPEC.md 9.5: warnings come in one order and only one.
+    const canonical = warningOrder(expected.warnings ?? [], rootId, boards, placed);
+    const given = (expected.warnings ?? []).map(warningKey);
+    if (JSON.stringify(canonical.map(warningKey)) !== JSON.stringify(given)) {
+      fail("warning-order",
+           `warnings are not in the order SPEC.md 9.5 requires\n      given:     ${given.join(" | ")}\n      canonical: ${canonical.map(warningKey).join(" | ")}`);
+    }
+  }
+
+  for (const kind of allowed) {
+    if (!waived.has(kind)) {
+      problems.push(`[stale-waiver] ${name} waives ${kind}, and nothing in it violates ${kind}`);
+    }
+  }
+  return problems;
+}
+
+const warningKey = (w) => `${w.board ?? "-"}/${w.button ?? "-"}:${w.code}`;
+
+/** SPEC.md 9.5's order: package-scoped first, then the root board, then the
+ *  rest by code point; within a board, board-scoped first and then buttons in
+ *  grid row-major order; ties broken by code. */
+function warningOrder(warnings, rootId, boards, placed) {
+  const boardRank = new Map();
+  const rest = [...boards.keys()].filter((id) => id !== rootId).sort();
+  [rootId, ...rest].forEach((id, at) => boardRank.set(id, at));
+  return [...warnings].sort((one, two) => rank(one) - rank(two) || (one.code < two.code ? -1 : one.code > two.code ? 1 : 0));
+
+  function rank(w) {
+    if (w.board === null || w.board === undefined) return -1e9;
+    const board = (boardRank.get(w.board) ?? 1e6) * 1000;
+    if (w.button === null || w.button === undefined) return board;
+    const at = (placed.get(w.board) ?? []).indexOf(w.button);
+    return board + (at < 0 ? 999 : at + 1);
+  }
+}
+
+function fixture({ name, summary, members, corrupt, expected, deliberate = [] }) {
+  const problems = coherent(name, members, expected, deliberate);
+  if (problems.length) {
+    throw new Error(`${name}: package and expectation disagree\n    ` + problems.join("\n    "));
+  }
   const bytes = zipBytes(members, corrupt);
   writeFileSync(join(OUT, `${name}.obz`), bytes);
   writeFileSync(join(OUT, `${name}.expected.json`),
@@ -326,13 +537,15 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
                  redistributable: true, root_board: "start" },
       boards: [
         { id: "start", name: "Start", rows: 1, columns: 2, color: "#3B5BDB" },
-        { id: "essen", name: "Food", rows: 1, columns: 2, color: "#2F9E44" },
+        { id: "essen", name: "Food", rows: 1, columns: 3, color: "#2F9E44" },
         { id: "spielen", name: "Play", rows: 1, columns: 2, color: "#E8590C" },
       ],
       buttons: [
         { board: "start", id: "s1", label: "Food", on_activate: "navigate:essen", state: "normal" },
         { board: "start", id: "s2", label: "Play", on_activate: "navigate:spielen", state: "normal" },
         { board: "essen", id: "e1", label: "Apple", on_activate: "append", audio: "tts", state: "normal" },
+        { board: "essen", id: "e3", label: "Café", vocalization: "Café", on_activate: "append",
+          image: "images/café.png", audio: "tts", state: "normal" },
         { board: "essen", id: "e2", label: "Back", on_activate: "home", state: "normal" },
         { board: "spielen", id: "p1", label: "Ball", on_activate: "append", audio: "tts", state: "normal" },
         { board: "spielen", id: "p2", label: "Back", on_activate: "home", state: "normal" },
@@ -481,7 +694,7 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
       notes: [
         "The content here is German because the boards that ship are German. Umlauts appear in three labels and an eszett in a fourth, so an importer that mangles UTF-8 somewhere between the zip and the bar fails this fixture rather than passing on ASCII and breaking in the field.",
         "w3 shows why the bar holds entries rather than words: the label is one word and the vocalization is two, and :backspace has to undo the whole button press.",
-        "The bar renders labels; it speaks vocalizations.",
+        "An entry shows its vocalization, not its label. w3's label is one word and its vocalization is a phrase, and it is the phrase that lands in the bar. The bar is a preview of the sentence, so it has to read as that sentence rather than as the row of keys that built it.",
       ],
     },
   });
@@ -550,6 +763,8 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
   fixture({
     name: "missing-audio",
     summary: "One button with no sound at all, one whose sound file is absent from the zip, one WAV in the tolerated format.",
+    // The absent sound is the fixture. Naming it here keeps it a decision.
+    deliberate: ["sound-unresolved"],
     members: [
       { name: "manifest.json", data: json(manifest({
           id: "1f0a5c2e-0000-4000-8000-000000000005",
@@ -883,6 +1098,94 @@ fixture({
     ],
   },
 });
+
+// =============================================================================
+// 10. warning-order - the sequence of SPEC.md 9.5, built so that the plausible
+//     wrong answers give a different one.
+// =============================================================================
+
+{
+  // Board ids chosen so that sorting them all together puts "aaa" before the
+  // root, and grid order chosen so that reading order is not id order. An
+  // importer that sorts by board id, or that walks buttons[] instead of the
+  // grid, produces a different list and fails here.
+  const NFD_IMAGE = "images/café.png".normalize("NFD");
+
+  fixture({
+    name: "warning-order",
+    summary: "Six warnings across three boards, in the one order SPEC.md 9.5 allows.",
+    deliberate: ["sound-unresolved"],
+    members: [
+      { name: "manifest.json", data: json(manifest({
+          id: "1f0a5c2e-0000-4000-8000-00000000000c",
+          modified: "2026-08-24T12:00:00Z",
+          packageName: "Warning order",
+          root: "boards/start.obf",
+          boards: { start: "boards/start.obf", aaa: "boards/aaa.obf", zzz: "boards/zzz.obf" },
+          images: { "img-big": "images/big.png", "img-cafe": "images/café.png" },
+          sounds: { "snd-absent": "sounds/absent.opus" },
+        })) },
+      { name: "boards/start.obf", data: json({
+          format: "open-board-0.1", id: "start", locale: "en", name: "Start",
+          buttons: [
+            { id: "b1", label: "Undo", action: ":undo" },
+            { id: "b2", label: "Quiet", vocalization: "Quiet", sound_id: "snd-absent" },
+            { id: "b3", label: "Big", vocalization: "Big", image_id: "img-big" },
+          ],
+          // Reading order is b3, b1, b2 - deliberately not b1, b2, b3.
+          grid: { rows: 1, columns: 3, order: [["b3", "b1", "b2"]] },
+          images: [{ id: "img-big", path: "images/big.png", width: 2048, height: 2048, content_type: "image/png" }],
+          sounds: [{ id: "snd-absent", path: "sounds/absent.opus", content_type: "audio/ogg", duration: 1.0 }],
+        }) },
+      { name: "boards/aaa.obf", data: json({
+          format: "open-board-0.1", id: "aaa", locale: "en", name: "Aaa",
+          buttons: [{ id: "a1", label: "Big", vocalization: "Big", image_id: "img-big" }],
+          grid: { rows: 1, columns: 1, order: [["a1"]] },
+          images: [{ id: "img-big", path: "images/big.png", width: 2048, height: 2048, content_type: "image/png" }],
+        }) },
+      { name: "boards/zzz.obf", data: json({
+          format: "open-board-0.1", id: "zzz", locale: "en", name: "Zzz",
+          buttons: [{ id: "z1", label: "Spell", action: "+a", image_id: "img-cafe" }],
+          grid: { rows: 1, columns: 1, order: [["z1"]] },
+          images: [{ id: "img-cafe", path: "images/café.png", width: 512, height: 512, content_type: "image/png" }],
+        }) },
+      { name: "images/big.png", data: RED_2048 },
+      { name: NFD_IMAGE, data: VIOLET },     // NFD - the package-scoped warning
+    ],
+    expected: {
+      outcome: "accepted",
+      package: { id: "1f0a5c2e-0000-4000-8000-00000000000c", name: "Warning order",
+                 modified: "2026-08-24T12:00:00Z", root_board: "start" },
+      boards: [
+        { id: "start", name: "Start", rows: 1, columns: 3 },
+        { id: "aaa", name: "Aaa", rows: 1, columns: 1 },
+        { id: "zzz", name: "Zzz", rows: 1, columns: 1 },
+      ],
+      buttons: [
+        { board: "start", id: "b3", label: "Big", on_activate: "append", image: null, audio: "tts", state: "degraded" },
+        { board: "start", id: "b1", label: "Undo", on_activate: "disabled", state: "disabled" },
+        { board: "start", id: "b2", label: "Quiet", on_activate: "append", audio: "tts", state: "degraded" },
+        { board: "aaa", id: "a1", label: "Big", on_activate: "append", image: null, audio: "tts", state: "degraded" },
+        { board: "zzz", id: "z1", label: "Spell", on_activate: "disabled", image: "images/café.png", state: "disabled" },
+      ],
+      // This array is the assertion. Not a set - a sequence.
+      warnings: [
+        { code: "path_normalization", board: null, button: null,
+          detail: "archive member name is NFD; SPEC.md 2 requires NFC" },
+        { code: "image_oversized", board: "start", button: "b3", detail: "2048x2048 exceeds 1024x1024" },
+        { code: "action_unsupported", board: "start", button: "b1", detail: ":undo" },
+        { code: "sound_missing", board: "start", button: "b2", detail: "sounds/absent.opus" },
+        { code: "image_oversized", board: "aaa", button: "a1", detail: "2048x2048 exceeds 1024x1024" },
+        { code: "action_unsupported", board: "zzz", button: "z1", detail: "+a" },
+      ],
+      notes: [
+        "The order is the whole fixture. Every warning here would also be produced by an importer that emits them in some other sequence, so an implementation that compares warnings as an unordered set passes while still shuffling a caregiver-facing list between imports.",
+        "Three wrong answers this discriminates. Sorting board ids without putting the root first gives aaa, start, zzz. Walking buttons[] instead of grid.order gives b1, b2, b3 within the root board. Emitting package-scoped warnings last puts path_normalization at the end.",
+        "The two image_oversized warnings share a code and a detail and differ only in which board they came from. They are not interchangeable: a caregiver reads this list to find out which page to fix.",
+      ],
+    },
+  });
+}
 
 // --- Index and cleanup -------------------------------------------------------
 

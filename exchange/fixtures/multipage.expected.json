@@ -24,7 +24,7 @@
       "id": "essen",
       "name": "Food",
       "rows": 1,
-      "columns": 2,
+      "columns": 3,
       "color": "#2F9E44"
     },
     {
@@ -55,6 +55,16 @@
       "id": "e1",
       "label": "Apple",
       "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    },
+    {
+      "board": "essen",
+      "id": "e3",
+      "label": "Café",
+      "vocalization": "Café",
+      "on_activate": "append",
+      "image": "images/café.png",
       "audio": "tts",
       "state": "normal"
     },
