@@ -36,6 +36,9 @@ on:
       - src/**
       - e2e/**
       - tests/**
+      # tools/installcheck.mjs runs ahead of all three suites, so a change to
+      # it changes what every one of them is standing on.
+      - tools/**
       - public/**
       - example/**
       - firmware/vorlaut/**
@@ -76,6 +79,15 @@ jobs:
           python-version: "3.12"
 
       - run: npm ci
+
+      - name: The install really is what package.json pins
+        # Before any suite, on its own, and it fails rather than warns. A stale
+        # node_modules surfaces as a test failing elsewhere with plausible
+        # numbers in it - see tools/installcheck.mjs. Distinct from the pins.js
+        # step below, which asks the opposite question of the same packages:
+        # this one asks whether the install matches the pin, that one whether
+        # the pin has fallen behind what upstream has published.
+        run: npm run preflight
 
       - name: Shared packages, and whether anything newer has shipped
         # Warns, never fails: being a patch behind is not a reason to block a
