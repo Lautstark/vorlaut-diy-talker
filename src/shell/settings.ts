@@ -303,7 +303,11 @@ function renderHere() {
    * somebody presses the button above - and a grey line saying so reads like
    * the others, which are all descriptions. components.css's .notice.bad. */
   const needsAccess = state.kind === "needs-setup" && state.code === "permission-needed";
-  line.className = needsAccess ? "notice bad" : "note";
+  // Whether to draw it as a warning is bildquelle's answer; which sentence is
+  // this page's. The two differ: `error` needs attention too and has its own
+  // words below.
+  const attention = symbols.needsAttention(state);
+  line.className = attention ? "notice bad" : "note";
 
   if (needsAccess) {
     line.textContent = t("ui.metacom_confirm");
