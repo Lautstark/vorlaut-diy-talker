@@ -99,3 +99,16 @@ test("going back to the device setting removes the choice rather than storing on
     // And the label is still the one for this page's language.
     expect(await label(page, "ui.theme_system")).toBeTruthy();
   });
+
+test("opening a panel closes the one open before it", async ({ page }) => {
+  await page.click("#settingsLink");
+  // Language starts open, so a second panel is enough to show the group at work.
+  await expect(page.locator("#languagePanel")).toHaveJSProperty("open", true);
+
+  await page.locator("#themePanel summary").click();
+  await expect(page.locator("#themePanel")).toHaveJSProperty("open", true);
+  // The browser does this, not us: the panels share a name, which makes them
+  // one group with radio semantics. Asserting the effect rather than the
+  // attribute, so a scripted accordion would keep this green.
+  await expect(page.locator("#languagePanel")).toHaveJSProperty("open", false);
+});
