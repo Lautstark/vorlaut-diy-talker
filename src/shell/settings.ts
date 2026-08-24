@@ -5,7 +5,7 @@
 // This is the lower half of the settings sheet. The sheet itself, and its one
 // Save, are in voices.js.
 import { $, status } from "./dom.js";
-import { closeMenus, menuOn } from "@lautstark/design/menu";
+import { menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
 import { readSettings, writeSettings, exportBoard, importBoard, azureState }
@@ -128,7 +128,6 @@ function renderRenderings() {
   pick.onclick = () => menuOn(pick, (add) => {
     const live = symbols.preferredRendering() || null;
     const choose = (chosen: string | null) => () => {
-      closeMenus();
       // Told to the provider and written down, in that order: the provider
       // ranks the next search by it, and without the second half the choice
       // lasted exactly as long as the tab did.

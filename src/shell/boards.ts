@@ -23,7 +23,7 @@
  * bildhaft's title input and the reason there is no rename dialog to cancel.
  */
 import { $, status } from "./dom.js";
-import { closeMenus, menuOn } from "@lautstark/design/menu";
+import { menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import {
   createBoard, deleteBoard, duplicateBoard, listBoards, renameBoard, useBoard,
@@ -193,8 +193,8 @@ export function wireBoards(): void {
   $<HTMLButtonElement>("boardMenu").onclick = (event) => {
     event.stopPropagation();
     menuOn($("boardMenu"), (add) => {
-      add(t("ui.board_duplicate"), () => { closeMenus(); void duplicate(); });
-      add(t("ui.board_delete"), () => { closeMenus(); void remove(); },
+      add(t("ui.board_duplicate"), () => void duplicate());
+      add(t("ui.board_delete"), () => void remove(),
           { danger: true });
     });
   };

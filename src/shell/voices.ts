@@ -7,7 +7,7 @@
 // - because that Save is mostly about the voice. The Azure and METACOM panel
 // inside it is settings.js, which this calls into.
 import { $, status } from "./dom.js";
-import { closeMenus, menuOn } from "@lautstark/design/menu";
+import { menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import { listVoices, voiceFetchState, startVoiceFetch } from "../backend/index.js";
 import { LANG, LANGUAGES, setLanguage } from "../core/boot.js";
@@ -524,10 +524,8 @@ export function wireLanguage() {
   // because somebody who cannot read the page is who reaches for it.
   pick.onclick = () => menuOn(pick, (add) => {
     for (const code of LANGUAGES)
-      add(LANGUAGE_NAMES[code] || code, () => {
-        closeMenus();
-        void chooseLanguage(code);
-      }, { checked: code === LANG });
+      add(LANGUAGE_NAMES[code] || code, () => void chooseLanguage(code),
+        { checked: code === LANG });
   });
 
   // Typed into once and read on every render afterwards. The field is in the
