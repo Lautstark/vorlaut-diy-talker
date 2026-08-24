@@ -85,6 +85,13 @@
       "expected": "identity-a-v2.expected.json",
       "outcome": "accepted",
       "summary": "The same id as identity-a with a later modified timestamp. Must replace A, not sit beside it."
+    },
+    {
+      "fixture": "warning-order",
+      "file": "warning-order.obz",
+      "expected": "warning-order.expected.json",
+      "outcome": "accepted",
+      "summary": "Six warnings across three boards, in the one order SPEC.md 9.5 allows."
     }
   ]
 }

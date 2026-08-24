@@ -34,6 +34,72 @@ found out was by asking. The pin is in the lockfile now instead of in prose.
 > A tag is still worth having over a sha: `#v2.5.0` can be read against the
 > package's CHANGELOG without asking git what the sha was.
 
+That check looks outward, at what the repositories have published since. It
+has a twin looking the other way — `tools/installcheck.mjs`, which asks whether
+what is in `node_modules` is what the pin says. That one fails rather than
+warns, and it runs ahead of all three suites. Its reason for existing is the
+section below.
+
+## Installing them
+
+```bash
+npm ci
+```
+
+`npm ci` rather than `npm install`, and the reason is narrower than the folklore
+about git dependencies suggests. It was worth measuring rather than repeating,
+so here is what is actually true of this repository:
+
+- **`npm install` does not silently re-resolve a tag.** With the lockfile
+  present and in sync it installs the commit the lockfile names and never asks
+  git what `#v2.7.0` points at now. It completes with the network unplugged.
+- **`npm install` does repair a `node_modules` that has drifted** from the
+  lockfile. It reports `changed 1 package` and puts the pinned version back.
+
+So the case for `npm ci` is not that `npm install` corrupts the tree. It is
+these two:
+
+- **`npm ci` refuses when `package.json` and `package-lock.json` disagree**, and
+  names the package that does not match. `npm install` treats the same
+  disagreement as an instruction: it resolves the new tag, writes a new commit
+  into the lockfile and moves the build, without asking. That is the right
+  behaviour when refreshing a pin on purpose and the wrong one when the
+  disagreement came from a bad merge or a hand edit — and for a git dependency
+  what moves is a commit nobody reviewed.
+- **`npm ci` deletes `node_modules` first**, so nothing left behind by another
+  branch survives the install.
+
+It costs about ten seconds here against under one, because it re-clones four git
+dependencies and runs each one's `prepare` build. That is the price of the
+guarantee and it is only paid deliberately.
+
+**Neither command runs itself.** That is the gap the pin does not close and the
+one that has actually cost time here: a checkout switched, a worktree made,
+a `node_modules` a version behind, and nothing anywhere saying so. What surfaced
+instead was `tests/unit/level.test.ts` — a loudness failure with real numbers in
+it and a sound explanation about limiters and ceilings, in a recording chain
+that was correct, because the installed `@lautstark/stimmquelle` was simply
+older than the pinned one. A wrong answer that plausible costs more than an
+error does, because it gets investigated as a bug.
+
+`tools/installcheck.mjs` is what closes it. It compares four things already on
+disk — the tag in `package.json`, the version and commit in
+`package-lock.json`, the commit in `node_modules/.package-lock.json`, and the
+version in each installed package's own `package.json` — names any package
+where they disagree, prints the pinned version, the installed version and the
+command that fixes it, and stops. No network, no resolution, about forty
+milliseconds. It runs first in `npm test`, first in `npm run test:e2e`, first in
+`python3 tests/run.py`, and as its own step after `npm ci` in both workflows.
+`npm run preflight` runs it alone.
+
+It is worth knowing what it will and will not catch. Same version at a different
+commit — a moved tag — it catches, by comparing commits once the versions
+agree. A `node_modules` that is not there at all it catches. A package whose
+directory was replaced by hand it catches, because the installed package's own
+`package.json` is read directly rather than npm's record of it being trusted.
+What it cannot see is a package whose version is right and whose *contents* are
+not; nothing short of hashing the tree would, and that is not what went wrong.
+
 ## design — tokens, components, theme
 
 One JSON line per product in Lautstark/design (vorlaut's is its accent,
@@ -151,6 +217,12 @@ in the package.
 npm install @lautstark/stimmquelle@github:Lautstark/stimmquelle#v2.5.1
 npm test
 ```
+
+`npm install` here and not `npm ci`, and this is the one place that is true:
+moving a pin is exactly the deliberate act the section above says `npm install`
+is for. It resolves the new tag, writes the new commit into the lockfile and
+installs it. Everyone else picks that up from the lockfile with `npm ci`, and
+until they do, the check in front of the suites is what tells them.
 
 A release tag rather than a sha, so that `pins.js` can compare it against what
 the repository has published. Read the package's own `CHANGELOG.md` first —

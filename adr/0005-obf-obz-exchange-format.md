@@ -36,8 +36,8 @@ fits the world and not the code.
   be ignored.
 - Every extension field has to earn its place by naming what OBF cannot express.
   SPEC.md §4 carries that justification per field, in the table, as a column.
-- Twelve conformance fixtures ship with the specification and are **normative
-  where they and the prose disagree.**
+- Conformance fixtures ship with the specification and are **normative where
+  they and the prose disagree.**
 
 ## Why
 
@@ -70,7 +70,7 @@ outcome.
 
 **Fixtures over prose, where they disagree.** A specification meant to be
 implemented in Kotlin by someone who is not in the room needs an oracle that
-cannot be misread. Twelve archives with twelve expected results settle in bytes
+cannot be misread. An archive with an expected result beside it settles in bytes
 what a paragraph can only assert. They are byte-reproducible on purpose:
 deflate from stored blocks rather than zlib, images and audio as committed
 assets, held in place by `tests/test_exchange_fixtures.py`.

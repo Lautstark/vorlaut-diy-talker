@@ -154,6 +154,6 @@
   "notes": [
     "The content here is German because the boards that ship are German. Umlauts appear in three labels and an eszett in a fourth, so an importer that mangles UTF-8 somewhere between the zip and the bar fails this fixture rather than passing on ASCII and breaking in the field.",
     "w3 shows why the bar holds entries rather than words: the label is one word and the vocalization is two, and :backspace has to undo the whole button press.",
-    "The bar renders labels; it speaks vocalizations."
+    "An entry shows its vocalization, not its label. w3's label is one word and its vocalization is a phrase, and it is the phrase that lands in the bar. The bar is a preview of the sentence, so it has to read as that sentence rather than as the row of keys that built it."
   ]
 }

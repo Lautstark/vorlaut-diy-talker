@@ -50,6 +50,26 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+PREFLIGHT = HERE.parent / "tools" / "installcheck.mjs"
+
+
+def install_is_current() -> bool:
+    """Whether node_modules holds the versions package.json pins.
+
+    Three of the tests below drive node_modules/.bin/vite-node, so a stale
+    install reaches this file too. The rule itself lives in
+    tools/installcheck.mjs and is not restated here: two implementations of one
+    rule drift, and a drifted staleness check is a worse thing to own than none.
+
+    A missing node is not a stale install, so it does not stop the run - the
+    checks that need node fail on their own terms, and the ones that need only
+    g++ have no business being blocked by it.
+    """
+    try:
+        return subprocess.run(["node", str(PREFLIGHT)]).returncode == 0
+    except FileNotFoundError:
+        print("Skipping the install check: node is not on PATH.")
+        return True
 
 
 def tests_matching(needles: list[str]) -> list[Path]:
@@ -65,6 +85,12 @@ def tests_matching(needles: list[str]) -> list[Path]:
 
 
 def main(argv: list[str]) -> int:
+    # Before anything is compiled or run. A stale install surfaces as a test
+    # failing somewhere else entirely, with numbers and a plausible story, and
+    # one more red test among red tests is exactly what this is here to avoid.
+    if not install_is_current():
+        return 1
+
     tests = tests_matching(argv[1:])
     if not tests:
         print("No test matches that.", file=sys.stderr)
