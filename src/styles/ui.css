@@ -124,10 +124,13 @@ body {
    where its print button is - the same question, answered down a cable
    instead of on paper. */
 .content { display: flex; flex-direction: column; min-width: 0; }
+/* On the page's own ground, with nothing drawn under it. It had --surface and a
+   rule, which made it a bar - and a bar is furniture, which this is not: it is
+   the name of the thing you are looking at, with the two acts that apply to it.
+   The width is what gives it the top of the page; it does not need a box drawn
+   round it as well. */
 .workhead {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 20px; border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  display: flex; align-items: center; gap: 10px; padding: 12px 20px;
 }
 /* The action and the ⋯ sit at the end, past whatever the name did not use. */
 .workhead .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
