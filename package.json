@@ -12,9 +12,9 @@
     "typecheck": "tsc -b --force",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "BASE_PATH=/vorlaut/ npm run build && playwright test",
+    "test:e2e": "BASE_PATH=/vorlaut-diy-talker/ npm run build && playwright test",
     "test:e2e:only": "playwright test",
-    "build:pages": "BASE_PATH=/vorlaut/ npm run build"
+    "build:pages": "BASE_PATH=/vorlaut-diy-talker/ npm run build"
   },
   "dependencies": {
     "@diffusionstudio/piper-wasm": "^1.0.0",

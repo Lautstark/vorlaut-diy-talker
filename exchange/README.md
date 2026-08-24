@@ -35,7 +35,7 @@ Tags are named `exchange-vMAJOR.MINOR.PATCH` and track `SPEC.md`'s version.
 ### As a submodule
 
 ```bash
-git submodule add https://github.com/Lautstark/vorlaut.git third_party/vorlaut
+git submodule add https://github.com/Lautstark/vorlaut-diy-talker.git third_party/vorlaut
 ```
 
 ```bash
@@ -51,7 +51,7 @@ change with a test run attached — never as a routine bump.
 If a submodule is unwelcome, fetch the tag and verify what arrived:
 
 ```bash
-curl -sSL https://github.com/Lautstark/vorlaut/archive/refs/tags/exchange-v1.0.0.tar.gz -o exchange.tar.gz
+curl -sSL https://github.com/Lautstark/vorlaut-diy-talker/archive/refs/tags/exchange-v1.0.0.tar.gz -o exchange.tar.gz
 ```
 
 ```bash

@@ -81,7 +81,7 @@ const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
 // local alias, and vite only substitutes that name written out in full, so the
 // expression survives into the bundle and finds no env at run time. It falls
 // back to "/", which is right in dev and wrong on Pages: the phonemizer would
-// be fetched from /vendor/ on a site served at /vorlaut/, and the first
+// be fetched from /vendor/ on a site served at /vorlaut-diy-talker/, and the first
 // sentence would fail on a 404 that no test sees, because e2e stands the
 // phonemizer chunk in and never loads the real files. Written out here, vite
 // substitutes it at build time. mitreden hit the same edge and passes it too;
