@@ -6,7 +6,8 @@
 // This file also owns the settings sheet itself - opening it and its one Save
 // - because that Save is mostly about the voice. The Azure and METACOM panel
 // inside it is settings.js, which this calls into.
-import { $, closeMenus, menuOn, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { closeMenus, menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import { listVoices, voiceFetchState, startVoiceFetch } from "../backend/index.js";
 import { LANG, LANGUAGES, setLanguage } from "../core/boot.js";

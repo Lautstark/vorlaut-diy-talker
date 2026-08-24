@@ -22,7 +22,8 @@
  * Renaming has no menu entry at all: the name on screen is the field, which is
  * bildhaft's title input and the reason there is no rename dialog to cancel.
  */
-import { $, closeMenus, menuOn, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { closeMenus, menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import {
   createBoard, deleteBoard, duplicateBoard, listBoards, renameBoard, useBoard,

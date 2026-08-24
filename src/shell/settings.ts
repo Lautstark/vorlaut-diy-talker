@@ -4,7 +4,8 @@
 //
 // This is the lower half of the settings sheet. The sheet itself, and its one
 // Save, are in voices.js.
-import { $, closeMenus, menuOn, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { closeMenus, menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
 import { readSettings, writeSettings, exportBoard, importBoard, azureState }
