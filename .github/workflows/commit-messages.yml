@@ -1,0 +1,142 @@
+name: Commit messages
+
+# The gate for conventional commits.
+#
+# It used to be .githooks/commit-msg alone, and a hook is the wrong shape for
+# this repository: it is opt-in per clone, and a clone that never ran
+# `git config core.hooksPath` has no check at all. The failure it was guarding
+# is silent - release-please reads the prefix and nothing else, so a commit
+# without one lands with no changelog entry and no version bump and says
+# nothing. A silent failure guarded by an opt-in check is not guarded.
+#
+# So the hook stays as a convenience - it tells you while the message is still
+# in the editor - and this is what actually has to pass.
+#
+# NO paths: filter, deliberately. Every other workflow here runs only when
+# something it checks changed; this one checks the commits themselves, and
+# there is no change to which that does not apply.
+#
+# The rule lives in tools/check-commit-subject.sh, which the hook also calls,
+# so the two cannot drift. docs/releases.md is the long version.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  subjects:
+    name: Conventional commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The whole history: the range below is only computable if both ends
+          # of it are actually here.
+          fetch-depth: 0
+
+      - name: Which commits arrived
+        id: range
+        run: |
+          set -eu
+          empty=0000000000000000000000000000000000000000
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base='${{ github.event.pull_request.base.sha }}'
+            head='${{ github.event.pull_request.head.sha }}'
+          else
+            base='${{ github.event.before }}'
+            head='${{ github.sha }}'
+          fi
+
+          # A first push to a branch has no "before", and a force-push has one
+          # that is no longer an ancestor. In both cases the honest definition
+          # of "this changeset" is everything the branch adds to main.
+          if [ -z "$base" ] || [ "$base" = "$empty" ] \
+             || ! git merge-base --is-ancestor "$base" "$head" 2>/dev/null; then
+            if git rev-parse --verify -q origin/main >/dev/null \
+               && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+              base=$(git merge-base origin/main "$head")
+              echo "No usable before-sha; comparing against origin/main."
+            else
+              base="$head^"
+              echo "No usable before-sha and no branch point; checking the tip only."
+            fi
+          fi
+
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+
+      - name: Every subject in the range
+        env:
+          BASE: ${{ steps.range.outputs.base }}
+          HEAD: ${{ steps.range.outputs.head }}
+        run: |
+          set -u
+
+          # --no-merges: a merge commit is not a change and has no changelog
+          # entry to lose. Merging a branch into main therefore checks the
+          # branch's own commits, which is the moment that matters.
+          commits=$(git rev-list --no-merges "$BASE..$HEAD")
+
+          if [ -z "$commits" ]; then
+            echo "No non-merge commits in $BASE..$HEAD. Nothing to check."
+            exit 0
+          fi
+
+          failed=0
+          checked=0
+          skipped=0
+          for sha in $commits; do
+            short=$(git rev-parse --short "$sha")
+            subject=$(git log -1 --format=%s "$sha")
+
+            # Commits from before the convention existed are not held to it,
+            # and the boundary is not a date or a sha somebody has to maintain:
+            # it is whether tools/check-commit-subject.sh was in the tree at
+            # that commit. A commit written before the rule shipped cannot have
+            # followed it. This needs no marker file, survives rebases, and
+            # stops being relevant on its own once the old commits are behind
+            # every range anybody pushes.
+            #
+            # The commit that ADDS the rule has it in its own tree, and is
+            # therefore the first one checked. That is intended.
+            if ! git cat-file -e "$sha:tools/check-commit-subject.sh" 2>/dev/null; then
+              echo "  --    $short  $subject"
+              skipped=$((skipped + 1))
+              continue
+            fi
+
+            checked=$((checked + 1))
+            if tools/check-commit-subject.sh "$subject"; then
+              echo "  ok    $short  $subject"
+            else
+              echo "        ^ $short"
+              failed=$((failed + 1))
+            fi
+          done
+
+          if [ "$skipped" -gt 0 ]; then
+            echo
+            echo "$skipped commit(s) predate the convention and were not checked."
+          fi
+
+          echo
+          if [ "$failed" -gt 0 ]; then
+            echo "$failed of $checked commit(s) have no conventional-commit prefix."
+            echo
+            echo "If they are still only on a branch, the fix is a rebase:"
+            echo "    git rebase -i $BASE            # reword each one"
+            echo
+            echo "If they are already on main, do not rewrite it. Their changes"
+            echo "are simply missing from the changelog, and the honest repair is"
+            echo "to say so in the next release's notes."
+            exit 1
+          fi
+
+          echo "$checked commit(s), all conventional."
