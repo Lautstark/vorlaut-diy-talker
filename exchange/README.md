@@ -10,7 +10,7 @@ viewer, plus the fixtures an importer is checked against.
 | [`fixtures/index.json`](fixtures/index.json) | Machine-readable list of them. |
 | [`fixtures/source/`](fixtures/source/) | German fixture content, kept out of the generator. |
 | [`assets/`](assets/) | The images and audio the packages embed, committed. |
-| [`adr/`](adr/) | Decisions that will otherwise be "tidied up" later. |
+| [`../adr/`](../adr/) | Decisions that will otherwise be "tidied up" later. They live at the top of the repository, not here: several of them decide things wider than this format. |
 | [`tools/make_fixtures.mjs`](tools/make_fixtures.mjs) | Regenerates `fixtures/`. Pure node. |
 | [`tools/make_assets.mjs`](tools/make_assets.mjs) | Re-renders `assets/`. Needs ffmpeg. |
 
