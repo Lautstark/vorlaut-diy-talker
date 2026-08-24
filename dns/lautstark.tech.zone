@@ -1,0 +1,93 @@
+; lautstark.tech - the record set, and the only place it is written down.
+;
+; This is the source of truth. STRATO's control panel is a copy of it, made by
+; hand, and dns/verify.py is what says whether the copy still matches. Change
+; this file first and the panel second, never the other way round - a change
+; made only in the panel is a change nobody can review and nobody will find.
+;
+; Apply and verify:  see dns/README.md
+;
+; SOA and NS are deliberately absent. They belong to whoever is authoritative
+; for the zone, which today is STRATO, and writing our own would be writing
+; down a guess. verify.py reports the live NS set rather than asserting one.
+
+$ORIGIN lautstark.tech.
+$TTL 3600
+
+
+; --------------------------------------------------------------------------
+; Mail: there is none, and nothing may claim otherwise
+; --------------------------------------------------------------------------
+;
+; These four go in first, before anything else, and they are the reason not to
+; leave a freshly registered domain sitting empty. A domain with no SPF and no
+; DMARC is a free "From:" address for anyone who wants one, and a domain whose
+; name contains a small charitable-looking project is a more attractive one
+; than most. None of this depends on the website existing.
+
+; RFC 7505: this domain accepts no mail, and a sender should stop rather than
+; retry for five days. If the panel refuses "0 ." as a target, see README.
+@                   IN  MX     0 .
+
+; No host is authorised to send mail as lautstark.tech. "-all", not "~all":
+; a softfail is an invitation to deliver it to the spam folder instead of
+; refusing it.
+@                   IN  TXT    "v=spf1 -all"
+
+; Reject on failure, and the same for every subdomain (sp=reject), with strict
+; alignment on both. No rua= address: aggregate reports are worth having when
+; you send mail and have something to learn from them, and this domain sends
+; none - a personal address published in a public repository is the larger
+; cost.
+_dmarc              IN  TXT    "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s"
+
+; An empty p= revokes every DKIM selector. Without this a receiver that finds
+; no key simply concludes it cannot check; with it, the answer is that no key
+; is valid.
+*._domainkey        IN  TXT    "v=DKIM1; p="
+
+
+; --------------------------------------------------------------------------
+; The website: GitHub Pages
+; --------------------------------------------------------------------------
+;
+; ---------------------------------------------------------------------------
+; THESE ARE NOT READY TO APPLY. Two things have to be true first, and neither
+; is true today - see "Before the Pages records" in dns/README.md:
+;
+;   1. A repository Lautstark/Lautstark.github.io has to exist, be published,
+;      and carry lautstark.tech as its custom domain. It does not exist.
+;   2. Setting the custom domain on the ORGANISATION site moves every project
+;      site with it: the builder becomes lautstark.tech/vorlaut-diy-talker/
+;      rather than lautstark.github.io/vorlaut-diy-talker/. That is a decision
+;      about published URLs, and the old ones only keep working for as long as
+;      GitHub keeps redirecting them.
+;
+; Apply the mail block above now. Come back to this block when 1 and 2 have
+; been decided.
+; ---------------------------------------------------------------------------
+
+; GitHub's four documented apex addresses. Checked live against a Pages apex
+; on 2026-08-24; they change rarely and verify.py will say when they have.
+@                   IN  A      185.199.108.153
+@                   IN  A      185.199.109.153
+@                   IN  A      185.199.110.153
+@                   IN  A      185.199.111.153
+
+@                   IN  AAAA   2606:50c0:8000::153
+@                   IN  AAAA   2606:50c0:8001::153
+@                   IN  AAAA   2606:50c0:8002::153
+@                   IN  AAAA   2606:50c0:8003::153
+
+; www is a CNAME rather than a second set of A records, so that GitHub can
+; move its addresses without this file having to know.
+www                 IN  CNAME  lautstark.github.io.
+
+; Let's Encrypt only, and no wildcards - which is what GitHub Pages uses to
+; issue the certificate for a custom domain. A CAA record does not make
+; issuance work; it stops anybody else's from working.
+;
+; This one has to change if the site ever moves off Pages, and a certificate
+; that mysteriously will not issue is what a stale CAA record looks like.
+@                   IN  CAA    0 issue "letsencrypt.org"
+@                   IN  CAA    0 issuewild ";"
