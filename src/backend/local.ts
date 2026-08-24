@@ -194,10 +194,9 @@ export async function pickSymbol(choice) {
 }
 
 export async function uploadSymbol(file) {
-  // The name is what somebody's file was called, with anything that could be a
-  // path taken out of it - these become keys, and a key with a slash in it
-  // reads like a folder that is not there.
-  const name = file.name.replace(/[^\w.-]+/g, "_");
+  // The name is what somebody's file was called, made safe to be a key - see
+  // safeName() in data/store.ts, which owns that rule because the key is its.
+  const name = store.safeName(file.name);
   await store.putFile("symbols", name, await file.arrayBuffer());
   return { symbol: name };
 }

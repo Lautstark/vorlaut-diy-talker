@@ -50,8 +50,15 @@ export interface CollectionRef {
    *  rather than left blank, so the list reads even when nobody names anything. */
   name: string;
   /** When it was last written, for the order the sidebar shows them in: the one
-   *  being worked on rises. Absent on a Sammlung that predates the field. */
-  updatedAt?: number;
+   *  being worked on rises.
+   *
+   *  Required rather than optional, and that is the storage layer's index
+   *  asking for it: `collections` is indexed on this field, and a record
+   *  missing an index's key is not in the index at all - so a Sammlung without
+   *  a stamp would not be missing from the *order*, it would be missing from
+   *  the sidebar. It was optional while a Sammlung could arrive from the
+   *  single-layout database without one; nothing arrives from there any more. */
+  updatedAt: number;
 }
 
 /** The whole list, and which of them is open. */

@@ -28,177 +28,175 @@
 // alone. That is data/backup.ts, and it carries every Sammlung rather than the
 // one that happens to be open - a backup that saved one talker out of three
 // would be worse than none, because it would look like one.
+//
+// --- Through `idb`, and in stores rather than in one record -------------------
+//
+// conventions.md §2.1, which vorlaut was the product diverging from: `idb@^8`,
+// a typed schema, real object stores with indexes. Both halves earned their
+// way in here rather than being adopted for tidiness.
+//
+// The stores. This file used to keep the whole registry as one record and every
+// Sammlung's layout under a `layout:<id>` key beside it, in a single `content`
+// store. Every read of the list was a read of the whole list and every write to
+// it a rewrite of the whole list, and the two ways of naming a thing - a record
+// per key, a prefix inside a key - had to be held in the head at once. A store
+// per kind says the same thing in the database's own vocabulary: `collections`
+// is one record per Sammlung, `layouts` is one record per layout, and the two
+// line up by id. What that buys immediately is the ordering (§1.4, last edited
+// first): it is an index on `updatedAt` now, so the sidebar's order is a range
+// the database walks and the next stamp is one cursor to the end of it, rather
+// than a sort and a Math.max over every Sammlung there is.
+//
+// The library. `idb` does not remove IndexedDB's one real trap - a transaction
+// stays open only while requests are outstanding on it, so awaiting anything
+// that is not a request on *that* transaction commits it underneath code that
+// believes it is still inside one. What it does is make the safe shape the
+// natural one to write: `await` on `tx.objectStore(...).get(...)` is a request
+// on the transaction and keeps it alive, and everything that is not one - the
+// hashing in writeLayout, the base64 in a restore - is visibly outside. The
+// rule still has to be known. It is known in one place across three products
+// rather than learned separately in each.
+//
+// There is no migration into this shape and there is not meant to be. See
+// DB_VERSION below.
 
+import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type StoreNames }
+  from "idb";
 import type { CollectionList, CollectionRef, HeldLayout, Layout, SaveResult, Settings }
   from "../core/types.js";
+import { touched } from "./changed.js";
 
-/** The three object stores this database has. Named rather than left as a
- *  string, so that a typo is a compile error instead of a silent empty read. */
-export type StoreName = "symbols" | "data" | "speech";
+/** The two picture folders, as the callers name them. Was three: a `speech`
+ *  member sat here with nothing behind it in the database, so every call naming
+ *  it would have thrown at run time. The typed schema is what makes that a
+ *  compile error, and removing the member is the first thing it caught. */
+export type StoreName = "symbols" | "data";
 
 const DB_NAME = "vorlaut";
-const DB_VERSION = 2;
 
-// Named for the folders in content/, deliberately.
-const CONTENT = "content";      // the Sammlungen and the settings, one record each
-const SYMBOLS = "symbols";      // what /api/pick and /api/upload put in symbols/
-const DATA = "data";            // what a build puts in data/, for the cable
+/* Version 3, and it starts from nothing.
+ *
+ * 1 held one layout under one key; 2 held a registry and `layout:<id>` beside
+ * it; 3 is the schema below. There is no carrying-across between 2 and 3, and
+ * that is the decision rather than an omission - conventions.md's rule about
+ * its own rules: these products have one user, who is the person writing them,
+ * and where a design is right it is adopted and the old one deleted in the same
+ * change. A browser that has been here before opens this version, loses what it
+ * had, and gets a first visit. Somebody who wanted to keep a board across the
+ * change had data/backup.ts to write it out with, which is what that file is
+ * for and is a better answer than a migration nobody will read again.
+ *
+ * So the upgrade drops *every* store it finds, including symbols/ and data/,
+ * whose shape has not changed. Keeping them would leave a browser holding
+ * pictures for boards that no longer exist and a build of a layout that is
+ * gone - half-old, which is the state this repository has decided not to have.
+ * One statement, and afterwards a database that reads exactly like a fresh one.
+ */
+const DB_VERSION = 3;
 
-/** Where the one layout lived while there was only one. Read by the migration
- *  in migrate() and by nothing else; see the note there. */
-const ONE_LAYOUT = "layout";
-const LIST = "collections";     // the list, and which of them is open
+/** One Sammlung's layout, as it is stored: the bytes and the stamp over them.
+ *  The id is in the record rather than only in the key, because the store has
+ *  a keyPath - see VorlautDB - and an id that only exists as a key cannot be read
+ *  back off a value somebody is holding. */
+interface StoredLayout {
+  id: string;
+  text: string;
+  version: string;
+}
+
+/** The two things this database remembers that are neither content nor
+ *  preference: which Sammlung is open, and which layout the build in data/ was
+ *  made from. Both are a name written down so a later read can compare against
+ *  it, which is why they are one store and not two.
+ *
+ *  `current` here rather than inside the settings record is where vorlaut reads
+ *  conventions.md §1.2 to its intent rather than its letter. The rule is that
+ *  it is persisted in the database with the preferences, against localStorage
+ *  and against module state; it is, and it is one transaction away from the
+ *  registry it points into, which is what matters when a Sammlung is deleted.
+ *  Putting it in the Settings object would make every settings save a save that
+ *  can move which board is open - and writeSettings() replaces the record. */
+type MarkName = "current" | "built";
+
+interface VorlautDB extends DBSchema {
+  /** One record per Sammlung: what it is called and when it was last written.
+   *  Not what is on it - that is `layouts`, and the split is what makes drawing
+   *  the sidebar a read of names rather than a read of every board. */
+  collections: {
+    key: string;
+    value: CollectionRef;
+    /** The order the sidebar shows (§1.4) and the source of the next stamp.
+     *  This is the index the store-per-kind was worth having: both readers walk
+     *  it from one end, and neither loads a layout to do it. */
+    indexes: { updatedAt: number };
+  };
+  layouts: { key: string; value: StoredLayout };
+  /** One record, and it is the whole of Settings. A store of its own rather
+   *  than a key among the marks because it is the one thing here with a shape
+   *  the rest of the app writes down - see core/types.ts. */
+  settings: { key: typeof SETTINGS; value: Settings };
+  marks: { key: MarkName; value: string | null };
+  /** What /api/pick and /api/upload put in symbols/, by name. */
+  symbols: { key: string; value: ArrayBuffer };
+  /** What a build puts in data/, for the cable. */
+  data: { key: string; value: ArrayBuffer };
+}
+
+const COLLECTIONS = "collections";
+const LAYOUTS = "layouts";
+const MARKS = "marks";
 const SETTINGS = "settings";
-const BUILT = "built";          // the layout version a build last ran against
+const BY_UPDATED = "updatedAt";
 
-/** One Sammlung's layout, by id. A prefix rather than a store of its own: the
- *  registry and the layouts have to move together when one is made or deleted,
- *  and one object store is one transaction. */
-const layoutKey = (id: string): string => `layout:${id}`;
+const CURRENT: MarkName = "current";
+const BUILT: MarkName = "built";
+
+/** The stores a write to a board touches. One tuple, so the three operations
+ *  that have to move the registry and a layout together cannot be written with
+ *  one of them left out - which is a row in the sidebar that opens onto
+ *  nothing, or a layout no row names. */
+const BOARDS = [COLLECTIONS, LAYOUTS, MARKS] as const;
 
 /** A Sammlung's identity, minted once and never derived from its contents.
  *
  * crypto.randomUUID() rather than a counter or a hash of the name: two of them
  * may share a name, a name may be renamed, and a duplicate must not be able to
- * collide with its original. See exchange/SPEC.md §8 for what this value is
- * eventually for. */
+ * collide with its original. conventions.md §1.1 settles this for all three
+ * products; see exchange/SPEC.md §8 for what this value is eventually for. */
 const mintId = (): string => crypto.randomUUID();
-
-const NO_LIST: CollectionList = { collections: [], current: null };
 
 // The same sentinel app.py answers with for a layout.json that is not there,
 // so that "nothing saved yet" reads the same on both sides.
 const EMPTY = "empty";
 
-/* --- Change ------------------------------------------------------------------
- *
- * Every write that changes what a Sicherung would contain says so here, and
- * the standing backup listens.
- *
- * The alternative was calling schedule() from each place in the interface that
- * edits something, and it is the wrong shape: the next one would be added by
- * somebody who had never heard of the backup, nothing would fail, and a
- * child's talker would quietly stop being saved. That is this feature's whole
- * failure mode, so the notifier sits at the writes.
- *
- * Two writes deliberately stay quiet, and both are worth naming rather than
- * discovering. recordBuild() only stamps which layout a build ran against.
- * Anything in data/ is build output, which a build makes again out of the
- * layout and the symbols - so neither is in the backup, and announcing them
- * would rewrite the file to say nothing new. */
-const watchers = new Set<() => void>();
+let opening: Promise<IDBPDatabase<VorlautDB>> | null = null;
 
-export function onChanged(listener: () => void): () => void {
-  watchers.add(listener);
-  return () => watchers.delete(listener);
-}
-
-function touched(): void {
-  for (const listener of watchers) listener();
-}
-
-let opening: Promise<IDBDatabase> | null = null;
-
-function open(): Promise<IDBDatabase> {
+function open(): Promise<IDBPDatabase<VorlautDB>> {
   // One connection, reused. Opening per call works and costs a round trip
   // through the database on every keystroke's worth of saving.
   if (opening) return opening;
-  opening = new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (event) => {
-      const db = request.result;
-      for (const name of [CONTENT, SYMBOLS, DATA]) {
-        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
-      }
-      // The versionchange transaction, which is the only one that exists here
-      // and is the one everything below has to run inside.
-      migrate(request.transaction!, event.oldVersion);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+  opening = openDB<VorlautDB>(DB_NAME, DB_VERSION, {
+    upgrade(db) {
+      // Snapshotted before the loop: objectStoreNames is live, and deleting
+      // through it skips every other name.
+      for (const name of [...db.objectStoreNames]) db.deleteObjectStore(name);
+
+      // keyPath rather than an out-of-line key for the two stores whose values
+      // carry their own id. It is one fewer place for the key and the record to
+      // disagree, and it is what lets a read hand back a CollectionRef that is
+      // complete on its own.
+      db.createObjectStore(COLLECTIONS, { keyPath: "id" })
+        .createIndex(BY_UPDATED, BY_UPDATED);
+      db.createObjectStore(LAYOUTS, { keyPath: "id" });
+      // Out-of-line: a Settings object has no id, an ArrayBuffer cannot have
+      // one, and a mark is a bare string.
+      db.createObjectStore(SETTINGS);
+      db.createObjectStore(MARKS);
+      db.createObjectStore("symbols");
+      db.createObjectStore("data");
+    },
   });
   return opening;
-}
-
-/* The work somebody already has, kept.
- *
- * Version 1 of this database held one layout, under one key. Version 2 holds a
- * list, and every Sammlung's layout under a key of its own. Somebody who opened
- * this page yesterday has a talker's worth of work under the old key, and an
- * upgrade that quietly started from an empty list would look exactly like the
- * browser having thrown the storage away - which store.ts warns can genuinely
- * happen, and which is the one failure nobody would question.
- *
- * So the record moves across whole, stamp and all: the version in it is a hash
- * of the bytes, the build stamp is compared against that hash, and rewriting
- * the record here - even to identical bytes - would be a new stamp and a build
- * that suddenly claimed to be stale. What arrives is the first Sammlung, open,
- * and unnamed - the name it is given comes from the shell, because a name
- * invented down here would be in whichever language this file does not have.
- *
- * In the upgrade transaction rather than lazily on first read, so it happens
- * once, before anything can read half of it, and cannot be interleaved with a
- * write. It is guarded on the registry rather than on the version number as
- * well, which costs one get and means a half-finished upgrade re-runs cleanly.
- *
- * tests/unit/store_migration.test.ts opens a real version 1 database, puts a
- * layout in it, and asks for it back through the ordinary reads.
- */
-function migrate(tx: IDBTransaction, from: number): void {
-  // 0 is a database that did not exist. There is nothing to carry, and
-  // loadLayout() seeds the first one through the ordinary path.
-  if (from < 1) return;
-  const content = tx.objectStore(CONTENT);
-  const listed = content.get(LIST);
-  listed.onsuccess = () => {
-    if (listed.result) return;                 // already a list
-    const held = content.get(ONE_LAYOUT);
-    held.onsuccess = () => {
-      if (!held.result) return;                // nothing was ever saved
-      const id = mintId();
-      content.put(held.result, layoutKey(id));
-      content.put({ collections: [{ id, name: "" }], current: id } as CollectionList, LIST);
-      // Deleted rather than left as a second copy: two records claiming to be
-      // it is how a later reader picks the wrong one.
-      content.delete(ONE_LAYOUT);
-    };
-  };
-}
-
-// Everything here goes through one of these, and the shape is not decoration.
-//
-// An IndexedDB transaction stays open only while requests are outstanding on
-// it: let the microtask queue drain with nothing pending and it commits by
-// itself. So `await` on anything that is not an IndexedDB request - a digest,
-// a fetch, a timer - ends the transaction underneath the code that thinks it
-// is still inside one. That is why work() below is callback-shaped in a file
-// where everything else is async, and why the hashing in writeLayout happens
-// before the transaction rather than inside it.
-/** What one transaction collects. The keys are whatever the callback puts
- *  there, which is why this is an index signature rather than a shape: each
- *  caller reads back exactly the fields it wrote. `conflict` is named because
- *  the abort handler above reads it and a typo there would look like a real
- *  failure. */
-interface Collected {
-  conflict?: boolean;
-  [key: string]: any;
-}
-
-function run(db: IDBDatabase, names: string[], mode: IDBTransactionMode,
-             work: (tx: IDBTransaction, out: Collected) => void): Promise<Collected> {
-  return new Promise<Collected>((resolve, reject) => {
-    const tx = db.transaction(names, mode);
-    const box: Collected = {};
-    tx.oncomplete = () => resolve(box);
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => {
-      // A conflict aborts on purpose - see writeLayout - and is an answer
-      // rather than a failure. Anything else that aborts is a failure.
-      if (box.conflict) resolve(box);
-      else reject(tx.error || new Error("storage transaction aborted"));
-    };
-    work(tx, box);
-  });
 }
 
 /** Let go of the connection.
@@ -229,7 +227,11 @@ export function serialise(layout: Layout): string {
  *
  * The same algorithm rather than the same number - the two stores hold their
  * own bytes and are not expected to agree - so that the one concept has one
- * definition and a version means the same kind of thing wherever it is read. */
+ * definition and a version means the same kind of thing wherever it is read.
+ *
+ * Every caller awaits this *outside* a transaction, and that is not a style
+ * choice: crypto.subtle.digest is not an IndexedDB request, so awaiting it
+ * inside one lets the transaction commit underneath. See the head of this file. */
 export async function versionOf(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -238,6 +240,22 @@ export async function versionOf(text: string): Promise<string> {
     .join("")
     .slice(0, 16);
 }
+
+/** A name safe to write down: as a key in the symbols store, or as the file
+ *  name a download arrives under.
+ *
+ * Here rather than in the two places that used to hold the same expression,
+ * because this is where the first of them is: a picture somebody uploads
+ * becomes a key in an object store, and what a key may contain is the store's
+ * question. A slash in one reads like a folder that is not there.
+ *
+ * conventions.md §5 #3 pairs this with `touched()`; mitreden's and bildhaft's
+ * are download-filename sanitisers and this is both, which is the shape the
+ * eventual shared one has to have. Deliberately not the same as their
+ * transliterating `slug` - a symbol's key has to survive a round trip through
+ * a Sicherung and an .obz unchanged, so it maps what it cannot keep to `_`
+ * rather than trying to spell it. */
+export const safeName = (name: string): string => name.replace(/[^\w.-]+/g, "_");
 
 /* --- The list ------------------------------------------------------
  *
@@ -254,17 +272,29 @@ export async function versionOf(text: string): Promise<string> {
  * could see land.
  */
 
+/** The collections store, whichever transaction it came out of. Written as a
+ *  generic rather than a fixed transaction type so that the operations reading
+ *  one store and the operations reading three can both hand theirs over. */
+type CollectionStore<Names extends ArrayLike<StoreNames<VorlautDB>>,
+                     Mode extends IDBTransactionMode> =
+  IDBPObjectStore<VorlautDB, Names, typeof COLLECTIONS, Mode>;
+
 /** Newest first, where "new" means last written.
  *
  * The order the sidebar shows, decided here rather than there so that every
  * reader gets the same one. Creation order answers a question nobody asks: what
  * a list of Sammlungen is for is getting back to the one you were in, and after
- * a handful that is reliably the one at the bottom.
+ * a handful that is reliably the one at the bottom. conventions.md §1.4.
  *
- * A Sammlung carried across from the single-layout database has no stamp and
- * sorts last, which is right - it has not been touched since. */
-const byNewest = (a: CollectionRef, b: CollectionRef): number =>
-  (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+ * Read off the index rather than sorted after the fact. getAll() on an index
+ * walks it in ascending key order, so this is one reverse() rather than a
+ * comparator over a list that has already been loaded whole. */
+async function listOf<Names extends ArrayLike<StoreNames<VorlautDB>>,
+                      Mode extends IDBTransactionMode>(
+  collections: CollectionStore<Names, Mode>,
+): Promise<CollectionRef[]> {
+  return (await collections.index(BY_UPDATED).getAll()).reverse();
+}
 
 /** The next stamp: now, or one past the highest there is, whichever is later.
  *
@@ -273,18 +303,26 @@ const byNewest = (a: CollectionRef, b: CollectionRef): number =>
  * the sort is left stable, and the list quietly answers with insertion order -
  * which is the order this is meant to replace. A person cannot type that fast;
  * a loop can, and so can a test, and a rule that holds for people and not for
- * machines is one nobody can check. */
-const nextStamp = (list: CollectionList): number =>
-  Math.max(Date.now(), Math.max(0, ...list.collections.map((one) => one.updatedAt ?? 0)) + 1);
+ * machines is one nobody can check.
+ *
+ * The highest there is comes off the end of the index, which is one cursor step
+ * rather than a Math.max over every Sammlung. */
+async function nextStamp<Names extends ArrayLike<StoreNames<VorlautDB>>>(
+  collections: CollectionStore<Names, "readwrite">,
+): Promise<number> {
+  const newest = await collections.index(BY_UPDATED).openKeyCursor(null, "prev");
+  return Math.max(Date.now(), (newest ? newest.key : 0) + 1);
+}
 
 export async function readCollections(): Promise<CollectionList> {
   const db = await open();
-  const box = await run(db, [CONTENT], "readonly", (tx, out) => {
-    const held = tx.objectStore(CONTENT).get(LIST);
-    held.onsuccess = () => { out.list = held.result || null; };
-  });
-  const list = (box.list as CollectionList) || NO_LIST;
-  return { ...list, collections: [...list.collections].sort(byNewest) };
+  const tx = db.transaction([COLLECTIONS, MARKS], "readonly");
+  const collections = await listOf(tx.objectStore(COLLECTIONS));
+  const current = await tx.objectStore(MARKS).get(CURRENT);
+  await tx.done;
+  // A mark that was never written and one deliberately set to null both mean
+  // the same thing, and it is the thing CollectionList.current documents.
+  return { collections, current: current ?? null };
 }
 
 /** A new Sammlung, holding the layout it was handed, open straight away.
@@ -293,40 +331,32 @@ export async function readCollections(): Promise<CollectionList> {
  * the device - see core/editor.ts. This file knows how to keep one and nothing
  * about what is in it. */
 export async function createCollection(name: string, layout: Layout): Promise<string> {
+  // Hashed before the transaction, deliberately - see versionOf().
   const text = serialise(layout);
   const version = await versionOf(text);
   const id = mintId();
 
   const db = await open();
-  await run(db, [CONTENT], "readwrite", (tx) => {
-    const store = tx.objectStore(CONTENT);
-    const listed = store.get(LIST);
-    listed.onsuccess = () => {
-      const list = (listed.result as CollectionList) || NO_LIST;
-      store.put({ text, version }, layoutKey(id));
-      store.put({ collections: [...list.collections, { id, name, updatedAt: nextStamp(list) }],
-                  current: id }, LIST);
-    };
-  });
+  const tx = db.transaction(BOARDS, "readwrite");
+  const collections = tx.objectStore(COLLECTIONS);
+  // The registry row, the layout and "this is the open one" in one transaction:
+  // a row with nothing behind it is a sidebar entry that opens onto nothing.
+  await collections.put({ id, name, updatedAt: await nextStamp(collections) });
+  await tx.objectStore(LAYOUTS).put({ id, text, version });
+  await tx.objectStore(MARKS).put(id, CURRENT);
+  await tx.done;
+
   touched();
   return id;
 }
 
 export async function renameCollection(id: string, name: string): Promise<void> {
   const db = await open();
-  await run(db, [CONTENT], "readwrite", (tx) => {
-    const store = tx.objectStore(CONTENT);
-    const listed = store.get(LIST);
-    listed.onsuccess = () => {
-      const list = (listed.result as CollectionList) || NO_LIST;
-      if (!list.collections.some((one) => one.id === id)) return;
-      store.put({
-        ...list,
-        collections: list.collections.map(
-          (one) => one.id === id ? { ...one, name, updatedAt: nextStamp(list) } : one),
-      }, LIST);
-    };
-  });
+  const tx = db.transaction([COLLECTIONS], "readwrite");
+  const collections = tx.objectStore(COLLECTIONS);
+  const held = await collections.get(id);
+  if (held) await collections.put({ ...held, name, updatedAt: await nextStamp(collections) });
+  await tx.done;
   touched();
 }
 
@@ -337,39 +367,43 @@ export async function renameCollection(id: string, name: string): Promise<void> 
  * show. Deleting the last one leaves the list empty on purpose: loadLayout()
  * seeds a fresh one, which is what a first visit gets, and is a better answer
  * than a page with nothing on it.
+ *
+ * "Took its place" is measured in the order the sidebar draws - last edited
+ * first - which is the order the person doing the deleting is looking at. It
+ * used to be the order the records happened to sit in the registry array, and
+ * that was never anything anybody could see; with a record per Sammlung there
+ * is no such order left to accidentally mean.
  */
 export async function deleteCollection(id: string): Promise<void> {
   const db = await open();
-  await run(db, [CONTENT], "readwrite", (tx) => {
-    const store = tx.objectStore(CONTENT);
-    const listed = store.get(LIST);
-    listed.onsuccess = () => {
-      const list = (listed.result as CollectionList) || NO_LIST;
-      const at = list.collections.findIndex((one) => one.id === id);
-      if (at < 0) return;
-      const left = list.collections.filter((one) => one.id !== id);
-      const current = list.current !== id ? list.current
-        : left.length ? left[Math.min(at, left.length - 1)]!.id
-          : null;
-      store.delete(layoutKey(id));
-      store.put({ collections: left, current }, LIST);
-    };
-  });
+  const tx = db.transaction(BOARDS, "readwrite");
+  const collections = tx.objectStore(COLLECTIONS);
+  const marks = tx.objectStore(MARKS);
+
+  const shown = await listOf(collections);
+  const at = shown.findIndex((one) => one.id === id);
+  if (at >= 0) {
+    const left = shown.filter((one) => one.id !== id);
+    await collections.delete(id);
+    await tx.objectStore(LAYOUTS).delete(id);
+    if (await marks.get(CURRENT) === id) {
+      await marks.put(left.length ? left[Math.min(at, left.length - 1)]!.id : null, CURRENT);
+    }
+  }
+  await tx.done;
   touched();
 }
 
 /** Which Sammlung the page is editing. */
 export async function useCollection(id: string): Promise<void> {
   const db = await open();
-  await run(db, [CONTENT], "readwrite", (tx) => {
-    const store = tx.objectStore(CONTENT);
-    const listed = store.get(LIST);
-    listed.onsuccess = () => {
-      const list = (listed.result as CollectionList) || NO_LIST;
-      if (!list.collections.some((one) => one.id === id)) return;
-      store.put({ ...list, current: id }, LIST);
-    };
-  });
+  const tx = db.transaction([COLLECTIONS, MARKS], "readwrite");
+  // Checked against the registry in the same transaction, so that "open this
+  // one" cannot land on a Sammlung that was deleted while the click travelled.
+  if (await tx.objectStore(COLLECTIONS).get(id)) {
+    await tx.objectStore(MARKS).put(id, CURRENT);
+  }
+  await tx.done;
   // Which one is open is part of what a Sicherung puts back, so it counts as
   // a change to it. Debounced inside Sicherung, so clicking down a list of
   // them is one file rather than one per click.
@@ -402,7 +436,7 @@ export interface IncomingCollection {
  */
 export async function replaceCollections(incoming: IncomingCollection[],
                                     current: string | null): Promise<CollectionList> {
-  // Hashed before the transaction, like every other write here - see run().
+  // Hashed before the transaction, like every other write here - see versionOf().
   const written = [];
   for (const one of incoming) {
     const text = serialise(one.layout);
@@ -418,19 +452,21 @@ export async function replaceCollections(incoming: IncomingCollection[],
   };
 
   const db = await open();
-  await run(db, [CONTENT], "readwrite", (tx) => {
-    const store = tx.objectStore(CONTENT);
-    const listed = store.get(LIST);
-    listed.onsuccess = () => {
-      for (const one of ((listed.result as CollectionList) || NO_LIST).collections) {
-        store.delete(layoutKey(one.id));
-      }
-      for (const one of written) {
-        store.put({ text: one.text, version: one.version }, layoutKey(one.id));
-      }
-      store.put(list, LIST);
-    };
-  });
+  const tx = db.transaction(BOARDS, "readwrite");
+  const collections = tx.objectStore(COLLECTIONS);
+  const layouts = tx.objectStore(LAYOUTS);
+  // Emptied rather than walked and deleted one id at a time: what "replace"
+  // means is that nothing which was here survives, and clear() is the database
+  // saying so rather than this function being thorough.
+  await collections.clear();
+  await layouts.clear();
+  for (const one of written) {
+    await collections.put({ id: one.id, name: one.name, updatedAt: one.updatedAt });
+    await layouts.put({ id: one.id, text: one.text, version: one.version });
+  }
+  await tx.objectStore(MARKS).put(list.current, CURRENT);
+  await tx.done;
+
   touched();
   return list;
 }
@@ -442,33 +478,24 @@ export async function replaceCollections(incoming: IncomingCollection[],
  * up, which is a side effect on the page nobody asked for. */
 export async function readLayoutOf(id: string): Promise<Layout | null> {
   const db = await open();
-  const box = await run(db, [CONTENT], "readonly", (tx, out) => {
-    const held = tx.objectStore(CONTENT).get(layoutKey(id));
-    held.onsuccess = () => { out.record = held.result || null; };
-  });
-  return box.record ? JSON.parse(box.record.text) : null;
+  const held = await db.get(LAYOUTS, id);
+  return held ? JSON.parse(held.text) : null;
 }
 
 export async function readLayout(): Promise<HeldLayout> {
   const db = await open();
-  const box = await run(db, [CONTENT], "readonly", (tx, out) => {
-    const store = tx.objectStore(CONTENT);
-    out.record = null;
-    const listed = store.get(LIST);
-    listed.onsuccess = () => {
-      const current = ((listed.result as CollectionList) || NO_LIST).current;
-      if (!current) return;
-      const held = store.get(layoutKey(current));
-      held.onsuccess = () => { out.record = held.result || null; };
-    };
-    const built = store.get(BUILT);
-    built.onsuccess = () => { out.built = built.result || null; };
-  });
-  if (!box.record) return { layout: null, version: EMPTY, buildCurrent: "0" };
+  const tx = db.transaction([LAYOUTS, MARKS], "readonly");
+  const marks = tx.objectStore(MARKS);
+  const current = await marks.get(CURRENT);
+  const held = current ? await tx.objectStore(LAYOUTS).get(current) : undefined;
+  const built = await marks.get(BUILT);
+  await tx.done;
+
+  if (!held) return { layout: null, version: EMPTY, buildCurrent: "0" };
   return {
-    layout: JSON.parse(box.record.text),
-    version: box.record.version,
-    buildCurrent: box.built === box.record.version ? "1" : "0",
+    layout: JSON.parse(held.text),
+    version: held.version,
+    buildCurrent: built === held.version ? "1" : "0",
   };
 }
 
@@ -482,78 +509,76 @@ export async function readLayout(): Promise<HeldLayout> {
  * app.py needed a lock around read-compare-write. Here the transaction is the
  * lock, and a conflict calls abort() rather than merely declining to put(), so
  * that "nothing was written" is something the database guarantees instead of
- * something this function has to be careful about. */
+ * something this function has to be careful about. That is not belt and braces:
+ * a first write mints a Sammlung *before* there is a stored version to compare
+ * against, so by the time the comparison happens there is already a registry row
+ * and an open board to take back. */
 export async function writeLayout(layout: Layout, expected: string | null): Promise<SaveResult> {
-  // Outside the transaction, deliberately - see run().
+  // Outside the transaction, deliberately - see versionOf().
   const text = serialise(layout);
   const version = await versionOf(text);
 
   const db = await open();
-  return run(db, [CONTENT], "readwrite", (tx, out) => {
-    const store = tx.objectStore(CONTENT);
-    const listed = store.get(LIST);
-    listed.onsuccess = () => {
-      const list = (listed.result as CollectionList) || NO_LIST;
-      // A write with no board to write to makes one. That is the first visit -
-      // loadLayout() seeds a board by writing it - and it happens here rather
-      // than in the seam so that the registry and the layout land in the one
-      // transaction: a board in the list with no layout behind it is a row
-      // that opens onto nothing.
-      let id = list.current;
-      if (!id) {
-        id = mintId();
-        store.put({ collections: [...list.collections, { id, name: "", updatedAt: nextStamp(list) }],
-                    current: id }, LIST);
-      } else {
-        // Every write is a touch, which is what the sidebar orders by. Written
-        // into the same transaction as the layout, so the two cannot disagree
-        // about whether an edit happened.
-        const at = nextStamp(list);
-        store.put({
-          ...list,
-          collections: list.collections.map((one) => one.id === id ? { ...one, updatedAt: at } : one),
-        }, LIST);
-      }
-      const held = store.get(layoutKey(id));
-      held.onsuccess = () => {
-        const current = held.result ? held.result.version : EMPTY;
-        if (expected && expected !== current) {
-          out.conflict = true;
-          tx.abort();
-          return;
-        }
-        store.put({ text, version }, layoutKey(id!));
-        const built = store.get(BUILT);
-        built.onsuccess = () => {
-          out.conflict = false;
-          out.saved = JSON.parse(text);
-          out.version = version;
-          out.buildCurrent = built.result === version ? "1" : "0";
-        };
-      };
-    };
-  }).then((result) => {
-    // Only a write that actually landed. A conflict wrote nothing, and
-    // announcing one would back up the layout this tab lost.
-    if (!result.conflict) touched();
-    return result;
-  });
+  const tx = db.transaction(BOARDS, "readwrite");
+  const collections = tx.objectStore(COLLECTIONS);
+  const layouts = tx.objectStore(LAYOUTS);
+  const marks = tx.objectStore(MARKS);
+
+  let id = await marks.get(CURRENT);
+  if (!id) {
+    // A write with no board to write to makes one. That is the first visit -
+    // loadLayout() seeds a board by writing it - and it happens here rather
+    // than in the seam so that the registry and the layout land in the one
+    // transaction: a board in the list with no layout behind it is a row
+    // that opens onto nothing.
+    id = mintId();
+    await collections.put({ id, name: "", updatedAt: await nextStamp(collections) });
+    await marks.put(id, CURRENT);
+  } else {
+    // Every write is a touch, which is what the sidebar orders by. Written
+    // into the same transaction as the layout, so the two cannot disagree
+    // about whether an edit happened.
+    const held = await collections.get(id);
+    if (held) await collections.put({ ...held, updatedAt: await nextStamp(collections) });
+  }
+
+  const held = await layouts.get(id);
+  if (expected && expected !== (held ? held.version : EMPTY)) {
+    tx.abort();
+    // The abort is this function's own doing, so its rejection is the answer
+    // rather than a failure. Anything else that aborts a transaction here still
+    // rejects out of the awaits above, which is what a real failure should do.
+    await tx.done.catch(() => {});
+    return { conflict: true };
+  }
+
+  await layouts.put({ id, text, version });
+  const built = await marks.get(BUILT);
+  await tx.done;
+
+  // Only a write that actually landed. A conflict wrote nothing, and
+  // announcing one would back up the layout this tab lost.
+  touched();
+  return {
+    conflict: false,
+    saved: JSON.parse(text),
+    version,
+    buildCurrent: built === version ? "1" : "0",
+  };
 }
 
 export async function readSettings<T extends object>(fallback: T = {} as T): Promise<T> {
   const db = await open();
-  const box = await run(db, [CONTENT], "readonly", (tx, out) => {
-    const held = tx.objectStore(CONTENT).get(SETTINGS);
-    held.onsuccess = () => { out.value = held.result; };
-  });
-  return box.value === undefined ? fallback : box.value;
+  const held = await db.get(SETTINGS, SETTINGS);
+  // Cast because the callers know narrower shapes than the record does - a
+  // Partial<Settings> for the backup, a single field for a test. The store's
+  // own type is the whole of Settings, which is what a write has to be.
+  return held === undefined ? fallback : (held as unknown as T);
 }
 
 export async function writeSettings(settings: Settings): Promise<Settings> {
   const db = await open();
-  await run(db, [CONTENT], "readwrite", (tx) => {
-    tx.objectStore(CONTENT).put(settings, SETTINGS);
-  });
+  await db.put(SETTINGS, settings, SETTINGS);
   touched();
   return settings;
 }
@@ -565,82 +590,68 @@ export async function writeSettings(settings: Settings): Promise<Settings> {
  * the whole layout, which is stricter: it will sometimes say a build is due
  * where app.py would say it is current. That is the safe direction - and the
  * same one build_current_flag() takes when it cannot tell - and it tightens on
- * its own once the build moves in here and can compute the real fingerprint. */
+ * its own once the build moves in here and can compute the real fingerprint.
+ *
+ * Quiet, deliberately. It stamps which layout a build ran against and changes
+ * nothing a Sicherung carries; announcing it would rewrite the backup file to
+ * say nothing new. */
 export async function recordBuild(version: string | null): Promise<void> {
   const db = await open();
-  await run(db, [CONTENT], "readwrite", (tx) => {
-    tx.objectStore(CONTENT).put(version, BUILT);
-  });
+  await db.put(MARKS, version, BUILT);
 }
 
 // --- The two folders of files ------------------------------------------------
 //
 // symbols/ is pictures somebody chose; data/ is what a build made out of them.
 // Kept apart for the reason they are two folders on disk: a build empties the
-// second and must never be able to reach the first.
+// second and must never be able to reach the first. Two stores rather than one
+// store with prefixed keys, and that is the same argument the registry makes
+// above: a boundary the database enforces is one nothing has to remember.
+//
+// Which of the two announces is the other half of it. symbols/ is content and
+// is in the backup; data/ is build output, which a build makes again out of the
+// layout and the symbols, and announcing it would rewrite the file once per
+// artefact to say nothing new.
 
-const FOLDERS = { symbols: SYMBOLS, data: DATA };
-
-function folder(which) {
-  const name = FOLDERS[which];
-  if (!name) throw new Error(`no such folder: ${which}`);
-  return name;
-}
+const announces = (which: StoreName): boolean => which === "symbols";
 
 export async function putFile(which: StoreName, name: string, bytes: ArrayBuffer): Promise<void> {
   const db = await open();
-  await run(db, [folder(which)], "readwrite", (tx) => {
-    tx.objectStore(folder(which)).put(bytes, name);
-  });
-  // symbols/ is pictures somebody chose and is in the backup; data/ is what a
-  // build made out of them and is not.
-  if (which === "symbols") touched();
+  await db.put(which, bytes, name);
+  if (announces(which)) touched();
 }
 
 export async function getFile(which: StoreName, name: string): Promise<ArrayBuffer | null> {
   const db = await open();
-  const box = await run(db, [folder(which)], "readonly", (tx, out) => {
-    const held = tx.objectStore(folder(which)).get(name);
-    held.onsuccess = () => { out.value = held.result; };
-  });
-  return box.value === undefined ? null : box.value;
+  const held = await db.get(which, name);
+  return held === undefined ? null : held;
 }
 
-/** Names and sizes, in the shape the manifest wants. */
+/** Names and sizes, in the shape the manifest wants.
+ *
+ * Already in name order: getAllKeys() walks the store's own keys, which
+ * IndexedDB orders exactly as JavaScript compares two strings. The sort this
+ * used to end with was re-deciding an order it had just been handed. */
 export async function listFiles(which: StoreName): Promise<{ name: string; size: number }[]> {
   const db = await open();
-  const box = await run(db, [folder(which)], "readonly", (tx, out) => {
-    out.files = [];
-    const store = tx.objectStore(folder(which));
-    const keys = store.getAllKeys();
-    keys.onsuccess = () => {
-      const all = store.getAll();
-      all.onsuccess = () => {
-        out.files = keys.result.map((name, i) => ({
-          name,
-          size: all.result[i] ? all.result[i].byteLength : 0,
-        }));
-      };
-    };
-  });
-  return box.files.sort((a, b) => (a.name < b.name ? -1 : 1));
+  const tx = db.transaction(which, "readonly");
+  const names = await tx.store.getAllKeys();
+  const held = await tx.store.getAll();
+  await tx.done;
+  return names.map((name, i) => ({ name, size: held[i] ? held[i]!.byteLength : 0 }));
 }
 
 export async function dropFile(which: StoreName, name: string): Promise<void> {
   const db = await open();
-  await run(db, [folder(which)], "readwrite", (tx) => {
-    tx.objectStore(folder(which)).delete(name);
-  });
-  if (which === "symbols") touched();
+  await db.delete(which, name);
+  if (announces(which)) touched();
 }
 
 /** Everything, gone. What a build does to data/ before it fills it again. */
 export async function empty(which: StoreName): Promise<void> {
   const db = await open();
-  await run(db, [folder(which)], "readwrite", (tx) => {
-    tx.objectStore(folder(which)).clear();
-  });
+  await db.clear(which);
   // A build empties data/ before it fills it again, which is the common case
   // here and is not news. Emptying symbols/ is.
-  if (which === "symbols") touched();
+  if (announces(which)) touched();
 }

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as store from "../../src/data/store.js";
+// From the module that owns it. data/store.ts calls touched(); this is the
+// other end of the same wire, and the two being separate files is the point -
+// see the head of data/changed.ts.
+import { onChanged } from "../../src/data/changed.js";
 import type { Layout, Settings } from "../../src/core/types.js";
 
 /* Every write that changes what a Sicherung would contain must reach
@@ -23,7 +27,7 @@ describe("the change notifier", () => {
     await store.empty("data");
     heard = 0;
     stop();
-    stop = store.onChanged(() => { heard++; });
+    stop = onChanged(() => { heard++; });
   });
 
   it("writeLayout() announces the write", async () => {
