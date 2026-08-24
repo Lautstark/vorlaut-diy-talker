@@ -81,9 +81,13 @@ body {
 .sidebar__list { display: flex; flex-direction: column; gap: 2px; }
 /* The two quiet buttons at the foot, pushed there rather than placed: the list
    above them grows, and they stay at the bottom of the column. */
+/* No rule above it. The gap is the separation, the way it is between every
+   other part of this column, and a line drawn only here made the one item
+   below it look like a different kind of thing. It sits at the same inset as
+   the rows and "+ Neue Sammlung", so the column reads as one list of places to
+   go rather than a list and a footnote. */
 .sidebar__foot {
-  margin-top: auto; display: flex; align-items: center; gap: 6px;
-  padding: 10px 4px 0; border-top: 1px solid var(--line);
+  margin-top: auto; display: flex; align-items: center; gap: 6px; padding: 0 4px;
 }
 /* One Sammlung: the name, and how much is in it. The count is the one fact
    that tells two similarly named ones apart, and it is the number the delete
@@ -119,7 +123,12 @@ body {
    to the whole Sammlung, and the ⋯. bildhaft's row, with the transfer button
    where its print button is - the same question, answered down a cable
    instead of on paper. */
-.workhead { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.content { display: flex; flex-direction: column; min-width: 0; }
+.workhead {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px; border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
 /* The action and the ⋯ sit at the end, past whatever the name did not use. */
 .workhead .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
@@ -148,20 +157,20 @@ body.collapsed .frame { grid-template-columns: minmax(0, 1fr); }
 /* The footer is components.css's and sits at the bottom of this column, which
    is where both siblings keep theirs. It was a band across the whole window,
    under the sidebar as well - a shape neither of them has. */
-.footer { margin-top: auto; padding-top: 18px; }
+.footer { margin-top: auto; padding-top: 12px; }
 .footer a { color: inherit; text-decoration: underline; }
 
 main {
   display: flex; flex-direction: column;
-  width: 100%; max-width: 720px; margin: 0 auto; padding: 18px 20px 8px;
-  min-width: 0;
+  width: 100%; max-width: 720px; margin: 0 auto; padding: 14px 20px 6px;
+  min-width: 0; flex: 1;
 }
 
 /* The focus ring is components.css's - one rule, one appearance, every
    product. The :focus-visible rules further down add their hover look on top
    of it; none of them stands in for it. */
 
-.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .tab {
   display: flex; align-items: center; gap: 8px;
   padding: 9px 14px; border-radius: 10px; cursor: pointer;
@@ -183,8 +192,8 @@ main {
    stops buying a better look at a symbol. */
 .device { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .tile {
-  background: var(--surface); border-radius: 14px; padding: 10px;
-  display: flex; flex-direction: column; gap: 8px; justify-content: flex-start;
+  background: var(--surface); border-radius: 14px; padding: 9px;
+  display: flex; flex-direction: column; gap: 7px; justify-content: flex-start;
   border: 3px solid var(--accent);
 }
 .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -199,13 +208,13 @@ main {
    plane behind them loses the ones drawn in black outline. Same reason the
    mark's eyes stay plain #fff. */
 .thumb {
-  /* Square, and capped so the whole board fits a laptop without scrolling.
-     Three columns of a 720px column give a 216px cell, and two rows of tiles
-     that tall put the bottom two keys below the fold - on a page whose whole
-     job is letting somebody look at five keys at once. The picture is what
-     gives, because it is the part that is still legible smaller. */
-  aspect-ratio: 1/1; max-height: 168px; width: auto; margin-inline: auto;
-  flex: 0 0 auto; background: #fff; border-radius: 8px; cursor: pointer;
+  /* Square, and as big as its tile. It was capped for a while to make the page
+     fit a short window, and that was the wrong thing to give: the picture is
+     what this page exists to show, and a symbol shrunk to make room is a symbol
+     somebody cannot judge. The room comes out of the furniture instead - see
+     the paddings below and around the tabs. */
+  aspect-ratio: 1/1; flex: 0 0 auto; background: #fff; border-radius: 8px;
+  cursor: pointer;
   /* The sheet needs an edge now that the ground can be light: white on a dark
      tile drew its own boundary, white on a light one does not, and the symbol
      area stopped being findable. An inset ring rather than a border, so the

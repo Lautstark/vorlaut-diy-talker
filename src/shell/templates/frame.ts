@@ -13,11 +13,14 @@
  * the sidebar's foot - one entrance, design.md §3.4 - and everything that acts
  * on the open Sammlung is the work head above the editor.
  *
- * The work head is `name · status · what the editor puts there · ⋯`. The count
- * is not in it: the sidebar row already carries one per Sammlung, and a second
- * copy of the same number beside the name it belongs to is a number to keep in
- * step for no reading anybody does. `#collectionAction` is the editor's slot -
- * for the five-key talker, the device preview and the cable.
+ * The work head is `name · status · what the editor puts there · ⋯`, and it
+ * spans the content column rather than sitting inside the capped one: with no
+ * bar above it, it is the top of the page and reads better as a full-width
+ * band than as a short row floating over the middle. The count is not in it -
+ * the sidebar row already carries one per Sammlung, and a second copy of the
+ * same number beside the name it belongs to is a number to keep in step for no
+ * reading anybody does. `#collectionAction` is the editor's slot: for the
+ * five-key talker, the device preview and the cable.
  *
  * What is left over belongs to no device: the save conflict, which is about two
  * tabs writing to one store, and the two hidden file inputs that let picker.ts
@@ -64,13 +67,11 @@ export const markup = `
     <img src="${logo}" alt="" class="logo logo--small">
   </div>
 
-  <main>
-    <div class="conflict" id="conflict">
-      <span id="conflictText"></span>
-      <button id="overwriteBtn" class="btn" type="button"></button>
-      <button id="reloadBtn" class="btn" type="button"></button>
-    </div>
-
+  <div class="content">
+    <!-- Across the whole content column rather than inside the capped one, so
+         it reads as the top of the page - which, with no bar above it, is what
+         it is. The board below stays capped and centred; this is furniture and
+         wants the width. -->
     <div class="workhead">
       <!-- The name IS the field that renames it - bildhaft's title input. No
            dialog and no menu entry: renaming a thing you are looking at should
@@ -86,11 +87,19 @@ export const markup = `
         type="button" aria-haspopup="menu" aria-expanded="false">⋯</button></span>
     </div>
 
-    <div id="editor"></div>
+    <main>
+      <div class="conflict" id="conflict">
+        <span id="conflictText"></span>
+        <button id="overwriteBtn" class="btn" type="button"></button>
+        <button id="reloadBtn" class="btn" type="button"></button>
+      </div>
 
-    <input type="file" id="fileInput" accept="image/*" hidden>
-    <input type="file" id="boardFile" accept=".obf,.obz,application/zip" hidden>
-  </main>
+      <div id="editor"></div>
+
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <input type="file" id="boardFile" accept=".obf,.obz,application/zip" hidden>
+    </main>
+  </div>
 </div>
 `;
 
