@@ -788,6 +788,21 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    than a fixed cell size, so that 3x5 and 6x11 both fill the column and a
    6x11 board is legibly the denser one - which is the thing somebody is
    deciding about when they change the numbers above. */
+/* The tablet board wants the width the five-key board does not.
+ *
+ * `main` is capped at 640px because three cards across read better centred
+ * than stretched. This board is up to eleven cells across, and 640px makes
+ * those about 45px wide - narrow enough that every label is an ellipsis, which
+ * takes away the thing the grid is *for*: knowing where a word sits without
+ * reading it.
+ *
+ * So the cap moves for this editor and only for it, chosen by what is in the
+ * page rather than by a class the shell would have to know to set. A browser
+ * without `:has()` keeps the narrow column, which is cramped rather than
+ * broken. The panel below widens with it and that is fine - it is a row of
+ * fields, not prose. */
+.content:has(#appGrid) main { max-width: 1100px; }
+
 .appgrid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
