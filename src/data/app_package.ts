@@ -253,6 +253,45 @@ export function grid(boardId: string, present: readonly boolean[]) {
   };
 }
 
+/**
+ * The board's locale: the language the sentences on it are in.
+ *
+ * Off the chosen voice first, and that is the whole point of this function.
+ * §7.1 makes `locale` the fallback that picks a voice when
+ * `ext_lautstark_tts_voice` is unavailable - and on Android it is nearly always
+ * unavailable, because the names vorlaut stores are piper models and Azure
+ * voices that no tablet has. So this field, not the hint, is what actually
+ * decides how a package sounds.
+ *
+ * `layout.language` is the wrong thing to take it from: it is the language of
+ * the *builder's own page* and of the four menu labels the firmware draws, and
+ * it follows whichever language the browser asked for. A German board built in
+ * an English browser went out saying `locale: "en"`, which on the tablet means
+ * German sentences read aloud by an English voice. Found by exporting a
+ * package and opening it in the viewer, which is the only place it shows.
+ *
+ * The voice is better evidence because somebody chose it *for these sentences*.
+ * Both id shapes carry their language: `azure:de-DE-KatjaNeural` and
+ * `piper:de_DE-thorsten-medium`. Without a voice there is nothing better than
+ * the page's language, which is also the case where nothing will be spoken
+ * from a recording anyway.
+ */
+export function localeFor(voice: string, language?: string): string {
+  const named = voice.replace(/^(piper|azure):/, "");
+  if (named) {
+    // piper writes de_DE, BCP 47 wants de-DE; azure already writes it that way.
+    const parts = named.replace(/_/g, "-").split("-");
+    const tag = parts[1] && /^[A-Za-z]{2}$/.test(parts[1])
+      ? `${parts[0]!.toLowerCase()}-${parts[1]!.toUpperCase()}`
+      : parts[0]!.toLowerCase();
+    if (/^[a-z]{2}(-[A-Z]{2})?$/.test(tag)) return tag;
+  }
+  // LANGUAGE_CODES is the table the firmware indexes its own menu by, and also
+  // the whole list of languages this page has.
+  return Object.hasOwn(LANGUAGE_CODES, String(language ?? ""))
+    ? String(language) : DEFAULT_LANGUAGE;
+}
+
 /* ------------------------------------------------------------ building --- */
 
 /**
@@ -275,11 +314,7 @@ export function buildAppPackage(input: PackageInput): AppPackage {
   const ids = sets.map((_, index) => `set-${index + 1}`);
   const files = new Map<string, Uint8Array<ArrayBuffer>>();
   const boards: PackageBoard[] = [];
-  // §7.1 requires a locale, and it picks the voice when the hint above is
-  // unavailable. LANGUAGE_CODES is the table the firmware indexes its own menu
-  // by, and it is also the whole list of languages this page has.
-  const locale = Object.hasOwn(LANGUAGE_CODES, String(layout.language ?? ""))
-    ? String(layout.language) : DEFAULT_LANGUAGE;
+  const locale = localeFor(input.voice, layout.language);
 
   for (const [index, set] of sets.entries()) {
     const boardId = ids[index]!;
