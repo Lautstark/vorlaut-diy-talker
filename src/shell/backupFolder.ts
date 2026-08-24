@@ -44,8 +44,13 @@ const lastCopy = (at: number | null): string =>
 
 /** The sentence for each state. The two that mean nothing is being written
  *  both carry the age: "es funktioniert nicht" is a sentence somebody can put
- *  off, "seit elf Tagen nichts gesichert" is not. */
-function sentence(status: Status): string {
+ *  off, "seit elf Tagen nichts gesichert" is not.
+ *
+ *  Exported for the test that holds that rule, which is the one thing about
+ *  this panel still written out in three products with nothing checking they
+ *  agree - @lautstark/sicherung/ui owns the rest, and deliberately not the
+ *  words. Nothing outside this file calls it. */
+export function sentence(status: Status): string {
   switch (status.kind) {
     case "unsupported": return "";
     case "off": return t("ui.folder_off");
