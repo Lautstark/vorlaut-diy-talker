@@ -32,7 +32,7 @@ describes it. In particular:
 - The talker's `.obz` export is a different profile of OBF with a different
   extension namespace (`ext_vorlaut_*`) and a symbols-by-reference invariant.
   It is not a Lautstark Board Package and this specification does not govern it.
-  See [`adr/0001-two-ext-namespaces.md`](adr/0001-two-ext-namespaces.md).
+  See [`adr/0001-two-ext-namespaces.md`](../adr/0001-two-ext-namespaces.md).
 - `layout.bin`, the 4-slots-per-set board model, and the 16 kHz device audio
   are talker concerns. Where this document mentions them it is to explain a
   shared upstream, never to impose a requirement.
@@ -632,7 +632,7 @@ fields. An importer MAY discard them entirely.
 app importer must treat it exactly as it treats any other vendor's extension —
 ignore it. In particular `ext_vorlaut_color` MUST NOT be read as a colour, even
 though it looks like one and holds a plausible value. The two namespaces are
-deliberately not unified; see [`adr/0001`](adr/0001-two-ext-namespaces.md).
+deliberately not unified; see [`adr/0001`](../adr/0001-two-ext-namespaces.md).
 
 **The one exception is actions.** An unrecognised *action* is not an unknown
 field: it disables its button and warns (§7.4). The difference is that ignoring
