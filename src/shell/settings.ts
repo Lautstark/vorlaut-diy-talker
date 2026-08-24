@@ -295,17 +295,29 @@ function renderHere() {
   $<HTMLButtonElement>("metacomForget").hidden = !symbols.metacomReady();
 
   const state = symbols.metacomStatus();
-  if (symbols.metacomReady()) {
-    $("metacomHereState").textContent = t("ui.metacom_here_ok", {
+  const line = $("metacomHereState");
+  /* The one state that is a thing to do rather than a thing to read: the folder
+   * is still here and the browser has downgraded the permission on it, which
+   * Chromium does between visits. It is drawn as a warning rather than as
+   * another grey note, because the collection is silently unavailable until
+   * somebody presses the button above - and a grey line saying so reads like
+   * the others, which are all descriptions. components.css's .notice.bad. */
+  const needsAccess = state.kind === "needs-setup" && state.code === "permission-needed";
+  line.className = needsAccess ? "notice bad" : "note";
+
+  if (needsAccess) {
+    line.textContent = t("ui.metacom_confirm");
+  } else if (symbols.metacomReady()) {
+    line.textContent = t("ui.metacom_here_ok", {
       count: symbols.metacomCount(),
       root: symbols.metacomRoot(),
     });
   } else if (state.kind === "loading") {
-    $("metacomHereState").textContent = t("ui.metacom_here_busy");
+    line.textContent = t("ui.metacom_here_busy");
   } else if (state.kind === "error") {
-    $("metacomHereState").textContent = t("ui.metacom_here_failed");
+    line.textContent = t("ui.metacom_here_failed");
   } else {
-    $("metacomHereState").textContent = t("ui.metacom_here_none");
+    line.textContent = t("ui.metacom_here_none");
   }
 }
 
@@ -483,8 +495,16 @@ function metacomWord(short) {
   // The folder is there and one click re-confirms it - a different sentence
   // from "not set" and from "unreadable", because the remedy is different.
   const state = symbols.metacomStatus();
+  /* A state, not an instruction. This returned the whole sentence telling
+   * somebody which button to press, and it is written into the panel's summary
+   * - where design.md says a heading carries what a section IS set to. A
+   * summary is one line and gets truncated, so the instruction arrived as its
+   * own first half and stopped mid-clause. The
+   * sentence is in the body now, where it has room and where the button it
+   * names is. bildhaft's panel does the same: a short state above, the words
+   * about what to do beside the control. */
   if (state.kind === "needs-setup" && state.code === "permission-needed") {
-    return t("ui.metacom_confirm");
+    return t("ui.metacom_needs_access");
   }
   if (!where.path) return t(short ? "ui.metacom_short_none" : "ui.metacom_none");
   if (!where.ok) return t("ui.metacom_bad");
