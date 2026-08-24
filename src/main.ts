@@ -32,12 +32,14 @@ import "./styles/ui.css";
 // index.html is the shell they go into, and the order here is the order they
 // appear on screen.
 //
-// One of them is not the shell's. frame.ts lays out the page with a hole in
-// the middle of it - the list of boards down the side, and #editor - and
-// editor-diy fills the hole. This file and app.ts are the two that may name
-// both halves; see tests/unit/layers.test.ts.
+// The editors are not here. frame.ts lays out the page with a hole in the
+// middle of it - the list of Sammlungen down the side, and #editor - and one
+// editor fills the hole, but *which* one is a fact about the Sammlung that has
+// not been read out of the database yet. So the templates mount in app.ts, at
+// the moment a layout arrives and again whenever a different one does. This
+// file and app.ts are still the two that may name both halves; see
+// tests/unit/layers.test.ts.
 import * as frame from "./shell/templates/frame.js";
-import * as board from "./editor-diy/templates/board.js";
 import * as footer from "./shell/templates/footer.js";
 import * as picker from "./shell/templates/picker.js";
 import * as settingsSheet from "./shell/templates/settings_sheet.js";
@@ -51,12 +53,6 @@ import { initTheme } from "@lautstark/design/theme";
 initTheme("vorlaut.theme");
 
 frame.render();
-// Into the hole the frame left, and into the work head's slot for the one
-// action that applies to the whole Sammlung. Both are elements frame.render()
-// has just put in the document, which is why this line is below it rather than
-// beside its own import.
-board.render(document.getElementById("editor")!,
-             document.getElementById("collectionAction")!);
 // Under the board, and it is the last thing in the page's flow. The three
 // after it are dialogs: they sit over everything when they are open and take
 // no room at all when they are not, so where they mount decides nothing.

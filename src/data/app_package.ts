@@ -44,11 +44,38 @@
 // That is what the device does, and what the person holding it has learned: a
 // key is a whole sentence, not a word to build one out of. A DIY Sammlung with
 // its keys appending to a bar would be a different thing wearing its labels.
+//
+// ---------------------------------------------------------------------------
+// What a tablet Sammlung becomes
+//
+// Nothing, in the sense that matters: the format already had all of it. A page
+// is an OBF board with the Sammlung's own grid on it, a button is an OBF
+// button, navigation is `load_board`, the four bar controls are §7.4's
+// actions, and a word class is a `background_color`. SPEC.md was not touched
+// for this and SPEC_VERSION below did not move.
+//
+//   one page         -> one board, at the Sammlung's grid size
+//   one button       -> one button, in the cell it sits in
+//   a `goto` button  -> load_board, at the page it names
+//   the home page    -> manifest.root, and where `:home` goes
+//
+// Two mappings in one file rather than two files, and that is not the split
+// §5.2 asks for. That rule is about *pixels against references* - the talker's
+// export in obf.ts writes a symbol as a reference and refuses METACOM pixels,
+// which is what keeps a licensed collection inside its licence when a board is
+// sent to somebody. Both targets here bake pixels, so both are on the same
+// side of that line and share the one entry point.
+//
+// What the two do not share is what a press does. The device speaks at once
+// because it has no bar; a tablet appends by default because it has one. That
+// difference is the Act on each button rather than a flag on the export.
 
 import { LANGUAGE_CODES, DEFAULT_LANGUAGE, hexToRgb } from "./layout_format.js";
 import { encodeOpus, ENCODER_RATE, type OpusClip } from "./opus.js";
 import { zipBytes, type ZipMember } from "./zip.js";
-import type { CollectionRef, Layout } from "../core/types.js";
+import { WORD_CLASSES } from "../core/boot_data.js";
+import type { AppButton, AppLayout, CollectionRef, DiyLayout, Layout }
+  from "../core/types.js";
 
 /** The version of exchange/SPEC.md this builder targets.
  *
@@ -88,8 +115,18 @@ export interface PackageButton {
   vocalization?: string;
   image_id?: string;
   sound_id?: string;
+  /** §7.2. The word class a button carries, drawn as a filled cell. Absent on
+   *  a talker Sammlung, whose colour belongs to the set rather than the key. */
+  background_color?: string;
   border_color?: string;
   load_board?: { id: string; name: string; path: string };
+  /** §7.4. One of `:clear`, `:backspace`, `:speak`, `:home` - and nothing
+   *  else, because §7.4 requires an importer to disable a button carrying an
+   *  action it does not implement, and writing one would be building a dead
+   *  button on purpose. The singular field rather than `actions`: every
+   *  control here is one act, and §7.4 disables the whole button if an array
+   *  holds one thing the viewer cannot do. */
+  action?: string;
   ext_lautstark_speak_immediately?: boolean;
 }
 
@@ -222,12 +259,10 @@ export const rfc3339 = (at: number): string =>
 export function symbolSource(layout: Layout): SymbolSource {
   let metacom = false;
   let arasaac = false;
-  for (const set of layout.sets ?? []) {
-    for (const reference of [set.symbol, ...(set.slots ?? []).map((s) => s.symbol)]) {
-      if (!reference) continue;
-      if (reference.startsWith("metacom:")) metacom = true;
-      else if (/^arasaac-/.test(reference)) arasaac = true;
-    }
+  for (const reference of references(layout)) {
+    if (!reference) continue;
+    if (reference.startsWith("metacom:")) metacom = true;
+    else if (/^arasaac-/.test(reference)) arasaac = true;
   }
   if (metacom && arasaac) {
     throw new Error(
@@ -252,6 +287,79 @@ export function grid(boardId: string, present: readonly boolean[]) {
     ],
   };
 }
+
+/** Every symbol reference in a Sammlung, whichever shape it is.
+ *
+ * One walker rather than one per caller: symbolSource() and the bake loop in
+ * backend/local.ts both need exactly this list, and the way §5.1 gets broken
+ * is a new place to put a symbol that one of the two walkers never learned
+ * about. Duplicates are left in - both callers de-duplicate for their own
+ * reasons, and neither wants this function guessing which. */
+export function references(layout: Layout): string[] {
+  const out: string[] = [];
+  if (layout.target === "app") {
+    for (const page of layout.pages ?? []) {
+      for (const button of page.buttons ?? []) out.push(String(button.symbol ?? ""));
+    }
+    return out;
+  }
+  for (const set of layout.sets ?? []) {
+    out.push(String(set.symbol ?? ""));
+    for (const slot of set.slots ?? []) out.push(String(slot.symbol ?? ""));
+  }
+  return out;
+}
+
+/** Every sentence a Sammlung will need a recording of, in the order it is met.
+ *
+ * The key into PackageInput.sounds, and therefore the thing backend/local.ts
+ * has to synthesise. It is *the text that will be spoken*, which on a talker
+ * key is its own text and on a tablet button is its vocalization falling back
+ * to its label - §7.2. That fallback is the whole reason this is a function
+ * rather than a field read at both ends: keying the map by the label shipped
+ * the wrong clip on every button whose spoken text differs from what it shows,
+ * which is exactly the button the fallback exists for.
+ *
+ * A tablet button only earns a clip when pressing it speaks. The viewer's
+ * BoardViewModel utters on `Append` and on `SpeakImmediately` and on nothing
+ * else - navigation and the four bar controls are silent, and `:speak` always
+ * synthesises the composed sentence because the bar has no clip of its own. So
+ * a clip on any of those would be a member of the archive nothing can ever
+ * play, on a board that may have four hundred buttons.
+ */
+export function spokenTexts(layout: Layout): string[] {
+  const out: string[] = [];
+  if (layout.target === "app") {
+    for (const page of layout.pages ?? []) {
+      for (const button of page.buttons ?? []) {
+        if (button.act?.kind !== "append" && button.act?.kind !== "speak") continue;
+        const spoken = spokenTextOf(button);
+        if (spoken) out.push(spoken);
+      }
+    }
+    return out;
+  }
+  for (const set of layout.sets ?? []) {
+    for (const slot of set.slots ?? []) {
+      const text = String(slot.text ?? "").trim();
+      if (text) out.push(text);
+    }
+  }
+  return out;
+}
+
+/** §7.2: what a button says, which is its vocalization or else its label. */
+export const spokenTextOf = (button: AppButton): string =>
+  String(button.vocalization ?? "").trim() || String(button.label ?? "").trim();
+
+/** The hex a word class is drawn in, or "" for a button carrying none.
+ *
+ * The layout stores the class and this is where it becomes a colour - see
+ * AppButton.wordClass. A class this table does not know resolves to nothing
+ * rather than to a guess: the viewer's own default is a better answer than a
+ * colour that would mean the wrong word class to anybody reading the board. */
+export const wordClassColor = (key: string): string =>
+  WORD_CLASSES.find((one) => one.key === key)?.color ?? "";
 
 /**
  * The board's locale: the language the sentences on it are in.
@@ -305,114 +413,22 @@ export function localeFor(voice: string, language?: string): string {
  */
 export function buildAppPackage(input: PackageInput): AppPackage {
   const { collection, layout } = input;
-  const sets = layout.sets ?? [];
-  if (!sets.length) {
-    throw new Error("There is nothing in this Sammlung to export yet.");
-  }
-
   const source = symbolSource(layout);
-  const ids = sets.map((_, index) => `set-${index + 1}`);
   const files = new Map<string, Uint8Array<ArrayBuffer>>();
-  const boards: PackageBoard[] = [];
   const locale = localeFor(input.voice, layout.language);
 
-  for (const [index, set] of sets.entries()) {
-    const boardId = ids[index]!;
-    const following = ids[(index + 1) % ids.length]!;
-    const buttons: PackageButton[] = [];
-    const images = new Map<string, PackageImage>();
-    const sounds = new Map<string, PackageSound>();
+  // Which mapping, and nothing else branches on it below: the manifest, the
+  // member names and the licence flag are facts about a package rather than
+  // about what is in one.
+  const { boards, root } = layout.target === "app"
+    ? appBoards(layout, input, files, locale)
+    : diyBoards(layout, input, files, locale);
 
-    /** Puts a picture in the archive and on the board, and answers with its id. */
-    const withImage = (reference: string): string | undefined => {
-      const baked = input.images.get(reference);
-      if (!reference || !baked) return undefined;
-      const key = baked.key;
-      const entry: PackageImage = {
-        id: `img-${key}`, path: imagePath(key), content_type: "image/png",
-      };
-      images.set(entry.id, entry);
-      files.set(entry.path, baked.bytes);
-      return entry.id;
-    };
-
-    const withSound = (text: string): string | undefined => {
-      const baked = input.sounds.get(text);
-      if (!baked) return undefined;
-      const key = baked.key;
-      const entry: PackageSound = {
-        id: `snd-${key}`, path: soundPath(key),
-        content_type: "audio/ogg", duration: baked.seconds,
-      };
-      sounds.set(entry.id, entry);
-      files.set(entry.path, baked.bytes);
-      return entry.id;
-    };
-
-    const present: boolean[] = [];
-    for (const [at, slot] of (set.slots ?? []).entries()) {
-      const text = String(slot?.text ?? "");
-      const reference = String(slot?.symbol ?? "");
-      // A key with nothing on it is a cell rather than a button. §7.2 would
-      // render an empty button as an empty cell anyway; leaving the button out
-      // says the same thing without asking the viewer to draw nothing.
-      if (!text && !reference) { present[at] = false; continue; }
-      present[at] = true;
-      const button: PackageButton = {
-        id: `${boardId}-key-${at + 1}`,
-        label: text,
-        border_color: cssColor(set.color),
-        // The device speaks on press and has no bar to compose in. §4.3.
-        ext_lautstark_speak_immediately: true,
-      };
-      // Both, and the same text, exactly as the talker export writes them: the
-      // label is what the button shows, the vocalization is what it says, and
-      // §7.3 puts the vocalization in the message bar. Saying it twice keeps
-      // the spoken half right if somebody later shortens the label.
-      if (text) button.vocalization = text;
-      const picture = withImage(reference);
-      if (picture) button.image_id = picture;
-      const recording = text ? withSound(text) : undefined;
-      if (recording) button.sound_id = recording;
-      buttons.push(button);
-    }
-
-    const switchKey: PackageButton = {
-      id: `${boardId}-set`,
-      label: String(set.name ?? ""),
-      border_color: cssColor(set.color),
-      load_board: {
-        id: following,
-        name: String(sets[(index + 1) % sets.length]!.name ?? ""),
-        path: boardPath(following),
-      },
-    };
-    const setPicture = withImage(String(set.symbol ?? ""));
-    if (setPicture) switchKey.image_id = setPicture;
-    buttons.push(switchKey);
-
-    boards.push({
-      format: FORMAT,
-      id: boardId,
-      locale,
-      name: String(set.name ?? ""),
-      buttons,
-      grid: grid(boardId, present),
-      images: [...images.values()].sort(byId),
-      sounds: [...sounds.values()].sort(byId),
-      // §4.2: a whole-page colour, which OBF has nowhere else to put. Pages
-      // are told apart by colour before they are read, which is the whole
-      // point on a device whose user does not read.
-      ext_lautstark_board_color: normalizeHex(set.color),
-    });
-  }
-
-  const root = ids[0]!;
   const manifest: PackageManifest = {
     format: FORMAT,
     root: boardPath(root),
     paths: {
-      boards: Object.fromEntries(ids.map((id) => [id, boardPath(id)])),
+      boards: Object.fromEntries(boards.map((one) => [one.id, boardPath(one.id)])),
     },
     ext_lautstark_spec_version: SPEC_VERSION,
     // §8: minted once with the Sammlung, never re-derived here. Duplicating a
@@ -450,6 +466,257 @@ export function buildAppPackage(input: PackageInput): AppPackage {
   if (voice) manifest.ext_lautstark_tts_voice = voice;
 
   return { manifest, boards, files };
+}
+
+/** Putting a picture and a recording into the archive and onto one board.
+ *
+ * Per board, because §7.1 gives each board its own `images` and `sounds`
+ * lists, and shared across them through `files`, because a member is named for
+ * its content hash - the same picture on three pages is one member of the zip
+ * and one decode on the phone. */
+function mediaFor(
+  input: PackageInput,
+  files: Map<string, Uint8Array<ArrayBuffer>>,
+  images: Map<string, PackageImage>,
+  sounds: Map<string, PackageSound>,
+) {
+  return {
+    image(reference: string): string | undefined {
+      const baked = input.images.get(reference);
+      if (!reference || !baked) return undefined;
+      const entry: PackageImage = {
+        id: `img-${baked.key}`, path: imagePath(baked.key), content_type: "image/png",
+      };
+      images.set(entry.id, entry);
+      files.set(entry.path, baked.bytes);
+      return entry.id;
+    },
+    sound(text: string): string | undefined {
+      const baked = input.sounds.get(text);
+      if (!text || !baked) return undefined;
+      const entry: PackageSound = {
+        id: `snd-${baked.key}`, path: soundPath(baked.key),
+        content_type: "audio/ogg", duration: baked.seconds,
+      };
+      sounds.set(entry.id, entry);
+      files.set(entry.path, baked.bytes);
+      return entry.id;
+    },
+  };
+}
+
+/* ------------------------------------------------------- the five keys --- */
+
+function diyBoards(
+  layout: DiyLayout,
+  input: PackageInput,
+  files: Map<string, Uint8Array<ArrayBuffer>>,
+  locale: string,
+): { boards: PackageBoard[]; root: string } {
+  const sets = layout.sets ?? [];
+  if (!sets.length) {
+    throw new Error("There is nothing in this Sammlung to export yet.");
+  }
+  const ids = sets.map((_, index) => `set-${index + 1}`);
+  const boards: PackageBoard[] = [];
+
+  for (const [index, set] of sets.entries()) {
+    const boardId = ids[index]!;
+    const following = ids[(index + 1) % ids.length]!;
+    const buttons: PackageButton[] = [];
+    const images = new Map<string, PackageImage>();
+    const sounds = new Map<string, PackageSound>();
+    const put = mediaFor(input, files, images, sounds);
+
+    const present: boolean[] = [];
+    for (const [at, slot] of (set.slots ?? []).entries()) {
+      const text = String(slot?.text ?? "").trim();
+      const reference = String(slot?.symbol ?? "");
+      // A key with nothing on it is a cell rather than a button. §7.2 would
+      // render an empty button as an empty cell anyway; leaving the button out
+      // says the same thing without asking the viewer to draw nothing.
+      if (!text && !reference) { present[at] = false; continue; }
+      present[at] = true;
+      const button: PackageButton = {
+        id: `${boardId}-key-${at + 1}`,
+        label: String(slot?.text ?? ""),
+        border_color: cssColor(set.color),
+        // The device speaks on press and has no bar to compose in. §4.3.
+        ext_lautstark_speak_immediately: true,
+      };
+      // Both, and the same text, exactly as the talker export writes them: the
+      // label is what the button shows, the vocalization is what it says, and
+      // §7.3 puts the vocalization in the message bar. Saying it twice keeps
+      // the spoken half right if somebody later shortens the label.
+      if (button.label) button.vocalization = button.label;
+      const picture = put.image(reference);
+      if (picture) button.image_id = picture;
+      const recording = put.sound(text);
+      if (recording) button.sound_id = recording;
+      buttons.push(button);
+    }
+
+    const switchKey: PackageButton = {
+      id: `${boardId}-set`,
+      label: String(set.name ?? ""),
+      border_color: cssColor(set.color),
+      load_board: {
+        id: following,
+        name: String(sets[(index + 1) % sets.length]!.name ?? ""),
+        path: boardPath(following),
+      },
+    };
+    const setPicture = put.image(String(set.symbol ?? ""));
+    if (setPicture) switchKey.image_id = setPicture;
+    buttons.push(switchKey);
+
+    boards.push({
+      format: FORMAT,
+      id: boardId,
+      locale,
+      name: String(set.name ?? ""),
+      buttons,
+      grid: grid(boardId, present),
+      images: [...images.values()].sort(byId),
+      sounds: [...sounds.values()].sort(byId),
+      // §4.2: a whole-page colour, which OBF has nowhere else to put. Pages
+      // are told apart by colour before they are read, which is the whole
+      // point on a device whose user does not read.
+      ext_lautstark_board_color: normalizeHex(set.color),
+    });
+  }
+
+  return { boards, root: ids[0]! };
+}
+
+/* ------------------------------------------------------------ the pages --- */
+
+/** A board id, from where the page sits in the Sammlung.
+ *
+ * Positional and readable rather than the page's own UUID. §7.1 only asks that
+ * it be unique within the package, and a package whose ids read `board-3` is
+ * one somebody can hold a diff of against the viewer's log. The identity that
+ * has to be stable across exports is the *package* id, which §8 puts in the
+ * manifest and which is the Sammlung's UUID. */
+const appBoardId = (at: number) => `board-${at + 1}`;
+const appButtonId = (boardId: string, row: number, col: number) =>
+  `${boardId}-r${row + 1}c${col + 1}`;
+
+function appBoards(
+  layout: AppLayout,
+  input: PackageInput,
+  files: Map<string, Uint8Array<ArrayBuffer>>,
+  locale: string,
+): { boards: PackageBoard[]; root: string } {
+  const pages = layout.pages ?? [];
+  if (!pages.length) {
+    throw new Error("There is nothing in this Sammlung to export yet.");
+  }
+  const rows = Math.max(1, Math.trunc(layout.grid?.rows ?? 1));
+  const columns = Math.max(1, Math.trunc(layout.grid?.columns ?? 1));
+  const idOf = new Map(pages.map((page, at) => [page.id, appBoardId(at)]));
+  const nameOf = new Map(pages.map((page) => [page.id, String(page.name ?? "")]));
+  const boards: PackageBoard[] = [];
+
+  for (const [at, page] of pages.entries()) {
+    const boardId = appBoardId(at);
+    const buttons: PackageButton[] = [];
+    const images = new Map<string, PackageImage>();
+    const sounds = new Map<string, PackageSound>();
+    const put = mediaFor(input, files, images, sounds);
+    // §7.1: exactly `rows` rows of exactly `columns` cells, and a mismatch is
+    // a package-level fault. Built as nulls and filled in, so a cell nothing
+    // sits in is null by construction rather than by remembering to write one.
+    const order: (string | null)[][] =
+      Array.from({ length: rows }, () => Array.from({ length: columns }, () => null));
+
+    for (const one of page.buttons ?? []) {
+      const row = Math.trunc(one.row);
+      const col = Math.trunc(one.col);
+      // Outside the grid, or on top of a button already placed. Neither should
+      // reach here - the editor keeps both true - and both are dropped rather
+      // than written, because §7.1 makes a malformed grid a reason to reject
+      // the whole package and losing one button beats losing the vocabulary.
+      if (row < 0 || row >= rows || col < 0 || col >= columns) continue;
+      if (order[row]![col]) continue;
+
+      const id = appButtonId(boardId, row, col);
+      const label = String(one.label ?? "");
+      const spoken = spokenTextOf(one);
+      const button: PackageButton = { id };
+      if (label) button.label = label;
+      // Written whenever there is one, including when it is the same as the
+      // label: §7.3 says the *bar* shows the vocalization, so a button that
+      // left it out would read in the bar as whatever its label happened to
+      // be shortened to.
+      if (spoken) button.vocalization = spoken;
+      const colour = wordClassColor(String(one.wordClass ?? ""));
+      if (colour) button.background_color = cssColor(colour);
+
+      const act = one.act ?? { kind: "append" as const };
+      switch (act.kind) {
+        case "goto": {
+          const target = idOf.get(act.page);
+          // A `goto` whose page is gone writes no load_board at all, and so
+          // becomes an ordinary appending button - which is what the editor
+          // does to it the moment a page is deleted. Writing a load_board
+          // pointing nowhere would be a button that looks live on a tablet and
+          // does nothing, and §7.4 is emphatic about what that teaches.
+          if (target) {
+            button.load_board = {
+              id: target,
+              name: nameOf.get(act.page) ?? "",
+              path: boardPath(target),
+            };
+          }
+          break;
+        }
+        case "speak":
+          button.ext_lautstark_speak_immediately = true;
+          break;
+        case "clear": button.action = ":clear"; break;
+        case "backspace": button.action = ":backspace"; break;
+        case "sayBar": button.action = ":speak"; break;
+        case "home": button.action = ":home"; break;
+        case "append": break;
+      }
+
+      const picture = put.image(String(one.symbol ?? ""));
+      if (picture) button.image_id = picture;
+      // Only where a press speaks this button's own text - see spokenTexts().
+      if (act.kind === "append" || act.kind === "speak") {
+        const recording = put.sound(spoken);
+        if (recording) button.sound_id = recording;
+      }
+
+      // §7.2: nothing to show and nothing to say renders as an empty cell, so
+      // it is left as one. A button carrying only an act is the exception and
+      // is kept: a bare `:backspace` with no label is a real button somebody
+      // put there.
+      if (!button.label && !button.image_id && act.kind === "append") continue;
+
+      order[row]![col] = id;
+      buttons.push(button);
+    }
+
+    boards.push({
+      format: FORMAT,
+      id: boardId,
+      locale,
+      name: String(page.name ?? ""),
+      buttons,
+      grid: { rows, columns, order },
+      images: [...images.values()].sort(byId),
+      sounds: [...sounds.values()].sort(byId),
+      ext_lautstark_board_color: normalizeHex(page.color),
+    });
+  }
+
+  // §7.4's `:home` and §3's root are the same page, and it is the one the
+  // layout names rather than the first in the strip - so that reordering the
+  // pages in the editor cannot move what a tablet opens on.
+  const root = idOf.get(layout.home) ?? appBoardId(0);
+  return { boards, root };
 }
 
 const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);

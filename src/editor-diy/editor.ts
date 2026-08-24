@@ -15,7 +15,8 @@ import { $, status } from "../shell/dom.js";
 import { previewInto, symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
-import type { Layout } from "../core/types.js";
+import { isDiy } from "../core/types.js";
+import type { DiyLayout, Layout } from "../core/types.js";
 import { LANG, limits, palette } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save, saveSoon } from "../core/save.js";
@@ -33,9 +34,45 @@ let preview = false;        // show tiles the way the display shows them
  * the save loop. */
 let current = 0;
 
-// Cached rather than looked up: render() moves this button into the set
-// column on every pass, so it has to be the same element each time.
-const removeSetBtn = $<HTMLButtonElement>("removeSet");
+/* state.layout, as the shape this editor is the editor for.
+ *
+ * The shell holds one layout and it may be either kind - core/types.ts's union
+ * - and this file may only ever be looking at the DIY half, because the
+ * composition root installs it for a DIY Sammlung and for nothing else. So
+ * this is that guarantee written down once instead of a cast at each of the
+ * forty places below.
+ *
+ * It throws for the reason $() throws: reaching here with a tablet Sammlung on
+ * screen is not a case to handle, it is a composition root that has installed
+ * the wrong editor, and the complaint should say so once. */
+function board(): DiyLayout {
+  const held = state.layout;
+  if (!isDiy(held)) throw new Error("the five-key editor was given a tablet Sammlung");
+  return held;
+}
+
+/* The delete button, held rather than looked up - and taken afresh on every
+ * mount.
+ *
+ * Both halves are load-bearing and each of them is a bug this file has had.
+ *
+ * **Held**, because render() moves this button *into* the set column, which is
+ * inside #device, and the next render empties #device. That takes the element
+ * out of the document, so a `$("removeSet")` on the following pass finds
+ * nothing and throws - which is what happened when this was turned into a
+ * plain lookup. A reference survives the detaching; an id does not.
+ *
+ * **Afresh on every mount**, because it used to be a `const` evaluated when
+ * this module was imported, and this editor's markup is no longer in the page
+ * at import time. It is mounted when a talker Sammlung arrives - a tablet
+ * Sammlung must not carry a #removeSet or a #releaseBtn at all - and mounted
+ * again, as new elements, whenever the page comes back from a tablet one. So
+ * wireEditor() sets this, and it runs directly after each mount. */
+let removeSetEl: HTMLButtonElement | null = null;
+const removeSetBtn = (): HTMLButtonElement => {
+  if (!removeSetEl) throw new Error("the five-key board has not been mounted");
+  return removeSetEl;
+};
 
 function clearDragMarks() {
   document.querySelectorAll(".dragover").forEach((el) => el.classList.remove("dragover"));
@@ -57,8 +94,8 @@ function disarmSwap() {
 // because render() rebuilds the row, and the keyboard would otherwise be
 // left standing on nothing.
 async function moveSet(from, to) {
-  const moved = state.layout.sets.splice(from, 1)[0];
-  state.layout.sets.splice(to, 0, moved);
+  const moved = board().sets.splice(from, 1)[0];
+  board().sets.splice(to, 0, moved);
   current = to;
   await save();
   render();
@@ -74,7 +111,7 @@ async function swapSlots(slots, a, b) {
 }
 
 function activeCount() {
-  return state.layout.sets.filter((s) => s.active !== false).length;
+  return board().sets.filter((s) => s.active !== false).length;
 }
 
 function emptySet(index, active) {
@@ -147,7 +184,7 @@ export function render() {
   armedSlot = null;
   const tabs = $("tabs");
   tabs.innerHTML = "";
-  state.layout.sets.forEach((entry, index) => {
+  board().sets.forEach((entry, index) => {
     const tab = document.createElement("div");
     tab.className = "tab" + (index === current ? " active" : "")
                   + (entry.active === false ? " off" : "");
@@ -177,7 +214,7 @@ export function render() {
         // back in some engines, and reordering must never walk off the page.
         event.preventDefault();
         const to = index + (event.key === "ArrowRight" ? 1 : -1);
-        if (to >= 0 && to < state.layout.sets.length) moveSet(index, to);
+        if (to >= 0 && to < board().sets.length) moveSet(index, to);
         return;
       }
       if (event.key !== "Enter" && event.key !== " ") return;
@@ -210,16 +247,16 @@ export function render() {
 
     tabs.appendChild(tab);
   });
-  if (state.layout.sets.length < limits.maxSets) {
+  if (board().sets.length < limits.maxSets) {
     const add = document.createElement("button");
     add.className = "tab add";
     add.textContent = t("ui.add_set");
     add.onclick = async () => {
       // A new set is active straight away only when a slot is still free -
       // otherwise the layout could not be saved at all.
-      state.layout.sets.push(
-        emptySet(state.layout.sets.length, activeCount() < limits.maxActive));
-      current = state.layout.sets.length - 1;
+      board().sets.push(
+        emptySet(board().sets.length, activeCount() < limits.maxActive));
+      current = board().sets.length - 1;
       await save();
       render();
     };
@@ -227,17 +264,17 @@ export function render() {
   }
 
   const used = activeCount();
-  $("slots").classList.toggle("warn", used === 0 && state.layout.sets.length > 0);
-  $("slots").textContent = used === 0 && state.layout.sets.length > 0
-    ? t("ui.none_active", { n: state.layout.sets.length })
+  $("slots").classList.toggle("warn", used === 0 && board().sets.length > 0);
+  $("slots").textContent = used === 0 && board().sets.length > 0
+    ? t("ui.none_active", { n: board().sets.length })
     : t("ui.slots_used", { used: used, max: limits.maxActive })
-      + (state.layout.sets.length > used
-         ? "  ·  " + t("ui.sets_created", { n: state.layout.sets.length }) : "");
+      + (board().sets.length > used
+         ? "  ·  " + t("ui.sets_created", { n: board().sets.length }) : "");
 
   const device = $("device");
   device.innerHTML = "";
-  removeSetBtn.style.display = state.layout.sets.length ? "" : "none";
-  const entry = state.layout.sets[current];
+  removeSetBtn().style.display = board().sets.length ? "" : "none";
+  const entry = board().sets[current];
   if (!entry) {
     device.innerHTML = '<p style="color:var(--muted)"></p>';
     device.firstChild.textContent = t("ui.no_sets");
@@ -356,7 +393,7 @@ export function render() {
   }
   setTile.appendChild(activeRow);
 
-  setCol.append(setTile, removeSetBtn);
+  setCol.append(setTile, removeSetBtn());
   device.appendChild(setCol);
 
   entry.slots.forEach((slot, index) => {
@@ -464,7 +501,7 @@ export function render() {
 }
 
 export function renderTabsOnly() {
-  state.layout.sets.forEach((entry, index) => {
+  board().sets.forEach((entry, index) => {
     const tab = $("tabs").children[index];
     if (tab) { tab.lastChild.textContent = entry.name || t("ui.set_n", { n: index + 1 }); }
   });
@@ -472,16 +509,21 @@ export function renderTabsOnly() {
 
 // The two controls that belong to the editor rather than to any dialog.
 export function wireEditor() {
+  // First, and before anything that draws: render() reaches for this on every
+  // pass, and the elements this editor works on are the ones the mount that
+  // preceded this call has just made.
+  removeSetEl = $<HTMLButtonElement>("removeSet");
+
   $<HTMLInputElement>("previewToggle").onchange = () => {
     preview = $<HTMLInputElement>("previewToggle").checked;
     render();
   };
 
-  removeSetBtn.onclick = async () => {
-    if (!state.layout.sets.length) return;
+  removeSetBtn().onclick = async () => {
+    if (!board().sets.length) return;
     if (!confirm(t("ui.confirm_delete",
-                   { name: state.layout.sets[current].name || "" }))) return;
-    state.layout.sets.splice(current, 1);
+                   { name: board().sets[current].name || "" }))) return;
+    board().sets.splice(current, 1);
     current = Math.max(0, current - 1);
     await save();
     render();
@@ -490,10 +532,11 @@ export function wireEditor() {
 
 /* What the shell is handed, and the whole of what it may ask for.
  *
- * Five methods, and each one is a question the shell has that only the device
+ * Seven members, and each one is a question the shell has that only the device
  * can answer - see core/editor.ts for what each is and why it is not a general
- * "do something to the board" hook. app.ts installs this object; nothing in
- * src/shell/ imports this file, and tests/unit/layers.test.ts is what says so.
+ * "do something to the board" hook. app.ts registers this object against the
+ * "diy" target; nothing in src/shell/ imports this file, and
+ * tests/unit/layers.test.ts is what says so.
  */
 export const diy: Editor = {
   /* What a new board starts as, and it is a fact about this hardware: one set
@@ -546,17 +589,28 @@ export const diy: Editor = {
    * specimen for that, in the reader's language, which is not this file's to
    * choose. */
   sample(): string {
-    const set = state.layout.sets[current];
+    const set = board().sets[current];
     const slot = (set ? set.slots || [] : []).find((entry) => (entry.text || "").trim());
     return slot ? slot.text.trim() : "";
   },
 
   /* How many sets are in a layout. The sidebar draws it beside the name and
    * the delete question counts with it, and neither of them knows the word
-   * "set" - they ask for a number and put the editor's own label beside it. */
+   * "set" - they ask for a number and `unit` below is what puts a word to it.
+   *
+   * Takes a layout rather than reading state.layout, and answers 0 for a
+   * layout that is not this editor's: the sidebar counts every Sammlung it
+   * lists, and one of them being a tablet's is the ordinary case rather than
+   * a reason to throw the way board() does. */
   count(layout: Layout): number {
-    return layout.sets?.length ?? 0;
+    return isDiy(layout) ? layout.sets?.length ?? 0 : 0;
   },
+
+  /* Sets, because a set is a fixed four keys here: the number of sets and the
+   * amount of work in a Sammlung move together, so one number does both of the
+   * jobs conventions.md §1.8 gives it. That is not true on a tablet, where a
+   * page holds anything from nothing to sixty-six - see editor-app. */
+  unit: "set",
 
   /* The fixed words on the controls this editor owns. They sit in the header
    * and in the board, and they are re-read on every language switch like every
@@ -566,6 +620,6 @@ export const diy: Editor = {
     $("previewLabel").title = t("ui.preview_title");
     $("previewText").textContent = t("ui.preview");
     $<HTMLButtonElement>("releaseBtn").textContent = t("ui.release");
-    removeSetBtn.textContent = t("ui.remove_set");
+    removeSetBtn().textContent = t("ui.remove_set");
   },
 };

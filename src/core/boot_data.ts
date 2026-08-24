@@ -18,6 +18,63 @@ export const DEFAULT_LANGUAGE = "en";
 export const PALETTE = ["#3B5BDB", "#159947", "#9B7BFF", "#FF8BC7", "#FF6B35"];
 export const LIMITS = {"maxSets": 25, "maxActive": 5};
 
+/* The Modified Fitzgerald Key: which colour a word class is drawn in.
+ *
+ * Not a palette this project chose. Colour-coding a communication board by
+ * word class is how German UK boards are built - the Gesellschaft fuer
+ * Unterstuetzte Kommunikation's lexicon describes the Fitzgerald-Schluessel,
+ * and every tablet vocabulary a family will already have seen uses some
+ * rendering of it. A board whose verbs are not green is a board somebody has
+ * to learn from scratch.
+ *
+ * The values are AsTeRICS Grid's, whose German documentation ARASAAC hosts
+ * (aulaabierta.arasaac.org, "Anhang C - Farbkodierung je nach Wortart") and
+ * whose scheme is machine-readable at src/js/util/constants.js in
+ * asterics/AsTeRICS-Grid. Taking them from a program rather than from a
+ * picture in a handbook is the point: ten classes with exact hexes, in the
+ * order that program lists them, so that a board built here and a board built
+ * there are the same colour rather than nearly.
+ *
+ * The light ramp, drawn as a background. AsTeRICS Grid ships four shadings and
+ * pairs them with two colour modes - light for a filled cell, medium for a
+ * coloured border - and its own default is this pair. Following the default
+ * rather than offering the choice is deliberate while there is one user: four
+ * shadings is four ways for two Sammlungen to disagree about what green is.
+ *
+ * `key` is a stem for the labels in TEXTS below, because these are the words
+ * for a word class in two languages and every other word on this page comes
+ * out of the same table. AppButton.wordClass holds one of these keys, and the
+ * hex is a rendering of it - see the note there.
+ */
+export const WORD_CLASSES = [
+  { key: "pronoun", color: "#fdfd96" },
+  { key: "noun", color: "#ffda89" },
+  { key: "verb", color: "#c7f3c7" },
+  { key: "descriptor", color: "#84b6f4" },
+  { key: "social", color: "#fdcae1" },
+  { key: "misc", color: "#ffffff" },
+  { key: "place", color: "#bc98f3" },
+  { key: "category", color: "#d8af97" },
+  { key: "important", color: "#ff9688" },
+  { key: "other", color: "#bdbfbf" },
+];
+
+/* What a tablet Sammlung starts as, and how far it may be stretched.
+ *
+ * 3x5 is a first board: big cells, few of them, room for a sentence of three
+ * or four words. 6x11 is the size a grown vocabulary reaches, and it is here
+ * as a bound rather than as a target - what it is really doing is saying that
+ * the number is a number, so that nothing downstream may bake a fixed shape in
+ * the way the device's five keys are baked in.
+ *
+ * Rows before columns, and landscape both times: a tablet handed to a child is
+ * held the wide way, and the grid is the shape of the thing it is drawn on. */
+export const GRID = {
+  rows: 3, columns: 5,
+  minRows: 1, minColumns: 1,
+  maxRows: 6, maxColumns: 11,
+};
+
 export const TEXTS = {
   "de": {
     "build.active_count": "{active} von {total} Sets aktiv.",
@@ -78,7 +135,50 @@ export const TEXTS = {
     "ui.active_full": "Es sind schon {max} Sets aktiv - erst eins abschalten.",
     "ui.active_title": "Aktive Sets gehen aufs Gerät - höchstens {max} gleichzeitig",
     "ui.add_set": "+ Set",
+    "ui.app_act_append": "In die Satzleiste",
+    "ui.app_act_backspace": "Letztes zur\u00fcck",
+    "ui.app_act_clear": "Satzleiste leeren",
+    "ui.app_act_goto": "Zu einer Seite",
+    "ui.app_act_home": "Zur Startseite",
+    "ui.app_act_say_bar": "Satz sprechen",
+    "ui.app_act_speak": "Sofort sprechen",
+    "ui.app_button_act": "Beim Dr\u00fccken",
+    "ui.app_button_add": "Taste anlegen",
+    "ui.app_button_class": "Wortart",
+    "ui.app_button_empty": "leer",
+    "ui.app_button_label": "Aufschrift",
+    "ui.app_button_label_hint": "Was auf der Taste steht",
+    "ui.app_button_none": "Keine Taste gew\u00e4hlt. W\u00e4hle eine, oder lege in einem leeren Feld eine an.",
+    "ui.app_button_remove": "Taste l\u00f6schen",
+    "ui.app_button_spoken": "Gesprochen",
+    "ui.app_button_spoken_hint": "Leer lassen: dann wird die Aufschrift gesagt",
     "ui.app_description": "Inhalte für den Talker bearbeiten",
+    "ui.app_goto_follow": "Zu dieser Seite",
+    "ui.app_goto_new": "Neue Seite \u2026",
+    "ui.app_goto_page": "Zielseite",
+    "ui.app_grid": "Raster",
+    "ui.app_grid_columns": "Spalten",
+    "ui.app_grid_rows": "Zeilen",
+    "ui.app_grid_shrink": "Raster verkleinern",
+    "ui.app_grid_shrink_ask": "{n} Tasten liegen au\u00dferhalb von {rows}\u00d7{cols} und gehen dabei verloren.",
+    "ui.app_grid_shrink_ask_one": "Eine Taste liegt au\u00dferhalb von {rows}\u00d7{cols} und geht dabei verloren.",
+    "ui.app_grid_shrink_go": "Verkleinern",
+    "ui.app_page_color": "Farbe der Seite",
+    "ui.app_page_delete": "Seite l\u00f6schen",
+    "ui.app_page_delete_ask": "\u201e{name}\u201c wird gel\u00f6scht, mit {n} Tasten darauf.",
+    "ui.app_page_delete_ask_none": "\u201e{name}\u201c wird gel\u00f6scht. Es ist nichts darauf.",
+    "ui.app_page_delete_ask_one": "\u201e{name}\u201c wird gel\u00f6scht, mit der einen Taste darauf.",
+    "ui.app_page_delete_go": "Seite l\u00f6schen",
+    "ui.app_page_delete_links": "{n} Tasten auf anderen Seiten f\u00fchren hierher. Sie bleiben stehen und sagen dann ihren eigenen Text, statt weiterzuf\u00fchren.",
+    "ui.app_page_delete_links_one": "Eine Taste auf einer anderen Seite f\u00fchrt hierher. Sie bleibt stehen und sagt dann ihren eigenen Text, statt weiterzuf\u00fchren.",
+    "ui.app_page_home": "Startseite",
+    "ui.app_page_home_set": "Zur Startseite machen",
+    "ui.app_page_last": "Die letzte Seite bleibt - beim L\u00f6schen kommt eine leere daf\u00fcr.",
+    "ui.app_page_n": "Seite {n}",
+    "ui.app_page_name": "Name der Seite",
+    "ui.app_page_new": "+ Neue Seite",
+    "ui.app_page_unreachable": "Von der Startseite aus f\u00fchrt nichts hierher.",
+    "ui.app_pages": "Seiten",
     "ui.arasaac": "ARASAAC",
     "ui.arasaac_down": "ARASAAC nicht erreichbar - nur METACOM-Treffer.",
     "ui.arasaac_intro": "Rund 13.000 Piktogramme mit deutschen Bezeichnungen, direkt aus dem öffentlichen ARASAAC-Verzeichnis. Nichts einzurichten - sie stehen im Bildwähler immer zur Verfügung.",
@@ -104,10 +204,14 @@ export const TEXTS = {
     "ui.collection": "Sammlung",
     "ui.collection_default": "Sammlung vom {date}",
     "ui.collection_delete": "Sammlung l\u00f6schen",
-    "ui.collection_delete_ask": "\u201e{name}\u201c wird gel\u00f6scht, mit {n} Sets darin. Das l\u00e4sst sich nicht r\u00fcckg\u00e4ngig machen.",
-    "ui.collection_delete_ask_one": "\u201e{name}\u201c wird gel\u00f6scht, mit dem einen Set darin. Das l\u00e4sst sich nicht r\u00fcckg\u00e4ngig machen.",
-    "ui.collection_delete_go": "{n} Sets l\u00f6schen",
-    "ui.collection_delete_go_one": "Ein Set l\u00f6schen",
+    "ui.collection_delete_ask_button": "\u201e{name}\u201c wird gel\u00f6scht, mit {n} Tasten darin. Das l\u00e4sst sich nicht r\u00fcckg\u00e4ngig machen.",
+    "ui.collection_delete_ask_button_one": "\u201e{name}\u201c wird gel\u00f6scht, mit der einen Taste darin. Das l\u00e4sst sich nicht r\u00fcckg\u00e4ngig machen.",
+    "ui.collection_delete_ask_set": "\u201e{name}\u201c wird gel\u00f6scht, mit {n} Sets darin. Das l\u00e4sst sich nicht r\u00fcckg\u00e4ngig machen.",
+    "ui.collection_delete_ask_set_one": "\u201e{name}\u201c wird gel\u00f6scht, mit dem einen Set darin. Das l\u00e4sst sich nicht r\u00fcckg\u00e4ngig machen.",
+    "ui.collection_delete_go_button": "{n} Tasten l\u00f6schen",
+    "ui.collection_delete_go_button_one": "Eine Taste l\u00f6schen",
+    "ui.collection_delete_go_set": "{n} Sets l\u00f6schen",
+    "ui.collection_delete_go_set_one": "Ein Set l\u00f6schen",
     "ui.collection_export": "Als OBF-Datei exportieren",
     "ui.collection_export_app": "Als App-Paket exportieren",
     "ui.collection_export_failed": "Export fehlgeschlagen: {error}",
@@ -119,6 +223,12 @@ export const TEXTS = {
     "ui.collection_import": "Sammlung importieren",
     "ui.collection_imported": "Importiert: \u201e{name}\u201c",
     "ui.collection_menu": "Was mit dieser Sammlung geht",
+    "ui.collection_target": "Wof\u00fcr ist diese Sammlung?",
+    "ui.collection_target_app": "F\u00fcr die App",
+    "ui.collection_target_app_note": "Seiten mit Tasten auf einem Tablet. Die Tasten setzen einen Satz in der Satzleiste zusammen.",
+    "ui.collection_target_diy": "F\u00fcr den Talker",
+    "ui.collection_target_diy_note": "F\u00fcnf Tasten, die zugleich Displays sind. Vier Tasten je Set, und die Set-Taste schaltet weiter.",
+    "ui.collection_target_note": "Das bleibt so: eine Sammlung wechselt sp\u00e4ter nicht die Seite.",
     "ui.collection_unnamed": "Ohne Namen",
     "ui.collection_name": "Name der Sammlung",
     "ui.collection_new": "+ Neue Sammlung",
@@ -256,6 +366,13 @@ export const TEXTS = {
     "ui.not_saved": "nicht gespeichert",
     "ui.nothing_found": "Nichts gefunden zu „{word}“.",
     "ui.own_image": "Eigenes Bild",
+    "ui.package_export": "Als Paket exportieren",
+    "ui.package_go": "Paket schreiben",
+    "ui.package_lead": "\u201e{name}\u201c wird zu einer .obz-Datei, die die App \u00f6ffnet: Bilder und Aufnahmen liegen darin.",
+    "ui.package_packing": "Packt die Datei \u2026",
+    "ui.package_speaking": "Spricht {done} von {total} \u2026",
+    "ui.package_stopped": "Abgebrochen. Es wurde nichts geschrieben.",
+    "ui.package_title": "Paket f\u00fcr die App",
     "ui.pick_symbol": "Symbol wählen",
     "ui.play_failed": "Vorhören nicht möglich: {error}",
     "ui.play_title": "Vorhören",
@@ -348,6 +465,17 @@ export const TEXTS = {
     "ui.voice_show_all": "Alle {n} Stimmen zeigen",
     "ui.voice_show_less": "Weniger zeigen",
     "ui.voice_state_none": "noch keine gewählt",
+    "ui.wordclass_category": "Kategorie",
+    "ui.wordclass_descriptor": "Beschreibung (Adjektiv oder Adverb)",
+    "ui.wordclass_important": "Wichtiges Funktionswort, Negation, Notfall",
+    "ui.wordclass_misc": "Verschiedenes (Artikel, Pr\u00e4position, Konjunktion)",
+    "ui.wordclass_none": "Keine Wortart",
+    "ui.wordclass_noun": "Nomen",
+    "ui.wordclass_other": "Sonstiges",
+    "ui.wordclass_place": "Ort",
+    "ui.wordclass_pronoun": "Pronomen, Person, Name",
+    "ui.wordclass_social": "Sozial oder Ausdruck",
+    "ui.wordclass_verb": "Verb",
   },
   "en": {
     "build.active_count": "{active} of {total} sets active.",
@@ -408,7 +536,50 @@ export const TEXTS = {
     "ui.active_full": "{max} sets are already active - switch one off first.",
     "ui.active_title": "Active sets go onto the device - at most {max} at a time",
     "ui.add_set": "+ Set",
+    "ui.app_act_append": "Into the sentence bar",
+    "ui.app_act_backspace": "Take the last one back",
+    "ui.app_act_clear": "Clear the bar",
+    "ui.app_act_goto": "Go to a page",
+    "ui.app_act_home": "Go to the start page",
+    "ui.app_act_say_bar": "Speak the sentence",
+    "ui.app_act_speak": "Speak at once",
+    "ui.app_button_act": "On press",
+    "ui.app_button_add": "Put a button here",
+    "ui.app_button_class": "Word class",
+    "ui.app_button_empty": "empty",
+    "ui.app_button_label": "Label",
+    "ui.app_button_label_hint": "What the button shows",
+    "ui.app_button_none": "No button chosen. Pick one, or put a new one in an empty cell.",
+    "ui.app_button_remove": "Delete this button",
+    "ui.app_button_spoken": "Spoken",
+    "ui.app_button_spoken_hint": "Leave empty to speak the label",
     "ui.app_description": "Edit the content for the talker",
+    "ui.app_goto_follow": "Go to this page",
+    "ui.app_goto_new": "New page \u2026",
+    "ui.app_goto_page": "Page to go to",
+    "ui.app_grid": "Grid",
+    "ui.app_grid_columns": "Columns",
+    "ui.app_grid_rows": "Rows",
+    "ui.app_grid_shrink": "Make the grid smaller",
+    "ui.app_grid_shrink_ask": "{n} buttons sit outside {rows}\u00d7{cols} and would be lost.",
+    "ui.app_grid_shrink_ask_one": "One button sits outside {rows}\u00d7{cols} and would be lost.",
+    "ui.app_grid_shrink_go": "Make it smaller",
+    "ui.app_page_color": "Colour of the page",
+    "ui.app_page_delete": "Delete this page",
+    "ui.app_page_delete_ask": "\u201c{name}\u201d goes, and the {n} buttons on it.",
+    "ui.app_page_delete_ask_none": "\u201c{name}\u201d goes. There is nothing on it.",
+    "ui.app_page_delete_ask_one": "\u201c{name}\u201d goes, and the one button on it.",
+    "ui.app_page_delete_go": "Delete the page",
+    "ui.app_page_delete_links": "{n} buttons on other pages lead here. They stay where they are and say their own text instead of leading anywhere.",
+    "ui.app_page_delete_links_one": "One button on another page leads here. It stays where it is and says its own text instead of leading anywhere.",
+    "ui.app_page_home": "Start page",
+    "ui.app_page_home_set": "Make this the start page",
+    "ui.app_page_last": "The last page stays - deleting it leaves an empty one.",
+    "ui.app_page_n": "Page {n}",
+    "ui.app_page_name": "Name of the page",
+    "ui.app_page_new": "+ New page",
+    "ui.app_page_unreachable": "Nothing leads here from the start page.",
+    "ui.app_pages": "Pages",
     "ui.arasaac": "ARASAAC",
     "ui.arasaac_down": "ARASAAC not reachable - METACOM hits only.",
     "ui.arasaac_intro": "Around 13,000 pictograms with German names, straight from the public ARASAAC directory. Nothing to set up - they are always there in the symbol picker.",
@@ -434,10 +605,14 @@ export const TEXTS = {
     "ui.collection": "Collection",
     "ui.collection_default": "Collection of {date}",
     "ui.collection_delete": "Delete this collection",
-    "ui.collection_delete_ask": "\u201c{name}\u201d goes, and the {n} sets in it. This cannot be undone.",
-    "ui.collection_delete_ask_one": "\u201c{name}\u201d goes, and the one set in it. This cannot be undone.",
-    "ui.collection_delete_go": "Delete {n} sets",
-    "ui.collection_delete_go_one": "Delete the one set",
+    "ui.collection_delete_ask_button": "\u201c{name}\u201d goes, and the {n} buttons in it. This cannot be undone.",
+    "ui.collection_delete_ask_button_one": "\u201c{name}\u201d goes, and the one button in it. This cannot be undone.",
+    "ui.collection_delete_ask_set": "\u201c{name}\u201d goes, and the {n} sets in it. This cannot be undone.",
+    "ui.collection_delete_ask_set_one": "\u201c{name}\u201d goes, and the one set in it. This cannot be undone.",
+    "ui.collection_delete_go_button": "Delete {n} buttons",
+    "ui.collection_delete_go_button_one": "Delete the one button",
+    "ui.collection_delete_go_set": "Delete {n} sets",
+    "ui.collection_delete_go_set_one": "Delete the one set",
     "ui.collection_export": "Export as an OBF file",
     "ui.collection_export_app": "Export as an app package",
     "ui.collection_export_failed": "The export failed: {error}",
@@ -449,6 +624,12 @@ export const TEXTS = {
     "ui.collection_import": "Import a collection",
     "ui.collection_imported": "Imported: \u201c{name}\u201d",
     "ui.collection_menu": "What can be done with this collection",
+    "ui.collection_target": "What is this collection for?",
+    "ui.collection_target_app": "For the app",
+    "ui.collection_target_app_note": "Pages of buttons on a tablet. The buttons compose a sentence in the sentence bar.",
+    "ui.collection_target_diy": "For the talker",
+    "ui.collection_target_diy_note": "Five keys that are displays at the same time. Four keys to a set, and the set key moves on.",
+    "ui.collection_target_note": "This stays as it is: a collection does not change sides later.",
     "ui.collection_unnamed": "Unnamed",
     "ui.collection_name": "Collection name",
     "ui.collection_new": "+ New collection",
@@ -586,6 +767,13 @@ export const TEXTS = {
     "ui.not_saved": "not saved",
     "ui.nothing_found": "Nothing found for „{word}“.",
     "ui.own_image": "Own picture",
+    "ui.package_export": "Export as a package",
+    "ui.package_go": "Write the package",
+    "ui.package_lead": "\u201c{name}\u201d becomes an .obz file the app opens, with the pictures and recordings inside it.",
+    "ui.package_packing": "Packing the file \u2026",
+    "ui.package_speaking": "Speaking {done} of {total} \u2026",
+    "ui.package_stopped": "Stopped. Nothing was written.",
+    "ui.package_title": "Package for the app",
     "ui.pick_symbol": "Pick a symbol",
     "ui.play_failed": "Cannot play: {error}",
     "ui.play_title": "Listen",
@@ -678,5 +866,16 @@ export const TEXTS = {
     "ui.voice_show_all": "Show all {n} voices",
     "ui.voice_show_less": "Show fewer",
     "ui.voice_state_none": "none chosen yet",
+    "ui.wordclass_category": "Category",
+    "ui.wordclass_descriptor": "Descriptor (adjective or adverb)",
+    "ui.wordclass_important": "Important function word, negation, emergency",
+    "ui.wordclass_misc": "Miscellaneous (article, preposition, conjunction)",
+    "ui.wordclass_none": "No word class",
+    "ui.wordclass_noun": "Noun",
+    "ui.wordclass_other": "Other",
+    "ui.wordclass_place": "Place",
+    "ui.wordclass_pronoun": "Pronoun, person, name",
+    "ui.wordclass_social": "Social or expression",
+    "ui.wordclass_verb": "Verb",
   },
 };

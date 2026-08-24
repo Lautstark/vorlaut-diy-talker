@@ -48,7 +48,9 @@ import { $, status } from "../shell/dom.js";
 import { reason, Trouble } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import { state } from "../core/state.js";
-import { markReleaseState, saveNow } from "../core/save.js";
+import { isDiy } from "../core/types.js";
+import type { DiyLayout } from "../core/types.js";
+import { onBuildState, saveNow } from "../core/save.js";
 import { runBuild, cableSupported, sendToDevice, type Plan } from "../backend/index.js";
 import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js";
 
@@ -381,13 +383,22 @@ function collectionName(): string {
   return typed || t("ui.collection_unnamed");
 }
 
+/** The Sammlung on screen, which for this file is always the device's - the
+ *  transfer button only exists while a DIY editor is installed. Same guarantee
+ *  and same complaint as editor.ts's board(). */
+function board(): DiyLayout {
+  const held = state.layout;
+  if (!isDiy(held)) throw new Error("the transfer was reached from a tablet Sammlung");
+  return held;
+}
+
 function activeSets() {
-  return state.layout.sets.filter((set) => set.active !== false);
+  return board().sets.filter((set) => set.active !== false);
 }
 
 function setsLine(): string {
   return t("ui.transfer_sets", {
-    active: activeSets().length, total: state.layout.sets.length,
+    active: activeSets().length, total: board().sets.length,
   });
 }
 
@@ -401,8 +412,34 @@ function keysLine(): string {
   return t("ui.transfer_keys", { n: filled, total: slots.length });
 }
 
-export function wireRelease(): void {
+/* The button says for itself whether a build is due: highlighted while data/
+ * does not match the layout, subdued otherwise, so nobody has to remember.
+ *
+ * This lived in core/save.ts and reached for #releaseBtn from there, which is
+ * a shell module holding the id of an element only this editor mounts - see
+ * the note above onBuildState(). It is the same two lines; what changed is
+ * which half of the page they run in. */
+function markReleaseState(flag: string | null): void {
+  if (flag === null) return;
+  const needed = flag !== "1";
   const button = $<HTMLButtonElement>("releaseBtn");
+  button.classList.toggle("primary", needed);
+  button.title = needed ? t("ui.release_needed") : t("ui.release_current");
+}
+
+/** Answers with the way to undo the one subscription this editor makes.
+ *
+ * Everything else it binds is an `onclick` on an element that goes when the
+ * markup goes. The build mark is not: it is a listener held by core/save.ts,
+ * which outlives every editor, and one left behind would keep reaching for a
+ * #releaseBtn that is no longer in the page. */
+export function wireRelease(): () => void {
+  const button = $<HTMLButtonElement>("releaseBtn");
+
+  // Told where the build stands, now and on every write. Subscribing calls
+  // back at once with what is already known, so a Sammlung loaded before this
+  // ran does not leave the button unmarked until the next save.
+  const stop = onBuildState(markReleaseState);
 
   watchForDevices();
 
@@ -412,4 +449,6 @@ export function wireRelease(): void {
     // of its own.
     if (!busy) openTransfer(button);
   };
+
+  return stop;
 }

@@ -47,7 +47,7 @@ import {
   hexToRgb,
   normalizeColor,
 } from "./layout_format.js";
-import type { Layout } from "../core/types.js";
+import type { DiyLayout } from "../core/types.js";
 
 /* The Open Board Format shapes this reads and writes.
  *
@@ -305,7 +305,7 @@ export function order(document) {
  * ext_vorlaut_active says which ones go on the device.
  */
 export async function layoutToDocument(
-  layout: Layout,
+  layout: DiyLayout,
   { imageLicense }: { imageLicense?: Record<string, unknown> | null } = {},
 ) {
   const license = imageLicense === undefined || imageLicense === null
@@ -559,7 +559,7 @@ export function documentToLayout(document) {
     });
   }
 
-  const raw: Layout = {
+  const raw: DiyLayout = {
     sets,
     language: localeToLanguage(rootBoard.locale),
     voice: text(rootBoard.ext_vorlaut_voice),

@@ -15,6 +15,7 @@
 // to call them, what to throw away, lived in builder.py and threw here - and
 // it is at the foot of this file now.
 
+import { isDiy } from "../core/types.js";
 import type { Layout, OfferedVoice, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
 import * as obf from "../data/obf.js";
 import * as appPackage from "../data/app_package.js";
@@ -594,7 +595,21 @@ export async function exportBoard({ images = false } = {}) {
  * saying out loud, because the usual cause is a METACOM folder this browser
  * has not been given back yet, and the fix is one click away in the settings.
  */
-export async function exportAppPackage(): Promise<{ blob: Blob; missing: number }> {
+/** How far the synthesis has got, and a way to stop it.
+ *
+ * Answering false stops the export before the next sentence. It is checked
+ * before each one rather than after, so a stop between two clips costs the
+ * one that was already running and nothing more. */
+export interface PackageProgress {
+  done: number;
+  total: number;
+  /** The sentence about to be spoken, or "" once there are none left. */
+  text: string;
+}
+
+export async function exportAppPackage(
+  onProgress?: (at: PackageProgress) => boolean | void,
+): Promise<{ blob: Blob; missing: number } | null> {
   const list = await store.readCollections();
   const current = list.collections.find((one) => one.id === list.current);
   if (!current) throw new Error("There is no Sammlung open to export.");
@@ -617,24 +632,35 @@ export async function exportAppPackage(): Promise<{ blob: Blob; missing: number 
         azure: { key: held.azureSecret, region: held.azureRegion } }
     : { rate: ENCODER_RATE, ownsInference: true };
 
-  for (const set of layout.sets || []) {
-    for (const reference of [set.symbol, ...(set.slots || []).map((slot) => slot.symbol)]) {
-      const key = String(reference || "");
-      if (!key || images.has(key)) continue;
-      const source = await picture(key);
-      if (!source) { missing++; continue; }
-      images.set(key, await bakeImage(source));
-    }
-    for (const slot of set.slots || []) {
-      const text = String(slot.text || "").trim();
-      // Without a voice there is nothing to record, and that is a normal
-      // package rather than a broken one: §9.2 says a board built for text to
-      // speech is not degraded, and the viewer speaks it with its own voice.
-      if (!text || !voice || sounds.has(text)) continue;
-      const spoken = await speak(text, voice, options);
-      sounds.set(text, await bakeSound(spoken.samples));
-    }
+  for (const reference of appPackage.references(layout)) {
+    const key = String(reference || "");
+    if (!key || images.has(key)) continue;
+    const source = await picture(key);
+    if (!source) { missing++; continue; }
+    images.set(key, await bakeImage(source));
   }
+
+  // Without a voice there is nothing to record, and that is a normal package
+  // rather than a broken one: §9.2 says a board built for text to speech is
+  // not degraded, and the viewer speaks it with its own voice.
+  //
+  // The list is taken before the loop rather than walked inside it, and that
+  // is what `total` below is for: on a full tablet Sammlung this is hundreds
+  // of syntheses, each a model inference or a round trip to Azure, and a
+  // minutes-long wait behind a status line that says one thing at the start is
+  // indistinguishable from a page that has died. What the caller does with the
+  // number is its own business; what this owes is a number.
+  const wanted = voice ? [...new Set(appPackage.spokenTexts(layout))] : [];
+  for (const [done, text] of wanted.entries()) {
+    // Stopping is somebody deciding not to, which is not a failure and must
+    // not read as one - the same rule this repository already keeps for a
+    // dismissed dialog. So it is a value rather than a throw, and the caller
+    // says "nothing was written" rather than showing an error.
+    if (onProgress?.({ done, total: wanted.length, text }) === false) return null;
+    const spoken = await speak(text, voice, options);
+    sounds.set(text, await bakeSound(spoken.samples));
+  }
+  onProgress?.({ done: wanted.length, total: wanted.length, text: "" });
 
   const pkg = appPackage.buildAppPackage({
     collection: current, layout, images, sounds, voice,
@@ -743,7 +769,7 @@ export async function runBuild(): Promise<{ log: string[] }> {
   // Only the selection goes onto the device. The rest stays in the layout,
   // and switching one back on costs nothing it has not already paid.
   const sets = activeSets(layout);
-  const all = layout.sets || [];
+  const all = isDiy(layout) ? layout.sets || [] : [];
 
   if (!all.length) note("build.no_sets");
   else if (!sets.length) note("build.none_active");
@@ -932,7 +958,11 @@ export async function buildManifest() {
   return {
     version: held.version,
     current: held.buildCurrent === "1",
-    sets: held.layout ? held.layout.sets.filter((s) => s.active !== false).length : 0,
+    // A tablet Sammlung has no sets and nothing to build: the build writes
+    // tiles and WAVs for a five-key device. Zero rather than a throw, because
+    // the Daten panel reads this whichever Sammlung happens to be open.
+    sets: held.layout && isDiy(held.layout)
+      ? held.layout.sets.filter((s) => s.active !== false).length : 0,
     files,
     bytes: files.reduce((total, file) => total + file.size, 0),
   };

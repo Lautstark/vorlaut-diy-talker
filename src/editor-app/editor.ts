@@ -1,0 +1,701 @@
+// The tablet editor: the page strip, the grid, and the panel for one button.
+//
+// This is the second device-specific half. Pages of a grid, a sentence bar
+// composed by pressing buttons, a colour per word class: none of that is true
+// of the five-key talker and all of it is true of a MetaTalk-style board,
+// which is why it sits under editor-app/ and why nothing in the shell may
+// import it. The shell reaches it through core/editor.ts, and `app` at the
+// foot of this file is what it reaches.
+//
+// `here` and `chosen` live here and nowhere else. They are where the editor is
+// standing - which page, which button - and they are reset by adopt() for the
+// same reason editor-diy's `current` is: page three of the kitchen Sammlung
+// and page three of the nursery Sammlung have nothing to do with each other.
+//
+// The graph itself is in pages.ts, deliberately without a document anywhere
+// near it: what happens to the buttons that pointed at a deleted page is the
+// part of this that is expensive to get wrong, so it is the part that can be
+// tested without a browser.
+import { $, status } from "../shell/dom.js";
+import { symbolInto } from "../backend/index.js";
+import { state } from "../core/state.js";
+import type { Editor } from "../core/editor.js";
+import { isApp } from "../core/types.js";
+import type { Act, AppButton, AppLayout, AppPage, Layout } from "../core/types.js";
+import { GRID, LANG, palette, WORD_CLASSES } from "../core/boot.js";
+import { t } from "../core/texts.js";
+import { save, saveSoon } from "../core/save.js";
+import { openPicker } from "../shell/picker.js";
+import { confirmDialog } from "@lautstark/design/dialog";
+import { exportApp } from "../shell/collections.js";
+import {
+  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, outside,
+  pageById, reachable, resize,
+} from "./pages.js";
+
+/** Which page is being edited, by id. An id rather than an index because
+ *  deleting a page shifts every index after it and would silently move where
+ *  somebody is standing. */
+let here = "";
+/** Which button the panel is showing, by id. "" for none. */
+let chosen = "";
+
+/* state.layout, as the shape this editor is the editor for.
+ *
+ * The shell holds one layout and it may be either kind. This file may only
+ * ever be looking at the tablet half, because the composition root installs it
+ * for an app Sammlung and for nothing else - so the guarantee is written down
+ * once here instead of being asserted at every read below.
+ *
+ * It throws for the reason $() throws: reaching here with a talker Sammlung on
+ * screen is not a case to handle, it is a composition root that has installed
+ * the wrong editor. */
+function board(): AppLayout {
+  const held = state.layout;
+  if (!isApp(held)) throw new Error("the tablet editor was given a talker Sammlung");
+  return held;
+}
+
+/** The page on screen. Falls back to the first rather than to nothing: `here`
+ *  can name a page that has just been deleted, and an editor standing on
+ *  nothing is a blank screen with no way out of it. */
+function page(): AppPage {
+  const layout = board();
+  return pageById(layout, here) ?? layout.pages[0]!;
+}
+
+/** The next colour for a new page, walking the product palette.
+ *
+ * The palette rather than the Fitzgerald key, and that is the distinction the
+ * whole colour scheme rests on: Fitzgerald colours a *word*, and a page is not
+ * a word - it is a place, told apart from the other places at a glance by
+ * somebody who does not read. Two schemes on one board would make green mean
+ * "verb" in a cell and nothing at all round the edge of it. */
+const nextColor = (): string => palette[board().pages.length % palette.length]!;
+
+/* --- Writing ------------------------------------------------------------- */
+
+/**
+ * Redrawn now, written after: for the changes that move structure - a page
+ * added, a button placed, an act changed. Typing goes through saveSoon().
+ *
+ * **The order is the point, and it was the other way round first.** `await
+ * save(); render();` puts an IndexedDB round trip between a press and the page
+ * reflecting it, and for most of these that is merely slow. For one of them it
+ * loses what somebody typed: pressing an empty cell makes a button and moves
+ * the panel to it, so during that gap the panel on screen still belongs to the
+ * *previous* button, with its label field focused - and anything typed into it
+ * goes to the wrong button. It is a small window and it is exactly as long as
+ * a database write, which is to say long enough that a test driving the page
+ * hit it every time.
+ *
+ * Nothing is risked by drawing first. save() does not touch state.layout - it
+ * writes what is there and compares what comes back - and the writes are
+ * serialised in a chain inside it, so an unawaited call cannot overtake an
+ * earlier one.
+ */
+function commit(): void {
+  render();
+  void save();
+}
+
+/* --- The page strip ------------------------------------------------------ */
+
+function drawPages(): void {
+  const layout = board();
+  const strip = $("appPages");
+  strip.innerHTML = "";
+  const found = reachable(layout);
+
+  layout.pages.forEach((one, index) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "tab";
+    tab.classList.toggle("current", one.id === page().id);
+    tab.setAttribute("aria-current", one.id === page().id ? "true" : "false");
+    // The page's own colour, which is what the tablet will show: the strip is
+    // the only place in the editor where all of them are side by side, and
+    // telling them apart by colour is the whole reason they carry one.
+    tab.style.setProperty("--page-color", one.color);
+
+    if (one.id === layout.home) {
+      const home = document.createElement("span");
+      home.className = "tab__home";
+      home.textContent = "⌂";
+      home.title = t("ui.app_page_home");
+      tab.appendChild(home);
+    }
+    // A mark rather than a hiding. Nothing leads here yet is an ordinary state
+    // - it is what every page is between being made and being linked - and the
+    // page nobody can reach is the one somebody most needs to open.
+    if (!found.has(one.id)) {
+      const lost = document.createElement("span");
+      lost.className = "tab__lost";
+      lost.textContent = "⚠";
+      lost.title = t("ui.app_page_unreachable");
+      tab.appendChild(lost);
+    }
+
+    const name = document.createElement("span");
+    name.textContent = one.name || t("ui.app_page_n", { n: index + 1 });
+    tab.appendChild(name);
+
+    tab.onclick = () => { here = one.id; chosen = ""; render(); };
+    strip.appendChild(tab);
+  });
+}
+
+/* --- The grid ------------------------------------------------------------ */
+
+function drawGrid(): void {
+  const layout = board();
+  const grid = $("appGrid");
+  grid.innerHTML = "";
+  grid.style.setProperty("--rows", String(layout.grid.rows));
+  grid.style.setProperty("--cols", String(layout.grid.columns));
+
+  for (let row = 0; row < layout.grid.rows; row++) {
+    for (let col = 0; col < layout.grid.columns; col++) {
+      grid.appendChild(cell(page(), row, col));
+    }
+  }
+}
+
+function cell(on: AppPage, row: number, col: number): HTMLElement {
+  const held = buttonAt(on, row, col);
+  const box = document.createElement("button");
+  box.type = "button";
+  box.className = "appcell";
+
+  if (!held) {
+    box.classList.add("appcell--empty");
+    box.setAttribute("aria-label", t("ui.app_button_add"));
+    box.title = t("ui.app_button_add");
+    // One press puts a button here and selects it, so the next thing somebody
+    // does is type its label. Asking what kind of button first would put a
+    // form in front of the common case, which is a word on a cell.
+    box.onclick = () => {
+      const made = blankButton(row, col);
+      on.buttons.push(made);
+      chosen = made.id;
+      commit();
+      // Straight into the label, because a button somebody has just put down
+      // is a button they are about to name. Safe to reach for immediately now
+      // that commit() draws before it writes - it is the field the line above
+      // has just made.
+      $<HTMLInputElement>("appLabel").focus();
+    };
+    return box;
+  }
+
+  box.classList.toggle("current", held.id === chosen);
+  box.setAttribute("aria-pressed", held.id === chosen ? "true" : "false");
+  const colour = classColor(held.wordClass);
+  if (colour) box.style.setProperty("--cell-color", colour);
+
+  if (held.symbol) {
+    const image = document.createElement("img");
+    symbolInto(image, held.symbol);
+    // Two different absences, and the words point at different remedies - the
+    // same reading editor-diy makes of the same two cases.
+    image.onerror = () => {
+      image.replaceWith(mark(held.symbol.startsWith("metacom:")
+        ? t("ui.symbol_needs_folder") : t("ui.symbol_missing")));
+    };
+    box.appendChild(image);
+  }
+
+  const label = document.createElement("span");
+  label.className = "appcell__label";
+  label.textContent = held.label || "";
+  box.appendChild(label);
+
+  // What the button does, where it is not the default. An appending button is
+  // the common case and carries no mark: marking every ordinary cell would
+  // make the marks worth nothing.
+  const badge = actBadge(held.act);
+  if (badge) {
+    const tag = document.createElement("span");
+    tag.className = "appcell__act";
+    tag.textContent = badge;
+    tag.title = t(`ui.app_act_${actKey(held.act.kind)}`);
+    box.appendChild(tag);
+  }
+
+  box.onclick = () => { chosen = held.id; render(); };
+  return box;
+}
+
+function mark(text: string): HTMLElement {
+  const line = document.createElement("span");
+  line.className = "blank";
+  line.textContent = text;
+  return line;
+}
+
+/** One character for what a press does. Deliberately the glyphs the format's
+ *  own actions suggest rather than words: a cell is small, and the panel
+ *  spells it out for whichever button is selected. */
+function actBadge(act: Act): string {
+  switch (act.kind) {
+    case "goto": return "→";
+    case "speak": return "🔊";
+    case "clear": return "✕";
+    case "backspace": return "⌫";
+    case "sayBar": return "▶";
+    case "home": return "⌂";
+    case "append": return "";
+  }
+}
+
+/** The text-key stem for an act. `sayBar` is the one that differs, because the
+ *  table spells it the way the sentence reads. */
+const actKey = (kind: Act["kind"]): string => (kind === "sayBar" ? "say_bar" : kind);
+
+const classColor = (key: string): string =>
+  WORD_CLASSES.find((one) => one.key === key)?.color ?? "";
+
+/* --- The panel ----------------------------------------------------------- */
+
+function drawPanel(): void {
+  const panel = $("appPanel");
+  panel.innerHTML = "";
+  const held = page().buttons.find((one) => one.id === chosen);
+  if (!held) {
+    panel.appendChild(pageControls());
+    const note = document.createElement("p");
+    note.className = "note";
+    note.textContent = t("ui.app_button_none");
+    panel.appendChild(note);
+    return;
+  }
+  panel.appendChild(pageControls());
+  panel.appendChild(buttonControls(held));
+}
+
+/** What can be done to the page itself: its name, its colour, whether it is
+ *  home, and deleting it. Above the button panel rather than beside the strip,
+ *  because a tab is one line and these are four controls. */
+function pageControls(): HTMLElement {
+  const layout = board();
+  const on = page();
+  const box = document.createElement("div");
+  box.className = "apppanel__page";
+
+  const name = field(t("ui.app_page_name"), on.name, (value) => {
+    on.name = value;
+    saveSoon();
+    // Only the strip, and only the text: a full render would rebuild the field
+    // being typed in and take the caret with it.
+    for (const [index, tab] of [...$("appPages").children].entries()) {
+      if (layout.pages[index]?.id !== on.id) continue;
+      tab.lastChild!.textContent = value || t("ui.app_page_n", { n: index + 1 });
+    }
+  });
+  box.appendChild(name);
+
+  const colour = document.createElement("input");
+  colour.type = "color";
+  colour.value = on.color;
+  colour.setAttribute("aria-label", t("ui.app_page_color"));
+  colour.oninput = () => { on.color = colour.value; saveSoon(); };
+  colour.onchange = () => { commit(); };
+  box.appendChild(labelled(t("ui.app_page_color"), colour));
+
+  if (on.id !== layout.home) {
+    const home = document.createElement("button");
+    home.type = "button";
+    home.className = "btn quiet sm";
+    home.textContent = t("ui.app_page_home_set");
+    home.onclick = () => { layout.home = on.id; commit(); };
+    box.appendChild(home);
+  }
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "btn quiet sm destructive";
+  remove.textContent = t("ui.app_page_delete");
+  remove.onclick = () => { void askDelete(on); };
+  box.appendChild(remove);
+
+  return box;
+}
+
+/**
+ * The question asked before a page goes.
+ *
+ * Three facts, and the third is the one that earns the dialog: what is on the
+ * page, what happens to it, and **how many buttons on other pages lead here**.
+ * The first two somebody can see from where they are standing. The third they
+ * cannot - it is on five other pages - and it is the only thing in the
+ * question that could change their mind. conventions.md §1.7, one level down
+ * from a Sammlung.
+ */
+async function askDelete(on: AppPage): Promise<void> {
+  const layout = board();
+  const name = on.name || t("ui.app_page_n",
+                            { n: layout.pages.indexOf(on) + 1 });
+  const n = on.buttons.length;
+  const inbound = inboundTo(layout, on.id).length;
+
+  const lines = [
+    t(n === 0 ? "ui.app_page_delete_ask_none"
+       : n === 1 ? "ui.app_page_delete_ask_one" : "ui.app_page_delete_ask",
+      { name, n }),
+  ];
+  if (inbound) {
+    lines.push(t(inbound === 1 ? "ui.app_page_delete_links_one"
+                               : "ui.app_page_delete_links", { n: inbound }));
+  }
+  // The last page leaves an empty one behind rather than nothing, and somebody
+  // about to press the button should know that is what they are getting.
+  if (layout.pages.length === 1) lines.push(t("ui.app_page_last"));
+
+  if (!await confirmDialog({
+    title: t("ui.app_page_delete"),
+    body: lines.join(" "),
+    confirmLabel: t("ui.app_page_delete_go"),
+    cancelLabel: t("ui.cancel"),
+    closeLabel: t("ui.close"),
+    danger: true,
+  })) return;
+
+  deletePage(layout, on.id, nextColor());
+  here = layout.pages[0]!.id;
+  chosen = "";
+  commit();
+}
+
+/** Everything about one button. */
+function buttonControls(held: AppButton): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "apppanel__button";
+
+  const label = field(t("ui.app_button_label"), held.label, (value) => {
+    held.label = value;
+    saveSoon();
+    paintCell(held);
+  });
+  label.querySelector("input")!.id = "appLabel";
+  label.querySelector("input")!.placeholder = t("ui.app_button_label_hint");
+  box.appendChild(label);
+
+  const spoken = field(t("ui.app_button_spoken"), held.vocalization, (value) => {
+    held.vocalization = value;
+    saveSoon();
+  });
+  spoken.querySelector("input")!.placeholder = t("ui.app_button_spoken_hint");
+  box.appendChild(spoken);
+
+  // The picture. Seeded with the label, and it fills an empty label from the
+  // collection's own word for the symbol but never writes over one somebody
+  // typed - the same rule editor-diy keeps, and for the same reason: the
+  // symbol may be called "zustimmen" while the button should say "Ja!".
+  const pick = document.createElement("button");
+  pick.type = "button";
+  pick.className = "btn quiet sm";
+  pick.textContent = t("ui.pick_symbol");
+  pick.onclick = () => openPicker({
+    seed: held.label,
+    apply: async (symbol, caption) => {
+      held.symbol = symbol;
+      if (caption && !held.label.trim()) held.label = caption;
+      commit();
+    },
+  });
+  box.appendChild(pick);
+
+  box.appendChild(labelled(t("ui.app_button_class"), classPicker(held)));
+  box.appendChild(labelled(t("ui.app_button_act"), actPicker(held)));
+  if (held.act.kind === "goto") box.appendChild(gotoPicker(held));
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "btn quiet sm destructive";
+  remove.textContent = t("ui.app_button_remove");
+  // No question. What goes is one button on the page somebody is looking at,
+  // it is on screen while they press this, and putting it back is one press in
+  // the cell it came from - which is a smaller act than the dialog would be.
+  remove.onclick = () => {
+    const on = page();
+    on.buttons = on.buttons.filter((one) => one.id !== held.id);
+    chosen = "";
+    commit();
+  };
+  box.appendChild(remove);
+
+  return box;
+}
+
+/** The Fitzgerald classes, in the scheme's own order. */
+function classPicker(held: AppButton): HTMLSelectElement {
+  const select = document.createElement("select");
+  select.append(option("", t("ui.wordclass_none")));
+  for (const one of WORD_CLASSES) {
+    select.append(option(one.key, t(`ui.wordclass_${one.key}`)));
+  }
+  select.value = held.wordClass;
+  select.onchange = () => { held.wordClass = select.value; commit(); };
+  return select;
+}
+
+/** What a press does. One list, because exchange/SPEC.md §7.3 makes these
+ *  exclusive on the wire - so a control that could pick two would be offering
+ *  a board the format cannot hold. */
+function actPicker(held: AppButton): HTMLSelectElement {
+  const select = document.createElement("select");
+  for (const kind of ["append", "speak", "goto", "sayBar",
+                      "backspace", "clear", "home"] as const) {
+    select.append(option(kind, t(`ui.app_act_${actKey(kind)}`)));
+  }
+  select.value = held.act.kind;
+  select.onchange = () => {
+    const kind = select.value as Act["kind"];
+    // A `goto` needs somewhere to go, and the page it lands on by default is
+    // the one somebody is looking at - which is wrong often enough that the
+    // target select appears immediately underneath, already open to be
+    // changed. It is never left pointing at nothing: a button with no target
+    // exports as an ordinary appending button, which is not what the list
+    // said was chosen.
+    held.act = kind === "goto" ? { kind, page: page().id } : { kind } as Act;
+    commit();
+  };
+  return select;
+}
+
+/**
+ * Which page a navigation button leads to.
+ *
+ * A select over every page, with "Neue Seite …" last. Choosing that mints a
+ * page, names it after the button, and points the button at it - because the
+ * authoring move is "this button should lead somewhere new", and making
+ * somebody leave, make a page, come back and select it is one thought in three
+ * steps. The new page is written immediately, like everything else on this
+ * page; changing your mind afterwards leaves a spare empty page in the strip,
+ * which is visible and deletable and better than an invisible half-state.
+ *
+ * Beside it, the way to follow the edge while editing. Separate from selecting
+ * the button on purpose - see the note in templates/board.ts.
+ */
+function gotoPicker(held: AppButton): HTMLElement {
+  const layout = board();
+  const select = document.createElement("select");
+  for (const [index, one] of layout.pages.entries()) {
+    select.append(option(one.id, one.name || t("ui.app_page_n", { n: index + 1 })));
+  }
+  select.append(option("+", t("ui.app_goto_new")));
+  select.value = held.act.kind === "goto" ? held.act.page : "";
+  select.onchange = () => {
+    if (select.value === "+") {
+      const made = addPage(layout, nextColor(), held.label.trim());
+      held.act = { kind: "goto", page: made.id };
+    } else {
+      held.act = { kind: "goto", page: select.value };
+    }
+    commit();
+  };
+
+  const follow = document.createElement("button");
+  follow.type = "button";
+  follow.className = "btn quiet sm";
+  follow.textContent = t("ui.app_goto_follow");
+  follow.onclick = () => {
+    if (held.act.kind !== "goto") return;
+    here = held.act.page;
+    chosen = "";
+    render();
+  };
+
+  const box = labelled(t("ui.app_goto_page"), select);
+  box.appendChild(follow);
+  return box;
+}
+
+/* --- Small builders ------------------------------------------------------ */
+
+function option(value: string, text: string): HTMLOptionElement {
+  const one = document.createElement("option");
+  one.value = value;
+  one.textContent = text;
+  return one;
+}
+
+function labelled(text: string, control: HTMLElement): HTMLElement {
+  const box = document.createElement("label");
+  box.className = "apppanel__field";
+  const caption = document.createElement("span");
+  caption.textContent = text;
+  box.append(caption, control);
+  return box;
+}
+
+/** A text field that writes as it is typed. No save button anywhere on this
+ *  page - design.md §3.5 - so the debounce in saveSoon() is what stands
+ *  between a keystroke and a write. */
+function field(text: string, value: string,
+               onInput: (value: string) => void): HTMLElement {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = value;
+  input.autocomplete = "off";
+  input.oninput = () => onInput(input.value);
+  return labelled(text, input);
+}
+
+/** One cell redrawn, for the case a full render would break: the label field
+ *  is being typed in, and rebuilding the grid would not disturb it but
+ *  rebuilding the panel would take the caret with it. */
+function paintCell(held: AppButton): void {
+  const at = (held.row * board().grid.columns) + held.col;
+  const box = $("appGrid").children[at];
+  const label = box?.querySelector(".appcell__label");
+  if (label) label.textContent = held.label;
+}
+
+/* --- Drawing, and the two controls that are not in the panel -------------- */
+
+export function render(): void {
+  const layout = board();
+  if (!pageById(layout, here)) here = layout.pages[0]!.id;
+  $<HTMLInputElement>("appRows").value = String(layout.grid.rows);
+  $<HTMLInputElement>("appCols").value = String(layout.grid.columns);
+  drawPages();
+  drawGrid();
+  drawPanel();
+}
+
+/** The grid's size, which is the Sammlung's rather than the page's.
+ *
+ * Growing is silent: nothing moves and nothing is lost, which is what buttons
+ * carrying their own coordinates buys. Shrinking asks, and the question names
+ * how many buttons would fall outside - across every page, because the size is
+ * one decision for all of them and the losses may be on a page nobody is
+ * looking at.
+ */
+async function askResize(rows: number, columns: number): Promise<void> {
+  const layout = board();
+  if (rows === layout.grid.rows && columns === layout.grid.columns) return;
+  const lost = outside(layout, rows, columns).length;
+  if (lost) {
+    if (!await confirmDialog({
+      title: t("ui.app_grid_shrink"),
+      body: t(lost === 1 ? "ui.app_grid_shrink_ask_one" : "ui.app_grid_shrink_ask",
+              { n: lost, rows, cols: columns }),
+      confirmLabel: t("ui.app_grid_shrink_go"),
+      cancelLabel: t("ui.cancel"),
+      closeLabel: t("ui.close"),
+      danger: true,
+    })) {
+      // Declined: put the two fields back, or they sit there showing a size
+      // the board is not.
+      render();
+      return;
+    }
+  }
+  resize(layout, rows, columns);
+  chosen = "";
+  commit();
+}
+
+export function wireEditor(): void {
+  const rows = $<HTMLInputElement>("appRows");
+  const cols = $<HTMLInputElement>("appCols");
+  // On change rather than on input: a number field being typed in passes
+  // through 1 on the way from 3 to 11, and asking to throw away two pages of
+  // buttons because somebody is mid-keystroke is not a question anybody meant
+  // to be asked.
+  const moved = () => { void askResize(Number(rows.value), Number(cols.value)); };
+  rows.onchange = moved;
+  cols.onchange = moved;
+
+  $<HTMLButtonElement>("appPageNew").onclick = () => {
+    const made = addPage(board(), nextColor());
+    here = made.id;
+    chosen = "";
+    commit();
+  };
+
+  $<HTMLButtonElement>("appExport").onclick = () => { void exportApp(); };
+}
+
+/* What the shell is handed, and the whole of what it may ask for.
+ *
+ * Seven members, and each one is a question the shell has that only this
+ * target can answer - see core/editor.ts. app.ts registers this object against
+ * the "app" target; nothing in src/shell/ imports this file, and
+ * tests/unit/layers.test.ts is what says so.
+ */
+export const app: Editor = {
+  /* What a new tablet Sammlung starts as: one empty page, at the first colour
+   * of the palette, on the smallest grid worth having. 3x5 rather than 6x11
+   * because a first board is big cells and few of them - and because the size
+   * is a number now, so growing into the larger one costs nothing. */
+  blank(): Layout {
+    const first = blankPage(palette[0]!);
+    return {
+      target: "app",
+      // The language the page is already in, read at the moment the Sammlung
+      // is made rather than captured at module level: LANG is a live binding
+      // and a language switch moves it. The same reasoning as editor-diy's.
+      language: LANG,
+      grid: { rows: GRID.rows, columns: GRID.columns },
+      pages: [first],
+      home: first.id,
+    };
+  },
+
+  /* A different Sammlung is in force. Back to its own home page rather than
+   * clamped to wherever the last one was standing, and with nothing selected:
+   * the panel would otherwise open on a button belonging to a board that is no
+   * longer on screen. */
+  adopt(): void {
+    here = isApp(state.layout) ? state.layout.home : "";
+    chosen = "";
+    render();
+  },
+
+  render,
+
+  /* A sentence somebody actually wrote, from the page on screen, so that
+   * trying a voice out is heard on the content rather than on a specimen. What
+   * a button *says* rather than what it shows - that is the text the voice
+   * will be used on. */
+  sample(): string {
+    const held = page().buttons.find(
+      (one) => (one.vocalization || one.label).trim());
+    return held ? (held.vocalization || held.label).trim() : "";
+  },
+
+  /* Buttons, across every page.
+   *
+   * Not pages, and that is the interesting half. conventions.md §1.8 gives the
+   * count two jobs - telling two similarly named Sammlungen apart, and making
+   * the delete question credible before it is asked - and a page count does
+   * neither: it reads 3, then 4, for weeks. Buttons differ from the first
+   * afternoon, and "63 Tasten" is the sentence that could change somebody's
+   * mind, because sixty-three buttons is the work. Each one carries a label, a
+   * symbol, a colour and a recording; four pages is filing.
+   *
+   * The talker counts sets instead, and that is not an inconsistency: a set is
+   * a fixed four keys there, so sets and work move together. A page here holds
+   * anything between nothing and sixty-six. */
+  count(layout: Layout): number {
+    if (!isApp(layout)) return 0;
+    return (layout.pages ?? []).reduce(
+      (total, one) => total + (one.buttons?.length ?? 0), 0);
+  },
+
+  unit: "button",
+
+  /* The fixed words on the controls this editor owns, re-read on every
+   * language switch like every other label. Only the ones in the markup:
+   * everything the panel and the grid draw is built fresh by render(), which
+   * reads the table as it goes. */
+  labels(): void {
+    $<HTMLButtonElement>("appPageNew").textContent = t("ui.app_page_new");
+    $("appRowsLabel").textContent = t("ui.app_grid_rows");
+    $("appColsLabel").textContent = t("ui.app_grid_columns");
+    $<HTMLButtonElement>("appExport").textContent = t("ui.package_export");
+    status("");
+  },
+};
