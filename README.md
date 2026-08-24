@@ -23,13 +23,13 @@ speak yet.
 
 vorlaut is a page, and there is nothing behind it: the boards, the symbols and
 the speech all happen in the tab. The published copy is deployed straight from
-`main`: **<https://lautstark.github.io/vorlaut/>**. It is the same app as a
-clone — it just saves you the clone.
+`main`: **<https://lautstark.github.io/vorlaut-diy-talker/>**. It is the same
+app as a clone — it just saves you the clone.
 
 To run it from a checkout:
 
 ```bash
-git clone https://github.com/Lautstark/vorlaut && cd vorlaut && npm install && npm run dev
+git clone https://github.com/Lautstark/vorlaut-diy-talker && cd vorlaut-diy-talker && npm install && npm run dev
 ```
 
 Then open <http://localhost:8801>.
