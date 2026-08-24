@@ -130,6 +130,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/cable.md](docs/cable.md) | Pushing content down the USB-C cable, for when there is no server to fetch from |
 | [docs/packages.md](docs/packages.md) | The four shared packages, how they are pinned, and what vorlaut asks of them |
 | [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
+| [adr/](adr/) | The decisions that would otherwise be "tidied up" later, and why each of them is not an oversight |
 
 ## Licence
 
