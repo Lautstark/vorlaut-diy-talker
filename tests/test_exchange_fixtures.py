@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import filecmp
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -109,6 +110,29 @@ def main() -> int:
         problems.append(f"{name}: listed in index.json but has no .obz")
     if not problems:
         print(f"  ok    {len(packages)} package(s), each paired and listed")
+
+    # The README's table enumerates the fixtures, and an enumeration drifts the
+    # same way a count does - which is why no count is written down anywhere any
+    # more. This is the guard for the one list that is still spelled out in
+    # prose, so it cannot quietly fall behind index.json.
+    readme = (EXCHANGE / "README.md").read_text(encoding="utf-8")
+    tabled: dict[str, str] = {}
+    for line in readme.splitlines():
+        match = re.match(r"^\|\s*`([a-z0-9-]+)`\s*\|\s*(?:\*\*)?(accepted|rejected)(?:\*\*)?\s*\|", line)
+        if match:
+            tabled[match.group(1)] = match.group(2)
+
+    outcomes = {entry["fixture"]: entry["outcome"] for entry in index["fixtures"]}
+    for name in sorted(set(outcomes) - set(tabled)):
+        problems.append(f"{name}: in index.json, missing from the README table")
+    for name in sorted(set(tabled) - set(outcomes)):
+        problems.append(f"{name}: in the README table, not in index.json")
+    for name in sorted(set(tabled) & set(outcomes)):
+        if tabled[name] != outcomes[name]:
+            problems.append(
+                f"{name}: README table says {tabled[name]}, index.json says {outcomes[name]}")
+    if not problems:
+        print(f"  ok    the README table matches index.json")
 
     if problems:
         for problem in problems[:40]:

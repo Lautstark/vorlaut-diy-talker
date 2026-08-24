@@ -710,10 +710,12 @@ A builder MUST write the version it targets, not the version it happens to fit.
 
 ## 13. Conformance
 
-An importer is conformant at v1.0.0 when it produces, for each of the thirteen
-fixtures in [`fixtures/`](fixtures/), the outcome in the matching
-`.expected.json`. See
-[`README.md`](README.md) for how to pin and run them.
+An importer is conformant at v1.0.0 when it produces, for **every** fixture
+listed in [`fixtures/index.json`](fixtures/index.json), the outcome in the
+matching `.expected.json`. That index is the authoritative list; no count
+appears in this document, because a number restated in prose drifts from the
+directory it describes and has twice already. See [`README.md`](README.md) for
+how to pin and run them.
 
 Where this prose and a fixture disagree, **the fixture is normative** and the
 disagreement is a bug in this document. Report it.
