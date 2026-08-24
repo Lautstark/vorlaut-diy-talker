@@ -62,7 +62,7 @@ void setup() {
     display[i]->initR(PANEL_INITR);
     display[i]->invertDisplay(PANEL_INVERT);
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
-    display[i]->setRotation(PANEL_ROTATION);
+    display[i]->setRotation(PANEL_TURN[i]);
     was_down[i] = false;
     draw(i, false);
     Serial.printf("key %u on GPIO %u, display on CS GPIO %d\n",

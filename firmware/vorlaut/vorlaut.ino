@@ -95,6 +95,50 @@ class Panel : public Adafruit_ST7735 {
  public:
   using Adafruit_ST7735::Adafruit_ST7735;
   void setOffsets(int8_t col, int8_t row) { setColRowStart(col, row); }
+
+  // Everything initR() would have left behind, without initR().
+  //
+  // For a panel that is already initialised and was never switched off, the
+  // init sequence is 760 ms of waiting for nothing: 150 for a software reset,
+  // 500 for sleep-out, 10 and 100 for the display coming on. Five panels, one
+  // after another, is 3.8 seconds - which was nearly all of the 4.3 the device
+  // took to wake, and long enough that a press made into it got thrown away
+  // and looked like a device that had not heard.
+  //
+  // What the panel needs is nothing. What the *driver object* needs is the
+  // state initR() computes, and the library keeps the one field it hangs on -
+  // tabcolor - private, so there is no way to hand it over. This is
+  // Adafruit_ST7735::setRotation() for INITR_144GREENTAB, written out.
+  //
+  // It is a copy of somebody else's arithmetic and will not follow them if
+  // they change it. The check is the screen: wrong here and the picture is
+  // visibly offset or mirrored, which is not a subtle failure.
+  void adoptAwake(uint8_t turn) {
+    // The SPI half of what initR() does, which is the half that is not about
+    // the panel at all: the clock frequency and initSPI(). Skipping it cost
+    // seventeen seconds of drawing five screens through an unconfigured bus -
+    // four times slower than the init this was meant to avoid. It sends the
+    // panel nothing, so it is free.
+    begin();
+
+    rotation = turn & 3;
+    WIDTH = HEIGHT = 128;
+    _width = _height = 128;
+    _colstart = PANEL_COL_OFFSET;
+    _rowstart = (rotation < 2) ? 3 : 1;   // the 128 panel's own rule
+    if (rotation & 1) { _xstart = _rowstart; _ystart = _colstart; }
+    else              { _xstart = _colstart; _ystart = _rowstart; }
+
+    uint8_t madctl;
+    switch (rotation) {
+      case 1:  madctl = ST77XX_MADCTL_MY | ST77XX_MADCTL_MV | ST7735_MADCTL_BGR; break;
+      case 2:  madctl = ST7735_MADCTL_BGR; break;
+      case 3:  madctl = ST77XX_MADCTL_MX | ST77XX_MADCTL_MV | ST7735_MADCTL_BGR; break;
+      default: madctl = ST77XX_MADCTL_MX | ST77XX_MADCTL_MY | ST7735_MADCTL_BGR;
+    }
+    sendCommand(ST77XX_MADCTL, &madctl, 1);
+    cp437(true);
+  }
 };
 
 static Layout layout;
@@ -162,7 +206,37 @@ static bool loadLayout() {
 
 // --- Displays ----------------------------------------------------------------
 
-static void setupDisplays() {
+// stillAwake: the panels kept their power, their registers and their picture
+// through the sleep, because goToSleep() held CS high on all five and RST high
+// as well, so the floating bus could not reach them. Then there is nothing to
+// initialise and nothing to wait for - only the driver objects to tell.
+static void setupDisplays(bool stillAwake) {
+  if (stillAwake) {
+    SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
+    for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+      pinMode(PIN_CS[i], OUTPUT);
+      digitalWrite(PIN_CS[i], HIGH);
+      display[i] = new Panel(&SPI, PIN_CS[i], PIN_DC, -1);
+      display[i]->adoptAwake(PANEL_TURN[i]);
+    }
+
+    // goToSleep() sent DISPOFF and SLPIN, and holding the pins kept that
+    // faithfully - the panels are off because they were told to be. Waking
+    // them is two commands and two waits, and the waits are the panel
+    // settling rather than the bus: send to all five first, then wait once.
+    // That is 600 ms for five instead of 600 ms each, which is the whole
+    // trick the library cannot do because it only ever knows about one panel.
+    for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+      display[i]->sendCommand(ST77XX_SLPOUT);
+    }
+    delay(120);   // datasheet wants 120 ms before the next command
+    for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+      display[i]->sendCommand(ST77XX_DISPON);
+    }
+    delay(100);
+    return;
+  }
+
   // RST is common to all five panels. So pulse it once by hand and hand the
   // drivers -1 - otherwise initialising display 3 would reset displays 1 and
   // 2 again.
@@ -181,7 +255,7 @@ static void setupDisplays() {
     display[i]->initR(PANEL_INITR);  // 128x128, settled in stage 2
     display[i]->invertDisplay(PANEL_INVERT);  // IPS panels, settled in stage 2
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
-    display[i]->setRotation(PANEL_ROTATION);
+    display[i]->setRotation(PANEL_TURN[i]);
     // Without this the font treats bytes above 0x7F as a legacy special case
     // and draws the wrong glyph. With it they are code page 437, which is
     // what panel_text.h converts to.
@@ -336,6 +410,16 @@ static int8_t pollButtons();
 // when the word it arrived during has finished. One press, not a queue: after
 // several the last one is what she still means.
 static int8_t pendingKey = -1;
+
+// How long setup() took, said later. Saying it at the end of setup() stopped
+// working the moment setup() got quick: on the S3's native USB the port is not
+// enumerated for the first second or so, and a line printed before that is
+// simply gone. The measurement had become too good to report itself.
+static uint32_t t_displays = 0, t_audio = 0, t_littlefs = 0;
+static uint32_t t_layout = 0, t_drawn = 0;
+static uint32_t readyMs = 0;
+static bool wokeUp = false;
+static bool readySaid = false;
 
 static void showOnAll(const char *first, const char *second) {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
@@ -661,6 +745,18 @@ static void goToSleep() {
   // device hisses.
   gpio_hold_en((gpio_num_t)PIN_BL);
   gpio_hold_en((gpio_num_t)PIN_AMP_SD);
+
+  // And the panels' own lines, for a different reason than the backlight's.
+  // They keep their power through the sleep, so they keep their registers and
+  // their picture - but only if nothing reaches them. Deselected and not
+  // reset, they are deaf to whatever the floating bus does, and waking needs
+  // no init at all. That is 3.8 seconds of the 4.3 this used to take.
+  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+    digitalWrite(PIN_CS[i], HIGH);
+    gpio_hold_en((gpio_num_t)PIN_CS[i]);
+  }
+  digitalWrite(PIN_RST, HIGH);
+  gpio_hold_en((gpio_num_t)PIN_RST);
   gpio_deep_sleep_hold_en();
 
   // Pull-ups have to stay active during sleep, otherwise the inputs float.
@@ -703,16 +799,37 @@ void setup() {
   // slept at and pinMode/digitalWrite are quietly ignored, so the backlight
   // would stay dark for the whole session rather than the whole sleep.
   if (wokeFromSleep) {
+    // Drive each pin to the level it was held at *before* letting go of it.
+    // A hold released onto an unconfigured pin floats for the moment in
+    // between, and on RST that moment is a reset - which would throw away the
+    // very panels this is keeping alive. So: take over, then let go.
+    pinMode(PIN_RST, OUTPUT);
+    digitalWrite(PIN_RST, HIGH);
+    for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+      pinMode(PIN_CS[i], OUTPUT);
+      digitalWrite(PIN_CS[i], HIGH);
+    }
+    pinMode(PIN_BL, OUTPUT);
+    digitalWrite(PIN_BL, LOW);
+    pinMode(PIN_AMP_SD, OUTPUT);
+    digitalWrite(PIN_AMP_SD, LOW);
+
     gpio_deep_sleep_hold_dis();
     gpio_hold_dis((gpio_num_t)PIN_BL);
     gpio_hold_dis((gpio_num_t)PIN_AMP_SD);
+    for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+      gpio_hold_dis((gpio_num_t)PIN_CS[i]);
+    }
+    gpio_hold_dis((gpio_num_t)PIN_RST);
   }
 
   pinMode(PIN_BL, OUTPUT);
   backlight(false);  // switch on only once there is really a picture
 
-  setupDisplays();
+  setupDisplays(wokeFromSleep);
+  t_displays = millis();
   setupAudio();
+  t_audio = millis();
 
   // Formats when there is nothing to mount, and that changed with the release
   // becoming program-only. The merged image covers the whole flash and leaves
@@ -729,6 +846,7 @@ void setup() {
   // become unreadable - and that content is one press away in the editor,
   // while a talker that will not mount is a talker that cannot be given any.
   filesystemReady = LittleFS.begin(true);
+  t_littlefs = millis();
   if (!filesystemReady) {
     // Most common cause: the wrong partition scheme. The board's default
     // (tinyuf2) creates the data area as "ffat", but LittleFS looks for a
@@ -740,9 +858,11 @@ void setup() {
 
   // Only here, because the file system has to be up for it.
   contentReady = loadLayout();
+  t_layout = millis();
   if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
 
   drawCurrentSet();
+  t_drawn = millis();
   backlight(true);
 
   clearButtonStates();
@@ -766,13 +886,22 @@ void setup() {
   // How long the press-to-picture gap is. Everything up to here happens with
   // the backlight deliberately off, so this number is exactly how long the
   // device looks broken to somebody who has just pressed a key.
-  Serial.printf("  ready %u ms after %s\n", (unsigned)millis(),
-                wokeFromSleep ? "waking" : "power-on");
+  readyMs = millis();
+  wokeUp = wokeFromSleep;
 
   lastActivity = millis();
 }
 
 void loop() {
+  if (!readySaid && millis() > 2500) {
+    readySaid = true;
+    Serial.printf("  ready %u ms after %s"
+                  " (displays %u, audio %u, littlefs %u, layout %u, drawn %u)\n",
+                  (unsigned)readyMs, wokeUp ? "waking" : "power-on",
+                  (unsigned)t_displays, (unsigned)t_audio, (unsigned)t_littlefs,
+                  (unsigned)t_layout, (unsigned)t_drawn);
+  }
+
   // A browser on the cable comes first. Cable::waiting() is one call to
   // Serial.available() when nothing is there, and when something is there it
   // is the most explicit thing anybody can be doing with this device.
@@ -867,7 +996,11 @@ void loop() {
     lastActivity = millis();  // do not count playing time against the timeout
   }
 
+#ifdef FORCE_SLEEP_S
+  const uint32_t idle = FORCE_SLEEP_S;   // TEMPORARY, for testing sleep
+#else
   const uint32_t idle = layout.sleepSeconds ? layout.sleepSeconds : 600;
+#endif
   if (millis() - lastActivity >= idle * 1000UL) {
     goToSleep();
   }

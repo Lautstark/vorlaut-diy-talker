@@ -74,7 +74,7 @@ static void alleZeichnen() {
     display[i]->initR(PANEL_INITR);
     display[i]->invertDisplay(PANEL_INVERT);
     display[i]->setOffsets(PANEL_COL_OFFSET, PANEL_ROW_OFFSET);
-    display[i]->setRotation(PANEL_ROTATION);
+    display[i]->setRotation(PANEL_TURN[i]);
 
     display[i]->fillScreen(FARBE[i]);
     display[i]->setTextColor(ST77XX_BLACK);

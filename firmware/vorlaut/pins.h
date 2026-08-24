@@ -36,6 +36,17 @@ static const int8_t PANEL_COL_OFFSET = 2;
 static const int8_t PANEL_ROW_OFFSET = 3;
 static const uint8_t PANEL_ROTATION = 0;
 
+// Per panel, so a panel mounted a different way up can be turned in software
+// rather than unsoldered. Index by display: 1, 2, 3, 4, set key; 2 is half a
+// turn. All the same for now - display 4 was reported upside down and set to 2
+// here, and that was wrong: the report came while the screens were blank for
+// an unrelated reason, so what it described was never confirmed against a
+// picture. Turning a panel that was never crooked is how a real fault gets
+// invented. It goes back in only against a screen somebody has looked at.
+static const uint8_t PANEL_TURN[DISPLAY_COUNT] = {
+  PANEL_ROTATION, PANEL_ROTATION, PANEL_ROTATION,
+  PANEL_ROTATION, PANEL_ROTATION };
+
 // Which ST7735 variant the panels are. The default is the one the real
 // ScreenKeys (128x128) should be; if red comes out blue, another variant is
 // the answer, and test2_display is what shows it.
