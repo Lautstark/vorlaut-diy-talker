@@ -10,6 +10,7 @@ import { state } from "./state.js";
 import { applyTexts, t } from "./texts.js";
 import { LANG, setLanguage } from "./boot.js";
 import { paintLanguage } from "../shell/voices.js";
+import { showSources } from "../shell/picker.js";
 import { editor } from "./editor.js";
 
 let saveTimer = null;
@@ -40,6 +41,12 @@ function adoptLanguage(layout) {
   setLanguage(layout.language);
   applyTexts();
   paintLanguage();
+  // The symbol dialog's credit line, which applyTexts() does not reach: it is
+  // written by showSources() and by nothing else, so it alone kept whatever
+  // language the browser guessed. Everything else in that dialog is a fixed
+  // label and was already being redrawn - which is why the line sat there in
+  // English under a German heading rather than looking broken enough to find.
+  showSources();
 }
 
 export async function load() {
