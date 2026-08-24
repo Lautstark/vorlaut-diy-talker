@@ -5,7 +5,7 @@
 // available is bildquelle's answer now, not a variable of ours.
 import { $, say, status} from "./dom.js";
 import { reason } from "../core/errors.js";
-import { pickSymbol, uploadSymbol } from "../backend/index.js";
+import { pickSymbol, readSettings, uploadSymbol } from "../backend/index.js";
 import * as symbols from "../data/symbols.js";
 import type { ProviderId } from "@lautstark/bildquelle";
 import { state } from "../core/state.js";
@@ -62,10 +62,23 @@ async function doSearch() {
     const hits = await symbols.searchActive(word);
     if (mine !== searchToken) return;
     show(hits);
-    if (!hits.length) say(box, t("ui.nothing_found", { word: word }));
+    // An empty answer has two causes and they need different sentences. A
+    // provider's search() must not throw - bildquelle's contract - so ARASAAC
+    // returns [] when the fetch fails, and "nothing found for X" was what a
+    // browser with no network was told about a word the collection holds
+    // thousands of. The status is the only place the difference survives.
+    if (!hits.length) {
+      const state = symbols.activeStatus();
+      say(box, state.kind === "ready"
+        ? t("ui.nothing_found", { word: word })
+        : t("ui.search_no_answer", { word: word }));
+    }
   } catch (error) {
     if (mine !== searchToken) return;
-    say(box, reason(error));
+    // Reachable now, and it was not: searchActive() returned [] for anything
+    // that went wrong in it, so this arm was dead and the dialog said
+    // "nothing found" when the page had failed to ask at all.
+    say(box, t("ui.search_failed", { error: reason(error) }));
   }
 }
 
@@ -121,10 +134,38 @@ async function pick(item) {
 // Which sources exist is no longer fixed at start: METACOM arrives when a
 // folder is chosen and leaves when it is forgotten, both without a reload. So
 // this runs again whenever the provider says something changed.
-export async function loadSources() {
-  await symbols.restoreMetacom();
-  symbols.subscribeMetacom(showSources);
+/* Which of them the picker offers is a setting, and this is what reads it.
+ *
+ * Nothing did: the only caller of loadSettings() is the settings sheet
+ * opening, so until somebody pressed the gear the page ran on the "arasaac"
+ * that symbols.ts starts life with. A METACOM chosen last visit was searched
+ * as ARASAAC, the field said ARASAAC, and both quietly changed their mind the
+ * first time the sheet was opened.
+ *
+ * Read rather than remembered, and read again whenever the folder's state
+ * changes, because the answer is derived from it: readSettings() only hands
+ * back "metacom" once the collection actually answers. That is not a
+ * technicality on Chromium - a stored folder handle usually comes back
+ * needing its permission re-confirmed, so at load there is honestly no
+ * collection and METACOM only exists a click later. Reading once at boot
+ * would have been right about that moment and wrong from then on. */
+async function adoptSource() {
+  try {
+    const settings = await readSettings();
+    symbols.setActiveSource(settings.activeProvider || "arasaac");
+  } catch {
+    // The picker still opens, on the source that needs no folder. This runs
+    // unawaited from start(), so a throw here would be nobody's to catch.
+  }
   showSources();
+}
+
+export async function loadSources() {
+  // Before the subscription and not through it: a folder that is not there
+  // sends no notification, and that case still has a setting to honour.
+  await symbols.restoreMetacom();
+  await adoptSource();
+  symbols.subscribeMetacom(() => void adoptSource());
 }
 
 export function showSources() {
@@ -144,14 +185,22 @@ export function showSources() {
   const sources: ProviderId[] = [symbols.activeSource()];
   const owed = symbols.attributionFor(sources).join(" ");
 
-  // What is ours to say stays ours to say and stays translated: that METACOM
-  // is only referenced, and - where no folder is connected - that a licence
-  // somebody owns would be searched too. Nobody opens settings to find that
-  // out, so it is said where they are standing.
   // Ours to say, and only where it applies: that METACOM is referenced rather
   // than copied, or - when it is not the source - that a licence somebody owns
-  // could be one. Nobody opens settings to find that out.
+  // could be one. Nobody opens settings to find that out, so it is said where
+  // they are standing.
+  //
+  // Three cases and not two, because "no collection" was covering a state it
+  // has no business covering. A folder chosen last visit comes back needing
+  // its permission re-confirmed - routine on Chromium, where the grant is
+  // scoped to the site rather than to the app - and the line asked somebody
+  // who had already set METACOM up whether they happened to own a licence.
+  // The remedy is a click, so the sentence names it, and names the answer in
+  // the browser's own prompt that stops it being asked again.
+  const state = symbols.metacomStatus();
+  const waiting = state.kind === "needs-setup" && state.code === "permission-needed";
   const ours = metacom ? t("ui.credits_metacom")
+    : waiting ? t("ui.metacom_waiting")
     : symbols.metacomReady() ? "" : t("ui.metacom_offer");
   $("credits").textContent = `${ours} ${owed}`.trim();
 }
