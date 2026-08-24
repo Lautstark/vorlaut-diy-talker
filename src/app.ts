@@ -27,7 +27,8 @@ import { useEditor } from "./core/editor.js";
 import { wireRelease } from "./editor-diy/release.js";
 import { diy, render, wireEditor } from "./editor-diy/editor.js";
 import { wireDevice } from "./editor-diy/device_panel.js";
-import { ensureCollection, paintCollections, wireCollections } from "./shell/collections.js";
+import { ensureCollection, nameIfUnnamed, paintCollections, wireCollections }
+  from "./shell/collections.js";
 import { loadSources, wirePicker } from "./shell/picker.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./shell/voices.js";
 import { wireSymbolFolder, wireImport, wireData, wireSources } from "./shell/settings.js";
@@ -90,11 +91,10 @@ subscribeMetacom(render);
   // stop with it, and all three live in ui/release.ts.
   wireRelease();
 
-  // Two ways to the same sheet: the gear in the corner, and the quiet row at
-  // the foot of the sidebar that bildhaft puts there. Neither is a shortcut
-  // for the other - the gear is where somebody editing looks, the sidebar row
-  // is where somebody who has not started yet does.
-  $<HTMLButtonElement>("gear").onclick = openVoices;
+  // One entrance, at the foot of the sidebar. There was a gear in a page-wide
+  // header as well; the header has gone, and design.md §3.4 settles the
+  // placement - two doors to one sheet is two things to keep in step for no
+  // gain.
   $<HTMLButtonElement>("settingsLink").onclick = openVoices;
   // The cross in the corner is the only way out now, because there is nothing
   // to confirm or to abandon: everything in the sheet is already written.
@@ -118,10 +118,18 @@ subscribeMetacom(render);
   // work head's are read off the layout, which is not there until it lands.
   // e2e/collections.spec.ts is what caught the first half; a browser that had
   // been here before never showed it.
-  // A Sammlung to load, before loading one: the store would seed a blank layout
-  // for a browser that has none, and it has no language to name it with.
+  /* A Sammlung to load, then the load, then its name.
+   *
+   * The order is the point. The store seeds a blank layout for a browser that
+   * has none and has no language to name it with; load() is what adopts the
+   * language the layout carries, which on a first visit is the seed's. Naming
+   * before that meant minting "Collection of 24.08.2026" and then switching the
+   * page to German around it. nameIfUnnamed() runs after, so the name is in the
+   * language the page settled on - and it catches the Sammlung carried across
+   * from the single-layout database too, which never had one. */
   ensureCollection()
     .then(load)
+    .then(nameIfUnnamed)
     .then(paintCollections)
     .catch((error) => status(t("ui.load_failed", { error: reason(error) })));
 }

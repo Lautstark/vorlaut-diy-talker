@@ -4,13 +4,10 @@ import type { Layout } from "../../src/core/types.js";
 
 /* Several boards in one browser: making them, switching, copying, deleting.
  *
- * The check this file exists for is the one in "a copy is its own Sammlung".
- * Everything else here is ordinary bookkeeping that would go wrong loudly; a
- * duplicate that inherits its original's id goes wrong quietly and then
- * destructively, and not here - on somebody's tablet, months later, when the
- * copy is exported and silently replaces the original it was made from.
- * exchange/SPEC.md §8 states the rule and says the same thing about it: it is
- * the one that gets forgotten.
+ * Ordinary bookkeeping, mostly, and it would go wrong loudly. The one that
+ * would not is identity: ids are minted here and never derived from a name or
+ * a position, so nothing in this file can hand two Sammlungen the same one.
+ * exchange/SPEC.md §8 is what that eventually feeds.
  */
 
 const board = (name: string): Layout => ({
@@ -77,30 +74,18 @@ describe("a browser with several Sammlungen in it", () => {
     expect((await store.readLayoutOf(one))?.sets[0]?.name).toBe("Untouched");
   });
 
-  /* The rule that gets forgotten. A copy that kept the original's id would
-   * overwrite it wherever the two meet again - on the viewer, in a re-import,
-   * in anything that keys on identity rather than on the name a person typed. */
-  it("a copy is its own Sammlung, with an id of its own", async () => {
-    const original = await store.createCollection("Kitchen", board("Kitchen set"));
-    const copy = await store.duplicateCollection(original, "Kitchen (copy)");
+  /* Every Sammlung's id is its own. Nothing here derives one from a name or a
+   * position, so nothing here can hand two of them the same one - which is the
+   * property exchange/SPEC.md §8 eventually rests on. */
+  it("gives every Sammlung an id of its own", async () => {
+    await store.createCollection("Kitchen", board("Kitchen set"));
+    await store.createCollection("Kitchen", board("Also Kitchen"));
 
-    expect(copy).not.toBe(original);
     const list = await store.readCollections();
-    expect(new Set(list.collections.map((one) => one.id)).size).toBe(list.collections.length);
-
-    // And it is a copy: the same content, under the other identity.
-    expect((await store.readLayoutOf(copy))?.sets[0]?.name).toBe("Kitchen set");
-  });
-
-  it("editing a copy leaves the one it came from alone", async () => {
-    const original = await store.createCollection("Kitchen", board("Kitchen set"));
-    const copy = await store.duplicateCollection(original, "Kitchen (copy)");
-
-    await store.useCollection(copy);
-    await store.writeLayout(board("Changed"), null);
-
-    expect((await store.readLayoutOf(original))?.sets[0]?.name).toBe("Kitchen set");
-    expect((await store.readLayoutOf(copy))?.sets[0]?.name).toBe("Changed");
+    expect(list.collections).toHaveLength(2);
+    expect(new Set(list.collections.map((one) => one.id)).size).toBe(2);
+    // Same name, different Sammlungen: the name is not the identity.
+    expect(list.collections[0]!.name).toBe(list.collections[1]!.name);
   });
 
   it("renaming changes the name and nothing else", async () => {
@@ -158,19 +143,14 @@ describe("a browser with several Sammlungen in it", () => {
    * because what a list of Sammlungen is for is getting back to the one you
    * were in, and creation order reliably puts that at the bottom. */
   it("puts the one last written at the top", async () => {
-    /* Time has to actually pass for "later" to mean anything. The stamp is a
-     * millisecond clock, and three creations in a test happen inside one - so
-     * without this the sort is stable and answers with insertion order, which
-     * is the thing being tested against. A person clicking cannot make two of
-     * these inside a millisecond; a loop can. */
-    const tick = () => new Promise((go) => setTimeout(go, 2));
-
+    /* No waiting between these, deliberately. The stamp is strictly increasing
+     * rather than a bare Date.now(), so three creations inside one millisecond
+     * still have an order - and this test is what says so. It used to sleep
+     * 2ms between each, which made it pass and left the ordering undefined
+     * for anything faster than a person. */
     await store.createCollection("First", board("First"));
-    await tick();
     const second = await store.createCollection("Second", board("Second"));
-    await tick();
     const third = await store.createCollection("Third", board("Third"));
-    await tick();
 
     // Writing to it is what moves it, not opening it: opening is not an edit.
     await store.useCollection(second);

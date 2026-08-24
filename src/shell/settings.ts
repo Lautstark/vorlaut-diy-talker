@@ -327,12 +327,10 @@ function renderHere() {
  * lost, so nothing has to be agreed to first.
  */
 export function wireImport() {
-  // Two ways in, one errand. The sidebar's is where somebody stands when they
-  // are thinking about Sammlungen at all; the panel's is beside the prose that
-  // says what the format is.
-  const openFile = () => $<HTMLInputElement>("boardFile").click();
-  $<HTMLButtonElement>("boardImport").onclick = openFile;
-  $<HTMLButtonElement>("importLink").onclick = openFile;
+  // One way in, and it is here rather than in the sidebar: the sidebar holds
+  // the list, the way to make one, and the way out of the page. Importing is
+  // rare, and it belongs beside the prose that says what the format is.
+  $<HTMLButtonElement>("boardImport").onclick = () => $<HTMLInputElement>("boardFile").click();
   $<HTMLInputElement>("boardFile").onchange = async () => {
     const file = $<HTMLInputElement>("boardFile").files[0];
     $<HTMLInputElement>("boardFile").value = "";

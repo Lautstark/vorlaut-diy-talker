@@ -36,7 +36,7 @@ const option = (page: Page, code: string) =>
 
 /** Opens the settings sheet and picks a language. */
 async function choose(page: Page, code: string): Promise<void> {
-  await page.click("#gear");
+  await page.click("#settingsLink");
   await page.click("#langPick");
   await option(page, code).click();
 }
@@ -84,7 +84,7 @@ test("the choice survives a reload, over what the browser asks for",
     await expect(page.locator("#releaseBtn")).toHaveText(says(CHOSEN, "ui.release"));
     // And the sheet's own controls, which are painted from LANG rather than
     // carried by the markup and so are not covered by applyTexts().
-    await page.click("#gear");
+    await page.click("#settingsLink");
     await expect(page.locator("#langPick")).toHaveText(OWN_NAME[CHOSEN]);
     await expect(page.locator("#languageState")).toHaveText(OWN_NAME[CHOSEN]);
   });
@@ -136,7 +136,7 @@ test("the layout is what carries it, not this browser", async ({ page }) => {
  * status moves, so a switch on a quiet page left it in the old language even
  * once the formatter followed - both halves are needed and this covers both. */
 test("the folder's own line follows a switch, formatter and all", async ({ page }) => {
-  await page.click("#gear");
+  await page.click("#settingsLink");
   await page.locator("#dataPanel summary").click();
   const line = page.locator("#folderState");
   await expect(line).toBeVisible();

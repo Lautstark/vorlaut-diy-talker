@@ -18,7 +18,7 @@ const either = (key: string) =>
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
-  await page.click("#gear");
+  await page.click("#settingsLink");
 });
 
 test("the language picker is a button and a menu, not a select", async ({ page }) => {

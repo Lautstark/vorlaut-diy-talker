@@ -101,7 +101,6 @@ usePiperRuntime(piperRuntime({
 // outside, and a board list read around it would be a second door.
 export const listCollections = store.readCollections;
 export const createCollection = store.createCollection;
-export const duplicateCollection = store.duplicateCollection;
 export const renameCollection = store.renameCollection;
 export const deleteCollection = store.deleteCollection;
 export const useCollection = store.useCollection;

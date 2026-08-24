@@ -266,6 +266,17 @@ export async function versionOf(text: string): Promise<string> {
 const byNewest = (a: CollectionRef, b: CollectionRef): number =>
   (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
 
+/** The next stamp: now, or one past the highest there is, whichever is later.
+ *
+ * Date.now() alone is a millisecond clock, and "last written first" is supposed
+ * to be a total order. Two writes inside one millisecond get the same number,
+ * the sort is left stable, and the list quietly answers with insertion order -
+ * which is the order this is meant to replace. A person cannot type that fast;
+ * a loop can, and so can a test, and a rule that holds for people and not for
+ * machines is one nobody can check. */
+const nextStamp = (list: CollectionList): number =>
+  Math.max(Date.now(), Math.max(0, ...list.collections.map((one) => one.updatedAt ?? 0)) + 1);
+
 export async function readCollections(): Promise<CollectionList> {
   const db = await open();
   const box = await run(db, [CONTENT], "readonly", (tx, out) => {
@@ -293,32 +304,12 @@ export async function createCollection(name: string, layout: Layout): Promise<st
     listed.onsuccess = () => {
       const list = (listed.result as CollectionList) || NO_LIST;
       store.put({ text, version }, layoutKey(id));
-      store.put({ collections: [...list.collections, { id, name, updatedAt: Date.now() }],
+      store.put({ collections: [...list.collections, { id, name, updatedAt: nextStamp(list) }],
                   current: id }, LIST);
     };
   });
   touched();
   return id;
-}
-
-/** The same Sammlung again, under an identity of its own.
- *
- * The fresh id is the whole point and is minted here rather than by the caller,
- * so that "duplicate" cannot be written anywhere in this repository in a way
- * that inherits one. exchange/SPEC.md §8 says what it costs when it is: a copy
- * that kept its original's id silently replaces that original on the viewer,
- * taking a vocabulary somebody depends on with it.
- *
- * The bytes are copied, not the version - a second record with the same stamp
- * would make two different Sammlungen look like one written twice, which is
- * exactly what the conflict check reads that stamp for. It is the same bytes,
- * so it hashes to the same value anyway; recomputing it is what makes that a
- * fact about the copy rather than an inheritance.
- */
-export async function duplicateCollection(id: string, name: string): Promise<string> {
-  const held = await readLayoutOf(id);
-  if (!held) throw new Error(`no such collection: ${id}`);
-  return await createCollection(name, held);
 }
 
 export async function renameCollection(id: string, name: string): Promise<void> {
@@ -332,7 +323,7 @@ export async function renameCollection(id: string, name: string): Promise<void> 
       store.put({
         ...list,
         collections: list.collections.map(
-          (one) => one.id === id ? { ...one, name, updatedAt: Date.now() } : one),
+          (one) => one.id === id ? { ...one, name, updatedAt: nextStamp(list) } : one),
       }, LIST);
     };
   });
@@ -511,13 +502,13 @@ export async function writeLayout(layout: Layout, expected: string | null): Prom
       let id = list.current;
       if (!id) {
         id = mintId();
-        store.put({ collections: [...list.collections, { id, name: "", updatedAt: Date.now() }],
+        store.put({ collections: [...list.collections, { id, name: "", updatedAt: nextStamp(list) }],
                     current: id }, LIST);
       } else {
         // Every write is a touch, which is what the sidebar orders by. Written
         // into the same transaction as the layout, so the two cannot disagree
         // about whether an edit happened.
-        const at = Date.now();
+        const at = nextStamp(list);
         store.put({
           ...list,
           collections: list.collections.map((one) => one.id === id ? { ...one, updatedAt: at } : one),

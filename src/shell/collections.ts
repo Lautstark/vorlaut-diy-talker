@@ -16,19 +16,19 @@
  *
  *   the list, and "+ Neue Sammlung"   in the sidebar - this is their level
  *   the name                          in the work head, as the field that renames
- *   export, duplicate, delete         in the work head's ⋯
+ *   export, delete                    in the work head's ⋯
  *
- * The last line is the one worth defending. All three act on exactly the
- * Sammlung that is open, and a button sitting in a list of five can never say
- * which one it means - so they live beside the name of the one they will act
- * on. Renaming has no menu entry at all: the name on screen is the field.
+ * The last line is the one worth defending. Both act on exactly the Sammlung
+ * that is open, and a button sitting in a list of five can never say which one
+ * it means - so they live beside the name of the one they will act on.
+ * Renaming has no menu entry at all: the name on screen is the field.
  */
 import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
 import { confirmDialog } from "@lautstark/design/dialog";
 import { reason } from "../core/errors.js";
 import {
-  createCollection, deleteCollection, duplicateCollection, exportBoard,
+  createCollection, deleteCollection, exportBoard,
   layoutOf, listCollections, readSettings, renameCollection, useCollection,
   writeSettings,
 } from "../backend/index.js";
@@ -56,9 +56,10 @@ const nameOf = (name: string): string => name.trim() || t("ui.collection_unnamed
 
 /** A new one is named for the day, the way a new notebook is.
  *
- * The date is formatted in the language the page is in, not in German: the name
- * is read on screen beside the rest of the interface, and 08/24/2026 under an
- * English one is the same kind of mismatch as an untranslated label. */
+ * Both halves follow the page's language: the words through t(), and the date
+ * through LANG, so an English page does not read "Sammlung vom 08/24/2026" or a
+ * German one "Collection of 24.08.2026". Every caller has to be somewhere the
+ * language is already settled - see nameIfUnnamed(). */
 const defaultName = (): string =>
   t("ui.collection_default", { date: new Date().toLocaleDateString(LANG, {
     day: "2-digit", month: "2-digit", year: "numeric",
@@ -109,16 +110,19 @@ export async function paintCollections(): Promise<void> {
 
   const at = held.collections.findIndex((one) => one.id === held.current);
   const field = $<HTMLInputElement>("collectionName");
-  // The placeholder carries the fallback rather than the value: a Sammlung
-  // called "Sammlung 1" because nobody named it must not start answering to
-  // that as though somebody had typed it.
-  field.value = at < 0 ? "" : held.collections[at]!.name;
+  /* Not while it is being typed in. mitreden's drawRail() carries the same
+   * guard and gives one reason - the caret jumps to the end mid-word - and
+   * there is a second, worse one: a repaint can be in flight while somebody is
+   * typing, and assigning here puts the stored name back over what they have
+   * just written. Making a Sammlung is exactly that case, because the field is
+   * filled the moment the row appears and the paint that made the row is still
+   * running. */
+  if (document.activeElement !== field) {
+    field.value = at < 0 ? "" : held.collections[at]!.name;
+  }
   field.placeholder = at < 0 ? t("ui.collection_name") : t("ui.collection_unnamed");
   field.disabled = at < 0;
 
-  const sets = editor().count(state.layout);
-  $("collectionCount").textContent =
-    at < 0 ? "" : t(sets === 1 ? "ui.sets_count_one" : "ui.sets_count", { n: sets });
 }
 
 /** There is always one, and it has a name.
@@ -132,7 +136,24 @@ export async function paintCollections(): Promise<void> {
 export async function ensureCollection(): Promise<void> {
   const list = await listCollections();
   if (list.collections.length) return;
-  await createCollection(defaultName(), editor().blank());
+  // Unnamed on purpose: the language is not settled until load() has read the
+  // layout this creates. nameIfUnnamed() below is what names it, afterwards.
+  await createCollection("", editor().blank());
+}
+
+/** Gives the open Sammlung a name if it has none, in the language the page has
+ *  settled on.
+ *
+ * Two arrive without one and both are named here rather than where they are
+ * made: the seed above, because the language it will put the page into is
+ * inside the layout it is seeding, and the Sammlung carried across from the
+ * single-layout database, which never had a name at all. Naming either one
+ * earlier means naming it in whatever language the browser guessed. */
+export async function nameIfUnnamed(): Promise<void> {
+  const list = await listCollections();
+  const open = list.collections.find((one) => one.id === list.current);
+  if (!open || open.name.trim()) return;
+  await renameCollection(open.id, defaultName());
 }
 
 /* --- The four things --------------------------------------------------------- */
@@ -166,25 +187,6 @@ async function create(): Promise<void> {
   const field = $<HTMLInputElement>("collectionName");
   field.focus();
   field.select();
-}
-
-/** The same Sammlung again, under an identity of its own.
- *
- * The id is minted by the store and never inherited - see duplicateCollection()
- * there, and exchange/SPEC.md §8 for what it costs when a copy keeps its
- * original's. Written from what is in the store, so anything typed in the last
- * second goes in first.
- */
-async function duplicate(): Promise<void> {
-  const from = held.current;
-  if (!from) return;
-  await saveNow();
-  const at = held.collections.findIndex((one) => one.id === from);
-  const id = await duplicateCollection(from, t("ui.collection_copy",
-    { name: nameOf(held.collections[at]!.name) }));
-  await useCollection(id);
-  await load();
-  await paintCollections();
 }
 
 /** The Sammlung as a document other AAC software opens. */
@@ -266,7 +268,7 @@ let renameTimer: ReturnType<typeof setTimeout> | null = null;
 export function wireCollections(): void {
   $<HTMLButtonElement>("collectionNew").onclick = () => { void create(); };
   $<HTMLButtonElement>("sidebarHide").onclick = () => { void showSidebar(false); };
-  $<HTMLButtonElement>("sidebarShow").onclick = () => { void showSidebar(true); };
+  $<HTMLButtonElement>("sidebarShowBtn").onclick = () => { void showSidebar(true); };
   void readSettings().then((held) => showSidebar(held.sidebarOpen !== false, false));
 
   const field = $<HTMLInputElement>("collectionName");
@@ -296,7 +298,6 @@ export function wireCollections(): void {
     event.stopPropagation();
     menuOn($("collectionMenu"), (add) => {
       add(t("ui.collection_export"), () => { void exportOne(); });
-      add(t("ui.collection_duplicate"), () => { void duplicate(); });
       add(t("ui.collection_delete"), () => { void remove(); }, { danger: true });
     });
   };

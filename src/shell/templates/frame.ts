@@ -1,45 +1,68 @@
-/* The page under the header: the Sammlungen down the side, and the one being
- * worked on in the middle.
+/* The whole page: the Sammlungen down the side, and the one being worked on in
+ * the middle.
  *
- * The sidebar is bildhaft's frame, which the family agreed to follow: what you
- * have made on the left, what you are making in the centre. Its rows carry the
- * name and how much is in it, and nothing else. The two quiet buttons at the
- * foot are the pair bildhaft puts there - settings, and the way something gets
- * in from outside.
+ * **There is no header.** That is not an omission - it is what both siblings
+ * do, and this page had invented a third answer. bildhaft's `.topbar` is
+ * `display: none` until the mobile breakpoint and mitreden's the same; on a
+ * desktop the mark lives at the top of the sidebar, beside the control that
+ * puts the sidebar away, and there is nothing spanning the window. A bar that
+ * carries a mark, a toggle and a gear is a bar that costs vertical room on
+ * every screen to hold three things that already have homes.
  *
- * The work head is the row above the editor: the name, the count, the one
- * action that applies to the whole Sammlung, and the ⋯. Everything in it acts
- * on exactly the Sammlung that is open, which is why it is here and not in the
- * page header - in a list of five, a button in the bar can never say which one
- * it means. `#collectionAction` is a slot the editor fills; for the five-key
- * talker that is the button which builds and sends down the cable.
+ * So: the mark and the collapse are the sidebar's brand row, Einstellungen is
+ * the sidebar's foot - one entrance, design.md §3.4 - and everything that acts
+ * on the open Sammlung is the work head above the editor.
  *
- * What is left over is the shell's and belongs to no device: the save conflict,
- * which is about two tabs writing to one store, and the two hidden file inputs
- * that let picker.ts and settings.ts open a file dialog without a visible
- * control. src/editor-diy/templates/board.ts mounts into #editor.
+ * The work head is `name · status · what the editor puts there · ⋯`. The count
+ * is not in it: the sidebar row already carries one per Sammlung, and a second
+ * copy of the same number beside the name it belongs to is a number to keep in
+ * step for no reading anybody does. `#collectionAction` is the editor's slot -
+ * for the five-key talker, the device preview and the cable.
+ *
+ * What is left over belongs to no device: the save conflict, which is about two
+ * tabs writing to one store, and the two hidden file inputs that let picker.ts
+ * and settings.ts open a file dialog without a visible control.
+ * src/editor-diy/templates/board.ts mounts into #editor.
  */
 import { mount } from "./mount.js";
+
+/* The logo lives in public/, so Vite copies it verbatim and does not rewrite
+ * references to it that sit inside a template string the way it would inside
+ * index.html. BASE_URL is what the build's `base` resolves to - "/" while
+ * developing and "/vorlaut-diy-talker/" once published - so this is the same
+ * rewriting done by hand, in the one place the bundler cannot reach. */
+const logo = `${import.meta.env.BASE_URL}icon.svg`;
 
 export const markup = `
 <div class="frame">
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar__head">
-      <h2 class="sidebar__title" id="collectionsHeading"></h2>
+    <div class="sidebar__brand">
+      <h1><img src="${logo}" alt="" class="logo">vorlaut</h1>
       <button id="sidebarHide" class="btn quiet icon" type="button">&lsaquo;</button>
     </div>
-    <!-- Filled by shell/collections.ts on every change to the list. -->
-    <nav class="sidebar__list" id="collectionList"></nav>
-    <button id="collectionNew" class="btn quiet sm" type="button"></button>
+
+    <div class="sidebar__part sidebar__grow">
+      <h2 id="collectionsHeading"></h2>
+      <!-- Filled by shell/collections.ts on every change to the list. -->
+      <nav class="sidebar__list" id="collectionList"></nav>
+      <button id="collectionNew" class="btn quiet sm" type="button"></button>
+    </div>
+
+    <!-- One entrance, and only it. Importing lives inside the sheet, beside the
+         prose that says what the format is: the sidebar holds the list, the way
+         to make one, and the way out of the page. -->
     <div class="sidebar__foot">
       <button id="settingsLink" class="btn quiet sm" type="button"></button>
-      <button id="importLink" class="btn quiet sm" type="button"></button>
     </div>
   </aside>
 
   <!-- What brings the column back once it is put away. It floats where the
-       sidebar was, which is where bildhaft and mitreden both put it. -->
-  <button id="sidebarShow" class="btn quiet icon reveal" type="button" hidden>&rsaquo;</button>
+       sidebar was, carrying the mark, which is where both siblings put it and
+       where the eye is already looking. -->
+  <div class="reveal" id="sidebarShow" hidden>
+    <button id="sidebarShowBtn" class="btn quiet icon" type="button">&rsaquo;</button>
+    <img src="${logo}" alt="" class="logo logo--small">
+  </div>
 
   <main>
     <div class="conflict" id="conflict">
@@ -53,7 +76,11 @@ export const markup = `
            dialog and no menu entry: renaming a thing you are looking at should
            be typing over its name. -->
       <input type="text" id="collectionName" class="title-input" autocomplete="off">
-      <span class="count" id="collectionCount"></span>
+      <!-- role="status" is aria-live="polite", and it belongs on the element
+           rather than being set when there is something to say: a live region
+           has to be in the accessibility tree already when the text lands, or
+           the reader has nothing to notice a change in. -->
+      <span class="status" id="status" role="status"></span>
       <span class="tools" id="collectionAction"></span>
       <span class="menu-anchor"><button id="collectionMenu" class="btn quiet icon"
         type="button" aria-haspopup="menu" aria-expanded="false">⋯</button></span>

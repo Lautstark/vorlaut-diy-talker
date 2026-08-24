@@ -71,7 +71,7 @@ async function connectFolder(page: Page) {
 
 /** Chooses METACOM through the sheet, the way somebody would. */
 async function useMetacom(page: Page) {
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await page.locator("#symbolsPanel summary").click();
   await page.locator("#metacomUse").click();
   await page.locator("#voiceClose").click();
@@ -90,7 +90,7 @@ async function useMetacom(page: Page) {
  *  bildquelle indexes by, and a directory input is the only thing that
  *  normally sets it. */
 async function supplyFiles(page: Page) {
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await page.locator("#symbolsPanel summary").click();
   await page.evaluate(({ root, files }) => {
     const carrier = new DataTransfer();
@@ -217,7 +217,7 @@ test.describe("with the folder already connected at load", () => {
     const file = await download.path();
     expect(file).toBeTruthy();
 
-    await page.locator("#gear").click();
+    await page.locator("#settingsLink").click();
     const board = page.locator("#boardPanel");
     if ((await board.getAttribute("open")) === null) await board.locator("summary").click();
 

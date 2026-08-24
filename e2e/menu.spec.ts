@@ -14,7 +14,7 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
-  await page.click("#gear");
+  await page.click("#settingsLink");
 });
 
 test("opening a menu puts focus in it", async ({ page }) => {

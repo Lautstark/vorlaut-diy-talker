@@ -45,6 +45,20 @@ const namedForToday = () => new RegExp(
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
       .replace("\\{date\\}", "[\\d./]+")).join("|")})$`);
 
+/** A row by the name on it, which is what a person clicks. Positions move under
+ *  this suite now - every write reorders the list - so nothing here addresses a
+ *  Sammlung by its index.
+ *
+ *  Matched against the name span exactly, not as a substring of the row: the
+ *  row also carries a count, so a substring match on the whole row would be
+ *  comparing a name against a name and a number. */
+const row = (page: Page, name: string) =>
+  rows(page).filter({
+    has: page.locator(".collectionRow__name", {
+      hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+    }),
+  });
+
 /** Puts a collection on screen and waits until it is actually the one on screen.
  *
  * A row's press starts an async errand - write what is open, switch, re-read,
@@ -76,24 +90,20 @@ async function newCollection(page: Page, name: string) {
   const before = await rows(page).count();
   await page.locator("#collectionNew").click();
   await expect(rows(page)).toHaveCount(before + 1);
+  /* The row appearing is not the end of the errand - making a Sammlung writes,
+   * switches, re-reads, redraws, and only then puts the caret in the name.
+   * Typing before that last step raced the repaint that follows it. Focus is
+   * the signal because it is deliberately the last thing create() does, for
+   * the same reason it does it at all: the name it invented is a suggestion to
+   * type over. */
+  await expect(page.locator("#collectionName")).toBeFocused();
   await page.locator("#collectionName").fill(name);
   await page.locator("#collectionName").blur();
-  await expect(rows(page).first()).toContainText(name);
+  // That it is in the list, not where in the list: the order is last-written
+  // first and two writes inside one millisecond sort by nothing, so asserting a
+  // position here would be asserting the clock. Ordering has its own test.
+  await expect(row(page, name)).toHaveCount(1);
 }
-
-/** A row by the name on it, which is what a person clicks. Positions move under
- *  this suite now - every write reorders the list - so nothing here addresses a
- *  Sammlung by its index.
- *
- *  Matched against the name span exactly, not as a substring of the row: the
- *  row also carries a count, and "Kitchen" is a substring of "Kitchen (Kopie)",
- *  which is precisely the pair the duplicate test has to tell apart. */
-const row = (page: Page, name: string) =>
-  rows(page).filter({
-    has: page.locator(".collectionRow__name", {
-      hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
-    }),
-  });
 
 test("a first visit has one collection, and it is open", async ({ page }) => {
   await openCollection(page);
@@ -186,30 +196,6 @@ test("typing and switching at once does not spill one collection into the other"
 
     await switchTo(page, "Kitchen");
     await expect(keyText(page).first()).toHaveValue("Meant for the first collection");
-  });
-
-test("a duplicate is a collection of its own, and editing it leaves the original alone",
-  async ({ page }) => {
-    await openCollection(page);
-    await page.locator("#collectionName").fill("Kitchen");
-    await page.locator("#collectionName").blur();
-    await keyText(page).first().fill("The original");
-    await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
-
-    await page.locator("#collectionMenu").click();
-    await page.locator(".menu button", { hasText: label("ui.collection_duplicate") }).click();
-
-    await expect(rows(page)).toHaveCount(2);
-    // The copy is at the top: it was written last, and that is the order.
-    await expect(rows(page).first()).toHaveClass(/active/);
-    await expect(keyText(page).first()).toHaveValue("The original");
-
-    // The copy is what is open. Editing it must not reach the collection it came
-    // from - which is the whole reason a copy gets an identity of its own.
-    await keyText(page).first().fill("Only on the copy");
-    await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
-    await switchTo(page, "Kitchen");
-    await expect(keyText(page).first()).toHaveValue("The original");
   });
 
 /* The two halves of a destructive question, and the second one is the half

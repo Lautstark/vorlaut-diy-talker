@@ -38,7 +38,7 @@ const VOICES_LIST = /tts\.speech\.microsoft\.com\/cognitiveservices\/voices\/lis
 async function typeKeyAndSave(page: Page, region: string) {
   await page.goto("./");
   await expect(page.locator("#device .tile")).toHaveCount(5);
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await page.locator("#azurePanel summary").click();
   await page.locator("#azureKey").fill("0000fakekeyfakekeyfakekey0000");
   await page.locator("#azureRegion").fill(region);
@@ -127,7 +127,7 @@ test("a stored key can be removed, and the azure rows leave with it", async ({ p
   // key and asks Azure nothing.
   await page.reload();
   await expect(page.locator("#device .tile")).toHaveCount(5);
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
 });
 

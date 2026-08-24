@@ -18,22 +18,19 @@ export const markup = `
 <pre class="log" id="log"></pre>
 `;
 
-/* The device preview, which belongs in the page header: it is a way of looking
- * at what is on screen rather than a thing done to a Sammlung, and it is
- * reached constantly. */
-export const tools = `
-<label class="toggle" id="previewLabel">
-  <input type="checkbox" id="previewToggle">
-  <span class="pill"></span>
-  <span id="previewText"></span>
-</label>
-`;
-
 /* The one action that applies to the whole Sammlung, in the work head's slot
  * beside its name. It was in the page header, where the object it acts on had
  * to be inferred - which is exactly the inference that goes wrong on a page
  * that can switch Sammlung. conventions.md §3.3. */
 export const action = `
+<!-- The device preview, beside the button that sends: both are about this
+     device, both are reached from the same row, and the row is short enough to
+     hold them. -->
+<label class="toggle" id="previewLabel">
+  <input type="checkbox" id="previewToggle">
+  <span class="pill"></span>
+  <span id="previewText"></span>
+</label>
 <button class="btn primary" id="releaseBtn" type="button"></button>
 <!-- Only while something is going down the cable. Hidden rather than
      disabled: a stop that is there but greyed out most of the time reads as
@@ -42,8 +39,7 @@ export const action = `
 <button class="btn quiet" id="releaseStop" type="button" hidden></button>
 `;
 
-export function render(where: HTMLElement, toolbar: HTMLElement, head: HTMLElement): void {
+export function render(where: HTMLElement, head: HTMLElement): void {
   mount(where, markup);
-  mount(toolbar, tools);
   mount(head, action);
 }

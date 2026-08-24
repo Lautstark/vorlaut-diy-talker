@@ -523,7 +523,7 @@ test("the build can be written into a folder, and says what it wrote",
   await seed(page);
   const built = await release(page);
 
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
   const panel = page.locator("#devicePanel");
   // Chromium has the picker, so the panel is offered rather than hidden.
@@ -648,7 +648,7 @@ test("the port is asked for once, and the next press goes straight through",
 
   // The settings still offer a way to change it, which is the other half of
   // "asked once": a wrong port must not be a page reload to undo.
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   const panel = page.locator("#devicePanel");
   await panel.locator("summary").click();
   await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_connected"]);
@@ -671,7 +671,7 @@ test("the folder export builds first when there is nothing built",
   await seed(page);
 
   // Deliberately no press of the release button: nothing has been built.
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   const panel = page.locator("#devicePanel");
   await panel.locator("summary").click();
   await panel.locator("#buildExport").click();

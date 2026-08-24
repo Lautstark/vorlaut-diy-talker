@@ -30,7 +30,6 @@ export {
   // a different level entirely. See src/shell/boards.ts.
   listCollections,
   createCollection,
-  duplicateCollection,
   renameCollection,
   deleteCollection,
   useCollection,

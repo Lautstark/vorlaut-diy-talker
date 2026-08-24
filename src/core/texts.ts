@@ -59,10 +59,8 @@ export function applyTexts() {
   $("collectionsHeading").textContent = t("ui.collections");
   $<HTMLButtonElement>("collectionNew").textContent = t("ui.collection_new");
   $<HTMLButtonElement>("settingsLink").textContent = t("ui.settings");
-  // The same errand as the panel's own button, so the same word for it.
-  $<HTMLButtonElement>("importLink").textContent = t("ui.collection_import");
   for (const [id, key] of [["sidebarHide", "ui.collections_hide"],
-                           ["sidebarShow", "ui.collections_show"]] as const) {
+                           ["sidebarShowBtn", "ui.collections_show"]] as const) {
     $<HTMLButtonElement>(id).title = t(key);
     $<HTMLButtonElement>(id).setAttribute("aria-label", t(key));
   }
@@ -128,8 +126,6 @@ export function applyTexts() {
   // decides which words and which buttons there are - see ui/backupFolder.ts.
   $("folderLead").textContent = t("ui.folder_lead");
   $<HTMLButtonElement>("boardImport").textContent = t("ui.collection_import");
-  $<HTMLButtonElement>("gear").title = t("ui.settings");
-  $<HTMLButtonElement>("gear").setAttribute("aria-label", t("ui.settings"));
   $<HTMLButtonElement>("azureSave").textContent = t("ui.azure_save");
   $("arasaacSection").textContent = t("ui.arasaac");
   $<HTMLButtonElement>("voiceClose").setAttribute("aria-label", t("ui.close"));

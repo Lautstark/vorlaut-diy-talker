@@ -36,7 +36,6 @@ import "./styles/ui.css";
 // the middle of it - the list of boards down the side, and #editor - and
 // editor-diy fills the hole. This file and app.ts are the two that may name
 // both halves; see tests/unit/layers.test.ts.
-import * as header from "./shell/templates/header.js";
 import * as frame from "./shell/templates/frame.js";
 import * as board from "./editor-diy/templates/board.js";
 import * as footer from "./shell/templates/footer.js";
@@ -51,19 +50,17 @@ import { initTheme } from "@lautstark/design/theme";
 // keeps it right when the OS turns over under a page that is following it.
 initTheme("vorlaut.theme");
 
-header.render();
 frame.render();
-// Into the hole the frame left, and into the header's slot for the controls
-// that belong to a device rather than to the page. Both are elements the two
-// templates above have just put in the document, which is why this line is
-// below them rather than beside its own import.
+// Into the hole the frame left, and into the work head's slot for the one
+// action that applies to the whole Sammlung. Both are elements frame.render()
+// has just put in the document, which is why this line is below it rather than
+// beside its own import.
 board.render(document.getElementById("editor")!,
-             document.getElementById("editorTools")!,
              document.getElementById("collectionAction")!);
 // Under the board, and it is the last thing in the page's flow. The three
 // after it are dialogs: they sit over everything when they are open and take
 // no room at all when they are not, so where they mount decides nothing.
-footer.render();
+footer.render(document.querySelector("main")!);
 picker.render();
 settingsSheet.render();
 legal.render();
