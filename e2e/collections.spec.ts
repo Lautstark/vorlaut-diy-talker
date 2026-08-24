@@ -30,7 +30,7 @@ const label = (key: string, params: Record<string, string | number> = {}) => {
 
 const SAVED = label("ui.saved");
 
-const rows = (page: Page) => page.locator("#collectionList .collectionRow");
+const rows = (page: Page) => page.locator("#collectionList .collections__item");
 
 /** The default name, in whichever language the runner's browser picked.
  *
@@ -54,7 +54,7 @@ const namedForToday = () => new RegExp(
  *  comparing a name against a name and a number. */
 const row = (page: Page, name: string) =>
   rows(page).filter({
-    has: page.locator(".collectionRow__name", {
+    has: page.locator(".collections__name", {
       hasText: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
     }),
   });
@@ -111,7 +111,7 @@ test("a first visit has one collection, and it is open", async ({ page }) => {
   await expect(rows(page).first()).toHaveClass(/active/);
   // Named for the day it was made, not left blank for the list to paper over.
   // The name span, not the row: the row also carries the count.
-  await expect(rows(page).first().locator(".collectionRow__name"))
+  await expect(rows(page).first().locator(".collections__name"))
     .toHaveText(namedForToday());
 });
 
@@ -119,7 +119,7 @@ test("three can be made, switched between, and keep their own words", async ({ p
   await openCollection(page);
 
   // The first visit's Sammlung is unnamed, so the list draws one for it.
-  const first = (await rows(page).first().locator(".collectionRow__name").innerText()).trim();
+  const first = (await rows(page).first().locator(".collections__name").innerText()).trim();
   await keyText(page).first().fill("The first one speaks");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
@@ -290,4 +290,60 @@ test("deleting the last collection leaves a fresh one rather than nothing", asyn
   await expect(rows(page)).toHaveCount(1);
   await expect(page.locator("#device .tile")).toHaveCount(5);
   await expect(keyText(page).first()).toHaveValue("");
+});
+
+/* A rename lands on the Sammlung it was typed for, and not on the next one.
+ *
+ * The field is debounced, so between the last keystroke and the write there is
+ * a window - and switching Sammlung inside it is not a strange thing to do, it
+ * is what somebody does when they rename one and immediately go back to the one
+ * they were working in. If the write reads "the open Sammlung" when it finally
+ * runs rather than the one that was open when it was typed, the name lands on
+ * whichever one is on screen by then: the Sammlung they switched *to* silently
+ * takes the name they gave to the one they switched *from*.
+ *
+ * What keeps it right here is an ordering rather than a precaution: pressing a
+ * row moves focus off the field first, the blur writes, and only then does the
+ * switch happen - so by the time anything reads "the open Sammlung" the write
+ * has already used the right one. That is worth a test precisely because it is
+ * an ordering nobody wrote down. The obvious ways to break it are a switch that
+ * does not go through a press, and a write that stops flushing on blur; both
+ * would leave every other test in this file green.
+ *
+ * bildhaft does not rely on the ordering - it captures the id on the keystroke
+ * instead - and @lautstark/design/rename leaves the choice to the caller on
+ * purpose, because it owns the timing and not what is being renamed.
+ *
+ * A real-input test rather than a unit one, because the whole thing turns on
+ * where focus is, and focus is exactly what a page poked from a console has
+ * not got: driven that way the blur never fires, the debounce comes due after
+ * the switch, and the name lands on the Sammlung that was switched to. That is
+ * the failure this pins - it is just not reachable with a mouse.
+ */
+test("a rename lands on the collection it was typed for, not the next one", async ({ page }) => {
+  await openCollection(page);
+  // The seeded one has to be on screen before another is made: newCollection()
+  // counts the rows first, and counting them before the first paint lands
+  // makes every count after it one short.
+  await expect(rows(page)).toHaveCount(1);
+  await newCollection(page, "Kitchen");
+  await newCollection(page, "Nursery");
+
+  // Nursery is open. Type a new name for it and, without waiting for the write,
+  // click Kitchen.
+  await page.locator("#collectionName").fill("Bathroom");
+  await row(page, "Kitchen").click();
+
+  // Kitchen is what is open, and it is still called Kitchen.
+  await expect(page.locator("#collectionName")).toHaveValue("Kitchen");
+  await expect(row(page, "Kitchen")).toHaveCount(1);
+  // The name went where it was typed.
+  await expect(row(page, "Bathroom")).toHaveCount(1);
+  await expect(row(page, "Nursery")).toHaveCount(0);
+
+  // And it survives a reload, so this is the store and not just the drawing.
+  await page.reload();
+  await expect(rows(page)).toHaveCount(3);
+  await expect(row(page, "Bathroom")).toHaveCount(1);
+  await expect(row(page, "Kitchen")).toHaveCount(1);
 });

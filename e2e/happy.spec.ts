@@ -189,7 +189,7 @@ test("a Sammlung leaves as a .obz and comes back beside the others", async ({ pa
   await keyText(page).first().fill("Uebergeschrieben");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
-  const rows = page.locator("#collectionList .collectionRow");
+  const rows = page.locator("#collectionList .collections__item");
   await expect(rows).toHaveCount(1);
 
   // Importing is inside Einstellungen now: the sidebar holds the list, the way
