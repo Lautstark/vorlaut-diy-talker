@@ -558,6 +558,20 @@ static void clearButtonStates() {
 
 // After waking: wait until no key is really pressed any more. The press that
 // woke the device must not trigger anything - she is pressing blind.
+//
+// It costs more than one press, though, and that was watched happening on a
+// real morning: three presses before the first word. One to wake, which is
+// this rule working. One during the boot that follows, which is this rule
+// again - clearButtonStates() throws away anything pressed while the screens
+// were still dark, and from the outside that press simply does nothing. And
+// one that finally speaks.
+//
+// The rule is right and the cost is not: pressing blind at a dark device is
+// exactly what she is doing for the whole of the boot, not just for the
+// waking press. Either the dark stretch gets short enough that nobody presses
+// into it - "ready N ms after waking" at the end of setup() is there to say
+// how long it really is - or a press made during it should be remembered the
+// way one made during a word now is.
 static void waitForRelease() {
   while (anyDown()) delay(10);
   delay(DEBOUNCE_MS);
