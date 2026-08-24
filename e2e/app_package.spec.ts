@@ -103,6 +103,15 @@ async function fill(page: Page): Promise<void> {
   // saves before it packages anything, which is what makes that enough.
   await expect(page.locator("#device .tile:not(.setTile) .thumb img").first()).toBeVisible();
 
+  // A second set, so the package has two boards and a ring between them. One
+  // board would leave load_board pointing at itself, which is legal and proves
+  // nothing about navigation.
+  await page.locator("#tabs .tab.add").click();
+  await expect(page.locator("#tabs .tab")).toHaveCount(3);   // two sets and the +
+  await page.locator("#device .setTile input[type=text]").first().fill("Spielen");
+  await keys.nth(0).fill("Noch einmal");
+  await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
+
   // The Azure key, and Katja chosen with it. The stored voice is what the
   // export synthesises with and what the manifest names as its hint.
   await page.locator("#settingsLink").click();
@@ -209,8 +218,20 @@ test("a Sammlung leaves as a package, and it passes the spec's own checks",
     // §4.1: the hint, without the "azure:" that says where it is synthesised.
     expect(pkg.manifest.ext_lautstark_tts_voice).toBe("de-DE-KatjaNeural");
 
+    // Two boards, and a ring: each set key names the next, the last comes back
+    // round to the first. That is the device's behaviour and what a viewer has
+    // to be able to follow.
+    expect(pkg.boards.map((one) => one.name)).toEqual(["Morgens", "Spielen"]);
+    // §7.1's locale, and it comes off the chosen voice rather than off the
+    // browser this test happens to run in: the page here is English and the
+    // sentences are German, which is exactly the case that used to ship a
+    // package the tablet would read aloud in the wrong language.
+    expect(pkg.boards.map((one) => one.locale)).toEqual(["de-DE", "de-DE"]);
     const board = pkg.boards[0]!;
-    expect(board.name).toBe("Morgens");
+    expect(board.buttons.find((one) => one.id === "set-1-set")!.load_board)
+      .toEqual({ id: "set-2", name: "Spielen", path: "boards/set-2.obf" });
+    expect(pkg.boards[1]!.buttons.find((one) => one.id === "set-2-set")!.load_board!.id)
+      .toBe("set-1");
     expect(board.buttons.find((one) => one.id === "set-1-key-1")!.label)
       .toBe("Ich habe Hunger");
 
@@ -226,7 +247,7 @@ test("a Sammlung leaves as a package, and it passes the spec's own checks",
     // the browser's own encoder rather than anything this repository asserts
     // into existence.
     const clips = [...pkg.files].filter(([name]) => name.endsWith(".opus"));
-    expect(clips).toHaveLength(2);
+    expect(clips).toHaveLength(3);      // three sentences across the two sets
     // Both keys carry one, and §9.2's "promised and missing" case does not
     // arise: every sound_id on the board resolves to a file in the archive.
     for (const id of ["set-1-key-1", "set-1-key-2"]) {

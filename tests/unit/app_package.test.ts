@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  buildAppPackage, checkPackage, packageBytes, symbolSource,
+  buildAppPackage, checkPackage, localeFor, packageBytes, symbolSource,
   type AppPackage, type PackageInput,
 } from "../../src/data/app_package.js";
 import { readPackage, readPackageFile, unzip } from "./obz.js";
@@ -202,6 +202,34 @@ describe("a DIY Sammlung as a board package", () => {
   it("refuses a Sammlung with nothing in it", () => {
     expect(() => buildAppPackage(input({ layout: { sets: [] } })))
       .toThrow(/nothing in this Sammlung/i);
+  });
+});
+
+describe("the language a package says it is in", () => {
+  /* §7.1's locale is the fallback that picks a voice when the tts hint is
+   * unavailable - which on Android is nearly always, since the hint names a
+   * piper model or an Azure voice. So this field is what decides how a package
+   * sounds, and taking it from the builder's own UI language was wrong: a
+   * German board built in an English browser went out saying "en", and the
+   * tablet reads German sentences in an English voice. Found by exporting a
+   * package and opening it in the viewer. */
+  it("takes it from the chosen voice, whichever backend named it", () => {
+    expect(localeFor("azure:de-DE-KatjaNeural", "en")).toBe("de-DE");
+    expect(localeFor("piper:de_DE-thorsten-medium", "en")).toBe("de-DE");
+    expect(localeFor("piper:en_GB-alba-medium", "de")).toBe("en-GB");
+  });
+
+  it("falls back to the page's language when no voice is chosen", () => {
+    expect(localeFor("", "de")).toBe("de");
+    expect(localeFor("", "en")).toBe("en");
+    // A language this page does not have is not a locale to write down.
+    expect(localeFor("", "kl")).toBe("en");
+    expect(localeFor("", undefined)).toBe("en");
+  });
+
+  it("puts it on every board", () => {
+    const pkg = buildAppPackage(input());
+    expect(pkg.boards.map((one) => one.locale)).toEqual(["de-DE", "de-DE"]);
   });
 });
 
