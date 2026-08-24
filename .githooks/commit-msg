@@ -1,0 +1,69 @@
+#!/bin/sh
+# Conventional Commits, checked locally, because there is nowhere else to
+# check them.
+#
+# This repository is trunk-based and does not use pull requests: a branch is
+# merged locally into main and main is pushed. So the usual place to enforce a
+# commit convention - a check on a pull request - never runs here. This hook
+# does, at the moment the message is written, which is also the only moment it
+# is cheap to fix.
+#
+# Turn it on once per clone (hooks are not carried by git):
+#
+#     git config core.hooksPath .githooks
+#
+# Why it matters: release-please reads these prefixes and nothing else. A
+# change committed as "Wake in half a second instead of four and a half" is
+# invisible to it - no version bump, no changelog line, no complaint. The
+# failure is silence, which is why this is a hook and not a code review note.
+#
+# See docs/releases.md.
+
+message_file="$1"
+subject=$(head -1 "$message_file")
+
+# Things git writes itself, or that carry their own meaning.
+case "$subject" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"Reapply "*)
+    exit 0 ;;
+  "#"*|"")
+    exit 0 ;;
+esac
+
+# type(optional scope)optional !: subject
+pattern='^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\([a-z0-9./-]+\))?!?: .+'
+
+if ! printf '%s' "$subject" | grep -Eq "$pattern"; then
+  cat >&2 <<MSG
+
+The commit message does not start with a conventional-commit type.
+
+  $subject
+
+release-please reads the prefix and ignores everything else, so a commit
+without one lands with no changelog entry and no version bump, silently.
+
+  feat:      a capability that was not there before   -> minor
+  fix:       something that was wrong is now right    -> patch
+  perf:      the same thing, faster                   -> patch
+  refactor:  the same behaviour, arranged differently
+  docs:      prose
+  test, build, ci, chore:  everything else
+
+  feat!: or a "BREAKING CHANGE:" trailer -> major
+
+A scope is optional and is a path-ish word, not a sentence: fix(cable):,
+docs(adr):.
+
+Keep writing the subject the way this repository always has - a sentence that
+says what changed, in the present tense. The prefix goes in front of it:
+
+  feat: wake in half a second instead of four and a half
+  fix: turn the backlight off when the device sleeps, and mean it
+
+To commit anyway, once:  git commit --no-verify
+
+MSG
+  exit 1
+fi
+exit 0

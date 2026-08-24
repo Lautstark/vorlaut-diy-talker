@@ -27,6 +27,7 @@ on:
       - example/**
       - firmware/vorlaut/**
       - docs/**
+      - exchange/**
       - README.md
       - package.json
       - package-lock.json

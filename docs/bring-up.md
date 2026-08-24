@@ -90,6 +90,27 @@ If it does not match, the CS lines are swapped. Resolder or change the order in
 
 - One display black → its CS line.
 - All black although stage 2 ran → usually RST or the power supply.
+- **Which way up is each one?** Not the same question as which number is
+  where. Five panels can each show their own number in the right place with
+  one of them mounted a half turn out, and nothing above would notice. The
+  numbers are drawn upright, so a turned panel is obvious once looked for -
+  and `PANEL_TURN` in `pins.h` is where the answer goes, per display.
+
+### What the first real run found, 2026-08-24
+
+**Display 4 was dark and the Feather was innocent.** Swapping the CS wires at
+the board between `D5` and `D6` moved which pin drove which panel, and the
+darkness stayed with the panel - so the fault was in its own wiring, not the
+GPIO. Driving it alone with stage 2 and `PANEL_INDEX=3` showed it backlit but
+never initialised: powered, lit, receiving nothing. Reflowing its joints fixed
+it. Both those tools exist because of this.
+
+**And the stage lied about it twice**, which cost more than the fault did. It
+drew once in `setup()` and then sat in `delay(1000)`, and a panel keeps its
+picture in its own memory - so two correct wire swaps in a row looked like
+nothing had changed, and the search went off in the wrong direction. It
+redraws every three seconds now. Before touching a wire, check that something
+is actually redrawing; a still picture and a dead bus look identical.
 
 ## Stage 4 — Buttons
 
@@ -102,6 +123,19 @@ pressed.
 - Do all react at once → GND is probably missing.
 - If one permanently shows "pressed" without anyone touching it, the input
   sits hard on GND.
+
+### What the first real run found, 2026-08-24
+
+Passed first time, and worth saying how it was checked: the sketch prints
+every press with its GPIO, so the serial log is the answer rather than five
+opinions about what lit up. Pressed in physical order 1, 2, 3, 4, set, the
+board saw GPIO 18, 17, 16, 15, 14 in that order - one press, one release, no
+bursts. That clears three faults at once: no crossed wires, no stuck input,
+no contact bounce.
+
+**Count your presses.** Reading a log of ten presses proves ten registered; it
+says nothing about whether you made twelve. That gap wasted an evening later
+on, and one key pressed a known number of times is what closed it.
 
 ## Stage 5 — Sound
 
@@ -286,7 +320,8 @@ belongs back in the repo:
 
 | | where |
 |---|---|
-| Panel profile and offset | `firmware/vorlaut/pins.h` |
-| Order of the CS and KEY lines | `firmware/vorlaut/pins.h` |
+| Panel profile and offset | `firmware/vorlaut/pins.h` — `PANEL_INVERT` is 1 |
+| Order of the CS and KEY lines | `firmware/vorlaut/pins.h` — both correct as written |
+| Which way up each panel is | `firmware/vorlaut/pins.h` — `PANEL_TURN`, all alike |
 | Actual component dimensions | `docs/hardware.md`, `tools/wiring.py` |
 | Where the sweep goes thin — the speaker's lower limit | `docs/hardware.md` |

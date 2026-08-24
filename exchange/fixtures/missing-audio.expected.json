@@ -1,0 +1,66 @@
+{
+  "fixture": "missing-audio",
+  "file": "missing-audio.obz",
+  "spec_version": "1.0.0",
+  "summary": "One button with no sound at all, one whose sound file is absent from the zip, one WAV in the tolerated format.",
+  "outcome": "accepted",
+  "package": {
+    "id": "1f0a5c2e-0000-4000-8000-000000000005",
+    "name": "No sound",
+    "modified": "2026-08-24T09:20:00Z",
+    "root_board": "sound"
+  },
+  "boards": [
+    {
+      "id": "sound",
+      "name": "No sound",
+      "rows": 1,
+      "columns": 3
+    }
+  ],
+  "buttons": [
+    {
+      "board": "sound",
+      "id": "t1",
+      "label": "Thirsty",
+      "vocalization": "I am thirsty",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal",
+      "reason": "no sound_id: TTS is the designed path, not a degradation"
+    },
+    {
+      "board": "sound",
+      "id": "t2",
+      "label": "Hungry",
+      "vocalization": "I am hungry",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "degraded",
+      "reason": "sound_id names a file the package does not contain"
+    },
+    {
+      "board": "sound",
+      "id": "t3",
+      "label": "Tired",
+      "vocalization": "I am tired",
+      "on_activate": "append",
+      "audio": "sounds/legacy.wav",
+      "state": "normal",
+      "reason": "16 kHz mono PCM WAV is tolerated on import"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "sound_missing",
+      "board": "sound",
+      "button": "t2",
+      "detail": "sounds/absent.opus"
+    }
+  ],
+  "notes": [
+    "t1 and t2 both fall back to TTS and they are not the same thing. t1 is a board built without recorded audio and nothing is wrong with it; t2 is a broken package. Only t2 is marked degraded and only t2 warns.",
+    "An importer that marks t1 degraded fails this fixture: it would put a caregiver-visible fault marker on every button of every TTS-only board.",
+    "TTS uses the vocalization, falling back to the label. It uses ext_lautstark_tts_voice as a hint and the platform default if that voice is unavailable."
+  ]
+}

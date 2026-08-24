@@ -1,0 +1,90 @@
+{
+  "spec_version": "1.0.0",
+  "generated_by": "exchange/tools/make_fixtures.mjs",
+  "fixtures": [
+    {
+      "fixture": "minimal",
+      "file": "minimal.obz",
+      "expected": "minimal.expected.json",
+      "outcome": "accepted",
+      "summary": "One board, one button, one baked image, one baked Opus clip."
+    },
+    {
+      "fixture": "multipage",
+      "file": "multipage.obz",
+      "expected": "multipage.expected.json",
+      "outcome": "accepted",
+      "summary": "Three boards: a root with two load_board buttons, and :home back from each."
+    },
+    {
+      "fixture": "nfd-normalization",
+      "file": "nfd-normalization.obz",
+      "expected": "nfd-normalization.expected.json",
+      "outcome": "accepted",
+      "summary": "Archive member name is NFD; the manifest and board refer to it in NFC. The importer must still find the image."
+    },
+    {
+      "fixture": "message-bar",
+      "file": "message-bar.obz",
+      "expected": "message-bar.expected.json",
+      "outcome": "accepted",
+      "summary": "Append, :speak, :clear, :backspace, and one ext_lautstark_speak_immediately button. German content, umlauts and eszett included."
+    },
+    {
+      "fixture": "unknown-action",
+      "file": "unknown-action.obz",
+      "expected": "unknown-action.expected.json",
+      "outcome": "accepted",
+      "summary": "Three buttons with actions outside the mandatory set, including a v1-out-of-scope spelling button."
+    },
+    {
+      "fixture": "missing-audio",
+      "file": "missing-audio.obz",
+      "expected": "missing-audio.expected.json",
+      "outcome": "accepted",
+      "summary": "One button with no sound at all, one whose sound file is absent from the zip, one WAV in the tolerated format."
+    },
+    {
+      "fixture": "unknown-ext",
+      "file": "unknown-ext.obz",
+      "expected": "unknown-ext.expected.json",
+      "outcome": "accepted",
+      "summary": "Unknown ext_lautstark_*, the talker's ext_vorlaut_*, a foreign vendor's fields, and unknown plain OBF fields."
+    },
+    {
+      "fixture": "malformed-zip",
+      "file": "malformed-zip.obz",
+      "expected": "malformed-zip.expected.json",
+      "outcome": "rejected",
+      "summary": "A structurally valid package whose central directory signature has been overwritten."
+    },
+    {
+      "fixture": "oversized-image",
+      "file": "oversized-image.obz",
+      "expected": "oversized-image.expected.json",
+      "outcome": "accepted",
+      "summary": "One image at 2048x2048 (over the 1024 cap), one at 512, and one whose declared size lies."
+    },
+    {
+      "fixture": "identity-a",
+      "file": "identity-a.obz",
+      "expected": "identity-a.expected.json",
+      "outcome": "accepted",
+      "summary": "Package A: name 'Nursery', id ...000a."
+    },
+    {
+      "fixture": "identity-b",
+      "file": "identity-b.obz",
+      "expected": "identity-b.expected.json",
+      "outcome": "accepted",
+      "summary": "Package B: the same name as A, a different id. Must not replace A."
+    },
+    {
+      "fixture": "identity-a-v2",
+      "file": "identity-a-v2.obz",
+      "expected": "identity-a-v2.expected.json",
+      "outcome": "accepted",
+      "summary": "The same id as identity-a with a later modified timestamp. Must replace A, not sit beside it."
+    }
+  ]
+}

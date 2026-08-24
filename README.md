@@ -23,13 +23,13 @@ speak yet.
 
 vorlaut is a page, and there is nothing behind it: the boards, the symbols and
 the speech all happen in the tab. The published copy is deployed straight from
-`main`: **<https://lautstark.github.io/vorlaut/>**. It is the same app as a
-clone — it just saves you the clone.
+`main`: **<https://lautstark.github.io/vorlaut-diy-talker/>**. It is the same
+app as a clone — it just saves you the clone.
 
 To run it from a checkout:
 
 ```bash
-git clone https://github.com/Lautstark/vorlaut && cd vorlaut && npm install && npm run dev
+git clone https://github.com/Lautstark/vorlaut-diy-talker && cd vorlaut-diy-talker && npm install && npm run dev
 ```
 
 Then open <http://localhost:8801>.
@@ -129,7 +129,9 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
 | [docs/cable.md](docs/cable.md) | Pushing content down the USB-C cable, for when there is no server to fetch from |
 | [docs/packages.md](docs/packages.md) | The four shared packages, how they are pinned, and what vorlaut asks of them |
+| [docs/releases.md](docs/releases.md) | Which tag prefix releases what, and the commit convention release-please reads |
 | [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
+| [adr/](adr/) | The decisions that would otherwise be "tidied up" later, and why each of them is not an oversight |
 
 ## Licence
 

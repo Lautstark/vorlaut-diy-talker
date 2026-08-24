@@ -64,7 +64,7 @@ arduino-cli board list
 
 **2a. Without Arduino: take a ready-made image.**
 
-Under [Releases](https://github.com/Lautstark/vorlaut/releases) every tag
+Under [Releases](https://github.com/Lautstark/vorlaut-diy-talker/releases) every tag
 carries a finished `vorlaut.ino.merged.bin`. That is the convenient route: an
 ordinary link, no GitHub account needed, and it stays put.
 

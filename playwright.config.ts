@@ -7,7 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
  * dev server resolves things Vite's output does not, and serving from the root
  * would let an absolute path pass here and 404 once published.
  */
-const BASE = "/vorlaut/";
+const BASE = "/vorlaut-diy-talker/";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -28,7 +28,7 @@ export default defineConfig({
     command: `npx vite preview --port 8802 --strictPort --host 127.0.0.1`,
     // The base is baked into the bundle at build time and read from this same
     // variable, so the server has to be told it too or it serves the built
-    // /vorlaut/ page from the root and every asset 404s.
+    // /vorlaut-diy-talker/ page from the root and every asset 404s.
     env: { BASE_PATH: BASE },
     url: `http://127.0.0.1:8802${BASE}`,
     reuseExistingServer: !process.env.CI,

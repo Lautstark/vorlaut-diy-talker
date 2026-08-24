@@ -996,8 +996,15 @@ void loop() {
     lastActivity = millis();  // do not count playing time against the timeout
   }
 
+// Overriding the idle timeout is for testing the sleep path, and it is kept
+// rather than tidied away: at the real 600 s, every attempt at a bug that only
+// shows on waking costs ten minutes of waiting, which is why that path went
+// untested until it had four seconds of fault in it.
+//
+//   arduino-cli compile --build-property \
+//     "compiler.cpp.extra_flags=-DFORCE_SLEEP_S=60" ...
 #ifdef FORCE_SLEEP_S
-  const uint32_t idle = FORCE_SLEEP_S;   // TEMPORARY, for testing sleep
+  const uint32_t idle = FORCE_SLEEP_S;
 #else
   const uint32_t idle = layout.sleepSeconds ? layout.sleepSeconds : 600;
 #endif

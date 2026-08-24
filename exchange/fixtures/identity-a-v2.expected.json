@@ -1,0 +1,56 @@
+{
+  "fixture": "identity-a-v2",
+  "file": "identity-a-v2.obz",
+  "spec_version": "1.0.0",
+  "summary": "The same id as identity-a with a later modified timestamp. Must replace A, not sit beside it.",
+  "outcome": "accepted",
+  "package": {
+    "id": "1f0a5c2e-0000-4000-8000-00000000000a",
+    "name": "Nursery",
+    "modified": "2026-08-25T11:00:00Z",
+    "root_board": "nursery"
+  },
+  "boards": [
+    {
+      "id": "nursery",
+      "name": "Nursery",
+      "rows": 1,
+      "columns": 1
+    }
+  ],
+  "buttons": [
+    {
+      "board": "nursery",
+      "id": "k1",
+      "label": "Painting",
+      "vocalization": "I would like to paint",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    }
+  ],
+  "warnings": [],
+  "after_importing": {
+    "fixtures": [
+      "identity-a",
+      "identity-b",
+      "identity-a-v2"
+    ],
+    "packages_on_device": [
+      "1f0a5c2e-0000-4000-8000-00000000000a",
+      "1f0a5c2e-0000-4000-8000-00000000000b"
+    ],
+    "note": "Still two packages. A was replaced in place; B was untouched."
+  },
+  "reimport": {
+    "matches": "identity-a",
+    "resolution": "replace",
+    "detail": "Same ext_lautstark_package_id, strictly later ext_lautstark_modified.",
+    "stale_content_removed": true,
+    "note": "The old vocalization 'I want to paint' must be gone. An importer that merges instead of replacing leaves buttons the builder deleted."
+  },
+  "notes": [
+    "Replacement is all-or-nothing and must not leave the device without a vocabulary if it fails midway.",
+    "If the incoming modified is equal to or earlier than the stored one, the app must not silently replace. It may skip, or ask - that is a UI decision the spec leaves open - but it must not treat an older package as an update."
+  ]
+}
