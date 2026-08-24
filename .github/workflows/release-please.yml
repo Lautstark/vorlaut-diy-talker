@@ -1,0 +1,48 @@
+name: Release the builder
+
+# What this does, and what it deliberately does not:
+#
+# release-please watches main for conventional commits, keeps a pull request
+# open with the next CHANGELOG.md and version in it, and turns that into a
+# tag and a GitHub release when the pull request is merged. Merging it is the
+# release.
+#
+# It versions THE BUILDER ONLY, and tags it "builder-v1.2.0".
+#
+#   builder-v*     this workflow. The page in src/.
+#   v*             release.yml. The firmware image, and nothing else.
+#   exchange-v*    cut by hand, and only once a real board has reached a
+#                  tablet. See exchange/README.md.
+#
+# Three prefixes for three things that are released on their own schedules,
+# out of one repository - see adr/0006. docs/releases.md is the long version
+# of all of it, including why the firmware's release notes are written by
+# hand and are not to be "unified" with these.
+#
+# Which commits count is decided by PATH, not by the scope in the commit
+# message: release-please-config.json excludes firmware/, case/ and
+# exchange/, and a commit that touches one of those AND src/ still counts for
+# the builder. Scopes depend on somebody remembering; paths do not.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# One at a time. Two runs racing produce two release pull requests that each
+# think they are the only one.
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
