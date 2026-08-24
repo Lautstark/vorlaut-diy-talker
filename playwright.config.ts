@@ -9,6 +9,16 @@ import { defineConfig, devices } from "@playwright/test";
  */
 const BASE = "/vorlaut-diy-talker/";
 
+/* The port, overridable, because reuseExistingServer is a trap between two
+ * checkouts of this repository.
+ *
+ * Two worktrees running their suites at once share this port, and the second
+ * one does not fail: it finds a server already answering and quietly tests the
+ * *other* worktree's build. Every spec that asserts something new fails, and
+ * every failure points at the wrong file. E2E_PORT is how a second checkout
+ * gets a port of its own. */
+const PORT = Number(process.env.E2E_PORT || 8802);
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -16,7 +26,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: `http://127.0.0.1:8802${BASE}`,
+    baseURL: `http://127.0.0.1:${PORT}${BASE}`,
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
@@ -25,12 +35,12 @@ export default defineConfig({
     // --host pins it to 127.0.0.1. Without it vite preview binds IPv6 loopback
     // only, and Playwright's baseURL - which has to be a literal address, not a
     // name - never connects.
-    command: `npx vite preview --port 8802 --strictPort --host 127.0.0.1`,
+    command: `npx vite preview --port ${PORT} --strictPort --host 127.0.0.1`,
     // The base is baked into the bundle at build time and read from this same
     // variable, so the server has to be told it too or it serves the built
     // /vorlaut-diy-talker/ page from the root and every asset 404s.
     env: { BASE_PATH: BASE },
-    url: `http://127.0.0.1:8802${BASE}`,
+    url: `http://127.0.0.1:${PORT}${BASE}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },

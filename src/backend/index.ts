@@ -74,6 +74,12 @@ export {
   exportBoard,
   importBoard,
 
+  // The same Sammlung as the package the Android viewer opens, pictures and
+  // recordings baked in as files. A second door rather than an argument to the
+  // first, because the first one's promise is that it never writes a licensed
+  // symbol as pixels - exchange/SPEC.md §5.2.
+  exportAppPackage,
+
   // Turning all of it into tiles and WAVs for the device, and reading back
   // what that left - which is how the files reach whatever sends them.
   runBuild,
