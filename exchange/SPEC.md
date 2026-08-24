@@ -405,7 +405,14 @@ sentence which is then spoken.
 
 The bar holds **entries**, not words. One button press contributes one entry,
 whatever its length — a button whose vocalization is `an apple` puts a single
-entry into the bar. The bar renders labels and speaks vocalizations.
+entry into the bar.
+
+**An entry shows its vocalization**, falling back to the label when the button
+has no vocalization. A button whose label is one word and whose vocalization is
+a phrase therefore puts the *phrase* into the bar, so the bar reads as the
+sentence it is about to say rather than as the row of keys that built it.
+Fixture `message-bar` asserts this on its `w3` button; per §13 the fixture is
+the authority, and earlier drafts of this paragraph had it backwards.
 
 Activating a button:
 
@@ -579,6 +586,32 @@ They go in the same persisted list as §9.2's, because the person who can fix
 them is the person who built the package, and they will not see a warning that
 was only ever a toast on somebody else's tablet.
 
+### 9.5 The order warnings come in
+
+The warning list is **ordered, and the order is part of the format.** Two
+importers reading the same package MUST produce the same sequence, and the same
+importer MUST produce it again on re-import.
+
+1. **Package-scoped warnings first** — those with `board` null (§9.4).
+2. **Then board by board:** the root board first, then every other board id in
+   code point order. Root first because it is the page the user actually opens;
+   code point rather than `paths.boards` order because JSON object key order is
+   not something an importer should have to rely on.
+3. **Within a board:** board-scoped warnings (`button` null) first, then
+   warnings per button in **`grid.order` row-major order** — reading order, not
+   the order buttons happen to appear in `buttons[]`.
+4. **Ties** — several warnings on one button — in code point order of `code`.
+
+This is not fussiness. The list is caregiver-facing and it is how somebody finds
+out which buttons on a child's device are incomplete. If it reshuffles between
+imports, a person comparing it against what they saw last week cannot tell a new
+fault from a moved line, and the list stops being read. A stable order costs an
+importer one sort.
+
+Fixture `warning-order` pins it, and is built so that the obvious wrong answers
+disagree: its board ids do not sort into root-first order, and its grid places
+buttons in an order that is not their id order.
+
 ## 10. OBF fields
 
 ### 10.1 Used
@@ -677,7 +710,7 @@ A builder MUST write the version it targets, not the version it happens to fit.
 
 ## 13. Conformance
 
-An importer is conformant at v1.0.0 when it produces, for each of the twelve
+An importer is conformant at v1.0.0 when it produces, for each of the thirteen
 fixtures in [`fixtures/`](fixtures/), the outcome in the matching
 `.expected.json`. See
 [`README.md`](README.md) for how to pin and run them.

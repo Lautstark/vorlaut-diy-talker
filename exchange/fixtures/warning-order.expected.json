@@ -1,0 +1,119 @@
+{
+  "fixture": "warning-order",
+  "file": "warning-order.obz",
+  "spec_version": "1.0.0",
+  "summary": "Six warnings across three boards, in the one order SPEC.md 9.5 allows.",
+  "outcome": "accepted",
+  "package": {
+    "id": "1f0a5c2e-0000-4000-8000-00000000000c",
+    "name": "Warning order",
+    "modified": "2026-08-24T12:00:00Z",
+    "root_board": "start"
+  },
+  "boards": [
+    {
+      "id": "start",
+      "name": "Start",
+      "rows": 1,
+      "columns": 3
+    },
+    {
+      "id": "aaa",
+      "name": "Aaa",
+      "rows": 1,
+      "columns": 1
+    },
+    {
+      "id": "zzz",
+      "name": "Zzz",
+      "rows": 1,
+      "columns": 1
+    }
+  ],
+  "buttons": [
+    {
+      "board": "start",
+      "id": "b3",
+      "label": "Big",
+      "on_activate": "append",
+      "image": null,
+      "audio": "tts",
+      "state": "degraded"
+    },
+    {
+      "board": "start",
+      "id": "b1",
+      "label": "Undo",
+      "on_activate": "disabled",
+      "state": "disabled"
+    },
+    {
+      "board": "start",
+      "id": "b2",
+      "label": "Quiet",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "degraded"
+    },
+    {
+      "board": "aaa",
+      "id": "a1",
+      "label": "Big",
+      "on_activate": "append",
+      "image": null,
+      "audio": "tts",
+      "state": "degraded"
+    },
+    {
+      "board": "zzz",
+      "id": "z1",
+      "label": "Spell",
+      "on_activate": "disabled",
+      "image": "images/café.png",
+      "state": "disabled"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "path_normalization",
+      "board": null,
+      "button": null,
+      "detail": "archive member name is NFD; SPEC.md 2 requires NFC"
+    },
+    {
+      "code": "image_oversized",
+      "board": "start",
+      "button": "b3",
+      "detail": "2048x2048 exceeds 1024x1024"
+    },
+    {
+      "code": "action_unsupported",
+      "board": "start",
+      "button": "b1",
+      "detail": ":undo"
+    },
+    {
+      "code": "sound_missing",
+      "board": "start",
+      "button": "b2",
+      "detail": "sounds/absent.opus"
+    },
+    {
+      "code": "image_oversized",
+      "board": "aaa",
+      "button": "a1",
+      "detail": "2048x2048 exceeds 1024x1024"
+    },
+    {
+      "code": "action_unsupported",
+      "board": "zzz",
+      "button": "z1",
+      "detail": "+a"
+    }
+  ],
+  "notes": [
+    "The order is the whole fixture. Every warning here would also be produced by an importer that emits them in some other sequence, so an implementation that compares warnings as an unordered set passes while still shuffling a caregiver-facing list between imports.",
+    "Three wrong answers this discriminates. Sorting board ids without putting the root first gives aaa, start, zzz. Walking buttons[] instead of grid.order gives b1, b2, b3 within the root board. Emitting package-scoped warnings last puts path_normalization at the end.",
+    "The two image_oversized warnings share a code and a detail and differ only in which board they came from. They are not interchangeable: a caregiver reads this list to find out which page to fix."
+  ]
+}

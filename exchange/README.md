@@ -6,7 +6,7 @@ viewer, plus the fixtures an importer is checked against.
 | | |
 |---|---|
 | [`SPEC.md`](SPEC.md) | The specification. Version 1.0.0, **draft**. |
-| [`fixtures/`](fixtures/) | 12 `.obz` packages, each with an `.expected.json`. |
+| [`fixtures/`](fixtures/) | 13 `.obz` packages, each with an `.expected.json`. |
 | [`fixtures/index.json`](fixtures/index.json) | Machine-readable list of them. |
 | [`fixtures/source/`](fixtures/source/) | German fixture content, kept out of the generator. |
 | [`assets/`](assets/) | The images and audio the packages embed, committed. |
@@ -83,7 +83,7 @@ The contract:
    then `identity-a-v2`, into shared storage. Everything else is independent and
    SHOULD start from empty storage.
 
-A conformant importer produces the stated outcome for all 11.
+A conformant importer produces the stated outcome for all 13.
 
 ### What `.expected.json` says
 
@@ -133,11 +133,18 @@ arguing with a red test.
 
 ### Matching
 
-Compare `outcome`, `rejection.code`, `package`, `boards`, `buttons` and the set
-of `warnings` by `(code, board, button)`. Do not compare `warning.detail`,
-`reason` or `notes` textually; they are for humans and their wording will drift.
+Compare `outcome`, `rejection.code`, `package`, `boards` and `buttons`. Do not
+compare `warning.detail`, `reason` or `notes` textually; they are for humans and
+their wording will drift.
 
-Order within `boards` and `buttons` is not significant. `scenario` order is.
+**Compare `warnings` as an ordered list**, by `(code, board, button)` — not as a
+set. The sequence is specified in SPEC.md §9.5 and `warning-order` exists to
+pin it: this list is caregiver-facing, and one that reshuffles between imports
+cannot be compared against what somebody saw last week. An earlier draft of this
+README said to compare them as a set, which let exactly that through.
+
+Order within `boards` and `buttons` is not significant. `scenario` and
+`warnings` order is.
 
 ---
 
@@ -223,6 +230,7 @@ repository's code-language check for this reason; the generator is not.
 | `minimal` | accepted | One board, one button, baked image and Opus |
 | `multipage` | accepted | `load_board` navigation, `:home`, a shared image, a non-ASCII member |
 | `nfd-normalization` | accepted | An NFD member name against an NFC reference |
+| `warning-order` | accepted | The one warning sequence SPEC.md §9.5 allows |
 | `message-bar` | accepted | Append, `:speak`, `:clear`, `:backspace`, speak-immediately |
 | `unknown-action` | accepted | Unimplemented actions disable their button, visibly |
 | `missing-audio` | accepted | TTS as design vs TTS as fallback; tolerated WAV |
