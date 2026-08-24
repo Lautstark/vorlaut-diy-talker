@@ -1,0 +1,80 @@
+// Renovate, for this repository.
+//
+// Everything general lives in .github/renovate-shared.json5, which is written
+// to be copied into Lautstark/.github unchanged; that file's header says how.
+// What is left here is the part that is true of this repository and of no
+// other, and that is the whole point of the split.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+
+  // The .json5 is spelled out on purpose: the //path/to/file syntax implies
+  // a .json extension, so omitting it looks for a file that is not there
+  // and Renovate stops before it does anything.
+  extends: ["local>Lautstark/vorlaut-diy-talker//.github/renovate-shared.json5"],
+
+  packageRules: [
+    // -----------------------------------------------------------------------
+    // The four shared packages: Renovate does not touch them
+    // -----------------------------------------------------------------------
+    //
+    // @lautstark/bildquelle, design, sicherung and stimmquelle are pinned as
+    // github: dependencies by release tag, and none is on npm:
+    //
+    //     "@lautstark/stimmquelle": "github:Lautstark/stimmquelle#v2.7.0"
+    //
+    // Renovate can be made to follow those, but not with the npm manager that
+    // finds them: it needs git-refs or github-tags wired up by hand, with a
+    // versioning scheme told to it, per package. docs/packages.md already
+    // records that neither Renovate nor Dependabot bumps a github: dependency
+    // reliably, tag or sha.
+    //
+    // It is disabled here rather than configured, for a reason that is not
+    // about the plumbing: **a bump of these is a decision, not an update.**
+    // A refresh that moves section 1 or 2 of stimmquelle's contract
+    // re-renders every recording on every device in the field. Its CHANGELOG
+    // says which edits a consumer has to make, and it means it. A pull
+    // request that arrives on a Monday morning and merges itself is the wrong
+    // shape for that.
+    //
+    // What keeps the pins from going stale is a check rather than a service:
+    //
+    //     node node_modules/@lautstark/design/pins.js
+    //
+    // runs early in both workflows, asks each repository for its newest tag,
+    // and names the pins that are behind. It warns and never fails.
+    //
+    // This rule is also the clearest thing that must NOT move into the shared
+    // preset. It is about four specific packages and one specific contract,
+    // and a repository that inherited it would be silently opting out of
+    // updates to dependencies it does not have.
+    {
+      matchPackageNames: ["@lautstark/**"],
+      enabled: false,
+    },
+
+    // -----------------------------------------------------------------------
+    // onnxruntime-web: the version is written in three places
+    // -----------------------------------------------------------------------
+    //
+    //   package.json                 the wasm binaries piperVendor() copies
+    //                                into vendor/
+    //   src/backend/local.ts:92      the CDN URL the browser imports at the
+    //                                moment somebody first asks to speak
+    //   src/types/cdn.d.ts:17        the module declaration for that URL
+    //
+    // The binaries in vendor/ have to be exactly the ones that module
+    // expects, so the two pins name one version on purpose - cdn.d.ts says
+    // so. Renovate would bump package.json and leave the other two, which
+    // gives a build where the wasm and the runtime are different releases of
+    // the same library. Nothing fails at build time; the first sentence
+    // somebody tries to speak does.
+    //
+    // Moving this version is therefore a three-file edit with a listen
+    // afterwards. If it is ever automated, it needs a regex manager covering
+    // all three, not the npm manager covering one.
+    {
+      matchPackageNames: ["onnxruntime-web"],
+      enabled: false,
+    },
+  ],
+}
