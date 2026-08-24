@@ -1,5 +1,9 @@
-/* The five-key board, and the log of what was sent to it. Structure only -
- * editor.ts fills #tabs, #slots and #device on every render.
+/* The five-key board. Structure only - editor.ts fills #tabs, #slots and
+ * #device on every render.
+ *
+ * The log of what was sent used to be a <pre> at the foot of this, growing
+ * under the work head while a transfer ran. It is inside the transfer sheet
+ * now, with the rest of that flow - see src/editor-diy/release.ts.
  *
  * It mounts into #editor rather than into the document, which is the seam in
  * markup: the shell lays out a page with a hole in it, an editor fills the
@@ -15,7 +19,6 @@ export const markup = `
 <div class="device" id="device"></div>
 
 <button id="removeSet" class="btn destructive" type="button"></button>
-<pre class="log" id="log"></pre>
 `;
 
 /* The one action that applies to the whole Sammlung, in the work head's slot
@@ -31,12 +34,11 @@ export const action = `
   <span class="pill"></span>
   <span id="previewText"></span>
 </label>
+<!-- The whole of what follows the press is in the sheet this opens, the way
+     to stop it included: a stop button sitting in the work head is greyed out
+     for the whole of the time nothing is running, and reads as a thing that
+     is broken. -->
 <button class="btn primary" id="releaseBtn" type="button"></button>
-<!-- Only while something is going down the cable. Hidden rather than
-     disabled: a stop that is there but greyed out most of the time reads as
-     a thing that is broken, and there is genuinely nothing to stop until a
-     transfer is running. -->
-<button class="btn quiet" id="releaseStop" type="button" hidden></button>
 `;
 
 export function render(where: HTMLElement, head: HTMLElement): void {

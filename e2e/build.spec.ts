@@ -246,16 +246,55 @@ async function seed(page: import("@playwright/test").Page) {
   await expect(page.locator("#device .tile")).toHaveCount(5);
 }
 
-/** Presses it, and waits for the handler rather than for a spinner: the
- *  onclick is an async function, so its promise is exactly "the build is
- *  over", and it catches its own errors - a failed build is a log line. */
-async function release(page: import("@playwright/test").Page) {
-  await page.evaluate(`document.getElementById("releaseBtn").onclick()`);
+/** The transfer sheet, whichever step it is on. openDialog() appends it to the
+ *  body and takes it away again on close, so its presence is also the question
+ *  "is the flow still running".
+ *
+ *  By its accessible name rather than by `dialog.sheet`: the settings and the
+ *  three legal pages are sheets too and are in the markup from the first paint,
+ *  so that selector matches three elements before this one exists. */
+const sheetOf = (page: import("@playwright/test").Page) =>
+  page.getByRole("dialog", { name: SPEAKS["ui.release"], exact: true });
+
+/** One of the sheet's footer buttons, by the word on it. The corner cross has
+ *  a name of its own - ui.transfer_close_sheet - precisely so that an exact
+ *  match on "Close" finds the one button that is the way out. */
+const footBtn = (page: import("@playwright/test").Page, key: string) =>
+  sheetOf(page).getByRole("button", { name: SPEAKS[key], exact: true });
+
+/** Presses it, presses the sheet's own confirm, and waits for the sheet to
+ *  arrive at its last step.
+ *
+ *  The press is no longer the whole job: it opens a sheet that says what is
+ *  about to be written and waits to be told to go. What "it is over" looks
+ *  like from out here is the footer coming down to one button, which is what
+ *  run() offers however the transfer ended - so this waits for that rather
+ *  than for a promise it cannot reach.
+ *
+ *  The log is read out of the sheet, which is still standing: that is the
+ *  point of it staying open, and it is also what makes these assertions
+ *  possible at all. */
+async function release(
+  page: import("@playwright/test").Page, { grant = false } = {},
+) {
+  await page.click("#releaseBtn");
+  await expect(sheetOf(page)).toBeVisible();
+  /* With no port granted the first step is ours rather than Chrome's: an
+     explanation and a button, and the browser's chooser opens from that
+     button's own click. `grant` is the test saying it expects to be standing
+     there - a sheet that offered Send instead would fail on the next line
+     rather than quietly proceeding. */
+  if (grant) await footBtn(page, "ui.device_connect").click();
+  await footBtn(page, "ui.transfer_go").click();
+  /* Generously: a build here synthesises four sentences through the stand-ins
+     and then pushes nine files down a mocked wire. */
+  await expect(footBtn(page, "ui.close")).toBeVisible({ timeout: 120_000 });
+
   return await page.evaluate(`(async () => {
     ${IDB}
     const files = await all(await open(), "data");
     return {
-      log: document.getElementById("log").textContent,
+      log: document.querySelector("dialog[open] .log").textContent,
       primary: document.getElementById("releaseBtn").classList.contains("primary"),
       names: files.map((f) => f.name),
       sizes: Object.fromEntries(files.map((f) => [f.name, f.size])),
@@ -265,6 +304,13 @@ async function release(page: import("@playwright/test").Page) {
     log: string; primary: boolean; names: string[];
     sizes: Record<string, number>; spoken: string[];
   };
+}
+
+/** Dismisses whatever release() left standing, so a test that presses twice
+ *  starts its second press against a page with no sheet on it. */
+async function dismiss(page: import("@playwright/test").Page) {
+  await footBtn(page, "ui.close").click();
+  await expect(sheetOf(page)).toHaveCount(0);
 }
 
 const tilesOf = (names: string[]) => names.filter((n) => /^t[0-9a-f]{32}\.bin$/.test(n));
@@ -305,6 +351,7 @@ test("a second build replaces what changed and leaves nothing behind", async ({ 
   await withoutCable(page);
   await seed(page);
   const first = await release(page);
+  await dismiss(page);
 
   /* Changed through the interface, so that nothing here depends on reaching a
      module the bundle has renamed. The symbol is changed in both places it
@@ -316,6 +363,7 @@ test("a second build replaces what changed and leaves nothing behind", async ({ 
   await page.waitForTimeout(1500);
 
   const second = await release(page);
+  await dismiss(page);
 
   const gone = first.names.filter((n) => !second.names.includes(n));
   const fresh = second.names.filter((n) => !first.names.includes(n));
@@ -456,6 +504,54 @@ test("one press builds it and puts it on the talker", async ({ page }) => {
   expect(built.log).toContain(SPEAKS["cable.timings"].split("{")[0].trim());
 });
 
+/* The first step of the sheet: what is about to be written, before it is.
+ *
+ * This is the half the page never had. The log used to appear under the work
+ * head once the build had already started, so the first thing anybody was told
+ * about a transfer was that it was under way. The counts are the ones a
+ * decision rests on - a Sammlung switched underneath you, or a set left
+ * switched off, are exactly what somebody would want to catch here.
+ */
+test("the sheet says what is about to go, and keeps the log after it went",
+     async ({ page }) => {
+  await withDevice(page);
+  await seed(page);
+  await page.waitForFunction("globalThis.__device !== undefined");
+
+  await page.click("#releaseBtn");
+  const sheet = sheetOf(page);
+  await expect(sheet).toBeVisible();
+
+  const values = sheet.locator("dl.transfer dd");
+  /* The name out of the field somebody is looking at rather than a literal:
+     a Sammlung nobody has renamed is named for the day it was made. */
+  await expect(values.nth(0)).toHaveText(await page.inputValue("#collectionName"));
+  /* BOARD has three sets and one of them is switched off. */
+  await expect(values.nth(1))
+    .toHaveText(filled("ui.transfer_sets", { active: 2, total: 3 }));
+  /* Eight keys across the two active sets, and one of the eight is blank in
+     both halves. The switched-off set's keys are not counted: nothing of it
+     reaches the device, so promising them here would be a lie the build then
+     fails to keep. */
+  await expect(values.nth(2))
+    .toHaveText(filled("ui.transfer_keys", { n: 7, total: 8 }));
+  /* WebSerial gives a vendor and a product id and nothing else; the mock port
+     answers getInfo() with neither, which is the one case that has no numbers
+     to show. */
+  await expect(values.nth(3)).toHaveText(SPEAKS["ui.transfer_port_plain"]);
+
+  await footBtn(page, "ui.transfer_go").click();
+  await expect(footBtn(page, "ui.close")).toBeVisible({ timeout: 120_000 });
+
+  /* Still standing, and still holding the log - which is the whole reason it
+     does not close itself. The summary is gone: the same sheet, a later step. */
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator("dl.transfer")).toHaveCount(0);
+  await expect(sheet.locator(".log")).toContainText(SPEAKS["cable.looking"]);
+
+  await dismiss(page);
+});
+
 test("a second press sends nothing, because the device already has it",
      async ({ page }) => {
   await withDevice(page);
@@ -463,6 +559,7 @@ test("a second press sends nothing, because the device already has it",
   await page.waitForFunction("globalThis.__device !== undefined");
 
   const first = await release(page);
+  await dismiss(page);
   const after = await onDevice(page);
   expect(after.names).toEqual([...first.names].sort());
 
@@ -526,6 +623,10 @@ test("the build can be written into a folder, and says what it wrote",
   await withoutCable(page);
   await seed(page);
   const built = await release(page);
+  // The settings are behind a modal sheet until this one is out of the way,
+  // which is the point of it: nothing else on the page is reachable while a
+  // transfer is being reported.
+  await dismiss(page);
 
   await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
@@ -552,20 +653,22 @@ test("the build can be written into a folder, and says what it wrote",
   expect(held).toEqual(built.sizes);
 });
 
-/* A dismissed picker costs nothing at all.
+/* A dismissed chooser costs nothing at all.
  *
- * This press asks for a port when none is granted, and it has to ask before
- * the build: requestPort() needs the transient activation the press is, and it
- * expires in about five seconds. So the case to get right is the dismissal,
- * and it was wrong in both directions before this. It built anyway and then
- * reported that nothing was sent, which read as the dialog having been
- * ignored; then the picker was moved out of the press altogether, which fixed
- * that by removing the thing somebody had pressed the button for.
+ * A port has to be granted before the build: requestPort() needs transient
+ * activation and it expires in about five seconds. So the case to get right is
+ * the dismissal, and it was wrong in both directions before this. It built
+ * anyway and then reported that nothing was sent, which read as the dialog
+ * having been ignored; then the chooser was moved out of the press altogether,
+ * which fixed that by removing the thing somebody had pressed the button for.
  *
- * Nothing here: no build in the store, no log, and the release mark still
- * standing.
+ * The sheet settles it: our own words come first, Chrome's chooser opens from
+ * a button inside them, and closing that chooser leaves somebody standing on
+ * that step rather than back at a page that said nothing. Nothing is built,
+ * nothing is logged, and the release mark still stands.
  */
-test("a dismissed picker builds nothing and says nothing", async ({ page }) => {
+test("a dismissed chooser builds nothing and leaves the sheet where it was",
+     async ({ page }) => {
   await page.addInitScript(() => {
     (globalThis as Record<string, unknown>).__asked = 0;
     Object.defineProperty(navigator, "serial", {
@@ -584,15 +687,40 @@ test("a dismissed picker builds nothing and says nothing", async ({ page }) => {
   });
   await seed(page);
 
-  const after = await release(page);
+  await page.click("#releaseBtn");
+  const sheet = sheetOf(page);
+  await expect(sheet).toBeVisible();
+
+  /* Our explanation, and no Send: there is nothing to send to yet, and the
+     step says so in words rather than by handing over to the browser. */
+  await expect(sheet.locator(".lead")).toHaveText(SPEAKS["ui.transfer_connect_lead"]);
+  await expect(footBtn(page, "ui.transfer_go")).toHaveCount(0);
+  await expect(sheet.locator("dl.transfer dd").nth(3))
+    .toHaveText(SPEAKS["ui.device_none"]);
+
+  await footBtn(page, "ui.device_connect").click();
 
   expect(await page.evaluate("globalThis.__asked")).toBe(1);
+  /* Still here, still the same step. A closed chooser is somebody deciding
+     not to, and what they were doing is not over. */
+  await expect(sheet).toBeVisible();
+  await expect(footBtn(page, "ui.device_connect")).toBeVisible();
+  await expect(sheet.locator(".log")).toHaveCount(0);
+
+  const store = await page.evaluate(`(async () => {
+    ${IDB}
+    return (await all(await open(), "data")).map((f) => f.name);
+  })()`) as string[];
   // The build writes layout.bin first of all, so an empty data store is the
   // whole claim: nothing ran.
-  expect(after.names).toEqual([]);
-  expect(after.log).toBe("");
+  expect(store).toEqual([]);
   // And the button still says a release is due, because none happened.
-  expect(after.primary).toBe(true);
+  expect(await page.locator("#releaseBtn").evaluate(
+    (node) => node.classList.contains("primary"))).toBe(true);
+
+  // Leaving costs nothing either, and takes the sheet with it.
+  await footBtn(page, "ui.cancel").click();
+  await expect(sheet).toHaveCount(0);
 });
 
 /* Asked once, then never again - the shape docs/cable.md concluded from the
@@ -641,12 +769,15 @@ test("the port is asked for once, and the next press goes straight through",
   });
   await seed(page);
 
-  const first = await release(page);
+  const first = await release(page, { grant: true });
+  await dismiss(page);
   expect(await page.evaluate("globalThis.__asked")).toBe(1);
   expect((await onDevice(page)).names).toEqual([...first.names].sort());
 
-  // And again, with no dialog in between.
+  // And again, with no chooser in between - the sheet goes straight to the
+  // step that offers Send, because getPorts() already has the port.
   const second = await release(page);
+  await dismiss(page);
   expect(await page.evaluate("globalThis.__asked")).toBe(1);
   expect(second.log).toContain(SPEAKS["cable.nothing"]);
 

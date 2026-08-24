@@ -60,7 +60,7 @@ With them, the rule on each side is one line long:
 | the device | ignores everything that does not begin `> ` |
 
 The device's log survives that instead of being crushed by it: the browser puts
-every unmarked line in its log pane, which is the most useful thing on the wire
+every unmarked line in the transfer sheet's log, which is the most useful thing on the wire
 when something has gone wrong. `tools/serialcheck.html` shows them mixed in,
 and the mock in `tools/cable_mock.js` chatters on purpose so that a client
 which only works on a silent wire fails here rather than on a bench.
@@ -434,18 +434,32 @@ the table below.
 python3 -m http.server 8799
 ```
 
-**4. Press *Send to the device* in the editor.** That is the whole of it: the
-first press opens the port picker, every press after it finds the same port
-again by itself, and in between it builds the board, works out what the talker
-is missing and sends that. The page's log carries the device's own serial
-output inline while it happens.
+**4. Press *Send to the device* in the editor.** That opens a sheet, and the
+whole of the transfer happens inside it without it closing in between. It first
+says what is about to be written — the Sammlung, how many of its sets are
+switched on, how many keys carry something, and which port it is going to. Then
+it builds the board, works out what the talker is missing and sends that, with
+the device's own serial output inline in the log. It stays open when it is over:
+the log is the most useful thing there is when something has gone wrong, and it
+must not disappear with the last line. Dismiss it when you have read it.
 
-**Closing that dialog does nothing at all** — no build, no log, nothing on the
-screen changed. The dialog has to come before the build, because the activation
-`requestPort()` needs expires in about five seconds and a build with speech in
-it takes longer; so a dismissal that went on to build anyway read as the dialog
-having been ignored, which is what it did once. Choosing a different port later
-is in the settings, under *Device*, along with the folder export.
+**The first press has a step before that one**, because a port has to be
+granted and `requestPort()` needs transient activation that expires in about
+five seconds — so it cannot come after a build. The sheet explains what the
+browser is about to ask and puts *Choose the device* under it; that button's
+own click is the activation. Chrome's chooser is drawn in the browser's chrome
+and no token of ours reaches it, which is why everything around it is ours and
+it is not.
+
+**Closing that chooser does nothing at all** — no build, no log, nothing
+changed, and the sheet is still standing on the step it was on. That is the
+case this got wrong twice: it used to build anyway and then report that nothing
+was sent, which read as the dialog having been ignored; then the chooser was
+moved out of the press altogether, which fixed it by removing the thing
+somebody had pressed the button for. Every press after the first goes straight
+through — `getPorts()` hands the port back with no gesture at all, and the
+sheet names it rather than asking again. Choosing a different port later is in
+the settings, under *Device*, along with the folder export.
 
 **The bench is still here for what that button cannot be.** `tools/serialcheck.html`
 is where a payload can be invented with no build behind it — so that a failure
@@ -461,7 +475,7 @@ the symptom is a port that simply will not open.
 
 **5. Watch the device, not only the page.** All five displays should show
 *Kabel* with a count climbing, and the talker should come back by itself
-afterwards holding the new content. The page's log shows the device's own
+afterwards holding the new content. The sheet's log shows the device's own
 serial output inline — that is where a mount failure or a wrong partition
 scheme will say so.
 
@@ -548,8 +562,8 @@ than about which file the page read. The rows stay unticked until a board has
 done it.
 
 **Row five is not a convenience.** The editor's one button *is* the way content
-reaches the talker now — it builds and it sends, in one press, with no dialog
-after the first. That rests entirely on `getPorts()` returning a
+reaches the talker now — it builds and it sends, with no browser chooser after
+the first press. That rests entirely on `getPorts()` returning a
 previously-granted port without a gesture, because the press that would open
 the picker is the same press that starts the build, and by the time a build is
 over the transient activation `requestPort()` needs has long expired. If a
