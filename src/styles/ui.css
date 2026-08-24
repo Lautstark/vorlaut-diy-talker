@@ -51,14 +51,27 @@ body {
    Grid rather than flex, because the sidebar is a fixed column and the middle
    takes what is left - minmax(0, 1fr) rather than 1fr, or the tile grid's
    min-content width would push the whole page wider than the window. */
+/* The window's height, not a floor under it. `min-height: 100vh` let the frame
+   grow whenever the board was taller than the window - and the sidebar is a
+   grid item stretched to the row, so it grew too and took its foot down with
+   it. „Einstellungen" then sat below the fold on any window a five-key board
+   does not fit in, which is every 13-inch laptop: one entrance to the settings,
+   §3.4, reachable only by scrolling a column that has nothing in the middle of
+   it to scroll to. The board is what is too tall; the shell is not, and now it
+   cannot become so. `dvh` rather than `vh` because a mobile browser's chrome
+   moves - see the small-screen block, where this is undone entirely. */
 .frame {
   display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100dvh;
 }
+/* Both columns need `min-height: 0`: a grid item's automatic minimum size is
+   its content, so without it they push the row past the height just set and
+   nothing below can scroll. */
 .sidebar {
   display: flex; flex-direction: column; gap: 14px;
   padding: 14px; border-right: 1px solid var(--line);
   background: var(--surface);
+  min-height: 0;
 }
 /* The mark, where both siblings keep it once there is no bar across the top.
    "vorlaut" stays this word in every language and therefore stands in the
@@ -101,7 +114,7 @@ body {
    to the whole Sammlung, and the ⋯. bildhaft's row, with the transfer button
    where its print button is - the same question, answered down a cable
    instead of on paper. */
-.content { display: flex; flex-direction: column; min-width: 0; }
+.content { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 /* On the page's own ground, with nothing drawn under it. It had --surface and a
    rule, which made it a bar - and a bar is furniture, which this is not: it is
    the name of the thing you are looking at, with the two acts that apply to it.
@@ -154,10 +167,17 @@ body.collapsed .frame { grid-template-columns: minmax(0, 1fr); }
    So the rule is: as wide as the shortest laptop can show in one screen. Wider
    buys a bigger picture of a symbol somebody can already see, and charges for
    it in the two keys that drop off the bottom. */
+/* And this is the one thing on the page that scrolls. The work head above it
+   stays: with no bar over it, it is the top of the page, and a page whose title
+   scrolls away has nothing at the top at all. The board is what overflows, so
+   the board is what moves - the sidebar, its foot and the name of the open
+   Sammlung all hold still. Same reason as `.sheet > .body`: one scrolling area,
+   and it is the part that is too tall. */
 main {
   display: flex; flex-direction: column;
   width: 100%; max-width: 640px; margin: 0 auto; padding: 14px 20px 6px;
-  min-width: 0; flex: 1;
+  min-width: 0; flex: 1; min-height: 0; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
 
 /* The focus ring is components.css's - one rule, one appearance, every
@@ -401,7 +421,13 @@ pre.log {
      option and is worse: with more than one board it is the only way to reach
      the others, so a phone would be able to edit whichever board it happened
      to open on and no other. */
-  .frame { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  /* And here the document scrolls again, which is bildhaft's finding rather
+     than a preference: a phone browser resizes the viewport under a nested
+     full-height scroll container every time the URL bar or the keyboard
+     appears, and what that repaints is blank and black patches. There is no
+     column beside the board to keep on screen down here anyway - the sidebar
+     is a row above it, and it scrolls off with everything else. */
+  .frame { grid-template-columns: minmax(0, 1fr); height: auto; }
   .sidebar {
     border-right: none; border-bottom: 1px solid var(--line);
     min-height: 0; padding: 10px 14px;
@@ -455,7 +481,7 @@ pre.log {
   .tabs { flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .tabs .tab { flex: none; padding: 8px 12px; }
 
-  main { padding: 12px; }
+  main { padding: 12px; overflow-y: visible; }
   .device { grid-template-columns: 1fr 1fr; }
   .setCol { grid-row: auto; grid-column: 1 / -1; }
   #removeSet { width: auto; align-self: flex-start; }
