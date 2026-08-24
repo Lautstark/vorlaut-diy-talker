@@ -1,69 +1,32 @@
 #!/bin/sh
-# Conventional Commits, checked locally, because there is nowhere else to
-# check them.
+# Conventional Commits, checked as the message is written.
 #
-# This repository is trunk-based and does not use pull requests: a branch is
-# merged locally into main and main is pushed. So the usual place to enforce a
-# commit convention - a check on a pull request - never runs here. This hook
-# does, at the moment the message is written, which is also the only moment it
-# is cheap to fix.
+# This is a CONVENIENCE, not the gate. The gate is
+# .github/workflows/commit-messages.yml, which checks every commit in a push
+# to main and cannot be skipped or forgotten.
 #
-# Turn it on once per clone (hooks are not carried by git):
+# This hook exists because CI tells you after the push, when the commit is
+# already history and fixing it means rewriting a branch somebody may have
+# pulled. The hook tells you while the message is still in the editor.
+#
+# Turn it on once - git does not carry hooks, and a fresh clone has it off:
 #
 #     git config core.hooksPath .githooks
 #
-# Why it matters: release-please reads these prefixes and nothing else. A
-# change committed as "Wake in half a second instead of four and a half" is
-# invisible to it - no version bump, no changelog line, no complaint. The
-# failure is silence, which is why this is a hook and not a code review note.
+# In a worktree this is inherited: worktrees share the main repository's
+# config, so setting it once covers all of them. A fresh CLONE is the case
+# that starts without it, which is exactly why the gate is in CI.
 #
-# See docs/releases.md.
+# The rule itself lives in tools/check-commit-subject.sh, so that this and CI
+# cannot drift apart. See docs/releases.md.
 
-message_file="$1"
-subject=$(head -1 "$message_file")
+root=$(git rev-parse --show-toplevel)
+subject=$(head -1 "$1")
 
-# Things git writes itself, or that carry their own meaning.
-case "$subject" in
-  "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"Reapply "*)
-    exit 0 ;;
-  "#"*|"")
-    exit 0 ;;
-esac
-
-# type(optional scope)optional !: subject
-pattern='^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\([a-z0-9./-]+\))?!?: .+'
-
-if ! printf '%s' "$subject" | grep -Eq "$pattern"; then
-  cat >&2 <<MSG
-
-The commit message does not start with a conventional-commit type.
-
-  $subject
-
-release-please reads the prefix and ignores everything else, so a commit
-without one lands with no changelog entry and no version bump, silently.
-
-  feat:      a capability that was not there before   -> minor
-  fix:       something that was wrong is now right    -> patch
-  perf:      the same thing, faster                   -> patch
-  refactor:  the same behaviour, arranged differently
-  docs:      prose
-  test, build, ci, chore:  everything else
-
-  feat!: or a "BREAKING CHANGE:" trailer -> major
-
-A scope is optional and is a path-ish word, not a sentence: fix(cable):,
-docs(adr):.
-
-Keep writing the subject the way this repository always has - a sentence that
-says what changed, in the present tense. The prefix goes in front of it:
-
-  feat: wake in half a second instead of four and a half
-  fix: turn the backlight off when the device sleeps, and mean it
-
-To commit anyway, once:  git commit --no-verify
-
-MSG
-  exit 1
+if "$root/tools/check-commit-subject.sh" "$subject"; then
+  exit 0
 fi
-exit 0
+
+echo "To commit anyway, once:  git commit --no-verify" >&2
+echo >&2
+exit 1

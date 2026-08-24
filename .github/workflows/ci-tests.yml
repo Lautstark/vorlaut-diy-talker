@@ -12,6 +12,22 @@ name: Tests
 # tests/test_links.py follows every relative link and anchor in them, and a
 # link broken by a renamed file or a moved heading is only ever broken by a
 # change to those files.
+#
+# That argument decides the whole prose half of this list, and it reaches
+# further than docs/: test_links.py and test_language.py take their file list
+# from `git ls-files`, so they check EVERY tracked file, wherever it sits. A
+# directory holding tracked prose and missing from this list is a directory
+# where a broken link cannot be caught - the job simply does not run. So adr/,
+# dns/, case/, voices/ and CLAUDE.md are here too, and the rule for anything
+# added later is: if it holds a tracked .md, it belongs in this list.
+#
+# dns/ earns its place twice over, because dns/verify.py is Python that
+# nothing else runs.
+#
+# The four configuration files at the bottom are the exception to that rule
+# and are listed for a weaker reason: no test reads them today. They are here
+# so that a change to how this repository releases or updates itself is not
+# the one kind of change that skips its own test suite.
 on:
   push:
     branches: [main]
@@ -28,13 +44,22 @@ on:
       - firmware/vorlaut/**
       - docs/**
       - exchange/**
+      - adr/**
+      - dns/**
+      - case/**
+      - voices/**
       - README.md
+      - CLAUDE.md
       - package.json
       - package-lock.json
       - tsconfig*.json
       - vite.config.ts
       - vitest.config.ts
       - playwright.config.ts
+      - renovate.json5
+      - .github/renovate-shared.json5
+      - release-please-config.json
+      - .release-please-manifest.json
       - .github/workflows/ci-tests.yml
   pull_request:
     paths: *paths
