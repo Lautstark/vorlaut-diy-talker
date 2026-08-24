@@ -46,7 +46,18 @@ SKIP_SUFFIX = {".png", ".svg", ".json", ".bin", ".stl", ".ico"}
 # what we write; a vendored package agreed to none of our rules, and the German
 # in it is a default the host is meant to translate rather than a string that
 # escaped review. Editing it would be edited over on the next refresh anyway.
-SKIP_PREFIX = ("content/", "example/symbols/", "static/vendor/")
+# exchange/fixtures/ is conformance data for the board package format, not code.
+# Its boards carry the labels real boards carry - "Zurueck", "Loeschen", umlauts
+# and an eszett - because an importer that mangles UTF-8 has to fail on the text
+# that actually ships rather than pass on an ASCII stand-in. The rule this file
+# enforces is that *we* write English; a fixture board is content, the same way
+# content/ is, and docs/languages.md draws that line already.
+#
+# The generator itself, exchange/tools/make_fixtures.mjs, is code and is NOT
+# exempt: the German lives in exchange/fixtures/source/labels.de.json and the
+# generator refers to it by key.
+SKIP_PREFIX = ("content/", "example/symbols/", "static/vendor/",
+               "exchange/fixtures/")
 
 
 def tracked_files() -> list[str]:

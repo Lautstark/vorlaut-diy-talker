@@ -1,0 +1,36 @@
+{
+  "fixture": "identity-a",
+  "file": "identity-a.obz",
+  "spec_version": "1.0.0",
+  "summary": "Package A: name 'Nursery', id ...000a.",
+  "outcome": "accepted",
+  "package": {
+    "id": "1f0a5c2e-0000-4000-8000-00000000000a",
+    "name": "Nursery",
+    "modified": "2026-08-24T09:40:00Z",
+    "root_board": "nursery"
+  },
+  "boards": [
+    {
+      "id": "nursery",
+      "name": "Nursery",
+      "rows": 1,
+      "columns": 1
+    }
+  ],
+  "buttons": [
+    {
+      "board": "nursery",
+      "id": "k1",
+      "label": "Painting",
+      "vocalization": "I want to paint",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    }
+  ],
+  "warnings": [],
+  "notes": [
+    "Import this one first. identity-b and identity-a-v2 are only meaningful against it."
+  ]
+}

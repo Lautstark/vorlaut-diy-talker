@@ -1,0 +1,48 @@
+{
+  "fixture": "nfd-normalization",
+  "file": "nfd-normalization.obz",
+  "spec_version": "1.0.0",
+  "summary": "Archive member name is NFD; the manifest and board refer to it in NFC. The importer must still find the image.",
+  "outcome": "accepted",
+  "package": {
+    "id": "1f0a5c2e-0000-4000-8000-000000000009",
+    "name": "Normalisation",
+    "modified": "2026-08-24T09:37:00Z",
+    "root_board": "nfd"
+  },
+  "boards": [
+    {
+      "id": "nfd",
+      "name": "Normalisation",
+      "rows": 1,
+      "columns": 1
+    }
+  ],
+  "buttons": [
+    {
+      "board": "nfd",
+      "id": "n1",
+      "label": "Café",
+      "vocalization": "Café",
+      "on_activate": "append",
+      "image": "images/café.png",
+      "audio": "tts",
+      "state": "normal",
+      "reason": "found by normalising both sides to NFC before comparing"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "path_normalization",
+      "board": null,
+      "button": null,
+      "detail": "archive member name is NFD; SPEC.md 2 requires NFC"
+    }
+  ],
+  "notes": [
+    "This package is malformed - SPEC.md 2 says member names MUST be NFC - and it must import anyway. The MUST binds builders; the importer's job is to survive one that got it wrong, because the builder that gets it wrong is any builder running on macOS.",
+    "An importer that compares archive names byte for byte reports image_missing here and marks the button degraded. That is the failure this fixture exists to catch, and it is invisible on Linux, where the same builder would have written NFC and everything would have worked.",
+    "The warning is package-scoped: board and button are null. Nothing about the rendered button is wrong, so nothing is degraded - but the package still has a defect somebody should fix upstream, and SPEC.md 9.4 is where warnings that do not degrade are listed.",
+    "The expected image path is given in NFC. An importer may store either form internally; what it must not do is fail the lookup."
+  ]
+}

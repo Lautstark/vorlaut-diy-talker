@@ -1,0 +1,20 @@
+{
+  "fixture": "malformed-zip",
+  "file": "malformed-zip.obz",
+  "spec_version": "1.0.0",
+  "summary": "A structurally valid package whose central directory signature has been overwritten.",
+  "outcome": "rejected",
+  "rejection": {
+    "code": "package_unreadable",
+    "detail": "central directory signature not found"
+  },
+  "package": null,
+  "boards": [],
+  "buttons": [],
+  "warnings": [],
+  "notes": [
+    "Nothing is imported and nothing already on the device is touched. A partial import that leaves half a vocabulary in place is the failure mode this rule exists to prevent.",
+    "The importer must refuse rather than salvage, even though the local file headers in this file are intact and readable. A package that cannot be verified whole cannot be trusted in part.",
+    "The rejection must be reported to the person importing, with the package named. It does not go to the persistent warning list - nothing was imported, so there is no imported thing to attach a warning to."
+  ]
+}

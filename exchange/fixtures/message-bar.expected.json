@@ -1,0 +1,159 @@
+{
+  "fixture": "message-bar",
+  "file": "message-bar.obz",
+  "spec_version": "1.0.0",
+  "summary": "Append, :speak, :clear, :backspace, and one ext_lautstark_speak_immediately button. German content, umlauts and eszett included.",
+  "outcome": "accepted",
+  "package": {
+    "id": "1f0a5c2e-0000-4000-8000-000000000003",
+    "name": "Satzleiste",
+    "modified": "2026-08-24T09:10:00Z",
+    "tts_voice": "de_DE-thorsten-medium",
+    "root_board": "bar"
+  },
+  "boards": [
+    {
+      "id": "bar",
+      "name": "Satzleiste",
+      "locale": "de",
+      "rows": 2,
+      "columns": 4
+    }
+  ],
+  "buttons": [
+    {
+      "board": "bar",
+      "id": "w1",
+      "label": "ich",
+      "vocalization": "ich",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    },
+    {
+      "board": "bar",
+      "id": "w2",
+      "label": "will",
+      "vocalization": "will",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    },
+    {
+      "board": "bar",
+      "id": "w3",
+      "label": "Apfel",
+      "vocalization": "einen Apfel",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    },
+    {
+      "board": "bar",
+      "id": "w4",
+      "label": "Fußball",
+      "vocalization": "Fußball",
+      "on_activate": "append",
+      "audio": "tts",
+      "state": "normal"
+    },
+    {
+      "board": "bar",
+      "id": "a1",
+      "label": "Sprechen",
+      "on_activate": "speak_bar",
+      "state": "normal"
+    },
+    {
+      "board": "bar",
+      "id": "a2",
+      "label": "Löschen",
+      "on_activate": "clear",
+      "state": "normal"
+    },
+    {
+      "board": "bar",
+      "id": "a3",
+      "label": "Zurück",
+      "on_activate": "backspace",
+      "state": "normal"
+    },
+    {
+      "board": "bar",
+      "id": "x1",
+      "label": "Aua!",
+      "vocalization": "Aua!",
+      "on_activate": "speak_immediately",
+      "audio": "sounds/ouch.opus",
+      "state": "normal"
+    }
+  ],
+  "warnings": [],
+  "scenario": [
+    {
+      "step": "activate w1",
+      "bar": [
+        "ich"
+      ]
+    },
+    {
+      "step": "activate w2",
+      "bar": [
+        "ich",
+        "will"
+      ]
+    },
+    {
+      "step": "activate w3",
+      "bar": [
+        "ich",
+        "will",
+        "einen Apfel"
+      ]
+    },
+    {
+      "step": "activate a1",
+      "bar": [
+        "ich",
+        "will",
+        "einen Apfel"
+      ],
+      "spoken": "ich will einen Apfel",
+      "note": "The bar is spoken and left standing. :speak does not clear."
+    },
+    {
+      "step": "activate a3",
+      "bar": [
+        "ich",
+        "will"
+      ],
+      "note": ":backspace removes one whole entry, not one character. w3 contributed its whole vocalization as one entry and it leaves as one."
+    },
+    {
+      "step": "activate x1",
+      "bar": [
+        "ich",
+        "will"
+      ],
+      "spoken": "Aua!",
+      "note": "speak_immediately speaks and changes nothing in the bar."
+    },
+    {
+      "step": "activate a2",
+      "bar": [],
+      "note": ":clear empties the bar and speaks nothing."
+    },
+    {
+      "step": "activate w4",
+      "bar": [
+        "Fußball"
+      ],
+      "note": "Eszett through the whole path: archive, board document, bar entry and the string handed to TTS."
+    }
+  ],
+  "notes": [
+    "The content here is German because the boards that ship are German. Umlauts appear in three labels and an eszett in a fourth, so an importer that mangles UTF-8 somewhere between the zip and the bar fails this fixture rather than passing on ASCII and breaking in the field.",
+    "w3 shows why the bar holds entries rather than words: the label is one word and the vocalization is two, and :backspace has to undo the whole button press.",
+    "The bar renders labels; it speaks vocalizations."
+  ]
+}
