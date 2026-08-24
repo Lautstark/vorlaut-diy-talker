@@ -393,17 +393,23 @@ button, select, input, textarea { font-family: inherit; }
   justify-content: flex-start;
 }
 #removeSet { width: 100%; }
-/* A plane BELOW --bg - a log sunk into the page rather than sitting on it -
-   and the token set has no name for that in either scheme. It used to be the
+/* A plane BELOW --bg - a log sunk into what holds it rather than sitting on it
+   - and the token set has no name for that in either scheme. It used to be the
    literal #101216, which was a step down from a dark ground and a hole in a
    light one. Mixed out of the two tokens that do exist instead, so the step
-   is in the same direction whichever ground is underneath. */
+   is in the same direction whichever ground is underneath.
+
+   It lives in the transfer sheet now rather than under the work head, so there
+   is no `display: none` to undo any more: it exists only while there is
+   something in it. The height cap is off for the same reason - the sheet's own
+   body is the one scrolling area (see `.sheet > .body`), and a scrolling log
+   inside a scrolling sheet is two bars for one list. */
 pre.log {
-  margin-top: 12px; border: 1px solid var(--line);
+  border: 1px solid var(--line);
   background: color-mix(in oklab, var(--bg) 88%, var(--text));
   color: var(--text-dim);
   border-radius: 10px; padding: 14px; font-size: 12.5px;
-  max-height: 260px; overflow: auto; white-space: pre-wrap; display: none;
+  margin: 0; overflow-x: auto; white-space: pre-wrap;
 }
 
 /* Three columns do not fit on a phone - then the set tile across the full
@@ -612,6 +618,34 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
 .setting .note { margin: 0; font-size: 12px; color: var(--text-dim); }
 .setting .field { width: 100%; align-self: stretch; }
 .setting .field[type=password] { font-family: ui-monospace, monospace; }
+/* The transfer sheet. Three states in one body - what is about to be written,
+   the transfer with its log, and how it ended - so what is styled here is the
+   padding the settings sheet's own panels carry for themselves. The settings
+   sheet is edge-to-edge folded panels and takes the shared 22px back off (see
+   dialog.sheet above); this one is prose and a list, and wants it back. */
+.sheet > .body > .lead {
+  margin: 0; padding: 16px 16px 0; font-size: 14px; color: var(--text-dim);
+}
+/* Label and value, not a table: the labels are one word and the values are a
+   sentence, so a fixed first column reads better than either of them wrapping
+   against the other. `max-content` keeps that column as narrow as the longest
+   label, which is a different width in each language. */
+dl.transfer {
+  display: grid; grid-template-columns: max-content 1fr;
+  gap: 6px 16px; margin: 0; padding: 16px;
+}
+dl.transfer dt { color: var(--text-dim); font-size: 13px; }
+dl.transfer dd { margin: 0; font-size: 14px; }
+/* What is happening right now, above the log rather than inside it: the log is
+   what was said and this is the line that keeps being replaced. Its role is
+   status, so it is also what a screen reader hears - the page's own status
+   line is behind an aria-modal dialog while this is open, and inert. */
+.sheet > .body > .doing {
+  margin: 0; padding: 16px 16px 10px; font-size: 13px; color: var(--text-dim);
+  min-height: 1em;
+}
+.sheet > .body > .log { margin: 0 16px 16px; }
+
 /* A little air above the buttons: what now ends the body is the edge of a
    folded panel, which would otherwise sit straight on top of Save. */
 .sheet > .foot {

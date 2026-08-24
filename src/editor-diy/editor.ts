@@ -548,13 +548,12 @@ export const diy: Editor = {
 
   /* The fixed words on the controls this editor owns. They sit in the header
    * and in the board, and they are re-read on every language switch like every
-   * other label - applyTexts() calls this rather than naming these five ids
+   * other label - applyTexts() calls this rather than naming these four ids
    * itself. */
   labels(): void {
     $("previewLabel").title = t("ui.preview_title");
     $("previewText").textContent = t("ui.preview");
     $<HTMLButtonElement>("releaseBtn").textContent = t("ui.release");
-    $<HTMLButtonElement>("releaseStop").textContent = t("ui.stop");
     removeSetBtn.textContent = t("ui.remove_set");
   },
 };
