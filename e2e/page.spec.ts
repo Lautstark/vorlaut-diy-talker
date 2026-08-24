@@ -90,3 +90,46 @@ test("the settings sheet opens", async ({ page }) => {
   // the package import had gone wrong.
   await expect(page.locator("#voiceList, #voiceHint")).not.toHaveCount(0);
 });
+
+/* The one entrance to the settings is at the foot of the sidebar (design.md
+ * §3.4), and this holds that it is *reachable* there - on screen, without
+ * scrolling anything, on a window the board does not fit in.
+ *
+ * It went wrong because the frame's height was a floor rather than a height:
+ * a board taller than the window grew the page, the sidebar is stretched to
+ * the page, and its foot went down with it. So the failure was not in the
+ * sidebar at all, and it only appeared on a short window - which is every
+ * laptop, and none of the twenty-odd specs that click #settingsLink, because
+ * Playwright scrolls to whatever it clicks and never says that it had to.
+ *
+ * Hence a viewport shorter than the board and the precondition asserted
+ * outright: if the board ever fits, this test proves nothing and should say so
+ * rather than pass.
+ */
+test("the way into Einstellungen is on screen on a window the board does not fit", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.goto("./");
+  await expect(page.locator("#device .tile")).toHaveCount(5);
+
+  /* The board is taller than the window - the case this is about. Measured
+   * against the window rather than against the column's own client height:
+   * the broken layout has no scrolling column to compare with, and a
+   * precondition that only holds once the bug is fixed would abort this test
+   * on the very code it is meant to catch. */
+  const tallerThanWindow = await page.evaluate(() =>
+    document.querySelector("main")!.scrollHeight > window.innerHeight);
+  expect(tallerThanWindow, "the board fits this window, so nothing here is being tested").toBe(true);
+
+  // And the page does not scroll for it. The board does, inside its column.
+  const pageScrolls = await page.evaluate(() => {
+    const d = document.documentElement;
+    return d.scrollHeight > d.clientHeight;
+  });
+  expect(pageScrolls, "the whole page scrolls, so the sidebar scrolls away with it").toBe(false);
+
+  // The foot of the sidebar, fully within the window, with nothing scrolled.
+  const link = page.locator("#settingsLink");
+  await expect(link).toBeVisible();
+  const box = (await link.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(600);
+});
