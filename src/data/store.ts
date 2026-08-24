@@ -171,11 +171,26 @@ const EMPTY = "empty";
 
 let opening: Promise<IDBPDatabase<VorlautDB>> | null = null;
 
+/** Somebody to tell when the database cannot be opened at all.
+ *
+ * A notifier rather than a message, for the reason data/changed.ts gives about
+ * its own: this file may not reach into the page, and the sentence a person
+ * reads is in the text table with every other sentence. app.ts is what joins
+ * the two ends. */
+const stuck = new Set<() => void>();
+
+/** Listen for a database that is being held open elsewhere. The returned
+ *  function stops listening. */
+export function onBlocked(listener: () => void): () => void {
+  stuck.add(listener);
+  return () => stuck.delete(listener);
+}
+
 function open(): Promise<IDBPDatabase<VorlautDB>> {
   // One connection, reused. Opening per call works and costs a round trip
   // through the database on every keystroke's worth of saving.
   if (opening) return opening;
-  opening = openDB<VorlautDB>(DB_NAME, DB_VERSION, {
+  const pending = openDB<VorlautDB>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       // Snapshotted before the loop: objectStoreNames is live, and deleting
       // through it skips every other name.
@@ -195,8 +210,61 @@ function open(): Promise<IDBPDatabase<VorlautDB>> {
       db.createObjectStore("symbols");
       db.createObjectStore("data");
     },
+
+    /* The three that were not here, and the first one is why a browser that
+     * had been here before could open this page onto nothing.
+     *
+     * indexedDB.open() at a higher version does not fail when an older
+     * connection is still held somewhere - it fires `blocked` and waits, with
+     * no timeout and no error. Without this callback that wait is a promise
+     * which never settles, so every await in this file hangs for as long as
+     * the tab lives: no boards in the sidebar, no seed board made, the labels
+     * left in whatever language the browser guessed because load() never got
+     * far enough to adopt the one in the layout, and the buttons that would
+     * fix it all waiting on the same promise. The .catch() in app.ts cannot
+     * report it either - a promise that never settles never rejects. Shipped
+     * exactly that way on 2026-08-24, when DB_VERSION went to 3 while a tab
+     * from before the change was still open on version 2.
+     *
+     * The close() docstring below has described this hazard for
+     * deleteDatabase() all along. It is the same hazard on the open. */
+    blocked() {
+      for (const listener of stuck) listener();
+    },
+
+    /* The other end of it, and the half that actually cures it: this tab is
+     * now the stale one, holding the version a newer tab is waiting on. Let
+     * go, and it stops waiting - no reload, and nothing for anybody to read.
+     * close() lets transactions already in flight finish first.
+     *
+     * `opening` is dropped with it so the next call here opens again rather
+     * than handing out a connection that is on its way shut. That reopen is
+     * lazy: a tab nobody is touching stays out of the way.
+     *
+     * This is what would have kept 2026-08-24 from happening at all - except
+     * that the tab doing the blocking was running the build from before this
+     * code existed, which is exactly why `blocked` above has to stand on its
+     * own rather than trust the other side to yield. */
+    blocking(_currentVersion, _blockedVersion, event) {
+      (event.target as IDBDatabase).close();
+      opening = null;
+    },
+
+    /* The connection died under us - the browser reclaiming storage, or the
+     * user clearing site data from another tab. Forgetting it is the whole
+     * repair: the next call opens a new one. */
+    terminated() {
+      opening = null;
+    },
   });
-  return opening;
+  // A rejected open must not be the answer for the rest of the tab's life.
+  // opening is memoised, so without this one failure - a browser refusing
+  // storage in a private window, an upgrade that threw - would be handed to
+  // every later call forever, and nothing could retry. Guarded on identity so
+  // a slow failure cannot clear a newer attempt that has already replaced it.
+  pending.catch(() => { if (opening === pending) opening = null; });
+  opening = pending;
+  return pending;
 }
 
 /** Let go of the connection.
