@@ -36,6 +36,7 @@ import { wireLegal } from "./shell/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
 import { exportEverything } from "./data/backup.js";
 import { onChanged } from "./data/changed.js";
+import { onBlocked } from "./data/store.js";
 import { Sicherung } from "@lautstark/sicherung";
 
 /* The standing backup. `exportEverything` is what it is handed and the only
@@ -101,6 +102,19 @@ subscribeMetacom(render);
   $<HTMLButtonElement>("voiceClose").onclick = () => $<HTMLDialogElement>("voices").close();
   $<HTMLButtonElement>("azureSave").onclick = saveAzure;
   $<HTMLButtonElement>("azureForget").onclick = forgetAzureKey;
+
+  /* The one failure the chain below cannot report on its own.
+   *
+   * Everything after this reaches the database, and .catch() covers all of it
+   * - except the case where the open neither succeeds nor fails, because an
+   * older connection somewhere else is holding the version back. That waits
+   * without settling, so the catch never runs and the page sits there looking
+   * like an empty first visit. See the blocked() callback in data/store.ts.
+   *
+   * Before applyTexts() rather than after, because this is the one message
+   * whose language is genuinely the browser's guess: the layout that would say
+   * otherwise is behind the database that will not open. */
+  onBlocked(() => status(t("ui.db_blocked")));
 
   // Labels first: without them the page shows empty buttons for as long as
   // the first request takes.
