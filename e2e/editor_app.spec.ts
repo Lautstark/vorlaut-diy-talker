@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { checkPackage } from "../src/data/app_package.js";
@@ -21,6 +23,8 @@ import { readPackage } from "./obz.js";
  * real piper synthesis fetches tens of megabytes of onnx from a CDN. What is
  * real here is everything after the samples arrive.
  */
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 const label = (key: string) => new RegExp(
   `^(${LANGUAGES.map((l) =>
@@ -148,6 +152,17 @@ async function build(page: Page): Promise<void> {
   // Shows one word, says another - §7.3's case, and the one the sounds map
   // used to get wrong by keying on the label.
   await put(page, 2, { label: "Apfel", spoken: "einen Apfel", wordClass: "noun" });
+  // A picture on that one, uploaded rather than searched for: ARASAAC is a
+  // network away and this is not the test for it. An upload belongs to no
+  // symbol collection, so the package still claims none - §5.1's third value.
+  await panel(page).locator("button", { hasText: label("ui.pick_symbol") }).click();
+  await expect(page.locator("#picker")).toBeVisible();
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.locator("#uploadBtn").click(),
+  ]);
+  await chooser.setFiles(join(HERE, "fixtures", "symbol.png"));
+  await expect(cells(page).nth(2).locator("img")).toBeVisible();
   // The bar's own controls, which are §7.4 actions rather than words.
   await put(page, 10, { label: "Sprich", wordClass: "other", act: "sayBar" });
   await put(page, 11, { label: "Weg", wordClass: "other", act: "clear" });
@@ -189,7 +204,7 @@ async function build(page: Page): Promise<void> {
 
 /* --- the tests ----------------------------------------------------------- */
 
-test("a tablet Sammlung leaves as a package the spec's own checks pass",
+test("a tablet Sammlung leaves as a package, and it passes the spec's own checks",
   async ({ page }) => {
     await standIn(page);
     await build(page);
@@ -278,6 +293,14 @@ test("what a press does survives the round trip through the archive",
     // utters on Append and SpeakImmediately and on nothing else, so a clip on
     // a navigation or bar-control button would be an archive member nothing
     // can ever play.
+    // The picture, baked into the archive as pixels rather than left as a
+    // reference - which is what separates this export from the talker's.
+    const pictured = at("board-1-r1c3");
+    expect(pictured.image_id).toBeTruthy();
+    const image = start.images.find((one) => one.id === pictured.image_id)!;
+    expect(pkg.files.get(image.path)).toBeTruthy();
+    expect(image.content_type).toBe("image/png");
+
     expect(at("board-1-r1c1").sound_id).toBeTruthy();
     expect(at("board-1-r1c4").sound_id).toBeUndefined();
     expect(at("board-1-r3c1").sound_id).toBeUndefined();
