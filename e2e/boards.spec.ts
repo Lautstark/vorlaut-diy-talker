@@ -163,7 +163,7 @@ test("deleting asks first, and a dismissed question deletes nothing", async ({ p
   await newBoard(page, "Doomed");
   await expect(rows(page)).toHaveCount(2);
 
-  const dialog = page.locator("#confirm");
+  const dialog = page.getByRole("dialog", { name: label("ui.board_delete") });
 
   // Dismissed with the other button.
   await page.locator("#boardMenu").click();
@@ -171,8 +171,8 @@ test("deleting asks first, and a dismissed question deletes nothing", async ({ p
   await expect(dialog).toBeVisible();
   // It names the board and says how much goes with it - the row in the list
   // shows a name only, so "delete this" alone does not say what is inside.
-  await expect(page.locator("#confirmText")).toContainText("Doomed");
-  await page.locator("#confirmNo").click();
+  await expect(dialog.locator(".body")).toContainText("Doomed");
+  await dialog.locator(".foot button").first().click();
   await expect(dialog).not.toBeVisible();
   await expect(rows(page)).toHaveCount(2);
 
@@ -187,7 +187,7 @@ test("deleting asks first, and a dismissed question deletes nothing", async ({ p
   // And then answered.
   await page.locator("#boardMenu").click();
   await page.locator(".menu button", { hasText: label("ui.board_delete") }).click();
-  await page.locator("#confirmYes").click();
+  await dialog.locator(".foot button").last().click();
   await expect(dialog).not.toBeVisible();
   await expect(rows(page)).toHaveCount(1);
   // Never a page with no board on it: what took its place is open.
@@ -195,13 +195,53 @@ test("deleting asks first, and a dismissed question deletes nothing", async ({ p
   await expect(page.locator("#device .tile")).toHaveCount(5);
 });
 
+/* The failure that has no failing assertion.
+ *
+ * The confirm used to resolve from the dialog's `close` event alone, reading
+ * returnValue. That is the tidier shape and it hangs forever on a host that
+ * closes the dialog without firing the event: the caller sits awaiting a
+ * promise for the life of the page, and what the person sees is a button that
+ * did nothing - no error, no dialog, nothing in the console. It was found by
+ * hand, because a promise that stays pending fails no test.
+ *
+ * So the host is made into that one here. close() still hides the dialog, and
+ * fires nothing. If the shared confirm is ever simplified back to reading
+ * returnValue in a close listener, the board below survives and this goes red.
+ */
+test("a host that closes the dialog without firing the event still answers",
+  async ({ page }) => {
+    await page.addInitScript(() => {
+      const real = HTMLDialogElement.prototype.close;
+      HTMLDialogElement.prototype.close = function (value?: string) {
+        // What a close does, minus the one thing the promise must not depend on.
+        if (value !== undefined) this.returnValue = value;
+        this.removeAttribute("open");
+        void real;
+      };
+    });
+
+    await openBoard(page);
+    await newBoard(page, "Doomed");
+    await expect(rows(page)).toHaveCount(2);
+
+    await page.locator("#boardMenu").click();
+    await page.locator(".menu button", { hasText: label("ui.board_delete") }).click();
+    const sheet = page.getByRole("dialog", { name: label("ui.board_delete") });
+    await sheet.waitFor();
+    await sheet.locator(".foot button").last().click();
+
+    // The answer arrived, so the board went. Before the guard, this stayed 2.
+    await expect(rows(page)).toHaveCount(1);
+  });
+
 test("deleting the last board leaves a fresh one rather than nothing", async ({ page }) => {
   await openBoard(page);
   await expect(rows(page)).toHaveCount(1);
 
   await page.locator("#boardMenu").click();
   await page.locator(".menu button", { hasText: label("ui.board_delete") }).click();
-  await page.locator("#confirmYes").click();
+  await page.getByRole("dialog", { name: label("ui.board_delete") })
+    .locator(".foot button").last().click();
 
   // The seed steps in, the same as a first visit. A page with no board on it
   // is the one outcome that has nothing to offer.

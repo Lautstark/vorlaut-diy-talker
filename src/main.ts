@@ -42,7 +42,6 @@ import * as board from "./editor-diy/templates/board.js";
 import * as footer from "./shell/templates/footer.js";
 import * as picker from "./shell/templates/picker.js";
 import * as settingsSheet from "./shell/templates/settings_sheet.js";
-import * as confirm from "./shell/templates/confirm.js";
 import * as legal from "./shell/templates/legal.js";
 import { initTheme } from "@lautstark/design/theme";
 
@@ -60,13 +59,12 @@ frame.render();
 // below them rather than beside its own import.
 board.render(document.getElementById("editor")!,
              document.getElementById("editorTools")!);
-// Under the board, and it is the last thing in the page's flow. The four
+// Under the board, and it is the last thing in the page's flow. The three
 // after it are dialogs: they sit over everything when they are open and take
 // no room at all when they are not, so where they mount decides nothing.
 footer.render();
 picker.render();
 settingsSheet.render();
-confirm.render();
 legal.render();
 
 const { start } = await import("./app.js");

@@ -32,7 +32,7 @@ import { editor } from "../core/editor.js";
 import { state } from "../core/state.js";
 import { load, saveNow } from "../core/save.js";
 import { t } from "../core/texts.js";
-import { ask } from "./confirm.js";
+import { confirmDialog } from "@lautstark/design/dialog";
 import type { BoardList } from "../core/types.js";
 
 /** The list as it was last read. Kept so that the name field and the menu do
@@ -147,10 +147,15 @@ async function remove(): Promise<void> {
   // of them want a different word here, and a rule that covered German and
   // English would still be wrong for the third.
   const one = sets === 1 ? "_one" : "";
-  if (!await ask({
+  if (!await confirmDialog({
     title: t("ui.board_delete"),
-    text: t(`ui.board_delete_ask${one}`, { name, n: sets }),
-    go: t(`ui.board_delete_go${one}`, { n: sets }),
+    body: t(`ui.board_delete_ask${one}`, { name, n: sets }),
+    confirmLabel: t(`ui.board_delete_go${one}`, { n: sets }),
+    cancelLabel: t("ui.cancel"),
+    // Not the same word as the button beside it: two dismissals sharing an
+    // accessible name is ambiguous to anyone navigating by it.
+    closeLabel: t("ui.close"),
+    danger: true,
   })) return;
 
   await deleteBoard(id);
