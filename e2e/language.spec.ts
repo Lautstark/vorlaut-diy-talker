@@ -110,15 +110,15 @@ test("the layout is what carries it, not this browser", async ({ page }) => {
     const open = indexedDB.open("vorlaut");
     open.onerror = () => resolve(null);
     open.onsuccess = () => {
-      // Whichever Sammlung is open: there is a list of them now, and each one's
-      // layout stands under a key of its own. The language is still in the
-      // layout rather than beside it, which is the whole of what this asserts.
-      const content = open.result.transaction("content", "readonly")
-        .objectStore("content");
-      const list = content.get("collections");
-      list.onerror = () => resolve(null);
-      list.onsuccess = () => {
-        const got = content.get("layout:" + (list.result as { current: string }).current);
+      // Whichever Sammlung is open: there is a list of them now, each one's
+      // layout is a record of its own in `layouts`, and which one is open is a
+      // mark beside them. The language is still in the layout rather than
+      // beside it, which is the whole of what this asserts.
+      const tx = open.result.transaction(["marks", "layouts"], "readonly");
+      const current = tx.objectStore("marks").get("current");
+      current.onerror = () => resolve(null);
+      current.onsuccess = () => {
+        const got = tx.objectStore("layouts").get(current.result as string);
         got.onerror = () => resolve(null);
         got.onsuccess = () => {
           try {

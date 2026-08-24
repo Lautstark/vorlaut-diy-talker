@@ -35,7 +35,7 @@ import { wireSymbolFolder, wireImport, wireData, wireSources } from "./shell/set
 import { wireLegal } from "./shell/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
 import { exportEverything } from "./data/backup.js";
-import { onChanged } from "./data/store.js";
+import { onChanged } from "./data/changed.js";
 import { Sicherung } from "@lautstark/sicherung";
 
 /* The standing backup. `exportEverything` is what it is handed and the only

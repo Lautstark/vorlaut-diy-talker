@@ -36,6 +36,11 @@ import { editor } from "../core/editor.js";
 import { state } from "../core/state.js";
 import { load, saveNow } from "../core/save.js";
 import { t } from "../core/texts.js";
+// A pure rule about names, not a way out of the page - which is why it comes
+// from the module that owns it rather than through backend/index.ts. It owns it
+// because the first thing it makes safe is an object-store key; a download's
+// file name is the same question asked about a different destination.
+import { safeName } from "../data/store.js";
 import { LANG } from "../core/boot.js";
 import type { CollectionList } from "../core/types.js";
 
@@ -199,7 +204,7 @@ async function exportOne(): Promise<void> {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${nameOf(held.collections[at]!.name).replace(/[^\w.-]+/g, "_")}.obz`;
+    link.download = `${safeName(nameOf(held.collections[at]!.name))}.obz`;
     link.click();
     // Revoked later rather than here: the click returns before the browser has
     // opened the URL, and a blob revoked in that gap is a download that

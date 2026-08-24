@@ -72,17 +72,21 @@ const IDB = `
     held.onerror = () => drop(held.error);
   });
   /* The layout of whichever Sammlung is open. There is a list of them now, and
-     each one's layout stands under a key of its own, so a seed has to ask which
-     one the page is editing rather than write to a fixed key. The page has
-     loaded by the time this runs, so there is always one. */
+     each one's layout is a record of its own in "layouts", so a seed has to ask
+     which one the page is editing rather than write to a fixed key. The page has
+     loaded by the time this runs, so there is always one.
+
+     No key argument on that put: "layouts" has a keyPath of "id", so the record
+     carries its own key and passing a second one is a DataError rather than an
+     override. */
   const seedLayout = async (db, text) => {
-    const list = await get(db, "content", "collections");
-    await put(db, "content", { text, version: "seeded" },
-              "layout:" + list.current);
+    const id = await get(db, "marks", "current");
+    await put(db, "layouts", { id, text, version: "seeded" });
   };
   const put = (db, store, value, key) => new Promise((keep, drop) => {
     const tx = db.transaction([store], "readwrite");
-    tx.objectStore(store).put(value, key);
+    if (key === undefined) tx.objectStore(store).put(value);
+    else tx.objectStore(store).put(value, key);
     tx.oncomplete = keep;
     tx.onerror = () => drop(tx.error);
   });
