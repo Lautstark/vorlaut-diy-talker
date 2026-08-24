@@ -31,6 +31,29 @@ export interface BoardSet {
   slots: Slot[];
 }
 
+/** One board in the list, as the sidebar shows it: an identity and a name.
+ *
+ * The id is minted once and never changes - not on rename, not on edit, not on
+ * export. Duplicating mints a fresh one, because a copy that kept the original's
+ * would overwrite it wherever the two meet again. That is exchange/SPEC.md §8's
+ * rule for `ext_lautstark_package_id`, and this is the value that will become
+ * it; writing the id down now rather than deriving one at export time is what
+ * makes "stable for the life of the package" true rather than hoped for. */
+export interface BoardRef {
+  id: string;
+  /** Whatever somebody typed in the header. Empty is allowed - the list shows
+   *  "Board n" for it - because a board made in a hurry should not have to be
+   *  named before it can be edited. */
+  name: string;
+}
+
+/** The whole list, and which of them is open. */
+export interface BoardList {
+  boards: BoardRef[];
+  /** null only before the first board exists. */
+  current: string | null;
+}
+
 export interface Layout {
   sets: BoardSet[];
   /** Which language the device's own menu speaks. */

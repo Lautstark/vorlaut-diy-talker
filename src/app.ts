@@ -12,16 +12,26 @@
 //
 // main.ts mounts, then imports this. The ordering is then a fact about the
 // module graph rather than a convention somebody has to keep.
+//
+// This is also the composition root: the one module that names both halves of
+// the page. The shell owns the boards, the storage, the symbols, the voices
+// and the settings; editor-diy owns the five-key device. useEditor() below is
+// where the second is handed to the first, and it is the only place either
+// direction of that arrow exists - tests/unit/layers.test.ts holds the rest of
+// src/shell/ to importing nothing out of src/editor-diy/.
 import { reason } from "./core/errors.js";
-import { $, status} from "./ui/dom.js";
+import { $, status} from "./shell/dom.js";
 import { t, applyTexts } from "./core/texts.js";
 import { load, wireConflict } from "./core/save.js";
-import { wireRelease } from "./ui/release.js";
-import { render, wireEditor } from "./ui/editor.js";
-import { loadSources, wirePicker } from "./ui/picker.js";
-import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
-import { wireSymbolFolder, wireBoard, wireData, wireDevice, wireSources } from "./ui/settings.js";
-import { wireLegal } from "./ui/legal.js";
+import { useEditor } from "./core/editor.js";
+import { wireRelease } from "./editor-diy/release.js";
+import { diy, render, wireEditor } from "./editor-diy/editor.js";
+import { wireDevice } from "./editor-diy/device_panel.js";
+import { paintBoards, wireBoards } from "./shell/boards.js";
+import { loadSources, wirePicker } from "./shell/picker.js";
+import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./shell/voices.js";
+import { wireSymbolFolder, wireBoard, wireData, wireSources } from "./shell/settings.js";
+import { wireLegal } from "./shell/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
 import { exportEverything } from "./data/backup.js";
 import { onChanged } from "./data/store.js";
@@ -49,6 +59,11 @@ const backup = new Sicherung({
 onChanged(() => backup.schedule());
 
 export function start(): void {
+  // First, and before anything that could reach for it. core/texts.ts asks the
+  // editor for its own labels, core/save.ts asks it what an empty board is,
+  // and both of those run inside the wiring below.
+  useEditor(diy);
+
   wireConflict();
   // Never prompts - there is no gesture here. A folder that needs its
   // permission re-confirmed lands in needs-permission and says so in the
@@ -60,6 +75,7 @@ export function start(): void {
 // and connecting one looks like it did nothing.
 subscribeMetacom(render);
   wireEditor();
+  wireBoards();
   wirePicker();
   wireSymbolFolder();
   wireSources();
@@ -74,7 +90,12 @@ subscribeMetacom(render);
   // stop with it, and all three live in ui/release.ts.
   wireRelease();
 
+  // Two ways to the same sheet: the gear in the corner, and the quiet row at
+  // the foot of the sidebar that bildhaft puts there. Neither is a shortcut
+  // for the other - the gear is where somebody editing looks, the sidebar row
+  // is where somebody who has not started yet does.
   $<HTMLButtonElement>("gear").onclick = openVoices;
+  $<HTMLButtonElement>("settingsLink").onclick = openVoices;
   // The cross in the corner is the only way out now, because there is nothing
   // to confirm or to abandon: everything in the sheet is already written.
   $<HTMLButtonElement>("voiceClose").onclick = () => $<HTMLDialogElement>("voices").close();
@@ -85,7 +106,20 @@ subscribeMetacom(render);
   // the first request takes.
   applyTexts();
   loadSources();
+  // The sidebar, before the board it points at: the list comes out of the
+  // registry and does not wait on a layout, so drawing it first means the page
+  // is never briefly a board with no idea which board it is.
+  void paintBoards();
   // The voices are not asked for here: nothing outside the settings shows them,
   // and the sheet fetches them itself when it opens.
-  load().catch((error) => status(t("ui.load_failed", { error: reason(error) })));
+  //
+  // And again once the board is in force, because on a first visit that load
+  // is what *makes* the board: the registry is empty when the line above runs,
+  // and without this second pass the sidebar stayed empty until something else
+  // happened to redraw it - on the one visit where there is nothing else to
+  // click. e2e/boards.spec.ts is what caught it; a browser that had been here
+  // before never showed it.
+  load()
+    .then(paintBoards)
+    .catch((error) => status(t("ui.load_failed", { error: reason(error) })));
 }

@@ -1,20 +1,37 @@
-// The set tabs, the set tile and the four speech keys - everything the page
-// shows when no dialog is open, and the drag-and-drop that reorders it.
+// The five-key talker's editor: the set tabs, the set tile and the four speech
+// keys - everything the page shows when no dialog is open - and the
+// drag-and-drop that reorders it.
 //
-// dragSet, dragSlot, armedSlot and preview live here and nowhere else.
-import { $, status } from "./dom.js";
+// This is the device-specific half. Four keys to a set, at most five sets on
+// the device at once, a colour drawn round all five displays: none of that is
+// true of AAC in general and all of it is true of this hardware, which is why
+// it sits under editor-diy/ and why nothing in the shell may import it. The
+// shell reaches it through core/editor.ts instead, and `diy` at the foot of
+// this file is what it reaches.
+//
+// dragSet, dragSlot, armedSlot, preview and `current` live here and nowhere
+// else.
+import { $, status } from "../shell/dom.js";
 import { previewInto, symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
+import type { Editor } from "../core/editor.js";
+import type { Layout } from "../core/types.js";
 import { limits, palette } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save, saveSoon } from "../core/save.js";
-import { speak } from "./speech.js";
-import { openPicker } from "./picker.js";
+import { speak } from "../shell/speech.js";
+import { openPicker } from "../shell/picker.js";
 
 let dragSet = null;         // index of the dragged set
 let dragSlot = null;        // index of the dragged key
 let armedSlot = null;       // index of the key a keyboard swap starts from
 let preview = false;        // show tiles the way the display shows them
+/* Which set is being edited. It was `state.current` while the page held one
+ * board and every module that touched a set index was allowed to know about
+ * it. Now it is an index into whichever board is open, so it belongs to the
+ * thing that draws the sets, and it is reset by adopt() rather than clamped by
+ * the save loop. */
+let current = 0;
 
 // Cached rather than looked up: render() moves this button into the set
 // column on every pass, so it has to be the same element each time.
@@ -42,7 +59,7 @@ function disarmSwap() {
 async function moveSet(from, to) {
   const moved = state.layout.sets.splice(from, 1)[0];
   state.layout.sets.splice(to, 0, moved);
-  state.current = to;
+  current = to;
   await save();
   render();
   ($("tabs").children[to] as HTMLElement).focus();
@@ -132,10 +149,10 @@ export function render() {
   tabs.innerHTML = "";
   state.layout.sets.forEach((entry, index) => {
     const tab = document.createElement("div");
-    tab.className = "tab" + (index === state.current ? " active" : "")
+    tab.className = "tab" + (index === current ? " active" : "")
                   + (entry.active === false ? " off" : "");
     tab.title = entry.active === false ? t("ui.tab_off") : t("ui.tab_on");
-    tab.style.borderColor = index === state.current ? entry.color : "transparent";
+    tab.style.borderColor = index === current ? entry.color : "transparent";
     const dot = document.createElement("span");
     dot.className = "dot";
     // A property, not a composed style="..." attribute: entry.color is
@@ -144,7 +161,7 @@ export function render() {
     dot.style.background = entry.color;
     tab.appendChild(dot);
     tab.append(entry.name || t("ui.set_n", { n: index + 1 }));
-    const open = () => { state.current = index; render(); };
+    const open = () => { current = index; render(); };
     tab.onclick = open;
     // Not a <button>, although it is pressed like one: the tab is dragged to
     // reorder, and engines disagree on what dragging a button means. So the
@@ -152,7 +169,7 @@ export function render() {
     // in the tab order, acting on Enter and Space - are written out.
     tab.setAttribute("role", "button");
     tab.tabIndex = 0;
-    if (index === state.current) tab.setAttribute("aria-current", "true");
+    if (index === current) tab.setAttribute("aria-current", "true");
     tab.setAttribute("aria-keyshortcuts", "Alt+ArrowLeft Alt+ArrowRight");
     tab.onkeydown = (event) => {
       if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
@@ -202,7 +219,7 @@ export function render() {
       // otherwise the layout could not be saved at all.
       state.layout.sets.push(
         emptySet(state.layout.sets.length, activeCount() < limits.maxActive));
-      state.current = state.layout.sets.length - 1;
+      current = state.layout.sets.length - 1;
       await save();
       render();
     };
@@ -220,7 +237,7 @@ export function render() {
   const device = $("device");
   device.innerHTML = "";
   removeSetBtn.style.display = state.layout.sets.length ? "" : "none";
-  const entry = state.layout.sets[state.current];
+  const entry = state.layout.sets[current];
   if (!entry) {
     device.innerHTML = '<p style="color:var(--muted)"></p>';
     device.firstChild.textContent = t("ui.no_sets");
@@ -238,7 +255,20 @@ export function render() {
   setLabel.className = "slotNr";
   setLabel.textContent = t("ui.set_key");
   setTile.appendChild(setLabel);
-  setTile.appendChild(thumb(entry.symbol, () => openPicker({ kind: "set" }, entry.name)));
+  setTile.appendChild(thumb(entry.symbol, () => openPicker({
+    seed: entry.name,
+    // What the picker does with a chosen symbol is handed to it rather than
+    // read out of the layout by it - it has no idea what a set is, and the
+    // dialog is the shell's. Only prefill an empty field, never overwrite
+    // anything: the symbol is called "zustimmen", but your key should say
+    // "Ja!".
+    apply: async (symbol, label) => {
+      entry.symbol = symbol;
+      if (label && !entry.name.trim()) entry.name = label;
+      await save();
+      render();
+    },
+  })));
 
   if (preview) setTile.appendChild(actualSize(entry.symbol, color));
 
@@ -402,7 +432,15 @@ export function render() {
       await swapSlots(entry.slots, from, index);
     };
 
-    tile.appendChild(thumb(slot.symbol, () => openPicker({ kind: "slot", index }, slot.text)));
+    tile.appendChild(thumb(slot.symbol, () => openPicker({
+      seed: slot.text,
+      apply: async (symbol, label) => {
+        slot.symbol = symbol;
+        if (label && !slot.text.trim()) slot.text = label;
+        await save();
+        render();
+      },
+    })));
 
     const row = document.createElement("div");
     row.className = "row";
@@ -442,10 +480,74 @@ export function wireEditor() {
   removeSetBtn.onclick = async () => {
     if (!state.layout.sets.length) return;
     if (!confirm(t("ui.confirm_delete",
-                   { name: state.layout.sets[state.current].name || "" }))) return;
-    state.layout.sets.splice(state.current, 1);
-    state.current = Math.max(0, state.current - 1);
+                   { name: state.layout.sets[current].name || "" }))) return;
+    state.layout.sets.splice(current, 1);
+    current = Math.max(0, current - 1);
     await save();
     render();
   };
 }
+
+/* What the shell is handed, and the whole of what it may ask for.
+ *
+ * Five methods, and each one is a question the shell has that only the device
+ * can answer - see core/editor.ts for what each is and why it is not a general
+ * "do something to the board" hook. app.ts installs this object; nothing in
+ * src/shell/ imports this file, and tests/unit/layers.test.ts is what says so.
+ */
+export const diy: Editor = {
+  /* What a new board starts as, and it is a fact about this hardware: one set
+   * of four empty keys, in the first colour of the palette. app.py seeded
+   * content/ from example/ so that nobody met an empty screen; this is that
+   * idea at its smallest, because the examples are pictures and recordings
+   * that would have to be fetched, and an empty board somebody can type into
+   * is worth more than a wait. */
+  blank(): Layout {
+    return {
+      sleep_timeout_seconds: 600,
+      language: "de",
+      sets: [{
+        name: "",
+        symbol: "",
+        color: palette[0]!,
+        active: true,
+        slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
+      }],
+    };
+  },
+
+  /* A different board is in force. Back to its first set rather than clamped
+   * to where the last board happened to be standing: set three of the kitchen
+   * board and set three of the nursery board have nothing to do with each
+   * other, and landing on one because the other was open reads as the page
+   * having lost its place. */
+  adopt(): void {
+    current = 0;
+    render();
+  },
+
+  render,
+
+  /* A sentence somebody actually wrote, from the set on screen, so that trying
+   * a voice out is heard on the content rather than on a specimen. "" when
+   * this board has nothing typed on it yet; the settings sheet has its own
+   * specimen for that, in the reader's language, which is not this file's to
+   * choose. */
+  sample(): string {
+    const set = state.layout.sets[current];
+    const slot = (set ? set.slots || [] : []).find((entry) => (entry.text || "").trim());
+    return slot ? slot.text.trim() : "";
+  },
+
+  /* The fixed words on the controls this editor owns. They sit in the header
+   * and in the board, and they are re-read on every language switch like every
+   * other label - applyTexts() calls this rather than naming these five ids
+   * itself. */
+  labels(): void {
+    $("previewLabel").title = t("ui.preview_title");
+    $("previewText").textContent = t("ui.preview");
+    $<HTMLButtonElement>("releaseBtn").textContent = t("ui.release");
+    $<HTMLButtonElement>("releaseStop").textContent = t("ui.stop");
+    removeSetBtn.textContent = t("ui.remove_set");
+  },
+};

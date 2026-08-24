@@ -32,6 +32,75 @@ header {
 header h1 { font-size: 18px; margin: 0; font-weight: 650; letter-spacing: -.02em; }
 .logo { width: 26px; height: 26px; flex: none; }
 header .status { margin-left: auto; }
+/* The board being edited IS the page's title, so it is a field rather than a
+   heading with a pencil beside it - bildhaft's title input. Sized to the text
+   it holds, within limits, so a short name does not sit in a wide empty box
+   and a long one does not push the status line off the bar. */
+.title-input {
+  font: inherit; font-weight: 600; color: var(--text);
+  background: transparent; border: 1px solid transparent; border-radius: 8px;
+  padding: 4px 8px; min-width: 8ch; max-width: 26ch; flex: 0 1 auto;
+}
+/* It has to look like something that can be typed in before it is hovered,
+   or it reads as a heading that happens to take a caret. An outline that
+   arrives on hover is the compromise bildhaft settled on: quiet while you are
+   reading, obvious the moment you go near it. */
+.title-input:hover { border-color: var(--line); }
+.title-input:focus { border-color: var(--accent); background: var(--bg); }
+.title-input::placeholder { color: var(--text-dim); font-weight: 400; }
+.title-input:disabled { color: var(--text-dim); }
+
+/* --------------------------------------------------------------- the frame ---
+
+   A list of the boards down the side, the one being edited in the middle. It
+   is bildhaft's arrangement, which vorlaut agreed to follow: what you have
+   made on the left, what you are making in the centre.
+
+   Grid rather than flex, because the sidebar is a fixed column and the middle
+   takes what is left - minmax(0, 1fr) rather than 1fr, or the tile grid's
+   min-content width would push the whole page wider than the window. */
+.frame {
+  display: grid; grid-template-columns: 15rem minmax(0, 1fr);
+  align-items: start;
+  min-height: calc(100vh - 120px);
+}
+.sidebar {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; border-right: 1px solid var(--line);
+  background: var(--surface);
+  /* Follows the page rather than scrolling with the board: a list of five
+     boards is short, and a column that scrolls independently on a page that
+     also scrolls is two scrollbars where nobody expected one. */
+  min-height: inherit;
+}
+.sidebar__head { display: flex; align-items: center; gap: 8px; }
+.sidebar__title {
+  font-size: 12px; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-dim); margin: 0;
+}
+.sidebar__head .btn { margin-left: auto; }
+.sidebar__list { display: flex; flex-direction: column; gap: 2px; }
+/* The two quiet buttons at the foot, pushed there rather than placed: the list
+   above them grows, and they stay at the bottom of the column. */
+.sidebar__foot {
+  margin-top: auto; display: flex; flex-direction: column;
+  align-items: flex-start; gap: 2px;
+  padding-top: 10px; border-top: 1px solid var(--line);
+}
+/* One board. The name and nothing else - no set count - because at the moment
+   somebody reads this list the question is only which board this is. */
+.boardRow {
+  text-align: left; width: 100%; padding: 8px 10px; border-radius: 8px;
+  background: transparent; border: none; color: var(--text-dim);
+  font: inherit; cursor: pointer;
+  /* A long name truncates rather than wrapping the row to two lines: the rows
+     are read as a column of names and an uneven one is harder to scan than a
+     clipped one. The full name is in the header field of whichever is open. */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.boardRow:hover { background: var(--surface-2); color: var(--text); }
+.boardRow.active { background: var(--surface-2); color: var(--text); font-weight: 600; }
+
 main { max-width: 640px; margin: 0 auto; padding: 14px 20px; }
 
 /* The focus ring is components.css's - one rule, one appearance, every
@@ -248,6 +317,28 @@ pre.log {
    width and the four speech keys as a 2x2 below it. The spatial
    correspondence is preserved that way. */
 @media (max-width: 620px) {
+  /* A column beside the board costs 15rem the board does not have. The
+     sidebar becomes a row across the top of it instead - the boards scroll
+     sideways, which is what a phone does with a short list of names, and the
+     board itself keeps the full width. Hiding it outright was the other
+     option and is worse: with more than one board it is the only way to reach
+     the others, so a phone would be able to edit whichever board it happened
+     to open on and no other. */
+  .frame { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .sidebar {
+    border-right: none; border-bottom: 1px solid var(--line);
+    min-height: 0; padding: 10px 14px;
+  }
+  .sidebar__list { flex-direction: row; overflow-x: auto; gap: 6px; }
+  .boardRow { width: auto; flex: 0 0 auto; }
+  .sidebar__foot {
+    flex-direction: row; align-items: center;
+    margin-top: 0; padding-top: 8px;
+  }
+  /* The name field is the widest thing in the bar after the status line, and
+     a board named after a room and a time of day would push Release off a
+     375px screen on its own. */
+  .title-input { max-width: 12ch; }
   /* Side by side the header used to need 493px - on a 375px wide display
      the right-hand end of it fell outside, with no way to scroll to it. So
      it wraps rather than being squeezed.

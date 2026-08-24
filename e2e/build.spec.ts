@@ -58,11 +58,28 @@ import { TILE_SIZE } from "../src/data/tiles.js";
  *  has no module URL to reach, and reading the raw records is what a check of
  *  "what did the build leave" should be doing anyway. */
 const IDB = `
+  /* No version: the page has already opened this database and knows which
+     version it is at. Naming one here means guessing, and guessing low throws
+     rather than opening - which is a seed that fails as a browser bug. */
   const open = () => new Promise((keep, drop) => {
-    const request = indexedDB.open("vorlaut", 1);
+    const request = indexedDB.open("vorlaut");
     request.onsuccess = () => keep(request.result);
     request.onerror = () => drop(request.error);
   });
+  const get = (db, store, key) => new Promise((keep, drop) => {
+    const held = db.transaction([store], "readonly").objectStore(store).get(key);
+    held.onsuccess = () => keep(held.result);
+    held.onerror = () => drop(held.error);
+  });
+  /* The layout of whichever board is open. There is a list of boards now, and
+     each one's layout stands under a key of its own, so a seed has to ask
+     which board the page is editing rather than write to a fixed key. The page
+     has loaded by the time this runs, so there is always one. */
+  const seedLayout = async (db, text) => {
+    const list = await get(db, "content", "boards");
+    await put(db, "content", { text, version: "seeded" },
+              "layout:" + list.current);
+  };
   const put = (db, store, value, key) => new Promise((keep, drop) => {
     const tx = db.transaction([store], "readwrite");
     tx.objectStore(store).put(value, key);
@@ -215,10 +232,7 @@ async function seed(page: import("@playwright/test").Page) {
     }
     /* Any version string does: the page reads it, hands it straight back as
        the one it expects, and the first save replaces it with a real hash. */
-    await put(db, "content",
-              { text: ${JSON.stringify(JSON.stringify(BOARD, null, 2) + "\n")},
-                version: "seeded" },
-              "layout");
+    await seedLayout(db, ${JSON.stringify(JSON.stringify(BOARD, null, 2) + "\n")});
   })()`);
 
   /* Reloaded rather than carried on with: the Release button saves what is on

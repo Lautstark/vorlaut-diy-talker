@@ -84,7 +84,7 @@ refresh, no server of ours.
 It works on Chromium on the desktop and nowhere else — `showDirectoryPicker` is
 absent from Safari and Firefox on every platform, and from every browser on
 Android, Chrome included. So this is an addition to the download button beside
-it and never a replacement: `src/ui/backupFolder.ts` hides the offer entirely
+it and never a replacement: `src/shell/backupFolder.ts` hides the offer entirely
 unless `Sicherung.supported`, because a talker's content must not be shown a
 backup story the tablet it runs on cannot have.
 

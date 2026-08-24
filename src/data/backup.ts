@@ -13,8 +13,10 @@
  *
  * ## What is in it
  *
- * The layout, the pictures in symbols/, and the handful of settings that are
- * preferences. That is the irreplaceable set.
+ * Every board - not the one that happens to be open - the pictures in
+ * symbols/, and the handful of settings that are preferences. That is the
+ * irreplaceable set. A file holding one board out of three would be worse than
+ * no file at all, because it would look like a backup.
  *
  * ## What is deliberately not
  *
@@ -53,7 +55,10 @@ import * as store from "./store.js";
 import type { Layout, Settings } from "../core/types.js";
 
 export const BACKUP_FORMAT = "vorlaut-backup";
-export const BACKUP_VERSION = 1;
+/** 2 carries a list of boards; 1 carried the one board there was. Files of
+ *  either version are read - see importBackup - because a Sicherung's whole
+ *  job is to be readable later than it was written. */
+export const BACKUP_VERSION = 2;
 
 export interface StoredSymbol {
   name: string;
@@ -67,11 +72,28 @@ export interface SafeSettings {
   metacomRendering?: string | null;
 }
 
+/** One board in the file: what it is called, what is on it, and the identity
+ *  it keeps. The id travels so that a restore puts the same boards back rather
+ *  than copies of them - see exchange/SPEC.md §8 for why that distinction has
+ *  teeth. */
+export interface BackedBoard {
+  id: string;
+  name: string;
+  layout: Layout;
+}
+
 export interface Backup {
   format: typeof BACKUP_FORMAT;
   version: number;
   exportedAt: string;
-  layout: Layout | null;
+  /** Every board, not only the one that happened to be open. A file that
+   *  carried the open board alone would be a backup that silently loses two
+   *  children's talkers out of three. */
+  boards: BackedBoard[];
+  /** Which of them was open, so a restore opens it again. */
+  current: string | null;
+  /** Version 1 files have this instead of `boards`, and are still read. */
+  layout?: Layout | null;
   symbols: StoredSymbol[];
   settings: SafeSettings;
   notice: string;
@@ -123,8 +145,17 @@ const fromBase64 = (data: string): ArrayBuffer => {
  *  language, so the caller supplies the sentence. tests/test_language.py
  *  enforces the general form of this: German lives in boot_data.ts alone. */
 export async function exportEverything(notice: string): Promise<Backup> {
-  const held = await store.readLayout();
   const listed = await store.listFiles("symbols");
+  const held = await store.readBoards();
+
+  const boards: BackedBoard[] = [];
+  for (const board of held.boards) {
+    const layout = await store.readLayoutOf(board.id);
+    // A row in the list with nothing behind it cannot happen through any write
+    // in store.ts - both land in one transaction - but backing up a board of
+    // nulls would be worse than backing up one board fewer.
+    if (layout) boards.push({ id: board.id, name: board.name, layout });
+  }
 
   const symbols: StoredSymbol[] = [];
   for (const { name } of listed) {
@@ -138,7 +169,8 @@ export async function exportEverything(notice: string): Promise<Backup> {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    layout: held.layout,
+    boards,
+    current: held.current,
     symbols,
     settings: stripSecrets(await store.readSettings<Partial<Settings>>({})),
     notice,
@@ -150,19 +182,28 @@ export const isBackup = (data: unknown): data is Backup =>
   && (data as { format?: unknown }).format === BACKUP_FORMAT;
 
 export interface Restored {
-  /** The board that landed, so the caller can put it on screen without going
-   *  back to the store to ask what it just wrote. */
+  /** The board that is open now, so the caller can put it on screen without
+   *  going back to the store to ask what it just wrote. */
   layout: Layout | null;
+  /** How many boards landed, for the sentence the panel says. */
+  boards: number;
   symbols: number;
 }
 
 /** Puts the browser back the way the file found it.
  *
- * Unlike bildhaft's and mitreden's imports, this one **replaces**. It is the
- * honest shape for what vorlaut holds: there is one board, not a library of
- * them, and merging two layouts is not a thing anybody could describe. The
- * caller is expected to have asked first — wireBoard's import already does
- * exactly that for an .obz, and this follows it. */
+ * Unlike bildhaft's and mitreden's imports, this one **replaces**. That was
+ * argued from there being exactly one board and merging two layouts being a
+ * thing nobody could describe; there is a list of them now and the answer has
+ * not changed, for a better reason. A merge would have to decide what an
+ * arriving board and a stored board with the same id are - the same board
+ * twice, or two boards - and every answer to that is a rule the person holding
+ * the file cannot see. Replacing is a sentence somebody can be asked to agree
+ * to, and the caller is expected to ask first: wireData's import does.
+ *
+ * A version 1 file carried one board and no id. It arrives as one board with a
+ * freshly minted one, which is the honest reading - the file never named an
+ * identity, so there is none to keep. */
 export async function importBackup(backup: Backup): Promise<Restored> {
   if (typeof backup.version !== "number" || backup.version > BACKUP_VERSION) {
     throw new Error(TOO_NEW);
@@ -181,9 +222,16 @@ export async function importBackup(backup: Backup): Promise<Restored> {
     }
   }
 
-  if (backup.layout) {
-    // null, not a version: this write is meant to land on whatever is there.
-    await store.writeLayout(backup.layout, null);
+  const incoming: store.IncomingBoard[] = backup.boards?.length
+    ? backup.boards.map(({ id, name, layout }) => ({ id, name, layout }))
+    // Version 1. The board it held, unnamed, with an id minted by the store.
+    : backup.layout ? [{ name: "", layout: backup.layout }]
+      : [];
+
+  let open: Layout | null = null;
+  if (incoming.length) {
+    const list = await store.replaceBoards(incoming, backup.current ?? null);
+    open = list.current ? await store.readLayoutOf(list.current) : null;
   }
 
   const held = await store.readSettings<Partial<Settings>>({});
@@ -193,5 +241,5 @@ export async function importBackup(backup: Backup): Promise<Restored> {
   // cleared by it.
   await store.writeSettings({ ...held, ...stripSecrets(backup.settings ?? {}) } as Settings);
 
-  return { layout: backup.layout ?? null, symbols: restored };
+  return { layout: open, boards: incoming.length, symbols: restored };
 }

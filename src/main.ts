@@ -31,12 +31,19 @@ import "./styles/ui.css";
 // The page's structure. Each of these sits beside the module that owns it;
 // index.html is the shell they go into, and the order here is the order they
 // appear on screen.
-import * as header from "./ui/templates/header.js";
-import * as board from "./ui/templates/board.js";
-import * as footer from "./ui/templates/footer.js";
-import * as picker from "./ui/templates/picker.js";
-import * as settingsSheet from "./ui/templates/settings_sheet.js";
-import * as legal from "./ui/templates/legal.js";
+//
+// One of them is not the shell's. frame.ts lays out the page with a hole in
+// the middle of it - the list of boards down the side, and #editor - and
+// editor-diy fills the hole. This file and app.ts are the two that may name
+// both halves; see tests/unit/layers.test.ts.
+import * as header from "./shell/templates/header.js";
+import * as frame from "./shell/templates/frame.js";
+import * as board from "./editor-diy/templates/board.js";
+import * as footer from "./shell/templates/footer.js";
+import * as picker from "./shell/templates/picker.js";
+import * as settingsSheet from "./shell/templates/settings_sheet.js";
+import * as confirm from "./shell/templates/confirm.js";
+import * as legal from "./shell/templates/legal.js";
 import { initTheme } from "@lautstark/design/theme";
 
 // Before anything renders, though the attribute it would set is already set by
@@ -46,13 +53,20 @@ import { initTheme } from "@lautstark/design/theme";
 initTheme("vorlaut.theme");
 
 header.render();
-board.render();
-// Under the board, and it is the last thing in the page's flow. The three
+frame.render();
+// Into the hole the frame left, and into the header's slot for the controls
+// that belong to a device rather than to the page. Both are elements the two
+// templates above have just put in the document, which is why this line is
+// below them rather than beside its own import.
+board.render(document.getElementById("editor")!,
+             document.getElementById("editorTools")!);
+// Under the board, and it is the last thing in the page's flow. The four
 // after it are dialogs: they sit over everything when they are open and take
 // no room at all when they are not, so where they mount decides nothing.
 footer.render();
 picker.render();
 settingsSheet.render();
+confirm.render();
 legal.render();
 
 const { start } = await import("./app.js");

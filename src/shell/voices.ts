@@ -13,7 +13,7 @@ import { LANG, LANGUAGES, setLanguage } from "../core/boot.js";
 import { state } from "../core/state.js";
 import { applyTexts, t } from "../core/texts.js";
 import { save } from "../core/save.js";
-import { render as renderBoard } from "./editor.js";
+import { editor } from "../core/editor.js";
 import { showSources } from "./picker.js";
 import { speak } from "./speech.js";
 import { forgetKey, loadSettings, paintStates, saveSettings } from "./settings.js";
@@ -54,13 +54,12 @@ async function loadVoices() {
   }
 }
 
-// What a voice is tried out on: a sentence from the set being worked on, so
-// one hears the actual content rather than a specimen. Only if there is none
-// does the sample step in.
+// What a voice is tried out on: a sentence off the board being worked on, so
+// one hears the actual content rather than a specimen. Which sentence is the
+// editor's answer - it is the one that knows where somebody is standing - and
+// only if it has none does the specimen step in.
 function sampleText() {
-  const set = state.layout.sets[state.current];
-  const slot = (set ? set.slots || [] : []).find((entry) => (entry.text || "").trim());
-  return slot ? slot.text.trim() : t("ui.voice_sample");
+  return editor().sample() || t("ui.voice_sample");
 }
 
 /* stimmquelle publishes three, and a corpus of several speakers is `mixed`
@@ -483,7 +482,7 @@ async function chooseLanguage(code: string) {
   paintLanguage();
   paintStates();
   renderVoices();
-  renderBoard();
+  editor().render();
   showSources();
   await save();
 }

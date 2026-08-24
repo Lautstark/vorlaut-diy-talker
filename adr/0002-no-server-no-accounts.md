@@ -90,7 +90,7 @@ content.
   *they* chose carries the file. That is the whole of the cloud story.
 - **`sicherung` works on Chromium on the desktop and nowhere else.**
   `showDirectoryPicker` is missing from Safari, from Firefox, and from every
-  browser on Android. `src/ui/backupFolder.ts` therefore hides the offer rather
+  browser on Android. `src/shell/backupFolder.ts` therefore hides the offer rather
   than showing a promise the tablet cannot keep.
 - **ARASAAC sees the user's IP address.** The old Python server proxied symbol
   search so that the page never talked to the outside; with no server there is

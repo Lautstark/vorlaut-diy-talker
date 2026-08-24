@@ -5,6 +5,13 @@
 // in the browser, named after the folders they stand in for, so that reading
 // one against the other stays possible while both exist.
 //
+// One of the four has grown a dimension since. There is a *list* of boards now
+// - one per child, one per room - so where content/layout.json was one file,
+// this holds a registry and a layout per board. The two folders underneath are
+// not per board and are not meant to be: symbols/ is a picture store keyed by
+// name, and two boards using the same ARASAAC symbol should hold one copy of
+// it; data/ is one build, because one board at a time goes on the device.
+//
 // IndexedDB rather than the File System Access API, and that is a decision
 // rather than a default. A folder the user picks is the nicer story - it is
 // theirs, they can see it, a backup finds it - but it is Chromium only, and a
@@ -18,25 +25,45 @@
 // for sites that go unvisited, and no page is told before it happens. So this
 // is where the content lives, not where it is safe, and an export somebody can
 // put somewhere real is owed before anyone keeps a child's talker in here
-// alone. That is not built yet and is the next thing after this.
+// alone. That is data/backup.ts, and it carries every board rather than the
+// one that happens to be open - a backup that saved one talker out of three
+// would be worse than none, because it would look like one.
 
-import type { HeldLayout, Layout, SaveResult, Settings } from "../core/types.js";
+import type { BoardList, HeldLayout, Layout, SaveResult, Settings } from "../core/types.js";
 
 /** The three object stores this database has. Named rather than left as a
  *  string, so that a typo is a compile error instead of a silent empty read. */
 export type StoreName = "symbols" | "data" | "speech";
 
 const DB_NAME = "vorlaut";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Named for the folders in content/, deliberately.
-const CONTENT = "content";      // layout.json and the settings, one record each
+const CONTENT = "content";      // the boards and the settings, one record each
 const SYMBOLS = "symbols";      // what /api/pick and /api/upload put in symbols/
 const DATA = "data";            // what a build puts in data/, for the cable
 
-const LAYOUT = "layout";
+/** Where the one board lived while there was only one. Read by the migration
+ *  in migrate() and by nothing else; see the note there. */
+const ONE_LAYOUT = "layout";
+const BOARDS = "boards";        // the list, and which of them is open
 const SETTINGS = "settings";
 const BUILT = "built";          // the layout version a build last ran against
+
+/** One board's layout, by id. A prefix rather than a store of its own: the
+ *  registry and the layouts have to move together when a board is made or
+ *  deleted, and one object store is one transaction. */
+const layoutKey = (id: string): string => `layout:${id}`;
+
+/** A board's identity, minted once and never derived from its contents.
+ *
+ * crypto.randomUUID() rather than a counter or a hash of the name: two boards
+ * may share a name, a name may be renamed, and a duplicate must not be able to
+ * collide with its original. See exchange/SPEC.md §8 for what this value is
+ * eventually for. */
+const mintId = (): string => crypto.randomUUID();
+
+const NO_BOARDS: BoardList = { boards: [], current: null };
 
 // The same sentinel app.py answers with for a layout.json that is not there,
 // so that "nothing saved yet" reads the same on both sides.
@@ -77,16 +104,65 @@ function open(): Promise<IDBDatabase> {
   if (opening) return opening;
   opening = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
       for (const name of [CONTENT, SYMBOLS, DATA]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name);
       }
+      // The versionchange transaction, which is the only one that exists here
+      // and is the one everything below has to run inside.
+      migrate(request.transaction!, event.oldVersion);
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
   return opening;
+}
+
+/* The board somebody already has, kept.
+ *
+ * Version 1 of this database held one layout, under one key. Version 2 holds a
+ * list, and every board's layout under a key of its own. Somebody who opened
+ * this page yesterday has a talker's worth of work under the old key, and an
+ * upgrade that quietly started from an empty list would look exactly like the
+ * browser having thrown the storage away - which store.ts warns can genuinely
+ * happen, and which is the one failure nobody would question.
+ *
+ * So the record moves across whole, stamp and all: the version in it is a hash
+ * of the bytes, the build stamp is compared against that hash, and rewriting
+ * the record here - even to identical bytes - would be a new stamp and a build
+ * that suddenly claimed to be stale. What arrives is board number one, open,
+ * and unnamed; the list draws "Board 1" for a board nobody has named, because
+ * a name invented down here would be in whichever language this file does not
+ * have.
+ *
+ * In the upgrade transaction rather than lazily on first read, so it happens
+ * once, before anything can read half of it, and cannot be interleaved with a
+ * write. It is guarded on the registry rather than on the version number as
+ * well, which costs one get and means a half-finished upgrade re-runs cleanly.
+ *
+ * tests/unit/store_migration.test.ts opens a real version 1 database, puts a
+ * board in it, and asks for it back through the ordinary reads.
+ */
+function migrate(tx: IDBTransaction, from: number): void {
+  // 0 is a database that did not exist. There is nothing to carry, and
+  // loadLayout() seeds a first board through the ordinary path.
+  if (from < 1) return;
+  const content = tx.objectStore(CONTENT);
+  const listed = content.get(BOARDS);
+  listed.onsuccess = () => {
+    if (listed.result) return;                 // already a list of boards
+    const held = content.get(ONE_LAYOUT);
+    held.onsuccess = () => {
+      if (!held.result) return;                // nothing was ever saved
+      const id = mintId();
+      content.put(held.result, layoutKey(id));
+      content.put({ boards: [{ id, name: "" }], current: id } as BoardList, BOARDS);
+      // Deleted rather than left as a second copy: two records claiming to be
+      // the board is how a later reader picks the wrong one.
+      content.delete(ONE_LAYOUT);
+    };
+  };
 }
 
 // Everything here goes through one of these, and the shape is not decoration.
@@ -163,12 +239,217 @@ export async function versionOf(text: string): Promise<string> {
     .slice(0, 16);
 }
 
+/* --- The list of boards ------------------------------------------------------
+ *
+ * One page edits one board at a time, and which one is a fact about this
+ * browser rather than about any board - so it is stored beside the list rather
+ * than passed into every read. readLayout() and writeLayout() therefore keep
+ * the signatures they had while there was only ever one board: they mean "the
+ * board in force", and everything that used them still means what it said.
+ *
+ * The alternative was an id argument on both, threaded through the seam, the
+ * save loop and the build. That reads as though a caller could sensibly write
+ * to a board other than the one on screen, and none of them can: the input
+ * fields hang off state.layout, and a write elsewhere would be a save nobody
+ * could see land.
+ */
+
+export async function readBoards(): Promise<BoardList> {
+  const db = await open();
+  const box = await run(db, [CONTENT], "readonly", (tx, out) => {
+    const held = tx.objectStore(CONTENT).get(BOARDS);
+    held.onsuccess = () => { out.list = held.result || null; };
+  });
+  return (box.list as BoardList) || NO_BOARDS;
+}
+
+/** A new board, holding the layout it was handed, open straight away.
+ *
+ * The layout comes from the caller because what an empty board is depends on
+ * the device - see core/editor.ts. This file knows how to keep one and nothing
+ * about what is in it. */
+export async function createBoard(name: string, layout: Layout): Promise<string> {
+  const text = serialise(layout);
+  const version = await versionOf(text);
+  const id = mintId();
+
+  const db = await open();
+  await run(db, [CONTENT], "readwrite", (tx) => {
+    const store = tx.objectStore(CONTENT);
+    const listed = store.get(BOARDS);
+    listed.onsuccess = () => {
+      const list = (listed.result as BoardList) || NO_BOARDS;
+      store.put({ text, version }, layoutKey(id));
+      store.put({ boards: [...list.boards, { id, name }], current: id }, BOARDS);
+    };
+  });
+  touched();
+  return id;
+}
+
+/** The same board again, under an identity of its own.
+ *
+ * The fresh id is the whole point and is minted here rather than by the caller,
+ * so that "duplicate" cannot be written anywhere in this repository in a way
+ * that inherits one. exchange/SPEC.md §8 says what it costs when it is: a copy
+ * that kept its original's id silently replaces that original on the viewer,
+ * taking a vocabulary somebody depends on with it.
+ *
+ * The bytes are copied, not the version - a second record with the same stamp
+ * would make two different boards look like one board written twice, which is
+ * exactly what the conflict check reads that stamp for. It is the same bytes,
+ * so it hashes to the same value anyway; recomputing it is what makes that a
+ * fact about the copy rather than an inheritance.
+ */
+export async function duplicateBoard(id: string, name: string): Promise<string> {
+  const held = await readLayoutOf(id);
+  if (!held) throw new Error(`no such board: ${id}`);
+  return await createBoard(name, held);
+}
+
+export async function renameBoard(id: string, name: string): Promise<void> {
+  const db = await open();
+  await run(db, [CONTENT], "readwrite", (tx) => {
+    const store = tx.objectStore(CONTENT);
+    const listed = store.get(BOARDS);
+    listed.onsuccess = () => {
+      const list = (listed.result as BoardList) || NO_BOARDS;
+      if (!list.boards.some((board) => board.id === id)) return;
+      store.put({
+        ...list,
+        boards: list.boards.map((board) => board.id === id ? { ...board, name } : board),
+      }, BOARDS);
+    };
+  });
+  touched();
+}
+
+/** Gone, with its layout.
+ *
+ * What is open afterwards is the board that took its place in the list, or the
+ * last one if it was the last - never nothing while there is still a board to
+ * show. Deleting the only board leaves the list empty on purpose: loadLayout()
+ * seeds a fresh one, which is what a first visit gets, and is a better answer
+ * than a page with no board on it.
+ */
+export async function deleteBoard(id: string): Promise<void> {
+  const db = await open();
+  await run(db, [CONTENT], "readwrite", (tx) => {
+    const store = tx.objectStore(CONTENT);
+    const listed = store.get(BOARDS);
+    listed.onsuccess = () => {
+      const list = (listed.result as BoardList) || NO_BOARDS;
+      const at = list.boards.findIndex((board) => board.id === id);
+      if (at < 0) return;
+      const left = list.boards.filter((board) => board.id !== id);
+      const current = list.current !== id ? list.current
+        : left.length ? left[Math.min(at, left.length - 1)]!.id
+          : null;
+      store.delete(layoutKey(id));
+      store.put({ boards: left, current }, BOARDS);
+    };
+  });
+  touched();
+}
+
+/** Which board the page is editing. */
+export async function useBoard(id: string): Promise<void> {
+  const db = await open();
+  await run(db, [CONTENT], "readwrite", (tx) => {
+    const store = tx.objectStore(CONTENT);
+    const listed = store.get(BOARDS);
+    listed.onsuccess = () => {
+      const list = (listed.result as BoardList) || NO_BOARDS;
+      if (!list.boards.some((board) => board.id === id)) return;
+      store.put({ ...list, current: id }, BOARDS);
+    };
+  });
+  // Which board is open is part of what a Sicherung puts back, so it counts as
+  // a change to it. Debounced inside Sicherung, so clicking down a list of
+  // boards is one file rather than one per click.
+  touched();
+}
+
+/** What a restore hands over: a board, and its id if the file carried one.
+ *
+ * A backup written by this version carries ids and they are kept - a restore
+ * puts the same boards back, not copies of them, and the id is what says so.
+ * A backup from the single-board version has none, so one is minted here
+ * rather than in the importer: this file is where ids come from. */
+export interface IncomingBoard {
+  id?: string;
+  name: string;
+  layout: Layout;
+}
+
+/** Every board, replaced by these.
+ *
+ * Wholesale rather than merged, which is data/backup.ts's decision and its
+ * note says why. What this file adds is that it happens in one transaction:
+ * a restore that failed halfway between deleting and writing would leave a
+ * browser with no board at all, and the whole point of the file is to be the
+ * way back from that.
+ */
+export async function replaceBoards(incoming: IncomingBoard[],
+                                    current: string | null): Promise<BoardList> {
+  // Hashed before the transaction, like every other write here - see run().
+  const written = [];
+  for (const board of incoming) {
+    const text = serialise(board.layout);
+    written.push({ id: board.id || mintId(), name: board.name, text,
+                   version: await versionOf(text) });
+  }
+  const list: BoardList = {
+    boards: written.map(({ id, name }) => ({ id, name })),
+    // A named board that is not in the file is not the one to open.
+    current: written.some((board) => board.id === current) ? current
+      : written.length ? written[0]!.id : null,
+  };
+
+  const db = await open();
+  await run(db, [CONTENT], "readwrite", (tx) => {
+    const store = tx.objectStore(CONTENT);
+    const listed = store.get(BOARDS);
+    listed.onsuccess = () => {
+      for (const board of ((listed.result as BoardList) || NO_BOARDS).boards) {
+        store.delete(layoutKey(board.id));
+      }
+      for (const board of written) {
+        store.put({ text: board.text, version: board.version }, layoutKey(board.id));
+      }
+      store.put(list, BOARDS);
+    };
+  });
+  touched();
+  return list;
+}
+
+/** One board's layout by id, without making it the one in force.
+ *
+ * The backup is the caller: it carries every board, and reading them one at a
+ * time through "the board in force" would mean switching boards to back them
+ * up, which is a side effect on the page nobody asked for. */
+export async function readLayoutOf(id: string): Promise<Layout | null> {
+  const db = await open();
+  const box = await run(db, [CONTENT], "readonly", (tx, out) => {
+    const held = tx.objectStore(CONTENT).get(layoutKey(id));
+    held.onsuccess = () => { out.record = held.result || null; };
+  });
+  return box.record ? JSON.parse(box.record.text) : null;
+}
+
 export async function readLayout(): Promise<HeldLayout> {
   const db = await open();
   const box = await run(db, [CONTENT], "readonly", (tx, out) => {
     const store = tx.objectStore(CONTENT);
-    const held = store.get(LAYOUT);
-    held.onsuccess = () => { out.record = held.result || null; };
+    out.record = null;
+    const listed = store.get(BOARDS);
+    listed.onsuccess = () => {
+      const current = ((listed.result as BoardList) || NO_BOARDS).current;
+      if (!current) return;
+      const held = store.get(layoutKey(current));
+      held.onsuccess = () => { out.record = held.result || null; };
+    };
     const built = store.get(BUILT);
     built.onsuccess = () => { out.built = built.result || null; };
   });
@@ -199,21 +480,35 @@ export async function writeLayout(layout: Layout, expected: string | null): Prom
   const db = await open();
   return run(db, [CONTENT], "readwrite", (tx, out) => {
     const store = tx.objectStore(CONTENT);
-    const held = store.get(LAYOUT);
-    held.onsuccess = () => {
-      const current = held.result ? held.result.version : EMPTY;
-      if (expected && expected !== current) {
-        out.conflict = true;
-        tx.abort();
-        return;
+    const listed = store.get(BOARDS);
+    listed.onsuccess = () => {
+      const list = (listed.result as BoardList) || NO_BOARDS;
+      // A write with no board to write to makes one. That is the first visit -
+      // loadLayout() seeds a board by writing it - and it happens here rather
+      // than in the seam so that the registry and the layout land in the one
+      // transaction: a board in the list with no layout behind it is a row
+      // that opens onto nothing.
+      let id = list.current;
+      if (!id) {
+        id = mintId();
+        store.put({ boards: [...list.boards, { id, name: "" }], current: id }, BOARDS);
       }
-      store.put({ text, version }, LAYOUT);
-      const built = store.get(BUILT);
-      built.onsuccess = () => {
-        out.conflict = false;
-        out.saved = JSON.parse(text);
-        out.version = version;
-        out.buildCurrent = built.result === version ? "1" : "0";
+      const held = store.get(layoutKey(id));
+      held.onsuccess = () => {
+        const current = held.result ? held.result.version : EMPTY;
+        if (expected && expected !== current) {
+          out.conflict = true;
+          tx.abort();
+          return;
+        }
+        store.put({ text, version }, layoutKey(id!));
+        const built = store.get(BUILT);
+        built.onsuccess = () => {
+          out.conflict = false;
+          out.saved = JSON.parse(text);
+          out.version = version;
+          out.buildCurrent = built.result === version ? "1" : "0";
+        };
       };
     };
   }).then((result) => {
