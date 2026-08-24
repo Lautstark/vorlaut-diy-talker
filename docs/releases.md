@@ -132,21 +132,52 @@ looks for what it has not released yet, and finds nothing before the first
 `feat:` or `fix:`. The first release will therefore contain only what happened
 after the convention started, and that is the correct answer rather than a gap.
 
-### The hook
+### The gate is CI, not the hook
 
-There is nowhere in CI to check this. The repository is trunk-based, branches
-are merged locally into `main` without a pull request, so a check that runs on
-pull requests never runs. [`.githooks/commit-msg`](../.githooks/commit-msg)
-runs instead, at the moment the message is written.
+[`.github/workflows/commit-messages.yml`](../.github/workflows/commit-messages.yml)
+checks every non-merge commit in a push, on `main` and on `claude/**` branches,
+and fails if one has no prefix. It has no `paths:` filter: every other workflow
+here runs only when something it checks changed, and this one checks the
+commits themselves.
 
-Turn it on once per clone — git does not carry hooks:
+This was a hook first, and a hook was the wrong shape. `core.hooksPath` is
+per-clone opt-in, and the thing it guards fails *silently* — a commit with no
+prefix lands with no changelog entry, no version bump, and no complaint. A
+silent failure guarded by a check somebody has to remember to switch on is not
+guarded. It is also the same failure that path-filtering exists to prevent,
+arriving through a different door.
+
+**Commits written before the convention existed are not held to it**, and the
+boundary needs no marker file: the workflow skips any commit whose tree does
+not contain `tools/check-commit-subject.sh`. A commit written before the rule
+shipped could not have followed it. That test survives rebases, needs no
+maintenance, and stops mattering by itself once those commits are behind every
+range anybody pushes.
+
+### The hook, still there
+
+[`.githooks/commit-msg`](../.githooks/commit-msg) remains as a convenience,
+because CI tells you *after* the push — when the commit is already history and
+fixing it means rewriting a branch. The hook tells you while the message is
+still in the editor.
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-It lets merge commits, reverts and `fixup!` through untouched, and explains
-itself when it stops something. `git commit --no-verify` overrides it.
+Once per clone. In a worktree it is inherited: worktrees share the main
+repository's config, so setting it once covers all of them — a fresh *clone* is
+the case that starts without it, and the reason the gate is in CI.
+
+It lets merge commits, reverts and `fixup!` through untouched, and
+`git commit --no-verify` overrides it.
+
+### One rule, one file
+
+Both the hook and the workflow call
+[`tools/check-commit-subject.sh`](../tools/check-commit-subject.sh), which is
+the only place the pattern and the explanation are written. A rule that exists
+twice gets relaxed once, and then the two disagree about what landed.
 
 ### Renovate agrees with all of this
 
