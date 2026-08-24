@@ -17,7 +17,7 @@
 import { Sicherung, type Status } from "@lautstark/sicherung";
 import { LANG } from "../core/boot.js";
 import { t } from "../core/texts.js";
-import { actionsFor, ago as relative } from "@lautstark/sicherung/ui";
+import { actionsFor, ago as relative, needsAttention } from "@lautstark/sicherung/ui";
 import { $ } from "./dom.js";
 
 /* "vor 3 Minuten" / "3 minutes ago", against the language in force.
@@ -109,6 +109,13 @@ export function wireBackupFolder(backup: Sicherung, say: (message: string) => vo
     // data-state takes the kind verbatim - components.css keys off exactly
     // these names, so there is no mapping here to disagree with it.
     line.setAttribute("data-state", status.kind);
+    /* Whether this state is somebody's to act on is the package's answer, not
+     * a judgement made here - the same arrangement as the buttons below. All
+     * three products drew `needs-permission` as one more grey line beside
+     * "gesichert vor 3 Minuten", which is what it looks like when each of them
+     * decides for itself. conventions.md §3.7. */
+    line.classList.toggle("notice", needsAttention(status));
+    line.classList.toggle("bad", needsAttention(status));
     line.textContent = "";
     const dot = document.createElement("span");
     dot.className = "dot";

@@ -47,6 +47,9 @@ export async function restoreMetacom() {
 }
 
 export const metacomStatus = () => metacom.status();
+/** Whether a provider state is one somebody has to act on - the package's
+ *  answer, so that two products cannot disagree about it. */
+export { needsAttention } from "@lautstark/bildquelle";
 export const metacomReady = () => metacom.isReady();
 /** How many image files were indexed. A count, never the list. */
 export const metacomCount = () => metacom.symbolCount;
