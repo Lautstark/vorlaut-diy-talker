@@ -58,11 +58,28 @@ import { TILE_SIZE } from "../src/data/tiles.js";
  *  has no module URL to reach, and reading the raw records is what a check of
  *  "what did the build leave" should be doing anyway. */
 const IDB = `
+  /* No version: the page has already opened this database and knows which
+     version it is at. Naming one here means guessing, and guessing low throws
+     rather than opening - which is a seed that fails as a browser bug. */
   const open = () => new Promise((keep, drop) => {
-    const request = indexedDB.open("vorlaut", 1);
+    const request = indexedDB.open("vorlaut");
     request.onsuccess = () => keep(request.result);
     request.onerror = () => drop(request.error);
   });
+  const get = (db, store, key) => new Promise((keep, drop) => {
+    const held = db.transaction([store], "readonly").objectStore(store).get(key);
+    held.onsuccess = () => keep(held.result);
+    held.onerror = () => drop(held.error);
+  });
+  /* The layout of whichever Sammlung is open. There is a list of them now, and
+     each one's layout stands under a key of its own, so a seed has to ask which
+     one the page is editing rather than write to a fixed key. The page has
+     loaded by the time this runs, so there is always one. */
+  const seedLayout = async (db, text) => {
+    const list = await get(db, "content", "collections");
+    await put(db, "content", { text, version: "seeded" },
+              "layout:" + list.current);
+  };
   const put = (db, store, value, key) => new Promise((keep, drop) => {
     const tx = db.transaction([store], "readwrite");
     tx.objectStore(store).put(value, key);
@@ -215,10 +232,7 @@ async function seed(page: import("@playwright/test").Page) {
     }
     /* Any version string does: the page reads it, hands it straight back as
        the one it expects, and the first save replaces it with a real hash. */
-    await put(db, "content",
-              { text: ${JSON.stringify(JSON.stringify(BOARD, null, 2) + "\n")},
-                version: "seeded" },
-              "layout");
+    await seedLayout(db, ${JSON.stringify(JSON.stringify(BOARD, null, 2) + "\n")});
   })()`);
 
   /* Reloaded rather than carried on with: the Release button saves what is on
@@ -509,7 +523,7 @@ test("the build can be written into a folder, and says what it wrote",
   await seed(page);
   const built = await release(page);
 
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
   const panel = page.locator("#devicePanel");
   // Chromium has the picker, so the panel is offered rather than hidden.
@@ -634,7 +648,7 @@ test("the port is asked for once, and the next press goes straight through",
 
   // The settings still offer a way to change it, which is the other half of
   // "asked once": a wrong port must not be a page reload to undo.
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   const panel = page.locator("#devicePanel");
   await panel.locator("summary").click();
   await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_connected"]);
@@ -657,7 +671,7 @@ test("the folder export builds first when there is nothing built",
   await seed(page);
 
   // Deliberately no press of the release button: nothing has been built.
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   const panel = page.locator("#devicePanel");
   await panel.locator("summary").click();
   await panel.locator("#buildExport").click();

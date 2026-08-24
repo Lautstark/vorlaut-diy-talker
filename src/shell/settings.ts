@@ -4,23 +4,22 @@
 //
 // This is the lower half of the settings sheet. The sheet itself, and its one
 // Save, are in voices.js.
-import { $, closeMenus, menuOn, status } from "./dom.js";
-import { reason, Trouble } from "../core/errors.js";
+import { $, status } from "./dom.js";
+import { menuOn } from "@lautstark/design/menu";
+import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
-import { readSettings, writeSettings, exportBoard, importBoard, azureState,
-  chooseBuildFolder, writeBuildTo, folderExportSupported } from "../backend/index.js";
+import { readSettings, writeSettings, importBoard, azureState, createCollection,
+  useCollection } from "../backend/index.js";
 import { applyTheme, readTheme, saveTheme, THEMES, type Theme }
   from "@lautstark/design/theme";
 import { t } from "../core/texts.js";
 import { LANG } from "../core/boot.js";
-import { replaceLayout } from "../core/save.js";
+import { load } from "../core/save.js";
+import { paintCollections } from "./collections.js";
 import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
 import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
 import { paintBackupFolder, wireBackupFolder } from "./backupFolder.js";
-import { connectDevice, haveDevice, onDevices } from "./device.js";
-import { buildNow } from "./release.js";
-import { buildIsCurrent } from "../data/built.js";
 import type { Sicherung } from "@lautstark/sicherung";
 
 let settings: Settings = { azureKey: { set: false, hint: "" }, azureRegion: "",
@@ -129,7 +128,6 @@ function renderRenderings() {
   pick.onclick = () => menuOn(pick, (add) => {
     const live = symbols.preferredRendering() || null;
     const choose = (chosen: string | null) => () => {
-      closeMenus();
       // Told to the provider and written down, in that order: the provider
       // ranks the next search by it, and without the second half the choice
       // lasted exactly as long as the tab did.
@@ -250,12 +248,27 @@ export function paintStates() {
   // the folder rather than from here - it is the one panel whose sentence is
   // built from a status this file never sees.
   paintBackupFolder();
-  // And the Device panel's, for the same reason: it says whether a port has
-  // been granted, which is a state rather than a label, so applyTexts() never
-  // touches it. Without this it kept whatever language the page started in -
-  // and the page starts in the browser's and then adopts the board's, so on a
-  // German board this line was reliably the one English sentence on screen.
-  paintDevice();
+  // And every panel this file does not own, for the same reason. The Device
+  // panel is the one there is: it says whether a port has been granted, which
+  // is a state rather than a label, so applyTexts() never touches it. Without
+  // this it kept whatever language the page started in - and the page starts
+  // in the browser's and then adopts the board's, so on a German board that
+  // line was reliably the one English sentence on screen.
+  //
+  // Through a list rather than by name, because the panel belongs to
+  // editor-diy now and the shell may not import it. Registering is how a panel
+  // that draws its own state asks to be included in a language switch.
+  for (const paint of painters) paint();
+}
+
+/* Panels wired outside this file, redrawn whenever the language moves. */
+const painters: (() => void)[] = [];
+
+/** Ask to be redrawn with the rest of the sheet. Called at wiring time, so a
+ *  panel that hid itself for want of a browser feature never registers and is
+ *  never asked. */
+export function onPaintPanels(listener: () => void): void {
+  painters.push(listener);
 }
 
 /** The languages this page offers, by their own names. */
@@ -282,51 +295,53 @@ function renderHere() {
   $<HTMLButtonElement>("metacomForget").hidden = !symbols.metacomReady();
 
   const state = symbols.metacomStatus();
-  if (symbols.metacomReady()) {
-    $("metacomHereState").textContent = t("ui.metacom_here_ok", {
+  const line = $("metacomHereState");
+  /* The one state that is a thing to do rather than a thing to read: the folder
+   * is still here and the browser has downgraded the permission on it, which
+   * Chromium does between visits. It is drawn as a warning rather than as
+   * another grey note, because the collection is silently unavailable until
+   * somebody presses the button above - and a grey line saying so reads like
+   * the others, which are all descriptions. components.css's .notice.bad. */
+  const needsAccess = state.kind === "needs-setup" && state.code === "permission-needed";
+  line.className = needsAccess ? "notice bad" : "note";
+
+  if (needsAccess) {
+    line.textContent = t("ui.metacom_confirm");
+  } else if (symbols.metacomReady()) {
+    line.textContent = t("ui.metacom_here_ok", {
       count: symbols.metacomCount(),
       root: symbols.metacomRoot(),
     });
   } else if (state.kind === "loading") {
-    $("metacomHereState").textContent = t("ui.metacom_here_busy");
+    line.textContent = t("ui.metacom_here_busy");
   } else if (state.kind === "error") {
-    $("metacomHereState").textContent = t("ui.metacom_here_failed");
+    line.textContent = t("ui.metacom_here_failed");
   } else {
-    $("metacomHereState").textContent = t("ui.metacom_here_none");
+    line.textContent = t("ui.metacom_here_none");
   }
 }
 
-/* ------------------------------------------------- the board as a document ---
+/* ------------------------------------------ a Sammlung as a document ---
  *
- * Open Board Format, which is what other AAC software reads. The buttons live
- * in the settings sheet rather than the header because this is not something
- * anybody does while editing - it is how a board leaves or arrives.
+ * Open Board Format, which is what other AAC software reads. Only the way *in*
+ * is here: exporting is in the work head's ⋯, beside the Sammlung it would
+ * export, because that is an act on one particular Sammlung and this is not.
+ *
+ * **It adds; it never replaces.** A file arriving joins the Sammlungen already
+ * here, as a new one, named after the file it came from. Replacing was the old
+ * behaviour and the argument for it was thin: the two acts are asked for in
+ * different words - "open this" and "put my machine back" - and only the second
+ * is destructive. Replacing on import made the file's contents and the
+ * library's mutually exclusive for no reason anybody asked for; the person has
+ * both, and wanted both. conventions.md §1.10.
+ *
+ * There is nothing to confirm, which is the other half of adding: nothing is
+ * lost, so nothing has to be agreed to first.
  */
-export function wireBoard() {
-  $<HTMLButtonElement>("boardExport").onclick = async () => {
-    $("boardState").textContent = "";
-    try {
-      const blob = await exportBoard();
-      // Handed to the browser as a download rather than kept anywhere: the
-      // point of the export is that it leaves.
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "board.obz";
-      link.click();
-      // Revoked later rather than here. The click returns before the browser
-      // has opened the URL, and a blob revoked in that gap is a download that
-      // silently never begins - the e2e's waitForEvent("download") is what
-      // caught it. A minute is arbitrary and generous; the cost of holding a
-      // small blob that long is nothing next to an export that sometimes
-      // does not happen.
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      $("boardState").textContent = t("ui.board_exported");
-    } catch (error) {
-      $("boardState").textContent = t("ui.board_failed", { error: reason(error) });
-    }
-  };
-
+export function wireImport() {
+  // One way in, and it is here rather than in the sidebar: the sidebar holds
+  // the list, the way to make one, and the way out of the page. Importing is
+  // rare, and it belongs beside the prose that says what the format is.
   $<HTMLButtonElement>("boardImport").onclick = () => $<HTMLInputElement>("boardFile").click();
   $<HTMLInputElement>("boardFile").onchange = async () => {
     const file = $<HTMLInputElement>("boardFile").files[0];
@@ -335,104 +350,17 @@ export function wireBoard() {
     $("boardState").textContent = "";
     try {
       const layout = await importBoard(file);
-      // Read first, ask second: a board that turns out to be unreadable should
-      // not have cost anybody a question, and this is the only chance to say
-      // what is about to be replaced while both still exist.
-      if (!confirm(t("ui.board_replace_ask"))) return;
-      await replaceLayout(layout);
-      $("boardState").textContent = t("ui.board_imported");
+      // The file's own name, minus its extension: it is what the person called
+      // the thing, and it is the only name in the transaction. An .obz carries
+      // a name per board - per OBF page - and no name for the document.
+      const name = file.name.replace(/\.[^.]+$/, "").trim() || t("ui.collection_name");
+      const id = await createCollection(name, layout);
+      await useCollection(id);
+      await load();
+      await paintCollections();
+      $("boardState").textContent = t("ui.collection_imported", { name });
     } catch (error) {
-      $("boardState").textContent = t("ui.board_failed", { error: reason(error) });
-    }
-  };
-}
-
-/* Whether a port has been granted, in words.
- *
- * Null until the panel is wired, and hidden panels have no stale sentence to
- * fix - the same shape paintBackupFolder() uses, and for the same reason: this
- * runs from paintStates() after a language switch, which can happen before
- * anybody has opened the sheet. */
-let sayLink: () => void = () => {};
-
-export function paintDevice(): void {
-  sayLink();
-}
-
-/** The Device panel: connecting to a talker, and the build written where
- *  something other than this page can pick it up.
- *
- * One button, one picker, and no state kept between runs - the reasoning for
- * all three is at the head of backend/folder.ts. The panel hides itself where
- * there is no picker rather than explaining, the way the backup folder does:
- * a browser that cannot do this should not be handed a paragraph about it.
- */
-export function wireDevice() {
-  const box = $("devicePanel");
-  if (!folderExportSupported()) {
-    box.hidden = true;
-    return;
-  }
-
-  // Assigned before anything calls it, and subscribed through a wrapper: a
-  // listener registered with the value of `sayLink` would hold whichever
-  // function was there at the time, which is the empty one above.
-  sayLink = () => {
-    $("deviceLink").textContent =
-      haveDevice() ? t("ui.device_connected") : t("ui.device_none");
-  };
-  sayLink();
-  onDevices(() => sayLink());
-
-  const connect = $<HTMLButtonElement>("deviceConnect");
-  connect.onclick = async () => {
-    // The gesture is why this is a button, and why it is not behind anything
-    // slow: requestPort() is refused without one and Chrome expires it in
-    // about five seconds.
-    connect.disabled = true;
-    try {
-      // A dismissed picker says nothing. Somebody closed a dialog; that is an
-      // answer, not a failure, and the line above still says what is true.
-      if (await connectDevice()) $("deviceState").textContent = "";
-    } finally {
-      connect.disabled = false;
-    }
-  };
-
-  const button = $<HTMLButtonElement>("buildExport");
-  button.onclick = async () => {
-    $("deviceState").textContent = "";
-    button.disabled = true;
-    try {
-      // The folder first: showDirectoryPicker() needs the activation this
-      // click is, and it expires in about five seconds - so a build cannot
-      // come before it. A dismissed dialog ends here and says nothing.
-      const folder = await chooseBuildFolder();
-      if (!folder) { $("deviceState").textContent = ""; return; }
-
-      // Then a build, if there is not a current one. The press that usually
-      // builds asks for a port and does nothing without one, so on a machine
-      // with no talker on it this is the only way to produce the files - and
-      // it is exactly the machine that needs them.
-      if (!await buildIsCurrent()) {
-        $("deviceState").textContent = t("ui.building");
-        await buildNow();
-      }
-
-      const done = await writeBuildTo(folder, {
-        onFile: (_name, at, total) =>
-          { $("deviceState").textContent = t("ui.build_writing", { done: at, total }); },
-      });
-      $("deviceState").textContent = t("ui.build_written", {
-        folder: done.folder, written: done.written, removed: done.removed,
-        size: Math.round(done.bytes / 1024),
-      });
-    } catch (error) {
-      $("deviceState").textContent = error instanceof Trouble
-        ? t(`err.${error.word}`)
-        : t("ui.data_failed", { error: reason(error) });
-    } finally {
-      button.disabled = false;
+      $("boardState").textContent = t("ui.collection_failed", { error: reason(error) });
     }
   };
 }
@@ -477,15 +405,23 @@ export function wireData(backup: Sicherung) {
       const parsed = JSON.parse(await file.text());
       if (!isBackup(parsed)) throw new Error(t("ui.data_failed", { error: file.name }));
       // Read first, ask second: a file that turns out to be unreadable should
-      // not have cost anybody a question, and this restore replaces the board
-      // rather than merging into it - there is one board here, not a library
-      // of them, and "merge two layouts" is not a thing anybody could describe.
+      // not have cost anybody a question, and this restore replaces every
+      // board here rather than merging into them - a merge would have to
+      // decide what an arriving board and a stored board with the same id are,
+      // and every answer to that is a rule the person holding the file cannot
+      // see. data/backup.ts argues it at length.
       if (!confirm(t("ui.data_replace_ask"))) return;
       const done = await importBackup(parsed);
-      // The store has it; the page is still holding the old one until it is
-      // told. This is that telling.
-      if (done.layout) await replaceLayout(done.layout);
-      $("dataState").textContent = t("ui.data_imported", { symbols: done.symbols });
+      // The store has them; this page is still holding the board it had.
+      // load() re-reads whichever board the file says was open, adopts its
+      // language and resets the stamp this page writes against.
+      // replaceLayout() was here and is wrong on both counts now: it would
+      // write the restored board straight back under the version from before
+      // the restore, which is this tab conflicting with itself.
+      await load();
+      await paintCollections();
+      $("dataState").textContent =
+        t("ui.data_imported", { boards: done.boards, symbols: done.symbols });
     } catch (error) {
       // The data layer has no language and answers with a code; this is where
       // the code becomes a sentence.
@@ -559,8 +495,16 @@ function metacomWord(short) {
   // The folder is there and one click re-confirms it - a different sentence
   // from "not set" and from "unreadable", because the remedy is different.
   const state = symbols.metacomStatus();
+  /* A state, not an instruction. This returned the whole sentence telling
+   * somebody which button to press, and it is written into the panel's summary
+   * - where design.md says a heading carries what a section IS set to. A
+   * summary is one line and gets truncated, so the instruction arrived as its
+   * own first half and stopped mid-clause. The
+   * sentence is in the body now, where it has room and where the button it
+   * names is. bildhaft's panel does the same: a short state above, the words
+   * about what to do beside the control. */
   if (state.kind === "needs-setup" && state.code === "permission-needed") {
-    return t("ui.metacom_confirm");
+    return t("ui.metacom_needs_access");
   }
   if (!where.path) return t(short ? "ui.metacom_short_none" : "ui.metacom_none");
   if (!where.ok) return t("ui.metacom_bad");

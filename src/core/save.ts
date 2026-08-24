@@ -3,14 +3,14 @@
 // saveTimer, unsaved and layoutVersion live here and nowhere else. They were
 // three of the eleven at the top of the old script; nothing outside this file
 // ever read them, and nothing can now.
-import { $, status} from "../ui/dom.js";
+import { $, status} from "../shell/dom.js";
 import { reason } from "./errors.js";
 import { loadLayout, saveLayout } from "../backend/index.js";
 import { state } from "./state.js";
 import { applyTexts, t } from "./texts.js";
 import { LANG, setLanguage } from "./boot.js";
-import { render } from "../ui/editor.js";
-import { paintLanguage } from "../ui/voices.js";
+import { paintLanguage } from "../shell/voices.js";
+import { editor } from "./editor.js";
 
 let saveTimer = null;
 let layoutVersion = null;   // the state this page loaded
@@ -43,22 +43,25 @@ function adoptLanguage(layout) {
 }
 
 export async function load() {
-  const fresh = await loadLayout();
+  // The seed is the editor's, and it is only ever used on a browser that has
+  // never had a board in it. Asking for it unconditionally is cheaper than the
+  // round trip that would tell us whether it is needed.
+  const fresh = await loadLayout(editor().blank());
   layoutVersion = fresh.version;
   state.layout = fresh.layout;
   // Before the two below, and that is the order rather than the arrangement:
-  // markReleaseState() writes the button's title through t() and render()
+  // markReleaseState() writes the button's title through t() and the editor
   // draws the board, so a language adopted after them would leave both saying
   // what the browser guessed until something else happened to redraw them.
   adoptLanguage(state.layout);
   markReleaseState(fresh.buildCurrent);
-  if (state.current >= state.layout.sets.length) {
-    state.current = Math.max(0, state.layout.sets.length - 1);
-  }
   $("conflict").classList.remove("show");
   unsaved = false;
   status("");
-  render();
+  // Where the editor was standing may not exist in this board at all - it is a
+  // different board every time somebody picks one out of the list. adopt() is
+  // the editor letting go of that and drawing what is here now.
+  editor().adopt();
 }
 
 // The build button says for itself whether it is due: highlighted while
@@ -102,10 +105,7 @@ export function saveNow() {
 export async function replaceLayout(layout) {
   state.layout = layout;
   adoptLanguage(state.layout);
-  if (state.current >= state.layout.sets.length) {
-    state.current = Math.max(0, state.layout.sets.length - 1);
-  }
-  render();
+  editor().adopt();
   await saveNow();
 }
 
@@ -180,7 +180,7 @@ async function doSave() {
 export function wireConflict() {
   // Deliberately force through what this page holds.
   $<HTMLButtonElement>("overwriteBtn").onclick = async () => {
-    const fresh = await loadLayout();
+    const fresh = await loadLayout(editor().blank());
     layoutVersion = fresh.version;
     markReleaseState(fresh.buildCurrent);
     await save();

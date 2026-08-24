@@ -1,6 +1,6 @@
 import type { Layout } from "./types.js";
 
-// The two values the whole page shares.
+// The one value the whole page shares.
 //
 // The script this came from opened with eleven module-level `let`s, and the
 // obvious reading was that all eleven were shared state. They were not: they
@@ -12,15 +12,18 @@ import type { Layout } from "./types.js";
 // which is a stronger statement than any accessor: nothing else *can* touch
 // them.
 //
-// These two really are shared - which set is on screen, and what is in it.
+// This one really is shared: the board that is open. Which *set* within it is
+// on screen used to sit here beside it and does not any more - a set is the
+// five-key device's idea, and the shell has no business holding an index into
+// something it cannot describe. It is a `let` inside src/editor-diy/editor.ts
+// now, which is the same argument the nine below were moved out on.
 //
-// An object whose fields are mutated, rather than exported `let`s: a module
-// that imports `export let current` gets a live view of it but cannot assign
-// to it, so `current = 3` from the editor would be a syntax error. Accessors
-// would work too and would cost twenty-two functions to say what
-// `state.current` already says. The object also reads better at the call
-// site: bare `current` said nothing about where it came from.
+// An object whose field is mutated, rather than an exported `let`: a module
+// that imports `export let layout` gets a live view of it but cannot assign to
+// it, so `layout = fresh` from the save loop would be a syntax error. An
+// accessor pair would work too and would cost two functions to say what
+// `state.layout` already says. The object also reads better at the call site:
+// bare `layout` said nothing about where it came from.
 export const state = {
   layout: { sleep_timeout_seconds: 600, sets: [] } as Layout,
-  current: 0,
 };

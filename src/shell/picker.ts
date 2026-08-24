@@ -1,5 +1,5 @@
 // The symbol dialog: searching two sources, picking a result, uploading an
-// image of your own, and writing the outcome into the layout.
+// image of your own, and handing the outcome back to whoever opened it.
 //
 // pickTarget and searchToken live here and nowhere else. Which sources are
 // available is bildquelle's answer now, not a variable of ours.
@@ -8,17 +8,33 @@ import { reason } from "../core/errors.js";
 import { pickSymbol, readSettings, uploadSymbol } from "../backend/index.js";
 import * as symbols from "../data/symbols.js";
 import type { ProviderId } from "@lautstark/bildquelle";
-import { state } from "../core/state.js";
 import { t } from "../core/texts.js";
-import { save } from "../core/save.js";
-import { render } from "./editor.js";
 
-let pickTarget = null;      // {kind: "set"} or {kind: "slot", index: n}
+/** What the dialog was opened for.
+ *
+ * `apply` rather than a target the picker then writes into, and that is the
+ * whole of what makes this module the shell's. It used to take {kind: "set"}
+ * or {kind: "slot", index} and write the chosen file name into
+ * state.layout.sets[state.current] itself - which meant the symbol dialog knew
+ * what a set was, how many keys were in one, and which of them was on screen.
+ * None of that is true of a device this page has not met yet. Now the caller
+ * says where the symbol goes, and choosing one is the whole of what is left.
+ */
+export interface PickRequest {
+  /** What to put in the search field. Usually the word already on the key. */
+  seed?: string;
+  /** Where the chosen symbol goes. `label` is the collection's word for it,
+   *  "" when it has none; the caller decides whether to write it anywhere,
+   *  and every caller so far only fills a field that is still empty. */
+  apply: (symbol: string, label: string) => void | Promise<void>;
+}
+
+let pickTarget: PickRequest | null = null;
 let searchToken = 0;        // so a slow answer cannot overtake a newer one
 
-export function openPicker(target, seed) {
-  pickTarget = target;
-  $<HTMLInputElement>("q").value = (seed || "").trim();
+export function openPicker(request: PickRequest) {
+  pickTarget = request;
+  $<HTMLInputElement>("q").value = (request.seed || "").trim();
   $("results").innerHTML = "";
   $<HTMLDialogElement>("picker").showModal();
   $<HTMLInputElement>("q").focus();
@@ -82,24 +98,13 @@ async function doSearch() {
   }
 }
 
-// Enters a finished symbol where the dialog was opened.
+// Hands a finished symbol to whoever opened the dialog, then closes it.
 // label is the word for the symbol, if the source supplies one.
 async function applySymbol(filename: string, label?: string) {
-  const entry = state.layout.sets[state.current];
-  const word = (label || "").trim();
-  if (pickTarget.kind === "set") {
-    entry.symbol = filename;
-    // Only prefill an empty field, never overwrite anything: the symbol is
-    // called "zustimmen", but your key should say "Ja!".
-    if (word && !entry.name.trim()) entry.name = word;
-  } else {
-    const slot = entry.slots[pickTarget.index];
-    slot.symbol = filename;
-    if (word && !slot.text.trim()) slot.text = word;
-  }
-  await save();
+  // Saving and redrawing are the caller's: it is the one that knows what it
+  // just changed, and this module no longer knows what a key is.
+  await pickTarget?.apply(filename, (label || "").trim());
   $<HTMLDialogElement>("picker").close();
-  render();
 }
 
 async function pick(item) {

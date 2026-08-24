@@ -93,32 +93,40 @@ usePiperRuntime(piperRuntime({
   ) as unknown as Promise<OnnxModule>,
 }));
 
+// --- The boards ---------------------------------------------------------------
+
+// The list, and which of them is open. Straight through to store.ts, which is
+// where the reasoning about ids, duplication and deletion lives - these are
+// here because backend/index.ts is the whole list of ways the page reaches the
+// outside, and a board list read around it would be a second door.
+export const listCollections = store.readCollections;
+export const createCollection = store.createCollection;
+export const renameCollection = store.renameCollection;
+export const deleteCollection = store.deleteCollection;
+export const useCollection = store.useCollection;
+// One Sammlung's layout without opening it, which is how the sidebar counts
+// what is in the ones that are not on screen.
+export const layoutOf = store.readLayoutOf;
+
 // --- The layout --------------------------------------------------------------
 
-// What a first visit gets. app.py seeds content/ from example/ so nobody meets
-// an empty screen; this is that idea at its smallest - one set, four empty
-// keys - because the examples are pictures and recordings that would have to
-// be fetched, and an empty board somebody can type into is worth more than a
-// wait.
-const FIRST: Layout = {
-  sleep_timeout_seconds: 600,
-  language: "de",
-  sets: [{
-    name: "",
-    symbol: "",
-    color: "#3B5BDB",
-    active: true,
-    slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
-  }],
-};
-
-export async function loadLayout() {
+/** The board in force, and a seed for the case where there is not one yet.
+ *
+ * app.py seeded content/ from example/ so that nobody met an empty screen. The
+ * seed is still that idea, and it no longer lives here: what an empty board
+ * looks like is the editor's answer - one set of four keys for the five-key
+ * talker, something else entirely for whatever comes next - and this file
+ * would have had to hold a `sets` array to say it. core/editor.ts's blank() is
+ * where it comes from now, and core/save.ts passes it in.
+ */
+export async function loadLayout(seed: Layout) {
   const held = await store.readLayout();
   if (held.layout) return held;
   // Written rather than only returned, so that the stamp the page carries is
   // one the store agrees with. Handing back a layout that is not in there
-  // would make the first save look like somebody else's write.
-  const seeded = await store.writeLayout(FIRST, null);
+  // would make the first save look like somebody else's write. The write also
+  // mints the board this page has been editing all along without a name for.
+  const seeded = await store.writeLayout(seed, null);
   return {
     layout: seeded.saved,
     version: seeded.version,
@@ -129,6 +137,17 @@ export async function loadLayout() {
 export async function saveLayout(layout, version) {
   return await store.writeLayout(layout, version);
 }
+
+/** What a read falls back to where the store holds no board at all.
+ *
+ * It used to be the seed - one set of four keys - and the two are not the same
+ * thing. A seed is what a first visit is *given*, and giving one is a write;
+ * the two readers below only want something with the right shape to walk, and
+ * seeding a board as a side effect of exporting or building one would be a
+ * board appearing in somebody's list because they pressed the wrong button.
+ * An empty layout builds to "there are no sets" and exports to an empty
+ * document, which is what is true. */
+const NOTHING: Layout = { sets: [] };
 
 // --- Symbols -----------------------------------------------------------------
 
@@ -500,7 +519,9 @@ export async function readSettings(): Promise<Settings> {
 
 export async function writeSettings(wanted: WantedSettings): Promise<Settings> {
   const held = await store.readSettings(NO_SETTINGS);
-  const next = { ...held, azureRegion: wanted.azureRegion || "" };
+  const next = { ...held };
+  if (wanted.azureRegion !== undefined) next.azureRegion = wanted.azureRegion;
+  if (wanted.sidebarOpen !== undefined) next.sidebarOpen = wanted.sidebarOpen;
   // Absent means "leave it alone", null means "clear it" - the same rule the
   // key below follows, so a save about the region cannot drop the rendering.
   if (wanted.metacomRendering !== undefined) {
@@ -547,8 +568,8 @@ export async function exportBoard({ images = false } = {}) {
       "Embedding the symbols in the export is not written here - obf.py's " +
       "--images does it, and nothing in the page asks for it.");
   }
-  const held = await loadLayout();
-  return new Blob([await obf.exportObz(held.layout)],
+  const held = await store.readLayout();
+  return new Blob([await obf.exportObz(held.layout || NOTHING)],
                   { type: "application/zip" });
 }
 
@@ -646,7 +667,7 @@ export async function runBuild(): Promise<{ log: string[] }> {
     log.push(key ? t(key, params) : "");
 
   const held = await store.readLayout();
-  const layout = held.layout || FIRST;
+  const layout = held.layout || NOTHING;
   // Only the selection goes onto the device. The rest stays in the layout,
   // and switching one back on costs nothing it has not already paid.
   const sets = activeSets(layout);

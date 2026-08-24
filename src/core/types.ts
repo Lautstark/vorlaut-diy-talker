@@ -31,6 +31,36 @@ export interface BoardSet {
   slots: Slot[];
 }
 
+/** One Sammlung in the list, as the sidebar shows it.
+ *
+ * `Collection` in the code and *Sammlung* on screen, which is the family's
+ * convention rather than an oversight - design.md §3.6 settles both halves. It
+ * also frees the word *board*, which the exchange format uses for a single OBF
+ * page and which this repository spent a while meaning two things at once.
+ *
+ * The id is minted once and never changes - not on rename, not on edit, not on
+ * export. Duplicating mints a fresh one, because a copy that kept the original's
+ * would overwrite it wherever the two meet again. That is exchange/SPEC.md §8's
+ * rule for `ext_lautstark_package_id`, and this is the value that will become
+ * it; writing the id down now rather than deriving one at export time is what
+ * makes "stable for the life of the package" true rather than hoped for. */
+export interface CollectionRef {
+  id: string;
+  /** Whatever somebody typed in the work head. A new one is named for the day
+   *  rather than left blank, so the list reads even when nobody names anything. */
+  name: string;
+  /** When it was last written, for the order the sidebar shows them in: the one
+   *  being worked on rises. Absent on a Sammlung that predates the field. */
+  updatedAt?: number;
+}
+
+/** The whole list, and which of them is open. */
+export interface CollectionList {
+  collections: CollectionRef[];
+  /** null only before the first one exists. */
+  current: string | null;
+}
+
 export interface Layout {
   sets: BoardSet[];
   /** Which language the device's own menu speaks. */
@@ -89,6 +119,12 @@ export interface Settings {
    *  checked. A preference is not such a claim - it is a choice, and it has to
    *  outlive the folder it was made about. */
   metacomRendering?: string | null;
+  /** Whether the sidebar is a column of this page. A choice about the shape of
+   *  the window, remembered rather than re-made every visit - and kept here
+   *  with every other preference rather than in localStorage, because a
+   *  preference living in two stores gets restored by one and overwritten by
+   *  the other. conventions.md §1.3. Absent counts as open. */
+  sidebarOpen?: boolean;
   local?: boolean;
 }
 
@@ -98,14 +134,18 @@ export interface Settings {
  *  field must not wipe the stored key. Removing the key is therefore its own
  *  explicit ask - null - and never a reading of an empty field. */
 export interface WantedSettings {
-  azureRegion: string;
-  metacom: string;
+  /** Absent leaves the stored one alone, like every field below it. It was
+   *  required, which meant a save about anything else had to carry it or wipe
+   *  it - and the sidebar preference is a save about something else. */
+  azureRegion?: string;
+  metacom?: string;
   azureKey?: string | null;
   /** Absent leaves the stored preference alone; null clears it. Same shape as
    *  azureKey above, and for the same reason: a save that is about something
    *  else must not wipe a choice it never asked about. */
   metacomRendering?: string | null;
   activeProvider?: "arasaac" | "metacom";
+  sidebarOpen?: boolean;
 }
 
 /** A voice as the picker shows it.

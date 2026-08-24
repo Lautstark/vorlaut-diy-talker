@@ -83,7 +83,7 @@ test("what is typed survives a reload", async ({ page }) => {
 test("the settings sheet opens", async ({ page }) => {
   await page.goto("./");
   await expect(page.locator("#device .tile")).toHaveCount(5);
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
   // Populated rather than merely present: the voice list comes from the
   // catalogue, which is the half that would be empty if the licence gate or

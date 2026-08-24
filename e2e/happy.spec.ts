@@ -40,7 +40,7 @@ async function openBoard(page: Page) {
 /** Opens the Board panel inside the settings sheet, whatever state the
  *  <details> was left in - it keeps its fold across closings of the sheet. */
 async function openBoardPanel(page: Page) {
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   const panel = page.locator("#boardPanel");
   if ((await panel.getAttribute("open")) === null) {
     await panel.locator("summary").click();
@@ -169,41 +169,53 @@ test("an own picture lands on a key and renders", async ({ page }) => {
   await expect(image).toHaveJSProperty("naturalWidth", 16);
 });
 
-test("the board leaves as a .obz and comes back whole", async ({ page }) => {
+test("a Sammlung leaves as a .obz and comes back beside the others", async ({ page }) => {
   await openBoard(page);
   await keyText(page).first().fill("Das bleibt");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
-  await openBoardPanel(page);
+  // Exporting is in the work head's ⋯, beside the Sammlung it exports.
+  await page.locator("#collectionMenu").click();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.locator("#boardExport").click(),
+    page.locator(".menu button", { hasText: label("ui.collection_export") }).click(),
   ]);
   const file = await download.path();
   expect(file).toBeTruthy();
 
-  // Scribble over the sentence, then bring the exported board back and watch
-  // the scribble go: import is only real if it replaces.
-  await page.locator("#voiceClose").click();
+  // Scribble over the sentence. The import must NOT take it back: a file
+  // arriving joins what is here rather than replacing it, so the scribble
+  // survives and the file arrives beside it as a second Sammlung.
   await keyText(page).first().fill("Uebergeschrieben");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
-  await openBoardPanel(page);
-  page.once("dialog", (dialog) => dialog.accept());
+  const rows = page.locator("#collectionList .collectionRow");
+  await expect(rows).toHaveCount(1);
+
+  // Importing is inside Einstellungen now: the sidebar holds the list, the way
+  // to make one, and the way out of the page.
+  await page.locator("#settingsLink").click();
+  const panel = page.locator("#boardPanel");
+  if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
   const [importChooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.locator("#boardImport").click(),
   ]);
   await importChooser.setFiles(file!);
-  await expect(page.locator("#boardState")).toHaveText(label("ui.board_imported"));
 
   await page.locator("#voiceClose").click();
+  await expect(rows).toHaveCount(2);
+  // The one that arrived is open, and it holds what was exported.
   await expect(keyText(page).first()).toHaveValue("Das bleibt");
+
+  // And the one it was imported next to still has the scribble.
+  await rows.filter({ hasNotText: "board" }).last().click();
+  await expect(keyText(page).first()).toHaveValue("Uebergeschrieben");
 });
 
 test("a voice can be chosen and is still ticked on reopening", async ({ page }) => {
   await openBoard(page);
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
 
   // The list is not folded any more - it stands open in a box that scrolls,
@@ -236,7 +248,7 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   // Reopened, exactly one row is marked and it is the one that was picked.
   // The regression this pins: listVoices() once dropped `chosen`, and the
   // sheet opened with nothing marked every time.
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await page.locator("#voicePanel summary").click();
   const on = page.locator('#voiceList .voice[aria-checked="true"]');
   await expect(on).toHaveCount(1);
@@ -256,7 +268,7 @@ test("the voice that rushes a single word says so, on its row alone", async ({ p
    * What is checked is the shape: the flagged voice has it, an unflagged one
    * does not. Nothing here synthesises; the note is drawn from the list. */
   await openBoard(page);
-  await page.locator("#gear").click();
+  await page.locator("#settingsLink").click();
   await page.locator("#voicePanel summary").click();
   await expect(page.locator("#voiceList .voiceRow").first()).toBeVisible();
 

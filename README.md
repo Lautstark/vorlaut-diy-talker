@@ -64,7 +64,19 @@ Azure Speech is the other route, against a key of your own. Both are in
 ## Working on it
 
 TypeScript, bundled by Vite, with no framework: the interface is plain DOM, and
-`src/ui/templates/` holds the markup beside the module that wires it.
+the markup sits beside the module that wires it, in a `templates/` folder on
+each side of one seam:
+
+| | |
+|---|---|
+| `src/shell/` | what any board builder needs: the list of boards, the symbol picker, the voices, the settings, the import and export |
+| `src/editor-diy/` | the five-key talker, and only it: four keys to a set, five sets on the device, a colour round each display, and the cable |
+| `src/core/`, `src/data/`, `src/backend/` | shared underneath both — the texts, the storage, the formats, and the seam to the outside |
+
+The shell may not import out of `src/editor-diy/`; `src/main.ts` and
+`src/app.ts` mount and connect the two, and are the only modules that may name
+both. `tests/unit/layers.test.ts` is what holds that, because the way it goes
+wrong is one import that compiles, runs and passes everything else.
 
 | | |
 |---|---|

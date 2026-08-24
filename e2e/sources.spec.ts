@@ -71,8 +71,8 @@ async function connectFolder(page: Page) {
 
 /** Chooses METACOM through the sheet, the way somebody would. */
 async function useMetacom(page: Page) {
-  await page.locator("#gear").click();
-  await page.locator("#symbolsPanel summary").click();
+  await page.locator("#settingsLink").click();
+  await openPanel(page, "#symbolsPanel");
   await page.locator("#metacomUse").click();
   await page.locator("#voiceClose").click();
 }
@@ -90,8 +90,8 @@ async function useMetacom(page: Page) {
  *  bildquelle indexes by, and a directory input is the only thing that
  *  normally sets it. */
 async function supplyFiles(page: Page) {
-  await page.locator("#gear").click();
-  await page.locator("#symbolsPanel summary").click();
+  await page.locator("#settingsLink").click();
+  await openPanel(page, "#symbolsPanel");
   await page.evaluate(({ root, files }) => {
     const carrier = new DataTransfer();
     for (const name of files) {
@@ -160,6 +160,14 @@ test("a folder arriving after the page did brings its collection back", async ({
   expect(asked).toBe(false);
 });
 
+/** Unfolds one panel. The sheet's panels are one exclusive group now - opening
+ *  one closes the rest - so anything acting inside a panel has to open that
+ *  panel first rather than assuming an earlier one stayed put. */
+async function openPanel(page: Page, id: string) {
+  const panel = page.locator(id);
+  if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
+}
+
 test.describe("with the folder already connected at load", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("./");
@@ -208,33 +216,37 @@ test.describe("with the folder already connected at load", () => {
      * arriving in a language the page is not in does not, and this is that
      * path - export in German, switch the page to English, bring the German
      * board back. */
-    await page.locator("#gear").click();
-    const board = page.locator("#boardPanel");
-    if ((await board.getAttribute("open")) === null) await board.locator("summary").click();
+    // Exporting is in the work head's ⋯ now, beside the Sammlung it exports.
+    await page.locator("#collectionMenu").click();
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.locator("#boardExport").click(),
+      page.locator(".menu button", { hasText: label("ui.collection_export") }).click(),
     ]);
     const file = await download.path();
     expect(file).toBeTruthy();
+
+    await page.locator("#settingsLink").click();
 
     const table = TEXTS as Record<string, Record<string, string>>;
     const trigger = page.locator("#langPick");
     const was = (await trigger.textContent()) === "Deutsch" ? "de" : "en";
     const other = was === "de" ? "en" : "de";
+    await openPanel(page, "#languagePanel");
     await trigger.click();
     await page.locator(".menu button", { hasText: other === "de" ? "Deutsch" : "English" }).click();
     // The switch itself repaints the picker, so the field is right going in.
     await expect(page.locator("#q"))
       .toHaveAttribute("placeholder", table[other]["ui.search_metacom"]);
 
-    page.once("dialog", (dialog) => dialog.accept());
+    // Back to the panel the import button is in: the language switch above
+    // happened in another one, and one panel is open at a time.
+    await openPanel(page, "#boardPanel");
     const [chooser] = await Promise.all([
       page.waitForEvent("filechooser"),
       page.locator("#boardImport").click(),
     ]);
     await chooser.setFiles(file!);
-    await expect(page.locator("#boardState")).toHaveText(label("ui.board_imported"));
+    await expect(page.locator("#boardState")).toContainText(":");
 
     // The board carries its language and the page follows it back - and the
     // field has to name the collection, in the language it just landed in.

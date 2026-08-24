@@ -1,7 +1,8 @@
 // Only the ui.* entries of the chosen language - see texts.py. Every label on
 // this page goes through t(), so no string sits in the markup twice.
-import { $ } from "../ui/dom.js";
+import { $ } from "../shell/dom.js";
 import { LANG, TEXTS } from "./boot.js";
+import { editor } from "./editor.js";
 import { activeSource } from "../data/symbols.js";
 
 // A label and its address, both out of the table. Everything else on this page
@@ -43,13 +44,33 @@ export function t(key: string, params?: Record<string, string | number>): string
 export function applyTexts() {
   document.documentElement.style.setProperty(
     "--pick-label", JSON.stringify(t("ui.pick_symbol")));
-  $("previewLabel").title = t("ui.preview_title");
-  $("previewText").textContent = t("ui.preview");
-  $<HTMLButtonElement>("releaseBtn").textContent = t("ui.release");
-  $<HTMLButtonElement>("releaseStop").textContent = t("ui.stop");
+  // The controls the editor owns - the device preview, Release, the button
+  // that deletes a set - name themselves. They used to be five lines here, in
+  // a file that also fills in the imprint: this function would have had to
+  // know about "sets" and about a cable, which are the two things the shell
+  // deliberately does not. See core/editor.ts.
+  editor().labels();
   $<HTMLButtonElement>("overwriteBtn").textContent = t("ui.keep_mine");
   $<HTMLButtonElement>("reloadBtn").textContent = t("ui.reload");
-  $<HTMLButtonElement>("removeSet").textContent = t("ui.remove_set");
+
+  // The sidebar. The rows in it are not here - they carry names somebody typed,
+  // and shell/collections.ts draws them whenever the list moves. What is here
+  // is the furniture around them.
+  $("collectionsHeading").textContent = t("ui.collections");
+  $<HTMLButtonElement>("collectionNew").textContent = t("ui.collection_new");
+  $<HTMLButtonElement>("settingsLink").textContent = t("ui.settings");
+  for (const [id, key] of [["sidebarHide", "ui.collections_hide"],
+                           ["sidebarShowBtn", "ui.collections_show"]] as const) {
+    $<HTMLButtonElement>(id).title = t(key);
+    $<HTMLButtonElement>(id).setAttribute("aria-label", t(key));
+  }
+  // A field with no visible label: the Sammlung's name is its own heading, and
+  // a word in front of it would be a second one. So the name has to be said to
+  // whoever cannot see that, and the menu beside it likewise - it is one
+  // character wide and that character is not a word.
+  $<HTMLInputElement>("collectionName").setAttribute("aria-label", t("ui.collection_name"));
+  $<HTMLButtonElement>("collectionMenu").title = t("ui.collection_menu");
+  $<HTMLButtonElement>("collectionMenu").setAttribute("aria-label", t("ui.collection_menu"));
   $<HTMLButtonElement>("searchBtn").textContent = t("ui.search");
   $<HTMLButtonElement>("uploadBtn").textContent = t("ui.own_image");
   $<HTMLButtonElement>("closeBtn").textContent = t("ui.close");
@@ -89,8 +110,8 @@ export function applyTexts() {
   $("metacomIntro").textContent = t("ui.metacom_intro");
   outward("metacomLink", "ui.metacom_link", "ui.metacom_link_url");
   $("metacomLabel").textContent = t("ui.metacom_path");
-  $("boardSection").textContent = t("ui.board");
-  $("boardNote").textContent = t("ui.board_note");
+  $("boardSection").textContent = t("ui.collection");
+  $("boardNote").textContent = t("ui.collection_note");
   $("deviceSection").textContent = t("ui.device_section");
   $("deviceNote").textContent = t("ui.device_note");
   $<HTMLButtonElement>("deviceConnect").textContent = t("ui.device_connect");
@@ -104,10 +125,7 @@ export function applyTexts() {
   // rebuilt from the table on every status change instead, because the state
   // decides which words and which buttons there are - see ui/backupFolder.ts.
   $("folderLead").textContent = t("ui.folder_lead");
-  $<HTMLButtonElement>("boardExport").textContent = t("ui.board_export");
-  $<HTMLButtonElement>("boardImport").textContent = t("ui.board_import");
-  $<HTMLButtonElement>("gear").title = t("ui.settings");
-  $<HTMLButtonElement>("gear").setAttribute("aria-label", t("ui.settings"));
+  $<HTMLButtonElement>("boardImport").textContent = t("ui.collection_import");
   $<HTMLButtonElement>("azureSave").textContent = t("ui.azure_save");
   $("arasaacSection").textContent = t("ui.arasaac");
   $<HTMLButtonElement>("voiceClose").setAttribute("aria-label", t("ui.close"));

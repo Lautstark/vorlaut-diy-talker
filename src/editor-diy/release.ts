@@ -20,7 +20,7 @@
 // does nothing at all: no build, no log, nothing on the screen changed.
 //
 // Changing the port later is in the settings, under Device.
-import { $, status } from "./dom.js";
+import { $, status } from "../shell/dom.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import { markReleaseState, saveNow } from "../core/save.js";

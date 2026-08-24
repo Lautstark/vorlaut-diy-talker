@@ -36,7 +36,8 @@ const option = (page: Page, code: string) =>
 
 /** Opens the settings sheet and picks a language. */
 async function choose(page: Page, code: string): Promise<void> {
-  await page.click("#gear");
+  await page.click("#settingsLink");
+  await openPanel(page, "#languagePanel");
   await page.click("#langPick");
   await option(page, code).click();
 }
@@ -53,6 +54,14 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("#device .tile")).toHaveCount(5);
   await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
 });
+
+/** Unfolds one panel. The sheet's panels are one exclusive group now - opening
+ *  one closes the rest - so anything acting inside a panel has to open that
+ *  panel first rather than assuming an earlier one stayed put. */
+async function openPanel(page: Page, id: string) {
+  const panel = page.locator(id);
+  if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
+}
 
 test("a chosen language is in force, and the menu says which", async ({ page }) => {
   await choose(page, CHOSEN);
@@ -84,7 +93,7 @@ test("the choice survives a reload, over what the browser asks for",
     await expect(page.locator("#releaseBtn")).toHaveText(says(CHOSEN, "ui.release"));
     // And the sheet's own controls, which are painted from LANG rather than
     // carried by the markup and so are not covered by applyTexts().
-    await page.click("#gear");
+    await page.click("#settingsLink");
     await expect(page.locator("#langPick")).toHaveText(OWN_NAME[CHOSEN]);
     await expect(page.locator("#languageState")).toHaveText(OWN_NAME[CHOSEN]);
   });
@@ -101,15 +110,23 @@ test("the layout is what carries it, not this browser", async ({ page }) => {
     const open = indexedDB.open("vorlaut");
     open.onerror = () => resolve(null);
     open.onsuccess = () => {
-      const got = open.result.transaction("content", "readonly")
-        .objectStore("content").get("layout");
-      got.onerror = () => resolve(null);
-      got.onsuccess = () => {
-        try {
-          resolve(JSON.parse((got.result as { text: string }).text).language ?? null);
-        } catch {
-          resolve(null);
-        }
+      // Whichever Sammlung is open: there is a list of them now, and each one's
+      // layout stands under a key of its own. The language is still in the
+      // layout rather than beside it, which is the whole of what this asserts.
+      const content = open.result.transaction("content", "readonly")
+        .objectStore("content");
+      const list = content.get("collections");
+      list.onerror = () => resolve(null);
+      list.onsuccess = () => {
+        const got = content.get("layout:" + (list.result as { current: string }).current);
+        got.onerror = () => resolve(null);
+        got.onsuccess = () => {
+          try {
+            resolve(JSON.parse((got.result as { text: string }).text).language ?? null);
+          } catch {
+            resolve(null);
+          }
+        };
       };
     };
   }))).toBe(CHOSEN);
@@ -128,8 +145,8 @@ test("the layout is what carries it, not this browser", async ({ page }) => {
  * status moves, so a switch on a quiet page left it in the old language even
  * once the formatter followed - both halves are needed and this covers both. */
 test("the folder's own line follows a switch, formatter and all", async ({ page }) => {
-  await page.click("#gear");
-  await page.locator("#dataPanel summary").click();
+  await page.click("#settingsLink");
+  await openPanel(page, "#dataPanel");
   const line = page.locator("#folderState");
   await expect(line).toBeVisible();
   const before = (await line.textContent())?.trim() ?? "";
@@ -137,6 +154,7 @@ test("the folder's own line follows a switch, formatter and all", async ({ page 
   // browser asked for, which is the baseline the switch has to move.
   expect(before).toContain(says(ASKED, "ui.folder_off"));
 
+  await openPanel(page, "#languagePanel");
   await page.click("#langPick");
   await option(page, CHOSEN).click();
 

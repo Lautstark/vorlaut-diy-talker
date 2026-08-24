@@ -1,9 +1,16 @@
 /* The settings sheet: language, voice, where voices come from, where symbols
- * come from, and the board as a document.
+ * come from, and the Sammlung as a document.
  *
  * Every section is a folded panel whose heading carries its state, so the whole
  * of what this installation is set to reads at a glance and opening one is a
- * decision. That is the shape bildhaft and mitreden both settled on, and the
+ * decision.
+ *
+ * **One open at a time.** Every panel carries `name="settings"`, which is the
+ * platform's own accordion: a named group of <details> behaves like a radio
+ * group, so opening one closes the rest and no script is involved. Without it
+ * a sheet of nine panels becomes a scroll through everything somebody has ever
+ * opened, and the state lines in the headings - the whole reason the panels are
+ * folded - stop being readable at a glance. conventions.md §3.5. That is the shape bildhaft and mitreden both settled on, and the
  * panel itself is the component vorlaut contributed to the shared layer.
  *
  * There is no Save and no Cancel on the dialog. Everything here applies when
@@ -32,7 +39,7 @@ export const markup = `
   <!-- First, and deliberately: somebody who cannot read the page needs this
        one before anything else. The options name themselves - see voices.ts.
        Open on arrival for the same reason. -->
-  <details class="panel" id="languagePanel" open>
+  <details class="panel" name="settings" id="languagePanel" open>
     <summary>
       <span class="section" id="languageSection"></span>
       <span class="state" id="languageState"></span>
@@ -57,7 +64,7 @@ export const markup = `
        It says "in this browser, not on the device" because on this page that
        distinction is real: the language above it does travel to the device, and
        somebody who has just set one would reasonably assume the other does. -->
-  <details class="panel" id="themePanel">
+  <details class="panel" name="settings" id="themePanel">
     <summary>
       <span class="section" id="themeSection"></span>
       <span class="state" id="themeState"></span>
@@ -72,7 +79,7 @@ export const markup = `
     </div>
   </details>
 
-  <details class="panel" id="voicePanel">
+  <details class="panel" name="settings" id="voicePanel">
     <summary>
       <span class="section" id="voiceSection"></span>
       <span class="state" id="voiceState"></span>
@@ -92,7 +99,7 @@ export const markup = `
   </details>
 
   <!-- Where voices come from, under the voices themselves. -->
-  <details class="panel" id="azurePanel">
+  <details class="panel" name="settings" id="azurePanel">
     <summary>
       <span class="section" id="azureSection"></span>
       <span class="state" id="azureState"></span>
@@ -121,7 +128,7 @@ export const markup = `
        a vorlaut key stores where its own picture came from, and a board may
        hold both - which is why the picker searches both and the .obz declares
        both licences. -->
-  <details class="panel" id="arasaacPanel">
+  <details class="panel" name="settings" id="arasaacPanel">
     <summary>
       <span class="section" id="arasaacSection"></span>
       <span class="state" id="arasaacState"></span>
@@ -135,7 +142,7 @@ export const markup = `
     </div>
   </details>
 
-  <details class="panel" id="symbolsPanel">
+  <details class="panel" name="settings" id="symbolsPanel">
     <summary>
       <span class="section" id="symbolsSection"></span>
       <span class="state" id="symbolsState"></span>
@@ -174,7 +181,7 @@ export const markup = `
     </div>
   </details>
 
-  <details class="panel" id="boardPanel">
+  <details class="panel" name="settings" id="boardPanel">
     <summary>
       <!-- No state line: this panel is two actions, and a heading that says
            nothing is furniture rather than a summary. -->
@@ -182,8 +189,10 @@ export const markup = `
     </summary>
     <div class="setting">
       <p class="lead" id="boardNote"></p>
+      <!-- Only the way in. Exporting is in the work head's ⋯, beside the
+           Sammlung it would export - it acts on one particular Sammlung and
+           this panel does not. -->
       <div class="row">
-        <button id="boardExport" class="btn" type="button"></button>
         <button id="boardImport" class="btn" type="button"></button>
       </div>
       <!-- What the last export or import did. In the body rather than the
@@ -199,7 +208,7 @@ export const markup = `
        state, and this is neither - it is the shape the talker's file system
        should have. Sharing a panel with either would blur all three into
        "export". Hidden outright where there is no picker. -->
-  <details class="panel" id="devicePanel">
+  <details class="panel" name="settings" id="devicePanel">
     <summary>
       <span class="section" id="deviceSection"></span>
     </summary>
@@ -228,7 +237,7 @@ export const markup = `
        a board in a format other programs read, this is the whole of what is
        in this browser, in a shape only vorlaut reads. store.ts has said since
        it was written that this was owed. -->
-  <details class="panel" id="dataPanel">
+  <details class="panel" name="settings" id="dataPanel">
     <summary>
       <span class="section" id="dataSection"></span>
     </summary>

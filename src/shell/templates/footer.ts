@@ -16,18 +16,20 @@ import { mount } from "./mount.js";
 
 export const markup = `
 <footer class="footer">
-  <p class="footer__links">
-    <button class="linklike" id="aboutLink" type="button"></button>
-    <!-- Both of these are required to be reachable from every screen AND to be
-         called exactly this. "Kontakt", or a paragraph inside the about
-         dialog, would not count as either. -->
-    <button class="linklike" id="impressumLink" type="button"></button>
-    <button class="linklike" id="privacyLink" type="button"></button>
-    <a id="sourceLink" target="_blank" rel="noreferrer noopener"></a>
-  </p>
+  <button class="linklike" id="aboutLink" type="button"></button>
+  <!-- Both of these are required to be reachable from every screen AND to be
+       called exactly this. "Kontakt", or a paragraph inside the about dialog,
+       would not count as either. -->
+  <button class="linklike" id="impressumLink" type="button"></button>
+  <button class="linklike" id="privacyLink" type="button"></button>
+  <a id="sourceLink" target="_blank" rel="noreferrer noopener"></a>
 </footer>
 `;
 
-export function render(): void {
-  mount(document.body, markup);
+/** Into the middle column, under the work, which is where both siblings put
+ *  theirs. It was a sibling of the frame - a band across the whole window,
+ *  under the sidebar as well as under the board - which is a shape neither of
+ *  them has. */
+export function render(where: HTMLElement): void {
+  mount(where, markup);
 }

@@ -6,14 +6,15 @@
 // This file also owns the settings sheet itself - opening it and its one Save
 // - because that Save is mostly about the voice. The Azure and METACOM panel
 // inside it is settings.js, which this calls into.
-import { $, closeMenus, menuOn, status } from "./dom.js";
+import { $, status } from "./dom.js";
+import { menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import { listVoices, voiceFetchState, startVoiceFetch } from "../backend/index.js";
 import { LANG, LANGUAGES, setLanguage } from "../core/boot.js";
 import { state } from "../core/state.js";
 import { applyTexts, t } from "../core/texts.js";
 import { save } from "../core/save.js";
-import { render as renderBoard } from "./editor.js";
+import { editor } from "../core/editor.js";
 import { showSources } from "./picker.js";
 import { speak } from "./speech.js";
 import { forgetKey, loadSettings, paintStates, saveSettings } from "./settings.js";
@@ -54,13 +55,12 @@ async function loadVoices() {
   }
 }
 
-// What a voice is tried out on: a sentence from the set being worked on, so
-// one hears the actual content rather than a specimen. Only if there is none
-// does the sample step in.
+// What a voice is tried out on: a sentence off the board being worked on, so
+// one hears the actual content rather than a specimen. Which sentence is the
+// editor's answer - it is the one that knows where somebody is standing - and
+// only if it has none does the specimen step in.
 function sampleText() {
-  const set = state.layout.sets[state.current];
-  const slot = (set ? set.slots || [] : []).find((entry) => (entry.text || "").trim());
-  return slot ? slot.text.trim() : t("ui.voice_sample");
+  return editor().sample() || t("ui.voice_sample");
 }
 
 /* stimmquelle publishes three, and a corpus of several speakers is `mixed`
@@ -483,7 +483,7 @@ async function chooseLanguage(code: string) {
   paintLanguage();
   paintStates();
   renderVoices();
-  renderBoard();
+  editor().render();
   showSources();
   await save();
 }
@@ -524,10 +524,8 @@ export function wireLanguage() {
   // because somebody who cannot read the page is who reaches for it.
   pick.onclick = () => menuOn(pick, (add) => {
     for (const code of LANGUAGES)
-      add(LANGUAGE_NAMES[code] || code, () => {
-        closeMenus();
-        void chooseLanguage(code);
-      }, { checked: code === LANG });
+      add(LANGUAGE_NAMES[code] || code, () => void chooseLanguage(code),
+        { checked: code === LANG });
   });
 
   // Typed into once and read on every render afterwards. The field is in the

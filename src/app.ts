@@ -12,16 +12,27 @@
 //
 // main.ts mounts, then imports this. The ordering is then a fact about the
 // module graph rather than a convention somebody has to keep.
+//
+// This is also the composition root: the one module that names both halves of
+// the page. The shell owns the boards, the storage, the symbols, the voices
+// and the settings; editor-diy owns the five-key device. useEditor() below is
+// where the second is handed to the first, and it is the only place either
+// direction of that arrow exists - tests/unit/layers.test.ts holds the rest of
+// src/shell/ to importing nothing out of src/editor-diy/.
 import { reason } from "./core/errors.js";
-import { $, status} from "./ui/dom.js";
+import { $, status} from "./shell/dom.js";
 import { t, applyTexts } from "./core/texts.js";
 import { load, wireConflict } from "./core/save.js";
-import { wireRelease } from "./ui/release.js";
-import { render, wireEditor } from "./ui/editor.js";
-import { loadSources, wirePicker } from "./ui/picker.js";
-import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./ui/voices.js";
-import { wireSymbolFolder, wireBoard, wireData, wireDevice, wireSources } from "./ui/settings.js";
-import { wireLegal } from "./ui/legal.js";
+import { useEditor } from "./core/editor.js";
+import { wireRelease } from "./editor-diy/release.js";
+import { diy, render, wireEditor } from "./editor-diy/editor.js";
+import { wireDevice } from "./editor-diy/device_panel.js";
+import { ensureCollection, nameIfUnnamed, paintCollections, wireCollections }
+  from "./shell/collections.js";
+import { loadSources, wirePicker } from "./shell/picker.js";
+import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./shell/voices.js";
+import { wireSymbolFolder, wireImport, wireData, wireSources } from "./shell/settings.js";
+import { wireLegal } from "./shell/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
 import { exportEverything } from "./data/backup.js";
 import { onChanged } from "./data/store.js";
@@ -49,6 +60,11 @@ const backup = new Sicherung({
 onChanged(() => backup.schedule());
 
 export function start(): void {
+  // First, and before anything that could reach for it. core/texts.ts asks the
+  // editor for its own labels, core/save.ts asks it what an empty board is,
+  // and both of those run inside the wiring below.
+  useEditor(diy);
+
   wireConflict();
   // Never prompts - there is no gesture here. A folder that needs its
   // permission re-confirmed lands in needs-permission and says so in the
@@ -60,10 +76,11 @@ export function start(): void {
 // and connecting one looks like it did nothing.
 subscribeMetacom(render);
   wireEditor();
+  wireCollections();
   wirePicker();
   wireSymbolFolder();
   wireSources();
-  wireBoard();
+  wireImport();
   wireData(backup);
   wireDevice();
   wireLanguage();
@@ -74,7 +91,11 @@ subscribeMetacom(render);
   // stop with it, and all three live in ui/release.ts.
   wireRelease();
 
-  $<HTMLButtonElement>("gear").onclick = openVoices;
+  // One entrance, at the foot of the sidebar. There was a gear in a page-wide
+  // header as well; the header has gone, and design.md §3.4 settles the
+  // placement - two doors to one sheet is two things to keep in step for no
+  // gain.
+  $<HTMLButtonElement>("settingsLink").onclick = openVoices;
   // The cross in the corner is the only way out now, because there is nothing
   // to confirm or to abandon: everything in the sheet is already written.
   $<HTMLButtonElement>("voiceClose").onclick = () => $<HTMLDialogElement>("voices").close();
@@ -85,7 +106,30 @@ subscribeMetacom(render);
   // the first request takes.
   applyTexts();
   loadSources();
+  // The sidebar, before the Sammlung it points at: the list comes out of the
+  // registry and does not wait on a layout, so drawing it first means the page
+  // is never briefly a Sammlung with no idea which one it is.
+  void paintCollections();
   // The voices are not asked for here: nothing outside the settings shows them,
   // and the sheet fetches them itself when it opens.
-  load().catch((error) => status(t("ui.load_failed", { error: reason(error) })));
+  //
+  // And again once the layout is in force, because on a first visit that load
+  // is what *makes* the first Sammlung - and because the row's count and the
+  // work head's are read off the layout, which is not there until it lands.
+  // e2e/collections.spec.ts is what caught the first half; a browser that had
+  // been here before never showed it.
+  /* A Sammlung to load, then the load, then its name.
+   *
+   * The order is the point. The store seeds a blank layout for a browser that
+   * has none and has no language to name it with; load() is what adopts the
+   * language the layout carries, which on a first visit is the seed's. Naming
+   * before that meant minting "Collection of 24.08.2026" and then switching the
+   * page to German around it. nameIfUnnamed() runs after, so the name is in the
+   * language the page settled on - and it catches the Sammlung carried across
+   * from the single-layout database too, which never had one. */
+  ensureCollection()
+    .then(load)
+    .then(nameIfUnnamed)
+    .then(paintCollections)
+    .catch((error) => status(t("ui.load_failed", { error: reason(error) })));
 }

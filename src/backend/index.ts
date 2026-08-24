@@ -24,8 +24,19 @@
 // means writing it down here, where the next implementation will have to
 // answer it too.
 export {
-  // The layout, and the two headers that say whether it moved underneath us
-  // and whether a build is due.
+  // The boards: what there are, which one is open, and the four things
+  // somebody can do to the list. A board is a whole layout - one per child, or
+  // one per room - and the sets inside it are the talker's five keys, which is
+  // a different level entirely. See src/shell/boards.ts.
+  listCollections,
+  createCollection,
+  renameCollection,
+  deleteCollection,
+  useCollection,
+  layoutOf,
+
+  // The layout of whichever board is open, and the two headers that say
+  // whether it moved underneath us and whether a build is due.
   loadLayout,
   saveLayout,
 

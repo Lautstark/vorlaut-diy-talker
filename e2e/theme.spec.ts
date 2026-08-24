@@ -27,7 +27,7 @@ const either = (key: string) =>
   new RegExp(`^(${LANGUAGES.map((l) => table[l][key]).join("|")})$`);
 
 async function openTheme(page: import("@playwright/test").Page): Promise<void> {
-  await page.click("#gear");
+  await page.click("#settingsLink");
   await page.locator("#themePanel summary").click();
   await expect(page.locator("#themePick button")).toHaveCount(3);
 }
