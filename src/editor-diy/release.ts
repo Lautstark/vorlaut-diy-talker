@@ -52,16 +52,40 @@
 //
 // run() builds and then sends, so the press that discovers a dead port has
 // already paid for a full build including every synthesis. One press, one
-// wasted build, then the chooser and a second build.
+// wasted build, then the chooser and a second build. Since the Device panel
+// went, that is the only way back from a wrong port rather than merely the
+// usual one - so it is worth being exact about why it is still here.
 //
-// The obvious fix is to find the talker first and build afterwards, and the
-// obvious *way* to do it does not work: `hello` starts a session, and
-// firmware/vorlaut/cable.h ends one after CABLE_QUIET_MS - four seconds - of
-// the browser not talking. A build with speech in it is minutes, so holding
-// the cable open across it would break every transfer rather than only the
-// unlucky ones. It would have to be open, hello, *close*, build, open again -
-// which costs a second greeting on the good path to save a whole build on the
-// bad one. Worth doing and not done here; see docs/cable.md.
+// The fix would be to find the talker first and build afterwards. Two ways of
+// writing it have now been ruled out, and the second one is the reason this
+// stands.
+//
+// Holding the cable open across the build does not work: `hello` starts a
+// session, and firmware/vorlaut/cable.h ends one after CABLE_QUIET_MS - four
+// seconds - of the browser not talking. A build with speech in it is minutes,
+// so an open, greeted port would break every transfer rather than only the
+// unlucky ones. Holding it open *without* greeting is no better - before a
+// hello the device waits CABLE_GREET_MS, a quarter of a second, and then
+// returns. There is nothing there to keep alive.
+//
+// So the probe would have to be a whole little session of its own - open,
+// hello, close, build, open again - and that is where it stops, because
+// `hello` is not a question the device answers quietly. cable.h calls
+// progress("hello") on it, vorlaut.ino draws text().cable on all five
+// displays, and the comment there says what that is for: it is meant to be
+// obvious at a glance that the keys have stopped. Closing the port does not
+// take it back, because nothing on the wire tells the device the browser has
+// gone - it waits out its four seconds, reports that the browser stopped
+// talking, then delays 1500 ms so a count can be read, and only then redraws.
+// About five and a half seconds of a talker showing "Kabel" and answering no
+// key, before a build that then takes minutes, and before the real transfer
+// greets it a second time.
+//
+// That is the trade backwards. It would spend a visible freeze on every good
+// transfer, on a device a child may be holding, to save a build on the rare
+// bad one. So the build stays first, and the way back from a wrong port stays
+// askAgain below. Checked against the firmware on 2026-08-25 and deliberately
+// not built; see docs/cable.md for what would make it cheap.
 import { openDialog, type OpenDialog } from "@lautstark/design/dialog";
 import { $, status } from "../shell/dom.js";
 import { reason, Trouble } from "../core/errors.js";
@@ -293,8 +317,10 @@ function openTransfer(button: HTMLButtonElement): void {
     offer();
     try {
       // Built first, then sent, and this order is what makes a dead port cost
-      // a build - see the note at the head of this file, and docs/cable.md for
-      // why the fix cannot simply hold the cable open in between.
+      // a build. Probing for the talker up here first is the obvious fix and
+      // it is not one: greeting takes the keys away for about five seconds,
+      // every press, whether or not the port was the right one. The note at
+      // the head of this file has the whole of it.
       try {
         now(t("ui.building"));
         await buildNow(told);
