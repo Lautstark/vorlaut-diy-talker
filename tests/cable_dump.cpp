@@ -133,7 +133,11 @@ static int sayAll(void) {
 
 struct Fake {
   std::map<std::string, std::string> files;
-  bool broken = false;      // a transfer was given up on; only hello clears it
+  // cable.h's `open`, under its own name: a session starts ungreeted, a hello
+  // opens it, and a transfer given up on shuts it again. This was `broken`,
+  // starting false, which let a pre-hello verb through - the same drift
+  // tools/cable_mock.js had, which is why neither caught the other.
+  bool greeted = false;
   uint32_t stored = 0, removed = 0, bytes = 0;
   size_t free_ = 1441792;
 };
@@ -160,7 +164,7 @@ static int session(void) {
     const CableVerb verb = cableParse(line.c_str(), &command);
     if (verb == CABLE_NONE) continue;          // log noise, or the host's echo
 
-    if (verb != CABLE_HELLO && device.broken) {
+    if (verb != CABLE_HELLO && !device.greeted) {
       cableSayErr(out, sizeof(out), "session", nullptr);
       say(out);
       continue;
@@ -174,7 +178,7 @@ static int session(void) {
 
     switch (verb) {
       case CABLE_HELLO: {
-        device.broken = false;
+        device.greeted = true;
         size_t used = 0;
         for (const auto &f : device.files) used += f.second.size();
         cableSayNumber(out, sizeof(out), "vorlaut", CABLE_VERSION); say(out);
@@ -240,7 +244,7 @@ static int session(void) {
         const size_t got = command.size
             ? fread(&payload[0], 1, command.size, stdin) : 0;
         if (got != command.size) {
-          device.broken = true;
+          device.greeted = false;
           cableSayErr(out, sizeof(out), "short", command.name);
           say(out);
           break;

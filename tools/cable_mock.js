@@ -44,7 +44,13 @@ export class MockDevice {
     this.total = total;
     this.noise = noise;
     this.failAt = failAt;
-    this.broken = false;          // a transfer was given up on
+    // Whether a hello has been answered. cable.h calls this `open`, starts
+    // every session with it false, and clears it again when a transfer is
+    // given up on - one rule rather than two, so that "not greeted yet" and
+    // "just lost a file" are the same state. It was `broken` here and only
+    // guarded the second of those, which made the mock answer a pre-hello
+    // verb as though it had been greeted.
+    this.greeted = false;
     this.stored = 0;
     this.removed = 0;
     this.bytes = 0;
@@ -88,6 +94,10 @@ export class MockDevice {
   }
 
   async run(readable, out) {
+    // `bool open = false` at the top of serve(): the files outlive the
+    // connection and the session does not, so a second connection has to
+    // introduce itself again.
+    this.greeted = false;
     const reader = readable.getReader();
     let buffer = new Uint8Array(0);
     let pending = null;        // {name, size, crc, got: Uint8Array} while a file arrives
@@ -133,14 +143,17 @@ export class MockDevice {
     if (!line.startsWith("> ")) return null;     // not ours: a monitor, an echo
     const [verb, ...args] = line.slice(2).split(" ");
 
-    if (this.broken && verb !== "hello") {
+    // cable.h refuses everything but hello until it has answered one, and it
+    // does so before the verb is dispatched - so an unknown word arrives here
+    // as "err session" rather than "err verb".
+    if (verb !== "hello" && !this.greeted) {
       await this.reply("err session");
       return null;
     }
 
     switch (verb) {
       case "hello":
-        this.broken = false;
+        this.greeted = true;
         await this.reply("vorlaut 1");
         await this.reply(`total ${this.total}`);
         await this.reply(`free ${this.free}`);
@@ -209,7 +222,7 @@ export class MockDevice {
       // What a cable pulled out halfway looks like from here: the device
       // gives up, throws its half-written file away, and refuses everything
       // until the host starts again with hello.
-      this.broken = true;
+      this.greeted = false;
       await this.reply(`err short ${pending.name}`);
       return;
     }

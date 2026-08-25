@@ -500,6 +500,7 @@ def check_sessions(reader: Path, node: str, problems: list[str]) -> list[str]:
 # --- What only one end can be asked about ------------------------------------
 
 CLIENT_ONLY = [
+    ("ungreeted", "a verb before hello is refused, and hello still gets in after"),
     ("badcrc", "a file that arrived wrong is refused, and says so"),
     ("cancelLast", "aborting on the last step still never sends done"),
     ("timings", "the device's gap and stall arrive, and are stepped over"),
@@ -508,6 +509,37 @@ CLIENT_ONLY = [
     ("truncated", "a file of the wrong length is sent again, not kept for its name"),
     ("cancel", "an abort stops between files and never sends done"),
 ]
+
+
+def check_greeting(reader: Path, problems: list[str]) -> str:
+    """Nothing but hello gets in until a hello has been answered.
+
+    cable.h starts every session with `open` false and clears it again when a
+    transfer is given up on, so "not greeted yet" and "just lost a file" are
+    one state rather than two. Both stand-ins for the device - the mock and
+    the Fake in cable_dump.cpp - had drifted off that in the same direction,
+    each guarding only the lost-transfer half, so neither could catch the
+    other and check_sessions() could not see it either: it compares the files
+    a session ends with, and this is a rule about replies.
+
+    So it is asked here, of both ends, directly. The mock's half is the
+    "ungreeted" scenario above.
+    """
+    early = b"> list\n> rm layout.bin\n> hello\n> list\n"
+    out = subprocess.run([str(reader), "session"], input=early,
+                         capture_output=True).stdout.decode()
+    replies = [line for line in out.splitlines() if line.startswith("< ")]
+
+    refused = replies[:2]
+    if refused != ["< err session", "< err session"]:
+        problems.append("the C reader let a verb in before hello: answered "
+                        f"{refused} rather than two 'err session'")
+    # And the door is not locked behind them - the refusal is the way back in,
+    # not the end of the session.
+    if "< vorlaut 1" not in replies:
+        problems.append("the C reader refused hello after refusing what came "
+                        "before it")
+    return "a verb before hello is refused by the firmware reader too"
 
 
 def check_client_only(node: str, problems: list[str]) -> list[str]:
@@ -541,6 +573,7 @@ def main() -> int:
         commands = check_commands(reader, problems)
         answers = check_answers(reader, problems)
         check_readback(node, problems, answers)
+        greeting = check_greeting(reader, problems)
         sessions = check_sessions(reader, node, problems)
         client = check_client_only(node, problems)
 
@@ -558,6 +591,7 @@ def main() -> int:
           "reader:")
     for note in sessions:
         print(f"    {note}")
+    print(f"    {greeting}")
     print("\n  And the failures, on the browser's side only:")
     for note in client:
         print(f"    {note}")

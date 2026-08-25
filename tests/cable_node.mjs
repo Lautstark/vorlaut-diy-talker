@@ -136,6 +136,58 @@ const SCENARIOS = {
 // worth its own run even though only half of the pair is in it.
 
 const CLIENT_ONLY = {
+  // A verb that speaks out of turn.
+  //
+  // cable.h answers nothing but hello until it has answered one - `open`
+  // starts false in every session - and the way back in after a lost transfer
+  // is the same door. This goes straight at the wire rather than through
+  // Cable, because Cable always greets first and so could never ask the
+  // question. Both stand-ins for the device had drifted off this rule in the
+  // same direction, each modelling only the lost-transfer half, which is
+  // exactly why neither caught the other.
+  async ungreeted() {
+    const device = new MockDevice({});
+    const wire = device.open();
+    const writer = wire.writable.getWriter();
+    const reader = wire.readable.getReader();
+    const bytes = new TextEncoder();
+    const text = new TextDecoder();
+    let buffer = "";
+
+    // The device's own log shares this wire, so an answer is a "< " line and
+    // everything else is stepped over - the rule the protocol states
+    // everywhere.
+    const answer = async () => {
+      for (;;) {
+        const cut = buffer.indexOf("\n");
+        if (cut >= 0) {
+          const line = buffer.slice(0, cut);
+          buffer = buffer.slice(cut + 1);
+          if (line.startsWith("< ")) return line;
+          continue;
+        }
+        const { value, done } = await reader.read();
+        if (done) throw new Error("the mock closed without answering");
+        buffer += text.decode(value, { stream: true });
+      }
+    };
+
+    await writer.write(bytes.encode("> list\n"));
+    const refused = await answer();
+    // And the refusal is not a dead end: the next hello still gets in.
+    await writer.write(bytes.encode("> hello\n"));
+    const admitted = await answer();
+    await writer.close().catch(() => {});
+
+    if (refused !== "< err session") {
+      throw new Error(`a verb before hello was answered "${refused}"`);
+    }
+    if (admitted !== "< vorlaut 1") {
+      throw new Error(`hello after a refusal was answered "${admitted}"`);
+    }
+    return { refused, admitted };
+  },
+
   // A device that stores the file and then finds the checksum wrong.
   async badcrc() {
     const device = new MockDevice({ failAt: null });
@@ -240,7 +292,7 @@ const CLIENT_ONLY = {
     if (sent.includes("> done")) throw new Error("done was sent after an abort");
     // The device is still usable: an abort between files leaves nothing in
     // flight, which is the whole reason it is checked there.
-    if (device.broken) throw new Error("aborting left the session shut");
+    if (!device.greeted) throw new Error("aborting left the session shut");
     return { stopped, stored: device.stored, of: work.put.length };
   },
 
