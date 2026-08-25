@@ -97,7 +97,13 @@ const FILES = ["trinken.png", "essen.png", "spielen.png"];
  *  rather than silently seeding a folder nobody reads. */
 async function connectFolder(page: Page) {
   await page.evaluate(({ root, files }) => new Promise<void>((resolve, reject) => {
-    const open = indexedDB.open("bildquelle", 1);
+    /* No version number, deliberately. This seeds a database that belongs to
+     * bildquelle, and pinning it to 1 meant the seed broke the day that package
+     * added a store - VersionError, "the requested version is less than the
+     * existing version", from a test that never asked to be told about the
+     * schema. Opening without one takes whatever version is there, and creates
+     * it at 1 when there is nothing, which is all this needs. */
+    const open = indexedDB.open("bildquelle");
     open.onupgradeneeded = () => {
       const db = open.result;
       for (const [name, keyPath] of [["arasaacSearch", "query"], ["arasaacImages", "id"],
