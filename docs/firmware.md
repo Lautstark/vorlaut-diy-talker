@@ -13,8 +13,8 @@ looks for `data/` right next to it. Both point at the same structure.
 - `mklittlefs` and `esptool` if you want to write the file area from a
   computer — both come with the ESP32 core. Content does not normally go that
   way: the editor pushes it down the cable, see [cable.md](cable.md). The
-  folder to image is the one *Device → Write the build into a folder*
-  writes in the editor's settings.
+  folder to image is the one *Write the build into a folder* writes - in the
+  `⋯` beside the Sammlung's name in the editor.
 
 Board setting: USB CDC On Boot **enabled**.
 
@@ -116,8 +116,8 @@ If the upload reports that it cannot find the board: hold **BOOT**, tap
 and the command goes through. Press RESET once afterwards.
 
 **3. Pack the data** — only if the cable is not an option. `mklittlefs` comes
-with the ESP32 core, and the folder to pack is the one *Device → Write the
-build into a folder* writes in the editor's settings:
+with the ESP32 core, and the folder to pack is the one *Write the build into
+a folder* writes - in the `⋯` beside the Sammlung's name in the editor:
 
 ```bash
 ~/Library/Arduino15/packages/esp32/tools/mklittlefs/*/mklittlefs \

@@ -1,7 +1,10 @@
 # A Sammlung's own settings, and where they live
 
 **Status: decided and built, 2026-08-25.** This was a proposal; it was read,
-four of its answers were changed, and the result is in the page. What follows
+four of its answers were changed, and the result is in the page. The fifth
+question it raised — whether the Device panel still earns its place — was
+answered the same day, and it does not; see
+[amendment 4](#4-the-connect-button-it-no-longer-earns-a-panel--and-the-panel-is-gone). What follows
 is the decision, with the proposal's reasoning kept where it still holds and
 struck through in words where it does not — a document that goes on describing
 a design nobody built is worse than no document.
@@ -60,7 +63,8 @@ apply, no Save, no Cancel — a language and a voice destroy nothing.
   [the note on the grid card](#the-grid-card-stayed-its-own-entry).
 
 Einstellungen now says one thing only: what this installation and this browser
-are set to.
+are set to — and after amendment 4 was answered, it holds nothing about a cable
+either.
 
 ## The four amendments
 
@@ -124,7 +128,7 @@ the talker choice offering to size a board with no grid. `.sizeask[hidden] {
 display: none; }` is the fix, and the new e2e test asserts visibility rather
 than the attribute, because the attribute was correct the whole time.
 
-### 4. The connect button: it no longer earns a panel
+### 4. The connect button: it no longer earns a panel — and the panel is gone
 
 The proposal kept it in Einstellungen as what remains of the Device panel,
 renamed to say so. Asked properly, the answer is weaker than that.
@@ -140,17 +144,55 @@ renamed to say so. Asked properly, the answer is weaker than that.
 So the Einstellungen button's only remaining job is granting **ahead of time**,
 for a flow that grants on demand and explains itself better when it does.
 
-**Proposed: remove the Device panel from Einstellungen.** Not done here — that
-is a fifth decision about what Einstellungen is for, and it was not this
-change's to make. The panel stays, minus its build half, with the question
-written at the head of
-[`src/editor-diy/device_panel.ts`](../src/editor-diy/device_panel.ts).
+This was raised as a proposal rather than built, because it is a fifth decision
+about what Einstellungen is for. **It was answered on 2026-08-25: the panel
+goes.** Einstellungen now carries nothing about a cable at all.
 
-The one thing that would go with it: choosing a *different* port after a change
-of cable. The transfer sheet never asks again once a port is granted, so
-whoever answers this should decide where that lands — a "use a different port"
-step inside the transfer sheet is the obvious home, and it would be better
-placed there anyway, beside the transfer it is about.
+The one thing that went with it: choosing a *different* port while a granted
+one still enumerates — a talker swapped for a second one, or a port granted for
+something that is not a talker at all. Named rather than pretended away, and
+the recovery is one press rather than a page reload:
+
+1. the transfer runs against the stale port, `findTalker()` opens it, gets no
+   `hello`, and throws `cable_no_device`;
+2. `release.ts` sets `askAgain`, and `err.cable_no_device` already tells the
+   reader in as many words — "the next press will ask for the port again";
+3. the next press is back at the step with the chooser on it.
+
+So it costs an attempt, and the sheet says why while it is costing it. That is
+better than a panel somebody has to know to visit: the failure is the moment
+the question becomes worth asking. `e2e/build.spec.ts` pins the whole loop,
+sentence included.
+
+**What that attempt costs is a build, and it is not free.** `run()` builds and
+then sends, so the press that discovers a dead port has already paid for every
+synthesis in it — one wasted build, then the chooser, then a second. The panel
+was the way to skip that for somebody who knew to look, so removing it makes
+this the only path rather than the usual one.
+
+This amendment proposed the fix and left it unbuilt: probing at the top of
+`run()`, as open, hello, **close**, build, open again — holding the cable open
+across the build being ruled out already, since the device ends a session after
+`CABLE_QUIET_MS` — four seconds — of browser silence.
+
+**That was taken up on 2026-08-25 and the answer is no.** The second greeting
+on the good path is not the small price this paragraph assumed. `hello` makes
+the device put *Kabel* on all five displays and stop answering keys, and
+closing the port does not take it back — it waits out its four seconds, then
+delays 1500 ms before redrawing. A probe on every press is roughly five and a
+half seconds of a dead talker each time, to save one build on the rare press
+where the port was wrong. [cable.md](cable.md) carries the reasoning and what
+would make it cheap, which is a firmware change rather than a page one. So the
+cost recorded above stands, and `askAgain` remains the way back.
+
+What was left of the module is the build, so it is named for it:
+`src/editor-diy/device_panel.ts` → `folder_build.ts`. Two things went with the
+panel because they had exactly one user each — `onPaintPanels()` in
+`shell/settings.ts`, the hook that let a panel wired outside that file join a
+language switch, and `onDevices()` in `editor-diy/device.ts`, which told a
+panel the port list had moved. Nothing is on screen waiting to be told any
+more. Both are four lines to bring back and the reason each existed is recorded
+where it stood.
 
 ## What the proposal got right and stands
 

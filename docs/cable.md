@@ -458,8 +458,53 @@ was sent, which read as the dialog having been ignored; then the chooser was
 moved out of the press altogether, which fixed it by removing the thing
 somebody had pressed the button for. Every press after the first goes straight
 through — `getPorts()` hands the port back with no gesture at all, and the
-sheet names it rather than asking again. Choosing a different port later is in
-the settings, under *Device*, along with the folder export.
+sheet names it rather than asking again.
+
+**Choosing a different port later needs no settings panel**, and since
+2026-08-25 there is not one. A port that stops answering — a different cable, a
+different talker, or one that was never the talker — fails the transfer with
+`cable_no_device`; that sets `askAgain` in `release.ts`, and the next press is
+back at the step with *Choose the device* on it. The error text says so, so
+somebody knows a second press is worth making rather than guessing.
+
+**What that costs is one build, and it is a real cost.** `run()` builds and
+then sends, so the press that discovers a dead port has already paid for a full
+build with every synthesis in it. One press, one wasted build, then the chooser
+and a second build.
+
+The fix would be to find the talker before building rather than after. Two ways
+of writing it have been ruled out, and the second is why this is still the way
+it is.
+
+**Holding the cable open across the build does not work.** `hello` starts a
+session, and the device ends one after `CABLE_QUIET_MS` — four seconds — of the
+browser not talking (`firmware/vorlaut/cable.h`, the loop that reports "the
+browser stopped talking"). A build is minutes, so that breaks every transfer
+rather than only the unlucky ones. Holding it open *without* greeting is no
+better: before a hello the wait is `CABLE_GREET_MS`, a quarter of a second,
+after which `serve()` simply returns. There is nothing there to keep alive.
+
+**So the probe has to be a session of its own** — open, hello, **close**, build,
+open again — and that is where it stops, because `hello` is not free at the
+device. It is not a quiet question: `cable.h` calls `progress("hello")`, and
+`vorlaut.ino` puts *Kabel* on all five displays for it, which is deliberate and
+says so in as many words — it is meant to be obvious at a glance that the keys
+have stopped. Closing the port does not undo it, because nothing on the wire
+tells the device the browser has gone: it waits out its four seconds, gives up,
+delays 1500 ms so a count can be read, and only then redraws. **About five and
+a half seconds of a talker showing *Kabel* and answering no key** — before a
+build that then takes minutes, and before the real transfer greets it a second
+time.
+
+That is the trade backwards: a visible freeze on every good transfer, on a
+device a child may be holding, to save one build on the rare bad one. So the
+build stays first. Checked against the firmware on 2026-08-25 and deliberately
+not built.
+
+**What would make it cheap is a way to ask "are you a vorlaut" that does not
+open a session** — something a device answers before `hello`, without reaching
+for the displays. That is a change to `firmware/` rather than to the page, and
+it is the only thing that turns this from a bad trade into a good one.
 
 **The bench is still here for what that button cannot be.** `tools/serialcheck.html`
 is where a payload can be invented with no build behind it — so that a failure
@@ -516,9 +561,10 @@ build writes IndexedDB, and the backup export leaves build output out on
 purpose, so `mklittlefs` had nothing to image and this bench's folder picker
 had nothing to pick.
 
-That is what *Device → Write the build into a folder* in the editor's
-settings is for. It writes exactly what the cable would send, into a folder you
-choose, and it is the second way in:
+That is what *Write the build into a folder* is for — in the `⋯` beside the
+Sammlung's name, with the two exports, because it writes that one Sammlung's
+files. It writes exactly what the cable would send, into a folder you choose,
+and it is the second way in:
 
 - **The bench can send it.** Pick that folder under *Pick a `data/` folder*
   below. The page and the bench are then two independent clients of the same

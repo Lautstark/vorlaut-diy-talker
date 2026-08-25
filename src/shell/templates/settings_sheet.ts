@@ -17,6 +17,14 @@
  * also why the round trip the proposal worried about does not exist: the key
  * and the list it stocks never came apart.
  *
+ * There was a Device panel too, and it is gone rather than moved. Its build
+ * half went to the Sammlung's ⋯ with the exports; its connect half turned out
+ * to duplicate a step the transfer dialog already takes - release.ts offers
+ * the chooser at the moment it finds it has no port, with the words about what
+ * is about to be written already read, which is a better place to be asked
+ * than a settings panel somebody has to know to visit first. What the panel
+ * did was grant ahead of time, for a flow that grants on demand.
+ *
  * Every section is a folded panel whose heading carries its state, so the whole
  * of what this installation is set to reads at a glance and opening one is a
  * decision.
@@ -221,34 +229,6 @@ export const markup = `
            summary: a summary carries what a section IS set to, and this is
            the outcome of an errand somebody just ran. -->
       <p class="note" id="boardState"></p>
-    </div>
-  </details>
-
-  <!-- Device: a granted serial port, which is this browser's permission and
-       not any Sammlung's property.
-       The build written into a folder used to be the second half of this
-       panel. It has gone to the ⋯ beside the Sammlung it builds, next to the
-       two exports, because it is an act on one particular Sammlung rather
-       than anything this installation is set to.
-       What is left is one button, and editor-diy/device_panel.ts carries the
-       open question about whether it still earns a panel at all: the release
-       dialog offers the same connect when it needs a port. Hidden outright
-       where there is no picker. -->
-  <details class="panel" name="settings" id="devicePanel">
-    <summary>
-      <span class="section" id="deviceSection"></span>
-      <span class="state" id="deviceLink"></span>
-    </summary>
-    <div class="setting">
-      <!-- Choosing the port, and it is here rather than behind the button in
-           the header for the reason ui/device.ts gives: the picker has to be
-           opened by a click with nothing slow waiting behind it, or dismissing
-           it costs a build. Once granted, it is remembered and never asked
-           for again. -->
-      <p class="lead" id="deviceNote"></p>
-      <div class="row">
-        <button id="deviceConnect" class="btn" type="button"></button>
-      </div>
     </div>
   </details>
 
