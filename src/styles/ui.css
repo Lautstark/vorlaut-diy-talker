@@ -184,16 +184,29 @@ body.collapsed .frame { grid-template-columns: minmax(0, 1fr); }
 /* Capped and centred, like both siblings, and the number is chosen for height
    rather than for measure.
 
-   The cells are 4:3, so the board's width *is* its height: three columns
-   across, two rows down, and width bought here is paid for below the fold. 720
-   - mitreden's number, and what this had - ends exactly at the fold on a 900px
-   window and overflows a 13-inch laptop, which is the machine it is used on.
-   640 fits that, and it is where this page sat before the column was widened
-   at all.
+   The board's width *is* its height: three columns across, two rows down, and
+   width bought here is paid for below the fold. 720 - mitreden's number, and
+   what this had - ends exactly at the fold on a 900px window and overflows a
+   13-inch laptop, which is the machine it is used on. 640 fits that, and it is
+   where this page sat before the column was widened at all.
+
+   That arithmetic used to open with "the cells are 4:3", and they are not: the
+   five-key board's cells are square now, because the display is - see `#device
+   .cell` below. A square cell is taller than a 4:3 one at the same width, so at
+   this same 640 the board went from two rows of 147px to two rows of 196px: 98
+   more pixels, spent out of this budget without the number moving. So the
+   budget is tighter than 640 sounds, and the next thing that wants height here
+   has less room than the paragraph above it once implied.
 
    So the rule is: as wide as the shortest laptop can show in one screen. Wider
    buys a bigger picture of a symbol somebody can already see, and charges for
-   it in the two keys that drop off the bottom. */
+   it in the two keys that drop off the bottom.
+
+   What the rule is not is a cap on everything that happens to sit in this
+   column. It is about the board. A row of tabs is chrome: it costs one line of
+   height whatever width it is given, so it pays nothing into this budget and
+   should not be billed for it - see `.content:has(#device) main` further down,
+   where the cap moves off the column and onto the board it is actually for. */
 /* And this is the one thing on the page that scrolls. The work head above it
    stays: with no bar over it, it is the top of the page, and a page whose title
    scrolls away has nothing at the top at all. The board is what overflows, so
@@ -747,6 +760,43 @@ dl.transfer dd { margin: 0; font-size: 14px; }
  * takes its own width. */
 .content:has(#appGrid) main { max-width: 1100px; }
 
+/* The five-key editor makes the same move for the opposite reason: not because
+ * its board wants width, but because its tab strip does and the board must not
+ * get any.
+ *
+ * A set is a tab, and the strip is how somebody reaches one. The device holds
+ * five, and five with ordinary names - a word or three each - measure about
+ * 685px laid out in a row; four of them beside the "+ Set" button that is
+ * still there until the fifth arrives, about 622px. 640 minus this column's
+ * padding gives them 600, so both of those wrap, and a strip that wraps pushes
+ * the board down by the height of a whole row of tab. Every cure that keeps
+ * the 640 makes the names harder to read - smaller type, an ellipsis, a strip
+ * that scrolls sideways - and a set's name is the entire way it is told apart
+ * from the four beside it.
+ *
+ * But the cap is a height budget, spent by the board and by nothing else, so
+ * the board is where it belongs: 600px, which is exactly what 640 minus the
+ * padding always drew, now written on the thing it was always about. The
+ * column above it is free to be wider, and only chrome uses the difference.
+ *
+ * 880 is that difference sized to the strip: 840px of room for a row that
+ * needs 685 at its widest, which is a couple more ordinary names' worth of
+ * slack in a strip that can never hold more than five. It stays inside the
+ * content column on a 1280px laptop rather than running out to its edges.
+ *
+ * The board stays at the column's leading edge rather than centred in it, so
+ * the strip grows rightward from the board's own left edge and the two go on
+ * sharing it. Centring the board under a wider strip would be symmetric and
+ * would put every tab out of line with the column of keys it names, which is
+ * the one alignment on this page that says the tabs and the board are the
+ * same object seen twice.
+ *
+ * Chosen by what is in the page, like its neighbour above, and a browser
+ * without `:has()` keeps the narrow column and the wrapped strip - which is
+ * where this page has been all along. */
+.content:has(#device) main { max-width: 880px; }
+.content:has(#device) #device { max-width: 600px; }
+
 /* Size presets, in the dialog that makes a Sammlung and in the card that
    changes one afterwards. Drawn rather than named, because "4 x 6" is a pair
    of numbers and what somebody is choosing is how much is on a page.
@@ -954,10 +1004,11 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    each of them is a fact about the hardware rather than a choice.
 
    The board itself is #device, at --cols:3 and --rows:2 written into the
-   markup: unlike the tablet's, this grid is not a setting. It needs no width
-   rule of its own - the tablet lifts main's 640px cap because eleven columns
-   do not fit in it, and three columns of 640px is a cell about 200px wide,
-   which is a symbol somebody can judge. */
+   markup: unlike the tablet's, this grid is not a setting. Its width rule is
+   not here either: it sits with the tablet's, up beside the cap the two of
+   them override, because what each editor does to `main` reads as one
+   decision only when both halves are in one place. Three columns of 600px is
+   a cell about 200px wide, which is a symbol somebody can judge. */
 
 /* Square, because the display is square.
 
