@@ -10,8 +10,15 @@ import type { Layout } from "../../src/core/types.js";
  * A search that finds nothing has said so for a long time. A search that finds
  * the wrong thing looked exactly like one that found the right thing: twelve
  * tiles, every one of them confident. "nicht" in METACOM is the case that
- * showed it - every hit a rendering of "nichtbinaer", because METACOM has no
- * "nicht" symbol and never will, and nothing on the screen said so.
+ * showed it - every hit a rendering of "nichtbinaer", and nothing on the
+ * screen said so.
+ *
+ * The example moved with bildquelle 1.6.3, which reads a run-together label as
+ * the pair METACOM wrote without its slash. "nichtbinaer" is a whole-word
+ * match now, and so is "nichtkein" - the negation pair, which is the picture
+ * that search was always looking for and which now comes back first. So the
+ * near miss is spelled with a word that really is only a word starting the
+ * same way: "nichte" is a niece.
  *
  * What is under test is the line, not the ranking: bildquelle grades the hits
  * and vorlaut reads the grade. So the collections here are real providers
@@ -77,7 +84,9 @@ afterEach(async () => {
 describe("a collection that does not hold the word", () => {
   it("says so over the near misses instead of showing them plain", async () => {
     // The reported case, with the collection cut down to what it turns on.
-    await collection("nichtbinaer.png", "nichtbinaer-02.png", "nichtbinaer-03.png");
+    // Renderings of a niece: every one of them starts "nicht" and none of them
+    // is it, which is the shape the line exists to name.
+    await collection("nichte.png", "nichte-02.png", "nichte-03.png");
     const answer = await findSymbols("nicht");
 
     expect(answer.near).toBe(NEAR("nicht"));
@@ -120,11 +129,24 @@ describe("a collection that does hold it", () => {
 
   it("does not count a word that merely starts the same", async () => {
     // The rung below, and the whole of the case this exists for: 55 rather
-    // than 60, one step apart, and a different word.
-    await collection("nichtbinaer.png");
+    // than 60, one step apart, and a different word. A niece is not a
+    // negation.
+    await collection("nichte.png");
     const answer = await findSymbols("nicht");
 
     expect(answer.near).toBe(NEAR("nicht"));
+  });
+
+  it("counts the pair METACOM wrote without its slash", async () => {
+    // The other half of the same rule, and what bildquelle 1.6.3 changed.
+    // "nichtkein" is the negation pair with the slash dropped, because a
+    // filename cannot hold one - METACOM's picture for it, not a word that
+    // merely starts the same way, and the line has nothing to say over it.
+    await collection("nichtkein.png");
+    const answer = await findSymbols("nicht");
+
+    expect(answer.hits.length).toBe(1);
+    expect(answer.near).toBe("");
   });
 });
 

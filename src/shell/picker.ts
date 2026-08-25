@@ -120,10 +120,14 @@ export interface SymbolAnswer {
  * A search that finds nothing says so. A search that finds the wrong thing
  * used to look exactly like one that found the right thing: twelve tiles, all
  * confident. Searching "nicht" in METACOM is the case that showed it - every
- * hit a rendering of "nichtbinaer", because METACOM has no "nicht" symbol at
- * all and never will: German AAC negates by crossing out the symbol being
- * negated rather than with a picture of its own. Nothing on the screen said
- * so, and only somebody who already knew the collection could tell.
+ * hit a rendering of "nichtbinaer". German AAC mostly negates by crossing out
+ * the symbol being negated rather than with a picture of its own, so a
+ * collection answering that way is answering as well as it can. Nothing on the
+ * screen said so, and only somebody who already knew the collection could tell.
+ *
+ * "No 'nicht' symbol at all" is what this used to say, and it was too strong:
+ * METACOM files the negation pair as "nichtkein", and since bildquelle 1.6.3
+ * reads that run-together spelling as the two words it is, it comes first.
  *
  * bildquelle grades every candidate on one ladder, the same for both sources:
  * the label is the word (100), begins with it as a phrase (70), holds it as
@@ -141,9 +145,23 @@ export interface SymbolAnswer {
  * typed is still a word the label is made of, and 70 above it is the same
  * thing with the word at the front.
  *
- * The rung below is where it stops. 55 is "nichtbinaer" for "nicht": a
- * different word that happens to start the same way, and the whole of the
- * case this exists for. 40 and 25 are less again.
+ * The rung below is where it stops. 55 is "nichte" for "nicht": a different
+ * word that happens to start the same way, and the whole of the case this
+ * exists for. 40 and 25 are less again.
+ *
+ * "nichtbinaer" used to be the example on that rung, and bildquelle 1.6.3
+ * moved it. METACOM writes some compounds with a separator and some without,
+ * and the ladder could only see the boundaries that were punctuated, so
+ * "nichtkein" - the negation pair, written without the slash a filename
+ * cannot hold - sat below every spelling that carried an underscore.
+ * Reading a run-together label as the pair it is puts "nichtkein" at 70 and
+ * first, which is the picture somebody searching "nicht" was looking for; it
+ * puts "nichtbinaer" at 70 too, which this line can no longer tell from a
+ * whole-word match. That is the trade, and it falls the right way: against a
+ * real collection the line now goes quiet because the collection really does
+ * hold a "nicht", not because it gave up looking. A collection holding
+ * "nichtbinaer" and no "nichtkein" is the case it gets wrong, and METACOM is
+ * not one.
  */
 const WHOLE_WORD = 60;
 
