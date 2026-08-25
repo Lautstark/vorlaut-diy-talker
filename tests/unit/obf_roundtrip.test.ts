@@ -21,12 +21,16 @@
  * directions agree on the wrong name and the round trip closes perfectly. A
  * `.obf` that no other program can read would pass every check in this file.
  *
- * That is not hypothetical. Breaking `border_color` on the way out - writing
- * a fixed colour instead of the set's - passes everything here, because
- * `border_color` is written for other programs to read and this converter
- * takes the colour back out of `ext_vorlaut_color`. Every field that exists
- * for somebody else's software is invisible to a round trip, and those are
- * exactly the fields that make the format worth having.
+ * That is not hypothetical. Breaking `label` on the way out - writing a fixed
+ * string, or nothing - passes everything here, because `label` is what another
+ * editor shows on the key while this converter reads a slot's text back out of
+ * `vocalization` and only falls back to the label. Every field that exists for
+ * somebody else's software is invisible to a round trip, and those are exactly
+ * the fields that make the format worth having.
+ *
+ * The example used to be `border_color`, which was the same shape - written
+ * for a foreign renderer, read back out of `ext_vorlaut_color`. Both went with
+ * the set colour.
  *
  * Only tests/reference/obf.lock.json has an opinion about the names, and only
  * for the boards recorded in it. The two are complements; neither is the
@@ -34,7 +38,7 @@
  *
  * What it does catch is most of what actually breaks in a mapping: a field
  * dropped on the way out or on the way back, a list reordered, a nesting
- * flattened, a value coerced to the wrong type, a colour or a locale lost.
+ * flattened, a value coerced to the wrong type, a locale lost.
  */
 
 import { fileURLToPath } from "node:url";
@@ -93,13 +97,13 @@ function difference(want, got, path = "") {
 /* Deterministic rather than random: a property test that fails once a
  * fortnight on a seed nobody kept is worse than one that fails every time.
  * These are chosen to have somewhere for a field to hide - empty and full
- * sets, slots with and without text, colours in every shape the normalizer
- * accepts, both languages, and the boundaries of the sleep timeout. */
+ * sets, slots with and without text, both languages, and the boundaries of the
+ * sleep timeout. */
 const board = (over = {}) => normalizeLayout({
   sleep_timeout_seconds: 600,
   language: "de",
   sets: [{
-    name: "Grundset", color: "#3B5BDB", symbol: "a.png",
+    name: "Grundset", symbol: "a.png",
     slots: [{ text: "Ja", symbol: "ja.png" },
             { text: "", symbol: "" },
             { text: "Stopp", symbol: "metacom:stopp" },
@@ -126,24 +130,24 @@ const CASES = [
   ["one full set", board()],
   ["no sets at all", board({ sets: [] })],
   ["a slot with text and no symbol",
-   board({ sets: [{ name: "S", color: "#159947",
+   board({ sets: [{ name: "S",
                     slots: [{ text: "Nur Text", symbol: "" }] }] })],
   ["a slot with a symbol and no text",
-   board({ sets: [{ name: "S", color: "#159947",
+   board({ sets: [{ name: "S",
                     slots: [{ text: "", symbol: "nur.png" }] }] })],
   ["five sets, so the order has somewhere to go wrong",
    board({ sets: Array.from({ length: 5 }, (_, i) => ({
-     name: `Set ${i}`, color: ["#000000", "#FFFFFF", "#FF0000", "#00FF00", "#0000FF"][i],
+     name: `Set ${i}`,
      slots: Array.from({ length: 4 }, (_, j) => ({
        text: `Satz ${i}${j}`, symbol: `b${i}${j}.png` })),
    })) })],
   ["three sets with nothing on them at all",
-   board({ sets: [{ name: "Erstes", color: "#3B5BDB", slots: [] },
-                  { name: "Zweites", color: "#159947", slots: [] },
-                  { name: "Drittes", color: "#FF6B35", slots: [] }] })],
+   board({ sets: [{ name: "Erstes", slots: [] },
+                  { name: "Zweites", slots: [] },
+                  { name: "Drittes", slots: [] }] })],
   ["English", board({ language: "en" })],
   ["a METACOM symbol, which travels as a reference and not as pixels",
-   board({ sets: [{ name: "M", color: "#9B7BFF",
+   board({ sets: [{ name: "M",
                     slots: [{ text: "Essen", symbol: "metacom:essen" }] }] })],
   // Sixteen two-byte characters: exactly the 32 bytes a set name has room
   // for. "é" rather than an umlaut only because tests/german.py reads an
@@ -151,7 +155,7 @@ const CASES = [
   // and this is a length, not a word. The same character the old
   // test_layout_format.py used, for the same reason.
   ["a name of exactly 32 bytes in two-byte characters",
-   board({ sets: [{ name: "\u00e9".repeat(16), color: "#FF8BC7", slots: [] }] })],
+   board({ sets: [{ name: "\u00e9".repeat(16), slots: [] }] })],
   ["the shortest sleep", board({ sleep_timeout_seconds: 0 })],
   ["the longest sleep", board({ sleep_timeout_seconds: 86400 })],
 ];

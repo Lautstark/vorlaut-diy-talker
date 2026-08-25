@@ -5,7 +5,6 @@
     {
       "name": "Grundset",
       "symbol": "start.png",
-      "color": "#3B5BDB",
       "slots": [
         { "text": "Ja!", "symbol": "ja.png" },
         { "text": "Nein!", "symbol": "nein.png" },

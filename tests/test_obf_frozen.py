@@ -111,6 +111,51 @@ out of the comparison and nothing else. The board id, the buttons, the grid,
 the images, the licence, the colour, the locale, the ring and the container are
 all still held to what obf.py said."""
 
+THE_COLOUR_IS_GONE = """the set colour, in the three places this mapping put it.
+
+A set carried a colour. A board carried it as `ext_vorlaut_color`, the hex form
+that survived a round trip; every button on that board carried it again as
+`border_color`, the CSS form, so that a foreign renderer had something to draw;
+and `normalizeLayout()` gave a set without one a colour from the palette. The
+talker has no per-set colour at all now - not in the editor, not in layout.bin,
+not in an app package - so none of the three has anything to write.
+
+That is the end of a chain rather than a change of mind about the mapping.
+`layout.lock.json` went first, under THE_COLOUR_IS_GONE in
+tests/test_layout_frozen.py; `BoardSet.color` outlived it by one change purely
+because of this file, and this is what lets it go.
+
+**Three kinds of frozen answer are affected, and only one of them is a loss.**
+
+*The layouts.* `color` drops out of every set in every compared layout - the
+27 imports, the 54 `normalizeLayout` helper calls, the layouts inside the
+containers, and the round trip at the end. Skipped by where it sits and not by
+name alone, exactly as `active` is: `sets[N].color` and nothing else, so the
+day some other thing is called a colour it is still compared.
+
+*The documents this writer produces.* `ext_vorlaut_color` on a board and
+`border_color` on a button drop out of the 8 exports and out of the zip
+members. **Only on documents this module wrote.** A document read back from a
+container keeps both fields compared, because a board arrives as the dictionary
+it was parsed from - a foreign board's own `border_color` is preserved and has
+to go on being preserved, and narrowing that too would have stopped checking
+the one thing about these fields that is still true.
+
+*`cssColor()`.* This is the loss: the function is gone, so its 10 frozen
+answers cannot be asked of anything. They were the only frozen record of what
+this project did with a malformed colour - `#abc` expanded, a missing `#`
+supplied, `#12345` and `no colour at all` falling back to `#3B5BDB`. Nothing
+here can hold anything to that any more, and nothing needs to: there is no
+colour to normalize. app_package.ts has a `cssColor` of its own for word-class
+colours, which is a different function on a different input - a literal out of
+WORD_CLASSES, never a value somebody typed - and it is not what these answers
+were about.
+
+The rest of the lock keeps its full value. The board id, the buttons, the grid,
+the images, the licence, the locale, the ring, the container and the zip
+members are all still held to what obf.py said, and the members are still
+compared as text, so sorted keys and two-space indent are still held too."""
+
 THE_CAP_MOVED = """the cap on how many sets a layout may hold.
 
 It used to be two numbers - author up to 25, mark 5 to ship - and collapsing
@@ -143,24 +188,37 @@ def cap_from_the_page() -> int:
     return int(found.group(1))
 
 
-def without_the_active_field(lock: dict) -> dict:
-    """The frozen zip members, with the one dead line taken out of each.
+# The lines that no longer appear in a board this module writes, at the indent
+# they sit at: ACTIVE_IS_GONE's one field at the top level of a board,
+# THE_COLOUR_IS_GONE's one there and one inside every button.
+DEAD_LINES = (
+    '  "ext_vorlaut_active":',
+    '  "ext_vorlaut_color":',
+    '      "border_color":',
+)
+
+
+def without_the_dead_fields(lock: dict) -> dict:
+    """The frozen zip members, with the lines nothing writes taken out.
 
     The members are compared as text, not as parsed JSON, and deliberately:
     that is what holds the writer to sorted keys and two-space indent - see
-    "sort_keys dropped from the board JSON" in docs/frozen-references.md. So
-    the field is removed by deleting its line rather than by re-serializing,
-    and every remaining byte still has to match.
+    "sort_keys dropped from the board JSON" in docs/frozen-references.md. So a
+    field is removed by deleting its line rather than by re-serializing, and
+    every remaining byte still has to match.
 
-    Safe to do line-wise because the keys are sorted: ext_vorlaut_active always
-    sits at the top level of a board between "buttons" and "ext_vorlaut_color",
-    never last, so its trailing comma goes with it and never orphans another.
+    Safe to do line-wise, and the reason is the sorted keys: none of the three
+    is ever last in its object, so its trailing comma goes with it and never
+    orphans another. `ext_vorlaut_active` and `ext_vorlaut_color` sit at the
+    top level of a board and are followed by `format`, `id` and `name` at the
+    least; `border_color` sorts before every other key a button can have, and
+    every button has an `id`.
     """
     for entry in lock["zips"]:
         for member in entry["members"]:
             member["text"] = "".join(
                 line + "\n" for line in member["text"].split("\n")[:-1]
-                if not line.startswith('  "ext_vorlaut_active":')
+                if not line.startswith(DEAD_LINES)
             ) + member["text"].split("\n")[-1]
     return lock
 
@@ -171,28 +229,43 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         failures.append(name)
 
 
-def difference(want, got, path: str = "") -> str | None:
+# THE_COLOUR_IS_GONE: the two fields a board this module writes used to carry
+# the set colour in. Passed only where the document under comparison is one
+# this module produced - see the note at the call sites, and the paragraph in
+# THE_COLOUR_IS_GONE about why a document read from a container is not one.
+COLOUR_WRITTEN = frozenset({"ext_vorlaut_color", "border_color"})
+
+
+def difference(want, got, path: str = "", ours: bool = False) -> str | None:
     """Where two answers stop agreeing, as one line naming the field.
 
     The same function tests/test_obf_js.py has, written out again rather than
     imported: that file imports obf, and the whole point of this one is that
     it runs when there is no obf to import.
+
+    `ours` says the thing being compared is a document this module wrote, which
+    is what makes it safe to stop comparing the colour fields in it.
     """
     where = path or "the answer"
     if isinstance(want, dict) and isinstance(got, dict):
         for key in sorted(set(want) | set(got)):
-            # ACTIVE_IS_GONE. Skipped where it sits rather than by name alone,
-            # so that the day some other field is called "active" it is still
-            # compared: this is the set entry's flag and the board's copy of
-            # it, and nothing else.
+            # ACTIVE_IS_GONE, and THE_COLOUR_IS_GONE's half of it. Skipped
+            # where they sit rather than by name alone, so that the day some
+            # other field is called "active" or "color" it is still compared:
+            # these are the set entry's flag, the board's copy of it, and the
+            # set entry's colour, and nothing else.
             if key == "ext_vorlaut_active" or (
-                    key == "active" and re.fullmatch(r"sets\[\d+\]", path)):
+                    key in ("active", "color")
+                    and re.fullmatch(r"sets\[\d+\]", path)):
+                continue
+            if ours and key in COLOUR_WRITTEN:
                 continue
             if key not in want:
                 return f"{where}: JavaScript adds {key!r}"
             if key not in got:
                 return f"{where}: JavaScript is missing {key!r}"
-            found = difference(want[key], got[key], f"{path}.{key}" if path else key)
+            found = difference(want[key], got[key],
+                               f"{path}.{key}" if path else key, ours)
             if found:
                 return found
         return None
@@ -200,7 +273,7 @@ def difference(want, got, path: str = "") -> str | None:
         if len(want) != len(got):
             return f"{where}: {len(want)} entries frozen, {len(got)} in JavaScript"
         for index, (one, two) in enumerate(zip(want, got)):
-            found = difference(one, two, f"{path}[{index}]")
+            found = difference(one, two, f"{path}[{index}]", ours)
             if found:
                 return found
         return None
@@ -237,13 +310,16 @@ def over_the_cap(args: list, cap: int) -> bool:
             and len(args[0]["sets"]) > cap)
 
 
-def compare(name: str, want: dict, answer: dict) -> None:
+def compare(name: str, want: dict, answer: dict, ours: bool = False) -> None:
     """One frozen answer against one from the JavaScript.
 
     Both are {"value": ...} or {"error": "..."}, so a case obf.py refused is
     compared as a refusal and its sentence, not merely as "something went
     wrong". A converter that throws where the oracle answered is as broken as
     one that answers differently.
+
+    `ours` is difference()'s, and reaches only the callers that hand over a
+    document this module wrote.
     """
     if "error" in want and "error" in answer:
         same = want["error"] == answer["error"]
@@ -257,7 +333,7 @@ def compare(name: str, want: dict, answer: dict) -> None:
     if "error" in answer:
         check(name, False, f"JavaScript refused it: {answer['error']}")
         return
-    found = difference(want["value"], answer["value"])
+    found = difference(want["value"], answer["value"], ours=ours)
     check(name, found is None, found or "")
 
 
@@ -331,6 +407,10 @@ def check_the_written_zips(lock: dict, answers: list) -> None:
             check(f"{name}: the same members in the same order", False,
                   f"{wanted} vs {names}")
             continue
+        # Not ours=True: a member is {"name", "text", ...} and the text is one
+        # string, so there is no colour field here to skip - the lines were
+        # taken out of the frozen text before the comparison, by
+        # without_the_dead_fields().
         found = difference(entry["members"], got)
         check(f"{name}: {len(wanted)} member(s), byte for byte and stamp for "
               f"stamp", found is None, found or "")
@@ -347,7 +427,7 @@ def main() -> int:
     if not MODULE.is_file():
         print(f"  {MODULE} is missing")
         return 1
-    lock = without_the_active_field(json.loads(LOCK.read_text(encoding="utf-8")))
+    lock = without_the_dead_fields(json.loads(LOCK.read_text(encoding="utf-8")))
 
     check_the_module_still_says_the_format(lock)
     check_the_fixtures_are_intact(lock)
@@ -372,7 +452,16 @@ def main() -> int:
 
     print("\n--- the helpers, on the arguments that bite --------------------")
     cap = cap_from_the_page()
+    # THE_COLOUR_IS_GONE. Counted and named rather than quietly filtered: these
+    # are ten recorded answers that nothing can be asked for any more, which is
+    # a price and reads like one only if it is printed.
+    dead = [one for one in lock["helpers"] if one["call"] == "cssColor"]
+    if dead:
+        print(f"  --    {len(dead)} cssColor answer(s): set aside, the "
+              f"function went with the colour (THE_COLOUR_IS_GONE)")
     for one, answer in zip(lock["helpers"], answers["helpers"]):
+        if one["call"] == "cssColor":
+            continue
         name = f"{one['call']}({', '.join(repr(a) for a in one['args'])})"
         name = name[:87] + "...)" if len(name) > 90 else name
         # THE_CAP_MOVED. The oracle answered these under a cap of 25 sets and a
@@ -388,7 +477,11 @@ def main() -> int:
 
     print("\n--- a layout becomes the frozen document -----------------------")
     for one, answer in zip(lock["exports"], answers["exports"]):
-        compare(one["name"], {"value": one["document"]}, answer)
+        # ours=True: this is the writer's own output, so THE_COLOUR_IS_GONE's
+        # two fields are not compared. The import and container comparisons
+        # below deliberately do not pass it - a foreign board's border_color
+        # arrives in the dictionary it was parsed from and must still survive.
+        compare(one["name"], {"value": one["document"]}, answer, ours=True)
 
     print("\n--- and a document the frozen layout ---------------------------")
     for one, answer in zip(lock["imports"], answers["imports"]):
