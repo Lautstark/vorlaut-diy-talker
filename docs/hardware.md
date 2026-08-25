@@ -116,17 +116,26 @@ module: it follows from how deep the module is mounted. See
 
 | | Dimension |
 |---|---|
-| Grid of the four speech keys | 42.0 x 45.3 mm |
-| Gap between the caps | 20 mm, the same on all four sides |
-| Distance set key to the block of four | 30 mm = 1.5 x the gap inside the block |
+| Grid of the four speech keys | 36.0 x 39.3 mm |
+| Gap between the caps | 14 mm, the same on all four sides (floor is 12) |
+| Distance set key to the block of four | 20 mm, its own floor = 1.4 x the gap inside the block |
 | Gap speaker to set key | 5 mm |
 | Components in total | 127 x 81 mm |
-| Case outside | 145.9 x 99.4 x 51.4 mm, no feet — it lies on its flat back |
+| Case outside | 129.9 x 99.4 x 41.5 mm, no feet — it lies on its flat back |
 
 Arrangement: speaker top left, the set key below it, the four speech keys to
 the right as a 2x2 block. The set key and the lower key row finish flush at the
-bottom — that works out exactly, because speaker + 5 mm + set board come to
-80.6 mm and the block is also 80.6 mm high at this grid.
+bottom. At the old 20 mm grid the block came to exactly 80.6 mm and matched the
+speaker column; at 14 mm it is 74.6 and there are 6 mm of unused face above it.
+Centring the block would tidy that, at the cost of the flush bottom edge.
+
+**12 mm is the floor; 14 is what is set.** A child's hand wants 12 mm between
+caps or it hits two at once, and independently the boards want more than
+`35.29 + 2` of vertical pitch, which is 11.99 — at 12 the PCBs are 2.01 mm
+apart and below that they touch. The extra two millimetres are not caution
+about hands but about tolerance: at the floor, three separate clearances inside
+the case sat within 60 microns of their limits at once. See
+[case/building.md](../case/building.md).
 
 **Important:** the boards must not touch. There would then be only
 25.94 - 22.00 = 3.9 mm sideways between the caps, and a child's hand would hit
@@ -174,9 +183,16 @@ The Feather is 22.8 mm wide and therefore does **not** fit into the 12.6 mm
 next to the battery. It has to go above it, so stacked:
 
 ```
-key 13.4 + spacer 8.0  +  battery 8.1  +  Feather 8.0  =  37.5 mm
-speaker alone:                                           25.3 mm
+key 13.4 + spacer 8.0 + plate 2.4 + battery 8.1 = 31.9 mm to the top of the battery
+the Feather, lying flat on the plate, reaches      31.8 mm
+speaker alone:                                     25.3 mm
 ```
+
+The Feather used to be the tallest of these and set the depth on its own,
+because it stood on 2 mm standoffs that existed only to clear its header pin
+tails. The mid plate has a well under it now, the tails go through that, the
+board lies flat on the plate, and the battery governs instead — 1.9 mm of case.
+The USB-C socket comes down with the board, to 27.0 mm behind the front face.
 
 That means the depth is no longer set by the speaker but by the stack:
 **about 32 mm inside, roughly 36 mm outside** — and then the first real build

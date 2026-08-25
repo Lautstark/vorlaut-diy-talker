@@ -16,13 +16,18 @@ them.
 
 | Part | What it does | Outer size |
 |---|---|---|
-| **Tub** | front plate, walls, speaker chamber, lid bosses | 145.9 × 99.4 × 51.4 mm |
-| **Carrier** | holds the five ScreenKeys, separates wiring from battery | 140.7 × 94.2 × 10.7 mm |
-| **Lid** | back panel with the logo cut into it | 143.1 × 96.6 × 3.0 mm |
+| **Tub** | front plate, walls, speaker chamber, lid bosses | 129.9 × 99.4 × 41.5 mm |
+| **Carrier** | holds the five ScreenKeys and the Feather, separates wiring from battery | 124.7 × 94.2 × 10.7 mm |
+| **Lid** | back panel with the logo cut into it | 127.1 × 96.6 × 3.0 mm |
 
 All three sizes are measured on the exported STL, not merely calculated. The
 tub's footprint on the bed is exactly 145.9 × 99.4 mm — with the logo cut in
 rather than raised, nothing stands proud of the walls any more.
+
+The case lost 16 mm of width and 9.9 mm of depth in one pass, and neither came
+from a clever rearrangement — both were slack. The width was air between the
+keys; the depth was the Feather standing on stilts and a cable allowance
+measured before the wiring was dressed. Both are covered below.
 
 The carrier changed job without changing shape. It used to be a floor; it is
 now also the plate the five ScreenKeys hang off — but it holds them with
@@ -154,6 +159,7 @@ All clearances are named variables in section 3 of the `.scad`.
 | Where | Variable | Value | Meant for |
 |---|---|---|---|
 | Around the key cap | `gap_cap` | 0.30 mm | the key must never jam — but no child's finger in it |
+| Around the Feather in its well | `feather_play` | 0.30 mm | tighter than the rest — see below |
 | Lid in the rebate | `lid_play` | 0.40 mm | the lid should drop in, not jam |
 | Carrier | `carrier_play` | 0.40 mm | same |
 | Around battery and amplifier | `part_play` | 0.40 mm | insert the part without force |
@@ -295,6 +301,90 @@ feet_on       = true;    // and then the feet are needed again
 `verify.py` refuses the combination that does not work — raised logo, no feet —
 rather than letting it through quietly.
 
+## How small it goes, and what stops it
+
+Two numbers set the width and one sets the depth, and all three are now at or
+near a wall rather than at a comfortable guess.
+
+**The key grid.** The floor is 12.00 mm and `gap_block` is set to **14.00**.
+
+The floor is where two independent rules land almost on top of each other: a
+child's hand wants at least 12 mm between caps or it presses two at once, and
+the *boards* underneath want `pitch_y > sk_board_h + 2`, which is 11.99.
+
+The two millimetres above it are bought deliberately. At the floor, three
+separate clearances on the carrier sat within 60 microns of their limits *at
+the same time* — board to board 2.010, ScreenKey screw to support post 0.509,
+Feather pad to peg hole 0.561 — and a first layer running 0.1 mm fat moves all
+three together. At 14 they are 4.010, 1.668 and 0.811. Two millimetres of case
+width for that is cheap; the last millimetre of width costs every remaining
+margin in the part.
+
+`gap_set_block` is 20.00 mm, its own absolute floor, still 1.4× the air inside
+the block — the four speech keys go on reading as one group and the set key
+goes on reading as not part of it.
+
+**The depth.** What governs it is now the battery lying on the carrier, at
+z = 31.9. It used to be the Feather, standing 2 mm proud of the same plate and
+reaching z = 33.8. Letting its pins through the plate — see below — puts its
+top at z = 31.8, just under the battery, and hands back 1.9 mm.
+
+**What can't be shrunk.** The 40 mm driver. It needs 25.3 mm plus 4 mm of
+clamping foam, so front plate + driver + foam + lid is **34.7 mm** whatever
+happens to the electronics, and its 40.3 mm frame plus the set key below it is
+what fixes the 99.4 mm height. Every remaining millimetre of case is the cable
+headroom, and that is a number to re-measure rather than reason about.
+
+## The Feather's pins go through the carrier
+
+It used to stand on four 2 mm standoffs on top of the plate. Those standoffs
+existed for one reason: to give the header pin tails somewhere to go. Cut a
+**well** through the plate under the board and the tails go through it instead,
+and the board lies straight on the plate's top face — 2.0 mm lower, top at
+z = 31.8 instead of 33.8, just under the battery's 31.9.
+
+It is worth being exact about where the saving comes from, because the first
+attempt at this got it wrong in a way that looked right. That version sank the
+board *into* the well, resting it on four 1.20 mm pads made of the plate's own
+bottom layers. Same 1.9 mm — but it left the M2 three threads of PLA to bite,
+and 2.10 mm of hole to bite them in, which is a clearance hole and not a pilot
+at all. **The saving was never the sinking. It was deleting the standoff.**
+
+So the pads are ordinary plate, full 2.4 mm thickness — they are what is *left*
+of the plate, not something added back to it — and the M2 self-taps into six
+threads, which is what the lid bosses already rely on. Pilot `feather_screw_core`
+is 1.60, as `sk_boss_core` was.
+
+Three things fall out, and two of them are free:
+
+- **1.9 mm of case.** The Feather stops being the tallest thing behind the
+  plate and the battery takes over.
+- **It still prints flat, with no support.** The well is a hole and the pads
+  are plate. Each pad is hulled out to the edge of the well so it hangs off the
+  surrounding plate — a disc on its own in the middle of a cutout is neither
+  printable nor connected to anything.
+- **The USB-C window drops 2.0 mm**, to z = 27.0, because it is measured off
+  the board and the board came down by the height of the standoff. It stays
+  above the carrier, so nothing needs notching for it — but the well still has
+  to reach the plate edge or the plate stands in front of the socket, and
+  `verify.py` checks that it does.
+
+`feather_pad_d` is 4.50 rather than 5.00 on purpose: the nearest header pin is
+not far from the corner mounting hole, and the pad has to miss it. **Dry-fit one
+Feather before printing the plate** — this is the one dimension here taken from
+a drawing rather than from the board.
+
+**`feather_y` is not free.** The well has to pass *between* the set key's two
+rows of screw pads, which leave 25.00 mm clear for a 23.40 mm well: 0.8 mm of
+play each side. 6.25 sits in the middle of that. At 8.00 — where it sat before
+the case was narrowed — the well swallows the set key's two upper screws
+outright. That was found by hand and is now an assert, so it cannot come back.
+
+The cable slot that used to run up the gap between the set key and the block is
+gone. The well occupies that gap and is a far bigger opening than the slot ever
+was; squeezing the slot into the 5 mm of plate left beside it would have left a
+rib half a millimetre wide.
+
 ## Assembly
 
 The order is not arbitrary — front to back, because each layer holds down the
@@ -340,11 +430,14 @@ one beneath it.
    cleanly and spring back?** If a key is stiff it is catching on its cutout —
    stop and read [Measure first](#measure-first) below.
 
-7. **Feather onto the carrier.** Onto the four standoffs, USB-C socket into the
-   window in the side wall the speaker chamber stands against — the same end of
-   the case as the speaker and the set key, which from the front is the child's
-   left. The socket has to **reach** the wall and not jam in it: side loads on
-   the cable should be taken by the wall, not by the soldered socket.
+7. **Feather into the carrier.** It drops into the well now rather than standing
+   on top of the plate: board down onto the four pads in the floor of the well,
+   header pin tails through into the space below, USB-C socket out through the
+   notch at the plate edge and into the window in the side wall the speaker
+   chamber stands against — the same end of the case as the speaker and the set
+   key, which from the front is the child's left. The socket has to **reach**
+   the wall and not jam in it: side loads on the cable should be taken by the
+   wall, not by the soldered socket.
 
 8. **Amplifier.** Into the rib bed on the far side of the chamber wall from
    the speaker, with a strip of double-sided tape. Two screw holes would be

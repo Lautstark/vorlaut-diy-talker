@@ -162,8 +162,23 @@ amp_d               =  3.00;  // [R] without the pin header
 // times as much. Both pitches come from the same number, so the block has
 // equal air on all four sides and reads as a square. Before, it was 15 mm
 // across and 20 mm up - four keys that read as two rows, not as one block.
-gap_block     = 20.00;  // [K] air between two speech caps, both directions
-gap_set_block = 1.5 * gap_block;      // [G] 30.0  set cap to the nearest speech cap
+// 12.00 is the floor, and two independent rules land almost on top of each
+// other there. A child's hand wants at least 12 mm between caps or it presses
+// two at once. And the BOARDS underneath want pitch_y > sk_board_h + 2, which
+// is 11.99 - at gap 12 the ScreenKey PCBs are 2.01 mm apart.
+//
+// 14.00 is what is set, and the two millimetres are bought deliberately. At
+// the floor three separate clearances on the carrier sat within 60 microns of
+// their limits at once - board to board 2.010, ScreenKey screw to support post
+// 0.509, Feather pad to peg hole 0.561 - and a first layer running 0.1 mm fat
+// moves all of them together. Two millimetres of case width doubles the worst
+// of those and adds half again to the board gap. The last millimetre of width
+// costs every remaining margin in the part.
+gap_block     = 14.00;  // [K] air between two speech caps, both directions
+// The step out to the set key has its own absolute floor of 20 mm, separate
+// from the ratio rule below - so it is written as the number, not as a
+// multiple. 20/12 is still 1.67x the air inside the block.
+gap_set_block = 20.00;                // [K] set cap to the nearest speech cap
 pitch_x       = sk_cap_b + gap_block; // [G] 42.0  centre spacing across
 pitch_y       = sk_cap_h + gap_block; // [G] 45.3  centre spacing up
 gap_spk_set        =  5.00;  // [M] speaker to set board
@@ -253,6 +268,30 @@ sk_behind_front = sk_total_depth - sk_cap_overhang;   // [G] 13.40
 // spacers - which is what the 6.00 mm here used to be reserving room for.
 cable_space   = sk_spacer_l;   // [G] 8.00
 part_clearance    = 0.60;   // [K] clearance between the tallest part and the lid
+// The Feather's HEADER PINS go through the mid plate instead of the board
+// standing off it. It used to be the tallest thing back here - 8.0 mm of board
+// on 2.0 mm of standoff, reaching z 33.8 - and it, not the battery, set the
+// depth of the case.
+//
+// The standoff was only ever there to give the pin tails somewhere to go. Give
+// them a hole through the plate instead and the board lies straight on the
+// plate's top face: top at z 31.8, just under the battery's 31.9, and the
+// battery governs. That is the whole 1.9 mm.
+//
+// Worth being exact about, because the first attempt at this got it wrong in a
+// way that looked right: it sank the board into a well on 1.2 mm pads. Same
+// 1.9 mm, but the screw then had three threads of PLA to bite and the pads
+// were the plate's bottom layers. The saving was never the sinking - it was
+// deleting the standoff - so the pads are full plate thickness now and the M2
+// gets six threads, which is what the lid bosses already rely on.
+feather_pins_through = true;  // [K] false = back to standing on feather_support
+feather_pad_d   = 4.50;   // [K] pad round each mounting hole. Deliberately
+                          //     small: the nearest header pin is not far from
+                          //     the corner hole. Dry-fit before printing five.
+feather_screw_core = 1.60;  // [K] pilot for self-tapping M2, as sk_boss_core
+                          //     was. NOT 2.10 - that is a clearance hole and
+                          //     nothing would bite in it.
+
 feather_support = 2.00;   // [K] standoff under the Feather. Do not make it
                           //     smaller: the solder pins of the headers
                           //     stick out that far underneath.
@@ -266,21 +305,32 @@ carrier_z_top     = carrier_z_bottom + carrier_d;                // [G] 23.80 ca
 // part on the carrier - and that is not the battery but the Feather on its
 // standoffs. Exactly that was wrong in the first draft: only the battery was
 // in the budget there, and the Feather reached 1.3 mm into the lid.
-stack_battery  = battery_d;                    // [G]  8.10
-stack_feather  = feather_support + feather_h;  // [G] 10.00  <- the governing one
-stack_amp      = amp_support + amp_d;          // [G]  5.00
-stack_max      = max(stack_battery, stack_feather, stack_amp);   // [G] 10.00
+// Measured as absolute z now, not as heights above the carrier, because the
+// Feather no longer starts from the carrier's top face - it hangs INTO the
+// plate. Mixing the two datums is how the first draft lost 1.3 mm into the lid.
+feather_z_bottom = feather_pins_through ? carrier_z_top
+                                        : carrier_z_top + feather_support;  // [G] 23.80
+top_battery = carrier_z_top + battery_d;                  // [G] 31.90 <- governs
+top_feather = feather_z_bottom + feather_h;               // [G] 30.60
+top_amp     = carrier_z_top + amp_support + amp_d;        // [G] 28.80
+parts_top   = max(top_battery, top_feather, top_amp);     // [G] 31.90
 
 // Room ON TOP of what the parts themselves need. Measured on the first
 // build: with the wiring actually in it the parts do not lie as flat as the
 // stack-up says - the battery lead, the JST plug and the ribbon cables coming
 // up through the carrier all want their bend radius, and the lid pressed on
 // them. The carrier stays exactly where it is; the case grows backwards only.
-extra_above_carrier = 14.00;  // [M] Stefanie, first hardware, August 2026
+// Was 14.00 after the first build, measured with the Feather standing proud on
+// 2 mm standoffs and every cable running over the top of it. Sunk into the
+// plate, the tallest thing left above the plate is the battery at 8.1 mm and
+// the cables have somewhere flatter to lie. 6.00 is the estimate that replaces
+// it - and it is the one number here still owed a measurement, because every
+// millimetre of it is a millimetre of case.
+extra_above_carrier =  6.00;  // [A] re-measure with the wiring actually in
 
-inner_z_h       = carrier_z_top + stack_max + part_clearance
-                  + extra_above_carrier;                // [G] 48.40
-outer_t        = inner_z_h + lid_d;                     // [G] 51.40 total depth
+inner_z_h       = parts_top + part_clearance
+                  + extra_above_carrier;                // [G] 38.50
+outer_t        = inner_z_h + lid_d;                     // [G] 41.50 total depth
 
 /* --- Outer dimensions --- */
 inner_b  = env_b + 2*inner_margin;      // [G] 141.12
@@ -300,6 +350,10 @@ chamfer_key    = 0.80;   // [K] chamfer on the edge of the key cutout
 cap_r       = 2.00;   // [K] corner radius of the key cutout
 lid_play  = 0.40;   // [K] total play of the lid in the rebate
 carrier_play = 0.40;   // [K] total play of the carrier
+feather_play = 0.30;   // [K] air round the Feather in its well. Tighter than
+                       //     the rest because the well has 25.00 mm to thread
+                       //     between the set key's two rows of screws and the
+                       //     board is 22.80 of it.
 
 /* --- ScreenKey fixings -------------------------------------------------
    The modules screw from BEHIND, and the case contributes nothing to that but
@@ -374,7 +428,7 @@ grille_field_d = 34.50; // [K] slightly larger than the cone
 // vertically it sits as low as the lower middle boss allows — its retaining
 // ribs must not touch the boss. Result: centre of gravity practically at the
 // middle of the case, see the echo in section 4.
-battery_x    =   3.12;  // [K] the counterweight belongs at whichever end the
+battery_x    =  -3.00;  // [K] the counterweight belongs at whichever end the
                      //     speaker is not, and the block of four is the wider
                      //     end - 9 mm of case width to balance out again
 battery_y    =   2.50;  // [K]
@@ -384,13 +438,16 @@ battery_y    =   2.50;  // [K]
 // nearest, the child's left-hand side, and it is the only wall this board
 // can reach. Vertically into the lower strip, below the speaker chamber.
 feather_x = env_b + inner_margin - feather_l;   // [G] 83.32
-feather_y =   8.00;         // [K]
+// Not free: the well has to pass BETWEEN the set key's two rows of screw pads.
+// They leave 25.00 mm clear and the well is 23.40, so there are 0.8 mm of play
+// each side and this number sits in the middle of them. verify.py holds it.
+feather_y =   6.25;         // [K]
 
 // Amplifier: on the -x side of the chamber wall, above the battery. The runs
 // to the speaker are short there and the carrier is not cut away.
 // (In the first draft it sat down in a corner — there its bed protruded
 //  1.9 mm beyond the carrier edge and hit the case wall.)
-amp_x     =  58.72;  // [K]
+amp_x     =  40.00;  // [K]
 amp_y     =  58.50;  // [K]
 
 // Retaining ribs on the carrier. The same numbers are used by the checks in
@@ -432,12 +489,16 @@ support_pos = [
 // Rectangles [x1, y1, x2, y2]. These used to live inside carrier_outline().
 // They are out here because the checks in section 4 have to know where they
 // are: a ScreenKey screw that lands on one has nothing to pull against.
+//
+// There used to be a fourth, running up the gap between the set key and the
+// block. The Feather's well occupies that gap now and is a far bigger opening
+// than the slot ever was, so the slot went rather than being squeezed into the
+// 5 mm of plate left beside it.
 carrier_slots = [
   [ (blk_mx1+blk_mx2)/2 - 2.5, blk_my1 - 13,
     (blk_mx1+blk_mx2)/2 + 2.5, blk_my1 + 13 ],
   [ (blk_mx1+blk_mx2)/2 - 2.5, blk_my2 - 13,
     (blk_mx1+blk_mx2)/2 + 2.5, blk_my2 + 13 ],
-  [ (set_mx+blk_mx1)/2 - 3,  20, (set_mx+blk_mx1)/2 + 3,  50 ],
   [ env_b/2 - 4, env_h + inner_margin - 6, env_b/2 + 4, env_h + inner_margin + 2 ]
 ];
 
@@ -705,6 +766,34 @@ assert(pole_to_support >= 0.5,
   str("A ScreenKey screw and a carrier support post are ", pole_to_support,
       " mm apart in plan. They overlap."));
 
+// e) the Feather's well. It is by far the biggest hole in this plate and it
+//    lands right under the set key, so it is the one most likely to swallow a
+//    screw. Found by hand at feather_y = 8.00, which ate the set key's two
+//    upper pads - this is the check that would have said so.
+feather_well = [ feather_x - feather_play, feather_y - feather_play,
+                 feather_x + feather_l + feather_play,
+                 feather_y + feather_b + feather_play ];
+poles_in_well = [ for (q = sk_pole_pos)
+                    if (feather_pins_through && overlaps(pad_rect(q), feather_well))
+                      str("[", q[0], ", ", q[1], "]") ];
+assert(len(poles_in_well) == 0,
+  str("The Feather's well swallows these ScreenKey screws: ", poles_in_well,
+      ". The well has to thread between the set key's two rows of screws - ",
+      "move feather_y, not the screws."));
+
+// f) ... and the pads the Feather rests on have to hang off real plate, so
+//    they must not sit inside a cable slot either.
+feather_seats = [ for (sx = [-1,1], sy = [-1,1])
+                    [ feather_x + feather_l/2 + sx*feather_hole_l/2,
+                      feather_y + feather_b/2 + sy*feather_hole_b/2 ] ];
+seats_on_slots = [ for (q = feather_seats, sl = carrier_slots)
+                     if (feather_pins_through && overlaps(pad_rect(q), sl))
+                       str("[", q[0], ", ", q[1], "]") ];
+assert(len(seats_on_slots) == 0,
+  str("These Feather seat pads sit over a cable slot: ", seats_on_slots,
+      ". A pad with nothing round it is an island in a hole - it does not ",
+      "print and it holds nothing."));
+
 // e) and all twenty have to be ON the plate in the first place
 poles_off_plate = [ for (q = sk_pole_pos)
                       if (q[0] - sk_pad_r < carrier_plate[0] ||
@@ -717,10 +806,28 @@ assert(len(poles_off_plate) == 0,
       poles_off_plate));
 
 /* --- USB-C window has to fit between carrier and lid --- */
-usb_z    = carrier_z_top + feather_support + feather_pcb_d + usb_centre_above_pcb;
+// Measured off the BOARD, wherever the board happens to sit. With the Feather
+// sunk that is 3.2 mm lower than it used to be, which puts the window level
+// with the mid plate rather than above it - so the plate is notched there.
+// It gets that notch for free: the Feather's own cutout reaches the plate edge.
+usb_z    = feather_z_bottom + feather_pcb_d + usb_centre_above_pcb;
 usb_win_h = usb_socket_h + 1.4;
-assert(usb_z - usb_win_h/2 > carrier_z_top + 1.0,
-  "USB window cuts into the carrier ledge.");
+// The board lies on the plate's top face whichever way it is mounted, so the
+// window is above the plate either way - it just sits 2.0 mm lower without the
+// standoff under it, and that is the whole clearance there is to check.
+assert(usb_z - usb_win_h/2 > carrier_z_top + 0.6,
+  str("The USB window runs from z = ", usb_z - usb_win_h/2, " to ",
+      usb_z + usb_win_h/2, " and the mid plate sits at ", carrier_z_bottom,
+      " .. ", carrier_z_top, ". The socket would have to cut the plate ",
+      "somewhere it is not notched."));
+// ... and the well has to run out to the plate edge, or the plate stands in
+// front of the socket instead of the wall doing it.
+assert(!feather_pins_through ||
+       feather_x + feather_l + feather_play >= env_b + inner_margin - carrier_play/2,
+  str("The Feather's well stops ",
+      env_b + inner_margin - carrier_play/2 - (feather_x + feather_l + feather_play),
+      " mm short of the carrier edge, so the plate is not notched at the USB ",
+      "window and the socket runs into it."));
 assert(usb_z + usb_win_h/2 < inner_z_h - 1.0,
   "USB window cuts into the lid rebate.");
 
@@ -812,10 +919,17 @@ echo(str("wall ", wall, " mm = ", wall/0.4, " passes with a 0.4 nozzle"));
 echo(str("print bed needed    : tub ", outer_b, " x ", outer_h,
          " mm, ", outer_t, " mm tall"));
 echo(str("carrier printing    : flat, ribs up, no support"));
-echo(str("tallest stack on the carrier: ",
-         stack_max == stack_feather ? "Feather" :
-         stack_max == stack_battery ? "battery" : "amplifier",
-         " with ", stack_max, " mm, free are ", inner_z_h - carrier_z_top));
+echo(str("Feather             : ", feather_pins_through ?
+         str("pins through the plate, board flat on it at z = ",
+             feather_z_bottom, ", top at ", top_feather,
+             ", M2 into ", carrier_d, " mm of plate")
+       : str("standing on ", feather_support, " mm standoffs, top at ",
+             top_feather)));
+echo(str("what governs the depth: ",
+         parts_top == top_battery ? "battery" :
+         parts_top == top_feather ? "Feather" : "amplifier",
+         ", top at z = ", parts_top, ", then ", part_clearance,
+         " mm clearance + ", extra_above_carrier, " mm cable headroom"));
 echo(str("---------------------------------------------------------"));
 
 
@@ -1148,7 +1262,34 @@ module carrier_outline() {
     // cable passages: slots in the gaps between the boards
     for (sl = carrier_slots)
       translate([sl[0], sl[1]]) square([sl[2] - sl[0], sl[3] - sl[1]]);
+    // The well the Feather's pins drop through: its footprint, less the four
+    // pads it rests and screws on. Those are ordinary plate, full thickness -
+    // they are what is LEFT of the plate, not something added back to it.
+    if (feather_pins_through)
+      difference() {
+        translate([feather_x - feather_play, feather_y - feather_play])
+          square([feather_l + 2*feather_play, feather_b + 2*feather_play]);
+        feather_pads_2d();
+      }
+    // and the pilot holes through those pads
+    if (feather_pins_through)
+      for (q = feather_seats) translate(q) circle(d = feather_screw_core);
   }
+}
+
+/* --- What the Feather rests and screws on -----------------------------
+   A pad at each mounting hole, hulled outward to the edge of the well so it
+   hangs off the surrounding plate rather than floating in the hole. The board
+   lies on these, its pin tails go through the well beside them, and an M2
+   self-taps down into 2.4 mm of plate.                                   */
+module feather_pads_2d() {
+  for (sx = [-1,1], sy = [-1,1])
+    translate([feather_x + feather_l/2 + sx*feather_hole_l/2,
+               feather_y + feather_b/2 + sy*feather_hole_b/2])
+      hull() {
+        circle(d = feather_pad_d);
+        translate([0, sy*4.0]) circle(d = 3.0);
+      }
 }
 
 /* --- The ScreenKey screw holes ---------------------------------------
@@ -1220,7 +1361,10 @@ module carrier_additions() {
   intersection() {
     union() {
       battery_ribs();
-      feather_standoff();
+      // Only when the board stands off the plate. With its pins going through
+      // it, the board lies straight on the plate and these would lift it back
+      // up by exactly the 2.0 mm the change was made to remove.
+      if (!feather_pins_through) feather_standoff();
       amp_bed();
     }
     linear_extrude(100) translate([centre_x, centre_y])
