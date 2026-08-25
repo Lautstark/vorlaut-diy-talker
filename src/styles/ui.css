@@ -184,16 +184,29 @@ body.collapsed .frame { grid-template-columns: minmax(0, 1fr); }
 /* Capped and centred, like both siblings, and the number is chosen for height
    rather than for measure.
 
-   The cells are 4:3, so the board's width *is* its height: three columns
-   across, two rows down, and width bought here is paid for below the fold. 720
-   - mitreden's number, and what this had - ends exactly at the fold on a 900px
-   window and overflows a 13-inch laptop, which is the machine it is used on.
-   640 fits that, and it is where this page sat before the column was widened
-   at all.
+   The board's width *is* its height: three columns across, two rows down, and
+   width bought here is paid for below the fold. 720 - mitreden's number, and
+   what this had - ends exactly at the fold on a 900px window and overflows a
+   13-inch laptop, which is the machine it is used on. 640 fits that, and it is
+   where this page sat before the column was widened at all.
+
+   That arithmetic used to open with "the cells are 4:3", and they are not: the
+   five-key board's cells are square now, because the display is - see `#device
+   .cell` below. A square cell is taller than a 4:3 one at the same width, so at
+   this same 640 the board went from two rows of 147px to two rows of 196px: 98
+   more pixels, spent out of this budget without the number moving. So the
+   budget is tighter than 640 sounds, and the next thing that wants height here
+   has less room than the paragraph above it once implied.
 
    So the rule is: as wide as the shortest laptop can show in one screen. Wider
    buys a bigger picture of a symbol somebody can already see, and charges for
-   it in the two keys that drop off the bottom. */
+   it in the two keys that drop off the bottom.
+
+   What the rule is not is a cap on everything that happens to sit in this
+   column. It is about the board. A row of tabs is chrome: it costs one line of
+   height whatever width it is given, so it pays nothing into this budget and
+   should not be billed for it - see `.content:has(#device) main` further down,
+   where the cap moves off the column and onto the board it is actually for. */
 /* And this is the one thing on the page that scrolls. The work head above it
    stays: with no bar over it, it is the top of the page, and a page whose title
    scrolls away has nothing at the top at all. The board is what overflows, so
