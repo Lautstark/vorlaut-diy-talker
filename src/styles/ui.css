@@ -1271,6 +1271,52 @@ dialog.sheet--page { max-width: 520px; }
 .pick__preview--none svg { width: 40px; height: 40px; fill: none; stroke: currentColor;
                            stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 
+/* Cutting somebody's own picture down to the square the key really shows.
+   shell/crop.ts is the behaviour; this is only where the parts sit.
+
+   In this box and not a second dialog: it is already square, already clipping
+   and already positioned, which is to say it was the viewport before anything
+   asked it to be one. --surface-2 rather than the white above, because while
+   the crop is open the box is not showing a symbol - it is showing a choice,
+   and the picture inside carries its own ground. */
+.pick__preview--crop { background: var(--surface-2); }
+.crop { position: absolute; inset: 0; cursor: grab;
+        /* Or the browser scrolls the dialog instead of moving the picture the
+           first time somebody drags with a finger. */
+        touch-action: none; }
+.crop:active { cursor: grabbing; }
+.crop:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Placed from crop.ts in percentages of this box, so the three properties it
+   writes are the three left out here. max-width because the rule above sets a
+   width larger than the box on purpose - that overflow is what the frame is
+   cutting off - and the img default would clamp it back. */
+.pick__preview .crop img { position: absolute; width: auto; height: auto;
+                           max-width: none; object-fit: fill;
+                           user-select: none; -webkit-user-drag: none; }
+/* The square that will be kept. The inset is FRAME in crop.ts and the two have
+   to agree, because that constant is what maps a source pixel onto this box.
+
+   The dimming is one enormous spread rather than four rectangles round the
+   frame, and the box's own overflow is what trims it. Its point is that the
+   part being cut off stays visible: somebody centring a face needs to see the
+   shoulder that is leaving. */
+.crop__frame {
+  position: absolute; inset: 8%; pointer-events: none;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.45);
+  /* White in both schemes, like the picture under it: this line is drawn
+     against a photograph rather than against the page. */
+  outline: 1px solid rgb(255 255 255 / 0.9);
+}
+/* The slider and the one sentence, under the box for as long as there is a
+   crop. Grid rather than the column's own gap, because these two belong to
+   each other more closely than to what is above and below them. */
+.pick__crop { display: grid; gap: 8px; }
+.crop__zoom { width: 100%; accent-color: var(--accent); }
+/* --text-dim, the same as .pick__near above: it stands over a control that is
+   waiting to be used rather than replacing something, so it has to be read
+   without competing with the picture. */
+.pick__crophint { margin: 0; font-size: 13px; color: var(--text-dim); }
+
 /* The third thing a search comes back with: hits that are the nearest the
    collection holds rather than the word that was typed. Above the grid and
    outside it, because the grid scrolls and this must not scroll off the
@@ -1295,6 +1341,10 @@ dialog.sheet--page { max-width: 520px; }
   max-height: 150px; overflow-y: auto;
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
+/* [hidden] is the user agent's and loses to the display above, the same way it
+   loses to .reveal and .scrim further up this file. Without this the crop
+   hides the search field and leaves its results standing under the box. */
+.pick__results[hidden] { display: none; }
 /* The two sentences a search can come back with - a word the collection does
    not have, and a browser that never managed to ask - in the box the hits
    would have filled. say() writes a bare <p>, so this is what styles it. */
