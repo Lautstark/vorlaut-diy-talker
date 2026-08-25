@@ -121,7 +121,7 @@ module: it follows from how deep the module is mounted. See
 | Distance set key to the block of four | 20 mm, its own floor = 1.4 x the gap inside the block |
 | Gap speaker to set key | 5 mm |
 | Components in total | 127 x 81 mm |
-| Case outside | 129.9 x 99.4 x 41.5 mm, no feet — it lies on its flat back |
+| Case outside | 129.9 x 111.4 x 35.5 mm, no feet — it lies on its flat back |
 
 Arrangement: speaker top left, the set key below it, the four speech keys to
 the right as a 2x2 block. The set key and the lower key row finish flush at the
@@ -183,17 +183,17 @@ The Feather is 22.8 mm wide and therefore does **not** fit into the 12.6 mm
 next to the battery. It has to go above it, so stacked:
 
 ```
-key 13.4 + spacer 8.0 + plate 2.4 + Feather 8.0 = 31.8 mm
-                       + 14.0 mm of headroom over it = 45.8  <- governs
-                                  + battery 8.1 = 31.9 mm
-speaker alone:                                    25.3 mm
+key 13.4 + spacer 8.0 + plate 2.4 + battery 8.1 = 31.9 mm  <- governs
+speaker + 4 mm of clamping foam                 = 31.7 mm
+the Feather, standing on edge                   = 25.2 mm
 ```
 
-The 14 mm is not slack. The cables arrive in black push-on Dupont shells that
-slide down over the Feather's headers and stand well above them, and they have
-to go on and come off with the case open. It is `feather_headroom`, named after
-the thing that needs it, because as a generic "cable headroom" figure it kept
-being trimmed by anyone shrinking the case.
+The Feather used to set this on its own. It stands on edge now, in a bay in the
+top margin, hanging under the mid plate — so its 22.8 mm of width is what it
+takes in depth, and its push-on Dupont shells point sideways instead of up. The
+14 mm those shells need (`feather_headroom`) comes out of the plan rather than
+the thickness. The case grows 12 mm on the top edge and loses 15.9 mm of
+depth, and the USB-C moves to the opposite side wall with the board.
 
 The Feather stood on 2 mm standoffs that existed only to clear its header pin
 tails. The mid plate has a well under it now, the tails go through that, and

@@ -16,9 +16,9 @@ them.
 
 | Part | What it does | Outer size |
 |---|---|---|
-| **Tub** | front plate, walls, speaker chamber, lid bosses | 129.9 × 99.4 × 41.5 mm |
-| **Carrier** | holds the five ScreenKeys and the Feather, separates wiring from battery | 124.7 × 94.2 × 10.7 mm |
-| **Lid** | back panel with the logo cut into it | 127.1 × 96.6 × 3.0 mm |
+| **Tub** | front plate, walls, speaker chamber, lid bosses | 129.9 × 111.4 × 35.5 mm |
+| **Carrier** | holds the five ScreenKeys and the Feather, separates wiring from battery | 124.7 × 106.2 × 29.7 mm |
+| **Lid** | back panel with the logo cut into it | 127.1 × 108.6 × 3.0 mm |
 
 All three sizes are measured on the exported STL, not merely calculated. The
 tub's footprint on the bed is exactly 145.9 × 99.4 mm — with the logo cut in
@@ -84,15 +84,22 @@ need nothing but Python 3.
 
 ## Printing
 
-Simple FDM printer, one colour, **no support material**. The design does
-without: the inner space gets wider towards the back in steps, so every step is
-an upward-facing bearing surface instead of an overhang. All chamfers are 45°.
+Simple FDM printer, one colour. The tub and the lid need **no support
+material**: the inner space gets wider towards the back in steps, so every step
+is an upward-facing bearing surface instead of an overhang, and all chamfers
+are 45°.
 
-That survived the ScreenKeys moving onto the carrier, and it was worth
-insisting on. A draft in between had printed poles standing off the carrier to
-reach the boards, which put geometry on both faces and would have needed
-support under the plate. The modules already carry 8 mm threaded spacers — the
-poles were bridging a bridge.
+**The carrier is the exception, and it is deliberate.** The Feather's bracket
+hangs off its underside, and that face is otherwise flat — so support goes
+under the bracket and nowhere else, a 51 × 8 mm footprint 19 mm deep. The
+battery brackets, the amp bed and everything else still grow upward and take
+none. That is what standing the Feather on edge costs, and it buys 13.3 mm off
+the case.
+
+Worth knowing that an earlier draft wanted support for a worse reason: printed
+poles standing off the carrier to reach the ScreenKey boards, putting geometry
+on both faces for nothing. The modules already carry 8 mm threaded spacers —
+those poles were bridging a bridge.
 
 | Setting | Value | Why |
 |---|---|---|
@@ -102,7 +109,7 @@ poles were bridging a bridge.
 | Bottom / top | 5 / 5 layers | 1.0 mm — the front plate carries the keys |
 | Infill | 25 % grid | more gains nothing, less flexes |
 | Material | PLA or PETG | PETG is tougher, PLA holds size better |
-| Supports | **off** | not needed |
+| Supports | **off** for tub and lid, under the Feather bracket on the carrier | see above |
 | Brim | 5 mm on the tub | 146 mm of flat surface tends to lift |
 
 No ABS: the device lies around near a small child, and ABS edges splinter when
@@ -324,27 +331,72 @@ margin in the part.
 the block — the four speech keys go on reading as one group and the set key
 goes on reading as not part of it.
 
-**The depth.** `feather_headroom`, and it is a requirement rather than an
-allowance: **14.0 mm of clear air above the Feather**, because the cables
-arrive in black push-on Dupont shells that slide down over the headers and
-stand well above them. They have to go on and come off with the case open — a
-connector you cannot unplug is a connector you cannot service.
+**The depth.** The battery lying on the carrier, at z = 31.9, and behind it the
+40 mm driver needing 31.7. Nothing else is close — which is the point, because
+the Feather used to set this number on its own.
 
-The Feather tops out at z = 31.8, so the lid's inner face sits at 45.8 and the
-case is 48.8 mm deep. Nothing else comes close: the battery has 13.9 mm above
-it and the amplifier 17.0.
+`feather_headroom` is 14.0 mm and it is a requirement, not an allowance: the
+cables arrive in black push-on Dupont shells that slide down over the headers
+and stand well above them, and they have to go on and come off. What changed is
+the *direction* it is needed in. Standing the board on edge turns the shells
+sideways, so the 14 mm comes out of the plan instead of the depth.
 
-This is the same 14 mm the first build was given, and it is worth writing down
-how it nearly got lost. It went in as `extra_above_carrier` — generic "cable
-headroom" above whatever part happened to be tallest — and generic allowances
-are exactly what gets trimmed when someone is shrinking a case. It was cut to
-6.00, then to 0.00, and each time that looked like removing slack when it was
-really taking the connectors' room away. Named after the thing that needs it,
-it stops moving by accident, and `verify.py` refuses anything under it.
+Worth writing down how that number nearly got lost. It went in as
+`extra_above_carrier`, generic "cable headroom" above whatever part happened to
+be tallest, and generic allowances are exactly what gets trimmed when somebody
+is shrinking a case. It was cut to 6.00, then to 0.00, and each time that looked
+like removing slack when it was really taking the connectors' room away. Named
+after the thing that needs it, it stops moving by accident.
 
-So of the 9.9 mm the case lost on depth, **only 2.6 mm was real**: 2.0 from
-deleting the Feather's standoffs and 0.6 from tightening the headroom to
-exactly 14.0. The width is where this case actually got smaller.
+## The Feather stands on edge
+
+It is not on the carrier any more, it hangs under it, on edge, in a bay in the
+top margin. The board runs from the front plate at z = 2.4 up to z = 25.2, so
+its 22.8 mm of width is what it occupies in depth — and the connectors point
+sideways instead of up.
+
+That last part is the whole trick. Turning the board on the spot buys nothing:
+its 22.8 mm width and its 22.0 mm connector stack are the same number, so on
+edge it would simply swap them. What buys the depth is getting it out of the
+stack above the plate altogether, and that needs somewhere to put it.
+
+The price is plan area — a bay of 50.8 × 22.3 mm that did not exist. It goes in
+the **top margin**, which grows from 7.00 to 19.00 (`margin_top`): the block
+already left 6 mm of the component rectangle above it, so the case grows 12 mm
+on that one edge and loses 15.9 mm of thickness. Nothing else moves. The key
+grid is built from board sizes and the two gaps, never from margins, so the
+keys, the speaker and the chamber all stay exactly where they were.
+
+Three things fall out of it:
+
+- **The USB-C swaps sides.** The board's length runs along x, so its short edge
+  — where the socket is — faces the −x wall, which from the front is the
+  child's right. The window turns with it: 10.4 mm tall and 4.6 wide instead of
+  the other way round, and low enough (z 13.8) to sit in the thicker wall of
+  the board plane rather than above the carrier ledge.
+- **One lid screw moves.** The −x top boss would sit in the bay, so it drops
+  down the same wall to just below it, and that corner of the lid is held by
+  its neighbours.
+- **The amplifier moves** to where the Feather used to lie. That is the only
+  piece of carrier left which takes 24.2 × 22.6: the battery fills everything
+  to the −x side and the chamber everything above y = 34.49.
+
+### How the board is held, and the one thing still unknown
+
+A bracket hanging off the **underside** of the mid plate: a wall the full
+length of the board on the face the connectors do *not* come out of, plus one
+clip at the far end wrapping three sides so the board cannot lean away from it.
+
+Two details there are deliberate. The clip is at the far end because the near
+end is where the USB socket is. And the bay starts *at* the board rather than a
+bracket-wall below it — cut the bay down to the bracket and the bracket hangs
+off a 1.7 mm tab at one corner, which is neither strong nor 2-manifold. The
+strip of plate below the bay is what it hangs from.
+
+**`feather_br_clip` is 8.00 mm and it is the open question.** The clip has to
+miss the Feather's header rows, and where those start along the board is the
+one figure here taken from a drawing rather than from the board itself.
+Dry-fit before printing.
 
 **What can't be shrunk.** The 40 mm driver. It needs 25.3 mm plus 4 mm of
 clamping foam, so front plate + driver + foam + lid is **34.7 mm** whatever
@@ -543,7 +595,9 @@ figures went in, which is the usual sign that a guess had been drifting.
 | `sk_hole_d` | 2.20 mm | hole diameter |
 | `sk_board_d` | 1.60 mm | board thickness |
 | `feather_h` | 8.00 mm | the board with its soldered headers |
-| `feather_headroom` | 14.00 mm | **measured.** Clear air the push-on connectors need above it — sets the case depth |
+| `feather_headroom` | 14.00 mm | **measured.** Clear air the push-on connectors need — sideways, now the board stands |
+| `feather_br_clip` | 8.00 mm | how much of the board's far end the clip wraps — it has to miss the header rows |
+| `feather_br_l` | 19.00 mm | how far down the bracket grips. Only sets the carrier's build height |
 | `usb_overhang` | 1.50 mm | how far does the socket protrude past the board edge? |
 | `usb_centre_above_pcb` | 1.60 mm | height of the socket centre above the board |
 | `amp_b`, `amp_h` | 19.4 × 17.8 | dimensions of the MAX98357A breakout |

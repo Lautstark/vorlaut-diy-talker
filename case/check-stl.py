@@ -136,8 +136,12 @@ def main():
         # Plate plus battery brackets, and nothing below the plate - the
         # modules stand off it on their own spacers, so this part is still
         # flat on one side and still prints without support.
+        # Plate, plus the battery brackets above it and - when the Feather
+        # stands - the bracket hanging below. That last one is why this part
+        # no longer prints without support.
         L.measure('carrier build height', b[5] - b[2],
-               G('carrier_d') + G('battery_d') + 0.2)
+               (G('feather_br_l') if G('feather_standing') else 0.0)
+               + G('carrier_d') + G('battery_d') + 0.2)
     if 'lid' in parts:
         b = bbox(parts['lid'])
         L.measure('lid width', b[3] - b[0],
@@ -170,13 +174,20 @@ def main():
         L.probe(w, 'speaker grille hole is open', (G('spk_mx') + .17, G('spk_my') + .11, zf), False)
         L.probe(w, 'web next to the grille hole',
                 (G('spk_mx') + G('grille_pitch') / 2 + .05, G('spk_my') + .11, zf), True)
-        yc = G('feather_y') + G('feather_b') / 2
+        # Which wall, and where up it, both follow from how the board is
+        # mounted. Standing, the socket is on a short edge at the -x wall and
+        # halfway up the board; flat, it is on the +x wall above the plate.
+        yc = (G('feather_y') + G('feather_pcb_d') / 2 if G('feather_standing')
+              else G('feather_y') + G('feather_b') / 2)
         # The USB window is in the +x wall - the wall the speaker and the set
         # key are nearest, so the child's left.
-        xw = G('env_b') + G('inner_margin') + G('wall') / 2 + .11
+        xw = (-G('inner_margin') - G('wall') / 2 - .11 if G('feather_standing')
+              else G('env_b') + G('inner_margin') + G('wall') / 2 + .11)
         L.probe(w, 'USB window is open', (xw, yc + .37, G('usb_z')), False)
-        L.probe(w, 'wall below the USB window', (xw, yc + .37, G('usb_z') - 4.5), True)
-        L.probe(w, 'wall next to the USB window', (xw, yc + 12, G('usb_z')), True)
+        L.probe(w, 'wall below the USB window',
+                (xw, yc + .37, G('usb_z') - G('usb_win_z') / 2 - 2.0), True)
+        L.probe(w, 'wall next to the USB window',
+                (xw, yc + (-12 if G('feather_standing') else 12), G('usb_z')), True)
         # Nothing of the ScreenKey fixing is left in the tub. Where a boss
         # used to stand there has to be air now, and the band between the back
         # of the board and the carrier has to be clear over its whole depth -
@@ -199,9 +210,12 @@ def main():
         c = parts['carrier']
         print('\nPoint probes in the carrier')
         print('--------------------------')
-        # In the carrier's own STL z = 0 is the underside of the plate.
-        z_plate = G('carrier_d') / 2
-        z_csink = G('carrier_d') - 0.1
+        # In the carrier's own STL z = 0 is the lowest point of the part -
+        # the bottom of the Feather bracket when there is one, otherwise the
+        # underside of the plate.
+        z0 = G('feather_br_l') if G('feather_standing') else 0.0
+        z_plate = z0 + G('carrier_d') / 2
+        z_csink = z0 + G('carrier_d') - 0.1
         d = (G('blk_mx1') + G('sk_hole_dx'), G('blk_my1') + G('sk_hole_dy'))
         L.probe(c, 'plate around the screw hole is plate',
                 (d[0] + 4.07, d[1] + 4.11, z_plate), True)
@@ -238,7 +252,25 @@ def main():
         # up at plate level, material down at the pads' height, on the same
         # (x, y). Anything else means the well cut through them or they were
         # never there.
-        if G('feather_pins_through'):
+        if G('feather_standing'):
+            # The bay is a clean hole through the plate, and the bracket hangs
+            # off the strip of plate just below it. The pair below is the
+            # whole test: air in the bay at plate level, material in the strip.
+            bx = G('feather_bay_x') + G('feather_bay_l') / 2
+            by = G('feather_bay_y') + G('feather_bay_w') / 2
+            L.probe(c, 'the Feather bay is open through the plate',
+                    (bx + 0.37, by + 0.29, z_plate), False)
+            L.probe(c, 'plate left below it for the bracket',
+                    (bx + 0.37, G('feather_bay_y') - G('feather_br_wall') / 2,
+                     z_plate), True)
+            # ... and the bracket itself hangs under that strip.
+            L.probe(c, 'the bracket hangs below the plate',
+                    (bx + 0.37, G('feather_y') - G('feather_br_wall') / 2,
+                     (z0 - G('feather_br_l') / 2)), True)
+            L.probe(c, 'and the board slot between its walls is clear',
+                    (bx + 0.37, G('feather_y') + G('feather_br_slot') / 2,
+                     (z0 - G('feather_br_l') / 2)), False)
+        elif G('feather_pins_through'):
             fx = G('feather_x') + G('feather_l') / 2
             fy = G('feather_y') + G('feather_b') / 2
             z_seat = z_plate
@@ -252,7 +284,7 @@ def main():
             L.probe(c, 'a Feather pad carries material',
                     (s0[0] + 1.11, s0[1] - 1.07, z_seat), True)
             L.probe(c, 'and it is plate all the way down',
-                    (s0[0] + 1.11, s0[1] - 1.07, 0.3), True)
+                    (s0[0] + 1.11, s0[1] - 1.07, z0 + 0.3), True)
             L.probe(c, 'the pilot hole through that pad is open',
                     (s0[0] + 0.09, s0[1] + 0.13, z_seat), False)
             # The well has to reach the plate edge, or the USB socket has no
