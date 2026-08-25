@@ -17,14 +17,18 @@
  * the sidebar's foot - one entrance, design.md §3.4 - and everything that acts
  * on the open Sammlung is the work head above the editor.
  *
- * The work head is `name · status · what the editor puts there · ⋯`, and it
- * spans the content column rather than sitting inside the capped one: with no
- * bar above it, it is the top of the page and reads better as a full-width
- * band than as a short row floating over the middle. The count is not in it -
- * the sidebar row already carries one per Sammlung, and a second copy of the
- * same number beside the name it belongs to is a number to keep in step for no
- * reading anybody does. `#collectionAction` is the editor's slot: for the
- * five-key talker, the device preview and the cable.
+ * The work head is `name · … · status · what the editor puts there · ⋯`, and
+ * it spans the content column rather than sitting inside the capped one: with
+ * no bar above it, it is the top of the page and reads better as a full-width
+ * band than as a short row floating over the middle. The gap is where the auto
+ * margin is: the name is at one end, and everything that acts on the Sammlung
+ * or reports on it is grouped at the other. The status was next to the name,
+ * where a word that comes and goes sat a few characters from a field being
+ * typed in; it belongs beside the controls it is reporting on. The count is
+ * not in it - the sidebar row already carries one per Sammlung, and a second
+ * copy of the same number beside the name it belongs to is a number to keep in
+ * step for no reading anybody does. `#collectionAction` is the editor's slot:
+ * for the five-key talker, the device preview and the cable.
  *
  * What is left over belongs to no device: the save conflict, which is about two
  * tabs writing to one store, and the hidden file input that lets settings.ts
@@ -100,7 +104,13 @@ export const markup = `
       <!-- role="status" is aria-live="polite", and it belongs on the element
            rather than being set when there is something to say: a live region
            has to be in the accessibility tree already when the text lands, or
-           the reader has nothing to notice a change in. -->
+           the reader has nothing to notice a change in.
+
+           Between the name and the editor's slot in the markup, and drawn at
+           the far end by the auto margin on it - so what is read out in order
+           is what is read across. It is the first of the group at that end,
+           which puts it immediately left of whatever the editor puts there:
+           the talker's preview toggle, the tablet's export. -->
       <span class="status" id="status" role="status"></span>
       <span class="tools" id="collectionAction"></span>
       <span class="menu-anchor"><button id="collectionMenu" class="btn quiet icon"

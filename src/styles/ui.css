@@ -120,8 +120,22 @@ body {
 .workhead {
   display: flex; align-items: center; gap: 10px; padding: 12px 20px;
 }
-/* The action and the ⋯ sit at the end, past whatever the name did not use. */
-.workhead .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* The status, the action and the ⋯ sit at the end, past whatever the name did
+   not use - so the auto margin is on the first of the three rather than on the
+   action.
+
+   It used to be on .tools, which left the status line glued to the name: a
+   word that appears, changes and goes away, a few characters from a field
+   somebody is typing in. Two things move there and only one of them is being
+   read. At the far end it is beside the controls whose work it is reporting -
+   the transfer, the export - which is where somebody looks after pressing one,
+   and the name is left alone.
+
+   It keeps the auto margin whether or not there is anything to say: an empty
+   span still pushes, so the group does not slide sideways the moment
+   status() has a word. */
+.workhead .status { margin-left: auto; }
+.workhead .tools { display: flex; align-items: center; gap: 8px; }
 
 /* Put away, and the button that brings it back. Display rather than a width
    transition: the sidebar is a grid column, and animating one costs a reflow of
