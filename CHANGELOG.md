@@ -66,6 +66,7 @@
 * say DIY-Talker where a tablet is also a talker ([e20731b](https://github.com/Lautstark/vorlaut-diy-talker/commit/e20731b34f7c3fd86d4e61f9d8250e0995cfa2d7))
 * say so when another tab is holding the database open ([ef62d0c](https://github.com/Lautstark/vorlaut-diy-talker/commit/ef62d0cce9221cba3ec1691ee10d518f8d7cb519))
 * say which language a package is in, from the voice that speaks it ([3006e38](https://github.com/Lautstark/vorlaut-diy-talker/commit/3006e3859f91d85dd49302e06e6265584cffbfeb))
+* search ARASAAC in the page's own language, not always German ([fa6e4d2](https://github.com/Lautstark/vorlaut-diy-talker/commit/fa6e4d251fd5e32905be006b9de3f2389d5e837a))
 * search METACOM for the word, not for everything built out of it ([e362fba](https://github.com/Lautstark/vorlaut-diy-talker/commit/e362fba73e82cb9a1061abbdc6b0d88dfb7e4333))
 * **sheet:** stop the sheet body clipping the focus ring ([ecebcdc](https://github.com/Lautstark/vorlaut-diy-talker/commit/ecebcdcd2abda3c96cd2b27ff2742c43dce3b8fb))
 * **shell:** ask about a restore in a dialog, and say how much it replaces ([215aa4f](https://github.com/Lautstark/vorlaut-diy-talker/commit/215aa4f18b3274ae9bae5e6239002378a34c2fca))
