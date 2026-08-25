@@ -672,6 +672,20 @@ export async function exportAppPackage(
   if (!current) throw new Error("There is no Sammlung open to export.");
   const layout = (await store.readLayout()).layout || NOTHING;
 
+  /* §5.1 asked before anything is paid for, not only where it is enforced.
+   *
+   * buildAppPackage() refuses a mixed Sammlung, and it has to - the flag in
+   * the manifest says which collection the package drew on, and there is no
+   * honest answer for two. But that function is pure and runs last, so by the
+   * time it refuses, every picture has been baked and every distinct sentence
+   * synthesised: on a full tablet Sammlung that is hundreds of model
+   * inferences or round trips to Azure, minutes of them, and then nothing to
+   * show. The reading itself is a walk over the layout, so asking now costs a
+   * walk and saves the lot.
+   *
+   * Not a second copy of the rule: the same function, called earlier. */
+  appPackage.symbolSource(layout);
+
   // One bake per distinct reference and per distinct sentence, not per use:
   // the same picture on three keys is one member of the archive, and the same
   // sentence in two sets is synthesised once. The build does the same.

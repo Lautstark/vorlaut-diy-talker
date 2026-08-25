@@ -286,3 +286,91 @@ test("the two exports are two different files, not one behind a flag",
     expect(page1.images[0].path).toMatch(/^images\//);
     expect(page1.images[0].symbol).toBeUndefined();
   });
+
+/* --- the refusal, and what it costs ------------------------------------- */
+
+/** A Sammlung drawn in two collections at once, written straight into the
+ *  store.
+ *
+ *  Through IndexedDB because the interface will not build one any more: the
+ *  picture column follows the Sammlung's own source now, so a METACOM board
+ *  is never offered an ARASAAC picture to take. That is the fix, and it is
+ *  also why the state below has to be seeded - it is the Sammlung somebody
+ *  already has, made before the picker followed anything or brought in from
+ *  another machine, and the export is what it meets.
+ *
+ *  build.spec.ts seeds the same way and for the same reason. No version on the
+ *  open: the page has the database open already and knows which one it is at.
+ */
+async function seedMixed(page: Page): Promise<void> {
+  await page.evaluate(`(async () => {
+    const db = await new Promise((keep, drop) => {
+      const request = indexedDB.open("vorlaut");
+      request.onsuccess = () => keep(request.result);
+      request.onerror = () => drop(request.error);
+    });
+    const get = (store, key) => new Promise((keep, drop) => {
+      const held = db.transaction([store], "readonly").objectStore(store).get(key);
+      held.onsuccess = () => keep(held.result);
+      held.onerror = () => drop(held.error);
+    });
+    const id = await get("marks", "current");
+    const board = {
+      sleep_timeout_seconds: 600,
+      language: "de",
+      voice: "azure:de-DE-KatjaNeural",
+      sets: [{
+        name: "Morgens", symbol: "", color: "#3B5BDB",
+        slots: [
+          { text: "Ich habe Hunger", symbol: "arasaac-2462.png" },
+          { text: "Ich habe Durst", symbol: "arasaac-99.png" },
+          { text: "Noch einmal", symbol: "metacom:PNG_ohne_Rahmen/ja" },
+          { text: "", symbol: "" },
+        ],
+      }],
+    };
+    await new Promise((keep, drop) => {
+      const tx = db.transaction(["layouts"], "readwrite");
+      tx.objectStore("layouts").put({ id, text: JSON.stringify(board), version: "seeded" });
+      tx.oncomplete = keep;
+      tx.onerror = () => drop(tx.error);
+    });
+  })()`);
+  await page.reload();
+  await expect(page.locator("#device .cell")).toHaveCount(6);
+}
+
+test("a mixed Sammlung is refused before a syllable of it is synthesised",
+  async ({ page }) => {
+    /* §5.1 is one symbol collection per package, and buildAppPackage() is
+     * where that is enforced. It has to be - the manifest names the
+     * collection the package drew on and there is no honest answer for two -
+     * but it is a pure function and it runs last, so the refusal used to
+     * arrive after every distinct sentence in the Sammlung had been spoken.
+     * On a full tablet Sammlung that is hundreds of inferences or round trips
+     * to Azure, minutes of them, and then nothing to show for it.
+     *
+     * So the same function is called before the loop as well. What this test
+     * watches is the cost: not one request to Azure may leave the page. */
+    let spoken = 0;
+    await standIn(page);
+    await page.route(SYNTHESIS, (route) => {
+      spoken++;
+      route.fulfill({ contentType: "audio/wav", body: wav() });
+    });
+    await fill(page);
+    await seedMixed(page);
+
+    await page.locator("#collectionMenu").click();
+    await page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click();
+    const asked = sheet(page, "ui.package_title");
+    await asked.locator("button", { hasText: label("ui.package_go") }).click();
+
+    // The sheet closes and the status line carries the refusal, which is the
+    // ordinary shape of a failed export here.
+    await expect(page.locator("#status")).toContainText(/two symbol collections/);
+    // And it names the odd key out rather than leaving somebody to compare
+    // references by eye - the one thing no editor shows.
+    await expect(page.locator("#status")).toContainText('"Noch einmal" in "Morgens"');
+    expect(spoken).toBe(0);
+  });
