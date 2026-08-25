@@ -1086,6 +1086,12 @@ dialog.sheet--page { max-width: 520px; }
 .pick__hit img { width: 100%; height: 100%; object-fit: contain; }
 .pick__hit:hover { border-color: var(--line); }
 .pick__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The two things done to the picture as a whole - put one there from a file,
+   take the one that is there off - side by side, because they are the same
+   question answered two ways. They wrap rather than shrink: a button whose
+   label is cut is a button nobody presses. */
+.pick__acts { display: flex; flex-wrap: wrap; gap: 8px; }
+
 /* What is owed for the collection the hits came from, under them. Hint-sized
    and hint-coloured: it is a condition of a licence rather than something
    somebody is reading, and it must not compete with the pictures it is about.
