@@ -202,7 +202,8 @@ export interface BakedSound {
 export interface PackageInput {
   collection: CollectionRef;
   layout: Layout;
-  /** Baked pictures by the reference they came from. */
+  /** Baked pictures by pictureKey() - the reference *and* whether it is
+   *  crossed out, because those are two different files. */
   images: Map<string, BakedImage>;
   /** Baked recordings by the text they say. */
   sounds: Map<string, BakedSound>;
@@ -211,6 +212,23 @@ export interface PackageInput {
 }
 
 /* -------------------------------------------------------------- naming --- */
+
+/**
+ * What a baked picture is filed under, on both sides of the seam.
+ *
+ * A reference and a crossed-out reference are the same drawing and two files -
+ * app_assets.ts bakes the cross into the pixels, so they are different bytes,
+ * a different content hash and a different member of the archive. Keying the
+ * map by the reference alone put whichever of the two was baked first onto
+ * every button that named it, which on a board holding "Brot" and "kein Brot"
+ * is the one mistake this whole feature exists to stop being possible.
+ *
+ * The mark goes in front rather than behind: a reference is a file name or a
+ * "metacom:" path, and neither can begin with "!" - a suffix would have to
+ * survive whatever ends up at the end of one.
+ */
+export const pictureKey = (reference: string, negated = false): string =>
+  (negated ? "!" : "") + String(reference ?? "");
 
 export const boardPath = (id: string) => `boards/${id}.obf`;
 const imagePath = (key: string) => `images/${key}.png`;
@@ -355,6 +373,9 @@ const appButtons = (layout: AppLayout): { button: AppButton; where: string }[] =
 export interface SymbolPlace {
   /** What that place holds, "" when it holds no picture. */
   reference: string;
+  /** Whether it is crossed out - Slot.negated. The reference is the same
+   *  picture either way; this is what makes them two baked files. */
+  negated: boolean;
   /** Where it is, in words, for a message whose job is to send somebody to
    *  it: the button and its page, or the key and its set. English, like every
    *  other sentence this module raises. */
@@ -382,16 +403,25 @@ export function symbolPlaces(layout: Layout): SymbolPlace[] {
   const out: SymbolPlace[] = [];
   if (layout.target === "app") {
     for (const { button, where } of appButtons(layout)) {
-      out.push({ reference: String(button.symbol ?? ""), where });
+      out.push({
+        reference: String(button.symbol ?? ""),
+        negated: Boolean(button.negated), where,
+      });
     }
     return out;
   }
   for (const set of layout.sets ?? []) {
     const which = named(set.name, "an unnamed set");
-    out.push({ reference: String(set.symbol ?? ""), where: `the set key of ${which}` });
+    // A set key is navigation rather than a word, so there is nothing on it to
+    // negate and no field on BoardSet to read - see Slot.negated.
+    out.push({
+      reference: String(set.symbol ?? ""),
+      negated: false, where: `the set key of ${which}`,
+    });
     for (const slot of set.slots ?? []) {
       out.push({
         reference: String(slot.symbol ?? ""),
+        negated: Boolean(slot.negated),
         where: `${named(slot.text, "an unnamed key")} in ${which}`,
       });
     }
@@ -584,8 +614,8 @@ function mediaFor(
   sounds: Map<string, PackageSound>,
 ) {
   return {
-    image(reference: string): string | undefined {
-      const baked = input.images.get(reference);
+    image(reference: string, negated = false): string | undefined {
+      const baked = input.images.get(pictureKey(reference, negated));
       if (!reference || !baked) return undefined;
       const entry: PackageImage = {
         id: `img-${baked.key}`, path: imagePath(baked.key), content_type: "image/png",
@@ -652,7 +682,7 @@ function diyBoards(
       // §7.3 puts the vocalization in the message bar. Saying it twice keeps
       // the spoken half right if somebody later shortens the label.
       if (button.label) button.vocalization = button.label;
-      const picture = put.image(reference);
+      const picture = put.image(reference, Boolean(slot?.negated));
       if (picture) button.image_id = picture;
       const recording = put.sound(text);
       if (recording) button.sound_id = recording;
@@ -819,7 +849,7 @@ function appBoards(
         case "append": break;
       }
 
-      const picture = put.image(String(one.symbol ?? ""));
+      const picture = put.image(String(one.symbol ?? ""), Boolean(one.negated));
       if (picture) button.image_id = picture;
       // Only where a press speaks this button's own text - see spokenTexts().
       if (act.kind === "append" || act.kind === "speak") {
