@@ -1,15 +1,22 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import { put } from "./diy.js";
 
-/* The language, and the half of it that only shows on the second visit.
+/* Two languages, and the whole point of these is that they are two.
  *
  * A menu that flips the page is the easy half and passed with the whole of the
  * choice living in a variable. What these check is that the choice is still
- * there after a reload - it was written to the layout on every switch and read
- * back on none, so it lasted exactly as long as the tab did - and that it
- * beats what the browser asks for, which is the thing that made the bug hard
- * to see: on a machine whose browser already asks for German, a German page
- * after a reload looks exactly like a preference that was kept.
+ * there after a reload - it lasted exactly as long as the tab did once - that
+ * it beats what the browser asks for, which is the thing that made that bug
+ * hard to see, and that the page's language and the device's no longer move
+ * each other.
+ *
+ * They were one control: `setLanguage(code)` and `state.layout.language = code`
+ * on the same keystroke. So a carer whose page is German could not build an
+ * English talker without turning their own page English, and opening a
+ * Sammlung re-languaged the page around them. Half of what follows is about
+ * that not happening any more, which is why the pair of tests at the bottom
+ * assert that something does NOT change.
  *
  * So the locale is pinned rather than left to the runner, and every test
  * switches *away* from what it asks for. theme.spec.ts holds the same shape
@@ -25,7 +32,7 @@ const CHOSEN = LANGUAGES.find((code) => code !== ASKED)!;
 
 test.use({ locale: `${ASKED}-DE` });
 
-/** What each language calls itself. The menu names them this way on purpose -
+/** What each language calls itself. Both menus name them this way on purpose -
  *  see voices.ts - so these are the one pair of literals that belong here. */
 const OWN_NAME: Record<string, string> = { de: "Deutsch", en: "English" };
 
@@ -34,7 +41,7 @@ const OWN_NAME: Record<string, string> = { de: "Deutsch", en: "English" };
 const option = (page: Page, code: string) =>
   page.getByRole("menuitemradio", { name: OWN_NAME[code], exact: true });
 
-/** Opens the settings sheet and picks a language. */
+/** Opens the settings sheet and picks the language of this page. */
 async function choose(page: Page, code: string): Promise<void> {
   await page.click("#settingsLink");
   await openPanel(page, "#languagePanel");
@@ -42,10 +49,47 @@ async function choose(page: Page, code: string): Promise<void> {
   await option(page, code).click();
 }
 
+/** The same for the other one: the language the device's menu speaks, which
+ *  belongs to the Sammlung and is a panel of its own further down the sheet. */
+async function chooseForCollection(page: Page, code: string): Promise<void> {
+  await page.click("#settingsLink");
+  await openPanel(page, "#collectionLanguagePanel");
+  await page.click("#collectionLangPick");
+  await option(page, code).click();
+}
+
 /** A label the page can be recognised by, in the language given. Read out of
  *  the same table the page reads: a literal here would only say again, in a
  *  second place, what the page already believes. */
 const says = (code: string, key: string) => table[code][key];
+
+/** The language in the layout that is open, read out of the store rather than
+ *  off the screen - it is a property of the Sammlung, and the only place it
+ *  shows is the file and what is built from it. */
+const inTheLayout = (page: Page) =>
+  page.evaluate(() => new Promise<string | null>((resolve) => {
+    const open = indexedDB.open("vorlaut");
+    open.onerror = () => resolve(null);
+    open.onsuccess = () => {
+      // Whichever Sammlung is open: there is a list of them now, each one's
+      // layout is a record of its own in `layouts`, and which one is open is a
+      // mark beside them.
+      const tx = open.result.transaction(["marks", "layouts"], "readonly");
+      const current = tx.objectStore("marks").get("current");
+      current.onerror = () => resolve(null);
+      current.onsuccess = () => {
+        const got = tx.objectStore("layouts").get(current.result as string);
+        got.onerror = () => resolve(null);
+        got.onsuccess = () => {
+          try {
+            resolve(JSON.parse((got.result as { text: string }).text).language ?? null);
+          } catch {
+            resolve(null);
+          }
+        };
+      };
+    };
+  }));
 
 test.beforeEach(async ({ page }) => {
   await page.goto("./");
@@ -77,14 +121,6 @@ test("the choice survives a reload, over what the browser asks for",
     await choose(page, CHOSEN);
     await expect(page.locator("html")).toHaveAttribute("lang", CHOSEN);
 
-    // The switch redraws the page before it has finished writing, so the
-    // attribute above is true a moment before the layout holding it is in the
-    // store. Wait for the page's own word that the write landed, the way
-    // page.spec.ts does - a reload racing it reads back the previous language
-    // and fails here for a reason that has nothing to do with what is checked.
-    await expect(page.locator("#status")).toHaveText(says(CHOSEN, "ui.saved"),
-      { timeout: 10_000 });
-
     await page.reload();
     await expect(page.locator("#device .cell")).toHaveCount(6);
 
@@ -98,41 +134,71 @@ test("the choice survives a reload, over what the browser asks for",
     await expect(page.locator("#languageState")).toHaveText(OWN_NAME[CHOSEN]);
   });
 
-test("the layout is what carries it, not this browser", async ({ page }) => {
+test("this browser is what carries it, not the Sammlung", async ({ page }) => {
+  const before = await inTheLayout(page);
   await choose(page, CHOSEN);
   await expect(page.locator("html")).toHaveAttribute("lang", CHOSEN);
 
-  // Where it has to be for the device to get it too: beside the voice, in the
-  // layout, rather than in a key next to it. A board exported from here and
-  // flashed onto a talker carries the menu language with it - that is why this
-  // preference is not in localStorage the way the scheme is.
-  await expect.poll(() => page.evaluate(() => new Promise<string | null>((resolve) => {
-    const open = indexedDB.open("vorlaut");
-    open.onerror = () => resolve(null);
-    open.onsuccess = () => {
-      // Whichever Sammlung is open: there is a list of them now, each one's
-      // layout is a record of its own in `layouts`, and which one is open is a
-      // mark beside them. The language is still in the layout rather than
-      // beside it, which is the whole of what this asserts.
-      const tx = open.result.transaction(["marks", "layouts"], "readonly");
-      const current = tx.objectStore("marks").get("current");
-      current.onerror = () => resolve(null);
-      current.onsuccess = () => {
-        const got = tx.objectStore("layouts").get(current.result as string);
-        got.onerror = () => resolve(null);
-        got.onsuccess = () => {
-          try {
-            resolve(JSON.parse((got.result as { text: string }).text).language ?? null);
-          } catch {
-            resolve(null);
-          }
-        };
-      };
-    };
-  }))).toBe(CHOSEN);
+  // Beside the scheme, in the store that can be read before the first paint,
+  // because this is a fact about this browser and this reader. It used to be
+  // written into the layout - which is how it also became the device's answer,
+  // and the reason a page could not be one language while a talker was
+  // another.
+  expect(await page.evaluate(() => localStorage.getItem("vorlaut.language")))
+    .toBe(CHOSEN);
+  // And the Sammlung is exactly where it was - checked after an edit that
+  // writes, not straight after the switch. Straight after the switch this
+  // passes even with the old line put back, because the switch no longer
+  // saves: `state.layout.language = code` would sit in memory until the next
+  // write carried it out, which is the same bug arriving one keystroke later.
+  await page.click("#voiceClose");
+  await put(page, 0, "Hallo");
+  await expect.poll(() => inTheLayout(page)).toBe(before);
+});
 
-  expect(await page.evaluate(() => Object.keys(localStorage)))
-    .not.toContain("vorlaut.language");
+/* The other half of the split. These two are the bug, from each side. */
+
+test("the Sammlung's language is written to the layout, and moves nothing here",
+  async ({ page }) => {
+    await chooseForCollection(page, CHOSEN);
+
+    // Where it has to be for the device to get it: beside the voice, in the
+    // layout. A board exported from here and flashed onto a talker carries the
+    // menu language with it - that is why this one is not in localStorage the
+    // way the page's language and the scheme are.
+    await expect.poll(() => inTheLayout(page)).toBe(CHOSEN);
+    await expect(page.locator("#collectionLangPick")).toHaveText(OWN_NAME[CHOSEN]);
+    await expect(page.locator("#collectionLanguageState")).toHaveText(OWN_NAME[CHOSEN]);
+
+    // And the page is still the reader's. This is the carer with a German
+    // editor building an English talker, which was not possible at all.
+    await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
+    await expect(page.locator("#settingsHeading"))
+      .toHaveText(says(ASKED, "ui.settings"));
+    expect(await page.evaluate(() => localStorage.getItem("vorlaut.language")))
+      .toBe(null);
+  });
+
+test("opening a Sammlung does not re-language the editor", async ({ page }) => {
+  // A Sammlung whose device speaks the other language, saved and let go of.
+  await chooseForCollection(page, CHOSEN);
+  await expect.poll(() => inTheLayout(page)).toBe(CHOSEN);
+  await page.click("#voiceClose");
+
+  // Read back the way somebody comes back to it: a reload is load(), which is
+  // where the language used to be adopted. Nothing else on this page has
+  // changed, so the editor must still be in the language the browser asked
+  // for - it used to arrive in the board's, which is the half of the bug
+  // nobody chose and could not undo without changing the board.
+  await page.reload();
+  await expect(page.locator("#device .cell")).toHaveCount(6);
+  await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
+  await expect(page.locator("#releaseBtn")).toHaveText(says(ASKED, "ui.release"));
+
+  // The Sammlung kept its own answer through all of that.
+  await page.click("#settingsLink");
+  await openPanel(page, "#collectionLanguagePanel");
+  await expect(page.locator("#collectionLangPick")).toHaveText(OWN_NAME[CHOSEN]);
 });
 
 /* The Daten panel, which is where a captured LANG showed itself.
