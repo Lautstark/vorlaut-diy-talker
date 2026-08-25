@@ -918,9 +918,16 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    target: no cursor, no hover, and nothing focusable inside it. Drawn as the
    speaker rather than captioned as an absence - a cell saying "empty" invites
    somebody to fill it, and this one cannot be filled, because behind it there
-   is a 40 mm cone. */
+   is a 40 mm cone.
+
+   No border at all, which is design's docs/mocks/editor.css and the last step
+   of that same argument. A dashed outline is this product's word for a place
+   something can go - .cell--empty wears it, and so does every drop target - so
+   drawing the speaker with one said the opposite of the sentence above it: an
+   empty cell you could put a key in. What is left is the glyph and its
+   caption, which are the whole of what this is. */
 .cell--hole {
-  cursor: default; border-style: dashed; background: transparent;
+  cursor: default; border: 0; background: transparent;
   color: var(--text-faint);
 }
 .cell--hole > span {
