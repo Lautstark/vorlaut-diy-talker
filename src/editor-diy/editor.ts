@@ -171,10 +171,10 @@ function emptySet(index: number): BoardSet {
  * And the reason the board had to keep the sharp copy is gone. The tile was
  * where a symbol was picked, so it had to show the source image to pick
  * against; picking happens in the sheet now, whose preview is the source image
- * at 4:3. So the board can afford to be the device, and the toggle is what
- * turns it into one - the whole board at once rather than a strip under each
- * key, which is also the honest comparison, since the device shows five of
- * these side by side.
+ * at the display's own square. So the board can afford to be the device, and
+ * the toggle is what turns it into one - the whole board at once rather than a
+ * strip under each key, which is also the honest comparison, since the device
+ * shows five of these side by side.
  */
 function deviceImage(symbol: string, colour: string): HTMLImageElement {
   const image = document.createElement("img");

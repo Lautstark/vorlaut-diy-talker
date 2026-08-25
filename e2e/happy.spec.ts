@@ -267,6 +267,37 @@ test("an own picture lands on a key and renders", async ({ page }) => {
   await expect(image).toHaveJSProperty("naturalWidth", 16);
 });
 
+test("a picture can be taken off a key again", async ({ page }) => {
+  /* The other half of the one above. Until this control existed a picture
+   * could only be replaced, never removed: every way out of the sheet either
+   * kept the symbol or put a different one in its place, so a key that had
+   * been given the wrong picture was stuck with a picture.
+   *
+   * Nothing downstream had to change for it - `symbol: ""` is what a key
+   * without a picture has always been - which is exactly what this asserts:
+   * the cell behind the sheet goes back to drawing its word. */
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    box.locator(".pick button", { hasText: label("ui.symbol_own") }).click(),
+  ]);
+  await chooser.setFiles(join(HERE, "fixtures", "symbol.png"));
+  await expect(box.locator(".pick__preview img")).toBeVisible();
+
+  // Only once there is something to take off: with no picture there is nothing
+  // for it to do, and a control that is permanently dead reads as broken.
+  const off = box.locator(".pick button", { hasText: label("ui.symbol_off") });
+  await off.click();
+  await expect(box.locator(".pick__preview img")).toHaveCount(0);
+  await expect(box.locator(".pick__preview--none")).toBeVisible();
+  await expect(off).toBeHidden();
+  await press(box, "ui.done");
+
+  await expect(cells(page).nth(KEY_CELL[0]!).locator(".cell__pic")).toHaveCount(0);
+});
+
 test("the preview draws the keys the way the display will", async ({ page }) => {
   /* The one thing on this board that the mock does not cover, because a tablet
    * has no display to preview. It replaces the cell's picture rather than

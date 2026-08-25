@@ -219,6 +219,7 @@ function drawPick(spec: PickColumn): HTMLElement {
     spec.onPick(chosen, caption);
     drawPreview();
     drawResults();
+    off.hidden = !symbol;
   };
 
   let hits: SymbolHit[] = [];
@@ -294,7 +295,38 @@ function drawPick(spec: PickColumn): HTMLElement {
   own.className = "btn quiet";
   own.textContent = t("ui.symbol_own");
   own.onclick = () => file.click();
-  pick.append(own, file);
+
+  /* Taking the picture off, which until now could only be done by putting a
+   * different one on. Nothing downstream has to learn anything: `symbol: ""`
+   * is what a button without a picture has always been in the model, and a
+   * picture-less button draws its word large.
+   *
+   * Not a ✕ beside the search field. That field is an <input type="search">
+   * and the browser puts its own ✕ inside it, which clears the *word being
+   * searched for* - two ✕ a few pixels apart meaning two different things is
+   * worse than the missing control was. So it is a labelled button, next to
+   * the other thing that is done to the picture as a whole.
+   *
+   * Hidden rather than disabled when there is no picture: there is nothing to
+   * take off, and a control that is permanently there and permanently dead
+   * reads as broken. Hiding it does cost the press its own focus, though - the
+   * button vanishes under it - so the press hands focus to the search field,
+   * which is where somebody who has just cleared a picture is going next. */
+  const off = document.createElement("button");
+  off.type = "button";
+  off.className = "btn quiet";
+  off.textContent = t("ui.symbol_off");
+  off.hidden = !symbol;
+  off.onclick = () => {
+    took("", "");
+    query.focus();
+    status(t("ui.symbol_off_done"));
+  };
+
+  const acts = document.createElement("div");
+  acts.className = "pick__acts";
+  acts.append(own, off);
+  pick.append(acts, file);
 
   /* What is owed for the collection these pictures come from.
    *
