@@ -267,9 +267,15 @@ test.describe("with the folder already connected at load", () => {
      * fixed: applyTexts() wrote "ARASAAC durchsuchen" flat, so every caller of
      * it put ARASAAC back over a field that was searching METACOM. A language
      * switch in the sheet repaints the picker afterwards and hid it; a board
-     * arriving in a language the page is not in does not, and this is that
+     * arriving in a language the page is not in did not, and this is that
      * path - export in German, switch the page to English, bring the German
-     * board back. */
+     * board back.
+     *
+     * What the import can do to the page has since shrunk to nothing: the
+     * board's language is the device's now, and opening one no longer moves
+     * the language of the page it is opened on. So the second half below
+     * asserts that the field is still naming the collection, in the language
+     * the page was already in and stays in. */
     // Exporting is in the work head's ⋯ now, beside the Sammlung it exports.
     await page.locator("#collectionMenu").click();
     const [download] = await Promise.all([
@@ -305,9 +311,10 @@ test.describe("with the folder already connected at load", () => {
     await chooser.setFiles(file!);
     await expect(page.locator("#boardState")).toContainText(":");
 
-    // The board carries its language and the page follows it back - and the
-    // field has to name the collection, in the language it just landed in.
-    await expect(trigger).toHaveText(was === "de" ? "Deutsch" : "English");
-    await expectSource(page, table[was]["ui.search_metacom"]!);
+    // The board carries its own language to the device and leaves this page
+    // alone - and the field still has to name the collection, in the language
+    // the page is in.
+    await expect(trigger).toHaveText(other === "de" ? "Deutsch" : "English");
+    await expectSource(page, table[other]["ui.search_metacom"]!);
   });
 });

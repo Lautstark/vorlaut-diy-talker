@@ -1238,9 +1238,11 @@ export const app: Editor = {
     const first = blankPage();
     return {
       target: "app",
-      // The language the page is already in, read at the moment the Sammlung
-      // is made rather than captured at module level: LANG is a live binding
-      // and a language switch moves it. The same reasoning as editor-diy's.
+      // The Sammlung's own language, started off from the language the page is
+      // already in and changed in the settings sheet if that guess is wrong.
+      // Read at the moment the Sammlung is made rather than captured at module
+      // level: LANG is a live binding and a language switch moves it. The same
+      // reasoning as editor-diy's.
       language: LANG,
       // What was chosen while it was being made, or the first of the offered
       // sizes for the callers that make one without asking - the seed a
