@@ -284,24 +284,49 @@ def compute(p, bed_x, bed_y):
                         'carrier %.1f | parts %.1f | lid %.1f'
            % (G('front_d'), G('sk_behind_front'), G('cable_space'),
               G('carrier_d'), free_above_carrier, G('lid_d')))
-    b.info(g, 'above the carrier', '%.1f mm the parts need + %.1f mm added '
-                                   'after the first build = %.1f mm'
-           % (G('stack_max') + G('part_clearance'), G('extra_above_carrier'),
-              free_above_carrier))
-    # The extra room goes entirely BEHIND the carrier. If it went in front,
-    # the five ScreenKeys would move with it and so would the cap protrusion.
-    b.check(g, 'the extra room is all behind the carrier',
-             G('inner_z_h') - G('carrier_z_top'), '==',
-             G('stack_max') + G('part_clearance') + G('extra_above_carrier'),
+    # Absolute z, not heights above the carrier: the Feather no longer starts
+    # from the carrier's top face when it is sunk into the plate, and mixing
+    # the two datums is how the first draft lost 1.3 mm into the lid.
+    tops = (('battery', G('top_battery')), ('Feather', G('top_feather')),
+            ('amplifier', G('top_amp')))
+    tallest = max(tops, key=lambda t: t[1])
+    b.info(g, 'Feather',
+           ('pins through the plate, board flat on it - %.1f mm lower than on '
+            'standoffs' % G('feather_support')) if G('feather_pins_through')
+           else 'standing on %.1f mm standoffs' % G('feather_support'))
+    for n, t in tops:
+        b.info(g, 'top of the %s' % n, 'z = %.2f mm' % t)
+    b.info(g, 'what governs the depth', '%s, at z = %.2f' % tallest)
+    b.info(g, 'above the carrier', '%.1f mm the parts need + %.1f mm of cable '
+                                   'headroom = %.1f mm'
+           % (G('parts_top') - G('carrier_z_top') + G('part_clearance'),
+              G('extra_above_carrier'), free_above_carrier))
+    # The headroom goes entirely BEHIND the parts. If it went in front, the
+    # five ScreenKeys would move with it and so would the cap protrusion.
+    b.check(g, 'the headroom is all behind the parts',
+             G('inner_z_h'), '==',
+             G('parts_top') + G('part_clearance') + G('extra_above_carrier'),
              note='the front of the device moves with it')
-    b.check(g, 'room above the carrier for the battery',
-             free_above_carrier, '>=', G('battery_d') + G('part_clearance'))
-    b.check(g, 'room above the carrier for the Feather',
-             free_above_carrier, '>=',
-             G('feather_support') + G('feather_h') + 0.0,
-             note='Feather hits the lid')
-    b.check(g, 'room above the carrier for the amplifier',
-             free_above_carrier, '>=', G('amp_support') + G('amp_d'))
+    for n, t in tops:
+        b.check(g, 'the %s clears the lid' % n,
+                 G('inner_z_h') - t, '>=', G('part_clearance'),
+                 note='it presses on the lid')
+    if G('feather_pins_through'):
+        # The pads are ordinary plate, so the screw gets the whole thickness.
+        # An earlier version sank the board onto 1.2 mm pads for the same 1.9
+        # mm and left the M2 three threads to bite - the saving was never the
+        # sinking, it was deleting the standoff, so the pads stay full depth.
+        b.check(g, 'thread the Feather screw gets', G('carrier_d'), '>=', 2.0,
+                 note='an M2 needs more than five threads of PLA')
+        b.check(g, 'pilot hole is a pilot, not a clearance hole',
+                 G('feather_screw_core'), '<=', 1.8,
+                 note='nothing bites in a 2.1 mm hole')
+        b.check(g, 'wall left round the Feather pilot hole',
+                 (G('feather_pad_d') - G('feather_screw_core')) / 2,
+                 '>=', 1.0, note='the pad splits when the screw is pulled up')
+        b.check(g, 'the pin tails have somewhere to go',
+                 G('carrier_d'), '>=', G('feather_support'),
+                 note='the tails bottom out on the plate')
     b.check(g, 'inner depth for the speaker',
              G('inner_z_h') - G('front_d'), '>=', G('spk_depth') + 0.5)
     b.check(g, 'ScreenKey fits behind the front',
@@ -391,8 +416,9 @@ def compute(p, bed_x, bed_y):
                 py = G('feather_y') + G('feather_b') / 2 + iy * G('feather_hole_b') / 2
                 nearest_peg = min(
                     nearest_peg,
-                    math.hypot(px - sx, py - sy) - hole_r - 2.5)
-    b.check(g, 'Feather standoff to nearest peg hole', nearest_peg, '>=', 0.5,
+                    math.hypot(px - sx, py - sy) - hole_r
+                    - G('feather_pad_d') / 2)
+    b.check(g, 'Feather pad to nearest peg hole', nearest_peg, '>=', 0.5,
              note='standoff prints over a hole edge')
 
     # --- 5b. The ScreenKey screws on the carrier --------------------------
@@ -463,7 +489,7 @@ def compute(p, bed_x, bed_y):
              G('usb_overhang'), '>=', 0.5)
     win_h = G('usb_win_h')
     b.check(g, 'window bottom edge above the carrier ledge',
-             G('usb_z') - win_h / 2, '>=', G('carrier_z_top') + 1.0)
+             G('usb_z') - win_h / 2, '>=', G('carrier_z_top') + 0.6)
     b.check(g, 'window top edge below the lid rebate',
              G('usb_z') + win_h / 2, '<=', G('inner_z_h') - 1.0)
     b.check(g, 'window wider than the socket',

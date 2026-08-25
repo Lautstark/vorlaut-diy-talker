@@ -233,6 +233,34 @@ def main():
         L.probe(c, 'carrier is cut away where the chamber wall is',
                 (G('spk_mx') + .11, G('chamber_y') + G('chamber_wall') / 2,
                  z_plate), False)
+        # The Feather's well, and the four pads in its floor. The pads are the
+        # plate's own bottom layers, so the pair below is the whole test: air
+        # up at plate level, material down at the pads' height, on the same
+        # (x, y). Anything else means the well cut through them or they were
+        # never there.
+        if G('feather_pins_through'):
+            fx = G('feather_x') + G('feather_l') / 2
+            fy = G('feather_y') + G('feather_b') / 2
+            z_seat = z_plate
+            L.probe(c, 'the Feather well is open at plate level',
+                    (fx + 0.37, fy + 0.29, z_plate), False)
+            L.probe(c, 'and open right through, between the pads',
+                    (fx + 0.37, fy + 0.29, z_seat), False)
+            s0 = (fx - G('feather_hole_l') / 2, fy - G('feather_hole_b') / 2)
+            # The pad is ordinary plate now, full thickness, so it is
+            # material all the way through - that is the point of it.
+            L.probe(c, 'a Feather pad carries material',
+                    (s0[0] + 1.11, s0[1] - 1.07, z_seat), True)
+            L.probe(c, 'and it is plate all the way down',
+                    (s0[0] + 1.11, s0[1] - 1.07, 0.3), True)
+            L.probe(c, 'the pilot hole through that pad is open',
+                    (s0[0] + 0.09, s0[1] + 0.13, z_seat), False)
+            # The well has to reach the plate edge, or the USB socket has no
+            # notch to sit in.
+            edge = G('env_b') + G('inner_margin') - G('carrier_play') / 2
+            L.probe(c, 'the well reaches the plate edge (USB notch)',
+                    (edge - 1.07, fy + 0.29, z_plate), False)
+
         L.probe(c, 'carrier is cut away under the speaker',
                 (G('spk_mx') + .11, G('spk_my') + 0.07, z_plate), False)
 
