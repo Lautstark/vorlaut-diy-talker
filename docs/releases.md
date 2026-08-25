@@ -154,27 +154,6 @@ shipped could not have followed it. That test survives rebases, needs no
 maintenance, and stops mattering by itself once those commits are behind every
 range anybody pushes.
 
-### What 0.1.0 is missing
-
-`fa6e4d2` — *Switch the symbols too, not just the labels* — went onto `main`
-with no prefix, and the check caught it after the push rather than before.
-It is the change that made symbol search follow the page's language instead of
-always asking ARASAAC's German endpoint, and it is the reason this repository
-depends on bildquelle 1.6.0.
-
-It is not rewritten, because it is shared history with merges on top of it, and
-because that is what the check itself says to do. So it is written down here
-instead: **the 0.1.0 notes will not mention it, and they should.** Whoever
-merges the release pull request wants this line under *Fixes*:
-
-```
-* search ARASAAC in the page's own language, not always German ([fa6e4d2](https://github.com/Lautstark/vorlaut-diy-talker/commit/fa6e4d251fd5e32905be006b9de3f2389d5e837a))
-```
-
-The clone it was written in had no `core.hooksPath`, which is the case the last
-section is about, and it is set there now. Delete this section once 0.1.0 is
-out — it is a record of one commit, not a rule.
-
 ### The hook, still there
 
 [`.githooks/commit-msg`](../.githooks/commit-msg) remains as a convenience,
