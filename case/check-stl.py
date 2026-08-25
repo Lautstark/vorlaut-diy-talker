@@ -204,6 +204,20 @@ def main():
                 (G('chamber_x') - G('chamber_wall') / 2, 60.11, 20.0), True)
         L.probe(w, 'chamber is hollow inside',
                 (G('spk_mx') + .11, 60.07, 30.0), False)
+        # The icon is fixed geometry, so it can be probed exactly. This pair
+        # proves both that the mark was cut and that it is an OUTLINE: the
+        # stroke is air, the bubble's middle a few mm inside it is not.
+        if G('front_mark_on'):
+            iy = G('mark_y') + G('mark_icon_h') * (166.0 / 332.0) \
+                 - G('mark_stroke') / 2
+            L.probe(w, 'the icon outline is cut into the front',
+                    (G('mark_icon_x') + .11, iy, G('mark_depth') / 2), False)
+            L.probe(w, 'and the bubble inside it is not',
+                    (G('mark_icon_x') + .11, iy - 3.0, G('mark_depth') / 2), True)
+            L.probe(w, 'front plate left behind the marks',
+                    (G('mark_icon_x') + .11, iy,
+                     G('mark_depth') + (G('front_d') - G('mark_depth')) / 2), True)
+
         L.probe(w, 'inner space is hollow', (G('env_b') / 2 + .37, G('env_h') / 2 + .29, 28.0), False)
 
     if 'carrier' in parts:

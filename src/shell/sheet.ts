@@ -234,10 +234,33 @@ export function formRow(text: string, control: HTMLElement, note = "",
     box.appendChild(caption);
   }
   box.appendChild(control);
-  if (note) box.appendChild(hint(note));
+  /* The sentence is named to the control, not only placed beside it.
+   *
+   * It reads as a note about the field because it sits next to it, and that
+   * is the whole of the association a sighted reader needs. A reader that
+   * gets the row one element at a time is handed the caption and the field
+   * and nothing else, so the sentence that says what an empty one means is
+   * the one part of the row it never hears. `aria-describedby` is what says
+   * it belongs to the control - announced after the caption, on focus.
+   *
+   * On whatever the caption names, which is the element that already carries
+   * the row's `for` or its `aria-labelledby`. A row whose caption names a box
+   * of several controls gets none: a description on the box is a description
+   * on nothing anybody focuses. */
+  if (note) {
+    const line = hint(note);
+    line.id = `note${++notes}`;
+    const said = typeof names === "string"
+      ? (names ? (control.id === names ? control
+                                       : control.querySelector(`#${names}`)) : null)
+      : names;
+    said?.setAttribute("aria-describedby", line.id);
+    box.appendChild(line);
+  }
   return box;
 }
 let captions = 0;
+let notes = 0;
 
 /** The sentence under a row, or beside it. Its own builder because a row whose
  *  sentence changes with the answer has to rewrite one rather than rebuild the

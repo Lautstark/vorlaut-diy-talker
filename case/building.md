@@ -613,6 +613,58 @@ python3 case/verify.py
 once. Whatever no longer works out shows up as `FAIL` — with actual and target
 value, so you can see how far off it is.
 
+## The name and the icon on the front
+
+The top margin the Feather's bay opened up leaves a band above the keys, and
+the device's name goes there with the speech bubble beside it — icon first,
+then the name, as the child reads them.
+
+```
+name_text = "Bente";   // "" for none
+```
+
+That is the whole customisation. Everything else follows: `mark_y` is derived
+from whatever reaches highest on the face — the key cutouts or the speaker
+grille — and the top edge less its chamfer, so the band cannot be got wrong by
+moving something else. The pair is centred, and at 18 mm of icon, 6 mm of gap
+and a 34 mm name it comes to 52 mm on a face with 123.5 mm of flat.
+
+**Cut in, not raised, and that one is not a choice.** The tub prints front face
+down on the bed, so anything standing proud of the front would have to print
+below it. Raising these would mean turning the tub over, which makes overhangs
+of all five key cutouts and stands the lid bosses in mid air.
+
+**The bubble is an outline here and stays filled on the lid**, and that is
+because of the same print orientation. Cutting into the bed-facing face means
+the floor of the cut is a bridge — and that floor is exactly the surface you
+look at. An outline spans nothing wider than its 1.2 mm stroke. A filled bubble
+would have spanned its whole width and sagged in the one place it shows. The
+eyes and the smile stay solid: at 18 mm they are already only 2.2 and 1.3 mm
+across.
+
+### Two things to know before you change the name
+
+**It needs a font, and that is a real dependency.** `text()` draws with
+whatever the machine has. Everything else in this file is hand-built geometry
+precisely so that nothing outside it can change the part — the logo is
+redrawn from the SVG rather than imported, for exactly this reason. `name_font`
+is pinned to make the dependency visible rather than accidental, and it is the
+price of a name you can type instead of trace. Set `name_text = ""` and the
+`text()` call is skipped entirely: no name, no font, no dependency.
+
+`verify.py` cannot check this. A missing font does not fail — OpenSCAD quietly
+substitutes another and renders a different name. The check that *does* work is
+`check-stl.py`'s probe on the icon, which is fixed geometry: it proves the marks
+were cut at all, and that the bubble came out as an outline rather than filled.
+
+**`name_w` has to be set by hand.** OpenSCAD cannot measure text, so this is
+how wide the name comes out — 34.00 mm for "Bente" at size 10 in Helvetica,
+measured off a render. It only centres the pair and checks it fits; it does not
+scale anything. The echo at the end of a render prints roughly what it should
+be, and *roughly* is the word: it assumes 0.68 × size per character, and a name
+of narrow letters comes out shorter. Get it wrong by a little and the pair sits
+slightly off centre; get it wrong by a lot and the fit check fails.
+
 ## The logo
 
 Speech bubble with two eyes and a smile, rebuilt from
