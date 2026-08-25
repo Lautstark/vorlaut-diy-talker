@@ -115,26 +115,43 @@ function rowSubtitle(layout: Layout): string {
     : t("ui.collection_row_diy");
 }
 
+/** What each row's second line and count last worked out to, by Sammlung.
+ *
+ * Held rather than local to the paint, because of which row can change while
+ * somebody is working: only the open one. Every other row is a layout nobody
+ * on this page can touch, so what was read of it at the last full paint is
+ * still true - which is what lets paintOpenCollection() below redraw the list
+ * without going back to the store for any of them.
+ *
+ * Emptied by every full paint rather than updated in place, so that a deleted
+ * Sammlung cannot leave a number behind for an id that is coming round again.
+ */
+const counts = new Map<string, number>();
+const subtitles = new Map<string, string>();
+
+/** The open Sammlung's row, from what is on screen rather than from the store.
+ *
+ * The store is up to a second behind it - the save is debounced - and a count
+ * that lags the thing it is beside reads as a bug. */
+function readOpen(): void {
+  if (!held.current) return;
+  counts.set(held.current, editorOf(state.layout).count(state.layout));
+  subtitles.set(held.current, rowSubtitle(state.layout));
+}
+
 /** The sidebar and the work head, from whatever the store last said. */
 export async function paintCollections(): Promise<void> {
   held = await listCollections();
 
-  /* How much is in each one. The open one is counted from what is on screen
-   * rather than from the store, because the store is up to a second behind it -
-   * the save is debounced, and a count that lags the thing it is beside reads
-   * as a bug. The rest are read; there are a handful of them and each is a
-   * small JSON, which is cheaper than keeping a denormalised number in the
-   * registry and being wrong about it. */
-  const counts = new Map<string, number>();
-  // Which device each one is for, from the same layouts the counts come from -
-  // so the second line costs no read that was not already happening.
-  const subtitles = new Map<string, string>();
+  /* How much is in each one, and which device it is for - the second line
+   * costing no read that was not already happening. The open one is not read
+   * at all (see readOpen); the rest are, because there are a handful of them
+   * and each is a small JSON, which is cheaper than keeping a denormalised
+   * number in the registry and being wrong about it. */
+  counts.clear();
+  subtitles.clear();
   await Promise.all(held.collections.map(async (one) => {
-    if (one.id === held.current) {
-      counts.set(one.id, editorOf(state.layout).count(state.layout));
-      subtitles.set(one.id, rowSubtitle(state.layout));
-      return;
-    }
+    if (one.id === held.current) return readOpen();
     const layout = await layoutOf(one.id);
     // Each Sammlung counted by *its own* editor, not by whichever one is on
     // screen. This read `editor().count(...)` while there was one, and the
@@ -146,27 +163,7 @@ export async function paintCollections(): Promise<void> {
     }
   }));
 
-  const list = $("collectionList");
-  list.setAttribute("aria-label", t("ui.collections"));
-
-  /* The rows themselves are @lautstark/design/collections'. What is left here
-   * is what a row means in this product: the fallback name for an unnamed
-   * Sammlung, the count - the one fact that tells two similarly named ones
-   * apart, and the number the delete question will count with, which is why it
-   * is on screen before that question rather than appearing for the first time
-   * when something is about to go - and what pressing one does.
-   *
-   * `open` is a set of one, because a Sammlung here is a whole layout and so
-   * cannot be in two (§4.1). The additive flag the package reports is ignored
-   * for the same reason: there is no second thing to add. */
-  drawCollections(list, {
-    rows: held.collections.map((one) => ({
-      id: one.id, name: nameOf(one.name), count: counts.get(one.id),
-      subtitle: subtitles.get(one.id),
-    })),
-    open: held.current ? [held.current] : [],
-    onPick: (id) => { closeOnPick(); void open(id); },
-  });
+  drawList();
 
   const at = held.collections.findIndex((one) => one.id === held.current);
   const field = $<HTMLInputElement>("collectionName");
@@ -183,6 +180,64 @@ export async function paintCollections(): Promise<void> {
   name?.refresh(at < 0 ? "" : held.collections[at]!.name);
   field.placeholder = at < 0 ? t("ui.collection_name") : t("ui.collection_unnamed");
   field.disabled = at < 0;
+}
+
+/** The open Sammlung's row, brought back into line with what is on screen.
+ *
+ * An editor's commit() is the caller - both of them - because that is what a
+ * structural change *is* on this page: the layout in memory has moved, and
+ * everything drawn from it has to move with it. The sidebar row was the one
+ * thing that did not, so placing a button left the row's count at its old
+ * number and resizing a tablet's grid left the row naming the old size while
+ * the panel that had just changed it named the new one, an inch away.
+ *
+ * Not in save(), which was the other obvious home for it. The row goes stale
+ * the moment state.layout changes, not when it reaches the disk: hanging the
+ * repaint off the write would make the row lag by the save's debounce for
+ * everything that goes through saveSoon(), and would leave it *wrong* rather
+ * than merely late whenever a write comes back conflicted - the screen would
+ * have the change and the row beside it would not. A notification out of the
+ * save loop is the same timing wearing the onBuildState() shape, and it buys a
+ * decoupling that is not needed here: an editor may import the shell, and only
+ * the other direction is forbidden (tests/unit/layers.test.ts).
+ *
+ * Not debounced either, and that is what this function is for. What made a
+ * repaint too expensive to do on every change was reading every other
+ * Sammlung's layout out of the store - and the open row is the one row that
+ * needs no read, because it is drawn from state.layout. So the maps above are
+ * kept, the open entry is recomputed, and what is left is rebuilding a handful
+ * of rows: a fraction of the render() that commit() has just done anyway.
+ */
+export function paintOpenCollection(): void {
+  if (!held.current) return;
+  readOpen();
+  drawList();
+}
+
+/** The rows, from the two maps above.
+ *
+ * The rows themselves are @lautstark/design/collections'. What is left here
+ * is what a row means in this product: the fallback name for an unnamed
+ * Sammlung, the count - the one fact that tells two similarly named ones
+ * apart, and the number the delete question will count with, which is why it
+ * is on screen before that question rather than appearing for the first time
+ * when something is about to go - and what pressing one does.
+ *
+ * `open` is a set of one, because a Sammlung here is a whole layout and so
+ * cannot be in two (§4.1). The additive flag the package reports is ignored
+ * for the same reason: there is no second thing to add.
+ */
+function drawList(): void {
+  const list = $("collectionList");
+  list.setAttribute("aria-label", t("ui.collections"));
+  drawCollections(list, {
+    rows: held.collections.map((one) => ({
+      id: one.id, name: nameOf(one.name), count: counts.get(one.id),
+      subtitle: subtitles.get(one.id),
+    })),
+    open: held.current ? [held.current] : [],
+    onPick: (id) => { closeOnPick(); void open(id); },
+  });
 }
 
 /** There is always one, and it has a name.
