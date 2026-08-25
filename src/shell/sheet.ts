@@ -46,6 +46,13 @@
  * that is not a foot button costs exactly nothing, which is the rule an empty
  * cell makes unavoidable: pressing one must not leave a blank key behind when
  * the sheet is dismissed.
+ *
+ * The picture column has one choice that is made over several presses rather
+ * than one - the crop - and so it has to be asked, on the way out through a
+ * foot button, whether it is holding anything. That is Picked.settle() below,
+ * and it is on that side of the line rather than this one for exactly the
+ * reason above: a foot button is the confirming press, and the ✕, Escape and a
+ * press outside still cost nothing.
  */
 import { openDialog } from "@lautstark/design/dialog";
 import { menuOn } from "@lautstark/design/menu";
@@ -350,9 +357,18 @@ export interface PickColumn {
   onNegate?(negated: boolean): void;
 }
 
+/** The left column, and the one thing the foot has to be able to ask it. */
+interface Picked {
+  node: HTMLElement;
+  /** Anything the column has started and not finished, finished - see settle()
+   *  where it is built. Resolves immediately when there is nothing pending,
+   *  which is almost always. */
+  settle(): Promise<void>;
+}
+
 /** Builds the left column. Private: the only way to one is through openSheet,
  *  because a picture column outside a sheet has no meaning. */
-function drawPick(spec: PickColumn): HTMLElement {
+function drawPick(spec: PickColumn): Picked {
   const pick = document.createElement("div");
   pick.className = "pick";
   let symbol = spec.symbol;
@@ -576,20 +592,18 @@ function drawPick(spec: PickColumn): HTMLElement {
     status(t("ui.symbol_off_done"));
   };
 
-  /* The two buttons the crop puts in the same row, in place of the two above.
+  /* The one button the crop puts in this row, in place of the two above.
    *
-   * `quiet` for both, though one of them confirms. The sheet's foot already
-   * has the one primary button on screen and a second would be two things
-   * claiming to be the way onward; the labels say plainly enough which is
-   * which. What the foot's button does while a crop is open is nothing to do
-   * with the crop - it closes the sheet, the crop is dropped, and the key
-   * keeps whatever picture it had, because nothing has been written. That is
-   * the rule this whole module is shaped around and it holds here for free. */
-  const take = document.createElement("button");
-  take.type = "button";
-  take.className = "btn quiet";
-  take.textContent = t("ui.crop_take");
-  take.hidden = true;
+   * There were two, and the one that took the square has gone. The foot
+   * already carries a button that means yes - see settle() below - and two
+   * controls confirming the same thing a few inches apart is not a choice, it
+   * is a question about which of them is the real one. The sentence under the
+   * slider names the one that is, because it is no longer in this column.
+   *
+   * This one stays, and it is not symmetry: without it the only way out of an
+   * open crop that does not keep the square is the corner ✕, which takes the
+   * whole sheet and every other edit in it. A state you can only leave by
+   * throwing away more than you meant to is worth one button. */
   const drop = document.createElement("button");
   drop.type = "button";
   drop.className = "btn quiet";
@@ -598,7 +612,7 @@ function drawPick(spec: PickColumn): HTMLElement {
 
   const acts = document.createElement("div");
   acts.className = "pick__acts";
-  acts.append(own, off, take, drop);
+  acts.append(own, off, drop);
   pick.append(acts, file);
 
   /* Going in and coming out of the crop.
@@ -610,13 +624,18 @@ function drawPick(spec: PickColumn): HTMLElement {
    * leaves the row of buttons sitting directly under the box, which is where
    * the two that matter now belong. */
   let cropping: Cropper | null = null;
+  /* The square, waiting to be kept - see settle() at the foot of this function
+   * for what asks. Held apart from the button that usually runs it because the
+   * button is not the only press that means yes. */
+  let keeping: (() => Promise<void>) | null = null;
 
   const endCrop = () => {
+    keeping = null;
     cropping?.close();
     cropping = null;
     cropBar.hidden = true;
     cropBar.replaceChildren();
-    take.hidden = drop.hidden = true;
+    drop.hidden = true;
     own.hidden = false;
     off.hidden = !symbol;
     if (spec.onNegate) negateLabel.hidden = !symbol;
@@ -625,9 +644,10 @@ function drawPick(spec: PickColumn): HTMLElement {
     // hidden when empty, because an empty <p> over the grid is a layout fault.
     near.hidden = !near.textContent;
     drawPreview();
-    // The press that would have moved focus has just vanished from under it,
-    // so it goes back to the button that opened the crop in the first place.
-    own.focus();
+    // Deliberately not moving focus. The two presses below do it for
+    // themselves, because the third caller - settle(), from a foot button - is
+    // closing the sheet, and taking focus back to a control inside a dialog
+    // that is going away is how it ends up nowhere.
   };
 
   const beginCrop = (cutter: Cropper, name: string) => {
@@ -642,19 +662,20 @@ function drawPick(spec: PickColumn): HTMLElement {
     own.hidden = off.hidden = true;
     if (spec.onNegate) negateLabel.hidden = true;
     query.hidden = near.hidden = results.hidden = credits.hidden = true;
-    take.hidden = drop.hidden = false;
-    take.onclick = () => {
-      status(t("ui.uploading"));
-      void cutter.cut()
-        .then((square) => uploadOwn(square, pngName(name)))
-        .then(
-          (made) => { endCrop(); took(made, ""); status(t("ui.upload_done")); },
-          (error: unknown) => {
-            endCrop();
-            status(t("ui.upload_failed", { error: reason(error) }));
-          });
+    drop.hidden = false;
+    keeping = () => cutter.cut()
+      .then((square) => uploadOwn(square, pngName(name)))
+      .then(
+        (made) => { endCrop(); took(made, ""); status(t("ui.upload_done")); },
+        (error: unknown) => {
+          endCrop();
+          status(t("ui.upload_failed", { error: reason(error) }));
+        });
+    drop.onclick = () => {
+      endCrop();
+      own.focus();
+      status(t("ui.crop_off_done"));
     };
-    drop.onclick = () => { endCrop(); status(t("ui.crop_off_done")); };
     // The sentence under the slider is the box's description as well as the
     // column's copy: somebody who cannot see it has just been handed a control
     // whose name says what it is and not what to do with it.
@@ -720,7 +741,34 @@ function drawPick(spec: PickColumn): HTMLElement {
   pick.appendChild(credits);
 
   if (query.value) search();
-  return pick;
+  /* Anything chosen but not yet kept, kept.
+   *
+   * The crop is the only such thing and is likely to stay the only one: every
+   * other control in this column decides in a single press, and this one is
+   * chosen over several. That is what made it different, and what made the
+   * shape below wrong on the first try - the foot's Fertig closed the sheet
+   * over an open crop and the key kept what it had.
+   *
+   * That was defensible written down. Nothing had been written, so no way out
+   * of this sheet had cost anything, which is the rule the whole module is
+   * built on. It is not what happens: somebody chooses a picture, moves it
+   * about, and then presses the one primary button on the screen - and gets
+   * nothing, with no sentence anywhere saying why.
+   *
+   * So a foot button means the square as well. Not the corner ✕, not Escape,
+   * not a press outside: those say nothing happened, and after them nothing
+   * has. The distinction is exactly the one openSheet already draws between a
+   * press that resolves "done" and a close that resolves null.
+   *
+   * Cleared as it is read rather than when the write lands, so that two quick
+   * presses cannot ask for the same square twice. */
+  const settle = (): Promise<void> => {
+    const pending = keeping;
+    keeping = null;
+    return pending ? pending() : Promise.resolve();
+  };
+
+  return { node: pick, settle };
 }
 
 /* --- The sheet ----------------------------------------------------------- */
@@ -794,7 +842,12 @@ export function openSheet(spec: SheetSpec): Promise<Left> {
     form.className = "form";
     form.append(...spec.rows);
 
-    const columns: HTMLElement[] = spec.pick ? [drawPick(spec.pick), form] : [form];
+    const picked = spec.pick ? drawPick(spec.pick) : null;
+    /* What the two foot buttons wait for. A sheet with no picture column has
+     * nothing to settle and says so in one line, so neither button below has
+     * to know which kind of sheet it is on. */
+    const settle = (): Promise<void> => picked ? picked.settle() : Promise.resolve();
+    const columns: HTMLElement[] = picked ? [picked.node, form] : [form];
     const body: HTMLElement[] = spec.notice ? [spec.notice, ...columns] : columns;
 
     const foot: HTMLElement[] = [];
@@ -821,14 +874,14 @@ export function openSheet(spec: SheetSpec): Promise<Left> {
       next.className = "btn quiet";
       next.textContent = spec.next.label;
       const press = spec.next.onPress;
-      next.onclick = () => { press(); finish("next"); };
+      next.onclick = () => void settle().then(() => { press(); finish("next"); });
       right.appendChild(next);
     }
     const done = document.createElement("button");
     done.type = "button";
     done.className = "btn primary";
     done.textContent = spec.done.label;
-    done.onclick = () => { spec.done.onPress(); finish("done"); };
+    done.onclick = () => void settle().then(() => { spec.done.onPress(); finish("done"); });
     right.appendChild(done);
     foot.push(right);
 
