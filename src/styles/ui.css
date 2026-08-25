@@ -766,8 +766,8 @@ dl.transfer dd { margin: 0; font-size: 14px; }
  *
  * A set is a tab, and the strip is how somebody reaches one. The device holds
  * five, and five with ordinary names - a word or three each - measure about
- * 685px laid out in a row; four of them beside the "+ Set" button that is
- * still there until the fifth arrives, about 622px. 640 minus this column's
+ * 754px laid out in a row; four of them beside the "+ Neue Seite" button that
+ * is still there until the fifth arrives, about 738px. 640 minus this column's
  * padding gives them 600, so both of those wrap, and a strip that wraps pushes
  * the board down by the height of a whole row of tab. Every cure that keeps
  * the 640 makes the names harder to read - smaller type, an ellipsis, a strip
@@ -780,7 +780,7 @@ dl.transfer dd { margin: 0; font-size: 14px; }
  * column above it is free to be wider, and only chrome uses the difference.
  *
  * 880 is that difference sized to the strip: 840px of room for a row that
- * needs 685 at its widest, which is a couple more ordinary names' worth of
+ * needs 754 at its widest, which is about one more ordinary name's worth of
  * slack in a strip that can never hold more than five. It stays inside the
  * content column on a 1280px laptop rather than running out to its edges.
  *
