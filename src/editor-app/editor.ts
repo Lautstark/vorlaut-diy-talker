@@ -34,7 +34,7 @@ import { GRID, LANG, WORD_CLASSES } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save } from "../core/save.js";
 import { speak } from "../shell/speech.js";
-import { confirmDialog, openDialog } from "@lautstark/design/dialog";
+import { confirmDialog } from "@lautstark/design/dialog";
 /* The sheet is the shell's now, and the whole of what this file hands it is a
  * title, a picture, some rows and three labelled things to do. It was written
  * here, and moving it is what let the talker have the same one: an editor may
@@ -43,8 +43,8 @@ import { confirmDialog, openDialog } from "@lautstark/design/dialog";
 import { dropdown, formRow, hint, missing, openSheet, textField }
   from "../shell/sheet.js";
 import type { Choice, Left } from "../shell/sheet.js";
-import { collectionMenuExtras, exportApp, sizeChoices }
-  from "../shell/collections.js";
+import { exportApp, sizeChoices } from "../shell/collections.js";
+import { collectionSheetPanel } from "../shell/voices.js";
 import {
   addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, isShared,
   moveButton, moveShared, outside, pageById, reachable, resize,
@@ -1110,13 +1110,20 @@ export function render(): void {
   drawGrid();
 }
 
-/** The card that holds what is true of the whole Sammlung: how big a page is,
+/** The panel that holds what is true of the whole Sammlung: how big a page is,
  * how a word class is worn, and what the first column is.
  *
  * Every one of them is one decision for every page, which is why none belongs
  * in the bar over the board where everything else is about the *page* on
- * screen. They share a card for the same reason they are the same kind of
+ * screen. They share a panel for the same reason they are the same kind of
  * decision: made once, and then in force wherever somebody goes.
+ *
+ * It was a card of its own behind the ⋯ beside the Sammlung's name, one entry
+ * above that Sammlung's settings - two doors to "what is this Sammlung set
+ * to", which is one too many. It is a panel in that sheet now, handed over
+ * through collectionSheetPanel() because the shell may not import this file.
+ * The heading says the size the Sammlung is at, the way every other panel on
+ * that sheet states what it is set to.
  *
  * The first column is the newest and the one that most needs the company. It
  * is the same argument the grid size is made with, one column narrower - what
@@ -1126,14 +1133,26 @@ export function render(): void {
  * beneath, because a gap switched on over a column that is not shared marks
  * something that is not true.
  *
- * Nothing is written until the footer is pressed. That is what lets the card
- * say what a smaller grid would cost while the choice is still being made -
- * and it is why the footer button changes: growing or leaving the size alone
- * is an ordinary "apply", and shrinking past something, or taking one page's
- * first column over the rest, is the destructive act the notices above it have
- * just counted.
+ * Nothing is written until the button at the foot of the panel is pressed,
+ * and that is the one rule this sheet does not otherwise have: every other
+ * panel on it applies as it is touched. It has to be. Waiting is what lets the
+ * panel say what a smaller grid would cost while the choice is still being
+ * made, and it is why the button changes its words - growing or leaving the
+ * size alone is an ordinary "apply", and shrinking past something, or taking
+ * one page's first column over the rest, is the destructive act the notices
+ * above it have just counted. A live-apply grid would throw the buttons away
+ * and then mention it.
+ *
+ * The button is in the panel rather than on the dialog, which is where the
+ * settings sheet's one unavoidable Save already sits for the Azure key: a Save
+ * on the dialog would speak for the voice and the language too, and both of
+ * those are already in force by the time anybody could press it. There is no
+ * Cancel for the same reason there is none anywhere else here - the sheet's ✕
+ * is the way out, and what is pending lives only in this closure, so closing
+ * it is declining it.
  */
-function openGrid(): void {
+function gridPanel(into: HTMLElement,
+                   heading: (section: string, state: string) => void): void {
   const layout = board();
   let size: GridSize = { ...layout.grid };
   let colour = wordColor(layout);
@@ -1172,12 +1191,6 @@ function openGrid(): void {
     return 0;
   };
 
-  const cancel = document.createElement("button");
-  cancel.className = "btn quiet";
-  cancel.type = "button";
-  cancel.textContent = t("ui.cancel");
-  cancel.onclick = () => sheet.close();
-
   const go = document.createElement("button");
   go.type = "button";
   go.onclick = () => {
@@ -1193,20 +1206,28 @@ function openGrid(): void {
     // reads when it decides whether to write the hint at all.
     if (gap) layout.firstColumnGap = true;
     else delete layout.firstColumnGap;
-    sheet.close();
     commit();
+    /* The panel stays where it is, so it is drawn again against what it has
+     * just written rather than left showing a pending change that is no longer
+     * pending: the heading takes the new size, the notices that counted the
+     * cost have nothing left to count, and the button goes back to its
+     * ordinary words. The two switches and the colour are already what they
+     * were set to; the size and the column are read back off the layout,
+     * because resize() clamps and share() is what decides the answer. */
+    size = { ...layout.grid };
+    column = shared(layout);
+    draw();
   };
 
-  const sheet: ReturnType<typeof openDialog> = openDialog({
-    title: t("ui.app_grid"),
-    closeLabel: t("ui.close"),
-    body: [],
-    footer: [cancel, go],
-  });
+  // At the foot of the panel, in the row shape every other button on either
+  // sheet is in.
+  const row = document.createElement("div");
+  row.className = "row";
+  row.appendChild(go);
 
   /* Redrawn whole on each choice, because the two things that follow from one
    * are a pressed state somewhere else in the row and a number in a sentence -
-   * and threading those through by hand is how a card comes to disagree with
+   * and threading those through by hand is how a panel comes to disagree with
    * itself. There is nothing to type in here, so there is no caret to lose. */
   const draw = (): void => {
     const why = document.createElement("p");
@@ -1336,7 +1357,16 @@ function openGrid(): void {
       body.push(notice);
     }
 
-    sheet.body.replaceChildren(...body);
+    body.push(row);
+    into.replaceChildren(...body);
+
+    /* The heading says the size the Sammlung *is* at, not the one that is
+     * pending: a state line is what a panel would answer folded, and folded
+     * there is no pending anything. Which size is picked is said where it is
+     * picked, by the pressed option, and what pressing the button would cost
+     * is said by the notices between the two. */
+    heading(t("ui.app_grid"),
+            `${layout.grid.rows} \u00d7 ${layout.grid.columns}`);
 
     /* Labelled with the act rather than with "OK", and drawn as the danger it
      * is exactly when it is one: the same press applies a colour and throws
@@ -1365,12 +1395,12 @@ export function wireEditor(): () => void {
 
   $<HTMLButtonElement>("appExport").onclick = () => { void exportApp(); };
 
-  /* The card is opened from the menu beside the Sammlung's name, which is the
-   * shell's - so the entry is handed over rather than drawn here. Taken back
-   * when this editor leaves the page: the shell outlives it, and a talker
+  /* The grid is a panel in the sheet behind the ⋯ beside the Sammlung's name,
+   * which is the shell's - so it is handed over rather than drawn here. Taken
+   * back when this editor leaves the page: the shell outlives it, and a talker
    * Sammlung must not be offered a grid to resize. */
-  collectionMenuExtras((add) => add(t("ui.app_grid"), openGrid));
-  return () => collectionMenuExtras(null);
+  collectionSheetPanel(gridPanel);
+  return () => collectionSheetPanel(null);
 }
 
 /* What the shell is handed, and the whole of what it may ask for.

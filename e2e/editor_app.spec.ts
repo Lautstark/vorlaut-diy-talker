@@ -5,7 +5,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { checkPackage } from "../src/data/app_package.js";
 import { readPackage } from "./obz.js";
-import { openPanel, openSettings, openVoices } from "./sheets.js";
+import { openCollectionSettings, openPanel, openSettings, openVoices }
+  from "./sheets.js";
 
 /* A tablet Sammlung, built through the page and exported.
  *
@@ -472,14 +473,29 @@ test("deleting a page keeps the buttons that led to it", async ({ page }) => {
   await expect(essen.locator(".cell__act")).toHaveCount(0);
 });
 
-/** The card behind the ⋯ beside the Sammlung's name: the grid size and the
- *  colour of a word class, which are the two things true of every page. */
+/** The grid panel, in the sheet behind the ⋯ beside the Sammlung's name: the
+ *  grid size, the colour of a word class and the first column, which are the
+ *  three things true of every page.
+ *
+ * It was an entry of its own in that menu, one line above the settings it is
+ * now a panel of. Reached through the shared opener rather than by clicking
+ * the menu here, because it is the same sheet as the voice and the language,
+ * and closing whatever was left open is that opener's job. */
 async function openGrid(page: Page) {
-  await page.locator("#collectionMenu").click();
-  await page.locator('[role="menuitem"]', { hasText: label("ui.app_grid") }).click();
-  const card = sheet(page, "ui.app_grid");
+  await openCollectionSettings(page);
+  await openPanel(page, "#collectionEditorPanel");
+  const card = page.locator("#collectionEditorPanel");
   await expect(card).toBeVisible();
   return card;
+}
+
+/** Out of the Sammlung's sheet, back to the board behind it. The sheet is
+ *  modal, so anything on the page under it is inert until this runs - and the
+ *  grid panel no longer closes it, because applying a panel is not leaving a
+ *  sheet. */
+async function closeSheet(page: Page) {
+  await page.locator("#collectionSheetClose").click();
+  await expect(page.locator("#collectionSheet")).toBeHidden();
 }
 
 /** One of the four sizes, by the pair it draws. */
@@ -493,12 +509,25 @@ test("the grid grows in silence and asks before it shrinks", async ({ page }) =>
 
   /* Growing moves nothing and loses nothing, which is what buttons carrying
    * their own coordinates buys: 3x5 to 6x11 is a bounds change, not a
-   * re-index. So there is nothing to warn about, and the footer is the
-   * ordinary apply rather than the destructive one. */
+   * re-index. So there is nothing to warn about, and the button at the foot of
+   * the panel is the ordinary apply rather than the destructive one. */
   let card = await openGrid(page);
+
+  /* The heading states the size, which is what §3.5 asks of a panel and what a
+   * folded one has to answer on its own. It says the size the Sammlung *is*
+   * at, so picking another one does not move it - only pressing does. */
+  const stated = page.locator("#collectionEditorState");
+  await expect(stated).toHaveText(/^3 . 5$/);
   await size(card, 6, 11).click();
+  await expect(stated).toHaveText(/^3 . 5$/);
   await expect(card.locator(".notice")).toHaveCount(0);
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+
+  // Applied where it stands: the sheet is still open, because a panel that
+  // took effect is not a reason to leave one - and the heading has moved.
+  await expect(stated).toHaveText(/^6 . 11$/);
+  await expect(page.locator("#collectionSheet")).toBeVisible();
+  await closeSheet(page);
   await expect(cells(page)).toHaveCount(66);
   await expect(page.locator("#appGrid .cell", { hasText: "Mehr" })).toHaveCount(1);
 
@@ -515,10 +544,15 @@ test("the grid grows in silence and asks before it shrinks", async ({ page }) =>
   card = await openGrid(page);
   await size(card, 3, 5).click();
   await expect(card.locator(".notice")).toContainText(/3.5/);
-  await card.locator("button", { hasText: label("ui.cancel") }).click();
 
-  // Declined: nothing was written, so the board is the size it was and the
-  // button that would have gone is still on it.
+  /* Declined by leaving. There is no Cancel: what is pending lives in the
+   * panel and nowhere else, so closing the sheet is how it is declined - and
+   * the heading never said the smaller size, because it was never true. */
+  await expect(stated).toHaveText(/^6 . 11$/);
+  await closeSheet(page);
+
+  // Nothing was written, so the board is the size it was and the button that
+  // would have gone is still on it.
   await expect(cells(page)).toHaveCount(66);
   await expect(page.locator("#appGrid .cell", { hasText: "Ecke" })).toHaveCount(1);
   await expect(page.locator("#appGrid .cell", { hasText: "Start" })).toHaveCount(1);
@@ -528,6 +562,16 @@ test("the grid grows in silence and asks before it shrinks", async ({ page }) =>
   card = await openGrid(page);
   await size(card, 3, 5).click();
   await card.locator("button", { hasText: label("ui.app_grid_shrink_go") }).click();
+
+  /* Done, and the panel is drawn against what it wrote: the heading is the new
+   * size, the sentence that counted what would go has nothing left to count,
+   * and the button is the ordinary apply again rather than the destructive one
+   * it was a moment ago. */
+  await expect(stated).toHaveText(/^3 . 5$/);
+  await expect(card.locator(".notice")).toHaveCount(0);
+  await expect(card.locator("button", { hasText: label("ui.app_grid_apply") }))
+    .toBeVisible();
+  await closeSheet(page);
   await expect(cells(page)).toHaveCount(15);
   await expect(page.locator("#appGrid .cell", { hasText: "Ecke" })).toHaveCount(0);
   await expect(page.locator("#appGrid .cell", { hasText: "Start" })).toHaveCount(1);
@@ -554,6 +598,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
     .filter({ has: page.locator("b", { hasText: label("ui.app_word_color_border") }) })
     .click();
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+  await closeSheet(page);
   await page.locator("#appPages .tab").first().click();
   await expect(ich).toHaveAttribute("style", /--cell-edge:\s*#fdfd96/);
   await expect(ich).not.toHaveAttribute("style", /--cell-color/);
@@ -565,6 +610,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
     .filter({ has: page.locator("b", { hasText: label("ui.app_word_color_off") }) })
     .click();
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+  await closeSheet(page);
   await page.locator("#appPages .tab").first().click();
   await expect(ich).not.toHaveAttribute("style", /--cell-(color|edge)/);
 
@@ -938,11 +984,12 @@ test("what the first column costs is said across the sheet, not above one field"
     await standIn(page);
     await build(page);
 
-    // The column becomes the Sammlung's rather than each page's, in the card
-    // behind the ⋯ beside its name.
+    // The column becomes the Sammlung's rather than each page's, in the grid
+    // panel of the sheet behind the ⋯ beside its name.
     const card = await openGrid(page);
     await card.getByRole("checkbox").first().check();
     await card.locator("button", { hasText: label("ui.app_first_column_take_go") }).click();
+    await closeSheet(page);
     await expect(page.locator("#appGrid .cell--shared")).toHaveCount(3);
 
     await page.locator("#appGrid .cell--shared").first()

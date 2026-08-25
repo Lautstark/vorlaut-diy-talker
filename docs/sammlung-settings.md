@@ -1,13 +1,17 @@
 # A Sammlung's own settings, and where they live
 
-**Status: decided and built, 2026-08-25.** This was a proposal; it was read,
-four of its answers were changed, and the result is in the page. The fifth
-question it raised — whether the Device panel still earns its place — was
-answered the same day, and it does not; see
-[amendment 4](#4-the-connect-button-it-no-longer-earns-a-panel--and-the-panel-is-gone). What follows
-is the decision, with the proposal's reasoning kept where it still holds and
-struck through in words where it does not — a document that goes on describing
-a design nobody built is worse than no document.
+**Status: decided and built, 2026-08-25; amended 2026-08-26.** This was a
+proposal; it was read, four of its answers were changed, and the result is in
+the page. The fifth question it raised — whether the Device panel still earns
+its place — was answered the same day, and it does not; see
+[amendment 4](#4-the-connect-button-it-no-longer-earns-a-panel--and-the-panel-is-gone).
+The one question this document left open rather than answered — where the
+tablet's grid card goes — was closed on 2026-08-26 in favour of the first of
+the two readings it offered: see
+[amendment 5](#5-the-grid-card-became-a-panel-after-all). What follows is the
+decision, with the proposal's reasoning kept where it still holds and struck
+through in words where it does not — a document that goes on describing a
+design nobody built is worse than no document.
 
 Written alongside the fix that split the page's language from the Sammlung's —
 see [languages.md](languages.md).
@@ -54,19 +58,27 @@ setting at all.
 One entry in the `⋯` beside the Sammlung's name, below the acts and above the
 delete, opening a sheet built the way §3.5 says: folded panels, one open at a
 time through `name="collection"`, each stating its state in its heading. Live
-apply, no Save, no Cancel — a language and a voice destroy nothing.
+apply, no Save, no Cancel — a language and a voice destroy nothing. ~~That is
+the whole rule of the sheet;~~ that is the rule of every panel on the sheet but
+one, and the exception arrived with the grid — see
+[amendment 5](#5-the-grid-card-became-a-panel-after-all).
 
 * **A talker Sammlung's sheet** — the language its device shows its own menu
   in, and the voice.
-* **A tablet Sammlung's sheet** — the voice. Its grid card is its own entry in
-  the same menu; see [amendment 1](#1-the-sammlungs-language-is-diy-only) and
-  [the note on the grid card](#the-grid-card-stayed-its-own-entry).
+* **A tablet Sammlung's sheet** — the grid and the voice. The grid arrived in
+  it a day later; see [amendment 1](#1-the-sammlungs-language-is-diy-only) for
+  why the language is not there and
+  [amendment 5](#5-the-grid-card-became-a-panel-after-all) for why the grid is.
+
+Each target's sheet is the same two questions in the same order: the one panel
+only this kind of Sammlung has an answer for, then the voice, which both have.
+The first one there is the one open on arrival.
 
 Einstellungen now says one thing only: what this installation and this browser
 are set to — and after amendment 4 was answered, it holds nothing about a cable
 either.
 
-## The four amendments
+## The amendments
 
 ### 1. The Sammlung's language is DIY-only
 
@@ -194,6 +206,69 @@ panel the port list had moved. Nothing is on screen waiting to be told any
 more. Both are four lines to bring back and the reason each existed is recorded
 where it stood.
 
+### 5. The grid card became a panel after all
+
+The proposal offered "either as a panel in the same sheet, or left as its own
+entry" and did not choose. It was built as its own entry, and the reasoning is
+[below](#the-grid-card-stayed-its-own-entry) with the rest of what stands,
+because at the time it did. **On 2026-08-26 it was reversed:** the grid is a
+panel of the Sammlung's sheet, `ui.app_grid` is no longer an entry in the `⋯`,
+and a tablet's menu is now its settings and its delete.
+
+What settled it is the thing neither reading had said out loud. Both entries
+answered *what is this Sammlung set to* — one of them for the grid, one for
+everything else — and they sat one line apart in the same menu. A person
+looking for the size of a page has no way to know which of the two doors is
+the one, and the cost of guessing wrong is a whole sheet opened and closed.
+Two doors to one question is worse than one door with two rules behind it.
+
+The two reasons the entry was kept, answered:
+
+* **"The card is not live-apply and cannot be, and folding it into a sheet
+  whose whole rule is *everything here applies when you touch it* would put
+  the one exception inside the rule."** It would, and that is the right place
+  for it. The settings sheet at the foot of the sidebar has carried exactly
+  this exception since it was built: an Azure key must not be written on every
+  keystroke, so its Save is *inside its panel*, and the sheet has none. The
+  grid takes the same shape — its button is the last thing in its panel, it
+  names the act rather than saying "Save", and it turns destructive exactly
+  when the press would be. Nothing about the two live panels changed, and
+  neither of them grew a button. The exception is legible because it is
+  written where it applies; a Save on the dialog is what would have made the
+  voice and the language lie about when they take effect.
+* **"It is `editor-app`'s, and a tablet Sammlung's `⋯` reads honestly either
+  way."** Honestly, but not accurately: the grid was the one entry in a menu
+  of acts that was a setting, which is the stretch
+  [§3.6 needs a sentence](#36-needs-a-sentence) was written about. The layer
+  objection underneath it is real and is answered the same way the menu itself
+  already answered it — the editor hands the panel in.
+  `collectionSheetPanel()` in [`src/shell/voices.ts`](../src/shell/voices.ts)
+  is `collectionMenuExtras()` one floor along: the shell owns an empty
+  `<details>` in the sheet's markup, hands the editor its body and a way to
+  write its heading, and hides it when no editor registered one. So the shell
+  still cannot count what falls outside a smaller grid, which is
+  `editor-app/pages.ts`'s work and stayed there.
+
+Three things came out of the move and are worth knowing:
+
+* **The heading states the size the Sammlung *is* at**, which is what §3.5
+  asks of a panel — and deliberately not the size that is pending. Which size
+  is picked is said where it is picked, by the pressed option; what pressing
+  would cost is said by the notice between them.
+* **There is no Cancel.** The card had one because it was a dialog. What is
+  pending lives in the panel's closure and nowhere else, so closing the sheet
+  is how it is declined, and the ✕ is the only way out any of these panels
+  has.
+* **Applying does not close the sheet.** A panel that took effect is not a
+  reason to leave one — the Azure key's Save does not close Einstellungen
+  either — so the panel is redrawn against what it has just written: the
+  heading takes the new size, and the sentence that counted what would go has
+  nothing left to count.
+
+`e2e/editor_app.spec.ts` moved with it and is the test that matters here: the
+grid still grows in silence, still asks before it shrinks, and the sheet still
+has no Save.
+
 ## What the proposal got right and stands
 
 1. **The build-to-a-folder button moved into the `⋯` itself**, beside the two
@@ -208,14 +283,26 @@ where it stood.
    exact failure §3.6 describes.
 3. **Live apply with no Save.** The one control on a Sammlung that destroys
    something — the tablet's grid, which throws buttons away when it shrinks —
-   asks before it acts and is not in this sheet.
-4. **`collectionMenuExtras()` is the mechanism**, already carrying the tablet's
-   grid card, and now carrying the talker's build as well.
+   asks before it acts, ~~and is not in this sheet~~ and is in this sheet now
+   with its question intact and its button inside its own panel; see
+   [amendment 5](#5-the-grid-card-became-a-panel-after-all). The sheet itself
+   still has no Save and no Cancel.
+4. **`collectionMenuExtras()` is the mechanism**, ~~already carrying the
+   tablet's grid card, and now~~ carrying the talker's build. The tablet's grid
+   went through it too until amendment 5 gave the sheet a hand-over of its own;
+   what is left in the menu is acts, which is what the menu is for, and
+   `editor-diy/folder_build.ts` is its one caller.
 
 ### The grid card stayed its own entry
 
+**Superseded on 2026-08-26 by
+[amendment 5](#5-the-grid-card-became-a-panel-after-all), which answers both
+bullets.** Kept because the reasoning is what the reversal had to argue
+against, and a decision whose first answer has been deleted is one somebody
+makes again.
+
 The proposal offered "either as a panel in the same sheet, or left as its own
-entry", and the amendments read as the first. It is the second, for two
+entry", and the amendments read as the first. It ~~is~~ was the second, for two
 reasons worth recording rather than discovering again:
 
 * The card is not live-apply and cannot be. Shrinking a grid throws buttons
@@ -225,8 +312,9 @@ reasons worth recording rather than discovering again:
 * It is `editor-app`'s, and a tablet Sammlung's ⋯ reads honestly either way:
   the grid card, then this Sammlung's settings, then the delete.
 
-So a tablet Sammlung's settings are the voice *and* the grid card, at the level
-of the menu rather than of one sheet.
+~~So a tablet Sammlung's settings are the voice *and* the grid card, at the
+level of the menu rather than of one sheet.~~ They are the voice and the grid,
+in one sheet, and the menu is acts and the delete.
 
 ## The symbol source was the same question
 
@@ -266,7 +354,9 @@ Three consequences worth naming:
 
 **§3.6 says the `⋯` holds what *acts* on a Sammlung** — export, then delete.
 After this it also holds that Sammlung's own settings, and the tablet's grid
-card had already stretched it without the document noticing.
+card had already stretched it without the document noticing. Amendment 5 took
+the grid card back out — so what needs the sentence is one entry rather than
+two, and the sentence is the same one.
 
 The sentence it needs, offered for whoever edits `~/Code/design` (its own
 session, its own main — **this repository must not edit it**):

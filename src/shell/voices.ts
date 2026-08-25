@@ -654,14 +654,48 @@ export async function openSettings() {
   if (fetching.running) pollFetch();
 }
 
-/** The sheet behind the ⋯ beside the Sammlung's name: the two things that are
- *  facts about this Sammlung and travel with it.
+/** The panel in that sheet which is the editor on screen's, if it has one.
+ *
+ * The tablet's grid is a setting of one Sammlung by every test this sheet
+ * applies - it is written to layout.json, it travels in an export, and its
+ * answer changes when a different row in the list is clicked - so it belongs
+ * on this sheet. What kept it out was the layer: counting the buttons a
+ * smaller grid would throw away is editor-app/pages.ts's work, and the shell
+ * may not import an editor (tests/unit/layers.test.ts). So the editor hands
+ * its panel in, the same way it hands entries to the menu beside the name
+ * through collectionMenuExtras().
+ *
+ * `build` is handed the panel's body and a way to write its heading, and is
+ * called afresh every time the sheet opens - so a pending choice never
+ * survives a close, and the words are read out of the current language rather
+ * than out of whatever it was when the editor was wired.
+ *
+ * Registered by an editor's wire() and taken back by its teardown, for the
+ * reason collectionMenuExtras() gives: the shell outlives every editor, and a
+ * panel left behind would offer a talker Sammlung a grid to resize.
+ */
+let panel: ((body: HTMLElement,
+             heading: (section: string, state: string) => void) => void) | null = null;
+
+export function collectionSheetPanel(
+  build: ((body: HTMLElement,
+           heading: (section: string, state: string) => void) => void) | null): void {
+  panel = build;
+}
+
+/** The sheet behind the ⋯ beside the Sammlung's name: what is a fact about
+ *  this Sammlung and travels with it.
  *
  * The language is the talker's alone. On a tablet package localeFor() reads
  * the locale off the *voice* first - somebody chose that voice for these
  * sentences, which is better evidence than a field nobody has looked at - and
  * only falls back to this one when the voice name carries no usable tag. So
  * the panel is hidden rather than offered and ignored.
+ *
+ * The editor's panel is the mirror of it and hidden the same way, by a test
+ * that cannot get out of step with what is in it: it is drawn when an editor
+ * registered one and not when none did. The tablet registers its grid; the
+ * talker registers nothing.
  *
  * Whichever panel is first is open on arrival. A sheet of two, or of one,
  * opening entirely folded is a sheet that asks for a second click before it
@@ -677,8 +711,22 @@ export async function openCollectionSettings() {
   $<HTMLInputElement>("voiceQuery").value = "";
   const language = $<HTMLDetailsElement>("collectionLanguagePanel");
   language.hidden = isApp(state.layout);
-  language.open = !language.hidden;
-  $<HTMLDetailsElement>("voicePanel").open = language.hidden;
+  const extra = $<HTMLDetailsElement>("collectionEditorPanel");
+  extra.hidden = !panel;
+  // Filled before it is unfolded, so the heading it states is the one the
+  // panel opens with rather than one written a frame later.
+  $("collectionEditorBody").replaceChildren();
+  panel?.($("collectionEditorBody"), (section, line) => {
+    $("collectionEditorSection").textContent = section;
+    $("collectionEditorState").textContent = line;
+  });
+  // The first one that is there, whichever that is. Assigning `open` down the
+  // list would do it too, but only because the accordion closes the previous
+  // one - which is the browser undoing something this line should not have
+  // said in the first place.
+  const panels = [language, extra, $<HTMLDetailsElement>("voicePanel")];
+  const first = panels.find((one) => !one.hidden);
+  for (const one of panels) one.open = one === first;
   $<HTMLDialogElement>("collectionSheet").showModal();
   await Promise.all([loadVoices(), readFetch()]);
   // Read off the layout rather than out of LANG. It is deliberately not in
