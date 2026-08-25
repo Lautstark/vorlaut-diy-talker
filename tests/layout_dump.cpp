@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   printf("sleep %u\n", layout.sleepSeconds);
   for (uint8_t i = 0; i < layout.setCount; i++) {
     const SetEntry &e = layout.sets[i];
-    printf("set %u color %04x name %s label ", i, e.color, e.name);
+    printf("set %u name %s label ", i, e.name);
     hex(e.label, HASH_BYTES);
     printf("\n");
     for (uint8_t j = 0; j < SLOT_COUNT; j++) {

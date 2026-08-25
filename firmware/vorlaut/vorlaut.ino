@@ -264,17 +264,25 @@ static void setupDisplays(bool stillAwake) {
   }
 }
 
-// Draws the border in the set colour and inside it the symbol area from the
-// file (TILE_W x TILE_H, RGB565 big-endian).
+// Draws the symbol area from the file (TILE_W x TILE_H, RGB565 big-endian),
+// and blacks out the six pixels around it.
 //
-// The border deliberately is not in the file: that way an image file depends
-// on the symbol alone and not on the set. The same symbol in a blue and in a
-// green set is therefore one file instead of two.
-static void drawTile(Panel *tft, const char *path, uint16_t frame) {
-  tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, frame);
-  tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, frame);
-  tft->fillRect(0, TILE_BORDER, TILE_BORDER, TILE_H, frame);
-  tft->fillRect(DISPLAY_W - TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_H, frame);
+// Those six pixels used to be the set's colour, and nothing replaces it. A
+// border in one fixed colour would tell a reader nothing - it would be the
+// same on every key of every set, which is precisely the information the
+// colour carried and no longer has to carry. Black is what the panel already
+// is everywhere else, so the tile simply sits on the screen.
+//
+// Still painted rather than left alone: drawMenuKey() puts a grey frame on
+// these same six pixels, and coming back out of the menu has to take it off
+// again. Four small fills rather than a fillScreen, which would rewrite the
+// 116x116 underneath about to be written anyway.
+static void drawTile(Panel *tft, const char *path) {
+  tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, ST77XX_BLACK);
+  tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, ST77XX_BLACK);
+  tft->fillRect(0, TILE_BORDER, TILE_BORDER, TILE_H, ST77XX_BLACK);
+  tft->fillRect(DISPLAY_W - TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_H,
+                ST77XX_BLACK);
 
   static uint16_t line[TILE_W];
 
@@ -346,10 +354,10 @@ static void drawCurrentSet() {
   char path[2 + HASH_BYTES * 2 + 5];
   for (uint8_t i = 0; i < SLOT_COUNT && i < DISPLAY_COUNT - 1; i++) {
     hashPath(path, 't', e.slots[i].image, ".bin");
-    drawTile(display[i], path, e.color);
+    drawTile(display[i], path);
   }
   hashPath(path, 't', e.label, ".bin");
-  drawTile(display[SET_BUTTON], path, e.color);
+  drawTile(display[SET_BUTTON], path);
   Serial.printf("set %u: %s\n", (unsigned)(rtcCurrentSet + 1), e.name);
 }
 
@@ -359,8 +367,9 @@ static void drawCurrentSet() {
 // works on a freshly flashed device with nothing on it yet - and that is
 // exactly where it is needed first.
 //
-// Grey frame instead of the set colour: one sees at a glance that this is not
-// the talker.
+// A grey frame, where a talker key has none: one sees at a glance that this is
+// not the talker. It used to be grey against the set's colour, and the
+// distinction is if anything plainer now - a frame against no frame.
 static const uint16_t MENU_FRAME = 0x8410;   // mid grey in RGB565
 
 static void drawMenuKey(Panel *tft, const char *first, const char *second) {
