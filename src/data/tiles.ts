@@ -26,6 +26,23 @@ const WHITE = [255, 255, 255];
 const PLACEHOLDER_GREY = [200, 200, 200];
 const PLACEHOLDER_WIDTH = 4;
 
+/* The negation cross - see Slot.negated in core/types.ts for what it says.
+ *
+ * design's --danger in its light value, written out because a tile has no
+ * stylesheet and no scheme: the ST7735 shows one ground, white, and the dark
+ * value is chosen to sit on a dark one. The same red the page draws the cross
+ * in, so a key looks on the device like it looks in the editor.
+ *
+ * Thicker and further out than the placeholder's cross, and that is the point
+ * of them being two numbers rather than one. The placeholder says "no picture
+ * yet" to somebody building a board on a screen; this says "not" to a child
+ * reading a 116-pixel key across a room, over line art it must not be mistaken
+ * for a part of. */
+const NEGATION_RED = [173, 51, 44];
+const NEGATION_WIDTH = 9;
+/** How far in from the edge the cross starts, as a share of the tile. */
+const NEGATION_INSET = 0.12;
+
 // --- the colour the leftover strip gets ------------------------------------
 
 /** The colour for the area left over next to a symbol.
@@ -388,18 +405,37 @@ function fillPolygon(target, points, colour) {
   }
 }
 
-/** Empty field with a grey cross - a symbol that is still missing. */
-export function placeholder(size = TILE_SIZE) {
-  const data = new Uint8ClampedArray(size * size * 4).fill(255);
-  const target = { data, width: size, height: size };
-  const pad = Math.floor(size / 4);
+/** A cross corner to corner, inset by `pad`, in `colour`. Both crosses this
+ *  module draws are this shape at two sizes. */
+function crossInto(target, size, pad, width, colour) {
   for (const line of [
     [pad, pad, size - pad, size - pad],
     [size - pad, pad, pad, size - pad],
   ] as [number, number, number, number][]) {
-    fillPolygon(target, wideLinePolygon(...line, PLACEHOLDER_WIDTH), PLACEHOLDER_GREY);
+    fillPolygon(target, wideLinePolygon(...line, width), colour);
   }
+}
+
+/** Empty field with a grey cross - a symbol that is still missing. */
+export function placeholder(size = TILE_SIZE) {
+  const data = new Uint8ClampedArray(size * size * 4).fill(255);
+  const target = { data, width: size, height: size };
+  crossInto(target, size, Math.floor(size / 4), PLACEHOLDER_WIDTH, PLACEHOLDER_GREY);
   return target;
+}
+
+/** Crosses a rendered tile out, in place.
+ *
+ * Drawn onto the composed pixels rather than onto the source picture, so the
+ * stroke is the same width whatever size the symbol was and whether it was
+ * shrunk at all. Hard-edged, like the placeholder's: fillPolygon does not
+ * antialias, and a tile is compared byte for byte against a frozen reference -
+ * a canvas stroke would put a different edge on it in every engine.
+ */
+export function negateInto(pixels) {
+  const size = pixels.width;
+  crossInto(pixels, size, Math.round(size * NEGATION_INSET), NEGATION_WIDTH, NEGATION_RED);
+  return pixels;
 }
 
 // --- what the panel gets ----------------------------------------------------
@@ -452,9 +488,16 @@ export function sourcePixels(source) {
  * fixture, in both engines it was measured in, it comes out byte for byte
  * what tiles.py makes. "canvas" hands the job to drawImage, and is kept only
  * so tools/tilecheck.py can keep saying by how much that would be worse.
+ *
+ * `negated` crosses the finished tile out - Slot.negated, baked into the
+ * pixels. Last, over everything, because the cross is over the picture and
+ * not part of it; and off by default, so every tile that was frozen before
+ * this existed still renders byte for byte what it did.
  */
-export function renderSymbol(source, { resample = "lanczos" } = {}) {
-  if (!source) return toRgb565Be(placeholder());
+export function renderSymbol(source, { resample = "lanczos", negated = false } = {}) {
+  const crossed = (pixels) => toRgb565Be(negated ? negateInto(pixels) : pixels);
+
+  if (!source) return crossed(placeholder());
 
   const pixels = sourcePixels(source);
   const ground = fillColour(pixels);
@@ -471,8 +514,8 @@ export function renderSymbol(source, { resample = "lanczos" } = {}) {
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     context.drawImage(source, offset[0], offset[1], width, height);
-    return toRgb565Be(context.getImageData(0, 0, TILE_SIZE, TILE_SIZE));
+    return crossed(context.getImageData(0, 0, TILE_SIZE, TILE_SIZE));
   }
 
-  return toRgb565Be(compose(thumbnail(pixels, width, height), ground, offset));
+  return crossed(compose(thumbnail(pixels, width, height), ground, offset));
 }

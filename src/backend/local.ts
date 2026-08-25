@@ -212,8 +212,8 @@ export async function uploadSymbol(file) {
  * panel lights the missing low bits by repeating the high ones. Dropping that
  * gives a preview very slightly darker than the device, which is exactly the
  * kind of difference nobody can see and everybody argues about. */
-export async function previewInto(image, symbol, colour) {
-  const raw = tiles.renderSymbol(await picture(symbol));
+export async function previewInto(image, symbol, colour, negated = false) {
+  const raw = tiles.renderSymbol(await picture(symbol), { negated });
   const side = tiles.TILE_SIZE;
   const inner = new ImageData(side, side);
   for (let i = 0; i < side * side; i++) {
@@ -703,12 +703,15 @@ export async function exportAppPackage(
         azure: { key: held.azureSecret, region: held.azureRegion } }
     : { rate: ENCODER_RATE, ownsInference: true };
 
-  for (const reference of appPackage.references(layout)) {
-    const key = String(reference || "");
-    if (!key || images.has(key)) continue;
-    const source = await picture(key);
+  // symbolPlaces() rather than references(): a picture and the same picture
+  // crossed out are two files in the archive, and only this walker says which
+  // places wanted which. pictureKey() is the name both ends file them under.
+  for (const { reference, negated } of appPackage.symbolPlaces(layout)) {
+    const key = appPackage.pictureKey(reference, negated);
+    if (!reference || images.has(key)) continue;
+    const source = await picture(reference);
     if (!source) { missing++; continue; }
-    images.set(key, await bakeImage(source));
+    images.set(key, await bakeImage(source, { negated }));
   }
 
   // Without a voice there is nothing to record, and that is a normal package
@@ -855,16 +858,21 @@ export async function runBuild(): Promise<{ log: string[] }> {
   // picture whatever set it stands in, and hashing it is what proves that
   // rather than assumes it.
   const drawn = new Map<string, { name: string; missing: boolean }>();
-  async function storeTile(reference: string) {
-    const key = String(reference || "");
+  async function storeTile(reference: string, negated = false) {
+    const symbol = String(reference || "");
+    // Keyed by both, because a crossed-out key is a different tile: the cross
+    // is baked into the pixels, so the file it produces is different bytes and
+    // therefore a different name. Keyed by the reference alone, a set holding
+    // "Brot" and "kein Brot" got whichever of the two was drawn first on both.
+    const key = appPackage.pictureKey(symbol, negated);
     if (!drawn.has(key)) {
-      const source = await picture(key);
-      const bytes = tiles.renderSymbol(source);
+      const source = await picture(symbol);
+      const bytes = tiles.renderSymbol(source, { negated });
       const name = `t${await fingerprint(bytes)}.bin`;
       await store.putFile("data", name, owned(bytes));
       // A reference that resolves to nothing is not an error - renderSymbol
       // draws its grey cross - but it is worth a line in the log.
-      drawn.set(key, { name, missing: Boolean(key) && !source });
+      drawn.set(key, { name, missing: Boolean(symbol) && !source });
     }
     const tile = drawn.get(key);
     expected.add(tile.name);
@@ -932,7 +940,7 @@ export async function runBuild(): Promise<{ log: string[] }> {
     for (const [at, slot] of slots.entries()) {
       const nth = at + 1;
       const symbol = String(slot.symbol || "");
-      const tile = await storeTile(symbol);
+      const tile = await storeTile(symbol, Boolean(slot.negated));
       tileNames.push(tile.name);
       if (tile.missing) {
         note("build.missing_in_slot", {

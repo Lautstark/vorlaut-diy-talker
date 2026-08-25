@@ -26,8 +26,18 @@ import { encodeOpus, ENCODER_RATE } from "./opus.js";
  * picture the viewer is going to scale to its button anyway. Transparency is
  * kept - §5.3 asks for truecolour with alpha, because symbols are line art and
  * a ground colour chosen here would be wrong against half the buttons.
+ *
+ * `negated` draws the cross into the PNG - see Slot.negated. Baked rather than
+ * carried as a field, and that is a decision about the format rather than a
+ * shortcut: §4.3 closes the list of button extensions at v1 and §5 already
+ * requires every image to be a file in the archive, so a viewer that knows
+ * nothing about negation still shows a crossed-out button correctly. A flag
+ * would need the spec, the fixtures and the Android viewer to move together
+ * before one child saw one cross.
  */
-export async function bakeImage(source: CanvasImageSource): Promise<BakedImage> {
+export async function bakeImage(
+  source: CanvasImageSource, { negated = false } = {},
+): Promise<BakedImage> {
   const width = "naturalWidth" in source
     ? (source.naturalWidth || (source as HTMLImageElement).width)
     : Number((source as { width: number }).width);
@@ -50,12 +60,40 @@ export async function bakeImage(source: CanvasImageSource): Promise<BakedImage> 
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
   context.drawImage(source, 0, 0, drawWidth, drawHeight);
+  if (negated) crossOut(context, drawWidth, drawHeight);
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("this browser would not encode a PNG");
   const bytes = new Uint8Array(await blob.arrayBuffer());
   return { key: await digest(bytes), bytes, width: drawWidth, height: drawHeight };
+}
+
+/* design's --danger in its light value, the same red tiles.ts writes into a
+ * tile. Written out for the same reason: a PNG in an archive has no
+ * stylesheet, and a viewer's scheme is not ours to guess at. */
+const NEGATION_RED = "#ad332c";
+
+/** The cross, corner to corner over the picture that was just drawn.
+ *
+ * Stroked rather than filled, unlike the device's: nothing compares this file
+ * byte for byte, and a tablet shows it at whatever size a button happens to
+ * be, so the antialiased edge a canvas gives is the better one. Stretched to
+ * the box rather than kept square, so a wide symbol is crossed the whole way
+ * across instead of through its middle third. */
+function crossOut(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const inset = 0.12;
+  const [x0, y0] = [width * inset, height * inset];
+  const [x1, y1] = [width - x0, height - y0];
+  context.strokeStyle = NEGATION_RED;
+  context.lineWidth = Math.max(2, Math.round(Math.min(width, height) * 0.075));
+  context.lineCap = "round";
+  context.beginPath();
+  context.moveTo(x0, y0);
+  context.lineTo(x1, y1);
+  context.moveTo(x1, y0);
+  context.lineTo(x0, y1);
+  context.stroke();
 }
 
 /**

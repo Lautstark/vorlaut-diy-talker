@@ -36,6 +36,39 @@ export const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
    is also announcing it, which it was not before. */
 export const status = (text: string): void => { $("status").textContent = text; };
 
+/**
+ * The negation cross, as an element to lay over a picture.
+ *
+ * German AAC negates by crossing the symbol out rather than by using a
+ * different picture - see Slot.negated in core/types.ts, which is the field
+ * this draws. bildhaft draws the same mark from the same convention; the two
+ * do not share code, and the shape is what they agree on.
+ *
+ * SVG with preserveAspectRatio="none", so one element serves a square preview,
+ * a cell the width of a grid column and a tile: the stroke stretches to
+ * whatever box it is put in and still reads as one line across the whole
+ * symbol rather than through its middle. Sized and coloured by CSS - see
+ * .negate in ui.css - because the page has two colour schemes and a hex
+ * written here would be right in one of them.
+ *
+ * aria-hidden, and deliberately: what the cross means belongs on the thing it
+ * is over, in words, not on the decoration. The cell's own accessible name
+ * carries it.
+ */
+export function negationCross(): SVGSVGElement {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "negate");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  const path = document.createElementNS(NS, "path");
+  path.setAttribute("d", "M12 12 L88 88 M88 12 L12 88");
+  svg.appendChild(path);
+  return svg;
+}
+
 // Replaces the contents of a box with one line of prose. Used where a result
 // list has something to say instead of results.
 export function say(box: HTMLElement, text: string): void {

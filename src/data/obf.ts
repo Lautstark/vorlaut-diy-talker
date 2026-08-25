@@ -73,6 +73,16 @@ export interface ObfButton {
   vocalization?: string;
   image_id?: string;
   load_board?: { id: string; name: string; path: string };
+  /** Whether the picture on this key is crossed out - Slot.negated.
+   *
+   * `ext_vorlaut_`, this file's own namespace, and not the `ext_lautstark_`
+   * one: that list belongs to exchange/SPEC.md, is closed at v1 (§4.3), and is
+   * read by a viewer that is not this repository. This document is the
+   * talker's own round trip, where the same two ends read and write it.
+   *
+   * The app package needs no field at all - it bakes the cross into the PNG,
+   * because §5 has it carry every image as a file anyway. */
+  ext_vorlaut_negated?: boolean;
 }
 
 /** What a .obz's manifest names. */
@@ -350,6 +360,10 @@ export async function layoutToDocument(
       };
       const picture = await remember(slot.symbol);
       if (picture) button.image_id = picture;
+      // Written only when it is true, which is what keeps every board that has
+      // no crossed-out key byte for byte the document it was before this
+      // existed - tests/reference/obf.lock.json included.
+      if (slot.negated) button.ext_vorlaut_negated = true;
       buttons.push(button);
     }
 
@@ -530,6 +544,10 @@ export function documentToLayout(document) {
         // case in boards written elsewhere.
         text: text(button.vocalization || button.label),
         symbol,
+        // Absent for the ordinary key rather than false, so a slot read back
+        // out of a document is the shape a slot written by the editor is. A
+        // board from other software has no such field and is not negated.
+        ...(button.ext_vorlaut_negated === true ? { negated: true } : {}),
       });
     }
 
@@ -679,7 +697,15 @@ export function normalizeLayout(raw) {
         entry.color || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]),
       slots: slots.map((slot) => {
         const one = isObject(slot) ? slot : {};
-        return { text: text(one.text).trim(), symbol: text(one.symbol).trim() };
+        return {
+          text: text(one.text).trim(), symbol: text(one.symbol).trim(),
+          // Carried, and only when it is true. Rebuilding a slot field by
+          // field is what makes this the shape everything downstream may stop
+          // checking, and it is also how a field added later gets quietly
+          // dropped on every import - which for this one would take the cross
+          // off a key that says "kein Brot" and leave it saying "Brot".
+          ...(one.negated === true ? { negated: true } : {}),
+        };
       }),
     };
   });

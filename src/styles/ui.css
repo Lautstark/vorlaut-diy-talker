@@ -953,6 +953,31 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    word and a picture at 60% want more height than the cell has. The word is
    the part somebody is reading. */
 .cell__pic { max-width: 100%; max-height: 60%; min-height: 0; object-fit: contain; }
+/* The picture and the cross over it as one box, so the cross is the size of
+   the picture and not of the cell. Only a crossed-out key is wrapped: an
+   ordinary cell keeps the <img> as its own flex item, which is what the 60%
+   cap above is written against, so nothing that is not negated moves at all.
+   The wrapper takes that cap over and the picture fills it. */
+.cell__crossed {
+  position: relative; display: flex; min-width: 0; min-height: 0;
+  max-width: 100%; max-height: 60%;
+}
+.cell__crossed .cell__pic { max-height: 100%; }
+
+/* The negation cross itself - shell/dom.ts's negationCross(), laid over
+   whatever box it is put in: a cell's picture, the sheet's square preview.
+   Stretched rather than kept square (the element carries
+   preserveAspectRatio="none"), so on a wide picture it still reads as one
+   stroke the whole way across instead of through the middle third.
+
+   --danger, which is the red the device's tile is drawn in too - tiles.ts
+   writes that token's light value out, because a tile has no stylesheet. The
+   two have to be the same red or the editor is lying about the device. */
+.negate {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  fill: none; stroke: var(--danger); stroke-width: 7; stroke-linecap: round;
+  pointer-events: none;
+}
 /* Two lines, then an ellipsis.
  *
  * AsTeRICS Grid's TextConfig offers three answers to a label that does not fit
@@ -1211,6 +1236,8 @@ dialog.sheet--page { max-width: 520px; }
      it saves, and the room is bought back by the column being wider - see the
      body rule above, which is the same departure. */
   aspect-ratio: 1; display: grid; place-items: center; overflow: hidden;
+  /* So the cross laid over the picture is measured against this box. */
+  position: relative;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   /* White is not a surface and does not follow the scheme: AAC symbols are
      drawn for white and need it in either one. */
@@ -1265,6 +1292,14 @@ dialog.sheet--page { max-width: 520px; }
    question answered two ways. They wrap rather than shrink: a button whose
    label is cut is a button nobody presses. */
 .pick__acts { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Crossing the picture out. Below the two buttons rather than beside them,
+   because it is not a third button: those two change *which* picture is on the
+   key and this says what the key means by it - see Slot.negated. */
+.pick__negate {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 13px;
+}
 
 /* What is owed for the collection the hits came from, under them. Hint-sized
    and hint-coloured: it is a condition of a licence rather than something
