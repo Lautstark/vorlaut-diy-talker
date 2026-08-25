@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
-  KEY_CELL, cells, expectSaid, key, keySheet, label, nameSet, openBoard, press,
+  KEY_CELL, cells, expectSaid, key, keySheet, label, nameSet, openBoard, press, within,
   put, search, searchNote, setCard, setKey, word,
 } from "./diy.js";
 
@@ -422,16 +422,34 @@ test("the voice that rushes a single word says so, on its row alone", async ({ p
   await page.locator("#voiceClose").click();
 });
 
-test("pressing play with no voice says what to do, not that it failed", async ({ page }) => {
-  await openBoard(page);
-  await put(page, 0, "Hallo");
-  // The play button on the cell, which appears once there is something to
-  // hear. The sheet has one too, and both go through the same seam.
-  await cells(page).nth(KEY_CELL[0]).locator(".cell__play").click();
-  // The words come from the table; what must NOT appear is the catalogue's
-  // refusal of an empty name, which is what every press produced before.
-  await expect(page.locator("#status")).toHaveText(label("ui.no_voice_yet"));
-});
+test("a Sammlung nobody has told anything opens on a voice, and says nobody chose it",
+  async ({ page }) => {
+    /* What used to be here was the opposite test: pressing play said "no voice
+     * chosen yet, pick one in the gear". That sentence has gone, and so has
+     * the guard that produced it - a fresh layout's empty `voice` field is not
+     * the absence of an answer any more. The Sammlung's language picks one,
+     * and the field stays empty because nobody has chosen anything, which is
+     * a different fact and is the one the note on the row states.
+     *
+     * The two halves are asserted together on purpose. A mark with no note
+     * would be the page claiming a choice nobody made; a note with no mark
+     * would be the preselection not happening at all. */
+    await openBoard(page);
+    await page.locator("#settingsLink").click();
+    await page.locator("#voicePanel summary").click();
+    await expect(page.locator("#voiceList .voiceRow").first()).toBeVisible();
+
+    const on = page.locator('#voiceList .voice[aria-checked="true"]');
+    await expect(on).toHaveCount(1);
+    await expect(on.locator(".voice__facts")).toContainText(within("ui.voice_auto_note"));
+
+    // And the folded heading is the same answer rather than "none chosen yet",
+    // which is the one line the panel is read for nine times out of ten.
+    await expect(page.locator("#voiceState"))
+      .toContainText((await on.locator(".voice__name").textContent())!);
+    await expect(page.locator("#voiceState")).not.toHaveText(label("ui.voice_state_none"));
+    await page.locator("#voiceClose").click();
+  });
 
 test("a whole sentence finds the symbol its words point at", async ({ page }) => {
   // The collection answers for one word only: the lemma. Everything the search
