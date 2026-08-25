@@ -42,7 +42,26 @@
 // first, which is the only part of that chooser we can reach: the browser's
 // own dialog cannot be styled and nothing here tries.
 //
-// Changing the port later is still in the settings, under Device.
+// Changing the port later needs no settings panel, and there is not one any
+// more. askAgain below is the way back: a port that stops answering - a
+// different cable, a different talker, or one that was never the talker -
+// fails the transfer with cable_no_device, and the next press is back at this
+// step with the chooser on it. err.cable_no_device says so in as many words.
+//
+// ## What that costs, which is a build
+//
+// run() builds and then sends, so the press that discovers a dead port has
+// already paid for a full build including every synthesis. One press, one
+// wasted build, then the chooser and a second build.
+//
+// The obvious fix is to find the talker first and build afterwards, and the
+// obvious *way* to do it does not work: `hello` starts a session, and
+// firmware/vorlaut/cable.h ends one after CABLE_QUIET_MS - four seconds - of
+// the browser not talking. A build with speech in it is minutes, so holding
+// the cable open across it would break every transfer rather than only the
+// unlucky ones. It would have to be open, hello, *close*, build, open again -
+// which costs a second greeting on the good path to save a whole build on the
+// bad one. Worth doing and not done here; see docs/cable.md.
 import { openDialog, type OpenDialog } from "@lautstark/design/dialog";
 import { $, status } from "../shell/dom.js";
 import { reason, Trouble } from "../core/errors.js";
@@ -273,6 +292,9 @@ function openTransfer(button: HTMLButtonElement): void {
     sheet.body.replaceChildren(doing, log);
     offer();
     try {
+      // Built first, then sent, and this order is what makes a dead port cost
+      // a build - see the note at the head of this file, and docs/cable.md for
+      // why the fix cannot simply hold the cable open in between.
       try {
         now(t("ui.building"));
         await buildNow(told);

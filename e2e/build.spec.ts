@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
  * than written out here in one language. */
 import { TEXTS } from "../src/core/boot_data.js";
 import { put } from "./diy.js";
-import { openPanel, openSettings, pickFromMenu } from "./sheets.js";
+import { openSettings, pickFromMenu } from "./sheets.js";
 /* Out of the modules that decide them rather than written here: a stride
  * this test spelled out for itself would agree with nothing. */
 import { HEADER_BYTES, SET_BYTES } from "../src/data/layout_format.js";
@@ -792,16 +792,75 @@ test("the port is asked for once, and the next press goes straight through",
   expect(await page.evaluate("globalThis.__asked")).toBe(1);
   expect(second.log).toContain(SPEAKS["cable.nothing"]);
 
-  // The settings still offer a way to change it, which is the other half of
-  // "asked once": a wrong port must not be a page reload to undo.
+  // And Einstellungen carries nothing about a cable at all. It used to hold a
+  // Device panel whose one job was granting a port ahead of time, for a flow
+  // that grants where it needs one - the test below is the way back that
+  // replaces it.
   await openSettings(page);
-  const panel = page.locator("#devicePanel");
-  // Whether a port is granted is the one thing this panel has to say about
-  // itself, so it says it in the heading rather than under the button.
-  await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_connected"]);
-  await openPanel(page, "#devicePanel");
-  await panel.locator("#deviceConnect").click();
-  expect(await page.evaluate("globalThis.__asked")).toBe(2);
+  await expect(page.locator("#devicePanel")).toHaveCount(0);
+});
+
+/* The way back from a port that is not the talker.
+ *
+ * This is the half the settings panel used to carry, and the reason removing
+ * it costs an attempt rather than a page reload. Nothing on the end of the
+ * granted port answers `hello`, so findTalker() throws cable_no_device,
+ * release.ts sets askAgain, and the next press is back at the step with the
+ * chooser on it. err.cable_no_device says so in as many words, which is why
+ * this asserts that sentence and not only the button: somebody has to be told
+ * that pressing again is worth doing.
+ *
+ * A port that opens and stays silent rather than one that fails to open: the
+ * failure this is about is a dongle or a second dev board, which opens
+ * perfectly well and simply is not a vorlaut.
+ */
+test("a port that answers nothing gets the chooser offered again, and says so",
+     async ({ page }) => {
+  await page.addInitScript(() => {
+    const silent = {
+      async open() {},
+      async close() {},
+      readable: new ReadableStream({ start() { /* never a byte */ } }),
+      writable: new WritableStream({ write() {} }),
+      getInfo: () => ({}),
+      async setSignals() {},
+    };
+    (globalThis as Record<string, unknown>).__asked = 0;
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: async () => [silent],
+        requestPort: async () => {
+          const counted = globalThis as Record<string, unknown>;
+          counted.__asked = (counted.__asked as number) + 1;
+          return silent;
+        },
+        addEventListener: () => {},
+      },
+    });
+  });
+  await seed(page);
+
+  // A port is granted, so the first step offers Send rather than the chooser.
+  await page.click("#releaseBtn");
+  await expect(sheetOf(page)).toBeVisible();
+  await expect(footBtn(page, "ui.device_connect")).toHaveCount(0);
+  await footBtn(page, "ui.transfer_go").click();
+  await expect(footBtn(page, "ui.close")).toBeVisible({ timeout: 120_000 });
+
+  // What it says is the instruction, not just a failure.
+  await expect(sheetOf(page).locator(".log"))
+    .toContainText(SPEAKS["err.cable_no_device"]);
+  await dismiss(page);
+
+  // And the next press is back at the chooser, without anybody having gone
+  // looking for a settings panel.
+  await page.click("#releaseBtn");
+  await expect(sheetOf(page)).toBeVisible();
+  await expect(footBtn(page, "ui.device_connect")).toBeVisible();
+  await expect(footBtn(page, "ui.transfer_go")).toHaveCount(0);
+  await footBtn(page, "ui.device_connect").click();
+  expect(await page.evaluate("globalThis.__asked")).toBe(1);
 });
 
 /* The export stands on its own, and it has to.

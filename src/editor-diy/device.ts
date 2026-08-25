@@ -11,34 +11,36 @@
 // dismissing that picker has already cost a build nobody asked for, which is
 // exactly what it did. A dialog somebody closes should cost nothing.
 //
-// So the picker has a button of its own, in the settings, where no build is
-// waiting behind it. The press that sends never opens a dialog: it uses what
-// getPorts() already grants, which needs no gesture at all. This module is
-// what the two share.
+// **So the picker has a button of its own, with no build waiting behind it.**
+// That is the whole of the rule, and it survives the two places that button
+// has lived. It used to be in the settings sheet, under Device; that panel is
+// gone, and the button is the one inside release.ts's transfer sheet now - a
+// step somebody is standing on, whose own click is the activation, reached
+// before anything has been built. The move changed where the rule is kept, not
+// what it says: whoever puts a picker back behind the press that builds will
+// rediscover the same lost minutes.
+//
+// The press that sends never opens a dialog: it uses what getPorts() already
+// grants, which needs no gesture at all. This module is what the two share.
 import {
   askForDevice, cableSupported, grantedDevices, watchDevices,
 } from "../backend/index.js";
 
 let known: SerialPort[] = [];
-const listeners: (() => void)[] = [];
 
 /** The ports the person has granted, in an earlier session or this one. */
 export const devices = (): SerialPort[] => known;
 export const haveDevice = (): boolean => known.length > 0;
 
-function announce(): void {
-  for (const listener of listeners) listener();
-}
-
 async function refresh(): Promise<void> {
   known = await grantedDevices();
-  announce();
 }
 
-/** Told when the list moves, so a panel showing it can redraw. */
-export function onDevices(listener: () => void): void {
-  listeners.push(listener);
-}
+/* There was an onDevices() here, and the settings panel that subscribed to it
+ * is gone. Nothing reads this list except at the moment it is about to be
+ * used: the transfer sheet asks haveDevice() when it draws its first step, and
+ * sendToDevice() takes devices() when it runs. Neither is on screen waiting to
+ * be told, so there is nothing left to announce to. */
 
 /** Asked on load, and again whenever a cable is plugged in or pulled out - so
  *  a page opened before the talker was does not need reloading. */
@@ -60,9 +62,6 @@ export async function connectDevice(): Promise<boolean> {
   // getPorts() ought to carry it now. If a browser is slow to reflect the
   // grant, keep the handle anyway rather than telling somebody who has just
   // chosen a device that there is none.
-  if (!known.includes(got)) {
-    known = [got, ...known];
-    announce();
-  }
+  if (!known.includes(got)) known = [got, ...known];
   return true;
 }
