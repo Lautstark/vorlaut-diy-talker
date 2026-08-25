@@ -34,6 +34,7 @@ import {
   PIPELINE_VERSION,
   listVoices as catalogueVoices,
   type OnnxModule,
+  type Voice,
 } from "@lautstark/stimmquelle/browser";
 import { piperRuntime } from "@lautstark/stimmquelle/runtime";
 import { LANGUAGES } from "../core/boot_data.js";
@@ -313,6 +314,43 @@ function nameOf(id: string): string {
     ? azureName(parsed.model) : displayName(id);
 }
 
+/* Which voice a Sammlung that has never been told anything speaks in.
+ *
+ * The *Sammlung's* language decides, not the page's. layout.language is what
+ * travels in an export and becomes the byte the firmware indexes its menu by;
+ * the language the editor happens to be written in is this browser's and is
+ * kept in localStorage. Reading the wrong one of the two would make a German
+ * carer's English board speak German.
+ *
+ * `recommended` is stimmquelle's pick for a language-and-gender slot, and this
+ * is the one use there is for a flag this product deliberately never shows -
+ * see voiceRow() in shell/voices.ts and OfferedVoice in core/types.ts, which
+ * both keep it out of what a row says. It is used here and only here because
+ * array order is not evidence: the catalogue opens with three German voices,
+ * so an English Sammlung started in a German man's and stayed there, and of
+ * the three Thorstens on offer order alone would hand somebody the 114 MB one.
+ * Nothing says it and no row wears it - a starting point is not a verdict.
+ *
+ * The list is passed in rather than fetched, which is mitreden's shape for the
+ * same function and is what lets the rule be tested apart from the catalogue
+ * that happens to be shipped: in today's one the recommended voice also comes
+ * first for both languages, so a test that fetched its own list would pass
+ * whether or not the flag was read at all.
+ */
+export function defaultVoice(offered: readonly Voice[], language: string): string {
+  const wanted = language || DEFAULT_LANGUAGE;
+  const speaks = offered.filter((voice) => voice.lang === wanted);
+  const pick = speaks.find((voice) => voice.recommended) ?? speaks[0] ?? offered[0];
+  return pick ? `piper:${pick.id}` : "";
+}
+
+/* The shipped voices alone, deliberately, even where an Azure key is stored.
+ * This answer goes into the name of every WAV, so it must not depend on a
+ * network: a default that is there on one page load and gone on the next would
+ * rename half the build. */
+const startsOn = (language: string): string =>
+  defaultVoice(shippable({ ownsInference: true }), language);
+
 export async function listVoices(): Promise<VoiceList> {
   // shippable() rather than the whole catalogue: it drops what cannot speak
   // here, what may not be handed on at all, and what may be handed on only
@@ -390,7 +428,21 @@ export async function listVoices(): Promise<VoiceList> {
   // a voice is stimmquelle's business and this file is where stimmquelle is.
   // It is filled in whether or not the voice is on offer - the row that needs
   // it is precisely the one whose voice is missing from `list`.
-  return { voices: list, active: chosen, chosen, chosenLabel: nameOf(chosen),
+  // The ladder, in the two names this seam has always had.
+  //
+  // `chosen` is what stands in layout.json and it never moves. A voice
+  // somebody ticked on purpose outlives the key it needed going away and
+  // coming back, which is why it is returned whether or not anything above
+  // could offer it - the sheet draws it as a row of its own and says so.
+  //
+  // `active` is what would speak if somebody pressed play now, and a chosen
+  // voice this machine cannot offer must not be it: the next recording would
+  // fail rather than quietly fall back. So it falls to the language's default,
+  // and a Sammlung that has never been told anything reaches that rung
+  // directly.
+  const offerable = !!chosen && list.some((voice) => voice.id === chosen);
+  const active = offerable ? chosen : startsOn(layout?.language || "");
+  return { voices: list, active, chosen, chosenLabel: nameOf(chosen),
            backend: "browser" };
 }
 
@@ -409,7 +461,13 @@ export async function synthesise(text, voice) {
   // app.py filled that in on the server, and this file forgot to when it took
   // over: every play press on a board without a voice went to the catalogue as
   // the empty string and came back as a refusal with no name in it.
-  const chosen = voice || (await store.readLayout()).layout?.voice || "";
+  //
+  // Through chosenVoice() rather than off the field, so that a layout nobody
+  // has told anything speaks the same voice here as the build gives it. The
+  // field alone left the empty case failing namelessly again the moment the
+  // caller did not pass one.
+  const board = (await store.readLayout()).layout;
+  const chosen = voice || (board ? chosenVoice(board) : "");
   // The Azure key rides along whenever one is stored. speak() only reaches
   // for it on an azure: id, so for piper this is baggage it ignores - and
   // without it an azure: voice chosen in the sheet failed on every sentence.
@@ -719,23 +777,15 @@ async function fingerprint(bytes: BufferSource): Promise<string> {
 
 /** The voice this layout is spoken in - chosen_voice() in layout.py.
  *
- * An empty entry is not an error but the normal case for a fresh layout: then
- * the catalogue answers, and among several equal voices the one that speaks
- * the language the device is set to. Deliberately without asking the network,
- * for the reason tts.py gave: this answer goes into the name of every WAV, and
- * a list that is there on one page load and gone on the next would rename half
- * the build. */
+ * An empty entry is not an error but the normal case for a fresh layout, and
+ * defaultVoice() is what answers then - see the note there for why the
+ * Sammlung's language is the one that asks and why the network is not. */
 function chosenVoice(layout: Layout): string {
   if (layout.voice) return layout.voice;
-  // The same offering listVoices() asks with, so a fresh board's default is a
-  // voice the picker actually shows. The two new voices this admits stand
-  // behind Thorsten and Kristin in the catalogue, so no default moves - which
-  // matters, because this answer goes into the name of every WAV.
-  const offered = shippable({ ownsInference: true });
-  if (!offered.length) return "";
-  const wanted = layout.language || DEFAULT_LANGUAGE;
-  const spoken = offered.find((voice) => voice.lang === wanted) || offered[0];
-  return `piper:${spoken.id}`;
+  // The same answer the settings sheet marks, from the same helper - the two
+  // disagreeing would mean the row saying "picked for this collection's
+  // language" and the build speaking somebody else.
+  return startsOn(layout.language || "");
 }
 
 /** Why a symbol resolves to nothing - as a key for the build log.

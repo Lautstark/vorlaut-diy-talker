@@ -30,7 +30,11 @@ opening a Sammlung silently re-languaged the interface around them.
 The **content** is untouched by it: set names, the words on the keys and
 everything spoken are whatever somebody typed. Switching the interface to
 English leaves a German set German. The voice is chosen separately and can
-speak a different language than the menu.
+speak a different language than the menu — a German voice on an English board
+is somebody's arrangement, not a mistake to correct. Until somebody chooses
+one, though, it is the **Sammlung's** language that picks it, never the
+interface's: the shipped catalogue's own recommendation for that language,
+marked in the sheet with a word saying nobody chose it.
 
 The texts live as one table per language in [`src/core/boot_data.ts`](../src/core/boot_data.ts) for the
 computer and the interface, and in

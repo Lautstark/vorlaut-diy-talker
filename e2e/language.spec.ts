@@ -179,6 +179,97 @@ test("the Sammlung's language is written to the layout, and moves nothing here",
       .toBe(null);
   });
 
+/* The third thing hanging off the split, and the one that would fail silently.
+ *
+ * The voice a Sammlung starts on is picked by a language, and there are two of
+ * them in the sheet now. Reading the wrong one would make a German carer's
+ * English board speak German - audible only after a build, and by then every
+ * recording carries it. So this asserts which of the two moves it, from both
+ * sides: the Sammlung's does, and the page's does not.
+ *
+ * The voice's own row names the language it speaks, which is what is read
+ * here. Not the voice's id and not its name: which voice a language starts on
+ * belongs to stimmquelle's catalogue, and a second English voice arriving
+ * ahead of Kristin must not make this test wrong.
+ */
+test("the Sammlung's language picks its voice, and the page's does not",
+  async ({ page }) => {
+    /** What the marked row says it speaks, in the words the page is wearing. */
+    const speaking = async () => {
+      await page.click("#settingsLink");
+      await openPanel(page, "#voicePanel");
+      const facts = page.locator('#voiceList .voice[aria-checked="true"] .voice__facts');
+      await expect(facts).toHaveCount(1);
+      return (await facts.textContent())!;
+    };
+
+    // Both languages named in the language the page is currently in, so the
+    // assertions below compare words rather than codes.
+    const named = (code: string, inLanguage: string) =>
+      new Intl.DisplayNames([inLanguage], { type: "language" }).of(code)!;
+    const own = await page.evaluate(
+      ([codes, reading]) => codes.map(
+        (code) => new Intl.DisplayNames([reading], { type: "language" }).of(code)!),
+      [[ASKED, CHOSEN], ASKED] as [string[], string]);
+    const [asked, chosen] = own;
+    expect(asked).not.toBe(chosen);       // or nothing below can tell them apart
+
+    // Nobody has chosen a voice, so the Sammlung's language is the whole of
+    // the answer. It starts on the page-wide default, which is neither
+    // language's fault - what matters is that moving it moves the voice.
+    await chooseForCollection(page, CHOSEN);
+    await page.click("#voiceClose");
+    expect(await speaking()).toContain(chosen);
+    await page.click("#voiceClose");
+
+    await chooseForCollection(page, ASKED);
+    await page.click("#voiceClose");
+    expect(await speaking()).toContain(asked);
+    await page.click("#voiceClose");
+
+    // And the other control does not touch it. This is the carer working in a
+    // German editor on a talker that speaks English: the page's language is
+    // about the labels around them and says nothing about what the child's
+    // device should say.
+    await chooseForCollection(page, CHOSEN);
+    await page.click("#voiceClose");
+    await choose(page, CHOSEN);
+    await page.click("#voiceClose");
+    // Read back in the page's new language, so the word for it changes too.
+    const stillChosen = named(CHOSEN, CHOSEN);
+    expect(await speaking()).toContain(stillChosen);
+    await page.click("#voiceClose");
+  });
+
+test("a voice somebody chose does not move when the Sammlung's language does",
+  async ({ page }) => {
+    // Only a guess may be revisited. A voice ticked on purpose is somebody's
+    // arrangement - a German voice on an English board is a thing people do -
+    // and re-languaging the Sammlung must not quietly undo it.
+    await page.click("#settingsLink");
+    await openPanel(page, "#voicePanel");
+    await expect(page.locator("#voiceList .voiceRow").first()).toBeVisible();
+    const rows = page.locator("#voiceList .voiceRow");
+    const picked = (await rows.last().locator(".voice__name").textContent())!;
+    await rows.last().locator("button.voice").click();
+    await expect(page.locator('#voiceList .voice[aria-checked="true"] .voice__name'))
+      .toHaveText(picked);
+    await page.click("#voiceClose");
+
+    await chooseForCollection(page, CHOSEN);
+    await page.click("#voiceClose");
+    await expect.poll(() => inTheLayout(page)).toBe(CHOSEN);
+
+    await page.click("#settingsLink");
+    await openPanel(page, "#voicePanel");
+    await expect(page.locator('#voiceList .voice[aria-checked="true"] .voice__name'))
+      .toHaveText(picked);
+    // And it is a choice rather than a guess, so it wears no note saying
+    // otherwise.
+    await expect(page.locator('#voiceList .voice[aria-checked="true"] .voice__facts'))
+      .not.toContainText(table[ASKED]["ui.voice_auto_note"]!);
+  });
+
 test("opening a Sammlung does not re-language the editor", async ({ page }) => {
   // A Sammlung whose device speaks the other language, saved and let go of.
   await chooseForCollection(page, CHOSEN);

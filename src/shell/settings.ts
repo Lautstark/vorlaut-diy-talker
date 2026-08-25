@@ -154,7 +154,14 @@ function renderRenderings() {
  * twice.
  *
  * METACOM cannot be chosen without a folder, so its button is absent then -
- * the panel above already says why, and readSettings() refuses the value. */
+ * the panel above already says why, and readSettings() refuses the value.
+ *
+ * "Diese Quelle verwenden" survives adopting, and its job is narrower than it
+ * was. It is no longer how a folder becomes the source - installing one does
+ * that - and what is left is the move back: somebody with both set up who has
+ * gone to ARASAAC for a symbol METACOM does not have, and wants METACOM again
+ * without re-picking the folder. bildhaft's button stayed for the same case.
+ * The ARASAAC one is the other half of it and never had another job. */
 function paintSources() {
   const active = settings.activeProvider || "arasaac";
 
@@ -182,6 +189,49 @@ async function useSource(source: "arasaac" | "metacom") {
 export function wireSources() {
   $<HTMLButtonElement>("arasaacUse").onclick = () => void useSource("arasaac");
   $<HTMLButtonElement>("metacomUse").onclick = () => void useSource("metacom");
+}
+
+/* A folder that has just been installed becomes the source it is searched
+ * through.
+ *
+ * Choosing a folder and then pressing "Diese Quelle verwenden" was two steps
+ * for one intention: nobody goes and finds their licensed METACOM collection
+ * in order to carry on rendering ARASAAC. bildhaft settled this the same way
+ * and for the same reason.
+ *
+ * **metacomReady() and not merely "nothing was thrown".** A pick that produced
+ * no usable index would switch the whole app onto an empty source, which
+ * blanks every search result and reads as the collection having gone missing
+ * rather than as the pick not having worked.
+ *
+ * **Adopting is asked for, never a side effect of a folder appearing.** This
+ * is called from the two handlers where somebody went and found a folder, and
+ * from nowhere else. Not from picker.ts's restoreMetacom(), which re-attaches
+ * at boot to a folder chosen on an earlier visit: somebody may have a folder
+ * set up and be deliberately using ARASAAC, and a page load must not overrule
+ * that. Not from the permission re-confirm inside metacomChoose either - the
+ * same folder coming back is a restore that Chromium happens to want a gesture
+ * for, not a new answer to which source is active.
+ *
+ * Nothing here changes what a METACOM reference is. The folder is read where
+ * it lies, no byte of it is copied or uploaded, and only one source is ever
+ * active. See docs/symbol-search.md.
+ */
+async function adoptMetacom() {
+  if (!symbols.metacomReady()) return;
+  // Behind whatever the folder's arrival already set going. The provider's own
+  // subscription fires a read on that same event, so `settings` here is still
+  // the answer from before the folder existed - and it is read below to decide
+  // whether there is anything to switch. Awaiting a read of our own is what
+  // drains the queue: see inTurn().
+  await loadSettings();
+  if ((settings.activeProvider || "arasaac") === "metacom") return;
+  await useSource("metacom");
+  // Said out loud rather than left to be noticed: switching source changes
+  // what every search from now on answers with, and the panel that would show
+  // it is the one somebody is looking at rather than the sheet they will open
+  // next. bildhaft says it through its own notifier for the same reason.
+  status(t("ui.metacom_now_active"));
 }
 
 /* ------------------------------------------------------------ the scheme ---
@@ -449,11 +499,18 @@ export function wireSymbolFolder() {
       // permission click away - reconnect first, and only open the picker
       // when there is nothing to reconnect to. Without this, every return
       // visit cost re-picking the folder from scratch.
-      const status = symbols.metacomStatus();
-      if (status.kind === "needs-setup" && status.code === "permission-needed"
+      //
+      // It returns rather than falling through to adoptMetacom(): the same
+      // folder coming back is a restore, and a restore does not decide which
+      // source is active - see the note there.
+      const state = symbols.metacomStatus();
+      if (state.kind === "needs-setup" && state.code === "permission-needed"
           && await symbols.reconnectMetacom()) return;
       if (symbols.remembersFolder) await symbols.chooseMetacomFolder();
-      else $<HTMLInputElement>("metacomFiles").click();
+      // Firefox and Safari have no picker to await, so the file input carries
+      // the rest of this errand - adopting included, in its own handler.
+      else { $<HTMLInputElement>("metacomFiles").click(); return; }
+      await adoptMetacom();
     } catch (error) {
       // An abandoned picker throws, and is not a failure worth reporting.
       if (!(error instanceof DOMException) || error.name !== "AbortError") status(reason(error));
@@ -468,7 +525,9 @@ export function wireSymbolFolder() {
     // the only way to connect a collection.
     const files = Array.from(input.files || []);
     input.value = "";
-    if (files.length) await symbols.readMetacomFiles(files);
+    if (!files.length) return;
+    await symbols.readMetacomFiles(files);
+    await adoptMetacom();
   };
   // Forgetting the folder cannot leave METACOM as the source: the picker
   // would have nothing to search and would say so on every keystroke. The
@@ -539,20 +598,46 @@ async function probeAzure() {
       : state.code === "refused" ? "ui.azure_refused" : "ui.azure_probe_failed");
 }
 
+/* One settings errand at a time, in the order they were asked for.
+ *
+ * Reading and writing both end by putting a value into `settings` and into
+ * symbols.setActiveSource(), and both are asynchronous. The provider's
+ * subscription fires a read the moment a folder finishes indexing, and
+ * adoptMetacom() writes on the back of that same arrival - so a read that
+ * started before the write resolved after it and put the source it had found
+ * back over the one that had just been chosen. What that looked like: the
+ * folder installed, the switch announced in the header, the button gone, and
+ * the picker still searching ARASAAC. Nothing was wrong in storage, which is
+ * why it survived a reload and only showed on the visit that did it.
+ *
+ * Same shape as saveChain in core/save.ts, and for the same reason: the caller
+ * has to be able to wait for its own errand to have actually happened. */
+let errands: Promise<unknown> = Promise.resolve();
+
+function inTurn<T>(job: () => Promise<T>): Promise<T> {
+  const mine = errands.then(job, job);
+  // The chain must not stay rejected, or every errand after a failed one would
+  // be skipped. Each caller still sees its own rejection through `mine`.
+  errands = mine.catch(() => {});
+  return mine;
+}
+
 export async function loadSettings() {
-  try {
-    settings = await readSettings();
-    // Before anything draws: the provider ranks its search results by this,
-    // so a preference that arrives after the first search would silently not
-    // have applied to it.
-    symbols.preferRendering(settings.metacomRendering ?? null);
-    // readSettings() has already refused "metacom" when no folder answers, so
-    // this is the source the picker can actually search.
-    symbols.setActiveSource(settings.activeProvider || "arasaac");
-    renderSettings();
-  } catch (error) {
-    status(t("ui.voice_failed", { error: reason(error) }));
-  }
+  return inTurn(async () => {
+    try {
+      settings = await readSettings();
+      // Before anything draws: the provider ranks its search results by this,
+      // so a preference that arrives after the first search would silently not
+      // have applied to it.
+      symbols.preferRendering(settings.metacomRendering ?? null);
+      // readSettings() has already refused "metacom" when no folder answers, so
+      // this is the source the picker can actually search.
+      symbols.setActiveSource(settings.activeProvider || "arasaac");
+      renderSettings();
+    } catch (error) {
+      status(t("ui.voice_failed", { error: reason(error) }));
+    }
+  });
 }
 
 /** Writes what the sheet's fields hold.
@@ -564,18 +649,22 @@ export async function loadSettings() {
 export async function saveSettings(
   extra: Partial<WantedSettings> = {},
 ): Promise<{ azureChanged: boolean }> {
-  const wanted: WantedSettings = {
-    azureRegion: $<HTMLInputElement>("azureRegion").value.trim(),
-    metacom: $<HTMLInputElement>("metacomPath").value.trim(),
-    ...extra,
-  };
-  // Only when something was typed: an untouched field must not wipe the key.
-  const typed = $<HTMLInputElement>("azureKey").value.trim();
-  if (typed) wanted.azureKey = typed;
-  const azureChanged = !!typed || wanted.azureRegion !== (settings.azureRegion || "");
-  settings = await writeSettings(wanted);
-  renderSettings();
-  return { azureChanged };
+  return inTurn(async () => {
+    // The fields are read inside the turn rather than as this is called, so
+    // that what is written is what they hold when the write actually happens.
+    const wanted: WantedSettings = {
+      azureRegion: $<HTMLInputElement>("azureRegion").value.trim(),
+      metacom: $<HTMLInputElement>("metacomPath").value.trim(),
+      ...extra,
+    };
+    // Only when something was typed: an untouched field must not wipe the key.
+    const typed = $<HTMLInputElement>("azureKey").value.trim();
+    if (typed) wanted.azureKey = typed;
+    const azureChanged = !!typed || wanted.azureRegion !== (settings.azureRegion || "");
+    settings = await writeSettings(wanted);
+    renderSettings();
+    return { azureChanged };
+  });
 }
 
 /** Drops the stored key, as its own act.
@@ -586,10 +675,12 @@ export async function saveSettings(
  * writeSettings only ever set it. The region and the METACOM path ride along
  * exactly as a save would take them; the null is the whole difference. */
 export async function forgetKey() {
-  settings = await writeSettings({
-    azureRegion: $<HTMLInputElement>("azureRegion").value.trim(),
-    metacom: $<HTMLInputElement>("metacomPath").value.trim(),
-    azureKey: null,
+  return inTurn(async () => {
+    settings = await writeSettings({
+      azureRegion: $<HTMLInputElement>("azureRegion").value.trim(),
+      metacom: $<HTMLInputElement>("metacomPath").value.trim(),
+      azureKey: null,
+    });
+    renderSettings();
   });
-  renderSettings();
 }
