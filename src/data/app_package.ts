@@ -390,12 +390,16 @@ export const wordClassColor = (key: string): string =>
  * voices that no tablet has. So this field, not the hint, is what actually
  * decides how a package sounds.
  *
- * `layout.language` is the wrong thing to take it from: it is the language of
- * the *builder's own page* and of the four menu labels the firmware draws, and
- * it follows whichever language the browser asked for. A German board built in
- * an English browser went out saying `locale: "en"`, which on the tablet means
- * German sentences read aloud by an English voice. Found by exporting a
- * package and opening it in the viewer, which is the only place it shows.
+ * `layout.language` is the weaker answer: it is the language the device shows
+ * its own menu in, which is a fair guess at the sentences on it and no more.
+ * It used to be worse than a guess - the same field was the builder's own page
+ * language and followed whatever the browser asked for, so a German board
+ * built in an English browser went out saying `locale: "en"`, which on the
+ * tablet means German sentences read aloud by an English voice. Found by
+ * exporting a package and opening it in the viewer, which is the only place it
+ * shows. The two languages are separate settings now, so this field is at
+ * least something somebody chose for this Sammlung; it stays the fallback
+ * rather than the answer all the same.
  *
  * The voice is better evidence because somebody chose it *for these sentences*.
  * Both id shapes carry their language: `azure:de-DE-KatjaNeural` and
