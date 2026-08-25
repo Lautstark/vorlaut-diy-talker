@@ -364,6 +364,11 @@ test("deleting a page keeps the buttons that led to it", async ({ page }) => {
   await page.locator("#appPages .tab[aria-current=true] .tab__more").click();
   const card = sheet(page, "ui.app_page_title");
   await expect(card).toBeVisible();
+  // And it is the narrow sheet. Measured, because the two classes it carries
+  // both set a width and nothing on screen says which one won: `.sheet--page`
+  // once lost 520px to `dialog.sheet--button`'s 720px on specificity alone,
+  // and the card drew as a single column of fields adrift in the wide sheet.
+  await expect(card).toHaveCSS("width", "520px");
   await card.locator("button", { hasText: label("ui.app_page_delete") }).click();
   const asked = sheet(page, "ui.app_page_delete");
   // The question names what is on the page *and* what points at it from
