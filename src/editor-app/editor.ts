@@ -1,4 +1,5 @@
-// The tablet editor: the page strip, the grid, and the panel for one button.
+// The tablet editor: the page strip, the grid, and the two sheets a press
+// opens - one for a button, one for a page.
 //
 // This is the second device-specific half. Pages of a grid, a sentence bar
 // composed by pressing buttons, a colour per word class: none of that is true
