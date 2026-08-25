@@ -1,12 +1,18 @@
 /* The tablet board. Structure only - editor.ts fills every one of these on
  * each render.
  *
- * Three areas, and the split between the first two is the one thing in this
- * file worth defending.
+ * Two areas, and the split between them is the one thing in this file worth
+ * defending.
  *
  *   #appPages   the page strip: every page in the Sammlung, always
  *   #appGrid    the page on screen, as the grid it will be on the tablet
- *   #appPanel   the button on screen, and everything about it
+ *
+ * There used to be a third. Everything about one button, and
+ * everything about one page, is now a modal sheet opened by pressing the thing
+ * itself - so nothing is left on the board that is not the board. The panel
+ * could only ever hold what fits under the grid, which is what made the
+ * eleven-column case a degradation of the three-column one; a sheet is the
+ * same interaction at every size.
  *
  * **The strip shows every page, including the ones nothing leads to.** It is
  * the editing-time way around, and it is not the graph: what leads where is
@@ -18,8 +24,8 @@
  * tab both selects and switches, because there is one axis and no ambiguity.
  * Here there are two: a `goto` button is a thing you edit *and* a way to
  * somewhere else. If pressing it navigated, it would be the one button on the
- * board nobody could ever change. So the press selects, and the panel carries
- * a separate control that follows the edge.
+ * board nobody could ever change. So the press opens the button's sheet, and
+ * the way to the page it leads to is the strip, which holds every page.
  *
  * It mounts into #editor, which is the hole shell/templates/frame.ts leaves -
  * the shell lays out a page, an editor fills the middle of it.
@@ -40,8 +46,6 @@ export const markup = `
 </div>
 
 <div class="appgrid" id="appGrid"></div>
-
-<div class="apppanel" id="appPanel"></div>
 `;
 
 /* The one action that applies to the whole Sammlung, in the work head's slot

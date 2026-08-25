@@ -32,6 +32,85 @@ export interface PickRequest {
 let pickTarget: PickRequest | null = null;
 let searchToken = 0;        // so a slow answer cannot overtake a newer one
 
+/* --- The seam ------------------------------------------------------------
+ *
+ * Three operations, exported so that a caller can put the search where it is
+ * standing instead of opening this dialog on top of its own.
+ *
+ * The tablet editor is that caller: its button sheet carries the picture, its
+ * search and the upload in its own left column, and a second modal over a
+ * modal to choose a symbol would be the dialog this design set out to remove.
+ * What it must not do is carry a second copy of the reasoning below - which
+ * source is active, what an empty answer means, and the fact that an ARASAAC
+ * pick is a download while a METACOM one is a reference. All three stay here;
+ * only the markup is the caller's. */
+
+/** One hit, as the two sources between them describe it. */
+export type SymbolHit = Awaited<ReturnType<typeof symbols.searchActive>>[number];
+
+/** A finished search: the hits, and - when there are none - the sentence that
+ *  says which of the two silences this was.
+ *
+ *  Packaged together rather than left to the caller, because the difference is
+ *  the part that is easy to get wrong: a provider's search() must not throw,
+ *  so ARASAAC answers [] for a failed fetch as well as for a word it does not
+ *  have, and "nothing found" is the wrong sentence for a browser with no
+ *  network. */
+export interface SymbolAnswer {
+  hits: SymbolHit[];
+  /** "" when there are hits. */
+  empty: string;
+}
+
+/** Searches the active source. Never throws: a failure is a sentence in
+ *  `empty`, because every caller has a place to put one and none of them has
+ *  anything else to do about it. */
+export async function findSymbols(word: string): Promise<SymbolAnswer> {
+  const term = word.trim();
+  if (!term) return { hits: [], empty: "" };
+  try {
+    const hits = await symbols.searchActive(term);
+    if (hits.length) return { hits, empty: "" };
+    const state = symbols.activeStatus();
+    return { hits, empty: state.kind === "ready"
+      ? t("ui.nothing_found", { word: term })
+      : t("ui.search_no_answer", { word: term }) };
+  } catch (error) {
+    return { hits: [], empty: t("ui.search_failed", { error: reason(error) }) };
+  }
+}
+
+/** A hit, resolved to what a layout stores: a reference and the collection's
+ *  own word for it. Throws, because a caller that asked for this one symbol
+ *  has somewhere to say so. */
+export async function takeSymbol(item: SymbolHit): Promise<{ symbol: string; label: string }> {
+  if (item.source === "metacom") {
+    // Nothing to fetch and nothing to copy: the layout holds the reference
+    // and the picture stays in the licensed folder, which is the whole of
+    // the METACOM rule. The browser resolved it, so the server is not asked.
+    return { symbol: item.ref, label: (item.label || "").trim() };
+  }
+  // ARASAAC still goes through the server, and this is the one place the page
+  // has not left it. The reference an ARASAAC pick *should* become is its id -
+  // that is the decision in docs/symbol-search.md - but build.py resolves a
+  // symbol by looking in symbols/, so writing an id today would produce
+  // layouts the build cannot build. The download stays until the build itself
+  // moves into the browser, and then this branch goes - and with it the last
+  // symbol call behind the seam.
+  const result = await pickSymbol({
+    source: item.source,
+    id: item.id,
+    label: item.label || "",
+  });
+  return { symbol: result.symbol, label: (result.label || "").trim() };
+}
+
+/** Somebody's own picture, stored and handed back as a reference. */
+export async function uploadOwn(file: File): Promise<string> {
+  const result = await uploadSymbol(file);
+  return result.symbol;
+}
+
 export function openPicker(request: PickRequest) {
   pickTarget = request;
   $<HTMLInputElement>("q").value = (request.seed || "").trim();
@@ -74,28 +153,12 @@ async function doSearch() {
     });
   };
 
-  try {
-    const hits = await symbols.searchActive(word);
-    if (mine !== searchToken) return;
-    show(hits);
-    // An empty answer has two causes and they need different sentences. A
-    // provider's search() must not throw - bildquelle's contract - so ARASAAC
-    // returns [] when the fetch fails, and "nothing found for X" was what a
-    // browser with no network was told about a word the collection holds
-    // thousands of. The status is the only place the difference survives.
-    if (!hits.length) {
-      const state = symbols.activeStatus();
-      say(box, state.kind === "ready"
-        ? t("ui.nothing_found", { word: word })
-        : t("ui.search_no_answer", { word: word }));
-    }
-  } catch (error) {
-    if (mine !== searchToken) return;
-    // Reachable now, and it was not: searchActive() returned [] for anything
-    // that went wrong in it, so this arm was dead and the dialog said
-    // "nothing found" when the page had failed to ask at all.
-    say(box, t("ui.search_failed", { error: reason(error) }));
-  }
+  // Both the empty answer and the failed one come back as a sentence in
+  // `empty` - see findSymbols above, which is where that reading lives now.
+  const answer = await findSymbols(word);
+  if (mine !== searchToken) return;
+  show(answer.hits);
+  if (answer.empty) say(box, answer.empty);
 }
 
 // Hands a finished symbol to whoever opened the dialog, then closes it.
@@ -107,29 +170,13 @@ async function applySymbol(filename: string, label?: string) {
   $<HTMLDialogElement>("picker").close();
 }
 
-async function pick(item) {
+async function pick(item: SymbolHit) {
   status(t(item.source === "metacom" ? "ui.taking_symbol" : "ui.loading_symbol"));
   try {
-    if (item.source === "metacom") {
-      // Nothing to fetch and nothing to copy: the layout holds the reference
-      // and the picture stays in the licensed folder, which is the whole of
-      // the METACOM rule. The browser resolved it, so the server is not asked.
-      await applySymbol(item.ref, item.label);
-    } else {
-      // ARASAAC still goes through the server, and this is the one place the
-      // page has not left it. The reference an ARASAAC pick *should* become is
-      // its id - that is the decision in docs/symbol-search.md - but build.py
-      // resolves a symbol by looking in symbols/, so writing an id today would
-      // produce layouts the build cannot build. The download stays until the
-      // build itself moves into the browser, and then this branch goes - and
-      // with it the last symbol call behind the seam.
-      const result = await pickSymbol({
-        source: item.source,
-        id: item.id,
-        label: item.label || $<HTMLInputElement>("q").value,
-      });
-      await applySymbol(result.symbol, result.label);
-    }
+    // Which of the two sources this is, and what that costs, is takeSymbol's -
+    // the dialog only has to know where the answer goes.
+    const taken = await takeSymbol(item);
+    await applySymbol(taken.symbol, taken.label);
     status("");
   } catch (error) {
     status(t("ui.symbol_failed", { error: reason(error) }));
@@ -220,8 +267,7 @@ export function wirePicker() {
     if (!file) return;
     status(t("ui.uploading"));
     try {
-      const result = await uploadSymbol(file);
-      await applySymbol(result.symbol);
+      await applySymbol(await uploadOwn(file));
       status(t("ui.upload_done"));
     } catch (error) {
       status(t("ui.upload_failed", { error: reason(error) }));
