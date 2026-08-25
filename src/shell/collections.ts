@@ -122,7 +122,7 @@ export async function paintCollections(): Promise<void> {
       id: one.id, name: nameOf(one.name), count: counts.get(one.id),
     })),
     open: held.current ? [held.current] : [],
-    onPick: (id) => { void open(id); },
+    onPick: (id) => { closeOnPick(); void open(id); },
   });
 
   const at = held.collections.findIndex((one) => one.id === held.current);
@@ -251,6 +251,12 @@ export function sizeChoices(chosen: GridSize,
  * *after* load() had replaced state.layout - and it would write the old text
  * into the new Sammlung, under the new one's version.
  */
+/* Choosing one closes the drawer: the layer is in the way of the thing that was
+ * just asked for. Only where it is a layer - on a desktop the column stays. */
+function closeOnPick(): void {
+  if (narrow()) closeDrawer();
+}
+
 async function open(id: string): Promise<void> {
   if (id === held.current) return;
   await saveNow();
@@ -504,11 +510,34 @@ async function remove(): Promise<void> {
  * not one to make every visit, so it is remembered - and in the settings record
  * with every other preference rather than in localStorage, because a preference
  * living in two stores is one that gets restored by one and overwritten by the
- * other. conventions.md §1.3. */
+ * other. conventions.md §1.3.
+ *
+ * A desktop question only. Below 820px there is no column to collapse, only a
+ * layer to dismiss - see openDrawer() below - and the remembered answer is
+ * deliberately not consulted down there. */
 async function showSidebar(open: boolean, remember = true): Promise<void> {
   document.body.classList.toggle("collapsed", !open);
   $("sidebarShow").hidden = open;
   if (remember) await writeSettings({ sidebarOpen: open });
+}
+
+/** Below this the sidebar is a layer over the work, not a column beside it.
+ *  The number is conventions.md §3.1's, and it is the one the stylesheet
+ *  breaks at - the two have to agree or the controls and the layout disagree
+ *  about which arrangement is on screen. */
+const narrow = (): boolean => matchMedia("(max-width: 820px)").matches;
+
+/* The drawer. Opening is a moment rather than a preference, so nothing here is
+ * written down: closing the tab closes it, which is what somebody expects of a
+ * thing they slid over their work. §1.3 is about the column, not this. */
+function openDrawer(): void {
+  $("sidebar").classList.add("open");
+  $("scrim").hidden = false;
+}
+
+function closeDrawer(): void {
+  $("sidebar").classList.remove("open");
+  $("scrim").hidden = true;
 }
 
 /* --- Wiring ------------------------------------------------------------------ */
@@ -534,9 +563,12 @@ export function collectionMenuExtras(build: ((add: AddItem) => void) | null): vo
 }
 
 export function wireCollections(): void {
-  $<HTMLButtonElement>("collectionNew").onclick = () => { void create(); };
+  $<HTMLButtonElement>("collectionNew").onclick = () => { void create(); closeOnPick(); };
   $<HTMLButtonElement>("sidebarHide").onclick = () => { void showSidebar(false); };
   $<HTMLButtonElement>("sidebarShowBtn").onclick = () => { void showSidebar(true); };
+  $<HTMLButtonElement>("sidebarOpenBtn").onclick = openDrawer;
+  $<HTMLButtonElement>("sidebarClose").onclick = closeDrawer;
+  $("scrim").onclick = closeDrawer;
   void readSettings().then((held) => showSidebar(held.sidebarOpen !== false, false));
 
   // The debounce, the write on the way out, and the rule that a repaint never
