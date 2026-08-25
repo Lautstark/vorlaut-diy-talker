@@ -120,10 +120,19 @@ export interface SymbolAnswer {
  * A search that finds nothing says so. A search that finds the wrong thing
  * used to look exactly like one that found the right thing: twelve tiles, all
  * confident. Searching "nicht" in METACOM is the case that showed it - every
- * hit a rendering of "nichtbinaer", because METACOM has no "nicht" symbol at
- * all and never will: German AAC negates by crossing out the symbol being
- * negated rather than with a picture of its own. Nothing on the screen said
- * so, and only somebody who already knew the collection could tell.
+ * hit a rendering of "nichtbinaer", and the picture somebody wanted nowhere on
+ * the screen. Nothing said so, and only somebody who already knew the
+ * collection could tell.
+ *
+ * "METACOM has no 'nicht' symbol at all and never will" is what this said, on
+ * the reasoning that German AAC negates by crossing a symbol out rather than
+ * with a picture of its own. The crossing out is true and is why a key can be
+ * crossed here at all; the conclusion drawn from it was not. METACOM files the
+ * negation pair under Kleine_Worte as "nichtkein": two words that mean the
+ * same thing in that position, run together because a filename cannot hold
+ * the slash between them. Since bildquelle 1.6.4 reads that spelling as the
+ * pair it is, it scores 70 and comes first. So this line
+ * now goes quiet for that search because the collection really does answer it.
  *
  * bildquelle grades every candidate on one ladder, the same for both sources:
  * the label is the word (100), begins with it as a phrase (70), holds it as
