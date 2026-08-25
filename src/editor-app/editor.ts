@@ -26,6 +26,7 @@ import { GRID, LANG, WORD_CLASSES } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save, saveSoon } from "../core/save.js";
 import { openPicker } from "../shell/picker.js";
+import { speak } from "../shell/speech.js";
 import { confirmDialog } from "@lautstark/design/dialog";
 import { exportApp } from "../shell/collections.js";
 import {
@@ -179,23 +180,37 @@ function clearDragMarks(): void {
   }
 }
 
+/** The widget inside a cell: what a press lands on.
+ *
+ * A div wearing role="button" rather than a <button>, for the reason
+ * editor-diy's tabs give: its parent is dragged, and a real button captures
+ * the mousedown that would start the drag. So the two things the element would
+ * have brought - a place in the tab order, and acting on Enter and Space - are
+ * written out at each call site. */
+function opener(label: string): HTMLElement {
+  const hit = document.createElement("div");
+  hit.className = "appcell__open";
+  hit.setAttribute("role", "button");
+  hit.tabIndex = 0;
+  hit.setAttribute("aria-label", label);
+  return hit;
+}
+
 function cell(on: AppPage, row: number, col: number): HTMLElement {
   const held = buttonAt(on, row, col);
-  /* A div wearing role="button", not a <button>, and for the reason
-   * editor-diy's tabs give: this element is dragged, and engines disagree
-   * about what dragging a button means. So the two things the element would
-   * have brought - a place in the tab order, and acting on Enter and Space -
-   * are written out below. */
+  /* The cell is a box, not a control. It holds two controls side by side: one
+   * filling it, and - once there is something to hear - one in the corner that
+   * plays. Nesting the second inside the first would be a control inside a
+   * control, which no keyboard can reach and no markup validator allows. */
   const box = document.createElement("div");
-  box.setAttribute("role", "button");
-  box.tabIndex = 0;
   box.className = "appcell";
   acceptsDrop(box, on, row, col);
 
   if (!held) {
     box.classList.add("appcell--empty");
-    box.setAttribute("aria-label", t("ui.app_button_add"));
     box.title = t("ui.app_button_add");
+    const hit = opener(t("ui.app_button_add"));
+    box.appendChild(hit);
     // One press puts a button here and selects it, so the next thing somebody
     // does is type its label. Asking what kind of button first would put a
     // form in front of the common case, which is a word on a cell.
@@ -210,8 +225,8 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
       // has just made.
       $<HTMLInputElement>("appLabel").focus();
     };
-    box.onclick = make;
-    box.onkeydown = (event) => {
+    hit.onclick = make;
+    hit.onkeydown = (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       make();
@@ -219,8 +234,11 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     return box;
   }
 
+  const hit = opener(held.label || t("ui.app_button_empty"));
+  hit.classList.toggle("current", held.id === chosen);
+  hit.setAttribute("aria-pressed", held.id === chosen ? "true" : "false");
   box.classList.toggle("current", held.id === chosen);
-  box.setAttribute("aria-pressed", held.id === chosen ? "true" : "false");
+  box.appendChild(hit);
   const colour = classColor(held.wordClass);
   if (colour) box.style.setProperty("--cell-color", colour);
 
@@ -253,8 +271,35 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     box.appendChild(tag);
   }
 
+  /* Hearing it, without opening anything.
+   *
+   * The five-key editor has had a play button on every key since it was
+   * written, and it is what somebody uses while looking at the board to check
+   * it reads right. It appears under the pointer or on focus rather than
+   * standing there: a control nobody is reaching for should not be taking room
+   * from the word. A real <button>, because nothing drags it.
+   *
+   * Only where there is something to say. A navigation button and the four bar
+   * controls speak nothing when pressed on the tablet, so offering to audition
+   * them would be offering silence. */
+  const saying = (held.vocalization || held.label).trim();
+  if (saying && (held.act.kind === "append" || held.act.kind === "speak")) {
+    const play = document.createElement("button");
+    play.type = "button";
+    play.className = "appcell__play";
+    play.textContent = "▶";
+    play.title = t("ui.play_title");
+    play.setAttribute("aria-label", t("ui.play_title"));
+    play.onclick = (event) => {
+      // The cell behind it opens the sheet; this one does not.
+      event.stopPropagation();
+      void speak(saying, play);
+    };
+    box.appendChild(play);
+  }
+
   const select = () => { chosen = held.id; render(); };
-  box.onclick = select;
+  hit.onclick = select;
 
   box.draggable = true;
   box.ondragstart = (event) => {
@@ -274,8 +319,8 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
    *
    * Claimed even where the move has nowhere to go: Alt+Left is history-back in
    * some engines, and rearranging a board must never walk off the page. */
-  box.setAttribute("aria-keyshortcuts", "Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight");
-  box.onkeydown = (event) => {
+  hit.setAttribute("aria-keyshortcuts", "Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight");
+  hit.onkeydown = (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       select();
@@ -295,7 +340,8 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     // render() rebuilt every cell, so the element that had focus is gone. It
     // follows the button rather than staying at the coordinate, which is what
     // makes a run of presses move one thing across the board.
-    ($("appGrid").children[(to[0] * grid.columns) + to[1]] as HTMLElement)?.focus();
+    ($("appGrid").children[(to[0] * grid.columns) + to[1]]
+      ?.querySelector(".appcell__open") as HTMLElement)?.focus();
   };
   return box;
 }
