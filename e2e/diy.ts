@@ -23,9 +23,15 @@ const table = TEXTS as Record<string, Record<string, string>>;
 /** A label in whichever language the runner's browser picked, from the same
  *  table the page reads - asserting a literal here would pass on a German
  *  machine and fail in CI, or the other way round. */
-export const label = (key: string) => new RegExp(
-  `^(${LANGUAGES.map((l) => table[l][key]!
-    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
+export const label = (key: string, params: Record<string, string | number> = {}) =>
+  new RegExp(`^(${LANGUAGES.map((l) => {
+    // Filled in before the escaping, not after: a value is plain text and
+    // wants escaping too, while an unfilled {n} is a brace the pattern has to
+    // match literally.
+    let text = table[l][key]!;
+    for (const name in params) text = text.split(`{${name}}`).join(String(params[name]));
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }).join("|")})$`);
 
 /** The same, unanchored: for the lines that join several labels into one -
  *  a voice's facts are five of them with separators between. Anchoring one of
