@@ -791,7 +791,13 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 }
 .cell {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 4px; aspect-ratio: 4 / 3; min-width: 0; padding: 4px;
+  /* The gap is between the picture and the word, and it is the only thing that
+     keeps them two things. At 4px they touched at the ascenders and read as one
+     block - a symbol with a caption stuck to it rather than a symbol and the
+     word it stands for, which is the pairing the whole board is teaching. The
+     picture is the part that gives up the height, and it can: it is capped at
+     60% of the cell and the word is capped at two lines. */
+  gap: 8px; aspect-ratio: 4 / 3; min-width: 0; padding: 4px;
   border-radius: 10px; cursor: pointer; position: relative;
   background: var(--cell-color, var(--surface)); color: #1c1f24;
   border: 2px solid var(--cell-edge, var(--line));
@@ -885,6 +891,10 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 @container (max-width: 120px) {
   .cell__word { font-size: 12px; }
   .cell--words .cell__word { font-size: 15px; }
+  /* No gap rule in here, and it is not an omission: an element is never its own
+     query container, so a `.cell` selector inside this block matches nothing.
+     8px turned out to hold at eleven columns anyway - the picture is what gives
+     up the height, and it has 60% of the cell to give it out of. */
 }
 /* Moved to the leading corner: the trailing one is the play button's, and a
    badge under a control nobody can see until they hover is a badge nobody
