@@ -84,9 +84,7 @@ check("the palette is there for the set colours",
       && PALETTE.every((c) => /^#[0-9A-Fa-f]{6}$/.test(c)),
       JSON.stringify(PALETTE));
 
-check("the limits are there and are whole numbers",
-      LIMITS && Number.isInteger(LIMITS.maxSets)
-      && Number.isInteger(LIMITS.maxActive)
-      && LIMITS.maxActive <= LIMITS.maxSets,
+check("the cap is there and is a whole number",
+      LIMITS && Number.isInteger(LIMITS.maxSets) && LIMITS.maxSets > 0,
       JSON.stringify(LIMITS));
 

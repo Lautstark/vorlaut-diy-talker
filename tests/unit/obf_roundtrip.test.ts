@@ -137,9 +137,9 @@ const CASES = [
      slots: Array.from({ length: 4 }, (_, j) => ({
        text: `Satz ${i}${j}`, symbol: `b${i}${j}.png` })),
    })) })],
-  ["a switched-off set among live ones",
+  ["three sets with nothing on them at all",
    board({ sets: [{ name: "Erstes", color: "#3B5BDB", slots: [] },
-                  { name: "Aus", color: "#159947", active: false, slots: [] },
+                  { name: "Zweites", color: "#159947", slots: [] },
                   { name: "Drittes", color: "#FF6B35", slots: [] }] })],
   ["English", board({ language: "en" })],
   ["a METACOM symbol, which travels as a reference and not as pixels",

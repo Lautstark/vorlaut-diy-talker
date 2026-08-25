@@ -42,6 +42,13 @@ Five comparisons:
 What this cannot do is answer for a case nobody recorded. If the mapping grows
 a field, this file cannot say what the new right answer is; obf.py has to come
 back to say it. See docs/frozen-references.md.
+
+Two narrowings, both of them the price of a deliberate mapping change - which
+is the case obf.lock.json's own invalidated_by anticipates ("a change to the
+mapping in obf.py"). The lock is not touched and is not refrozen: its oracle is
+gone, so the only thing left that could write it is src/data/obf.ts, and a lock
+written by the module it checks is the browser compared against itself. What is
+narrowed is what gets compared. See ACTIVE_IS_GONE and THE_CAP_MOVED below.
 """
 
 from __future__ import annotations
@@ -81,6 +88,82 @@ DRIVER = ROOT / "tests" / "obf_node.mjs"
 
 failures: list[str] = []
 
+# --- what the lock can no longer answer for ----------------------------------
+
+ACTIVE_IS_GONE = """the active/inactive distinction.
+
+A set used to carry `active`, and its board `ext_vorlaut_active`, marking which
+of an author's sets went onto the device. Sammlungen replaced it: a Sammlung is
+the selection, it ships all its sets, and the field was deleted rather than
+migrated. So neither name exists in src/data/obf.ts now.
+
+The lock records 151 answers about those two fields - 123 true, 23 false, and
+five odd shapes a foreign document put there. None of them is *wrong*; they are
+unreachable, which is a different thing and worth writing down rather than
+papering over. They cannot be re-recorded either: obf.py is gone.
+
+Holding the module to a constant instead would not be a check. The lock's own
+entries are 123 true against 23 false, so whichever constant were written, the
+other 23 (or 123) cases would fail it just the same.
+
+Everything else in the lock keeps its full value: this drops two field names
+out of the comparison and nothing else. The board id, the buttons, the grid,
+the images, the licence, the colour, the locale, the ring and the container are
+all still held to what obf.py said."""
+
+THE_CAP_MOVED = """the cap on how many sets a layout may hold.
+
+It used to be two numbers - author up to 25, mark 5 to ship - and collapsing
+the distinction above collapsed them into one: a Sammlung holds at most five
+sets. normalizeLayout() refuses more than that now, where obf.py refused more
+than 25 and separately refused a sixth *active* set.
+
+Six frozen normalizeLayout cases hand it more sets than the new cap. Five were
+refused by the oracle for having too many active, one was answered because only
+five of its six were active; all six are refused now, and the sentence they are
+refused with is not the sentence obf.py used. What survives is the half that is
+still a fact about the mapping: an over-cap layout must be refused rather than
+quietly truncated. That is what these cases are held to below. What is lost is
+the exact wording, and for the sixth case the answer itself."""
+
+
+def cap_from_the_page() -> int:
+    """How many sets a Sammlung holds, read where src/data/obf.ts reads it.
+
+    Out of the source rather than written down here, for the reason
+    check_the_module_still_says_the_format() gives: a number restated in a test
+    agrees with itself for ever. MAX_SETS is LIMITS.maxSets, so this reads the
+    table that declares it.
+    """
+    found = re.search(r'^export const LIMITS = \{"maxSets": (\d+)\};',
+                      (ROOT / "src" / "core" / "boot_data.ts").read_text(
+                          encoding="utf-8"), re.M)
+    if not found:
+        raise SystemExit("src/core/boot_data.ts no longer declares LIMITS.maxSets")
+    return int(found.group(1))
+
+
+def without_the_active_field(lock: dict) -> dict:
+    """The frozen zip members, with the one dead line taken out of each.
+
+    The members are compared as text, not as parsed JSON, and deliberately:
+    that is what holds the writer to sorted keys and two-space indent - see
+    "sort_keys dropped from the board JSON" in docs/frozen-references.md. So
+    the field is removed by deleting its line rather than by re-serializing,
+    and every remaining byte still has to match.
+
+    Safe to do line-wise because the keys are sorted: ext_vorlaut_active always
+    sits at the top level of a board between "buttons" and "ext_vorlaut_color",
+    never last, so its trailing comma goes with it and never orphans another.
+    """
+    for entry in lock["zips"]:
+        for member in entry["members"]:
+            member["text"] = "".join(
+                line + "\n" for line in member["text"].split("\n")[:-1]
+                if not line.startswith('  "ext_vorlaut_active":')
+            ) + member["text"].split("\n")[-1]
+    return lock
+
 
 def check(name: str, ok: bool, detail: str = "") -> None:
     print(f"  {'ok  ' if ok else 'FAIL'}  {name}" + (f"   {detail}" if detail else ""))
@@ -98,6 +181,13 @@ def difference(want, got, path: str = "") -> str | None:
     where = path or "the answer"
     if isinstance(want, dict) and isinstance(got, dict):
         for key in sorted(set(want) | set(got)):
+            # ACTIVE_IS_GONE. Skipped where it sits rather than by name alone,
+            # so that the day some other field is called "active" it is still
+            # compared: this is the set entry's flag and the board's copy of
+            # it, and nothing else.
+            if key == "ext_vorlaut_active" or (
+                    key == "active" and re.fullmatch(r"sets\[\d+\]", path)):
+                continue
             if key not in want:
                 return f"{where}: JavaScript adds {key!r}"
             if key not in got:
@@ -138,6 +228,13 @@ def ask_node(jobs: dict) -> dict:
         raise SystemExit(
             "the harness exited cleanly and printed nothing.\n" + result.stderr)
     return json.loads(result.stdout)
+
+
+def over_the_cap(args: list, cap: int) -> bool:
+    """Whether a normalizeLayout argument holds more sets than fit."""
+    return (bool(args) and isinstance(args[0], dict)
+            and isinstance(args[0].get("sets"), list)
+            and len(args[0]["sets"]) > cap)
 
 
 def compare(name: str, want: dict, answer: dict) -> None:
@@ -250,7 +347,7 @@ def main() -> int:
     if not MODULE.is_file():
         print(f"  {MODULE} is missing")
         return 1
-    lock = json.loads(LOCK.read_text(encoding="utf-8"))
+    lock = without_the_active_field(json.loads(LOCK.read_text(encoding="utf-8")))
 
     check_the_module_still_says_the_format(lock)
     check_the_fixtures_are_intact(lock)
@@ -274,9 +371,20 @@ def main() -> int:
     })
 
     print("\n--- the helpers, on the arguments that bite --------------------")
+    cap = cap_from_the_page()
     for one, answer in zip(lock["helpers"], answers["helpers"]):
         name = f"{one['call']}({', '.join(repr(a) for a in one['args'])})"
-        compare(name[:87] + "...)" if len(name) > 90 else name, one, answer)
+        name = name[:87] + "...)" if len(name) > 90 else name
+        # THE_CAP_MOVED. The oracle answered these under a cap of 25 sets and a
+        # separate cap of 5 active ones; both are one cap of 5 now, so the
+        # frozen answer is not the right answer any more. Held to refusing,
+        # which is the part of it that is still a fact about the mapping.
+        if one["call"] == "normalizeLayout" and over_the_cap(one["args"], cap):
+            check(f"{name}: more than {cap} sets, and refused",
+                  "error" in answer,
+                  answer.get("error", "JavaScript normalized it anyway"))
+            continue
+        compare(name, one, answer)
 
     print("\n--- a layout becomes the frozen document -----------------------")
     for one, answer in zip(lock["exports"], answers["exports"]):

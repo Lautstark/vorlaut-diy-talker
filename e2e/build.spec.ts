@@ -101,11 +101,11 @@ const IDB = `
   });
 `;
 
-/* Chosen so that every count below has something to be wrong about: three
- * pictures used six times between them, two references that resolve to nothing
- * and must share one placeholder tile, four distinct sentences across six
- * slots with text, and a switched-off set naming a symbol and a sentence that
- * nothing else does. */
+/* Chosen so that every count below has something to be wrong about: four
+ * pictures used nine times between them, three references that resolve to
+ * nothing - two blank ones and a name no symbol answers to - which must share
+ * one placeholder tile, and five distinct sentences across seven slots with
+ * text. */
 const BOARD = {
   sleep_timeout_seconds: 600,
   language: "de",
@@ -115,17 +115,17 @@ const BOARD = {
    * default to Thorsten, who passes that gate even unclaimed. */
   voice: "piper:de_DE-kerstin-low",
   sets: [
-    { name: "Erste", symbol: "red.png", color: "#3B5BDB", active: true,
+    { name: "Erste", symbol: "red.png", color: "#3B5BDB",
       slots: [{ symbol: "red.png", text: "Hallo" },
               { symbol: "blue.png", text: "Danke" },
               { symbol: "green.png", text: "Hallo" },
               { symbol: "", text: "" }] },
-    { name: "", symbol: "blue.png", color: "#159947", active: true,
+    { name: "", symbol: "blue.png", color: "#159947",
       slots: [{ symbol: "red.png", text: "Danke" },
               { symbol: "weg.png", text: "Tsch\u00fcss" },   // escaped: tests/test_language.py
               { symbol: "", text: "Bitte" },
               { symbol: "green.png", text: "" }] },
-    { name: "Aus", symbol: "yellow.png", color: "#FF6B35", active: false,
+    { name: "Aus", symbol: "yellow.png", color: "#FF6B35",
       slots: [{ symbol: "yellow.png", text: "Niemals" },
               { symbol: "", text: "" }, { symbol: "", text: "" },
               { symbol: "", text: "" }] },
@@ -330,15 +330,15 @@ test("it builds a board into the store, one file per distinct thing", async ({ p
   expect(built.log.split("\n").filter((l) => /^(build|ui|err)\.[a-z_.]+$/.test(l)))
     .toEqual([]);
 
-  expect(tilesOf(built.names)).toHaveLength(4);   // three pictures, one placeholder
-  expect(wavsOf(built.names)).toHaveLength(4);    // Hallo, Danke, Tschuess, Bitte
-  expect(built.spoken).toHaveLength(4);           // and each spoken exactly once
+  expect(tilesOf(built.names)).toHaveLength(5);   // four pictures, one placeholder
+  expect(wavsOf(built.names)).toHaveLength(5);    // Hallo, Danke, Tschuess, Bitte, Niemals
+  expect(built.spoken).toHaveLength(5);           // and each spoken exactly once
   expect(built.names).toContain("layout.bin");
-  /* The switched-off set put nothing in: 4 + 4 + the table. */
-  expect(built.names).toHaveLength(9);
+  /* Every set the Sammlung holds went in: 5 + 5 + the table. */
+  expect(built.names).toHaveLength(11);
 
-  /* The table is the two active sets, and every tile is a whole frame. */
-  expect(built.sizes["layout.bin"]).toBe(HEADER_BYTES + 2 * SET_BYTES);
+  /* The table is all three sets, and every tile is a whole frame. */
+  expect(built.sizes["layout.bin"]).toBe(HEADER_BYTES + 3 * SET_BYTES);
   for (const tile of tilesOf(built.names)) {
     expect(built.sizes[tile]).toBe(TILE_SIZE * TILE_SIZE * 2);
   }
@@ -368,13 +368,13 @@ test("a second build replaces what changed and leaves nothing behind", async ({ 
   const gone = first.names.filter((n) => !second.names.includes(n));
   const fresh = second.names.filter((n) => !first.names.includes(n));
 
-  expect(second.names).toHaveLength(9);
+  expect(second.names).toHaveLength(11);
   expect(gone).toHaveLength(1);          // the WAV for "Bitte"
   expect(fresh).toHaveLength(1);         // the WAV for "Guten Tag"
   expect(gone[0]).toMatch(/^a[0-9a-f]{32}\.wav$/);
   /* And it said so, in whichever language the runner opened the page in. */
   expect(second.log).toMatch(/^(removed|entfernt): a[0-9a-f]{32}\.wav$/m);
-  /* Only the new sentence cost anything: the other three came back out of the
+  /* Only the new sentence cost anything: the other four came back out of the
      store under the names their text still hashes to. */
   expect(second.spoken).toEqual([...first.spoken, "Guten Tag"]);
 
@@ -509,8 +509,8 @@ test("one press builds it and puts it on the talker", async ({ page }) => {
  * This is the half the page never had. The log used to appear under the work
  * head once the build had already started, so the first thing anybody was told
  * about a transfer was that it was under way. The counts are the ones a
- * decision rests on - a Sammlung switched underneath you, or a set left
- * switched off, are exactly what somebody would want to catch here.
+ * decision rests on - a Sammlung switched underneath you, or a set left with
+ * nothing on it, are exactly what somebody would want to catch here.
  */
 test("the sheet says what is about to go, and keeps the log after it went",
      async ({ page }) => {
@@ -526,15 +526,14 @@ test("the sheet says what is about to go, and keeps the log after it went",
   /* The name out of the field somebody is looking at rather than a literal:
      a Sammlung nobody has renamed is named for the day it was made. */
   await expect(values.nth(0)).toHaveText(await page.inputValue("#collectionName"));
-  /* BOARD has three sets and one of them is switched off. */
+  /* BOARD has three sets, and all three go: a Sammlung is the selection. */
   await expect(values.nth(1))
-    .toHaveText(filled("ui.transfer_sets", { active: 2, total: 3 }));
-  /* Eight keys across the two active sets, and one of the eight is blank in
-     both halves. The switched-off set's keys are not counted: nothing of it
-     reaches the device, so promising them here would be a lie the build then
-     fails to keep. */
+    .toHaveText(filled("ui.transfer_sets", { n: 3 }));
+  /* Twelve keys across the three sets, four of them blank in both halves.
+     "Has something on it" is the build's own test, so the number promised
+     here is the one the build then keeps. */
   await expect(values.nth(2))
-    .toHaveText(filled("ui.transfer_keys", { n: 7, total: 8 }));
+    .toHaveText(filled("ui.transfer_keys", { n: 8, total: 12 }));
   /* WebSerial gives a vendor and a product id and nothing else; the mock port
      answers getInfo() with neither, which is the one case that has no numbers
      to show. */

@@ -38,6 +38,9 @@ and its output is checked field by field. That half is not captured from
 anything the browser did: it is compiled from the firmware's source on the
 machine running the test, and it is the reason a frozen byte string means
 something rather than merely being self-consistent.
+
+One case is set aside rather than compared - see THE_FILTER_IS_GONE. The lock
+is not touched and is not refrozen; what is narrowed is what gets compared.
 """
 
 from __future__ import annotations
@@ -51,6 +54,45 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# --- what the lock can no longer answer for ----------------------------------
+
+THE_FILTER_IS_GONE = """the active/inactive distinction.
+
+render_layout_bin() used to write the *active* sets, and a set carried an
+`active` flag saying whether it was one. Sammlungen replaced that: a Sammlung
+is the selection, it ships all its sets, and the flag was deleted rather than
+migrated. So the writer writes every set the layout holds.
+
+One frozen case is about the filter and nothing else - a three-set layout with
+the middle one switched off, frozen as the 384 bytes of the two that survived
+it. Its right answer now is three sets, and this file cannot say what those
+bytes are: `label`, `images` and `sounds` were frozen per *active* set, so the
+middle set has no tile and no sound names in the fixture to write with. That is
+the lock's own limit, stated at the top of docs/frozen-references.md - a fixture
+answers for what was recorded, and nobody recorded this.
+
+It is an anticipated loss rather than a surprise: the lock's invalidated_by
+names "a change to render_layout_bin() in layout_format.py", and removing the
+filter is one. It cannot be won back - layout_format.py and
+tools/layoutfreeze.py went with the Python half, so there is nothing left to
+re-freeze from, and re-deriving the bytes from src/data/layout_format.ts would
+be the browser compared against itself.
+
+The other sixteen cases are untouched and keep their full value: the bytes, the
+C reader's fields, the strides and the pre-language file are all still held to
+what layout_format.py said."""
+
+
+def about_the_filter(case: dict) -> bool:
+    """Whether a frozen case exists to exercise the switched-off set.
+
+    By what the case holds rather than by its name: a layout with a set the
+    writer was meant to leave out is exactly the case that has no answer now,
+    and there is precisely one. Anything else in the lock still gets compared.
+    """
+    return any(entry.get("active") is False
+               for entry in case["layout"].get("sets", []))
 
 # The browser half is TypeScript now, so plain `node` cannot run these
 # harnesses. vite-node can - it is vitest's own loader, already installed, and
@@ -183,6 +225,14 @@ def main() -> int:
           f"layout_format.py and tools/layoutfreeze.py from git for as "
           f"long as that takes - docs/frozen-references.md, under The "
           f"layout binary")
+
+    # THE_FILTER_IS_GONE, and set aside only after the hash check above, so
+    # that hand-editing this case into agreement is still caught rather than
+    # skipped along with it.
+    for name in [c["name"] for c in cases if about_the_filter(c)]:
+        print(f"  --    {name}: set aside, its subject no longer exists "
+              f"(THE_FILTER_IS_GONE)")
+    cases = [c for c in cases if not about_the_filter(c)]
 
     from_js = render_with_node(cases)
     if from_js is None:

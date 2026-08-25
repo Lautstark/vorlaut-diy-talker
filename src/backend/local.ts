@@ -25,8 +25,7 @@ import * as store from "../data/store.js";
 import * as tiles from "../data/tiles.js";
 import * as symbols from "../data/symbols.js";
 import {
-  DEFAULT_LANGUAGE, HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET,
-  activeSets, renderLayoutBin,
+  DEFAULT_LANGUAGE, HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET, renderLayoutBin,
 } from "../data/layout_format.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
@@ -766,16 +765,11 @@ export async function runBuild(): Promise<{ log: string[] }> {
 
   const held = await store.readLayout();
   const layout = held.layout || NOTHING;
-  // Only the selection goes onto the device. The rest stays in the layout,
-  // and switching one back on costs nothing it has not already paid.
-  const sets = activeSets(layout);
-  const all = isDiy(layout) ? layout.sets || [] : [];
+  // The whole Sammlung goes onto the device: it is itself the selection, and
+  // it cannot hold more sets than the device has room for.
+  const sets = isDiy(layout) ? layout.sets || [] : [];
 
-  if (!all.length) note("build.no_sets");
-  else if (!sets.length) note("build.none_active");
-  else if (sets.length !== all.length) {
-    note("build.active_count", { active: sets.length, total: all.length });
-  }
+  if (!sets.length) note("build.no_sets");
 
   // What this run produced. Anything in the store that is not in here at the
   // end is from an earlier one and goes.
@@ -847,9 +841,7 @@ export async function runBuild(): Promise<{ log: string[] }> {
   }
 
   for (const [index, entry] of sets.entries()) {
-    // The number is the position in the order on the device, not the one in
-    // the layout - with switched-off sets the two drift apart, which is why
-    // the name is always alongside.
+    // The position in the order on the device, which is the layout's own.
     const number = index + 1;
     const named = String(entry.name || "");
     const label = (!named || named === t("build.set", { n: number }))
@@ -961,8 +953,7 @@ export async function buildManifest() {
     // A tablet Sammlung has no sets and nothing to build: the build writes
     // tiles and WAVs for a five-key device. Zero rather than a throw, because
     // the Daten panel reads this whichever Sammlung happens to be open.
-    sets: held.layout && isDiy(held.layout)
-      ? held.layout.sets.filter((s) => s.active !== false).length : 0,
+    sets: held.layout && isDiy(held.layout) ? held.layout.sets.length : 0,
     files,
     bytes: files.reduce((total, file) => total + file.size, 0),
   };

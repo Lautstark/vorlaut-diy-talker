@@ -16,7 +16,11 @@
 export const LANGUAGES = ["de", "en"];
 export const DEFAULT_LANGUAGE = "en";
 export const PALETTE = ["#3B5BDB", "#159947", "#9B7BFF", "#FF8BC7", "#FF6B35"];
-export const LIMITS = {"maxSets": 25, "maxActive": 5};
+/* One number, because there is one rule: a Sammlung holds at most five sets
+ * and every one of them goes onto the device. It used to be two - author up
+ * to 25, mark 5 to ship - which was a second selection mechanism from before
+ * Sammlungen existed. */
+export const LIMITS = {"maxSets": 5};
 
 /* The Modified Fitzgerald Key: which colour a word class is drawn in.
  *
@@ -77,7 +81,6 @@ export const GRID = {
 
 export const TEXTS = {
   "de": {
-    "build.active_count": "{active} von {total} Sets aktiv.",
     "build.audio_missing": "Hinweis: Es fehlen Tondateien - siehe Warnungen oben.",
     "build.done": "Fertig: {sets} Set(s), {files} Dateien, {size} KiB in {where}",
     "build.err.no_voice": "nicht gesprochen - hier ist keine Stimme, die es sprechen könnte",
@@ -89,7 +92,6 @@ export const TEXTS = {
     "build.no_set_symbol": "{label}: noch kein Set-Symbol gewählt.",
     "build.no_sets": "Es gibt keine Sets - es gibt nichts zu bauen.",
     "build.no_text": "{label} Slot {slot}: kein Text - kein Ton.",
-    "build.none_active": "Kein Set ist aktiv - das Gerät hätte nichts anzuzeigen.",
     "build.removed": "entfernt: {name}",
     "build.set": "Set {n}",
     "build.set_named": "Set {n} ({name})",
@@ -131,9 +133,6 @@ export const TEXTS = {
     "ui.about_source_head": "Quellcode und Schwesterprojekte",
     "ui.about_symbols": "Die Piktogramme stammen von ARASAAC und stehen unter CC BY-NC-SA - Material daraus darf nicht kommerziell verwertet werden. METACOM ist lizenzpflichtig: vorlaut liefert keine METACOM-Symbole mit, sondern liest deinen eigenen, lizenzierten Ordner. Die Offline-Stimmen sind Piper-Modelle und rechnen im Browser.",
     "ui.about_symbols_head": "Symbole und Stimmen",
-    "ui.active": "Aktiv",
-    "ui.active_full": "Es sind schon {max} Sets aktiv - erst eins abschalten.",
-    "ui.active_title": "Aktive Sets gehen aufs Gerät - höchstens {max} gleichzeitig",
     "ui.add_set": "+ Set",
     "ui.app_act_append": "In die Satzleiste",
     "ui.app_act_backspace": "Letztes zur\u00fcck",
@@ -360,7 +359,6 @@ export const TEXTS = {
     "ui.no_sets": "Noch keine Sets. Oben auf \"+ Set\" klicken.",
     "ui.no_symbol": "kein Symbol",
     "ui.no_voice_yet": "Noch keine Stimme gew\u00e4hlt \u2013 im Zahnrad unter Stimme eine aussuchen.",
-    "ui.none_active": "Kein Set aktiv - das Gerät zeigt dann nur einen Hinweis an. {n} Sets liegen bereit.",
     "ui.not_saved": "nicht gespeichert",
     "ui.nothing_found": "Nichts gefunden zu „{word}“.",
     "ui.own_image": "Eigenes Bild",
@@ -380,7 +378,6 @@ export const TEXTS = {
     "ui.quality_low": "niedrige Qualität",
     "ui.quality_medium": "mittlere Qualität",
     "ui.quality_x_low": "sehr niedrige Qualität",
-    "ui.ready_not_on_device": "liegt bereit, nicht auf dem Gerät",
     "ui.release": "Aufs Gerät übertragen",
     "ui.release_current": "Alles Getippte ist gebaut und kann aufs Gerät",
     "ui.release_needed": "Es gibt Änderungen, die noch nicht gebaut sind - ein Druck baut sie und überträgt sie aufs Gerät",
@@ -390,7 +387,7 @@ export const TEXTS = {
     "ui.set_delete_go": "Set l\u00f6schen",
     "ui.transfer_lead": "Das geht jetzt auf den Talker:",
     "ui.transfer_sets_label": "Sets",
-    "ui.transfer_sets": "{active} von {total} aktiv",
+    "ui.transfer_sets": "{n} auf dem Gerät",
     "ui.transfer_keys_label": "Tasten",
     "ui.transfer_keys": "{n} von {total} haben Inhalt",
     "ui.transfer_port": "USB {vendor}:{product}",
@@ -420,7 +417,6 @@ export const TEXTS = {
     "ui.set_key": "SET-TASTE",
     "ui.set_n": "Set {n}",
     "ui.set_name": "Name des Sets",
-    "ui.sets_created": "{n} Sets angelegt",
     "ui.settings": "Einstellungen",
     "ui.settings_saved": "gespeichert",
     "ui.slots_used": "{used} von {max} Plätzen auf dem Gerät belegt",
@@ -435,8 +431,6 @@ export const TEXTS = {
     "ui.symbol_missing": "ist in diesem Browser nicht gespeichert",
     "ui.symbol_needs_folder": "METACOM-Ordner ist nicht verbunden",
     "ui.symbols": "Symbole",
-    "ui.tab_off": "Nicht auf dem Gerät",
-    "ui.tab_on": "Geht aufs Gerät",
     "ui.taking_symbol": "übernimmt Symbol ...",
     "ui.text_placeholder": "Was gesagt wird",
     "ui.theme": "Erscheinungsbild",
@@ -480,7 +474,6 @@ export const TEXTS = {
     "ui.wordclass_verb": "Verb",
   },
   "en": {
-    "build.active_count": "{active} of {total} sets active.",
     "build.audio_missing": "Note: sound files are missing - see the warnings above.",
     "build.done": "Done: {sets} set(s), {files} files, {size} KiB in {where}",
     "build.err.no_voice": "not spoken - there is no voice here to speak it with",
@@ -492,7 +485,6 @@ export const TEXTS = {
     "build.no_set_symbol": "{label}: no set symbol chosen yet.",
     "build.no_sets": "There are no sets - there is nothing to build.",
     "build.no_text": "{label} slot {slot}: no text - no sound.",
-    "build.none_active": "No set is active - the device would have nothing to show.",
     "build.removed": "removed: {name}",
     "build.set": "Set {n}",
     "build.set_named": "Set {n} ({name})",
@@ -534,9 +526,6 @@ export const TEXTS = {
     "ui.about_source_head": "Source code and sister projects",
     "ui.about_symbols": "The pictograms come from ARASAAC and are licensed CC BY-NC-SA - nothing taken from them may be used commercially. METACOM needs a licence: vorlaut ships no METACOM symbols, it reads your own licensed folder. The offline voices are Piper models and compute in the browser.",
     "ui.about_symbols_head": "Symbols and voices",
-    "ui.active": "Active",
-    "ui.active_full": "{max} sets are already active - switch one off first.",
-    "ui.active_title": "Active sets go onto the device - at most {max} at a time",
     "ui.add_set": "+ Set",
     "ui.app_act_append": "Into the sentence bar",
     "ui.app_act_backspace": "Take the last one back",
@@ -763,7 +752,6 @@ export const TEXTS = {
     "ui.no_sets": "No sets yet. Click \"+ Set\" above.",
     "ui.no_symbol": "no symbol",
     "ui.no_voice_yet": "No voice chosen yet - pick one in the gear, under Voice.",
-    "ui.none_active": "No set is active - the device would only show a notice. {n} sets are ready.",
     "ui.not_saved": "not saved",
     "ui.nothing_found": "Nothing found for „{word}“.",
     "ui.own_image": "Own picture",
@@ -783,7 +771,6 @@ export const TEXTS = {
     "ui.quality_low": "low quality",
     "ui.quality_medium": "medium quality",
     "ui.quality_x_low": "very low quality",
-    "ui.ready_not_on_device": "ready, not on the device",
     "ui.release": "Send to the device",
     "ui.release_current": "Everything typed is built and ready for the device",
     "ui.release_needed": "There are changes that are not built yet - one press builds them and puts them on the device",
@@ -793,7 +780,7 @@ export const TEXTS = {
     "ui.set_delete_go": "Delete the set",
     "ui.transfer_lead": "This is what goes to the talker:",
     "ui.transfer_sets_label": "Sets",
-    "ui.transfer_sets": "{active} of {total} active",
+    "ui.transfer_sets": "{n} on the device",
     "ui.transfer_keys_label": "Keys",
     "ui.transfer_keys": "{n} of {total} have something on them",
     "ui.transfer_port": "USB {vendor}:{product}",
@@ -823,7 +810,6 @@ export const TEXTS = {
     "ui.set_key": "SET KEY",
     "ui.set_n": "Set {n}",
     "ui.set_name": "Name of the set",
-    "ui.sets_created": "{n} sets created",
     "ui.settings": "Settings",
     "ui.settings_saved": "saved",
     "ui.slots_used": "{used} of {max} places on the device taken",
@@ -838,8 +824,6 @@ export const TEXTS = {
     "ui.symbol_missing": "not stored in this browser",
     "ui.symbol_needs_folder": "the METACOM folder is not connected",
     "ui.symbols": "Symbols",
-    "ui.tab_off": "Not on the device",
-    "ui.tab_on": "Goes onto the device",
     "ui.taking_symbol": "taking symbol ...",
     "ui.text_placeholder": "What gets said",
     "ui.theme": "Appearance",

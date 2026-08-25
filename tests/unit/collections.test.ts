@@ -13,7 +13,7 @@ import type { Layout } from "../../src/core/types.js";
 const board = (name: string): Layout => ({
   sleep_timeout_seconds: 600,
   sets: [{
-    name, symbol: "", color: "#3B5BDB", active: true,
+    name, symbol: "", color: "#3B5BDB",
     slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
   }],
 });
