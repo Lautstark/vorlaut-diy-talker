@@ -90,8 +90,8 @@ export const GRID = {
    * so this list stays inside them. */
   sizes: [
     { rows: 3, columns: 5 },
-    { rows: 4, columns: 6 },
-    { rows: 5, columns: 8 },
+    { rows: 4, columns: 7 },
+    { rows: 5, columns: 9 },
     { rows: 6, columns: 11 },
   ],
 };
