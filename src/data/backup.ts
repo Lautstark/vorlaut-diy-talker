@@ -243,3 +243,93 @@ export async function importBackup(backup: Backup): Promise<Restored> {
 
   return { layout: open, boards: incoming.length, symbols: restored };
 }
+
+/* --------------------------------------------- one Sammlung out of a file ---
+ *
+ * The other way in, and it is the opposite act to importBackup above: that one
+ * puts a machine back and replaces everything to do it, this one takes a single
+ * Sammlung out of a file and stands it beside what is already here.
+ *
+ * Why the two cannot be one function with a flag. A restore keeps identity -
+ * the same boards come back, under the ids they had - and that is what makes it
+ * a restore rather than a copy. An import must *not*: the file may well be a
+ * Sicherung this same browser wrote an hour ago, and keeping the id would make
+ * the arriving Sammlung the stored one, which is a replace by another name.
+ * readOneCollection() therefore drops the id and lets store.ts mint a new one,
+ * and that difference is the whole of why there are two doors.
+ *
+ * A Sicherung of several Sammlungen is refused here rather than half-read. It
+ * is a whole-library file and the Daten panel is what reads those; picking one
+ * board out of nine would be this module guessing which, and there is no answer
+ * to that a person holding the file could have predicted.
+ */
+
+/** Thrown when the file holds anything other than exactly one Sammlung. A code
+ *  rather than a sentence, for the reason TOO_NEW is one: no language here. */
+export const NOT_ONE = "backup:not-one";
+
+/** What a Sicherung yields to an import that adds: a Sammlung, without the
+ *  identity it had, and the pictures it refers to. */
+export interface OneCollection {
+  /** What the file called it. The caller falls back to the file's own name
+   *  when this is empty, which is what a version 1 file leaves behind. */
+  name: string;
+  layout: Layout;
+  /** Not written here. This function reads; addSymbols() below writes, and the
+   *  caller runs it once the Sammlung itself has landed. */
+  symbols: StoredSymbol[];
+}
+
+/** The one Sammlung in a Sicherung, or a refusal naming what is wrong.
+ *
+ * `count` on the NOT_ONE error is what the panel needs to say - a file of nine
+ * and a file of none are the same code and a different sentence.
+ */
+export function readOneCollection(backup: Backup): OneCollection {
+  if (typeof backup.version !== "number" || backup.version > BACKUP_VERSION) {
+    throw new Error(TOO_NEW);
+  }
+
+  const boards = backup.boards ?? [];
+  // Version 1 held one board and no name for it. It is exactly the case this
+  // door is for, so it comes in - unnamed, which the caller answers with the
+  // file name.
+  if (!boards.length && backup.layout) {
+    return { name: "", layout: backup.layout, symbols: backup.symbols ?? [] };
+  }
+  if (boards.length !== 1) {
+    const refusal = new Error(NOT_ONE) as Error & { count: number };
+    refusal.count = boards.length;
+    throw refusal;
+  }
+
+  const only = boards[0]!;
+  // The id stays behind. See the note above: an import is a copy.
+  return { name: only.name ?? "", layout: only.layout,
+           symbols: backup.symbols ?? [] };
+}
+
+/** How many of a Sicherung's symbols this browser was missing.
+ *
+ * Adds only. A name already in the store keeps the bytes it has, and that is
+ * not an optimisation: the store is keyed by name, an ARASAAC download and
+ * somebody's upload can share one, and overwriting would change a picture on a
+ * Sammlung that has nothing to do with this import. Arriving at a board with
+ * one grey cross on it is recoverable; a picture silently swapped on another
+ * board is not, because nobody is looking at that board today.
+ */
+export async function addSymbols(symbols: StoredSymbol[]): Promise<number> {
+  let added = 0;
+  for (const symbol of symbols) {
+    if (!symbol?.name || typeof symbol.data !== "string") continue;
+    if (await store.getFile("symbols", symbol.name)) continue;
+    try {
+      await store.putFile("symbols", symbol.name, fromBase64(symbol.data));
+      added++;
+    } catch {
+      // One picture that will not decode is not a reason to lose the board it
+      // came with - importBackup takes the same line.
+    }
+  }
+  return added;
+}

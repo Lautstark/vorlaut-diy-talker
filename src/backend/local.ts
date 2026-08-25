@@ -18,6 +18,8 @@
 import { isDiy } from "../core/types.js";
 import type { Layout, OfferedVoice, Settings, VoiceList, WantedSettings, AzureState } from "../core/types.js";
 import * as obf from "../data/obf.js";
+import { isBackup, readOneCollection } from "../data/backup.js";
+import type { Backup, StoredSymbol } from "../data/backup.js";
 import * as appPackage from "../data/app_package.js";
 import { bakeImage, bakeSound } from "../data/app_assets.js";
 import { ENCODER_RATE } from "../data/opus.js";
@@ -750,10 +752,52 @@ export async function exportAppPackage(
   };
 }
 
-/** An .obf or .obz on the way in, as a layout. Deliberately does not save it:
- * replacing what somebody has is a decision, and this is the reading half. */
-export async function importBoard(file) {
-  return await obf.importObz(await file.arrayBuffer(), file.name || "This file");
+/** What a file on the way in turned out to hold. */
+export interface ReadFile {
+  layout: Layout;
+  /** The name the file carried for this Sammlung, or "" when it carried none -
+   *  and then the caller uses the file's own name. An .obz names every board
+   *  in it and the document not at all, so it is always "" from that half; a
+   *  Sicherung names the Sammlung, which is a better name than
+   *  "sicherung-2026-08-26". */
+  name: string;
+  /** Pictures the file brought that this browser may be missing. Data, not a
+   *  write: see below. */
+  symbols: StoredSymbol[];
+}
+
+/** An .obf, an .obz or a Sicherung of one Sammlung on the way in, as a layout.
+ *
+ * Deliberately does not save it: replacing what somebody has is a decision, and
+ * this is the reading half. That holds for the pictures too, which is why they
+ * come back as bytes rather than going into the store here - data/backup.ts's
+ * addSymbols() is the writing half and the shell runs it once the Sammlung has
+ * landed, so an import that fails leaves nothing behind.
+ *
+ * Two formats through one door because there is one act. "Read this file and
+ * put what is in it beside my Sammlungen" is what somebody is doing, and which
+ * of three shapes their file happens to be is not a question they should have
+ * to answer by picking a different button. The whole-library Sicherung is the
+ * other act and keeps its own button, in the Daten panel, behind the question
+ * that says what it replaces.
+ */
+export async function importBoard(file): Promise<ReadFile> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const name = file.name || "This file";
+  // "PK", where every zip starts and no JSON does - obf.importObz sniffs the
+  // same two bytes for the same reason, and a Sicherung is JSON.
+  if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) {
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      // Not JSON at all. Fall through: obf.importObz answers for a broken file
+      // in the words the format has for it, and a second message here would be
+      // this function guessing which half the person meant.
+    }
+    if (isBackup(parsed)) return readOneCollection(parsed as Backup);
+  }
+  return { layout: await obf.importObz(bytes, name), name: "", symbols: [] };
 }
 
 // --- The build ---------------------------------------------------------------

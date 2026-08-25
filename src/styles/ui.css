@@ -760,8 +760,8 @@ dl.transfer dd { margin: 0; font-size: 14px; }
  *
  * A set is a tab, and the strip is how somebody reaches one. The device holds
  * five, and five with ordinary names - a word or three each - measure about
- * 685px laid out in a row; four of them beside the "+ Set" button that is
- * still there until the fifth arrives, about 622px. 640 minus this column's
+ * 754px laid out in a row; four of them beside the "+ Neue Seite" button that
+ * is still there until the fifth arrives, about 738px. 640 minus this column's
  * padding gives them 600, so both of those wrap, and a strip that wraps pushes
  * the board down by the height of a whole row of tab. Every cure that keeps
  * the 640 makes the names harder to read - smaller type, an ellipsis, a strip
@@ -774,7 +774,7 @@ dl.transfer dd { margin: 0; font-size: 14px; }
  * column above it is free to be wider, and only chrome uses the difference.
  *
  * 880 is that difference sized to the strip: 840px of room for a row that
- * needs 685 at its widest, which is a couple more ordinary names' worth of
+ * needs 754 at its widest, which is about one more ordinary name's worth of
  * slack in a strip that can never hold more than five. It stays inside the
  * content column on a 1280px laptop rather than running out to its edges.
  *
@@ -829,8 +829,12 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    The second rule is not decoration. `display: grid` above is an author rule
    and [hidden] is the user agent's, so setting .hidden on one of these boxes
    did nothing at all without it - the grid question was on screen under the
-   talker choice, offering to size a board that has no grid. */
-.sizeask { display: grid; gap: 8px; margin-bottom: 4px; }
+   talker choice, offering to size a board that has no grid.
+   No margin of its own: the body it sits in now sets the gap between the
+   things in it - see `dialog.sheet--target` below - and a margin here would be
+   added to that gap rather than replacing it, leaving this one question
+   further from the note under it than the cards are from each other. */
+.sizeask { display: grid; gap: 8px; }
 .sizeask[hidden] { display: none; }
 .sizeask .note { margin: 0; }
 
@@ -1107,6 +1111,29 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   width: 15.21mm; height: 15.21mm; max-width: none; max-height: none;
   image-rendering: pixelated; border-radius: 2px;
 }
+
+/* ------------------------------------------------- what a Sammlung is for
+
+   The create dialog is a stack of decisions, not a page of prose, and that is
+   the whole reason it needs a rule of its own here.
+
+   components.css spaces a sheet body with `.sheet > .body > p + p`, which is
+   the right rhythm for the sheets that really are prose and reaches nothing at
+   all in this one: the two choices are buttons, the two conditional questions
+   are divs, and so the closing note - whose previous sibling is never a <p> -
+   had `margin: 0` and stood on the second card's border. The cards had nothing
+   between them either, for the same reason.
+
+   One gap on the body rather than a margin on the note, because what is
+   missing is this dialog's own rhythm and not anything about a .note. A rule
+   naming .note here would be this file redefining a shared component from
+   underneath, which is the mistake `.dropdown`'s comment in components.css
+   records - it set radius and padding and silently outranked .btn.
+
+   14px, so that it reads as the outer rhythm against the 8px inside .sizeask:
+   the size question, its choices and its own note have to go on reading as one
+   group and not as three more items in the stack. */
+dialog.sheet--target > .body { display: grid; gap: 14px; }
 
 /* The two choices a new Sammlung is made from. Stacked and full width, because
    each is a heading and a sentence rather than a word - the sentence is what
