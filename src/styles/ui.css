@@ -829,6 +829,36 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    leaves as a 3D groove. */
 .cardrule { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 
+/* An option with a note under it: the word-colour choice and the two
+   first-column switches in the Raster panel.
+
+   These rules were `.does`, written for the button sheet's "what a press
+   does" chooser, and they went out with it when that became a dropdown
+   (2d18063). The markup here stayed, so both groups have been drawing as a
+   run-on paragraph ever since - label and note butted together, the three
+   choices wrapping into each other. Restored under a name that says what they
+   are rather than what they were once for, because "does" is not a question
+   either group asks any more.
+
+   `.does__more` is not restored with them: it existed for the act chooser's
+   follow-up field and nothing here has one.
+
+   The shape is .size's above, deliberately - the card is one list of
+   decisions, and a bordered box that lights up when chosen should not be two
+   different boxes on the two halves of it. */
+.opts { display: grid; gap: 8px; }
+.opts__opt {
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 10px;
+  padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.opts__opt:hover { border-color: var(--text-faint); }
+.opts__opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opts__opt input { grid-row: span 2; align-self: center; accent-color: var(--accent-strong); }
+.opts__opt b { font-size: 14px; font-weight: 600; }
+.opts__opt small { font-size: 12.5px; color: var(--text-dim); }
+
 /* The two target-conditional questions inside the create dialog: how big the
    pages are, asked only of the tablet, and which language the device shows its
    own menu in, asked only of the talker.
