@@ -49,7 +49,7 @@
  */
 import { openDialog } from "@lautstark/design/dialog";
 import { menuOn } from "@lautstark/design/menu";
-import { say, status } from "./dom.js";
+import { negationCross, say, status } from "./dom.js";
 import { symbolInto } from "../backend/index.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
@@ -299,6 +299,12 @@ export interface PickColumn {
    *  does with either is the caller's - see the note at takeSymbol's callers,
    *  and both of them only ever fill a field that is still empty. */
   onPick(symbol: string, caption: string): void;
+  /** Whether the picture opens crossed out - Slot.negated. Absent, together
+   *  with onNegate below, for a picture that cannot be: a set key is
+   *  navigation rather than a word, and there is nothing on it to negate. */
+  negated?: boolean;
+  /** Somebody crossed the picture out, or stopped. */
+  onNegate?(negated: boolean): void;
 }
 
 /** Builds the left column. Private: the only way to one is through openSheet,
@@ -307,6 +313,7 @@ function drawPick(spec: PickColumn): HTMLElement {
   const pick = document.createElement("div");
   pick.className = "pick";
   let symbol = spec.symbol;
+  let negated = Boolean(spec.negated);
 
   const preview = document.createElement("div");
   const drawPreview = () => {
@@ -331,6 +338,9 @@ function drawPick(spec: PickColumn): HTMLElement {
     // would send somebody to pick a second.
     image.onerror = () => { image.replaceWith(missing(symbol)); };
     preview.appendChild(image);
+    // Over the picture, at the size of the box, so the preview says the same
+    // thing the cell behind the sheet says and the device will say.
+    if (negated) preview.appendChild(negationCross());
   };
   drawPreview();
   pick.appendChild(preview);
@@ -376,6 +386,11 @@ function drawPick(spec: PickColumn): HTMLElement {
     drawPreview();
     drawResults();
     off.hidden = !symbol;
+    // Nothing to cross out on an empty key, and something to cross out again
+    // the moment there is a picture. The answer itself is left alone: taking a
+    // picture off and putting another one on is choosing a different picture
+    // for the same key, and the key is still the one that says "not".
+    negateLabel.hidden = !symbol;
   };
 
   let hits: SymbolHit[] = [];
@@ -495,6 +510,49 @@ function drawPick(spec: PickColumn): HTMLElement {
   acts.className = "pick__acts";
   acts.append(own, off);
   pick.append(acts, file);
+
+  /* Crossing the picture out.
+   *
+   * A checkbox rather than a fifth thing in the row above, because it is not a
+   * thing done *to* the picture the way choosing one and taking one off are -
+   * it is a state the key is in, and it stays true while the picture under it
+   * is swapped. That is the whole of why it is a field on the key rather than
+   * a second reference: see Slot.negated.
+   *
+   * Hidden with no picture, for the reason the ✕ is: there is nothing to cross
+   * out, and a live control over an empty box invites a press that does
+   * nothing visible. It comes back by itself as soon as a picture is picked,
+   * because drawActs() runs on every change to what is on the key. */
+  const negate = document.createElement("input");
+  negate.type = "checkbox";
+  negate.id = "pickNegate";
+  negate.checked = negated;
+  negate.onchange = () => {
+    negated = negate.checked;
+    spec.onNegate?.(negated);
+    drawPreview();
+    status(t(negated ? "ui.symbol_negated" : "ui.symbol_negate_off"));
+  };
+  const negateLabel = document.createElement("label");
+  negateLabel.className = "pick__negate";
+  negateLabel.htmlFor = negate.id;
+  negateLabel.append(negate, document.createTextNode(t("ui.symbol_negate")));
+  /* A label and nothing else, though a sentence explaining *why* a German
+   * board crosses a picture out rather than using another one would help a
+   * carer who has not built one before.
+   *
+   * It was written and taken out again, measured rather than argued: three
+   * lines of prose here cost 60px, and this column already overflows the
+   * sheet's scrolling body by a little. Sixty more pushed the ARASAAC notice
+   * at its foot from mostly visible to entirely below the fold, and that
+   * notice is a condition of a licence rather than something we choose to
+   * show. The reader who needs the explanation has already been given it by
+   * then anyway: ui.search_near says the collection holds no picture for the
+   * word they typed, one control above this one. */
+  if (spec.onNegate) {
+    negateLabel.hidden = !symbol;
+    pick.appendChild(negateLabel);
+  }
 
   /* What is owed for the collection these pictures come from.
    *

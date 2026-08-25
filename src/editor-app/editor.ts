@@ -22,7 +22,7 @@
 // near it: what happens to the buttons that pointed at a deleted page is the
 // part of this that is expensive to get wrong, so it is the part that can be
 // tested without a browser.
-import { $, status } from "../shell/dom.js";
+import { $, negationCross, status } from "../shell/dom.js";
 import { symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
@@ -366,7 +366,17 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     // editors' cells all have to make it and it was three copies of one
     // sentence-picking rule.
     image.onerror = () => { image.replaceWith(missing(held.symbol)); };
-    box.appendChild(image);
+    // Crossed out, and only then wrapped: the cross has to be the size of the
+    // picture rather than of the cell - see .cell__crossed - and an ordinary
+    // button keeps the <img> as its own flex item.
+    if (held.negated) {
+      const crossed = document.createElement("span");
+      crossed.className = "cell__crossed";
+      crossed.append(image, negationCross());
+      box.appendChild(crossed);
+    } else {
+      box.appendChild(image);
+    }
   }
 
   /* The word, where there is one.
@@ -668,6 +678,7 @@ interface Draft {
   label: string;
   vocalization: string;
   symbol: string;
+  negated: boolean;
   wordClass: string;
   act: Act;
 }
@@ -729,8 +740,8 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
 
   const draft: Draft = held
     ? { label: held.label, vocalization: held.vocalization, symbol: held.symbol,
-        wordClass: held.wordClass, act: held.act }
-    : { label: "", vocalization: "", symbol: "", wordClass: "",
+        negated: Boolean(held.negated), wordClass: held.wordClass, act: held.act }
+    : { label: "", vocalization: "", symbol: "", negated: false, wordClass: "",
         act: { kind: "append" } };
   /* Whether "Neue Seite ..." is what the target select is standing on.
    *
@@ -961,6 +972,11 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
       label: draft.label, vocalization: draft.vocalization,
       symbol: draft.symbol, wordClass: draft.wordClass, act: draft.act,
     });
+    // Present only when it is true, never a stored false - see Slot.negated.
+    // A button that has never been crossed out is written exactly as it was
+    // written before this field existed.
+    if (draft.negated) target.negated = true;
+    else delete target.negated;
     commit();
   };
 
@@ -971,6 +987,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
       // Seeded with the word already on the button, which is what somebody is
       // most likely looking for a picture of.
       seed: draft.label,
+      negated: draft.negated,
       /* Fills an empty label from the collection's own word for the symbol but
        * never writes over one somebody typed - the same rule both editors have
        * always kept, and for the same reason: the symbol may be called
@@ -982,6 +999,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
           labelInput.value = caption;
         }
       },
+      onNegate: (negated) => { draft.negated = negated; },
     },
     rows,
     ...(notice ? { notice } : {}),

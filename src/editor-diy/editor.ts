@@ -35,7 +35,7 @@
 // draws a colour round all five displays rather than one per key, and no row
 // for what a press does, because there is no sentence bar for a key to put
 // anything into.
-import { $ } from "../shell/dom.js";
+import { $, negationCross } from "../shell/dom.js";
 import { previewInto, symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
@@ -176,21 +176,30 @@ function emptySet(index: number): BoardSet {
  * strip under each key, which is also the honest comparison, since the device
  * shows five of these side by side.
  */
-function deviceImage(symbol: string, colour: string): HTMLImageElement {
+function deviceImage(symbol: string, colour: string, negated: boolean): HTMLImageElement {
   const image = document.createElement("img");
   image.className = "cell__pic cell__pic--device";
   image.alt = "";
   // The cell's own opener carries the accessible name; this says what somebody
   // hovering a suddenly coarse picture is looking at.
   image.title = t("ui.device_size");
-  previewInto(image, symbol, colour);
+  previewInto(image, symbol, colour, negated);
   return image;
 }
 
 /** The picture on a cell: the device's rendering while the preview is on, and
- *  the stored symbol otherwise. */
-function picture(symbol: string, colour: string): HTMLImageElement {
-  if (preview) return deviceImage(symbol, colour);
+ *  the stored symbol otherwise.
+ *
+ * A crossed-out key comes back wrapped, because the cross has to be the size
+ * of the picture rather than of the cell - see .cell__crossed. Only then:
+ * every key that is not negated is the bare <img> it has always been.
+ *
+ * Not while the preview is on, and that is the point of the preview. There the
+ * cross is already in the picture, baked into the tile by tiles.ts exactly as
+ * the device will show it; laying a second one over it would draw the editor's
+ * idea of the cross on top of the device's. */
+function picture(symbol: string, colour: string, negated = false): HTMLElement {
+  if (preview) return deviceImage(symbol, colour, negated);
   const image = document.createElement("img");
   image.className = "cell__pic";
   image.alt = "";
@@ -199,7 +208,11 @@ function picture(symbol: string, colour: string): HTMLImageElement {
   // reading is shell/sheet.ts's, because both editors' cells and the sheet's
   // own preview all have to make it.
   image.onerror = () => { image.replaceWith(missing(symbol)); };
-  return image;
+  if (!negated) return image;
+  const box = document.createElement("span");
+  box.className = "cell__crossed";
+  box.append(image, negationCross());
+  return box;
 }
 
 /** The widget inside a cell: what a press lands on.
@@ -325,7 +338,7 @@ function keyCell(entry: BoardSet, index: number): HTMLElement {
                                           : t("ui.diy_key_add")));
   box.appendChild(hit);
 
-  if (slot.symbol) box.appendChild(picture(slot.symbol, entry.color));
+  if (slot.symbol) box.appendChild(picture(slot.symbol, entry.color, slot.negated));
   if (said) {
     const word = document.createElement("span");
     word.className = "cell__word";
@@ -562,7 +575,7 @@ export function render(): void {
 function openKeySheet(index: number): Promise<Left> {
   const entry = set();
   const slot = entry.slots[index]!;
-  const draft = { text: slot.text, symbol: slot.symbol };
+  const draft = { text: slot.text, symbol: slot.symbol, negated: Boolean(slot.negated) };
 
   const spoken = textField(draft.text, (value) => { draft.text = value; });
   spoken.id = "diyKeyText";
@@ -583,6 +596,11 @@ function openKeySheet(index: number): Promise<Left> {
   const keep = () => {
     slot.text = draft.text;
     slot.symbol = draft.symbol;
+    // Present only when it is true, never a stored false: an ordinary key goes
+    // on being written exactly as it was before this field existed, so nothing
+    // that has never been crossed out looks changed to changed.ts.
+    if (draft.negated) slot.negated = true;
+    else delete slot.negated;
     commit();
   };
 
@@ -591,6 +609,7 @@ function openKeySheet(index: number): Promise<Left> {
     pick: {
       symbol: draft.symbol,
       seed: draft.text,
+      negated: draft.negated,
       /* Only fill a field that is still empty, never write over one somebody
        * typed: the symbol is called "zustimmen", but your key should say
        * "Ja!". The same rule editor-app keeps, and it has been this editor's
@@ -602,6 +621,7 @@ function openKeySheet(index: number): Promise<Left> {
           spoken.value = caption;
         }
       },
+      onNegate: (negated) => { draft.negated = negated; },
     },
     rows: [formRow(t("ui.text_placeholder"), withPlay,
                    t("ui.diy_key_spoken_note"), spoken.id)],
@@ -617,6 +637,11 @@ function openKeySheet(index: number): Promise<Left> {
         onPress: (settle: () => void) => {
           slot.text = "";
           slot.symbol = "";
+          // Putting a key back the way an untouched one is, and an untouched
+          // key is not crossed out. A cross left behind on an empty key is
+          // invisible - there is no picture under it - and comes back the
+          // moment somebody picks the next picture.
+          delete slot.negated;
           settle();
           commit();
         },
