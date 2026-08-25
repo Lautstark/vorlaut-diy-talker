@@ -41,7 +41,7 @@ import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
 import { isDiy } from "../core/types.js";
 import type { BoardSet, DiyLayout, Layout } from "../core/types.js";
-import { LANG, limits, palette } from "../core/boot.js";
+import { LANG, limits } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save } from "../core/save.js";
 import { paintOpenCollection } from "../shell/collections.js";
@@ -154,11 +154,6 @@ function emptySet(index: number): BoardSet {
   return {
     name: "Set " + (index + 1),
     symbol: "",
-    // Nothing on the page shows this or can change it - see BoardSet.color in
-    // core/types.ts for what is still reading it. Seeded from the palette by
-    // position rather than left blank, because a set that reached a .obf with
-    // color: "" is not a layout normalizeLayout() will accept back.
-    color: palette[index % palette.length]!,
     slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
   };
 }
@@ -688,12 +683,10 @@ async function editKey(index: number): Promise<void> {
  * reading it. The firmware has, so the row went with it: what is left is a
  * name and a picture, which are what a set is told apart by on the device.
  *
- * BoardSet.color itself is still there, and is not a leftover this could have
- * swept up - data/obf.ts writes it into a .obf as ext_vorlaut_color and reads
- * it back, and tests/reference/obf.lock.json freezes both directions,
- * including per-set colours that are not the palette's and could not be
- * derived from anything. Nothing sets it now: a set gets the palette's colour
- * for its position and keeps it.
+ * BoardSet.color went with it, one change later. It outlived the row because
+ * data/obf.ts wrote it into a .obf as ext_vorlaut_color and read it back, and
+ * tests/reference/obf.lock.json froze both directions; narrowing that lock is
+ * what let the field go.
  */
 function openSetSheet(): Promise<void> {
   const entry = set();
@@ -836,8 +829,6 @@ export const diy: Editor = {
       sets: [{
         name: "",
         symbol: "",
-        // Invisible, and the reason is emptySet()'s just above.
-        color: palette[0]!,
         slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
       }],
     };

@@ -1418,8 +1418,8 @@ export function wireEditor(): () => void {
  * tests/unit/layers.test.ts is what says so.
  */
 export const app: Editor = {
-  /* What a new tablet Sammlung starts as: one empty page, at the first colour
-   * of the palette, on the smallest grid worth having. 3x5 rather than 6x11
+  /* What a new tablet Sammlung starts as: one empty page, on the smallest
+   * grid worth having. 3x5 rather than 6x11
    * because a first board is big cells and few of them - and because the size
    * is a number now, so growing into the larger one costs nothing. */
   blank(grid?: GridSize): Layout {

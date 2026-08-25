@@ -28,7 +28,7 @@ const boot = await import("../../src/core/boot_data.js");
 
 import { check } from "./harness.js";
 
-const { LANGUAGES, DEFAULT_LANGUAGE, TEXTS, PALETTE, LIMITS } = boot;
+const { LANGUAGES, DEFAULT_LANGUAGE, TEXTS, LIMITS } = boot;
 
 check("it names the languages it carries",
       Array.isArray(LANGUAGES) && LANGUAGES.length > 0,
@@ -78,14 +78,6 @@ if (LANGUAGES.length === 2) {
   check(`${a} and ${b} are not the same table`, share < 0.5,
         `${same.length} of ${keysOf(a).length} labels identical`);
 }
-
-// No control offers these any more; a set is seeded with one by position and
-// data/obf.ts is what still carries it. Checked all the same, because an
-// empty or malformed table is a .obf that will not come back in.
-check("the palette is there for the colour a set is seeded with",
-      Array.isArray(PALETTE) && PALETTE.length > 0
-      && PALETTE.every((c) => /^#[0-9A-Fa-f]{6}$/.test(c)),
-      JSON.stringify(PALETTE));
 
 check("the cap is there and is a whole number",
       LIMITS && Number.isInteger(LIMITS.maxSets) && LIMITS.maxSets > 0,
