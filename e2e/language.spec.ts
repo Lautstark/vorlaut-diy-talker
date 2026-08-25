@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { put } from "./diy.js";
+import { openCollectionSettings, openPanel, openSettings, openVoices } from "./sheets.js";
 
 /* Two languages, and the whole point of these is that they are two.
  *
@@ -41,18 +42,20 @@ const OWN_NAME: Record<string, string> = { de: "Deutsch", en: "English" };
 const option = (page: Page, code: string) =>
   page.getByRole("menuitemradio", { name: OWN_NAME[code], exact: true });
 
-/** Opens the settings sheet and picks the language of this page. */
+/** Opens Einstellungen and picks the language of this page. */
 async function choose(page: Page, code: string): Promise<void> {
-  await page.click("#settingsLink");
+  await openSettings(page);
   await openPanel(page, "#languagePanel");
   await page.click("#langPick");
   await option(page, code).click();
 }
 
 /** The same for the other one: the language the device's menu speaks, which
- *  belongs to the Sammlung and is a panel of its own further down the sheet. */
+ *  belongs to the Sammlung and so is behind that Sammlung's ⋯ rather than in
+ *  Einstellungen at all. That the two are on two sheets is most of the point -
+ *  one is a fact about this browser, the other travels with an export. */
 async function chooseForCollection(page: Page, code: string): Promise<void> {
-  await page.click("#settingsLink");
+  await openCollectionSettings(page);
   await openPanel(page, "#collectionLanguagePanel");
   await page.click("#collectionLangPick");
   await option(page, code).click();
@@ -99,14 +102,6 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
 });
 
-/** Unfolds one panel. The sheet's panels are one exclusive group now - opening
- *  one closes the rest - so anything acting inside a panel has to open that
- *  panel first rather than assuming an earlier one stayed put. */
-async function openPanel(page: Page, id: string) {
-  const panel = page.locator(id);
-  if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
-}
-
 test("a chosen language is in force, and the menu says which", async ({ page }) => {
   await choose(page, CHOSEN);
 
@@ -129,7 +124,7 @@ test("the choice survives a reload, over what the browser asks for",
     await expect(page.locator("#releaseBtn")).toHaveText(says(CHOSEN, "ui.release"));
     // And the sheet's own controls, which are painted from LANG rather than
     // carried by the markup and so are not covered by applyTexts().
-    await page.click("#settingsLink");
+    await openSettings(page);
     await expect(page.locator("#langPick")).toHaveText(OWN_NAME[CHOSEN]);
     await expect(page.locator("#languageState")).toHaveText(OWN_NAME[CHOSEN]);
   });
@@ -165,7 +160,8 @@ test("the Sammlung's language is written to the layout, and moves nothing here",
     // Where it has to be for the device to get it: beside the voice, in the
     // layout. A board exported from here and flashed onto a talker carries the
     // menu language with it - that is why this one is not in localStorage the
-    // way the page's language and the scheme are.
+    // way the page's language and the scheme are, and why the control that
+    // sets it is on the Sammlung's sheet rather than in Einstellungen.
     await expect.poll(() => inTheLayout(page)).toBe(CHOSEN);
     await expect(page.locator("#collectionLangPick")).toHaveText(OWN_NAME[CHOSEN]);
     await expect(page.locator("#collectionLanguageState")).toHaveText(OWN_NAME[CHOSEN]);
@@ -173,8 +169,8 @@ test("the Sammlung's language is written to the layout, and moves nothing here",
     // And the page is still the reader's. This is the carer with a German
     // editor building an English talker, which was not possible at all.
     await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
-    await expect(page.locator("#settingsHeading"))
-      .toHaveText(says(ASKED, "ui.settings"));
+    await expect(page.locator("#collectionSheetHeading"))
+      .toHaveText(says(ASKED, "ui.collection_settings"));
     expect(await page.evaluate(() => localStorage.getItem("vorlaut.language")))
       .toBe(null);
   });
@@ -196,8 +192,7 @@ test("the Sammlung's language picks its voice, and the page's does not",
   async ({ page }) => {
     /** What the marked row says it speaks, in the words the page is wearing. */
     const speaking = async () => {
-      await page.click("#settingsLink");
-      await openPanel(page, "#voicePanel");
+      await openVoices(page);
       const facts = page.locator('#voiceList .voice[aria-checked="true"] .voice__facts');
       await expect(facts).toHaveCount(1);
       return (await facts.textContent())!;
@@ -218,27 +213,21 @@ test("the Sammlung's language picks its voice, and the page's does not",
     // the answer. It starts on the page-wide default, which is neither
     // language's fault - what matters is that moving it moves the voice.
     await chooseForCollection(page, CHOSEN);
-    await page.click("#voiceClose");
     expect(await speaking()).toContain(chosen);
-    await page.click("#voiceClose");
 
     await chooseForCollection(page, ASKED);
-    await page.click("#voiceClose");
     expect(await speaking()).toContain(asked);
-    await page.click("#voiceClose");
 
     // And the other control does not touch it. This is the carer working in a
     // German editor on a talker that speaks English: the page's language is
     // about the labels around them and says nothing about what the child's
     // device should say.
     await chooseForCollection(page, CHOSEN);
-    await page.click("#voiceClose");
     await choose(page, CHOSEN);
-    await page.click("#voiceClose");
     // Read back in the page's new language, so the word for it changes too.
     const stillChosen = named(CHOSEN, CHOSEN);
     expect(await speaking()).toContain(stillChosen);
-    await page.click("#voiceClose");
+    await page.click("#collectionSheetClose");
   });
 
 test("a voice somebody chose does not move when the Sammlung's language does",
@@ -246,22 +235,22 @@ test("a voice somebody chose does not move when the Sammlung's language does",
     // Only a guess may be revisited. A voice ticked on purpose is somebody's
     // arrangement - a German voice on an English board is a thing people do -
     // and re-languaging the Sammlung must not quietly undo it.
-    await page.click("#settingsLink");
-    await openPanel(page, "#voicePanel");
+    await openVoices(page);
     await expect(page.locator("#voiceList .voiceRow").first()).toBeVisible();
     const rows = page.locator("#voiceList .voiceRow");
     const picked = (await rows.last().locator(".voice__name").textContent())!;
     await rows.last().locator("button.voice").click();
     await expect(page.locator('#voiceList .voice[aria-checked="true"] .voice__name'))
       .toHaveText(picked);
-    await page.click("#voiceClose");
 
-    await chooseForCollection(page, CHOSEN);
-    await page.click("#voiceClose");
+    // The language is a panel away rather than a sheet away: both of these are
+    // this Sammlung's, which is what put them on one sheet.
+    await openPanel(page, "#collectionLanguagePanel");
+    await page.click("#collectionLangPick");
+    await option(page, CHOSEN).click();
     await expect.poll(() => inTheLayout(page)).toBe(CHOSEN);
 
-    await page.click("#settingsLink");
-    await openPanel(page, "#voicePanel");
+    await openVoices(page);
     await expect(page.locator('#voiceList .voice[aria-checked="true"] .voice__name'))
       .toHaveText(picked);
     // And it is a choice rather than a guess, so it wears no note saying
@@ -274,7 +263,7 @@ test("opening a Sammlung does not re-language the editor", async ({ page }) => {
   // A Sammlung whose device speaks the other language, saved and let go of.
   await chooseForCollection(page, CHOSEN);
   await expect.poll(() => inTheLayout(page)).toBe(CHOSEN);
-  await page.click("#voiceClose");
+  await page.click("#collectionSheetClose");
 
   // Read back the way somebody comes back to it: a reload is load(), which is
   // where the language used to be adopted. Nothing else on this page has
@@ -287,7 +276,7 @@ test("opening a Sammlung does not re-language the editor", async ({ page }) => {
   await expect(page.locator("#releaseBtn")).toHaveText(says(ASKED, "ui.release"));
 
   // The Sammlung kept its own answer through all of that.
-  await page.click("#settingsLink");
+  await openCollectionSettings(page);
   await openPanel(page, "#collectionLanguagePanel");
   await expect(page.locator("#collectionLangPick")).toHaveText(OWN_NAME[CHOSEN]);
 });
@@ -302,7 +291,7 @@ test("opening a Sammlung does not re-language the editor", async ({ page }) => {
  * status moves, so a switch on a quiet page left it in the old language even
  * once the formatter followed - both halves are needed and this covers both. */
 test("the folder's own line follows a switch, formatter and all", async ({ page }) => {
-  await page.click("#settingsLink");
+  await openSettings(page);
   await openPanel(page, "#dataPanel");
   const line = page.locator("#folderState");
   await expect(line).toBeVisible();

@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test";
  * than written out here in one language. */
 import { TEXTS } from "../src/core/boot_data.js";
 import { put } from "./diy.js";
+import { openPanel, openSettings, pickFromMenu } from "./sheets.js";
 /* Out of the modules that decide them rather than written here: a stride
  * this test spelled out for itself would agree with nothing. */
 import { HEADER_BYTES, SET_BYTES } from "../src/data/layout_format.js";
@@ -639,20 +640,19 @@ test("the build can be written into a folder, and says what it wrote",
   // transfer is being reported.
   await dismiss(page);
 
-  await page.locator("#settingsLink").click();
-  await expect(page.locator("#voices")).toBeVisible();
-  const panel = page.locator("#devicePanel");
-  // Chromium has the picker, so the panel is offered rather than hidden.
-  await expect(panel).toBeVisible();
-  await panel.locator("summary").click();
-  await panel.locator("#buildExport").click();
+  // In the ⋯ beside the Sammlung it builds, under the two exports: it is a
+  // third kind of export rather than anything this installation is set to.
+  // Chromium has the picker, so the entry is offered rather than absent.
+  await pickFromMenu(page, "ui.build_export");
 
   const written = filled("ui.build_written", {
     folder: "bench", written: built.names.length, removed: 0,
     size: Math.round(
       Object.values(built.sizes).reduce((sum, n) => sum + n, 0) / 1024),
   });
-  await expect(page.locator("#deviceState")).toHaveText(written);
+  // The page's own status line, because the menu it was pressed in has closed
+  // by then and there is no heading left to write under.
+  await expect(page.locator("#status")).toHaveText(written);
 
   /* And the folder really holds the build - every name, with the length the
      store says. A sentence about files that were never written is the failure
@@ -794,10 +794,12 @@ test("the port is asked for once, and the next press goes straight through",
 
   // The settings still offer a way to change it, which is the other half of
   // "asked once": a wrong port must not be a page reload to undo.
-  await page.locator("#settingsLink").click();
+  await openSettings(page);
   const panel = page.locator("#devicePanel");
-  await panel.locator("summary").click();
+  // Whether a port is granted is the one thing this panel has to say about
+  // itself, so it says it in the heading rather than under the button.
   await expect(panel.locator("#deviceLink")).toHaveText(SPEAKS["ui.device_connected"]);
+  await openPanel(page, "#devicePanel");
   await panel.locator("#deviceConnect").click();
   expect(await page.evaluate("globalThis.__asked")).toBe(2);
 });
@@ -817,12 +819,9 @@ test("the folder export builds first when there is nothing built",
   await seed(page);
 
   // Deliberately no press of the release button: nothing has been built.
-  await page.locator("#settingsLink").click();
-  const panel = page.locator("#devicePanel");
-  await panel.locator("summary").click();
-  await panel.locator("#buildExport").click();
+  await pickFromMenu(page, "ui.build_export");
 
-  await expect(panel.locator("#deviceState"))
+  await expect(page.locator("#status"))
     .toContainText(SPEAKS["ui.build_written"].split("{")[0].trim(), { timeout: 15_000 });
 
   const held = await page.evaluate(`(() => {

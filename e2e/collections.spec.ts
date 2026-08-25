@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { expectSaid, put } from "./diy.js";
+import { openCollectionSettings, openPanel, pickFromMenu } from "./sheets.js";
 
 /* Several Sammlungen in one browser: making them, switching, copying, deleting.
  *
@@ -32,6 +33,32 @@ const label = (key: string, params: Record<string, string | number> = {}) => {
 const SAVED = label("ui.saved");
 
 const rows = (page: Page) => page.locator("#collectionList .collections__item");
+
+/** The device language of whichever Sammlung is open, out of the database
+ *  rather than off the screen. The same read e2e/language.spec.ts makes, and
+ *  for the same reason: the layout is where this field has to end up for a
+ *  flashed talker to show its menu in it. */
+const inTheLayout = (page: Page) =>
+  page.evaluate(() => new Promise<string | null>((resolve) => {
+    const open = indexedDB.open("vorlaut");
+    open.onerror = () => resolve(null);
+    open.onsuccess = () => {
+      const tx = open.result.transaction(["marks", "layouts"], "readonly");
+      const current = tx.objectStore("marks").get("current");
+      current.onerror = () => resolve(null);
+      current.onsuccess = () => {
+        const got = tx.objectStore("layouts").get(current.result as string);
+        got.onerror = () => resolve(null);
+        got.onsuccess = () => {
+          try {
+            resolve(JSON.parse((got.result as { text: string }).text).language ?? null);
+          } catch {
+            resolve(null);
+          }
+        };
+      };
+    };
+  }));
 
 /** The default name, in whichever language the runner's browser picked.
  *
@@ -118,6 +145,154 @@ async function newCollection(page: Page, name: string) {
   // position here would be asserting the clock. Ordering has its own test.
   await expect(row(page, name)).toHaveCount(1);
 }
+
+/* --- what the ⋯ holds about one Sammlung ---------------------------------- */
+
+/** The languages by their own names, which is what both language controls
+ *  offer - "Deutsch" stays "Deutsch" whatever the page is set to. */
+const OWN_NAME: Record<string, string> = { de: "Deutsch", en: "English" };
+
+/** Makes one of whichever target and stops on the dialog, unanswered. */
+async function askTarget(page: Page, target: "diy" | "app") {
+  await page.locator("#collectionNew").click();
+  const asked = page.locator("dialog[open]")
+    .filter({ has: page.getByRole("heading", { name: label("ui.collection_target") }) });
+  await expect(asked).toBeVisible();
+  await asked.locator("button.choice")
+    .filter({ has: page.locator("strong",
+                                { hasText: label(`ui.collection_target_${target}`) }) })
+    .click();
+  return asked;
+}
+
+/* The two target-conditional questions, and that each is asked of exactly one
+ * target.
+ *
+ * Both halves matter and one of them was silently broken: .sizeask carries
+ * `display: grid`, which is an author rule and beats the user agent's
+ * [hidden], so setting .hidden on the grid question did nothing at all and it
+ * sat under the talker choice offering to size a board with no grid. Asserting
+ * visibility rather than the attribute is what catches that - the attribute
+ * was correct the whole time.
+ */
+test("the create dialog asks the talker about a language and the tablet about a grid",
+  async ({ page }) => {
+    await openCollection(page);
+
+    const forDiy = await askTarget(page, "diy");
+    const lang = forDiy.locator("#collectionNewLangLabel");
+    await expect(lang).toBeVisible();
+    await expect(forDiy.getByRole("group", { name: label("ui.app_grid_size") }))
+      .toBeHidden();
+
+    // The same dialog, the other choice: the two swap over rather than adding
+    // up, because they are answers to different questions about different
+    // hardware.
+    await forDiy.locator("button.choice")
+      .filter({ has: page.locator("strong",
+                                  { hasText: label("ui.collection_target_app") }) })
+      .click();
+    await expect(lang).toBeHidden();
+    await expect(forDiy.getByRole("group", { name: label("ui.app_grid_size") }))
+      .toBeVisible();
+  });
+
+/* The answer is carried into the Sammlung, which is the half a hidden control
+ * cannot prove. It is pre-filled from the page's language, so this changes it
+ * to the other one - a guess that happened to be right would pass with the
+ * field wired to nothing at all. */
+test("the language chosen while making a talker Sammlung is the one it keeps",
+  async ({ page }) => {
+    await openCollection(page);
+    const asked = await askTarget(page, "diy");
+
+    const page_language = await page.evaluate(() => document.documentElement.lang);
+    const other = page_language === "de" ? "en" : "de";
+    await asked.locator("#collectionNewLangLabel + .menu-anchor button").click();
+    await page.getByRole("menuitemradio", { name: OWN_NAME[other], exact: true }).click();
+    await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+    await expect(page.locator("#collectionName")).toBeFocused();
+
+    // Read off the stored layout rather than off the control that set it: a
+    // field that only paints itself is a field wired to nothing.
+    await expect.poll(() => inTheLayout(page)).toBe(other);
+
+    // And the sheet behind the ⋯ says the same thing, which is where somebody
+    // would go to change it afterwards.
+    await openCollectionSettings(page);
+    await openPanel(page, "#collectionLanguagePanel");
+    await expect(page.locator("#collectionLangPick")).toHaveText(OWN_NAME[other]);
+  });
+
+/* Which panels a Sammlung's own sheet has, by target.
+ *
+ * The language is the talker's alone: on a tablet package localeFor() reads
+ * the locale off the chosen voice first, so the field is nearly vestigial
+ * there and offering it would be a control with nothing downstream of it. The
+ * voice is both targets' - it is what every recording is spoken with either
+ * way.
+ */
+test("the Sammlung's sheet offers the language to a talker and not to a tablet",
+  async ({ page }) => {
+    await openCollection(page);
+    await openCollectionSettings(page);
+    await expect(page.locator("#collectionLanguagePanel")).toBeVisible();
+    await expect(page.locator("#voicePanel")).toBeVisible();
+    await page.locator("#collectionSheetClose").click();
+
+    const asked = await askTarget(page, "app");
+    await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+    await expect(page.locator("#collectionName")).toBeFocused();
+
+    await openCollectionSettings(page);
+    await expect(page.locator("#collectionLanguagePanel")).toBeHidden();
+    // And the voice is still asked, which is what makes it a sheet rather than
+    // an empty one.
+    await expect(page.locator("#voicePanel")).toBeVisible();
+    await expect(page.locator("#voicePanel")).toHaveAttribute("open", "");
+  });
+
+/* What the ⋯ offers, by target, in the order it offers it.
+ *
+ * The order is the claim: the acts on a Sammlung first, then what it is set
+ * to, then the delete which stays last wherever it appears. A tablet has no
+ * .obz - obf.ts writes the five-key device - and no build, because the build
+ * is a talker's file system; it has the grid card instead. */
+test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
+  async ({ page }) => {
+    await openCollection(page);
+    await page.locator("#collectionMenu").click();
+    const entries = page.locator('[role="menuitem"]');
+    await expect(entries).toHaveText([
+      label("ui.collection_export"), label("ui.collection_export_app"),
+      label("ui.build_export"), label("ui.collection_settings"),
+      label("ui.collection_delete"),
+    ]);
+    await page.keyboard.press("Escape");
+
+    const asked = await askTarget(page, "app");
+    await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+    await expect(page.locator("#collectionName")).toBeFocused();
+
+    await page.locator("#collectionMenu").click();
+    await expect(entries).toHaveText([
+      label("ui.app_grid"), label("ui.collection_settings"),
+      label("ui.collection_delete"),
+    ]);
+  });
+
+/* The build is an act on one Sammlung, so it is in the ⋯ beside the name of
+ * the one it would build - not in Einstellungen, which is about this browser.
+ * Where it lands is e2e/build.spec.ts's; that it is not left behind in the
+ * settings sheet is this one's. */
+test("the settings sheet has no per-Sammlung control left in it", async ({ page }) => {
+  await openCollection(page);
+  await page.locator("#settingsLink").click();
+  await expect(page.locator("#voices")).toBeVisible();
+  for (const gone of ["#voicePanel", "#collectionLanguagePanel", "#buildExport"]) {
+    await expect(page.locator(`#voices ${gone}`)).toHaveCount(0);
+  }
+});
 
 test("a first visit has one collection, and it is open", async ({ page }) => {
   await openCollection(page);
