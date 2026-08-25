@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
-import { put } from "./diy.js";
+import { hits, key, keySheet, openBoard, put, search } from "./diy.js";
 import { openCollectionSettings, openPanel, openSettings, openVoices } from "./sheets.js";
 
 /* Two languages, and the whole point of these is that they are two.
@@ -307,4 +307,101 @@ test("the folder's own line follows a switch, formatter and all", async ({ page 
   await expect(line).toContainText(says(CHOSEN, "ui.folder_off"));
   await expect(page.locator("#folderActions button").first())
     .toHaveText(says(CHOSEN, "ui.folder_choose"));
+});
+
+/* The half of a language switch that was not switching.
+ *
+ * Everything above this point is labels, and labels were the whole of it: the
+ * page went English and the symbols stayed German, because ARASAAC keeps its
+ * keywords per language, the language is part of the request path, and
+ * bildquelle had that path hardcoded to /de. The German pipeline ran on English
+ * input for the same reason.
+ *
+ * It failed quietly, which is why it survived so long. ARASAAC's German
+ * endpoint does not reject an English word - it answers one, out of its tags
+ * and synsets - so "water" came back as a water-transport sign. Nobody saw an
+ * error. They saw a board with the wrong picture on it, which is worse than an
+ * empty square, because an empty square is something a carer fixes.
+ *
+ * So these assert on the requests rather than only on what is drawn: the
+ * drawing was never the part that lied.
+ */
+
+/** One word that exists in each language, for asking each collection for. */
+const WORD: Record<string, string> = { de: "trinken", en: "drink" };
+
+/** ARASAAC, holding exactly WORD in each language, and writing down what it
+ *  was asked for. The language is the fourth path segment:
+ *  /v1/pictograms/en/search/drink */
+async function arasaacPerLanguage(page: Page, asked: string[]): Promise<void> {
+  await page.route("**/api.arasaac.org/**", (route) => {
+    const parts = new URL(route.request().url()).pathname.split("/");
+    const lang = parts[3]!;
+    const term = decodeURIComponent(parts[5]!);
+    asked.push(`${lang}/${term}`);
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(WORD[lang] === term
+        ? [{ _id: 4242, keywords: [{ keyword: term }] }]
+        : []),
+    });
+  });
+  await page.route("**/static.arasaac.org/**", (route) =>
+    route.fulfill({ contentType: "image/png", body: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }));
+}
+
+/** A key's sheet, open, with the picture column that carries the search. */
+async function openKeyPicker(page: Page): Promise<Locator> {
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  await expect(box.locator(".pick")).toBeVisible();
+  return box;
+}
+
+test("the symbols are searched in the language the page is set to", async ({ page }) => {
+  const asked: string[] = [];
+  await arasaacPerLanguage(page, asked);
+
+  const box = await openKeyPicker(page);
+  await search(box, WORD[ASKED]!);
+
+  await expect(hits(box).first()).toBeVisible();
+  expect(asked.length).toBeGreaterThan(0);
+  expect(asked.every((one) => one.startsWith(`${ASKED}/`))).toBe(true);
+});
+
+test("switching the page switches which collection is asked", async ({ page }) => {
+  await choose(page, CHOSEN);
+
+  const asked: string[] = [];
+  await arasaacPerLanguage(page, asked);
+
+  // openKeyPicker reloads, so this also says the choice outlived the tab.
+  const box = await openKeyPicker(page);
+  await expect(page.locator("html")).toHaveAttribute("lang", CHOSEN);
+  await search(box, WORD[CHOSEN]!);
+
+  await expect(hits(box).first()).toBeVisible();
+  expect(asked.some((one) => one.startsWith(`${CHOSEN}/`))).toBe(true);
+  // The one that matters: not a single request went to the other language.
+  expect(asked.filter((one) => one.startsWith(`${ASKED}/`))).toEqual([]);
+});
+
+test("an inflected word is looked up under its lemma, in either language", async ({ page }) => {
+  /* The pipeline follows the page too, and it has to: asking the English
+   * endpoint with a German lemmatiser in front of it would fix the wrong half.
+   * "drinks" is not a word ARASAAC holds and "drink" is, and only a pipeline
+   * that knows English plurals gets from one to the other. */
+  await choose(page, CHOSEN);
+
+  const asked: string[] = [];
+  await arasaacPerLanguage(page, asked);
+
+  const box = await openKeyPicker(page);
+  await search(box, `${WORD[CHOSEN]}s`);
+
+  await expect(hits(box).first()).toBeVisible();
+  expect(asked).toContain(`${CHOSEN}/${WORD[CHOSEN]}s`);
+  expect(asked).toContain(`${CHOSEN}/${WORD[CHOSEN]}`);
 });

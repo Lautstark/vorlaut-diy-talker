@@ -13,14 +13,23 @@ import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
  * right heading. A broken one is a legal defect rather than a visual one, so
  * the deploy is gated on it like everything else in this folder.
  *
- * There are no German literals in the assertions below beyond the two link
- * labels, and that is not squeamishness about the language rule: the page
- * opens in whatever language the browser asks for and a runner picks its own,
- * so an assertion written in one language would pass on this machine and fail
- * on CI. What is asserted instead is what both tables have to say either way -
- * a name, an address, the parties the data actually reaches. The two labels
- * are the exception because they are the same word in both tables on purpose:
- * they are what the law names, not what we chose to call them.
+ * There is one German literal in the assertions below, and that is not
+ * squeamishness about the language rule: the page opens in whatever language
+ * the browser asks for and a runner picks its own, so an assertion written in
+ * one language would pass on this machine and fail on CI. What is asserted
+ * instead is what both tables have to say either way - a name, an address, the
+ * parties the data actually reaches.
+ *
+ * "Impressum" is the exception, and it is the same word in both tables on
+ * purpose: it is what the law names rather than what we chose to call it, and
+ * §5 DDG asks that the page be easy to recognise as the one it is. An English
+ * reader meets a German word there and that is the trade being made.
+ *
+ * Its neighbour used to be the same exception and is not any more. Nothing
+ * names the privacy page - Article 13 requires the information, not a word on
+ * a button - so "Datenschutz" in an English footer was untranslated rather
+ * than legally load-bearing, and it reads out of the table now like everything
+ * else here.
  */
 
 const table = TEXTS as Record<string, Record<string, string>>;
@@ -42,7 +51,7 @@ test("the three pages are reachable from the page itself", async ({ page }) => {
   // No scrolling to a hidden area, no menu to open first: one click from here.
   await expect(footer.getByRole("button", { name: either("ui.legal_about") })).toBeVisible();
   await expect(footer.getByRole("button", { name: "Impressum", exact: true })).toBeVisible();
-  await expect(footer.getByRole("button", { name: "Datenschutz", exact: true })).toBeVisible();
+  await expect(footer.getByRole("button", { name: either("ui.legal_privacy") })).toBeVisible();
 });
 
 test("the Impressum names who runs the site and how to reach them", async ({ page }) => {
@@ -106,9 +115,9 @@ test("the ARASAAC licence notice is on the page, standing", async ({ page }) => 
 });
 
 test("the privacy notice names everything that leaves the browser", async ({ page }) => {
-  await page.getByRole("button", { name: "Datenschutz", exact: true }).click();
+  await page.getByRole("button", { name: either("ui.legal_privacy") }).click();
 
-  const dialog = page.getByRole("dialog", { name: "Datenschutz" });
+  const dialog = page.getByRole("dialog", { name: either("ui.legal_privacy") });
   await expect(dialog).toBeVisible();
   const body = dialog.locator("#privacyPage");
   await expect(body).toBeVisible();
@@ -141,7 +150,7 @@ test("a page can be closed, and the next one opens in its place", async ({ page 
 
   // The failure this catches: opening a second page without hiding the first,
   // which leaves two of them stacked under one heading.
-  await page.getByRole("button", { name: "Datenschutz", exact: true }).click();
+  await page.getByRole("button", { name: either("ui.legal_privacy") }).click();
   await expect(page.locator("#privacyPage")).toBeVisible();
   await expect(page.locator("#impressumPage")).toBeHidden();
 });

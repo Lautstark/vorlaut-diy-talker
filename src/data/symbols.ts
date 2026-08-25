@@ -23,8 +23,12 @@ import {
   getProvider,
   metacom,
   MetacomProvider,
+  setSymbolLanguage,
+  symbolLanguage,
+  type LanguageCode,
   type ProviderId,
 } from "@lautstark/bildquelle";
+import { LANG } from "../core/boot.js";
 
 /** How many hits per source reach the dialog. Matches SEARCH_LIMIT in app.py. */
 const SEARCH_LIMIT = 24;
@@ -173,6 +177,7 @@ async function decorate(hits, source) {
 export async function search(word, source) {
   const term = (word || "").trim();
   if (!term) return [];
+  symbolsSpeak();
   try {
     return await decorate(await getProvider(source).search(term), source);
   } catch {
@@ -203,10 +208,17 @@ export const setActiveSource = (source: ProviderId) => { active = source; };
  * Not the raw string against the labels any more. A key on this board says
  * "Ich habe Durst" and the collection holds "durstig": comparing the two as
  * strings finds nothing, and since the picker offers one collection there is
- * no second one to fall back on. bildquelle's German half turns the text into
- * the words worth looking up - lemma, then the compound it probably is, then a
- * synonym - and suggest() flattens what they found into one ranked list, which
- * is the shape a grid of tiles wants.
+ * no second one to fall back on. bildquelle turns the text into the words
+ * worth looking up and suggest() flattens what they found into one ranked
+ * list, which is the shape a grid of tiles wants.
+ *
+ * Which half of bildquelle does that depends on the page's language, and it
+ * used to be German whatever the page said. That was not a missing feature so
+ * much as a wrong answer: this page has offered English throughout, and
+ * ARASAAC's German endpoint does not refuse an English word, it answers one -
+ * "water" came back as a water-transport sign. An English reader was being
+ * shown the wrong picture rather than none, which is worse on a board than an
+ * empty square.
  *
  * Stopwords are dropped only when there is more than one word. A search box is
  * not a sentence: somebody who types a single function word means that word,
@@ -214,22 +226,61 @@ export const setActiveSource = (source: ProviderId) => { active = source; };
  * a question they did not ask. Several words *is* a sentence, and there the
  * function words really are noise.
  */
+/* Which language the sources are searched in, taken from the page's own.
+ *
+ * Read off the live binding at each use rather than wired to the language
+ * switch, and that is deliberate. LANG moves in place - the switch is a
+ * re-render, not a reload, see core/boot.ts - and there are three entry points
+ * below that would each have had to remember to ask. One of them forgetting
+ * would not be a crash: it would be an English word with a German picture
+ * under it, which is the failure this whole arrangement exists to stop, and it
+ * looks exactly like a working page.
+ *
+ * It is a `set` behind a comparison rather than an unconditional one because
+ * the picker calls this on every keystroke.
+ *
+ * This is the page's language, not the Sammlung's. A carer working in German
+ * may be building an English talker - chooseCollectionLanguage() is that other
+ * choice - and the symbols they are shown while building it are theirs to
+ * read. The device's own language does not change what the picker searches. */
+function symbolsSpeak(): LanguageCode {
+  const code: LanguageCode = LANG === "de" ? "de" : "en";
+  if (symbolLanguage() !== code) setSymbolLanguage(code);
+  return code;
+}
+
 /* Fetched the first time somebody searches, and not before.
  *
- * The lemma, baseword and synonym tables behind it are about 170 KB - 42 KB
- * over the wire - and they are worth nothing until a word is typed into the
- * picker. Loading them with the page would spend that on every visit,
- * including the ones that only press a key to hear it. The promise is kept so
- * the second keystroke does not ask again.
+ * The tables behind German are about 170 KB - 42 KB over the wire - and they
+ * are worth nothing until a word is typed into the picker. Loading them with
+ * the page would spend that on every visit, including the ones that only press
+ * a key to hear it. The promise is kept so the second keystroke does not ask
+ * again. English is far smaller, and is loaded the same way for the same
+ * reason: whichever one is not being read should not be on the wire at all.
+ *
+ * Kept per language rather than as one slot, so that switching back and forth
+ * does not re-fetch what the browser already has.
  *
  * A chunk that failed to arrive stays failed for the life of the document, and
- * clearing this variable on a rejection does not change that: the browser's
- * module map remembers the failure against the URL, so the retried import()
- * rejects again without a request going out. Measured, not assumed. That is
- * why the failure is reported rather than retried - see ui.search_failed,
- * which says to reload the page, because reloading is what actually helps. */
-let german: Promise<typeof import("@lautstark/bildquelle/german")> | null = null;
-const loadGerman = () => (german ??= import("@lautstark/bildquelle/german"));
+ * clearing the entry on a rejection does not change that: the browser's module
+ * map remembers the failure against the URL, so the retried import() rejects
+ * again without a request going out. Measured, not assumed. That is why the
+ * failure is reported rather than retried - see ui.search_failed, which says to
+ * reload the page, because reloading is what actually helps. */
+type Pipeline = Pick<
+  typeof import("@lautstark/bildquelle/german"), "suggest" | "tokenize">;
+
+const pipelines = new Map<LanguageCode, Promise<Pipeline>>();
+
+function loadPipeline(lang: LanguageCode): Promise<Pipeline> {
+  const held = pipelines.get(lang);
+  if (held) return held;
+  const loading: Promise<Pipeline> = lang === "de"
+    ? import("@lautstark/bildquelle/german")
+    : import("@lautstark/bildquelle/english");
+  pipelines.set(lang, loading);
+  return loading;
+}
 
 /* Throws, unlike search() above, and the difference is what the caller can do
  * about it. search() answers for one named source out of several, where a
@@ -241,7 +292,7 @@ const loadGerman = () => (german ??= import("@lautstark/bildquelle/german"));
 export async function searchIn(source: ProviderId, word: string) {
   const term = (word || "").trim();
   if (!term) return [];
-  const { suggest, tokenize } = await loadGerman();
+  const { suggest, tokenize } = await loadPipeline(symbolsSpeak());
   const single = tokenize(term).length <= 1;
   const hits = await suggest(term, {
     provider: getProvider(source),
@@ -314,5 +365,10 @@ export function loadImage(url): Promise<HTMLImageElement> {
  * METACOM owes nothing: it is the user's own licensed copy.
  */
 export function attributionFor(sources) {
+  // The notice is shown verbatim to whoever is reading, so it follows the page
+  // rather than the source. Asked here as well as at search time because a
+  // reader who has opened the settings sheet and searched for nothing has
+  // still been shown it.
+  symbolsSpeak();
   return attributionsFor(sources);
 }
