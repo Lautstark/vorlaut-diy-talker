@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, moveButton,
-  outside, pageById, reachable, resize, unreachable,
+  addPage, allButtons, blankButton, blankPage, buttonAt, deletePage, elsewhere,
+  inboundTo, isShared, moveButton, moveShared, outside, pageById, reachable,
+  resize, shareFirstColumn, shared, sharedAt, sharedColumn, spreadFirstColumn,
+  unreachable,
 } from "../../src/editor-app/pages.js";
 import type { AppButton, AppLayout } from "../../src/core/types.js";
 
@@ -239,5 +241,231 @@ describe("what a page and a button start as", () => {
     expect([one.row, one.col]).toEqual([2, 3]);
     expect(one.label).toBe("");
     expect(one.wordClass).toBe("");
+  });
+});
+
+/* The first column, when it belongs to the Sammlung rather than to each page.
+ *
+ * The same reason the rest of this file exists, one column narrower. What is
+ * expensive to get wrong here is not the drawing - a column that fails to
+ * appear is a column somebody can see is missing - it is the counting and the
+ * two edges: a button authored once and drawn on four pages must be met once
+ * by everything that counts, and switching the column on takes one page's
+ * column over the others, which is the only act in this model that throws work
+ * away on a page nobody is looking at.
+ */
+
+/** twoPages(), with something in the first column of both. */
+function withColumns(): AppLayout {
+  const layout = twoPages();
+  layout.pages[0]!.buttons.push(
+    button({ id: "home-ich", row: 0, col: 0, label: "ich", wordClass: "pronoun" }),
+    button({ id: "home-second", row: 1, col: 0, label: "Mehr" }));
+  layout.pages[1]!.buttons.push(
+    button({ id: "food-du", row: 0, col: 0, label: "du" }));
+  return layout;
+}
+
+describe("switching the first column on", () => {
+  it("counts what the other pages would lose before anything is taken", () => {
+    const layout = withColumns();
+    // "apple" is already at 0,0 of the food page from twoPages(), and "food-du"
+    // was put on top of it: both are in a first column that is not the one
+    // being kept, and both go. The number is what the card names.
+    expect(elsewhere(layout, layout.home).map((one) => one.id))
+      .toEqual(["apple", "food-du"]);
+    // Nothing has happened yet. Asking is free - the card asks on every redraw.
+    expect(shared(layout)).toBe(false);
+    expect(layout.pages[1]!.buttons).toHaveLength(2);
+  });
+
+  it("moves the kept page's column rather than copying it", () => {
+    const layout = withColumns();
+    const ich = layout.pages[0]!.buttons.find((one) => one.id === "home-ich")!;
+
+    const gone = shareFirstColumn(layout, layout.home);
+
+    expect(gone.map((one) => one.id)).toEqual(["apple", "food-du"]);
+    // The same objects, so a label, a symbol, a colour and an edge all survive
+    // the switch. Copying would leave the page's originals behind as a second
+    // store nothing draws, and that is the one that goes stale unseen.
+    expect(sharedColumn(layout)[0]).toBe(ich);
+    expect(sharedColumn(layout).map((one) => one.id))
+      .toEqual(["home-ich", "home-second"]);
+    // And out of every page, the kept one included: column zero now has one
+    // owner, so a page holding a button there would be a second answer to what
+    // is in that cell.
+    for (const page of layout.pages) {
+      expect(page.buttons.filter((one) => one.col === 0)).toEqual([]);
+    }
+  });
+
+  it("is on with nothing in it when the page named has no column", () => {
+    const layout = twoPages();
+    // The start page has nothing at column zero, so there is nothing to take -
+    // and switching it on anyway is the state somebody who wants to build the
+    // column from scratch is asking for. An empty array is not the same as no
+    // field: the column is the Sammlung's and there is nothing in it yet.
+    expect(shareFirstColumn(layout, layout.home).map((one) => one.id))
+      .toEqual(["apple"]);
+    expect(shared(layout)).toBe(true);
+    expect(sharedColumn(layout)).toEqual([]);
+    expect(layout.firstColumn).toEqual([]);
+  });
+});
+
+describe("switching the first column off", () => {
+  it("writes it onto every page, so nothing is lost", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+
+    spreadFirstColumn(layout);
+
+    expect(shared(layout)).toBe(false);
+    // The inverse of the export rather than of the switch: the package has
+    // always written this column onto every board, and this writes it onto
+    // every page. So there is nothing to ask about, which is why this half has
+    // no question where the other half has one.
+    for (const page of layout.pages) {
+      expect(page.buttons.filter((one) => one.col === 0).map((one) => one.label))
+        .toEqual(["ich", "Mehr"]);
+    }
+  });
+
+  it("gives each page its own ids, because they are separate buttons now", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+    spreadFirstColumn(layout);
+
+    const ids = layout.pages.flatMap(
+      (page) => page.buttons.filter((one) => one.col === 0).map((one) => one.id));
+    // Four buttons, four ids. Two pages sharing one id would make "which one
+    // did I just change" unanswerable, and moveButton() finds by id.
+    expect(new Set(ids).size).toBe(ids.length);
+    expect("firstColumn" in layout).toBe(false);
+  });
+});
+
+describe("counting a column that is drawn on every page", () => {
+  it("meets every button once, however many pages there are", () => {
+    const layout = withColumns();
+    const before = allButtons(layout).length;
+    shareFirstColumn(layout, layout.home);
+    // Two of the five went with the other page's column; the two that stayed
+    // are now one column rather than one per page. What must not happen is the
+    // count growing with the page count - see the Editor port's count().
+    expect(allButtons(layout)).toHaveLength(before - 2);
+    addPage(layout, "Dachboden");
+    expect(allButtons(layout)).toHaveLength(before - 2);
+  });
+
+  it("counts the column once when a shorter grid would lose it", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+    // "Mehr" sits at row 1 of a column drawn on both pages. One button is
+    // going, not two, and the sentence the card shows says so.
+    expect(outside(layout, 1, 5).map((one) => one.id)).toEqual(["home-second"]);
+  });
+
+  it("never loses the column to a narrower grid, because it is column zero", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+    // Everything else goes and the column stays, which is the state a
+    // one-column grid is: no grid is narrower than one column, so nothing in
+    // here can fall out sideways.
+    expect(outside(layout, 6, 1).map((one) => one.id)).toEqual(["to-food"]);
+  });
+});
+
+describe("resizing with a shared first column", () => {
+  it("trims the column by the same rule and in the same call", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+    resize(layout, 1, 5);
+    // A row that is gone is gone from every page at once, which is what the
+    // column being one thing means.
+    expect(sharedColumn(layout).map((one) => one.id)).toEqual(["home-ich"]);
+    expect(layout.grid).toEqual({ rows: 1, columns: 5 });
+  });
+
+  it("leaves the column and nothing else at one column wide", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+    resize(layout, 3, 1);
+    // Not refused. It is not a state the four offered sizes reach, and every
+    // page button it costs was already counted by outside() - so the question
+    // that got here named the whole number.
+    expect(sharedColumn(layout)).toHaveLength(2);
+    for (const page of layout.pages) expect(page.buttons).toEqual([]);
+  });
+});
+
+describe("a shared button that leads somewhere", () => {
+  it("makes its target reachable from every page, so from home", () => {
+    const layout = withColumns();
+    const attic = addPage(layout, "Dachboden");
+    expect(unreachable(layout).map((one) => one.name)).toEqual(["Dachboden"]);
+
+    layout.pages[0]!.buttons.push(button({
+      id: "col-attic", row: 2, col: 0, label: "Dachboden",
+      act: { kind: "goto", page: attic.id },
+    }));
+    shareFirstColumn(layout, layout.home);
+
+    // One `goto` in the column is a way in from anywhere, which is the whole
+    // of what makes the column persistent - so the strip must stop marking
+    // that page as one nothing leads to.
+    expect(unreachable(layout)).toEqual([]);
+    expect(reachable(layout).has(attic.id)).toBe(true);
+  });
+
+  it("counts as one inbound edge, not one per page", () => {
+    const layout = withColumns();
+    const food = layout.pages[1]!;
+    layout.pages[0]!.buttons.push(button({
+      id: "col-food", row: 2, col: 0, act: { kind: "goto", page: food.id },
+    }));
+    shareFirstColumn(layout, layout.home);
+
+    // Two edges: the "to-food" button on the start page, and the column's -
+    // once, because it was authored once and deleting the page has one edge to
+    // take from it. It counts even though it is also drawn on the food page
+    // itself: the rule that a page does not lead to itself is about a button
+    // sitting on the page it points at, and this one sits on all of them.
+    expect(inboundTo(layout, food.id).map((one) => one.id))
+      .toEqual(["to-food", "col-food"]);
+
+    expect(deletePage(layout, food.id)).toBe(2);
+    expect(sharedColumn(layout).find((one) => one.id === "col-food")!.act)
+      .toEqual({ kind: "append" });
+  });
+});
+
+describe("moving inside the shared column", () => {
+  it("trades places with whatever is at the row it lands on", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+
+    moveShared(layout, "home-ich", 1);
+
+    // moveButton()'s rule in one dimension: the column is one cell wide, so
+    // there is nowhere sideways to go and the swap is the whole of it.
+    expect(sharedAt(layout, 1)!.id).toBe("home-ich");
+    expect(sharedAt(layout, 0)!.id).toBe("home-second");
+    expect(sharedColumn(layout).every((one) => one.col === 0)).toBe(true);
+  });
+
+  it("just moves when the row is empty, and ignores what is not in it", () => {
+    const layout = withColumns();
+    shareFirstColumn(layout, layout.home);
+    moveShared(layout, "home-ich", 2);
+    expect(sharedAt(layout, 2)!.id).toBe("home-ich");
+    expect(sharedAt(layout, 0)).toBeUndefined();
+    // A page's button is not the column's, and asking the column to move it is
+    // not how a button crosses between the two - nothing here does that.
+    moveShared(layout, "to-food", 0);
+    expect(sharedAt(layout, 0)).toBeUndefined();
+    expect(isShared(layout, "to-food")).toBe(false);
+    expect(isShared(layout, "home-ich")).toBe(true);
   });
 });
