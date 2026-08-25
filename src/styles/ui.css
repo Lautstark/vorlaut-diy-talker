@@ -558,12 +558,34 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 }
 /* Narrower than the symbol picker: that one shows a grid of tiles, this one
    reads as a list of settings. */
-/* components.css draws the sheet - ground, border, radius, shadow. What is
-   vorlaut's is the size and the fact that its body is edge-to-edge folded
-   panels, which is why the shared 22px of padding comes back off here and the
-   head, body and foot carry their own. */
-dialog.sheet {
-  width: min(520px, 92vw); max-width: min(520px, 92vw); max-height: 88vh; padding: 0;
+/* components.css draws the sheet - ground, border, radius, shadow, and 22px of
+   padding around the three regions. What is vorlaut's about every sheet is the
+   height cap, which is the half of "one scrolling area" that the overflow rule
+   below cannot supply on its own: without a ceiling the sheet grows instead of
+   its body scrolling. */
+dialog.sheet { max-height: 88vh; }
+/* The size and the missing padding are not the component's - they belong to
+   the two sheets that are in this page's markup, and to those two only. Both
+   have a body that is furniture rather than prose: the settings sheet is
+   edge-to-edge folded panels and the legal pages are one scrolling column with
+   its own measure. So both take the shared 22px off and put it back inside,
+   which is what the head rule further down and `.legal > .body` are doing.
+
+   This was written as `dialog.sheet`, and openDialog() puts `className:
+   'sheet'` on the <dialog> element itself - so it reached every dialog the
+   shared helper builds, and took the padding off bodies that had nothing to
+   put back. Their contents sat flush against both edges; the width did the
+   same thing one property along, which is what `.sheet--button` was pushing
+   back against with `width: 100%`.
+
+   Scoped by id rather than by a new class because these two are singletons in
+   the markup: there is exactly one settings sheet and exactly one legal
+   dialog, and an id says that where a class would invite a third. It is the
+   hazard components.css warns about one level up, in its note on
+   `.sheet > .head` - a vocabulary this small and this reused has to be scoped,
+   and here a rule written for one instance caught the whole component. */
+#voices, #legal {
+  width: min(520px, 92vw); max-width: min(520px, 92vw); padding: 0;
 }
 /* Only while it is open. An unqualified display here would beat the
    browser's own dialog:not([open]) { display: none } - the sheet would then
@@ -584,7 +606,7 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
    one inside a summary is the panel's heading, and components.css says what
    that looks like; reaching into it from here would put a group label where
    a heading belongs. Hence the child combinators: this is the loose one only. */
-.sheet > .body > .section {
+#voices > .body > .section {
   padding: 16px 16px 0; font-size: 12px; letter-spacing: .08em;
   text-transform: uppercase; color: var(--text-dim);
 }
@@ -602,12 +624,14 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
 .setting .field { width: 100%; align-self: stretch; }
 .setting .field[type=password] { font-family: ui-monospace, monospace; }
 /* The transfer sheet. Three states in one body - what is about to be written,
-   the transfer with its log, and how it ended - so what is styled here is the
-   padding the settings sheet's own panels carry for themselves. The settings
-   sheet is edge-to-edge folded panels and takes the shared 22px back off (see
-   dialog.sheet above); this one is prose and a list, and wants it back. */
+   the transfer with its log, and how it ended. It is prose and a list, so it
+   wants the shared 22px, and now it has it: it is openDialog()'s sheet and the
+   rule above no longer reaches it. What is left here is the rhythm between the
+   three, which is vertical only. The horizontal 16px each of them used to
+   carry was this sheet paying for padding that had been taken off it by a rule
+   meant for the settings sheet, and repeating it now would be 38px a side. */
 .sheet > .body > .lead {
-  margin: 0; padding: 16px 16px 0; font-size: 14px; color: var(--text-dim);
+  margin: 0; font-size: 14px; color: var(--text-dim);
 }
 /* Label and value, not a table: the labels are one word and the values are a
    sentence, so a fixed first column reads better than either of them wrapping
@@ -615,7 +639,7 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
    label, which is a different width in each language. */
 dl.transfer {
   display: grid; grid-template-columns: max-content 1fr;
-  gap: 6px 16px; margin: 0; padding: 16px;
+  gap: 6px 16px; margin: 16px 0 0; padding: 0;
 }
 dl.transfer dt { color: var(--text-dim); font-size: 13px; }
 dl.transfer dd { margin: 0; font-size: 14px; }
@@ -624,16 +648,17 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    status, so it is also what a screen reader hears - the page's own status
    line is behind an aria-modal dialog while this is open, and inert. */
 .sheet > .body > .doing {
-  margin: 0; padding: 16px 16px 10px; font-size: 13px; color: var(--text-dim);
+  margin: 0 0 10px; font-size: 13px; color: var(--text-dim);
   min-height: 1em;
 }
-.sheet > .body > .log { margin: 0 16px 16px; }
+.sheet > .body > .log { margin: 0; }
 
-/* A little air above the buttons: what now ends the body is the edge of a
-   folded panel, which would otherwise sit straight on top of Save. */
-.sheet > .foot {
-  gap: 8px; padding: 12px 16px 16px; margin: 0; border-top: 1px solid var(--line);
-}
+/* No foot rule here on purpose. There was one - `padding: 12px 16px 16px;
+   margin: 0` - and every part of it was the shared 22px being written out by
+   hand for sheets that had just had it taken away. The two sheets that really
+   do take it away have no foot at all between them; the feet that rule was
+   reaching were openDialog()'s, which now keep components.css's own - a rule
+   above the buttons, 18px of air over it, 14px under. */
 /* A cross, not the word - it sits in the corner where one reaches for it,
    and it needs no room for a translation. The word stays as the label for
    anything that reads the page out. It is .btn.quiet.icon and nothing else
@@ -643,7 +668,10 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 /* The voice list. Two buttons per row on purpose: hearing a voice and
    choosing it are two different decisions, and the first should not commit
    to the second. */
-.sheet > .head { padding: 16px 16px 4px; margin: 0; }
+/* The head half of what those two sheets took off above, and scoped the same
+   way for the same reason: on a sheet that still has the shared 22px this
+   would be 38px down either side. */
+#voices > .head, #legal > .head { padding: 16px 16px 4px; margin: 0; }
 .sheet > .head strong { flex: 1 1 auto; font-weight: 600; }
 /* No scrolling of its own any more. It used to be twenty rows deep and
    carried a scrollbar inside the sheet's scrollbar; folded up it is one row,
@@ -985,7 +1013,16 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 /* A width override on the shared component, not a redefinition of it: two
    columns need more than the 600px a sheet of prose wants. Everything else -
    the head, body and foot anatomy, the border, the shadow - stays
-   components.css's. */
+   components.css's.
+
+   `width: 100%` used to be this rule prying itself back out of the 520px an
+   unscoped `dialog.sheet` was imposing on every sheet in the page. That is
+   gone, and measured now the sheet reaches 720px without it. It stays anyway,
+   for the reason it would have been written for had the other rule never
+   existed: with a max-width alone the sheet is as wide as its content, and the
+   content of the left column is symbol search results - so the sheet would
+   change width as they arrive and again as a different word is searched for.
+   Pinned to the cap it just sits still. */
 dialog.sheet--button { max-width: 720px; width: 100%; }
 
 .sheet--button > .body {
