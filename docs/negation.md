@@ -33,7 +33,7 @@ vorlaut draws a symbol in four places, and they are not one problem.
 |---|---|---|
 | `symbolInto()` — [`backend/local.ts`](../src/backend/local.ts) | an `<img>` on screen: the sheet's preview, a tablet cell, a talker key | an overlay, exactly as bildhaft does it |
 | `previewInto()` — same file | the talker's life-size 128x128 preview, which runs the real tile pipeline | free, and correct — it is the tile |
-| `renderSymbol()` — [`data/tiles.ts`](../src/data/tiles.ts) | 116x116 RGB565 written to the device | composited into a bitmap |
+| `renderSymbol()` — [`data/tiles.ts`](../src/data/tiles.ts) | 128x128 RGB565 written to the device | composited into a bitmap |
 | `bakeImage()` — [`data/app_assets.ts`](../src/data/app_assets.ts) | a PNG member of an app package | composited into a bitmap |
 
 And there is a fifth surface that has no pixels at all, which turns out to
@@ -184,9 +184,11 @@ board at arm's length before fixing them:
 * **inset** `Math.floor(size / 10)`, against the placeholder's `size / 4`. The
   placeholder's cross marks an empty field, so it sits small and central; a
   negation crosses the whole picture and has to reach its corners.
-* **width** 8 at 116px, against the placeholder's 4. bildhaft's stroke is 7 in
-  a 100-unit box, and the device's cross has to survive being looked at across
-  a room by somebody who is not reading.
+* **width** 9 device pixels, against the placeholder's 4. bildhaft's stroke is
+  7 in a 100-unit box, and the device's cross has to survive being looked at
+  across a room by somebody who is not reading. Unchanged when the tile went
+  from 116 to 128: the panel is 15.21 mm either way, so this is the same amount
+  of stroke to look at. The inset is a share of the tile and did grow with it.
 
 **Colour: a literal, and it will shift.** `--danger` is a theme token and it is
 a different value per product and per scheme — mitreden's light red is

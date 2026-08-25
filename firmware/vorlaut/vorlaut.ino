@@ -22,9 +22,12 @@
 // is drawn by the firmware itself.
 #define DISPLAY_W 128
 #define DISPLAY_H 128
-#define TILE_BORDER 6
-#define TILE_W (DISPLAY_W - 2 * TILE_BORDER)
-#define TILE_H (DISPLAY_H - 2 * TILE_BORDER)
+// The menu draws its own frame; the talker's tiles have none, and fill the
+// display edge to edge. TILE_W and TILE_H are what is left of a tile that used
+// to be the square inside a border - the file is the whole panel now.
+#define MENU_BORDER 6
+#define TILE_W DISPLAY_W
+#define TILE_H DISPLAY_H
 
 // --- Structure of the content ------------------------------------------------
 // How many sets there are, which colours and which file belongs to which key
@@ -264,37 +267,31 @@ static void setupDisplays(bool stillAwake) {
   }
 }
 
-// Draws the symbol area from the file (TILE_W x TILE_H, RGB565 big-endian),
-// and blacks out the six pixels around it.
+// Draws the whole display from the file (DISPLAY_W x DISPLAY_H, RGB565
+// big-endian).
 //
-// Those six pixels used to be the set's colour, and nothing replaces it. A
-// border in one fixed colour would tell a reader nothing - it would be the
-// same on every key of every set, which is precisely the information the
-// colour carried and no longer has to carry. Black is what the panel already
-// is everywhere else, so the tile simply sits on the screen.
+// There were six pixels of border round a smaller tile. They were the set's
+// colour, drawn here rather than baked into the file so that one symbol was
+// one file across differently coloured sets; the colour went, they were being
+// blacked out for nothing, and a symbol has them now - about a tenth wider in
+// each direction on a key 15.21 mm across.
 //
-// Still painted rather than left alone: drawMenuKey() puts a grey frame on
-// these same six pixels, and coming back out of the menu has to take it off
-// again. Four small fills rather than a fillScreen, which would rewrite the
-// 116x116 underneath about to be written anyway.
+// Nothing is cleared first any more, and that is the point of a tile that
+// reaches the edge: it covers whatever was on the panel, including the grey
+// frame drawMenuKey() leaves behind. The only case that still clears is a file
+// that will not open, below.
 static void drawTile(Panel *tft, const char *path) {
-  tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, ST77XX_BLACK);
-  tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, ST77XX_BLACK);
-  tft->fillRect(0, TILE_BORDER, TILE_BORDER, TILE_H, ST77XX_BLACK);
-  tft->fillRect(DISPLAY_W - TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_H,
-                ST77XX_BLACK);
-
   static uint16_t line[TILE_W];
 
   File file = (filesystemReady && path) ? LittleFS.open(path, "r") : File();
   if (!file) {
     if (path) Serial.printf("missing: %s\n", path);
-    tft->fillRect(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H, ST77XX_BLACK);
+    tft->fillScreen(ST77XX_BLACK);
     return;
   }
 
   tft->startWrite();
-  tft->setAddrWindow(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H);
+  tft->setAddrWindow(0, 0, TILE_W, TILE_H);
   for (uint16_t y = 0; y < TILE_H; y++) {
     size_t got = file.read((uint8_t *)line, sizeof(line));
     if (got < sizeof(line)) {
@@ -373,12 +370,14 @@ static void drawCurrentSet() {
 static const uint16_t MENU_FRAME = 0x8410;   // mid grey in RGB565
 
 static void drawMenuKey(Panel *tft, const char *first, const char *second) {
-  tft->fillRect(0, 0, DISPLAY_W, TILE_BORDER, MENU_FRAME);
-  tft->fillRect(0, DISPLAY_H - TILE_BORDER, DISPLAY_W, TILE_BORDER, MENU_FRAME);
-  tft->fillRect(0, TILE_BORDER, TILE_BORDER, TILE_H, MENU_FRAME);
-  tft->fillRect(DISPLAY_W - TILE_BORDER, TILE_BORDER, TILE_BORDER, TILE_H,
+  const int16_t inner = DISPLAY_H - 2 * MENU_BORDER;
+  tft->fillRect(0, 0, DISPLAY_W, MENU_BORDER, MENU_FRAME);
+  tft->fillRect(0, DISPLAY_H - MENU_BORDER, DISPLAY_W, MENU_BORDER, MENU_FRAME);
+  tft->fillRect(0, MENU_BORDER, MENU_BORDER, inner, MENU_FRAME);
+  tft->fillRect(DISPLAY_W - MENU_BORDER, MENU_BORDER, MENU_BORDER, inner,
                 MENU_FRAME);
-  tft->fillRect(TILE_BORDER, TILE_BORDER, TILE_W, TILE_H, ST77XX_BLACK);
+  tft->fillRect(MENU_BORDER, MENU_BORDER, DISPLAY_W - 2 * MENU_BORDER, inner,
+                ST77XX_BLACK);
   if (!first && !second) return;   // a key with nothing behind it stays dark
 
   drawTwoLines(tft, first, second, DISPLAY_W, 2);

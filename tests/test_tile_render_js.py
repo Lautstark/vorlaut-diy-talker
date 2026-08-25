@@ -85,15 +85,28 @@ def check(name: str, ok: bool, detail: str = "") -> None:
         failures.append(name)
 
 
-def constant(source: str, name: str) -> str | None:
+def constant(source: str, name: str, depth: int = 4) -> str | None:
     """The literal a `export const NAME = ...;` line gives.
 
     Read out of the text rather than out of node, so that this half of the
     test still runs where node does not. Trailing comments are ordinary on
     these lines, so the value ends at the semicolon, not at the newline.
+
+    One constant may be spelled as another - TILE_SIZE is IMG_SIZE, which is
+    how the module says the tile is the whole display rather than a square
+    inside it - so a value that is itself a name here is followed. Bounded,
+    because a file that has managed to define two constants as each other
+    should fail rather than hang.
     """
-    found = re.search(rf"^export const {name} = ([^;]+);", source, re.M)
-    return found.group(1).strip() if found else None
+    for _ in range(depth):
+        found = re.search(rf"^export const {name} = ([^;]+);", source, re.M)
+        if not found:
+            return None
+        value = found.group(1).strip()
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]*", value):
+            return value
+        name = value
+    return None
 
 
 def check_constants(lock: dict) -> None:
@@ -113,7 +126,13 @@ def check_constants(lock: dict) -> None:
           f"long as that takes - docs/frozen-references.md, under Tile "
           f"rendering")
     check("IMG_SIZE agrees", constant(source, "IMG_SIZE") == str(lock["img_size"]))
-    check("BORDER agrees", constant(source, "BORDER") == str(lock["border"]))
+    # TILE_SIZE rather than the BORDER that used to be checked here. The tile
+    # was the square inside a six-pixel border and is the whole display area
+    # now, so there is no border to agree about - and the size is the constant
+    # that actually decides the bytes, which the border only ever did by
+    # subtraction.
+    check("TILE_SIZE agrees", constant(source, "TILE_SIZE") == str(lock["tile_size"]),
+          f"js {constant(source, 'TILE_SIZE')} vs frozen {lock['tile_size']}")
 
 
 # What node runs. Everything the browser contributes - decoding the PNG - is

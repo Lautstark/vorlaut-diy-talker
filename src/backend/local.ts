@@ -211,7 +211,7 @@ export async function uploadSymbol(file, name = file.name) {
   return { symbol: key };
 }
 
-/** The 128x128 the panel really shows: the tile, and the six pixels round it.
+/** The 128x128 the panel really shows, which is the tile and nothing else.
  *
  * Reproduces preview_png() in app.py, including the part that looks like a
  * detail and is not - RGB565 has five bits of red and six of green, and a
@@ -219,10 +219,10 @@ export async function uploadSymbol(file, name = file.name) {
  * gives a preview very slightly darker than the device, which is exactly the
  * kind of difference nobody can see and everybody argues about.
  *
- * The six pixels took the set's colour and are black now, which is what
- * drawTile() in the firmware fills them with. They are still filled here for
- * the same reason they are filled there: the preview is the device, and a
- * transparent margin would show the page through it rather than the panel. */
+ * There were six pixels round the tile - the set's colour, then black, then
+ * nothing. The tile is the whole display now, so the canvas is the tile: no
+ * ground to fill and no offset to draw at, which is also what drawTile() in
+ * the firmware does. */
 export async function previewInto(image, symbol, negated = false) {
   const raw = tiles.renderSymbol(await picture(symbol), { negated });
   const side = tiles.TILE_SIZE;
@@ -239,14 +239,8 @@ export async function previewInto(image, symbol, negated = false) {
   }
 
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = tiles.IMG_SIZE;
-  const context = canvas.getContext("2d");
-  context.fillStyle = "#000000";
-  context.fillRect(0, 0, tiles.IMG_SIZE, tiles.IMG_SIZE);
-  const patch = document.createElement("canvas");
-  patch.width = patch.height = side;
-  patch.getContext("2d").putImageData(inner, 0, 0);
-  context.drawImage(patch, tiles.BORDER, tiles.BORDER);
+  canvas.width = canvas.height = side;
+  canvas.getContext("2d").putImageData(inner, 0, 0);
 
   // The element is handed over rather than a URL returned precisely so that
   // this can happen: the picture is not there until it has been drawn, and
@@ -814,7 +808,7 @@ export async function importBoard(file): Promise<ReadFile> {
 //
 // Per active set and slot it puts into the "data" store:
 //
-//   t<hash>.bin   116x116 RGB565 big-endian, the symbol area without a border
+//   t<hash>.bin   128x128 RGB565 big-endian, the whole display, no border
 //   a<hash>.wav   spoken sentence, 16 kHz mono 16 bit
 //   layout.bin    the table the firmware reads all of it back out of
 //

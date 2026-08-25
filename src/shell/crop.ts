@@ -3,9 +3,9 @@
  * ## Why this exists at all
  *
  * Nothing was broken without it. data/tiles.ts fits a picture into the
- * device's 116x116 preserving its proportions and centres it on the set's
- * colour, and data/app_assets.ts does the same at 512 for the package the
- * tablet opens. So a photo off a phone has always worked - it just arrived as
+ * device's 128x128 preserving its proportions and centres it on the ground
+ * colour it works out from the picture's own corners, and data/app_assets.ts
+ * does the same at 512 for the package the tablet opens. So a photo off a phone has always worked - it just arrived as
  * a 4:3 strip in a square tile, a quarter of the key given over to ground
  * colour and the child's face smaller than it needed to be. This is about
  * filling the key, not about fixing a fault.
@@ -55,7 +55,7 @@ const FRAME = 0.84;
 const MARGIN = (1 - FRAME) / 2 * 100;
 
 /** How far in the slider goes. Four times is a face out of a group photo,
- *  which is the far end of what this is for; past that a 116px tile is being
+ *  which is the far end of what this is for; past that a 128px tile is being
  *  cut from too few pixels to carry it. */
 const CLOSEST = 4;
 

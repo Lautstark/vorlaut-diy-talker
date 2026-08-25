@@ -159,7 +159,7 @@ Code under [MIT](LICENSE). Three things in here are not:
 
 METACOM is a **commercial symbol set with a per-person licence.** A talker built
 here can show METACOM symbols on its keys, because that is what the licence is
-for: making communication material for the person you support. A 116×116 tile on
+for: making communication material for the person you support. A 128×128 tile on
 a display is the same object as a laminated card, and nobody thinks laminating
 one is a licensing question.
 

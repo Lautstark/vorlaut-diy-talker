@@ -1,13 +1,12 @@
 {
   "what": "The tiles Pillow renders for the inputs in tests/reference/tiles/, frozen so that static/tiles.js can be checked without a live Pillow deciding what the answer is.",
   "produced_by": "tools/tilefreeze.py",
-  "produced_on": "2026-08-22",
+  "produced_on": "2026-08-26",
   "pillow": "12.3.0",
   "python": "3.14.6",
-  "tile_pipeline": 2,
-  "tile_size": 116,
+  "tile_pipeline": 3,
+  "tile_size": 128,
   "img_size": 128,
-  "border": 6,
   "format": "16 bit RGB565, big-endian, row by row, no header - what the ST7735 is handed. tile_size squared pixels, so expected_bytes is 2 * tile_size * tile_size.",
   "pixel_format": "raw RGBA, 8 bits a channel, row by row, gzipped. pixels_sha256 is over the ungzipped bytes, so it is about the picture and not about the compression.",
   "invalidated_by": [
@@ -27,8 +26,8 @@
       "pixels": "tiles/hilfe.rgba.gz",
       "pixels_sha256": "ccee5cd194d1392f97b6462217f74ce709e9794782f764c869aebebdc4571b3b",
       "thumbnail": [
-        116,
-        116
+        128,
+        128
       ],
       "ground": [
         255,
@@ -36,8 +35,8 @@
         255
       ],
       "expected": "tiles/hilfe.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "de0318beaad7c9a323090ba70eb74f2a79e69cd1d9a5e21362bc804704d87576"
+      "expected_bytes": 32768,
+      "expected_sha256": "01fdd286de7b6a8a9558b8d463daea32205b8aa247f9fff0d98f8c1895d617a1"
     },
     {
       "name": "ja",
@@ -47,8 +46,8 @@
       "pixels": "tiles/ja.rgba.gz",
       "pixels_sha256": "b8c115c61655eca07d093dcae1252155e0cfb6f2f713ae4824392139166ebf2b",
       "thumbnail": [
-        116,
-        116
+        128,
+        128
       ],
       "ground": [
         255,
@@ -56,8 +55,8 @@
         255
       ],
       "expected": "tiles/ja.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "14fcc581f49a01079e457329c4e262ae75ddb489f48c689e4b22c16a6727c254"
+      "expected_bytes": 32768,
+      "expected_sha256": "d503359f170e7e9d41a8e91d4eaee36e06431e8069c281e59010480f150cf3f6"
     },
     {
       "name": "nein",
@@ -67,8 +66,8 @@
       "pixels": "tiles/nein.rgba.gz",
       "pixels_sha256": "526e644cec2cd5c7fcb54ca45cb082b057ddbd22d7716cad39b34a2e7ccfcb48",
       "thumbnail": [
-        116,
-        116
+        128,
+        128
       ],
       "ground": [
         255,
@@ -76,8 +75,8 @@
         255
       ],
       "expected": "tiles/nein.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "d4e7ee4ee0a5ce10f0fff7569c98bccc0c3a44512f8b1f1ec13f6a9a74f9422e"
+      "expected_bytes": 32768,
+      "expected_sha256": "c741aca9caf35ba6da721e0b134c25a503af3b6d3d443295f9eee95bbd66824d"
     },
     {
       "name": "start",
@@ -87,8 +86,8 @@
       "pixels": "tiles/start.rgba.gz",
       "pixels_sha256": "e7437721d450f52bbaf32e15464090d5744981fd194e9bee3209f53fb723e32e",
       "thumbnail": [
-        116,
-        116
+        128,
+        128
       ],
       "ground": [
         255,
@@ -96,8 +95,8 @@
         255
       ],
       "expected": "tiles/start.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "2afa4d32eee07dcddd0182f1cc437b06c22c4cf089247cfa568124c704ca40ed"
+      "expected_bytes": 32768,
+      "expected_sha256": "622945a2030245bba724bb34dff3a0bf898234afb3cb1a5f4d6a4ba19713aecc"
     },
     {
       "name": "stopp",
@@ -107,8 +106,8 @@
       "pixels": "tiles/stopp.rgba.gz",
       "pixels_sha256": "66e116c1351115dea5a5e27ebb797983a9fe2d7641a9ddc98e7b1380ef61aa09",
       "thumbnail": [
-        116,
-        116
+        128,
+        128
       ],
       "ground": [
         255,
@@ -116,8 +115,8 @@
         255
       ],
       "expected": "tiles/stopp.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "4579e0d5c805d9ae4ba7f5732aa22a9dc0e206faabe03284c59a2b984a7de74d"
+      "expected_bytes": 32768,
+      "expected_sha256": "bbe9c5b320bb53229d9b7c75f7fde80a50f81a5e38ecc55db33e57551b32cce4"
     },
     {
       "name": "wide-opaque",
@@ -127,8 +126,8 @@
       "pixels": "tiles/wide-opaque.rgba.gz",
       "pixels_sha256": "29511a359fe4a831fef6e2602fca7ba77c78e55e1f6a515d709bdff110a750cf",
       "thumbnail": [
-        116,
-        97
+        128,
+        107
       ],
       "ground": [
         36,
@@ -136,8 +135,8 @@
         84
       ],
       "expected": "tiles/wide-opaque.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "ce3cfe3d69eeb203ac52da96710f4d6a7f892b3074d69bec931e43fbe2f41235"
+      "expected_bytes": 32768,
+      "expected_sha256": "2e45650a5c1fac29160586602040f1b01479c0502d7248f5fb5f29273b0bfd35"
     },
     {
       "name": "tall-soft",
@@ -147,8 +146,8 @@
       "pixels": "tiles/tall-soft.rgba.gz",
       "pixels_sha256": "5f6de05c5de54f82a9c41e94a4302f31f5d1b1aca27f636022d14f95bb5ec4e9",
       "thumbnail": [
-        61,
-        116
+        67,
+        128
       ],
       "ground": [
         255,
@@ -156,8 +155,8 @@
         255
       ],
       "expected": "tiles/tall-soft.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "ec52c66dd7d5c42f6ae797319dbb9bff42793c1ef9db6943dcbbecb03581eec8"
+      "expected_bytes": 32768,
+      "expected_sha256": "130afe9c192c3b2f75fa8cc86150c549f48a5c8a66c44cc495c2350ceb3f445a"
     },
     {
       "name": "small-wider",
@@ -176,8 +175,8 @@
         255
       ],
       "expected": "tiles/small-wider.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "6509f74c40c5f40db09016d91da5441e6523a1fbcd321f7a04bda8e3e9dbffb7"
+      "expected_bytes": 32768,
+      "expected_sha256": "2d8f8e2dc9df283793b632824ae2ef2d310850ee1735f5b51307f13542298f66"
     },
     {
       "name": "corners-differ",
@@ -187,8 +186,8 @@
       "pixels": "tiles/corners-differ.rgba.gz",
       "pixels_sha256": "7e640cfa43c5c8bf1c56440efc782df40b60c13ad6325db4c329460add3b36d2",
       "thumbnail": [
-        116,
-        116
+        128,
+        128
       ],
       "ground": [
         255,
@@ -196,8 +195,8 @@
         255
       ],
       "expected": "tiles/corners-differ.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "f88693f4734d04cda824232ecee146282723d2717803afec511cdcfed086c152"
+      "expected_bytes": 32768,
+      "expected_sha256": "05fd44ce7f2b2722095dc6495ce74167744d9e861a4da5dc306acb243b9eb968"
     },
     {
       "name": "nearly-opaque",
@@ -207,8 +206,8 @@
       "pixels": "tiles/nearly-opaque.rgba.gz",
       "pixels_sha256": "51b1d0235790853605ce867857cef05e1d32c167a93245b03667de815807588d",
       "thumbnail": [
-        116,
-        77
+        128,
+        85
       ],
       "ground": [
         255,
@@ -216,8 +215,8 @@
         255
       ],
       "expected": "tiles/nearly-opaque.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "ada00b7f4126f1ad2071797edd36136f961501bf90fb3cb5c2318268315adccc"
+      "expected_bytes": 32768,
+      "expected_sha256": "17e36bb9cdf5ad3c8b9e74fb63fce22f47d402e9e659120ef72ce899dd538063"
     },
     {
       "name": "odd-leftover",
@@ -227,8 +226,8 @@
       "pixels": "tiles/odd-leftover.rgba.gz",
       "pixels_sha256": "6d3c46357428aed7e85bca89edcf13c1daf5f3843a8a14ebf501beaf1750b548",
       "thumbnail": [
-        116,
-        57
+        128,
+        63
       ],
       "ground": [
         255,
@@ -236,8 +235,8 @@
         255
       ],
       "expected": "tiles/odd-leftover.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "1432b2c3dad6ed0824cc2ffea6b8b17e9a57a99c7009a4763b7b99d952d09d49"
+      "expected_bytes": 32768,
+      "expected_sha256": "d7f8b369b86ed78c49c4fdc05782ed26521ce88c5d3e75f9e55bd220619a6b36"
     },
     {
       "name": "quantisation",
@@ -256,8 +255,8 @@
         255
       ],
       "expected": "tiles/quantisation.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "f3fcb9cf05f713123666ec8d48cf4599aa13f756d7969947991f9582a769ad00"
+      "expected_bytes": 32768,
+      "expected_sha256": "f3274b6ba25d4afdc618b6bce66fcd407bfbfbc60e7ce5f1116569ac288e7d23"
     },
     {
       "name": "fully-transparent",
@@ -267,8 +266,8 @@
       "pixels": "tiles/fully-transparent.rgba.gz",
       "pixels_sha256": "82f71d6e878c9534d8b86691366e6bd1739493f499d448658e5e0d26ac8d184c",
       "thumbnail": [
-        116,
-        87
+        128,
+        96
       ],
       "ground": [
         255,
@@ -276,8 +275,8 @@
         255
       ],
       "expected": "tiles/fully-transparent.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "411e2f0f909b737a255be6da5e8ab58e602e1973567e6faa4fa2e7a9ecb709b5"
+      "expected_bytes": 32768,
+      "expected_sha256": "2d864c0b789a43214eee8524d3182075125e5ca2cd527f3582ec87ffd94076bc"
     },
     {
       "name": "placeholder",
@@ -288,8 +287,8 @@
       "thumbnail": null,
       "ground": null,
       "expected": "tiles/placeholder.rgb565",
-      "expected_bytes": 26912,
-      "expected_sha256": "9ff9b4c6106c8f47b7f526c76bbabd3afa5840d277b57371b7979d55493fca22"
+      "expected_bytes": 32768,
+      "expected_sha256": "aced2393078365fa74ae50b4d1bde5bcce98aa56d5fb553469ad14b9a4cea613"
     }
   ]
 }

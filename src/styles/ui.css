@@ -1118,8 +1118,9 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 
    The shared .cell is 4:3, which is the tablet's cell and a fair picture of a
    tablet button. It is not a fair picture of this one: a key on this device is
-   a 128x128 screen showing a 116x116 tile - IMG_SIZE and TILE_SIZE in
-   src/data/tiles.ts - so a 4:3 cell here reports a shape the hardware does not
+   a 128x128 screen showing a 128x128 tile - IMG_SIZE and TILE_SIZE in
+   src/data/tiles.ts, one being the other - so a 4:3 cell here reports a shape
+   the hardware does not
    have, and reports it while somebody is deciding whether a pictogram survives
    at that size. Whatever else the board is doing, it is drawing the device.
 
@@ -1173,7 +1174,7 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .cell--setkey .cell__pic { max-height: 48%; margin-top: 8px; }
 
 /* The device preview, which is the picture at the size the display really
-   shows it: 15.21 mm, scaled to 116x116 and rounded to RGB565 by
+   shows it: 15.21 mm, scaled to 128x128 and rounded to RGB565 by
    previewInto(). Life-size on screen, so somebody can judge whether a
    pictogram survives the trip at all.
 
