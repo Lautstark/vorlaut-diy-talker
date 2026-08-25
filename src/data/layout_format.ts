@@ -41,44 +41,7 @@ export const HEADER_BYTES = 4 + 4 + 4;                                          
 export const LANGUAGE_CODES = { en: 0, de: 1 };
 export const DEFAULT_LANGUAGE = "en";
 
-// --- Colours, which are no longer this file's ---------------------------------
-//
-// The set entry carried a colour until the firmware stopped drawing one, and
-// these three helpers were how it became two bytes. They stay here rather than
-// moving because they are still layout.py's colour helpers, and data/obf.ts is
-// still holding them to what layout.py said - normalizeColor's answers, the
-// default among them, are frozen in tests/reference/obf.lock.json by way of
-// cssColor(). Moving them would be a rename in front of a lock, for no reader.
-//
-// rgbTo565 went with the colour: it was the last step to the panel's own
-// format and nothing else here wanted it. data/tiles.ts has its own, for the
-// pixels inside the tile.
-export const DEFAULT_COLOR = "#3B5BDB";
-
 const encoder = new TextEncoder();
-
-export function normalizeColor(value) {
-  let text = String(value || "").trim();
-  if (!text.startsWith("#")) text = "#" + text;
-  if (text.length === 4) {            // #abc -> #aabbcc
-    text = "#" + [...text.slice(1)].map((ch) => ch + ch).join("");
-  }
-  // Python checks this with int(value[1:], 16), which also accepts an
-  // underscore or a sign - and then breaks two lines later when it reads the
-  // pairs. Rejecting it here turns that crash into the default colour, which
-  // is what every reachable input gets anyway.
-  if (text.length !== 7 || !/^[0-9a-fA-F]{6}$/.test(text.slice(1))) {
-    return DEFAULT_COLOR;
-  }
-  return text.toUpperCase();
-}
-
-export function hexToRgb(value: string): [number, number, number] {
-  const text = normalizeColor(value);
-  return [parseInt(text.slice(1, 3), 16),
-          parseInt(text.slice(3, 5), 16),
-          parseInt(text.slice(5, 7), 16)];
-}
 
 /** What Path(name).stem does: the file name without its last suffix. */
 function stem(filename) {

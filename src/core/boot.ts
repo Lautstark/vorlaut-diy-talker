@@ -1,5 +1,5 @@
 // What the page needs before it can say anything: the language, its text
-// table, the palette and the set limits.
+// table and the set limits.
 //
 // This used to arrive from app.py. First as five placeholders it substituted
 // into live script - __LANG__, __TEXTS__, __LANGUAGES__, __PALETTE__,
@@ -22,7 +22,7 @@
 // whole module tree died before rendering. A fallback that only fires when the
 // block is absent does not help when the block is present and empty of meaning.
 import { LANGUAGES as BUILT_IN_LANGUAGES, DEFAULT_LANGUAGE, TEXTS as BUILT_IN_TEXTS,
-         PALETTE, LIMITS, GRID as GRID_DATA, WORD_CLASSES as WORD_CLASS_DATA }
+         LIMITS, GRID as GRID_DATA, WORD_CLASSES as WORD_CLASS_DATA }
   from "./boot_data.js";
 
 /** Which language a page nobody configured should open in.
@@ -120,7 +120,6 @@ export function rememberLanguage(code: string): void {
     localStorage.setItem(CHOICE, code);
   } catch { /* nothing to do; the language still holds for this tab */ }
 }
-export const palette = PALETTE;
 export const limits = LIMITS;
 /** The tablet grid: where it starts and how far it stretches. */
 export const GRID = GRID_DATA;

@@ -59,7 +59,7 @@ const AWKWARD = {
   language: "de",
   voice: "piper:de_DE-thorsten-low",
   sets: [
-    { name: "Basics", color: "#3B5BDB", symbol: "start.png",
+    { name: "Basics", symbol: "start.png",
       slots: [
         { text: "Yes!", symbol: "ja.png" },
         // Escaped rather than typed: one, two, three and four byte
@@ -68,9 +68,9 @@ const AWKWARD = {
         { text: "Stop", symbol: "" },
         { text: "", symbol: "hilfe.png" },
       ] },
-    { name: "Going out to play", color: "#159947", symbol: "metacom:spielen",
+    { name: "Going out to play", symbol: "metacom:spielen",
       slots: [{ text: "More of that", symbol: "mehr.png" }] },
-    { name: "\u00e4\u20ac\u{1F600}", color: "#9B7BFF", symbol: "",
+    { name: "\u00e4\u20ac\u{1F600}", symbol: "",
       slots: [] },
   ],
 };
@@ -128,10 +128,6 @@ document.getElementById("go").onclick = async () => {
           back.sets.map((s) => s.name).join("|"));
     check("every set comes back", back.sets.length === 3,
           String(back.sets.length));
-    check("the colours survive exactly",
-          back.sets.map((s) => s.color).join(" ")
-          === wanted.sets.map((s) => s.color).join(" "),
-          back.sets.map((s) => s.color).join(" "));
     check("a METACOM reference stays a METACOM reference",
           back.sets[0].slots[1].symbol === "metacom:nein",
           back.sets[0].slots[1].symbol);

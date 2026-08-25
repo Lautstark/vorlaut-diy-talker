@@ -30,7 +30,6 @@ const HELPERS = {
   imageId: obf.imageId,
   imageEntry: obf.imageEntry,
   symbolOf: obf.symbolOf,
-  cssColor: obf.cssColor,
   boardPath: obf.boardPath,
   localeToLanguage: obf.localeToLanguage,
   gridOrder: obf.gridOrder,

@@ -71,7 +71,7 @@
 // because it has no bar; a tablet appends by default because it has one. That
 // difference is the Act on each button rather than a flag on the export.
 
-import { LANGUAGE_CODES, DEFAULT_LANGUAGE, hexToRgb } from "./layout_format.js";
+import { LANGUAGE_CODES, DEFAULT_LANGUAGE } from "./layout_format.js";
 import { encodeOpus, ENCODER_RATE, type OpusClip } from "./opus.js";
 import { zipBytes, type ZipMember } from "./zip.js";
 import { WORD_CLASSES } from "../core/boot_data.js";
@@ -246,9 +246,18 @@ export async function digest(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
 }
 
 /** §7.2's colour shape. The layout stores "#RRGGBB"; both are permitted, and
- *  rgb() is the one the format's own examples use. */
+ *  rgb() is the one the format's own examples use.
+ *
+ *  The three bytes used to come from layout_format.ts's hexToRgb, back when
+ *  the layout binary had a colour in it to convert. It has none now and the
+ *  helpers went with it, so the conversion is here, where the only caller is.
+ *  The values are WORD_CLASSES', which are literals in boot_data.ts - the
+ *  normalizing that helper did (#abc, a missing #, a default for nonsense) had
+ *  no reachable input on this path and is not reproduced. */
 export const cssColor = (value: string): string => {
-  const [red, green, blue] = hexToRgb(value);
+  const pairs = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(value);
+  if (!pairs) return "rgb(0, 0, 0)";
+  const [red, green, blue] = pairs.slice(1).map((one) => parseInt(one, 16));
   return `rgb(${red}, ${green}, ${blue})`;
 };
 

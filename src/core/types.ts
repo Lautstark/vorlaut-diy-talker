@@ -58,28 +58,6 @@ export interface Slot {
 export interface BoardSet {
   name: string;
   symbol: string;
-  /** Hex, "#RRGGBB". Nothing shows this and nothing can change it.
-   *
-   * It was the set's own colour, drawn as a border round all five displays.
-   * That is gone in every place it was a feature: the Set sheet has no
-   * swatches, layout.bin has no colour and the firmware blacks those six
-   * pixels out, and an app package writes neither §4.2's board colour nor a
-   * border on its buttons. What a set is told apart by is the picture and the
-   * name on its set key.
-   *
-   * What keeps the field here is data/obf.ts, which is the DIY export and not
-   * the app package: a set becomes a board carrying `ext_vorlaut_color`, and
-   * documentToLayout() reads it straight back into this property.
-   * tests/reference/obf.lock.json freezes both directions - the colours in it
-   * are arbitrary rather than the palette's, so nothing could re-derive them,
-   * and the key is spelled `color` in 27 frozen import answers, so it cannot
-   * be renamed either. Removing it means narrowing that lock the way
-   * test_layout_frozen.py narrows its own, and that is a decision about the
-   * .obf mapping rather than about the talker's colour.
-   *
-   * Until then: emptySet() seeds it from the palette by position, and it stays
-   * whatever it was for every board already saved. */
-  color: string;
   slots: Slot[];
 }
 

@@ -37,15 +37,13 @@
 // **The device.** layout.bin stays exactly what layout_format.js writes. This
 // replaces the document somebody edits, not the file that gets flashed.
 
-import { LIMITS, PALETTE } from "../core/boot_data.js";
+import { LIMITS } from "../core/boot_data.js";
 import { reason } from "../core/errors.js";
 import {
 
   DEFAULT_LANGUAGE,
   LANGUAGE_CODES,
   SLOTS_PER_SET,
-  hexToRgb,
-  normalizeColor,
 } from "./layout_format.js";
 import type { DiyLayout } from "../core/types.js";
 
@@ -69,7 +67,6 @@ export interface ObfImage {
 export interface ObfButton {
   id: string;
   label: string;
-  border_color: string;
   vocalization?: string;
   image_id?: string;
   load_board?: { id: string; name: string; path: string };
@@ -265,16 +262,6 @@ export function checkLicensing(document) {
   }
 }
 
-// --- Colours -----------------------------------------------------------------
-// layout.json writes "#3B5BDB", OBF writes CSS. The hex form is the one that
-// survives, in ext_vorlaut_color; the CSS one is written next to it so a
-// foreign renderer has something to draw, and is ignored on the way back.
-
-export function cssColor(value) {
-  const [red, green, blue] = hexToRgb(value);
-  return `rgb(${red}, ${green}, ${blue})`;
-}
-
 // --- The document ------------------------------------------------------------
 //
 // { root, boards, files }: the plain object obf.py's Document namedtuple is.
@@ -353,10 +340,6 @@ export async function layoutToDocument(
         // the label.
         label: slot.text,
         vocalization: slot.text,
-        // Derived, and ignored on the way back. The colour belongs to the set,
-        // not to the key, and OBF has nowhere to put a colour that belongs to
-        // a board.
-        border_color: cssColor(entry.color),
       };
       const picture = await remember(slot.symbol);
       if (picture) button.image_id = picture;
@@ -370,7 +353,6 @@ export async function layoutToDocument(
     const switchKey: ObfButton = {
       id: `${boardId}-set`,
       label: entry.name,
-      border_color: cssColor(entry.color),
       load_board: {
         id: following,
         name: entries[(index + 1) % entries.length].name,
@@ -393,10 +375,15 @@ export async function layoutToDocument(
       buttons,
       images: sorted(Object.keys(images)).map((key) => images[key]),
       sounds: [],
-      // --- vorlaut's own -----------------------------------------------------
-      // ext_* is the spec's own way of carrying a field it has no opinion
-      // about. These are the ones with no home in OBF.
-      ext_vorlaut_color: entry.color,
+      // No ext_vorlaut_color, and no border_color on the buttons above. A set
+      // had a colour, OBF had nowhere to put one that belongs to a board, and
+      // those two fields were the workaround - the hex to survive the round
+      // trip and the CSS beside it so a foreign renderer had something to
+      // draw. The set has no colour now, on the device or anywhere else.
+      //
+      // A foreign document's own border_color is untouched by this: boards
+      // arrive as the dictionaries they were parsed from, so a field this
+      // project never wrote is copied along rather than dropped.
     };
   }
 
@@ -558,16 +545,9 @@ export function documentToLayout(document) {
         `exactly ${SLOTS_PER_SET} are allowed.`);
     }
 
-    const colour = board.ext_vorlaut_color;
     sets.push({
       name: text(board.name) || boardId,
       symbol: switchKey === null ? "" : switchKey.symbol,
-      // No ext_vorlaut_color means a board from somewhere else, and then
-      // normalizeLayout() hands out a colour from the palette. Reading it back
-      // out of border_color was the alternative and it is worse: rgb() through
-      // hex and back is a conversion that has to come out identical twice for
-      // a file to look unchanged.
-      color: typeof colour === "string" && colour ? colour : "",
       slots,
     });
   }
@@ -601,30 +581,28 @@ export function localeToLanguage(locale) {
 //
 // normalizeLayout() is layout.py's, not obf.py's, and it is here because
 // document_to_layout() ends in it: a board that came from somewhere else has
-// no colour, no timeout it agrees with and however many slots its author felt
-// like, and this is what turns that into the shape everything downstream is
-// allowed to stop checking. Without it documentToLayout() answers with
-// `color: ""`, which is not a layout anybody may save.
+// no timeout it agrees with and however many slots its author felt like, and
+// this is what turns that into the shape everything downstream is allowed to
+// stop checking.
 //
-// It lives in this module rather than in a layout.js that does not exist yet -
-// the same way layout.py's colour helpers live in layout_format.js, next to
-// the one thing that needs them. Whoever writes that module takes this with
-// them.
+// It lives in this module rather than in a layout.js that does not exist yet.
+// Whoever writes that module takes this with them.
 //
-// The promise, unchanged: every set has a name, a colour and exactly four
-// slots, and every slot has a text and a symbol, whatever the document
-// happened to be missing.
+// The promise, one field shorter than it was: every set has a name and exactly
+// four slots, and every slot has a text and a symbol, whatever the document
+// happened to be missing. A colour used to be in that list, and the palette
+// was imported here to supply one; it is gone from the talker entirely.
 
-// What layout.py says, read where the page already reads it: the palette and
-// the cap come out of boot_data.js, which tools/bootdata.py writes from
-// layout.py itself. One table rather than a second copy to keep level.
+// What layout.py says, read where the page already reads it: the cap comes out
+// of boot_data.js, which tools/bootdata.py writes from layout.py itself. One
+// table rather than a second copy to keep level. The palette was read from
+// there too, for the colour a set with none was given; both are gone.
 //
 // The cap is five now rather than twenty-five, and it is the only one: a
 // Sammlung is what goes onto the device, so how many sets it may hold and how
 // many the device has room for stopped being two questions. A document with
 // more boards than that is refused rather than imported and half-shown.
 export const MAX_SETS = LIMITS.maxSets;
-export const DEFAULT_PALETTE = PALETTE;
 // The one number that is in neither table. layout.py's DEFAULT_SLEEP_TIMEOUT.
 export const DEFAULT_SLEEP_TIMEOUT = 600;
 
@@ -693,8 +671,6 @@ export function normalizeLayout(raw) {
     return {
       name: text(entry.name || `Set ${index + 1}`).trim(),
       symbol: text(entry.symbol).trim(),
-      color: normalizeColor(
-        entry.color || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]),
       slots: slots.map((slot) => {
         const one = isObject(slot) ? slot : {};
         return {
