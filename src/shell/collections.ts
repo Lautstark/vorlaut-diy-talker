@@ -240,8 +240,8 @@ export interface Made {
  * lose two pages of buttons.
  *
  * Exported because it is drawn in two places that are a whole Sammlung apart:
- * here while one is being made, and in the card editor-app opens from the menu
- * beside the name once it exists. The arrow only runs one way
+ * here while one is being made, and in the grid panel editor-app puts in that
+ * Sammlung's own sheet once it exists. The arrow only runs one way
  * (tests/unit/layers.test.ts), so the shared control lives on the shell side
  * and the editor reaches for it - the same direction editor-app already takes
  * to exportApp() below.
@@ -651,11 +651,14 @@ function closeDrawer(): void {
 /** Entries the editor on screen adds to the menu beside the Sammlung's name.
  *
  * The menu is the shell's - it acts on the Sammlung, which is the shell's
- * level - but one of its entries is not: the grid size and the colour of a
- * word class are a tablet's settings, and the card that changes them has to
- * count what would fall outside a smaller grid, which is editor-app/pages.ts's
- * work. The shell may not import that (tests/unit/layers.test.ts), so the
- * editor hands its entries in instead.
+ * level - but not everything that acts on one is: writing a talker's build
+ * into a folder is editor-diy's, and the shell may not import an editor
+ * (tests/unit/layers.test.ts), so the editor hands its entries in instead.
+ *
+ * This carried the tablet's grid card as well until the grid became a panel in
+ * the Sammlung's own sheet - which is the same hand-over one floor along, and
+ * voices.ts's collectionSheetPanel() is where it is now. What is left here is
+ * an act rather than a setting, which is what this menu is for.
  *
  * Registered by an editor's wire() and taken back by the teardown it answers
  * with, for the reason EditorHalf.wire() gives: the shell outlives every
@@ -711,18 +714,21 @@ export function wireCollections(): void {
         add(t("ui.collection_export"), () => { void exportOne(); });
         add(t("ui.collection_export_app"), () => { void exportApp(); });
       }
-      /* Whatever the editor on screen has to say about the Sammlung itself -
-       * for the talker, the build written into a folder, which is a third kind
-       * of export and so belongs directly under the two above it; for the
-       * tablet, the card that holds the grid size and the colour of a word
-       * class. */
+      /* Whatever act the editor on screen has to add - for the talker, the
+       * build written into a folder, which is a third kind of export and so
+       * belongs directly under the two above it. A tablet adds none: its grid
+       * was here, and it was the one entry in this menu that was a setting
+       * rather than an act. */
       extras?.(add);
       /* Then what this Sammlung is set to, rather than what can be done with
-       * it: the voice it speaks in, and - on a talker - the language the
-       * device shows its own menu in. Both are layout.json fields, both travel
-       * in an export, and both were in the settings sheet at the foot of the
-       * sidebar until it turned out that a panel whose answer changes when you
-       * click a different row in the list is not a setting of the app.
+       * it: the voice it speaks in, the grid a tablet's pages are on, and - on
+       * a talker - the language the device shows its own menu in. All of them
+       * are layout.json fields and all travel in an export. The first two were
+       * in the settings sheet at the foot of the sidebar until it turned out
+       * that a panel whose answer changes when you click a different row in
+       * the list is not a setting of the app; the grid came the other way,
+       * from an entry of its own directly above this one, because two doors to
+       * "what is this Sammlung set to" is one too many.
        *
        * Below the acts and above the delete. The delete stays last wherever it
        * appears; everything else in this menu reads as "with this Sammlung, do

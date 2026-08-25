@@ -226,17 +226,25 @@ test("the language chosen while making a talker Sammlung is the one it keeps",
 
 /* Which panels a Sammlung's own sheet has, by target.
  *
- * The language is the talker's alone: on a tablet package localeFor() reads
- * the locale off the chosen voice first, so the field is nearly vestigial
- * there and offering it would be a control with nothing downstream of it. The
- * voice is both targets' - it is what every recording is spoken with either
- * way.
+ * Two of the three are one target's alone, and they are the same panel in the
+ * same place: the one thing this kind of Sammlung is set to that the other
+ * kind has no answer for. The language is the talker's - on a tablet package
+ * localeFor() reads the locale off the chosen voice first, so the field is
+ * nearly vestigial there and offering it would be a control with nothing
+ * downstream of it. The grid is the tablet's, and a talker has no grid at all.
+ * The voice is both targets' - it is what every recording is spoken with
+ * either way - so it is last on both, and whichever panel is first is the one
+ * that is open on arrival.
  */
-test("the Sammlung's sheet offers the language to a talker and not to a tablet",
+test("the Sammlung's sheet asks each target what only it can answer",
   async ({ page }) => {
     await openCollection(page);
     await openCollectionSettings(page);
     await expect(page.locator("#collectionLanguagePanel")).toBeVisible();
+    await expect(page.locator("#collectionLanguagePanel")).toHaveAttribute("open", "");
+    // No grid on a talker: editor-diy registers no panel, and an empty one is
+    // hidden rather than drawn with nothing in it.
+    await expect(page.locator("#collectionEditorPanel")).toBeHidden();
     await expect(page.locator("#voicePanel")).toBeVisible();
     await page.locator("#collectionSheetClose").click();
 
@@ -246,10 +254,15 @@ test("the Sammlung's sheet offers the language to a talker and not to a tablet",
 
     await openCollectionSettings(page);
     await expect(page.locator("#collectionLanguagePanel")).toBeHidden();
+    // The grid in its place, open on arrival for the same reason, and saying
+    // in its heading what it is set to.
+    await expect(page.locator("#collectionEditorPanel")).toBeVisible();
+    await expect(page.locator("#collectionEditorPanel")).toHaveAttribute("open", "");
+    await expect(page.locator("#collectionEditorSection")).toHaveText(label("ui.app_grid"));
+    await expect(page.locator("#collectionEditorState")).toHaveText(/^3 . 5$/);
     // And the voice is still asked, which is what makes it a sheet rather than
     // an empty one.
     await expect(page.locator("#voicePanel")).toBeVisible();
-    await expect(page.locator("#voicePanel")).toHaveAttribute("open", "");
   });
 
 /* What the ⋯ offers, by target, in the order it offers it.
@@ -257,7 +270,10 @@ test("the Sammlung's sheet offers the language to a talker and not to a tablet",
  * The order is the claim: the acts on a Sammlung first, then what it is set
  * to, then the delete which stays last wherever it appears. A tablet has no
  * .obz - obf.ts writes the five-key device - and no build, because the build
- * is a talker's file system; it has the grid card instead. */
+ * is a talker's file system; so it has no act in here at all, and its menu is
+ * the settings and the delete. Its grid used to be an entry above them, which
+ * was the one entry in this menu that was a setting rather than an act; it is
+ * a panel of those settings now. */
 test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
   async ({ page }) => {
     await openCollection(page);
@@ -276,8 +292,7 @@ test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
 
     await page.locator("#collectionMenu").click();
     await expect(entries).toHaveText([
-      label("ui.app_grid"), label("ui.collection_settings"),
-      label("ui.collection_delete"),
+      label("ui.collection_settings"), label("ui.collection_delete"),
     ]);
   });
 
@@ -289,7 +304,8 @@ test("the settings sheet has no per-Sammlung control left in it", async ({ page 
   await openCollection(page);
   await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
-  for (const gone of ["#voicePanel", "#collectionLanguagePanel", "#buildExport"]) {
+  for (const gone of ["#voicePanel", "#collectionLanguagePanel",
+                      "#collectionEditorPanel", "#buildExport"]) {
     await expect(page.locator(`#voices ${gone}`)).toHaveCount(0);
   }
 });
