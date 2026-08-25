@@ -386,20 +386,25 @@ without hurrying the tablet half.
 
 ### One caution, so this is not read as more settled than it is
 
-I could not verify the METACOM file from this repository. No copy of the
-collection is checked in — it is licensed per installation and referenced by
-name, which is the whole `metacom:` invariant — so "METACOM ships it" is a fact
-about the copy somebody looked at, not about every reader's folder.
-`bildquelle`'s own METACOM tests record that copies differ on exactly this
-point: one files its negation under a different lemma and carries the negation
-word only as a compound prefix, and the test written for that case exists
-because a real picker filled up with compounds instead. Under ARASAAC the
-question is different again.
+**Amended 2026-08-25.** This section originally said the file could not be
+verified from here, because no copy of the collection is checked in — it is
+licensed per installation and referenced by name, which is the whole `metacom:`
+invariant. That was too weak. `bildquelle`'s own `src/metacom.ts` states it
+outright: the negation symbol is filed under `nichtkein` in `Kleine_Worte`, the
+German negation pair run together because a filename cannot hold the slash
+between them, and 1.6.4 exists to split it so that searching either half
+reaches it. vorlaut is on 1.6.4. So the symbol is there.
+
+What survives of the caution is narrower and still worth keeping: the same
+tests record a copy that files its negation under a different lemma and carries
+the negation word only as a compound prefix — the case a real picker hit when
+it filled up with compounds. Under ARASAAC the question is different again.
 
 **So the key-of-its-own option depends on the reader's own licensed folder, and
-the crossed-symbol option does not.** That is not a reason to prefer crossing
-out. It is a reason not to write authoring advice that assumes a file which
-may not be there.
+the crossed-symbol option does not.** That is still not a reason to prefer
+crossing out, and the real argument against it is elsewhere: a negation symbol
+on its own key says the negation, and cannot say which word is being negated.
+On a tablet the sentence bar joins the two. On a four-key talker nothing does.
 
 ## What needs a decision from somebody else
 
