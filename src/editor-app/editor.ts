@@ -756,11 +756,11 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * delete question. It is a notice rather than a question because nothing
    * is lost and nothing is hidden: the board behind the sheet redraws with
    * the change on it, and every other page is one tab away. */
+  let notice: HTMLElement | undefined;
   if (inColumn(at[1])) {
-    const notice = document.createElement("div");
+    notice = document.createElement("div");
     notice.className = "notice";
     notice.textContent = t("ui.app_first_column_button");
-    rows.push(notice);
   }
 
   const labelInput = textField(draft.label, (value) => { draft.label = value; });
@@ -970,6 +970,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
       },
     },
     rows,
+    ...(notice ? { notice } : {}),
     /* Only where there is something to delete. On an empty cell the button
      * would close a sheet that had written nothing, which is what the corner
      * and Escape already do.

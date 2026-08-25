@@ -930,6 +930,43 @@ test("the sheet's three questions are dropdowns, and the long one stays in the s
     await page.keyboard.press("Escape");
   });
 
+test("what the first column costs is said across the sheet, not above one field",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+
+    // The column becomes the Sammlung's rather than each page's, in the card
+    // behind the ⋯ beside its name.
+    const card = await openGrid(page);
+    await card.getByRole("checkbox").first().check();
+    await card.locator("button", { hasText: label("ui.app_first_column_take_go") }).click();
+    await expect(page.locator("#appGrid .cell--shared")).toHaveCount(3);
+
+    await page.locator("#appGrid .cell--shared").first()
+      .locator(".cell__open").click();
+    const box = buttonSheet(page);
+    const notice = box.locator(".notice");
+    await expect(notice).toHaveText(label("ui.app_first_column_button"));
+
+    /* It is about the button, not about the field it used to stand over. So it
+     * is a child of the body spanning both columns rather than the first of
+     * the rows that become the right-hand one - which is a fact about width:
+     * it reaches wider than the form beside it. */
+    await expect(notice).toHaveJSProperty("parentElement.className", "body");
+    const spans = await notice.evaluate((one) =>
+      Math.round(one.getBoundingClientRect().width)
+      > Math.round(one.closest(".body")!.querySelector(".form")!
+          .getBoundingClientRect().width));
+    expect(spans).toBe(true);
+
+    // A cell that is not the column's says nothing, which is what makes the
+    // sentence worth reading where it is said.
+    await page.keyboard.press("Escape");
+    await hit(page, 7).click();
+    await expect(buttonSheet(page).locator(".notice")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+  });
+
 test("the page sheet offers the start page, or says the page already is it",
   async ({ page }) => {
     await standIn(page);

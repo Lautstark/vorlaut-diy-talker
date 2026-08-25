@@ -540,6 +540,13 @@ export interface SheetSpec {
   /** The left column. Absent for a sheet with nothing to show a picture of,
    *  which then takes the narrower single-column shape. */
   pick?: PickColumn;
+  /** A sentence about the whole thing, across both columns and above them.
+   *
+   * Its own slot rather than the first of the rows, because those become the
+   * form column and a sentence about the button as a whole read there as a
+   * sentence about the field under it. It spans, so it also stays right on the
+   * one-column sheets - the page card, and either sheet on a narrow screen. */
+  notice?: HTMLElement;
   /** The right column, in order. Built with formRow() above; this module does
    *  not read them. */
   rows: HTMLElement[];
@@ -578,7 +585,8 @@ export function openSheet(spec: SheetSpec): Promise<Left> {
     form.className = "form";
     form.append(...spec.rows);
 
-    const body: HTMLElement[] = spec.pick ? [drawPick(spec.pick), form] : [form];
+    const columns: HTMLElement[] = spec.pick ? [drawPick(spec.pick), form] : [form];
+    const body: HTMLElement[] = spec.notice ? [spec.notice, ...columns] : columns;
 
     const foot: HTMLElement[] = [];
     if (spec.remove) {

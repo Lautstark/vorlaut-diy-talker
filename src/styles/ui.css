@@ -1167,11 +1167,26 @@ dialog.sheet--button { max-width: 720px; width: 100%; }
    nothing moves. Padding on .pick would only have chosen a different control
    to sit flush. */
 .sheet--button > .body {
-  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 22px;
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  /* The 22px is the gutter between the two columns and was never anything
+     else. A row gap wants less, because the only thing above the columns is a
+     sentence about what is below them - see the spanning notice under this
+     rule - and because at the one-column width below this is what stands
+     between the picture and the fields. */
+  column-gap: 22px; row-gap: 15px;
   color: var(--text); font-size: inherit;
   padding-top: 14px;
   margin-inline: -4px; padding-inline: 4px;
 }
+/* A sentence about the thing as a whole, across the whole of it.
+
+   It was the first of the rows, which put it inside the form column above
+   Aufschrift - so a notice about the button read as a note about the field
+   under it, and it took the narrower measure of the two columns to say a
+   sentence that is about neither. `1 / -1` is the same on the one-column page
+   card and on either sheet below 720px, which is why it is a span rather than
+   a second grid. */
+.sheet--button > .body > .notice { grid-column: 1 / -1; }
 /* A page has one thing to say and no picture beside it.
 
    Scoped `dialog.` for the same reason the rule above is: openSheet puts both
