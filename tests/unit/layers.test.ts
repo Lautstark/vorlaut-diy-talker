@@ -7,8 +7,7 @@ import { check } from "./harness.js";
  * is either.
  *
  * src/editor-diy/ is one device's editor: four keys to a set, five sets on the
- * hardware at once, a colour drawn round the displays, and a cable at the end
- * of it. src/editor-app/ is the other: pages of a grid, a sentence bar, a
+ * hardware at once, and a cable at the end of it. src/editor-app/ is the other: pages of a grid, a sentence bar, a
  * colour per word class, and a package at the end of it. Everything else under
  * src/ is the shell - the Sammlungen, the storage, the symbol picker, the
  * voices, the settings, the design tokens, the import and export - and it has

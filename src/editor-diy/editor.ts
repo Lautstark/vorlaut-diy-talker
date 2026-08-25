@@ -3,7 +3,7 @@
 // for the set.
 //
 // This is the device-specific half. Four keys to a set, at most five sets on
-// the device at once, a colour drawn round all five displays: none of that is
+// the device at once, a hole where the speaker is: none of that is
 // true of AAC in general and all of it is true of this hardware, which is why
 // it sits under editor-diy/ and why nothing in the shell may import it. The
 // shell reaches it through core/editor.ts instead, and `diy` at the foot of
@@ -32,9 +32,9 @@
 // import out of another editor, so what the two share lives one floor down -
 // and what is left here is the rows, which are the part that is genuinely this
 // device's. There is one of them on a key: no word class, because the device
-// draws a colour round all five displays rather than one per key, and no row
-// for what a press does, because there is no sentence bar for a key to put
-// anything into.
+// draws no colour at all - the five displays carry the picture and nothing
+// round it - and no row for what a press does, because there is no sentence
+// bar for a key to put anything into.
 import { $, negationCross } from "../shell/dom.js";
 import { previewInto, symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
@@ -147,6 +147,10 @@ function emptySet(index: number): BoardSet {
   return {
     name: "Set " + (index + 1),
     symbol: "",
+    // Nothing on the page shows this or can change it - see BoardSet.color in
+    // core/types.ts for what is still reading it. Seeded from the palette by
+    // position rather than left blank, because a set that reached a .obf with
+    // color: "" is not a layout normalizeLayout() will accept back.
     color: palette[index % palette.length]!,
     slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
   };
@@ -176,14 +180,14 @@ function emptySet(index: number): BoardSet {
  * strip under each key, which is also the honest comparison, since the device
  * shows five of these side by side.
  */
-function deviceImage(symbol: string, colour: string, negated: boolean): HTMLImageElement {
+function deviceImage(symbol: string, negated: boolean): HTMLImageElement {
   const image = document.createElement("img");
   image.className = "cell__pic cell__pic--device";
   image.alt = "";
   // The cell's own opener carries the accessible name; this says what somebody
   // hovering a suddenly coarse picture is looking at.
   image.title = t("ui.device_size");
-  previewInto(image, symbol, colour, negated);
+  previewInto(image, symbol, negated);
   return image;
 }
 
@@ -198,8 +202,8 @@ function deviceImage(symbol: string, colour: string, negated: boolean): HTMLImag
  * cross is already in the picture, baked into the tile by tiles.ts exactly as
  * the device will show it; laying a second one over it would draw the editor's
  * idea of the cross on top of the device's. */
-function picture(symbol: string, colour: string, negated = false): HTMLElement {
-  if (preview) return deviceImage(symbol, colour, negated);
+function picture(symbol: string, negated = false): HTMLElement {
+  if (preview) return deviceImage(symbol, negated);
   const image = document.createElement("img");
   image.className = "cell__pic";
   image.alt = "";
@@ -276,7 +280,6 @@ function holeCell(): HTMLElement {
 function setCell(entry: BoardSet): HTMLElement {
   const box = document.createElement("div");
   box.className = "cell cell--setkey";
-  box.style.setProperty("--screen", entry.color);
 
   const name = entry.name || t("ui.set_n", { n: current + 1 });
   const hit = opener(t("ui.set_more"));
@@ -294,7 +297,7 @@ function setCell(entry: BoardSet): HTMLElement {
   eyebrow.textContent = t("ui.set_key");
   box.appendChild(eyebrow);
 
-  if (entry.symbol) box.appendChild(picture(entry.symbol, entry.color));
+  if (entry.symbol) box.appendChild(picture(entry.symbol));
   const word = document.createElement("span");
   word.className = "cell__word";
   word.textContent = name;
@@ -338,7 +341,7 @@ function keyCell(entry: BoardSet, index: number): HTMLElement {
                                           : t("ui.diy_key_add")));
   box.appendChild(hit);
 
-  if (slot.symbol) box.appendChild(picture(slot.symbol, entry.color, slot.negated));
+  if (slot.symbol) box.appendChild(picture(slot.symbol, slot.negated));
   if (said) {
     const word = document.createElement("span");
     word.className = "cell__word";
@@ -400,15 +403,12 @@ function drawTabs(): void {
   tabs.innerHTML = "";
   board().sets.forEach((entry, index) => {
     const tab = document.createElement("div");
+    // Which tab is the open one is the stylesheet's now rather than a colour
+    // written on the element: it was the set's own colour on the border, with
+    // a square of the same colour beside the name. Both went with the colour,
+    // and the square would have been the worse thing to keep - the same value
+    // on all five tabs, saying only that a set is a set.
     tab.className = "tab" + (index === current ? " active" : "");
-    tab.style.borderColor = index === current ? entry.color : "transparent";
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    // A property, not a composed style="..." attribute: entry.color is
-    // whatever the palette last handed over. The line above already does it
-    // this way.
-    dot.style.background = entry.color;
-    tab.appendChild(dot);
     const name = document.createElement("span");
     name.textContent = entry.name || t("ui.set_n", { n: index + 1 });
     tab.appendChild(name);
@@ -676,41 +676,25 @@ async function editKey(index: number): Promise<void> {
  * With it gone the board is tabs and a grid and nothing else, which is what
  * the mock's last note asks for.
  *
- * **The colour is one row now, and that is the point of moving it.** It
- * reaches layout.bin and the firmware draws it round all five displays, so it
- * cannot go until the firmware stops reading it - another session. What it can
- * do first is stop being three controls in three places: the swatches are the
- * palette the device is built around, and when the field goes it is this one
- * row that goes with it.
+ * **The colour has gone, and so has its row.** It was three controls in three
+ * places, then one row of swatches held here until the firmware stopped
+ * reading it. The firmware has, so the row went with it: what is left is a
+ * name and a picture, which are what a set is told apart by on the device.
+ *
+ * BoardSet.color itself is still there, and is not a leftover this could have
+ * swept up - data/obf.ts writes it into a .obf as ext_vorlaut_color and reads
+ * it back, and tests/reference/obf.lock.json freezes both directions,
+ * including per-set colours that are not the palette's and could not be
+ * derived from anything. Nothing sets it now: a set gets the palette's colour
+ * for its position and keeps it.
  */
 function openSetSheet(): Promise<void> {
   const entry = set();
-  const draft = { name: entry.name, symbol: entry.symbol, color: entry.color };
+  const draft = { name: entry.name, symbol: entry.symbol };
 
   const name = textField(draft.name, (value) => { draft.name = value; });
   name.id = "diySetName";
   name.placeholder = t("ui.set_name");
-
-  // Rebuilt in place rather than redrawn whole: the name field above is being
-  // typed in, and replacing the form would take the caret with it.
-  const swatches = document.createElement("div");
-  swatches.className = "swatches";
-  const drawSwatches = () => {
-    swatches.innerHTML = "";
-    for (const hex of palette) {
-      const swatch = document.createElement("button");
-      swatch.type = "button";
-      const active = hex.toUpperCase() === draft.color.toUpperCase();
-      swatch.className = "swatch" + (active ? " active" : "");
-      swatch.setAttribute("aria-pressed", String(active));
-      swatch.style.background = hex;
-      swatch.title = hex;
-      swatch.setAttribute("aria-label", hex);
-      swatch.onclick = () => { draft.color = hex; drawSwatches(); };
-      swatches.appendChild(swatch);
-    }
-  };
-  drawSwatches();
 
   return openSheet({
     title: t("ui.set_title"),
@@ -729,7 +713,6 @@ function openSetSheet(): Promise<void> {
     },
     rows: [
       formRow(t("ui.set_name"), name, t("ui.set_name_note")),
-      formRow(t("ui.set_colour"), swatches, t("ui.set_colour_note")),
     ],
     remove: {
       label: t("ui.remove_set"),
@@ -745,7 +728,6 @@ function openSetSheet(): Promise<void> {
       onPress: () => {
         entry.name = draft.name;
         entry.symbol = draft.symbol;
-        entry.color = draft.color;
         commit();
       },
     },
@@ -821,7 +803,7 @@ export function wireEditor(): void {
  */
 export const diy: Editor = {
   /* What a new board starts as, and it is a fact about this hardware: one set
-   * of four empty keys, in the first colour of the palette. app.py seeded
+   * of four empty keys. app.py seeded
    * content/ from example/ so that nobody met an empty screen; this is that
    * idea at its smallest, because the examples are pictures and recordings
    * that would have to be fetched, and an empty board somebody can type into
@@ -847,6 +829,7 @@ export const diy: Editor = {
       sets: [{
         name: "",
         symbol: "",
+        // Invisible, and the reason is emptySet()'s just above.
         color: palette[0]!,
         slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
       }],

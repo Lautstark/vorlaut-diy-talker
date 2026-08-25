@@ -11,7 +11,6 @@ speak yet.
 ## What it does
 
 - Four speech keys per set, up to five sets on the device
-- Every set has a colour, drawn as a border around all five displays
 - Editing happens in the browser: find a symbol, type a sentence, listen to it
 - One press turns that into pictures and speech files, and sends them down
   the cable to the device
@@ -70,7 +69,7 @@ each side of one seam:
 | | |
 |---|---|
 | `src/shell/` | what any board builder needs: the list of boards, the symbol picker, the voices, the settings, the import and export |
-| `src/editor-diy/` | the five-key talker, and only it: four keys to a set, five sets on the device, a colour round each display, and the cable |
+| `src/editor-diy/` | the five-key talker, and only it: four keys to a set, five sets on the device, and the cable |
 | `src/core/`, `src/data/`, `src/backend/` | shared underneath both — the texts, the storage, the formats, and the seam to the outside |
 
 The shell may not import out of `src/editor-diy/`; `src/main.ts` and

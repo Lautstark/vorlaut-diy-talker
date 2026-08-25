@@ -2,8 +2,8 @@
  *
  * The shell owns the boards, the storage, the symbols, the voices and the
  * settings; editor-diy owns the five-key device - four keys to a set, five
- * sets at a time, a colour round each display, and the cable at the end of it -
- * and editor-app owns the tablet, which is pages of a grid composing a
+ * sets at a time, and the cable at the end of it - and editor-app owns the
+ * tablet, which is pages of a grid composing a
  * sentence in a bar. What this file buys is the direction of the arrows: the
  * shell used to `import { render } from "../ui/editor.js"` in three places,
  * which meant the board list, the symbol picker and the save loop all knew

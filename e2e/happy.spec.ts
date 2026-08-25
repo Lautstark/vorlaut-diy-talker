@@ -72,20 +72,19 @@ test("the board is the device: a hole, the set key and four speech keys", async 
   }
 });
 
-test("a set can be named, coloured, filled and kept", async ({ page }) => {
+test("a set can be named, filled and kept", async ({ page }) => {
   await openBoard(page);
 
   await nameSet(page, "Morgens");
   await put(page, 0, "Ich will nach draussen");
 
-  // The colour is one row in the set's card now, and one control in it: the
-  // swatches. It was three - swatches, a colour input and a hex field - spread
-  // through a tile, which is why moving it was worth doing before the firmware
-  // stops reading it at all.
+  // The set's card is a name and a picture. It held a row of swatches until
+  // the firmware stopped reading the colour, and the assertion that they are
+  // gone is here rather than in a test of its own: this is the test that opens
+  // the card, and a control nobody can find is what the card is for.
   await setKey(page).click();
   const card = setCard(page);
-  await card.locator(".swatch").nth(1).click();
-  await expect(card.locator(".swatch.active")).toHaveCount(1);
+  await expect(card.locator(".swatch")).toHaveCount(0);
   await press(card, "ui.done");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 

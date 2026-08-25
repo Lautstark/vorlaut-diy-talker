@@ -231,21 +231,15 @@ main {
   background: var(--surface); border: 2px solid transparent; color: var(--text-dim);
   font-size: 14px;
 }
-.tab .dot { width: 12px; height: 12px; border-radius: 3px; }
-.tab.active { color: var(--text); background: var(--surface-2); }
-.tab.add { border: 1px dashed var(--line); }
-
-/* The swatches are the set's colour, in the card behind its tab. They were in
-   the tile beside the board, with a colour input and a hex field under them;
-   what is left is the row the mock draws, which is the palette the device is
-   built around. */
-.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
-.swatch {
-  width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
-  border: 2px solid transparent; box-sizing: border-box; padding: 0;
+/* The open tab, marked the way every other selected chip on this page is
+   marked - .size below is the same two lines. It used to be the set's own
+   colour on the border, with a square of it beside the name; the set has no
+   colour any more, and a square that is the same on all five tabs would have
+   been decoration rather than a mark. */
+.tab.active {
+  color: var(--text); background: var(--surface-2); border-color: var(--accent);
 }
-.swatch:hover { border-color: var(--text-dim); }
-.swatch.active { border-color: var(--text); }
+.tab.add { border: 1px dashed var(--line); }
 .row { display: flex; gap: 8px; }
 /* .field carries the fill, the border and the focus lift; what stays here is
    how a field sits in vorlaut's boxes, which is layout and not vocabulary. */
@@ -267,8 +261,8 @@ textarea::placeholder { color: var(--text-faint); }
    control on the page opted in to a look whether or not it wanted one.
    What is left is the font. That is a reset and not a look, and it has to
    keep covering the button element: .btn brings `font: inherit` with it, but
-   the tab, the swatch and a cell's two controls are buttons that are none of
-   the three tiers, and without this they come out in the browser's face. */
+   the tab and a cell's two controls are buttons that are none of the three
+   tiers, and without this they come out in the browser's face. */
 button, select, input, textarea { font-family: inherit; }
 
 /* The language picker sits in the settings sheet and looks like the fields
@@ -1080,14 +1074,14 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 }
 
 /* The set key, which is a display like the four beside it and is also the set.
-   It wears the set's colour the way the device does - round the edge, not as a
-   fill - because on the device that colour is a border drawn round all five
-   screens, and a filled cell here would promise a coloured key.
+   Its edge used to be the set's colour, the way the device drew one round all
+   five screens; the device draws none now, so this is the page's own line and
+   what makes the cell the set key is the eyebrow on it.
 
    It does not move and is not a drop target: its position is the hardware's.
    The cursor says so, and the absence of a draggable attribute is what
    actually stops it. */
-.cell--setkey { border-color: var(--screen, var(--line)); border-width: 3px; }
+.cell--setkey { border-color: var(--line); border-width: 3px; }
 /* What this cell is, over what is on it. Small and shouted, which is what the
    two words have to be to sit above a picture without competing with it - and
    the shouting is here rather than in the table, where a capitalised string is

@@ -118,9 +118,10 @@ test("both settings sheets open", async ({ page }) => {
 test("the way into Einstellungen is on screen on a window the board does not fit", async ({ page }) => {
   /* Shorter than the window this used to need. The board became the device's
      own two rows of 4:3 cells, where it was five tall tiles with a field, a
-     row of swatches and a colour picker in them, so 600px stopped being a
-     window it overflows. The precondition below is what said so rather than
-     letting this pass while testing nothing. */
+     row of swatches and a colour picker in them - and the swatches have since
+     gone from the card they moved to as well - so 600px stopped being a window
+     it overflows. The precondition below is what said so rather than letting
+     this pass while testing nothing. */
   await page.setViewportSize({ width: 1280, height: 380 });
   await page.goto("./");
   await expect(page.locator("#device .cell")).toHaveCount(6);
