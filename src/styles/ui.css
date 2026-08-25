@@ -1017,7 +1017,22 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    Pinned to the cap it just sits still. */
 dialog.sheet--button { max-width: 720px; width: 100%; }
 
-/* The inline padding is not spacing. `.sheet > .body` scrolls vertically, and
+/* Two halves of one sheet, not a sidebar and a form.
+
+   200px against 1fr made the picture a margin note beside the fields, and on
+   the talker - whose right column is one row, sometimes two - it left a narrow
+   strip of pictures next to a field and a great deal of nothing. 5fr against
+   7fr is the same 720px read as two columns of one sheet, and it is what the
+   square preview below needs: at 200px a square is a thumbnail, at 272px it is
+   the picture. design's editor.css has the 200px and the reasoning for it;
+   both are departed from here, deliberately and together, because they were
+   one decision.
+
+   The right column pays for it - 452px to 380px - which is why this was
+   checked against the fullest sheet there is, the tablet button with four
+   kinds of press in it, and not only against the talker's one row.
+
+   The inline padding is not spacing. `.sheet > .body` scrolls vertically, and
    a box that scrolls in one axis clips in the other - so this element's
    padding box is the clip edge for both columns, and it had no padding at all:
    the 22px belongs to the dialog, outside the scroller, and the pick column
@@ -1028,7 +1043,7 @@ dialog.sheet--button { max-width: 720px; width: 100%; }
    nothing moves. Padding on .pick would only have chosen a different control
    to sit flush. */
 .sheet--button > .body {
-  display: grid; grid-template-columns: 200px 1fr; gap: 22px;
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 22px;
   color: var(--text); font-size: inherit;
   padding-top: 14px;
   margin-inline: -4px; padding-inline: 4px;
@@ -1048,10 +1063,15 @@ dialog.sheet--page { max-width: 520px; }
 .pick { display: grid; gap: 10px; align-content: start; }
 
 .pick__preview {
-  /* Wider than tall. A pictogram is square, but a preview that is also square
-     at column width takes a third of the sheet to show something the cell
-     behind the sheet is already showing. */
-  aspect-ratio: 4 / 3; display: grid; place-items: center; overflow: hidden;
+  /* Square, because the thing it previews is. A key shows a tile, and a tile
+     is 116px inside a 128px display - data/tiles.ts, and the display really is
+     square. design's editor.css argues for 4:3, that a square preview at
+     column width takes a third of the sheet to show what the cell behind the
+     sheet already shows; that is a true cost and it is the wrong trade. A
+     preview that lies about the shape of the thing is worth less than the room
+     it saves, and the room is bought back by the column being wider - see the
+     body rule above, which is the same departure. */
+  aspect-ratio: 1; display: grid; place-items: center; overflow: hidden;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   /* White is not a surface and does not follow the scheme: AAC symbols are
      drawn for white and need it in either one. */
