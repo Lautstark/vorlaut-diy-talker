@@ -1017,10 +1017,21 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    Pinned to the cap it just sits still. */
 dialog.sheet--button { max-width: 720px; width: 100%; }
 
+/* The inline padding is not spacing. `.sheet > .body` scrolls vertically, and
+   a box that scrolls in one axis clips in the other - so this element's
+   padding box is the clip edge for both columns, and it had no padding at all:
+   the 22px belongs to the dialog, outside the scroller, and the pick column
+   starts flush against the edge. components.css draws a 2px focus ring at 2px
+   offset, so the search field lost the left of its ring and the fields
+   opposite would lose the right of theirs. Four pixels is what the ring needs;
+   the matching negative margin spends them out of the dialog's own padding, so
+   nothing moves. Padding on .pick would only have chosen a different control
+   to sit flush. */
 .sheet--button > .body {
   display: grid; grid-template-columns: 200px 1fr; gap: 22px;
   color: var(--text); font-size: inherit;
   padding-top: 14px;
+  margin-inline: -4px; padding-inline: 4px;
 }
 /* A page has one thing to say and no picture beside it.
 
