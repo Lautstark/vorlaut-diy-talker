@@ -83,6 +83,8 @@ async function standIn(page: Page): Promise<void> {
 /* --- driving the editor -------------------------------------------------- */
 
 const cells = (page: Page) => page.locator("#appGrid .appcell");
+/** What a press lands on. The cell is the box around it. */
+const hit = (page: Page, at: number) => cells(page).nth(at).locator(".appcell__open");
 const panel = (page: Page) => page.locator(".apppanel__button");
 
 /** Puts a button in one cell and fills it in.
@@ -96,12 +98,12 @@ async function put(page: Page, at: number, fields: {
   label: string; spoken?: string; wordClass?: string; act?: string;
 }): Promise<void> {
   const box = cells(page).nth(at);
-  await box.click();
+  await box.locator(".appcell__open").click();
   // Wait for the panel to be *this* cell's before typing into it. Pressing an
   // empty cell makes a button and moves the panel to it, and the panel is
   // rebuilt wholesale - so a fill that raced the rebuild would land in the
   // previous button's field. aria-pressed is what says the move has happened.
-  await expect(box).toHaveAttribute("aria-pressed", "true");
+  await expect(box.locator(".appcell__open")).toHaveAttribute("aria-pressed", "true");
   await expect(panel(page)).toBeVisible();
   await page.locator("#appLabel").fill(fields.label);
   if (fields.spoken !== undefined) {
@@ -382,7 +384,7 @@ test("a button moves to another cell, by keyboard and by drag", async ({ page })
 
   // Alt and an arrow: the same key that reorders the talker's sets. "ich" is
   // in the first cell; one press down puts it in the sixth, which is empty.
-  await cells(page).nth(0).focus();
+  await hit(page, 0).focus();
   await page.keyboard.press("Alt+ArrowDown");
   await expect(at(0)).toHaveCount(0);
   await expect(at(5)).toHaveText("ich");
@@ -424,6 +426,30 @@ test("a button moves to another cell, by keyboard and by drag", async ({ page })
   await expect(at(6)).toHaveText("will");
 });
 
+test("a button can be heard from the board, and only where there is something to hear",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await page.locator("#appPages .tab").first().click();
+
+    // On a word, and it is the vocalization that goes to the synthesiser -
+    // "Apfel" shows, "einen Apfel" is what the tablet will say.
+    const said = page.waitForRequest((r) => SYNTHESIS.test(r.url()));
+    await cells(page).nth(2).hover();
+    await cells(page).nth(2).locator(".appcell__play").click();
+    expect((await said).postData() ?? "").toContain("einen Apfel");
+
+    // Not on the navigation button or the bar controls: pressing those on the
+    // tablet says nothing, so offering to audition them would offer silence.
+    await expect(cells(page).nth(3).locator(".appcell__play")).toHaveCount(0);
+    await expect(cells(page).nth(10).locator(".appcell__play")).toHaveCount(0);
+    await expect(cells(page).nth(11).locator(".appcell__play")).toHaveCount(0);
+
+    // And a press on it does not open the cell behind it.
+    await expect(cells(page).nth(2).locator(".appcell__open"))
+      .toHaveAttribute("aria-pressed", "false");
+  });
+
 test("a move stops at the edge of the grid rather than walking off it",
   async ({ page }) => {
     await standIn(page);
@@ -433,7 +459,7 @@ test("a move stops at the edge of the grid rather than walking off it",
     // "ich" is in the top left. Up and left have nowhere to go, and Alt+Left
     // is history-back in some engines - so both are claimed and neither moves
     // anything.
-    await cells(page).nth(0).focus();
+    await hit(page, 0).focus();
     await page.keyboard.press("Alt+ArrowUp");
     await page.keyboard.press("Alt+ArrowLeft");
     await expect(cells(page).nth(0).locator(".appcell__label")).toHaveText("ich");

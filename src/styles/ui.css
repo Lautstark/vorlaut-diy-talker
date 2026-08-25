@@ -816,6 +816,33 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    A cell with no class keeps the surface colour and the theme's own text. */
 .appcell:not([style*="--cell-color"]) { color: var(--text); }
 .appcell.current { border-color: var(--accent); }
+
+/* What a press lands on: a box filling the cell, under the corner control
+   rather than around it. The cell is a container; these two are the widgets
+   in it. */
+.appcell__open {
+  position: absolute; inset: 0; z-index: 1;
+  border-radius: inherit; cursor: pointer;
+}
+.appcell__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Hear it without opening anything. Hidden until the pointer or the keyboard
+   is on the cell - the five-key board spends a permanent slot on this, and at
+   eleven columns there is no slot to spend. */
+.appcell__play {
+  position: absolute; top: 4px; right: 4px; z-index: 2;
+  width: 24px; height: 24px; padding: 0; line-height: 1;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--text-dim);
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  font: inherit; font-size: 11px;
+  opacity: 0; transition: opacity .12s ease;
+}
+.appcell:hover .appcell__play,
+.appcell:focus-within .appcell__play { opacity: 1; }
+.appcell__play:hover { color: var(--text); }
+.appcell__play:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
 /* Where a dragged button would land. The same mark the five-key board uses for
    the same gesture, so one dashed outline means one thing in both editors. */
 .appcell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
@@ -826,7 +853,10 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   font-size: 13px; line-height: 1.2; text-align: center;
   overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
-.appcell__act { position: absolute; top: 3px; right: 5px; font-size: 11px; opacity: .75; }
+/* Moved to the leading corner: the trailing one is the play button's, and a
+   badge under a control nobody can see until they hover is a badge nobody
+   reads. */
+.appcell__act { position: absolute; top: 3px; left: 5px; font-size: 11px; opacity: .75; }
 .appcell--empty {
   background: transparent; border-style: dashed; color: var(--text-faint);
 }
