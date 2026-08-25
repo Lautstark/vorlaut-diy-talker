@@ -70,3 +70,4 @@ node_modules/.tmp/
 
 # tsc -b leaves this at the root for the solution file itself.
 tsconfig.tsbuildinfo
+shots/
