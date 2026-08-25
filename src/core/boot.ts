@@ -31,9 +31,9 @@ import { LANGUAGES as BUILT_IN_LANGUAGES, DEFAULT_LANGUAGE, TEXTS as BUILT_IN_TE
  * navigator.languages is in the order they chose, and carries regions - "de-AT"
  * has to find "de" - so it is the prefix that is compared.
  *
- * Only until a layout is loaded: the language somebody picked lives in the
- * layout beside the voice, and that one wins once it has been read. This is
- * what to show in the meantime, which on a first visit is what to show at all.
+ * Only until somebody says otherwise: what they choose is remembered below and
+ * beats this on every visit after the first. This is the answer for a browser
+ * that has never been told, which on a first visit is the whole of it.
  */
 function preferred() {
   for (const tag of navigator.languages || [navigator.language || ""]) {
@@ -57,7 +57,35 @@ function preferred() {
  * the alternative. Both halves of that are gone: boot_data.ts carries both
  * languages already, and the reload was the reason the sheet needed a Save
  * button - it would have thrown away a half-typed Azure key. */
-export let LANG = preferred();
+/* Where the choice is kept, and why it is not in the layout.
+ *
+ * It used to be `layout.language`, which is the one field a Sammlung carries
+ * for the device's own menu - so the editor and the talker had one language
+ * between them: a carer working in German could not build an English talker
+ * without turning their own page English, and opening a Sammlung re-languaged
+ * the page under them. The two are separate choices now, and this is the half
+ * that belongs to the person reading rather than to any one Sammlung.
+ *
+ * localStorage rather than the database everything else here lives in, for the
+ * reason @lautstark/design/theme gives for the scheme: this is read at module
+ * load to decide what the first paint says, and IndexedDB cannot answer that
+ * early. The scheme is the sibling case and shares the shape - vorlaut.theme,
+ * vorlaut.language - and both are facts about this browser, which is exactly
+ * why neither travels in an export.
+ */
+const CHOICE = "vorlaut.language";
+
+function remembered(): string {
+  try {
+    return localStorage.getItem(CHOICE) || "";
+  } catch {
+    // Safari in private browsing throws on access rather than answering.
+    return "";
+  }
+}
+
+export let LANG = BUILT_IN_LANGUAGES.includes(remembered())
+  ? remembered() : preferred();
 export const LANGUAGES = BUILT_IN_LANGUAGES;
 export let TEXTS = BUILT_IN_TEXTS[LANG];
 
@@ -67,6 +95,16 @@ export function setLanguage(code: string): void {
   if (!BUILT_IN_LANGUAGES.includes(code) || code === LANG) return;
   LANG = code;
   TEXTS = BUILT_IN_TEXTS[code];
+}
+
+/** Keep the choice for the next visit. Separate from setLanguage() because
+ *  that one is also how a test moves the page, and a test must not write
+ *  somebody's preference. */
+export function rememberLanguage(code: string): void {
+  if (!BUILT_IN_LANGUAGES.includes(code)) return;
+  try {
+    localStorage.setItem(CHOICE, code);
+  } catch { /* nothing to do; the language still holds for this tab */ }
 }
 export const palette = PALETTE;
 export const limits = LIMITS;
