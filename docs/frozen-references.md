@@ -169,8 +169,7 @@ nothing, so the obvious conclusion is that this check survives on its own.
 
 It does not, and the reason is worth keeping. The reader survives; what it was
 compared against did not. `normalize_layout()` in `layout.py` built every input
-and `src/data/layout_format.ts` has no equivalent — only `activeSets` and
-`normalizeColor`. `expected()` built the field lines the reader was held
+and `src/data/layout_format.ts` has no equivalent — only `normalizeColor`. `expected()` built the field lines the reader was held
 against. And `render_layout_bin()` was the only opinion on whether the
 JavaScript bytes were right. Delete Python and what is left is a reader that
 parses whatever it is handed and a test with nothing to compare.
@@ -381,6 +380,36 @@ It is test data and its loss was accepted deliberately when this was raised.
 Recorded here only so that nobody later mistakes the gitignore for an
 oversight, or spends an afternoon trying to recover something nobody wanted
 kept.
+
+## What two locks have stopped answering for
+
+The `active` flag is gone. It marked which of an author's sets went onto the
+device, from when one Sammlung was everything the product had; a Sammlung is
+the selection now, ships all its sets, and the flag was deleted rather than
+migrated. Both locks recorded it, neither can be asked again, and neither was
+touched — the tests were narrowed instead, each naming what it gave up:
+
+- `tests/test_layout_frozen.py`, `THE_FILTER_IS_GONE`. One case of seventeen —
+  three sets with the middle one switched off — is set aside. Its right answer
+  is now three sets and nothing here can say what those bytes are: `label`,
+  `images` and `sounds` were frozen per *active* set, so the middle set has no
+  names to be written with. The hash check still covers it, so hand-editing
+  that case into agreement is still caught. The other sixteen are untouched.
+- `tests/test_obf_frozen.py`, `ACTIVE_IS_GONE` and `THE_CAP_MOVED`. Two field
+  names — `active` on a set, `ext_vorlaut_active` on its board — drop out of
+  every comparison, 151 recorded answers between them. Separately, the two
+  caps collapsed into one of five sets, so six `normalizeLayout` cases that
+  hand it more than that are held to *refusing* rather than to the sentence
+  `obf.py` refused them with; one of the six the oracle answered rather than
+  refused. Everything else keeps its full value, including the zip members,
+  which are still compared as text and so still hold the writer to sorted keys
+  and its indent.
+
+Both are the case each lock's own `invalidated_by` anticipates — "a change to
+render_layout_bin()", "a change to the mapping in obf.py". That is what makes
+them a price rather than a fault, and neither is recoverable: the oracles went
+on 2026-08-22, and the only thing left that could write either lock is the
+module it checks.
 
 ## What is still only checked against itself
 
