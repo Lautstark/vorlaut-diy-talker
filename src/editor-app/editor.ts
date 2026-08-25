@@ -671,28 +671,47 @@ interface Draft {
   act: Act;
 }
 
-/** The four kinds the sheet offers, which are not the seven the union holds.
+/** The three kinds the sheet offers, which are not the seven the union holds.
  *
- * A relabelling and nothing else - `Act` is unchanged and so is everything in
- * data/app_package.ts. The old list mixed two different questions, what a word
- * does and what a bar control does, and put them in one dropdown where they
- * read as alternatives to each other. Worse, its first two named a distinction
- * that does not exist: "In die Satzleiste" against "Sofort sprechen" says one
- * of them speaks and the other does not, and vorlaut-app's BoardViewModel
- * calls utter() for `append` *and* `speak`. Both speak. The only difference is
- * whether the word joins the sentence, which is what the labels now say.
+ * A question about a *word*, and nothing else - `Act` is unchanged and so is
+ * everything in data/app_package.ts. Two things it used to ask are gone.
+ *
+ * The first two used to name a distinction that does not exist: one label
+ * said "into the sentence bar" and the other "speak at once", as though one
+ * of them spoke and the other did not, and vorlaut-app's BoardViewModel calls
+ * utter() for `append` *and* `speak`. Both speak. The only difference is
+ * whether the word joins the sentence, which is what the labels say now.
+ *
+ * The fourth kind is gone with three of the four acts under it. `sayBar`,
+ * `backspace` and `clear` are drawn by the viewer as permanent chrome on the
+ * message bar - TalkerScreen.kt, per design.md §4.3, with Speak as the
+ * screen's one primary - so a grid button for any of them spends a cell out of
+ * fifteen on a control that is already on screen at all times, and a second
+ * Speak competes with that primary. `home` has no such chrome and does need a
+ * cell, but it is navigation rather than bar operation: it is an entry in the
+ * page option's target list now, where it says what it does.
+ *
+ * exchange/SPEC.md §7.4 still names all four, and so does `Act`: a package
+ * from another AAC tool may carry any of them, and vorlaut-app has to read it.
+ * This is about what this editor offers to make.
  */
-type Does = "word" | "shout" | "goto" | "bar";
+type Does = "word" | "shout" | "goto";
 
-/** The four sentence-bar controls, which are one kind here and four acts on
- *  the wire - exchange/SPEC.md §7.4. */
-const BAR_KINDS = ["sayBar", "backspace", "clear", "home"] as const;
-
-const doesOf = (act: Act): Does =>
+/** Which kind an act reads as, or null for one of the three bar controls the
+ *  sheet no longer offers. The sheet keeps such a button saying what it is
+ *  rather than letting it re-read as the first kind in the list. */
+const doesOf = (act: Act): Does | null =>
   act.kind === "append" ? "word"
   : act.kind === "speak" ? "shout"
-  : act.kind === "goto" ? "goto"
-  : "bar";
+  : act.kind === "goto" || act.kind === "home" ? "goto"
+  : null;
+
+/** The two entries in the target list that are not a page: the start page,
+ *  which is the act `home` rather than a `goto` at whichever page is home
+ *  today, and one that mints a page on Fertig. Page ids are UUIDs, so neither
+ *  can collide with one. */
+const GOTO_HOME = "⌂";
+const GOTO_NEW = "+";
 
 /**
  * One button, opened by pressing its cell.
@@ -749,6 +768,88 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   rows.push(formRow(t("ui.app_button_label"), labelInput,
                     t("ui.app_button_label_note")));
 
+  /* --- what a press does, and the rows that follow from it ---------------
+   *
+   * Asked second, directly under the label, because it decides whether the
+   * rows under it mean anything at all. A navigation button says nothing, so
+   * its Gesprochen field and its play button are two dead controls - and
+   * asked last, as this was, they were dead in silence, with nothing on
+   * screen saying why typing into one changes nothing.
+   *
+   * A dropdown rather than the radiogroup it was, which is what makes the
+   * move affordable: four boxed options with their notes under them were most
+   * of this sheet's height, and a sheet that has to be scrolled to reach
+   * Fertig is worse than one asking its questions in the wrong order. What
+   * the radiogroup carried and a bare dropdown would throw away is each
+   * option's own line - ui.app_does_word_note against ui.app_does_shout_note,
+   * "says itself and joins the sentence" against "says itself but does not",
+   * which is the only thing explaining a distinction people otherwise get
+   * wrong. So the chosen option's note follows the control as a hint, and the
+   * sheet still says it.
+   */
+  const does = document.createElement("select");
+  does.className = "field";
+  does.id = "appDoes";
+  for (const kind of ["word", "shout", "goto"] as const) {
+    does.append(option(kind, t(`ui.app_does_${kind}`)));
+  }
+  const chose = doesOf(draft.act);
+  /* A button made in this editor before the sheet stopped offering the bar
+   * controls keeps its act, and keeps saying what that act is: a fourth entry
+   * that only such a button has. The alternative is a `sayBar` button that
+   * opens reading "Wort" and quietly becomes one on Fertig.
+   *
+   * Nothing general is built for this, because nothing general can arrive.
+   * importObz() has no mapping for these acts on the way in and reads into a
+   * talker layout rather than a tablet one, so no board from another AAC tool
+   * can carry one here. The only source is this editor's own past, in this
+   * browser's IndexedDB.
+   */
+  if (!chose) does.append(option(draft.act.kind, t(`ui.app_act_${actKey(draft.act.kind)}`)));
+  does.value = chose ?? draft.act.kind;
+
+  const note = document.createElement("span");
+  note.className = "form__hint";
+  const actRow = formRow(t("ui.app_button_act"), does);
+  actRow.appendChild(note);
+  rows.push(actRow);
+
+  /* Where a navigation button leads, with the start page as the first entry
+   * above the pages themselves.
+   *
+   * `home` is kept as its own act rather than written as a `goto` at whichever
+   * page is home today, because the two behave differently the moment somebody
+   * makes another page the start page: a `goto` stays pointing where it
+   * pointed, and a home button follows. That is the whole reason it is worth
+   * an entry of its own - and on a first-column button, which is on every page
+   * at once, it is the difference between "back to the start" and "back to the
+   * page that used to be the start".
+   */
+  const targets = document.createElement("select");
+  targets.className = "field";
+  targets.id = "appGoto";
+  targets.append(option(GOTO_HOME, t("ui.app_act_home")));
+  for (const [index, one] of layout.pages.entries()) {
+    targets.append(option(one.id, one.name || t("ui.app_page_n", { n: index + 1 })));
+  }
+  targets.append(option(GOTO_NEW, t("ui.app_goto_new")));
+  targets.value = draft.act.kind === "home" ? GOTO_HOME
+    : draft.act.kind === "goto" && draft.act.page ? draft.act.page : page().id;
+  /** What the target list is standing on, as an act. A `goto` is never left
+   *  pointing at nothing - a button with no target exports as an ordinary
+   *  appending button, which is not what the list said was chosen - so it
+   *  takes whatever is selected, which is the current page until somebody
+   *  changes it. */
+  const leadsTo = (): Act => targets.value === GOTO_HOME
+    ? { kind: "home" }
+    : { kind: "goto", page: targets.value === GOTO_NEW ? "" : targets.value };
+  targets.onchange = () => {
+    wantsNewPage = targets.value === GOTO_NEW;
+    draft.act = leadsTo();
+  };
+  const targetRow = formRow(t("ui.app_goto_page"), targets);
+  rows.push(targetRow);
+
   const spoken = textField(draft.vocalization, (value) => {
     draft.vocalization = value;
   });
@@ -770,7 +871,8 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   const withPlay = document.createElement("div");
   withPlay.className = "form__withplay";
   withPlay.append(spoken, play);
-  rows.push(formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id));
+  const spokenRow = formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id);
+  rows.push(spokenRow);
 
   const classes = document.createElement("select");
   classes.className = "field";
@@ -783,76 +885,38 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   classes.onchange = () => { draft.wordClass = classes.value; };
   rows.push(formRow(t("ui.app_button_class"), classes));
 
-  /* --- what a press does --- */
-
-  const does = document.createElement("div");
-  does.className = "does";
-  does.setAttribute("role", "radiogroup");
-  /** Which page a navigation button leads to, and the four bar controls: what
-   *  a choice needs once it is chosen, tucked under it rather than in a fifth
-   *  control that is dead most of the time. */
-  const more: Partial<Record<Does, HTMLElement>> = {};
-
-  const targets = document.createElement("select");
-  targets.className = "field";
-  targets.id = "appGoto";
-  for (const [index, one] of layout.pages.entries()) {
-    targets.append(option(one.id, one.name || t("ui.app_page_n", { n: index + 1 })));
-  }
-  targets.append(option("+", t("ui.app_goto_new")));
-  targets.setAttribute("aria-label", t("ui.app_goto_page"));
-  targets.value = draft.act.kind === "goto" && draft.act.page ? draft.act.page : page().id;
-  targets.onchange = () => {
-    wantsNewPage = targets.value === "+";
-    draft.act = { kind: "goto", page: wantsNewPage ? "" : targets.value };
+  /** The rows that depend on the answer above them, and the note under it.
+   *
+   * Hidden rather than disabled: the question is not whether somebody may type
+   * into Gesprochen, it is whether this button says anything at all, and a
+   * greyed field still reads as a field they have failed to reach.
+   *
+   * Wortart stays for all three, which looks like an oversight and is not. A
+   * page-leading button is coloured as a category on real German boards, and
+   * BuilderTabletPackageTest asserts exactly that of the navigating button in
+   * the round-trip sample - #D8AF97, the category colour.
+   *
+   * Nothing is cleared on a change of act. The draft is a copy that reaches
+   * the layout only on Fertig, so what somebody typed before changing their
+   * mind is still there if they change it back.
+   */
+  const follow = () => {
+    const goes = does.value === "goto";
+    const speaks = does.value === "word" || does.value === "shout";
+    note.textContent = goes || speaks ? t(`ui.app_does_${does.value}_note`)
+                                      : t("ui.app_does_bar_kept");
+    targetRow.hidden = !goes;
+    spokenRow.hidden = !speaks;
   };
-  more.goto = targets;
-
-  const bar = document.createElement("select");
-  bar.className = "field";
-  bar.id = "appBar";
-  for (const kind of BAR_KINDS) bar.append(option(kind, t(`ui.app_act_${actKey(kind)}`)));
-  bar.setAttribute("aria-label", t("ui.app_does_bar_which"));
-  bar.value = doesOf(draft.act) === "bar" ? draft.act.kind : "sayBar";
-  bar.onchange = () => { draft.act = { kind: bar.value } as Act; };
-  more.bar = bar;
-
-  const chose = doesOf(draft.act);
-  for (const kind of ["word", "shout", "goto", "bar"] as const) {
-    const opt = document.createElement("label");
-    opt.className = "does__opt";
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = "appDoes";
-    radio.value = kind;
-    radio.id = `appDoes_${kind}`;
-    radio.checked = kind === chose;
-    const head = document.createElement("b");
-    head.textContent = t(`ui.app_does_${kind}`);
-    const note = document.createElement("small");
-    note.textContent = t(`ui.app_does_${kind}_note`);
-    opt.append(radio, head, note);
-    if (more[kind]) {
-      const box = document.createElement("span");
-      box.className = "does__more";
-      box.appendChild(more[kind]!);
-      opt.appendChild(box);
-    }
-    radio.onchange = () => {
-      if (!radio.checked) return;
-      // A `goto` is never left pointing at nothing: a button with no target
-      // exports as an ordinary appending button, which is not what the list
-      // said was chosen. So it takes whatever the target select is standing
-      // on, which is the current page until somebody changes it.
-      draft.act = kind === "word" ? { kind: "append" }
-        : kind === "shout" ? { kind: "speak" }
-        : kind === "goto" ? { kind: "goto", page: targets.value === "+" ? "" : targets.value }
-        : { kind: bar.value } as Act;
-      wantsNewPage = kind === "goto" && targets.value === "+";
-    };
-    does.appendChild(opt);
-  }
-  rows.push(formRow(t("ui.app_button_act"), does));
+  does.onchange = () => {
+    draft.act = does.value === "word" ? { kind: "append" }
+      : does.value === "shout" ? { kind: "speak" }
+      : does.value === "goto" ? leadsTo()
+      : { kind: does.value } as Act;
+    wantsNewPage = does.value === "goto" && targets.value === GOTO_NEW;
+    follow();
+  };
+  follow();
 
   /** The draft, written where it belongs. Everything the sheet changed lands
    *  in one press, including the button's own existence. */
