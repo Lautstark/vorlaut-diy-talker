@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
-import { cells, hits, key, keySheet, query, search } from "./diy.js";
+import { cells, hits, key, keySheet, press, query, search, searchNote } from "./diy.js";
 
 /* Which collection the sheet offers, across a reload.
  *
@@ -353,4 +353,61 @@ test.describe("with the folder already connected at load", () => {
     await expect(trigger).toHaveText(other === "de" ? "Deutsch" : "English");
     await expectSource(page, table[other]["ui.search_metacom"]!);
   });
+});
+
+test("the picture column follows the Sammlung, not this browser", async ({ page }) => {
+  /* The other half of the same sentence, and the half that was wrong: which
+   * collection is searched is a fact about the *Sammlung*, and it was being
+   * read off a setting of this browser.
+   *
+   * exchange/SPEC.md §5.1 makes one symbol source per package a rule, with a
+   * licence behind it - a METACOM symbol stays a reference into somebody's own
+   * licensed folder, and the package's redistributable flag turns on which
+   * collection it drew from. So a Sammlung already drawn in one of them has an
+   * answer, and the picker has to ask it rather than the machine. The state
+   * below is the ordinary one on Chromium: a folder that was connected while
+   * the board was built and is waiting for its permission click after a
+   * restart. The search used to fall back to ARASAAC there, silently, and
+   * every picture taken from it was a key the export would later refuse.
+   */
+  await page.goto("./");
+  await expect(cells(page)).toHaveCount(6);
+  await supplyFiles(page);
+  await page.locator("#voiceClose").click();
+
+  // A METACOM picture onto the first key, through the column a person uses.
+  const box = await openSheet(page);
+  await search(box, "trinken");
+  await expect(hits(box)).toHaveCount(1);
+  await hits(box).first().click();
+  /* The picture itself cannot draw - the files this test supplies are four
+   * bytes of PNG signature and nothing else - so what says the pick landed is
+   * the control that only exists once there is a picture to take off. */
+  await expect(box.locator(".pick button", { hasText: label("ui.symbol_off") }))
+    .toBeVisible();
+  await press(box, "ui.done");
+  await expect(page.locator("#status")).toHaveText(label("ui.saved"), { timeout: 10_000 });
+
+  // The folder is session-only here, so a reload is the restart: the setting
+  // still says METACOM, readSettings() honestly refuses it, and the machine is
+  // back on ARASAAC. The Sammlung is not.
+  await page.reload();
+  await expect(cells(page)).toHaveCount(6);
+  await expectSource(page, label("ui.search_metacom"));
+  // And it says why nothing can be searched yet, instead of offering METACOM
+  // to somebody whose Sammlung is already drawn in it.
+  await expectCredits(page, phrase("ui.metacom_needed"));
+
+  // The assertion the whole change is for: no ARASAAC hits, and no ARASAAC
+  // request either. A picture from there would mix the Sammlung.
+  let asked = false;
+  await page.route("**/api.arasaac.org/**", (route) => {
+    asked = true;
+    route.fulfill({ contentType: "application/json", body: "[]" });
+  });
+  const again = await openSheet(page);
+  await search(again, "trinken");
+  await expect(hits(again)).toHaveCount(0);
+  await expect(searchNote(again)).toContainText(phrase("ui.metacom_needed"));
+  expect(asked).toBe(false);
 });

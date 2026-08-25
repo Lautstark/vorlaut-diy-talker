@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  buildAppPackage, checkPackage, localeFor, packageBytes, references,
-  spokenTexts, symbolSource, type AppPackage, type PackageInput,
+  buildAppPackage, checkPackage, drawnFrom, localeFor, packageBytes, references,
+  spokenTexts, symbolPlaces, symbolSource, type AppPackage, type PackageInput,
 } from "../../src/data/app_package.js";
 import { readPackage, readPackageFile, unzip } from "./obz.js";
 import type {
@@ -536,6 +536,59 @@ const tabletColumn = (): AppLayout => {
   return layout;
 };
 
+describe("where a symbol sits, for the sentence that has to name it", () => {
+  it("walks the same places references() does, in the same order", () => {
+    // One walker, two readings: a new place to put a symbol that only one of
+    // them learns about is exactly how §5.1 gets broken quietly.
+    const one = tabletColumn();
+    expect(symbolPlaces(one).map((place) => place.reference)).toEqual(references(one));
+    const talker = layout();
+    expect(symbolPlaces(talker).map((place) => place.reference)).toEqual(references(talker));
+  });
+
+  it("names a key by its set and a button by its page", () => {
+    expect(symbolPlaces(layout()).map((place) => place.where))
+      .toContain('"Ich habe Hunger" in "Essen"');
+    expect(symbolPlaces(layout()).map((place) => place.where))
+      .toContain('the set key of "Essen"');
+    expect(symbolPlaces(tablet()).map((place) => place.where))
+      .toContain('"Apfel" on page "Start"');
+  });
+
+  it("says where a button in the shared column is, which is nowhere in particular", () => {
+    // It is on every page at once, so naming one of them would send somebody
+    // to a page the button cannot be removed from.
+    expect(symbolPlaces(tabletColumn()).map((place) => place.where))
+      .toContain('"ich" in the shared column');
+  });
+
+  it("has a stand-in for a key nobody has named", () => {
+    const blank = layout();
+    blank.sets[0]!.slots[2]!.symbol = "arasaac-1.png";
+    expect(symbolPlaces(blank).map((place) => place.where))
+      .toContain('an unnamed key in "Essen"');
+  });
+
+  it("sorts the references into the collections they came from", () => {
+    // The reading behind symbolSource(), and the one the picker asks: it must
+    // answer for a mixed Sammlung rather than refusing, or the Sammlung that
+    // has to be put right is the one with no picture column in it.
+    const mixed = layout();
+    mixed.sets[1]!.slots[0]!.symbol = "metacom:ja";
+    const drawn = drawnFrom(mixed);
+    expect(drawn.metacom.map((place) => place.where)).toEqual(['"Noch einmal" in "Spielen"']);
+    expect(drawn.arasaac).toHaveLength(3);
+    // A Sammlung of nothing but uploaded pictures draws on neither, which is
+    // what lets the picker fall back to the machine setting for it.
+    const uploads = layout();
+    for (const set of uploads.sets) {
+      set.symbol = "";
+      for (const one of set.slots) one.symbol = "oma.png";
+    }
+    expect(drawnFrom(uploads)).toEqual({ metacom: [], arasaac: [] });
+  });
+});
+
 describe("a first column the whole Sammlung shares", () => {
   it("writes it onto every board, with each board's own ids", () => {
     const layout = tabletColumn();
@@ -714,6 +767,34 @@ describe("one symbol collection per package", () => {
     // been a bug - the picker offers one source at a time.
     expect(() => symbolSource(withSymbols("arasaac-2462.png", "metacom:ja")))
       .toThrow(/two symbol collections/i);
+  });
+
+  it("says which keys are the odd ones out", () => {
+    /* The refusal used to be "replace the odd ones out" and nothing more,
+     * which is a sentence somebody can only act on by opening every sheet in
+     * the Sammlung one at a time: which collection a picture came from is a
+     * fact about the reference, and the reference is the one thing no editor
+     * shows. The minority is named because it is the shorter list to put
+     * right - three ARASAAC keys against one METACOM key means moving one. */
+    const mixed = layout();
+    mixed.sets[1]!.slots[0]!.symbol = "metacom:ja";
+    expect(() => symbolSource(mixed))
+      .toThrow(/The odd one out is "Noch einmal" in "Spielen"/);
+  });
+
+  it("says which page an odd button is on", () => {
+    const mixed = tablet();
+    mixed.pages[1]!.buttons[0]!.symbol = "metacom:mehr";
+    expect(() => symbolSource(mixed)).toThrow(/"Mehr" on page "Essen"/);
+  });
+
+  it("names three of them and counts the rest", () => {
+    // A sentence naming forty buttons is a sentence nobody reads, and three
+    // are enough to see which collection they came from.
+    const many = withSymbols(
+      ...Array.from({ length: 5 }, (_, at) => `metacom:m${at}`),
+      ...Array.from({ length: 6 }, (_, at) => `arasaac-${at}.png`));
+    expect(() => symbolSource(many)).toThrow(/and 2 more/);
   });
 
   it("counts an uploaded picture towards neither", () => {

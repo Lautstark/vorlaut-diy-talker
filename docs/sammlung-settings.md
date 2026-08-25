@@ -39,7 +39,7 @@ vorlaut's was a live retroactive edit wearing the same clothes.
 | Appearance | the colour scheme | `localStorage` | this browser |
 | Voice | `layout.voice` | `layout.json` | **this Sammlung** |
 | Azure | the key and region | the installation's `.env` | this installation |
-| ARASAAC / METACOM | the active source, the folder, the rendering | settings + a folder handle | this installation |
+| ARASAAC / METACOM | the active source, the folder, the rendering | settings + a folder handle | this installation — but see [the symbol source](#the-symbol-source-was-the-same-question) |
 | Collection | importing a board | nothing — it is the way *in* | page-wide |
 | Language of the collection | `layout.language` | `layout.json` | **this Sammlung** |
 | Device, connect | a granted serial port | the browser's permission | this browser |
@@ -227,6 +227,38 @@ reasons worth recording rather than discovering again:
 
 So a tablet Sammlung's settings are the voice *and* the grid card, at the level
 of the menu rather than of one sheet.
+
+## The symbol source was the same question
+
+Found afterwards, in the same shape and with a licence behind it rather than a
+preference: **which symbol collection the picture column searches** was read off
+`symbols.activeSource()`, a setting of this browser. exchange/SPEC.md §5.1 makes
+one symbol source per package a rule of the format — a METACOM symbol stays a
+`metacom:` reference into somebody's own licensed folder, and the package's
+`redistributable` flag turns on which collection it drew from. So the answer
+changes with the selection, which by this document's own test makes it not the
+app's.
+
+It is now the Sammlung's, and it is **derived rather than chosen**: the same
+`symbolSource(layout)` the export reads, off the buttons. That is why there is
+no panel for it in the Sammlung's own sheet and should not be — a toggle would
+invite flipping it, and flipping it means replacing every symbol on the board.
+That is a deliberate act, not a preference, and nobody has asked for one. The
+METACOM *rendering* stays a machine-wide default for the same reason from the
+other end: a pick already stores `metacom:PNG_ohne_Rahmen/ja`, so each button
+records its own and `preferredRendering` is only the default for the next pick.
+
+Three consequences worth naming:
+
+* A Sammlung with no symbols yet, or with nothing but uploaded pictures, reads
+  as `"none"` and defers to the machine setting. `"none"` is the value that says
+  no attribution is owed, not a source to be locked to.
+* When the Sammlung needs METACOM and the folder is not connected in this
+  browser — the ordinary state on Chromium after a restart — the column says so
+  (`ui.metacom_needed`) instead of quietly answering out of ARASAAC. Silently
+  serving the other collection is exactly how the mixed board got built.
+* The refusal at export moved to the head of the run. See
+  [exchange.md](exchange.md#pictures).
 
 ## What the family still has to say
 
