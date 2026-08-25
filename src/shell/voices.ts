@@ -15,7 +15,6 @@ import { state } from "../core/state.js";
 import { applyTexts, t } from "../core/texts.js";
 import { save } from "../core/save.js";
 import { editor } from "../core/editor.js";
-import { showSources } from "./picker.js";
 import { speak } from "./speech.js";
 import { forgetKey, loadSettings, paintStates, saveSettings } from "./settings.js";
 
@@ -473,8 +472,10 @@ async function chooseLanguage(code: string) {
   document.documentElement.lang = code;
   state.layout.language = code;
   // Every fixed label, then everything drawn from one: the board, the voice
-  // list with its facts and filters, the settings panels' own state lines,
-  // and the picker's source line.
+  // list with its facts and filters, and the settings panels' own state lines.
+  // The line naming the symbol source is not among them and does not need to
+  // be: it is built with the sheet that shows it, so the next one to open is
+  // already in the language chosen here.
   applyTexts();
   // The trigger names the language in force, and that name is ours to keep now.
   // A <select> showed its own selected option and this line was not needed;
@@ -484,7 +485,6 @@ async function chooseLanguage(code: string) {
   paintStates();
   renderVoices();
   editor().render();
-  showSources();
   await save();
 }
 

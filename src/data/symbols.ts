@@ -136,7 +136,7 @@ export const folderOf = (path, root) => {
 };
 
 /**
- * Hits from one source, in the shape picker.js already renders: source, label,
+ * Hits from one source, in the shape shell/sheet.ts renders: source, label,
  * a URL for the preview, and whichever identifier the pick step needs — `ref`
  * for METACOM, `id` for ARASAAC.
  *
@@ -227,10 +227,10 @@ const loadGerman = () => (german ??= import("@lautstark/bildquelle/german"));
 /* Throws, unlike search() above, and the difference is what the caller can do
  * about it. search() answers for one named source out of several, where a
  * source that cannot answer should cost its own hits and nothing else. This
- * one *is* the picker's answer: there is no second collection behind it, so
- * swallowing left the dialog saying "nothing found for X" whether the
- * collection held nothing or the page had never managed to ask. Those are
- * different sentences, and picker.ts writes both. */
+ * one *is* the answer: there is no second collection behind it, so swallowing
+ * left the page saying "nothing found for X" whether the collection held
+ * nothing or the browser had never managed to ask. Those are different
+ * sentences, and picker.ts's findSymbols() picks between them. */
 export async function searchActive(word: string) {
   const term = (word || "").trim();
   if (!term) return [];

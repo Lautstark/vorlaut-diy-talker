@@ -3,7 +3,6 @@
 import { $ } from "../shell/dom.js";
 import { LANG, TEXTS } from "./boot.js";
 import { editor, haveEditor } from "./editor.js";
-import { activeSource } from "../data/symbols.js";
 
 // A label and its address, both out of the table. Everything else on this page
 // arrives through textContent, which is inert whatever it says; an href is the
@@ -80,18 +79,16 @@ export function applyTexts() {
   $<HTMLInputElement>("collectionName").setAttribute("aria-label", t("ui.collection_name"));
   $<HTMLButtonElement>("collectionMenu").title = t("ui.collection_menu");
   $<HTMLButtonElement>("collectionMenu").setAttribute("aria-label", t("ui.collection_menu"));
-  $<HTMLButtonElement>("searchBtn").textContent = t("ui.search");
-  $<HTMLButtonElement>("uploadBtn").textContent = t("ui.own_image");
-  $<HTMLButtonElement>("closeBtn").textContent = t("ui.close");
-  // Named after the collection actually being offered, not after ARASAAC.
-  // This line said "ui.search_arasaac" flat, which was true of a first visit
-  // and of nothing else: applyTexts() runs again on every language switch and
-  // on a board arriving in another language, and each of those put ARASAAC
-  // back over a field that was searching METACOM. picker.ts writes the same
-  // placeholder when the source changes; this is the same answer at the one
-  // moment the picker has nothing to react to.
-  $<HTMLInputElement>("q").placeholder =
-    t(activeSource() === "metacom" ? "ui.search_metacom" : "ui.search_arasaac");
+  /* The symbol dialog's four labels were here - its search button, its upload,
+   * its close, and the field naming the collection being searched. All four
+   * went with the dialog.
+   *
+   * The last of them is worth a sentence, because it was the subtle one: it
+   * said "ui.search_arasaac" flat, which was true of a first visit and of
+   * nothing else, so every language switch put ARASAAC back over a field that
+   * was searching METACOM. The field it named is built with its sheet now and
+   * asks picker.ts's searchPlaceholder() as it is built, so there is no
+   * standing copy for this function to keep honest. */
   $("settingsHeading").textContent = t("ui.settings");
   $("voiceSection").textContent = t("ui.voice");
   $<HTMLInputElement>("voiceQuery").placeholder = t("ui.voice_search_hint");

@@ -21,8 +21,9 @@
  *
  * So the shape shell/picker.ts already had is the shape here. That module
  * stopped knowing what a set was by taking `apply` instead of a target to
- * write into; this one never learns, for the same reason and by the same
- * means. It is handed a title, a picture to show, some rows it does not read,
+ * write into - and has since stopped drawing anything at all, leaving the seam
+ * this column is built on; this one never learns what a set is, for the same
+ * reason and by the same means. It is handed a title, a picture to show, some rows it does not read,
  * and three labelled things to do. What a row means, what the picture goes on
  * and what "done" writes are the caller's, every one of them.
  *
@@ -247,7 +248,7 @@ function drawPick(spec: PickColumn): HTMLElement {
   };
 
   // So a slow answer cannot overtake a newer one. The sheet's own, because the
-  // sheet is its own search: the picker dialog is not open behind it.
+  // sheet is its own search - there is no dialog behind it to hold one.
   let token = 0;
   const search = () => {
     const word = query.value.trim();
@@ -271,9 +272,10 @@ function drawPick(spec: PickColumn): HTMLElement {
     search();
   };
 
-  /* Somebody's own picture, reached from inside the sheet rather than by
-   * opening the picker dialog on top of it. A modal over a modal to choose a
-   * symbol is the second dialog this design set out to remove. */
+  /* Somebody's own picture, reached from inside the sheet. A modal over a
+   * modal to choose a symbol was the second dialog this design set out to
+   * remove, and the one it replaced has since gone entirely - shell/picker.ts
+   * is the seam under this column and nothing else now. */
   const file = document.createElement("input");
   file.type = "file";
   file.accept = "image/*";
@@ -298,10 +300,9 @@ function drawPick(spec: PickColumn): HTMLElement {
    *
    * ARASAAC is CC BY-NC-SA and the wording is a condition of the licence, so
    * it belongs wherever its pictures are shown - which, since a sheet carries
-   * its own search rather than opening the picker dialog on top of itself, is
-   * here. It was in that dialog alone, and the tablet's sheet has been showing
-   * ARASAAC results without it; bringing the talker onto the same sheet would
-   * have made that true of both editors rather than one.
+   * its own search, is here. It was under the picker dialog's results, and
+   * that dialog is gone; the standing copy is the ARASAAC panel in
+   * Einstellungen, and e2e/legal.spec.ts holds both halves.
    *
    * The sentence is picker.ts's, built there and read here. */
   const credits = document.createElement("p");

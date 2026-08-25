@@ -27,8 +27,10 @@
  * five-key talker, the device preview and the cable.
  *
  * What is left over belongs to no device: the save conflict, which is about two
- * tabs writing to one store, and the two hidden file inputs that let picker.ts
- * and settings.ts open a file dialog without a visible control.
+ * tabs writing to one store, and the hidden file input that lets settings.ts
+ * open a file dialog without a visible control. There were two of those; the
+ * other was the symbol picker's, and a sheet's picture column now makes its
+ * own rather than reaching for a shared one in the frame.
  * src/editor-diy/templates/board.ts mounts into #editor.
  */
 import { mount } from "./mount.js";
@@ -114,7 +116,6 @@ export const markup = `
 
       <div id="editor"></div>
 
-      <input type="file" id="fileInput" accept="image/*" hidden>
       <input type="file" id="boardFile" accept=".obf,.obz,application/zip" hidden>
     </main>
   </div>
