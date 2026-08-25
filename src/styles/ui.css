@@ -1022,8 +1022,13 @@ dialog.sheet--button { max-width: 720px; width: 100%; }
   color: var(--text); font-size: inherit;
   padding-top: 14px;
 }
-/* A page has one thing to say and no picture beside it. */
-.sheet--page { max-width: 520px; }
+/* A page has one thing to say and no picture beside it.
+
+   Scoped `dialog.` for the same reason the rule above is: openSheet puts both
+   classes on the page card, so this has to out-specify `dialog.sheet--button`
+   rather than merely follow it. Unprefixed, 720px won and the page card drew
+   as one narrow column of fields adrift in a sheet the width of the other. */
+dialog.sheet--page { max-width: 520px; }
 .sheet--page > .body { grid-template-columns: 1fr; }
 @media (max-width: 720px) { .sheet--button > .body { grid-template-columns: 1fr; } }
 
