@@ -77,6 +77,23 @@ export const GRID = {
   rows: 3, columns: 5,
   minRows: 1, minColumns: 1,
   maxRows: 6, maxColumns: 11,
+  /* The sizes somebody is actually offered, drawn as miniature grids rather
+   * than typed as a pair of numbers.
+   *
+   * Four steps from the first board to a grown vocabulary, and they are steps
+   * rather than a range because what is being chosen is how much fits on a
+   * page - "6 x 11" is the answer to that question, not the question. A number
+   * field beside the tabs also invites a typo, and a typo there costs buttons.
+   *
+   * `rows` and `columns` above are the first of these, and the last is the
+   * bound: a size outside minRows..maxRows would not survive resize()'s clamp,
+   * so this list stays inside them. */
+  sizes: [
+    { rows: 3, columns: 5 },
+    { rows: 4, columns: 6 },
+    { rows: 5, columns: 8 },
+    { rows: 6, columns: 11 },
+  ],
 };
 
 export const TEXTS = {
@@ -168,12 +185,17 @@ export const TEXTS = {
     "ui.app_goto_new": "Neue Seite \u2026",
     "ui.app_goto_page": "Zielseite",
     "ui.app_grid": "Raster",
+    "ui.app_grid_all_pages": "Gilt f\u00fcr alle Seiten dieser Sammlung. Eine Taste liegt dadurch auf jeder Seite an derselben Stelle - das ist der Grund, warum es eine Einstellung f\u00fcr die Sammlung ist und keine f\u00fcr die Seite.",
+    "ui.app_grid_apply": "\u00dcbernehmen",
     "ui.app_grid_columns": "Spalten",
+    "ui.app_grid_later": "L\u00e4sst sich sp\u00e4ter \u00e4ndern - gr\u00f6\u00dfer kostet nichts, kleiner fragt vorher.",
     "ui.app_grid_rows": "Zeilen",
     "ui.app_grid_shrink": "Raster verkleinern",
     "ui.app_grid_shrink_ask": "{n} Tasten liegen au\u00dferhalb von {rows}\u00d7{cols} und gehen dabei verloren.",
     "ui.app_grid_shrink_ask_one": "Eine Taste liegt au\u00dferhalb von {rows}\u00d7{cols} und geht dabei verloren.",
     "ui.app_grid_shrink_go": "Verkleinern",
+    "ui.app_grid_size": "Wie viel passt auf eine Seite?",
+    "ui.app_grid_size_buttons": "{n} Tasten",
     "ui.app_page_delete": "Seite l\u00f6schen",
     "ui.app_page_delete_ask": "\u201e{name}\u201c wird gel\u00f6scht, mit {n} Tasten darauf.",
     "ui.app_page_delete_ask_none": "\u201e{name}\u201c wird gel\u00f6scht. Es ist nichts darauf.",
@@ -198,6 +220,13 @@ export const TEXTS = {
     "ui.app_symbol_none": "Noch kein Bild",
     "ui.app_symbol_own": "Eigenes Bild …",
     "ui.app_symbol_search": "Symbol suchen",
+    "ui.app_word_color": "Farbe nach Wortart",
+    "ui.app_word_color_border": "Als Rahmen",
+    "ui.app_word_color_border_note": "Nur der Rand. Ruhiger, und Fotos bleiben Fotos.",
+    "ui.app_word_color_fill": "Als Fl\u00e4che",
+    "ui.app_word_color_fill_note": "Die ganze Taste in der Farbe ihrer Wortart.",
+    "ui.app_word_color_off": "Aus",
+    "ui.app_word_color_off_note": "Keine Farbe nach Wortart. Die Seite beh\u00e4lt ihre eigene.",
     "ui.arasaac": "ARASAAC",
     "ui.arasaac_down": "ARASAAC nicht erreichbar - nur METACOM-Treffer.",
     "ui.arasaac_intro": "Rund 13.000 Piktogramme mit deutschen Bezeichnungen, direkt aus dem öffentlichen ARASAAC-Verzeichnis. Nichts einzurichten - sie stehen im Bildwähler immer zur Verfügung.",
@@ -221,6 +250,7 @@ export const TEXTS = {
     "ui.azure_save": "Schlüssel speichern",
     "ui.azure_unreachable": "Region antwortet nicht \u2013 stimmt der Regionsname?",
     "ui.collection": "Sammlung",
+    "ui.collection_create": "Sammlung anlegen",
     "ui.collection_default": "Sammlung vom {date}",
     "ui.collection_delete": "Sammlung l\u00f6schen",
     "ui.collection_delete_ask_button": "\u201e{name}\u201c wird gel\u00f6scht, mit {n} Tasten darin. Das l\u00e4sst sich nicht r\u00fcckg\u00e4ngig machen.",
@@ -582,12 +612,17 @@ export const TEXTS = {
     "ui.app_goto_new": "New page \u2026",
     "ui.app_goto_page": "Page to go to",
     "ui.app_grid": "Grid",
+    "ui.app_grid_all_pages": "Holds for every page in this collection. A button therefore sits in the same place on all of them - which is the reason this is a setting for the collection and not for the page.",
+    "ui.app_grid_apply": "Apply",
     "ui.app_grid_columns": "Columns",
+    "ui.app_grid_later": "Can be changed later - growing costs nothing, shrinking asks first.",
     "ui.app_grid_rows": "Rows",
     "ui.app_grid_shrink": "Make the grid smaller",
     "ui.app_grid_shrink_ask": "{n} buttons sit outside {rows}\u00d7{cols} and would be lost.",
     "ui.app_grid_shrink_ask_one": "One button sits outside {rows}\u00d7{cols} and would be lost.",
     "ui.app_grid_shrink_go": "Make it smaller",
+    "ui.app_grid_size": "How much fits on a page?",
+    "ui.app_grid_size_buttons": "{n} buttons",
     "ui.app_page_delete": "Delete this page",
     "ui.app_page_delete_ask": "\u201c{name}\u201d goes, and the {n} buttons on it.",
     "ui.app_page_delete_ask_none": "\u201c{name}\u201d goes. There is nothing on it.",
@@ -612,6 +647,13 @@ export const TEXTS = {
     "ui.app_symbol_none": "No picture yet",
     "ui.app_symbol_own": "Your own picture …",
     "ui.app_symbol_search": "Search for a symbol",
+    "ui.app_word_color": "Colour by word class",
+    "ui.app_word_color_border": "As a border",
+    "ui.app_word_color_border_note": "The edge only. Quieter, and photos stay photos.",
+    "ui.app_word_color_fill": "As a fill",
+    "ui.app_word_color_fill_note": "The whole button in the colour of its word class.",
+    "ui.app_word_color_off": "Off",
+    "ui.app_word_color_off_note": "No colour by word class. The page keeps its own.",
     "ui.arasaac": "ARASAAC",
     "ui.arasaac_down": "ARASAAC not reachable - METACOM hits only.",
     "ui.arasaac_intro": "Around 13,000 pictograms with German names, straight from the public ARASAAC directory. Nothing to set up - they are always there in the symbol picker.",
@@ -635,6 +677,7 @@ export const TEXTS = {
     "ui.azure_save": "Save key",
     "ui.azure_unreachable": "The region does not answer - is the region name right?",
     "ui.collection": "Collection",
+    "ui.collection_create": "Create collection",
     "ui.collection_default": "Collection of {date}",
     "ui.collection_delete": "Delete this collection",
     "ui.collection_delete_ask_button": "\u201c{name}\u201d goes, and the {n} buttons in it. This cannot be undone.",

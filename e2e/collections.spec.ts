@@ -101,6 +101,10 @@ async function newCollection(page: Page, name: string) {
   await asked.locator("button.choice")
     .filter({ has: page.locator("strong", { hasText: label("ui.collection_target_diy") }) })
     .click();
+  // The choice selects; the footer makes it. Two presses because the tablet
+  // has a second question inside this one - how big a page is - and a choice
+  // that made the Sammlung on the way past would ask it too late.
+  await asked.locator("button", { hasText: label("ui.collection_create") }).click();
   await expect(rows(page)).toHaveCount(before + 1);
   /* The row appearing is not the end of the errand - making a Sammlung writes,
    * switches, re-reads, redraws, and only then puts the caret in the name.

@@ -58,6 +58,9 @@ async function make(page: Page, which: "diy" | "app"): Promise<void> {
   const asked = page.locator("dialog[open]").filter({ has: page.locator("h2") });
   await expect(asked).toBeVisible();
   await asked.locator("button.choice").nth(which === "diy" ? 0 : 1).click();
+  // The choice selects, the footer makes it - see the note in the target
+  // dialog, and the size question that sits inside it for the tablet.
+  await asked.locator("button", { hasText: label("ui.collection_create") }).click();
   /* Making a Sammlung writes, switches, re-reads, redraws, and only then puts
    * the caret in the name. Typing before that last step renames whichever one
    * was open a moment ago and leaves the new one sitting there unnamed - which

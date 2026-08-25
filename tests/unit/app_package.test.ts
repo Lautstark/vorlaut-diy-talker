@@ -338,6 +338,53 @@ describe("a tablet Sammlung as a board package", () => {
     // stands - which is a better answer than a colour meaning a word class
     // nobody chose.
     expect(button(pkg, "board-1", "board-1-r2c2").background_color).toBeUndefined();
+    // Nothing wears a border while the Sammlung wears fills. The two fields
+    // are alternatives, not a pair - a button carrying both would say the same
+    // thing twice and leave a viewer to pick.
+    expect(button(pkg, "board-1", "board-1-r1c1").border_color).toBeUndefined();
+  });
+
+  it("wears the same colour as a border when the Sammlung asks for one", () => {
+    const pkg = buildAppPackage(tabletInput({
+      layout: { ...tablet(), wordColor: "border" },
+    }));
+    // The same hexes, in the other OBF field. Both are the format's own, which
+    // is what makes this an ordinary package rather than an extension - and
+    // the drawing is baked in, so a viewer that has never heard of the
+    // preference still draws the board the way it was built.
+    expect(button(pkg, "board-1", "board-1-r1c1").border_color)
+      .toBe("rgb(253, 253, 150)");          // Pronomen, gelb
+    expect(button(pkg, "board-1", "board-1-r1c2").border_color)
+      .toBe("rgb(255, 218, 137)");          // Nomen, orange
+    expect(button(pkg, "board-1", "board-1-r1c1").background_color).toBeUndefined();
+    // A button with no class still says nothing, whichever field is in use.
+    expect(button(pkg, "board-1", "board-1-r2c2").border_color).toBeUndefined();
+  });
+
+  it("writes no word-class colour at all when the Sammlung wears none", () => {
+    const pkg = buildAppPackage(tabletInput({
+      layout: { ...tablet(), wordColor: "off" },
+    }));
+    // "Off" is not colourless: the page keeps whatever colour it has, and what
+    // goes is the colour that means *what a word is* rather than *where you
+    // are*. Here that is both fields left unwritten on every button.
+    for (const one of pkg.boards) {
+      for (const button of one.buttons) {
+        expect(button.background_color).toBeUndefined();
+        expect(button.border_color).toBeUndefined();
+      }
+    }
+  });
+
+  it("colours by word class when the Sammlung predates the choice", () => {
+    // Every layout stored before AppLayout.wordColor existed has no field at
+    // all, and there is no migration: absent counts as a fill, so an old
+    // Sammlung exports exactly the package it exported yesterday.
+    const before = tablet();
+    expect("wordColor" in before).toBe(false);
+    const pkg = buildAppPackage(tabletInput({ layout: before }));
+    expect(button(pkg, "board-1", "board-1-r1c1").background_color)
+      .toBe("rgb(253, 253, 150)");
   });
 
   it("gives a page no colour of its own", () => {

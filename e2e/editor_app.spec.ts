@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -164,16 +164,30 @@ async function build(page: Page): Promise<void> {
     .filter({ has: page.locator("strong", { hasText: label("ui.collection_target_app") }) })
     .click();
 
+  /* How much fits on a page, asked in the same breath and as pictures rather
+   * than as a pair of numbers. Four of them, and the first is pressed already
+   * - a first board is big cells and few of them, and growing later costs
+   * nothing. This takes the offered default, which is what the counts below
+   * are about. */
+  const sizes = asked.locator(".size");
+  await expect(sizes).toHaveCount(4);
+  await expect(sizes.first()).toHaveAttribute("aria-pressed", "true");
+  await expect(sizes.first()).toContainText("3");
+  // The choice selects; the footer is what writes anything at all.
+  await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+
   // A name of its own. Both Sammlungen a browser has at this point are named
   // for the day, so the date name cannot tell them apart - and the sidebar
   // reorders by last edited, so neither can a position.
   await page.locator("#collectionName").fill("Tablet");
   await expect(page.locator("#collectionList")).toContainText("Tablet");
 
-  // 3x5 is what a new one starts as.
+  // 3x5 is what a new one starts as, and the bar over the board is the pages
+  // and nothing else: the size is the Sammlung's, so it lives in the menu
+  // beside its name.
   await expect(cells(page)).toHaveCount(15);
-  await expect(page.locator("#appRows")).toHaveValue("3");
-  await expect(page.locator("#appCols")).toHaveValue("5");
+  await expect(page.locator("#appRows")).toHaveCount(0);
+  await expect(page.locator("#appCols")).toHaveCount(0);
 
   await put(page, 0, { label: "ich", wordClass: "pronoun" });
   await put(page, 1, { label: "will", wordClass: "verb" });
@@ -373,30 +387,108 @@ test("deleting a page keeps the buttons that led to it", async ({ page }) => {
   await expect(essen.locator(".appcell__act")).toHaveCount(0);
 });
 
+/** The card behind the ⋯ beside the Sammlung's name: the grid size and the
+ *  colour of a word class, which are the two things true of every page. */
+async function openGrid(page: Page) {
+  await page.locator("#collectionMenu").click();
+  await page.locator('[role="menuitem"]', { hasText: label("ui.app_grid") }).click();
+  const card = sheet(page, "ui.app_grid");
+  await expect(card).toBeVisible();
+  return card;
+}
+
+/** One of the four sizes, by the pair it draws. */
+const size = (card: Locator, rows: number, columns: number) =>
+  card.locator(".size").filter({ has: card.page().locator("b", {
+    hasText: new RegExp(`^${rows} . ${columns}$`) }) });
+
 test("the grid grows in silence and asks before it shrinks", async ({ page }) => {
   await standIn(page);
   await build(page);
 
-  // Growing moves nothing and loses nothing, which is what buttons carrying
-  // their own coordinates buys: 3x5 to 6x11 is a bounds change, not a
-  // re-index.
-  await page.locator("#appRows").fill("6");
-  await page.locator("#appRows").blur();
-  await expect(cells(page)).toHaveCount(30);
-  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  /* Growing moves nothing and loses nothing, which is what buttons carrying
+   * their own coordinates buys: 3x5 to 6x11 is a bounds change, not a
+   * re-index. So there is nothing to warn about, and the footer is the
+   * ordinary apply rather than the destructive one. */
+  let card = await openGrid(page);
+  await size(card, 6, 11).click();
+  await expect(card.locator(".notice")).toHaveCount(0);
+  await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+  await expect(cells(page)).toHaveCount(66);
   await expect(page.locator("#appGrid .appcell", { hasText: "Mehr" })).toHaveCount(1);
 
-  // Shrinking past something asks, and names how many buttons would go.
-  await page.locator("#appRows").fill("1");
-  await page.locator("#appRows").blur();
-  const asked = sheet(page, "ui.app_grid_shrink");
-  await expect(asked.locator(".body")).toContainText(/1×5/);
-  await asked.locator("button", { hasText: label("ui.cancel") }).click();
+  /* Something in the far corner, which only the big grid has: the last cell of
+   * 6 x 11 is outside 3 x 5, and it is what makes going back a loss. Nothing
+   * that was placed at 3 x 5 ever leaves - a button keeps its own coordinates,
+   * so growing and shrinking again is not a round trip through a shredder. */
+  await put(page, 65, { label: "Ecke", wordClass: "noun" });
+  await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
-  // Declined: the field goes back to what the board actually is, rather than
-  // sitting there showing a size it is not.
-  await expect(page.locator("#appRows")).toHaveValue("6");
+  // Shrinking past something says so before it is pressed, and names how many
+  // buttons would go - across every page, because the size is one decision for
+  // all of them and the losses may be on a page nobody is looking at.
+  card = await openGrid(page);
+  await size(card, 3, 5).click();
+  await expect(card.locator(".notice")).toContainText(/3.5/);
+  await card.locator("button", { hasText: label("ui.cancel") }).click();
+
+  // Declined: nothing was written, so the board is the size it was and the
+  // button that would have gone is still on it.
+  await expect(cells(page)).toHaveCount(66);
+  await expect(page.locator("#appGrid .appcell", { hasText: "Ecke" })).toHaveCount(1);
   await expect(page.locator("#appGrid .appcell", { hasText: "Start" })).toHaveCount(1);
+
+  // Said, and only then done. The button outside goes; the ones inside stay
+  // exactly where they were, because none of them was ever re-indexed.
+  card = await openGrid(page);
+  await size(card, 3, 5).click();
+  await card.locator("button", { hasText: label("ui.app_grid_shrink_go") }).click();
+  await expect(cells(page)).toHaveCount(15);
+  await expect(page.locator("#appGrid .appcell", { hasText: "Ecke" })).toHaveCount(0);
+  await expect(page.locator("#appGrid .appcell", { hasText: "Start" })).toHaveCount(1);
+});
+
+test("a word class is worn as a fill, as a border, or not at all", async ({ page }) => {
+  await standIn(page);
+  await build(page);
+
+  /* Back to the start page, where the words are - build() finishes on the
+   * page it made second. By its whole label rather than by a substring:
+   * "Sprich" is on the same board and contains "ich". */
+  await page.locator("#appPages .tab").first().click();
+  const ich = page.locator("#appGrid .appcell")
+    .filter({ has: page.locator(".appcell__label", { hasText: /^ich$/ }) });
+
+  // A fill is what a Sammlung wears when nobody has said otherwise, which is
+  // also what every layout stored before the choice existed wears.
+  await expect(ich).toHaveAttribute("style", /--cell-color:\s*#fdfd96/);
+
+  // The border says the same thing and leaves the picture under it alone.
+  let card = await openGrid(page);
+  await card.locator(".does__opt")
+    .filter({ has: page.locator("b", { hasText: label("ui.app_word_color_border") }) })
+    .click();
+  await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+  await page.locator("#appPages .tab").first().click();
+  await expect(ich).toHaveAttribute("style", /--cell-edge:\s*#fdfd96/);
+  await expect(ich).not.toHaveAttribute("style", /--cell-color/);
+
+  // Off is not colourless - the page keeps its own - but no cell says what
+  // kind of word is on it any more.
+  card = await openGrid(page);
+  await card.locator(".does__opt")
+    .filter({ has: page.locator("b", { hasText: label("ui.app_word_color_off") }) })
+    .click();
+  await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+  await page.locator("#appPages .tab").first().click();
+  await expect(ich).not.toHaveAttribute("style", /--cell-(color|edge)/);
+
+  // And it belongs to the Sammlung, so it is still true after a reload - which
+  // is the half a rendering test cannot see: that the choice was written.
+  await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
+  await page.reload();
+  await expect(ich).toBeVisible();
+  await expect(ich).not.toHaveAttribute("style", /--cell-(color|edge)/);
 });
 
 test("a button moves to another cell, by keyboard and by drag", async ({ page }) => {
