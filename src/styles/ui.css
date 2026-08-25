@@ -1321,6 +1321,13 @@ dialog.sheet--page { max-width: 520px; }
   display: flex; align-items: center; gap: 8px; cursor: pointer;
   font-size: 13px;
 }
+/* And here it had been losing all along. sheet.ts has always set .hidden on
+   this label when there is no picture to cross out, and the display above has
+   always beaten it - so a key with no picture offered to cross one out, which
+   is the "permanently there and permanently dead" the comment above the
+   control warns against. [hidden] is the user agent's rule and loses to any
+   author display, the same way it loses to .reveal and .scrim further up. */
+.pick__negate[hidden] { display: none; }
 
 /* What is owed for the collection the hits came from, under them. Hint-sized
    and hint-coloured: it is a condition of a licence rather than something
