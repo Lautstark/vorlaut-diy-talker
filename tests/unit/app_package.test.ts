@@ -210,7 +210,7 @@ describe("a DIY Sammlung as a board package", () => {
 /* ------------------------------------------------- a tablet Sammlung --- */
 
 const page = (over: Partial<AppPage> = {}): AppPage => ({
-  id: "p-start", name: "Start", color: "#3B5BDB", buttons: [], ...over,
+  id: "p-start", name: "Start", buttons: [], ...over,
 });
 
 const key = (over: Partial<AppButton> = {}): AppButton => ({
@@ -242,7 +242,7 @@ const tablet = (): AppLayout => ({
       ],
     }),
     page({
-      id: "p-food", name: "Essen", color: "#2F9E44",
+      id: "p-food", name: "Essen",
       buttons: [key({ id: "f1", row: 1, col: 2, label: "Mehr" })],
     }),
   ],
@@ -338,6 +338,22 @@ describe("a tablet Sammlung as a board package", () => {
     // stands - which is a better answer than a colour meaning a word class
     // nobody chose.
     expect(button(pkg, "board-1", "board-1-r2c2").background_color).toBeUndefined();
+  });
+
+  it("gives a page no colour of its own", () => {
+    const pkg = buildAppPackage(tabletInput());
+    // §4.2's ext_lautstark_board_color is optional and stays defined in the
+    // format; a page has nothing to put in it while colouring a *page* is
+    // being reconsidered. A button's colour is untouched - that one is the
+    // Fitzgerald key and means a word class, which is a different job.
+    for (const one of pkg.boards) {
+      expect(one.ext_lautstark_board_color).toBeUndefined();
+    }
+    // And the talker's boards still carry one, from the set. Asserted here so
+    // that removing it from the other half is a deliberate act rather than
+    // something this change quietly did to both.
+    const talker = buildAppPackage(input());
+    expect(board(talker, "set-1").ext_lautstark_board_color).toBe("#3b5bdb");
   });
 
   it("carries a clip only where pressing the button speaks its own text", () => {
