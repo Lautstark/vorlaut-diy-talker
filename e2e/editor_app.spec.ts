@@ -89,17 +89,26 @@ const hit = (page: Page, at: number) => cells(page).nth(at).locator(".cell__open
 /** The button sheet, which a press on any cell opens. */
 const buttonSheet = (page: Page) => sheet(page, "ui.app_button_title");
 
-/** Which of the sheet's four kinds carries an act.
+/** Which of the sheet's three kinds carries an act.
  *
- * The mapping is the whole of what the relabelling changed, so a test that
- * named the radios directly would be asserting the labels rather than the
- * wiring. `Act` itself is untouched: the four bar controls are one kind here
- * and four acts on the wire, and the two speaking kinds differ only in whether
- * the word joins the sentence - which is what the viewer already did. */
+ * The mapping is the whole of what the sheet's own naming changed, so a test
+ * that named the entries directly would be asserting the labels rather than
+ * the wiring. `Act` itself is untouched: `home` is an entry in the page
+ * option's target list rather than a kind of its own, and the two speaking
+ * kinds differ only in whether the word joins the sentence - which is what the
+ * viewer always did.
+ *
+ * The three bar controls are not here because the sheet no longer offers them:
+ * the viewer draws Speak, Undo and Clear on the message bar itself, so a grid
+ * button for one spent a cell duplicating chrome that is always on screen. */
 const DOES: Record<string, string> = {
-  append: "word", speak: "shout", goto: "goto",
-  sayBar: "bar", backspace: "bar", clear: "bar", home: "bar",
+  append: "word", speak: "shout", goto: "goto", home: "goto",
 };
+
+/** The start page, as the target list spells it. Above the pages themselves,
+ *  and kept as the act `home` rather than a `goto` at whichever page is home
+ *  today - the two part company the moment somebody moves the start page. */
+const HOME = "⌂";
 
 /** Puts a button in one cell and fills it in, through the sheet.
  *
@@ -119,14 +128,18 @@ async function put(page: Page, at: number, fields: {
   const box = buttonSheet(page);
   await expect(box).toBeVisible();
   await box.locator("#appLabel").fill(fields.label);
+  if (fields.act) {
+    await box.locator("#appDoes").selectOption(DOES[fields.act]!);
+    // Navigation is one question - "where does this lead" - and the start page
+    // is one of the answers, so it is an entry in the target list rather than
+    // a kind of its own.
+    if (fields.act === "home") await box.locator("#appGoto").selectOption(HOME);
+  }
+  // After the act, and that order is the sheet's rather than this helper's:
+  // Gesprochen is not on screen for a button that leads to a page, so a fill
+  // before the act is chosen would be typing into a row about to be hidden.
   if (fields.spoken !== undefined) await box.locator("#appSpoken").fill(fields.spoken);
   if (fields.wordClass) await box.locator("#appClass").selectOption(fields.wordClass);
-  if (fields.act) {
-    await box.locator(`#appDoes_${DOES[fields.act]}`).check();
-    // The bar's four are one kind and a select under it, rather than four
-    // entries in a list beside "Wort" - two different questions, told apart.
-    if (DOES[fields.act] === "bar") await box.locator("#appBar").selectOption(fields.act);
-  }
   // "Neue Seite ..." mints the page on Fertig rather than on the press, so it
   // is named from the label as it finally reads.
   if (fields.gotoPage) await box.locator("#appGoto").selectOption(fields.gotoPage);
@@ -200,9 +213,13 @@ async function build(page: Page): Promise<void> {
   await put(page, 2, { label: "Apfel", spoken: "einen Apfel", wordClass: "noun",
                        upload: join(HERE, "fixtures", "symbol.png") });
   await expect(cells(page).nth(2).locator("img")).toBeVisible();
-  // The bar's own controls, which are §7.4 actions rather than words.
-  await put(page, 10, { label: "Sprich", wordClass: "other", act: "sayBar" });
-  await put(page, 11, { label: "Weg", wordClass: "other", act: "clear" });
+  /* An exclamation, which is the other thing a word button can be: §7.3's
+   * `ext_lautstark_speak_immediately`, said at once and left out of the
+   * sentence. The two bar-control buttons that used to stand here are gone
+   * with the choice that made them - the viewer draws Speak, Undo and Clear on
+   * the message bar itself, so a grid button for one of them spent a cell out
+   * of fifteen duplicating a control that is always on screen. */
+  await put(page, 10, { label: "Hallo", wordClass: "social", act: "speak" });
 
   // A way to a page that does not exist yet. "Neue Seite …" is the whole
   // interaction: it mints the page, names it after the button and points the
@@ -318,19 +335,23 @@ test("what a press does survives the round trip through the archive",
     expect(at("board-1-r1c2").background_color).toBe("rgb(199, 243, 199)");
     expect(at("board-1-r1c3").background_color).toBe("rgb(255, 218, 137)");
 
-    // Navigation, and the two bar controls.
+    // Navigation, and the exclamation.
     expect(at("board-1-r1c4").load_board?.id).toBe("board-2");
     expect(at("board-1-r1c4").load_board?.path).toBe("boards/board-2.obf");
-    expect(at("board-1-r3c1").action).toBe(":speak");
-    expect(at("board-1-r3c2").action).toBe(":clear");
+    expect(at("board-1-r3c1").ext_lautstark_speak_immediately).toBe(true);
+    expect(at("board-1-r3c1").action).toBeUndefined();
 
+    /* The one §7.4 action the sheet still makes, and the reason it still does:
+     * nothing in the viewer's chrome goes home, so a home button needs a cell.
+     * It is written as `:home` rather than as a `load_board` at whichever page
+     * is home today, because the two part company the moment somebody moves
+     * the start page. */
     const food = pkg.boards.find((one) => one.id === "board-2")!;
     expect(food.buttons.find((one) => one.id === "board-2-r3c5")!.action).toBe(":home");
 
     // A clip only where pressing the button speaks its own text. The viewer
     // utters on Append and SpeakImmediately and on nothing else, so a clip on
-    // a navigation or bar-control button would be an archive member nothing
-    // can ever play.
+    // a navigation button would be an archive member nothing can ever play.
     // The picture, baked into the archive as pixels rather than left as a
     // reference - which is what separates this export from the talker's.
     const pictured = at("board-1-r1c3");
@@ -341,8 +362,10 @@ test("what a press does survives the round trip through the archive",
 
     expect(at("board-1-r1c1").sound_id).toBeTruthy();
     expect(at("board-1-r1c4").sound_id).toBeUndefined();
-    expect(at("board-1-r3c1").sound_id).toBeUndefined();
-    expect(at("board-1-r3c2").sound_id).toBeUndefined();
+    // The exclamation does speak its own text, so it carries one.
+    expect(at("board-1-r3c1").sound_id).toBeTruthy();
+    expect(food.buttons.find((one) => one.id === "board-2-r3c5")!.sound_id)
+      .toBeUndefined();
     // And every one it promises is really in the archive, as an Ogg Opus
     // stream rather than as a name.
     for (const board of pkg.boards) {
@@ -460,7 +483,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
 
   /* Back to the start page, where the words are - build() finishes on the
    * page it made second. By its whole label rather than by a substring:
-   * "Sprich" is on the same board and contains "ich". */
+   * a cell that merely contains "ich" would match otherwise. */
   await page.locator("#appPages .tab").first().click();
   const ich = page.locator("#appGrid .cell")
     .filter({ has: page.locator(".cell__word", { hasText: /^ich$/ }) });
@@ -541,11 +564,11 @@ test("a button moves to another cell, by keyboard and by drag", async ({ page })
   await expect(at(6)).toHaveText("will");
 
   // And the mouse gesture, which is the same operation reached differently.
-  // Cell 10 holds "Sprich", so this is the swap rather than the plain move:
+  // Cell 10 holds "Hallo", so this is the swap rather than the plain move:
   // the two named cells trade and nothing else on the board shifts.
   await cells(page).nth(1).dragTo(cells(page).nth(10));
   await expect(at(10)).toHaveText("ich");
-  await expect(at(1)).toHaveText("Sprich");
+  await expect(at(1)).toHaveText("Hallo");
   await expect(at(6)).toHaveText("will");
 });
 
@@ -562,11 +585,14 @@ test("a button can be heard from the board, and only where there is something to
     await cells(page).nth(2).locator(".cell__play").click();
     expect((await said).postData() ?? "").toContain("einen Apfel");
 
-    // Not on the navigation button or the bar controls: pressing those on the
-    // tablet says nothing, so offering to audition them would offer silence.
+    // On the exclamation too, which speaks its own text - the viewer utters on
+    // Append and on SpeakImmediately alike, and only what a press really says
+    // is worth auditioning.
+    await expect(cells(page).nth(10).locator(".cell__play")).toHaveCount(1);
+
+    // Not on the navigation button: pressing that on the tablet says nothing,
+    // so offering to audition it would offer silence.
     await expect(cells(page).nth(3).locator(".cell__play")).toHaveCount(0);
-    await expect(cells(page).nth(10).locator(".cell__play")).toHaveCount(0);
-    await expect(cells(page).nth(11).locator(".cell__play")).toHaveCount(0);
 
     /* And a press on it does not open the cell behind it. Asserted as "no
      * sheet came up" rather than through aria-pressed, which is what said this
@@ -674,35 +700,117 @@ test("a sheet somebody closes costs nothing, on an empty cell and on a full one"
     await expect(cells(page).nth(0).locator(".cell__word")).toHaveText("ich");
   });
 
-test("the four kinds are a relabelling, and they carry the acts they always did",
+test("the three kinds carry the acts they always did, and the start page is a target",
   async ({ page }) => {
     await standIn(page);
     await build(page);
     await page.locator("#appPages .tab").first().click();
 
-    /* "Wort" and "Ausruf" are `append` and `speak`, and the reason they were
-     * renamed is that the old pair described an axis that does not exist:
+    /* "Wort" and "Ausruf" are `append` and `speak`, and the reason they carry
+     * those names is that the old pair described an axis that does not exist:
      * vorlaut-app's BoardViewModel calls utter() for both, so both speak and
      * the only difference is whether the word joins the sentence. What is
-     * asserted here is that the labels moved and the wiring did not. */
+     * asserted here is that the labels are the sheet's and the wiring is the
+     * format's. */
     await put(page, 6, { label: "Aua", wordClass: "social", act: "speak" });
     await hit(page, 6).click();
-    await expect(buttonSheet(page).locator("#appDoes_shout")).toBeChecked();
-    await expect(buttonSheet(page).locator("#appDoes_word")).not.toBeChecked();
+    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("shout");
+    // It speaks, so it is asked what it says.
+    await expect(buttonSheet(page).locator("#appSpoken")).toBeVisible();
+    await expect(buttonSheet(page).locator("#appGoto")).toBeHidden();
     await page.keyboard.press("Escape");
 
-    // The four bar controls are one kind and a select under it, rather than
-    // four more entries in the list beside "Wort" - two different questions,
-    // told apart. The act underneath is still the one the format names.
-    await hit(page, 10).click();
-    await expect(buttonSheet(page).locator("#appDoes_bar")).toBeChecked();
-    await expect(buttonSheet(page).locator("#appBar")).toHaveValue("sayBar");
+    /* The start page is an entry in the target list rather than a kind of its
+     * own, because it is navigation - grouping it with the bar controls said
+     * it did something to the sentence. The act underneath is still `home`,
+     * which is what makes it follow a start page somebody moves. */
+    await page.locator("#appPages .tab", { hasText: "Essen" }).click();
+    await hit(page, 14).click();
+    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("goto");
+    await expect(buttonSheet(page).locator("#appGoto")).toHaveValue(HOME);
+
+    /* A navigation button says nothing, so Gesprochen and its play button are
+     * not on screen at all - they were two dead controls with nothing telling
+     * anybody so. Wortart is *not* one of them, which looks like an oversight
+     * and is not: a page-leading button is coloured as a category on real
+     * German boards, and the round-trip sample above asserts that colour. */
+    await expect(buttonSheet(page).locator("#appSpoken")).toBeHidden();
+    await expect(buttonSheet(page).locator("#appClass")).toBeVisible();
     await page.keyboard.press("Escape");
 
     // And the default carries no mark on the board at all, which is what makes
     // the marks on the others worth reading.
+    await page.locator("#appPages .tab").first().click();
     await expect(cells(page).nth(0).locator(".cell__act")).toHaveCount(0);
     await expect(cells(page).nth(6).locator(".cell__act")).toHaveCount(1);
+  });
+
+/** Puts an act the sheet can no longer make onto a button, in the database.
+ *
+ * The only way to reach that state, and the reason it is worth reaching: a
+ * `sayBar` button cannot be made here any more, and none can arrive either -
+ * importObz() has no mapping for the bar acts on the way in and reads into a
+ * talker layout rather than a tablet one. So such a button exists only as a
+ * layout already sitting in somebody's browser, which is exactly where this
+ * puts one.
+ */
+async function actInStore(page: Page, on: string, kind: string): Promise<void> {
+  await page.evaluate(([on, kind]) => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open("vorlaut");
+    open.onerror = () => reject(new Error("no database"));
+    open.onsuccess = () => {
+      const tx = open.result.transaction(["marks", "layouts"], "readwrite");
+      const current = tx.objectStore("marks").get("current");
+      current.onsuccess = () => {
+        const layouts = tx.objectStore("layouts");
+        const got = layouts.get(current.result as string);
+        got.onsuccess = () => {
+          const held = got.result as { id: string; text: string; version: string };
+          const layout = JSON.parse(held.text);
+          const button = layout.pages
+            .flatMap((one: { buttons: { label: string }[] }) => one.buttons)
+            .find((one: { label: string }) => one.label === on);
+          if (!button) { reject(new Error(`no button labelled ${on}`)); return; }
+          // The version stamp is left as it is: it is the hash of what was
+          // last *written*, and nothing here writes through the app.
+          button.act = { kind };
+          layouts.put({ ...held, text: JSON.stringify(layout) });
+          // Closed, so the app's own connection is never the one waiting.
+          tx.oncomplete = () => { open.result.close(); resolve(); };
+        };
+      };
+    };
+  }), [on, kind]);
+  await page.reload();
+}
+
+test("a button made before the bar controls went keeps saying what it is",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await actInStore(page, "Hallo", "sayBar");
+    await page.locator("#appPages .tab").first().click();
+
+    /* It opens, and it opens saying `sayBar` - not re-read as "Wort", which is
+     * the silent way for a board to change under somebody who only came to fix
+     * a typo. A fourth entry that only such a button has. */
+    await hit(page, 10).click();
+    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("sayBar");
+    await expect(buttonSheet(page).locator("#appDoes option[value=sayBar]"))
+      .toHaveText(label("ui.app_act_say_bar"));
+
+    // And Fertig on a sheet nobody changed leaves the act where it was. Only
+    // choosing one of the three replaces it.
+    await buttonSheet(page).locator("button", { hasText: label("ui.done") }).click();
+    await expect(buttonSheet(page)).toBeHidden();
+    await hit(page, 10).click();
+    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("sayBar");
+    await buttonSheet(page).locator("#appDoes").selectOption("word");
+    await buttonSheet(page).locator("button", { hasText: label("ui.done") }).click();
+    await expect(buttonSheet(page)).toBeHidden();
+    await hit(page, 10).click();
+    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("word");
+    await page.keyboard.press("Escape");
   });
 
 test("the page sheet offers the start page, or says the page already is it",
