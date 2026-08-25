@@ -172,6 +172,32 @@ export function deletePage(layout: AppLayout, pageId: string): number {
   return inbound.length;
 }
 
+/**
+ * A button moves to another cell, trading places with whatever is there.
+ *
+ * Swap rather than refuse, and swap rather than push: refusing means a full
+ * board cannot be rearranged at all, and pushing would move a third button
+ * somebody did not touch. Trading places moves exactly the two cells the
+ * gesture named, which is what a person dropping one tile onto another
+ * expects - and it is what the five-key editor has always done, where a fixed
+ * 2x2 made swapping the only unambiguous answer.
+ *
+ * Dropping onto an empty cell is the same operation with nothing to trade, so
+ * there is one function rather than a move and a swap.
+ */
+export function moveButton(page: AppPage, id: string, row: number, col: number): void {
+  const moving = page.buttons.find((one) => one.id === id);
+  if (!moving) return;
+  const sitting = buttonAt(page, row, col);
+  if (sitting && sitting.id === id) return;
+  if (sitting) {
+    sitting.row = moving.row;
+    sitting.col = moving.col;
+  }
+  moving.row = row;
+  moving.col = col;
+}
+
 /** The buttons that would fall outside a grid of this size.
  *
  * Asked before a resize, so the question can name the number. Growing never

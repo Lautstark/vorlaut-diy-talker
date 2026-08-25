@@ -29,8 +29,8 @@ import { openPicker } from "../shell/picker.js";
 import { confirmDialog } from "@lautstark/design/dialog";
 import { exportApp } from "../shell/collections.js";
 import {
-  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, outside,
-  pageById, reachable, resize,
+  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, moveButton,
+  outside, pageById, reachable, resize,
 } from "./pages.js";
 
 /** Which page is being edited, by id. An id rather than an index because
@@ -39,6 +39,8 @@ import {
 let here = "";
 /** Which button the panel is showing, by id. "" for none. */
 let chosen = "";
+/** The button being dragged, by id. Null when nothing is. */
+let dragging: string | null = null;
 
 /* state.layout, as the shape this editor is the editor for.
  *
@@ -147,11 +149,48 @@ function drawGrid(): void {
   }
 }
 
+/** Every cell is a drop target, filled or not: dropping onto an empty one is
+ *  a move and onto a full one is a swap, and both are the same gesture. */
+function acceptsDrop(box: HTMLElement, on: AppPage, row: number, col: number): void {
+  box.ondragover = (event) => {
+    if (dragging === null) return;
+    const already = buttonAt(on, row, col);
+    if (already && already.id === dragging) return;
+    // Only a prevented dragover marks an element as a drop target at all.
+    event.preventDefault();
+    box.classList.add("dragover");
+  };
+  box.ondragleave = () => box.classList.remove("dragover");
+  box.ondrop = (event) => {
+    event.preventDefault();
+    clearDragMarks();
+    if (dragging === null) return;
+    const id = dragging;
+    dragging = null;
+    moveButton(on, id, row, col);
+    chosen = id;
+    commit();
+  };
+}
+
+function clearDragMarks(): void {
+  for (const one of document.querySelectorAll(".appcell.dragover")) {
+    one.classList.remove("dragover");
+  }
+}
+
 function cell(on: AppPage, row: number, col: number): HTMLElement {
   const held = buttonAt(on, row, col);
-  const box = document.createElement("button");
-  box.type = "button";
+  /* A div wearing role="button", not a <button>, and for the reason
+   * editor-diy's tabs give: this element is dragged, and engines disagree
+   * about what dragging a button means. So the two things the element would
+   * have brought - a place in the tab order, and acting on Enter and Space -
+   * are written out below. */
+  const box = document.createElement("div");
+  box.setAttribute("role", "button");
+  box.tabIndex = 0;
   box.className = "appcell";
+  acceptsDrop(box, on, row, col);
 
   if (!held) {
     box.classList.add("appcell--empty");
@@ -160,7 +199,7 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     // One press puts a button here and selects it, so the next thing somebody
     // does is type its label. Asking what kind of button first would put a
     // form in front of the common case, which is a word on a cell.
-    box.onclick = () => {
+    const make = () => {
       const made = blankButton(row, col);
       on.buttons.push(made);
       chosen = made.id;
@@ -170,6 +209,12 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
       // that commit() draws before it writes - it is the field the line above
       // has just made.
       $<HTMLInputElement>("appLabel").focus();
+    };
+    box.onclick = make;
+    box.onkeydown = (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      make();
     };
     return box;
   }
@@ -208,7 +253,50 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     box.appendChild(tag);
   }
 
-  box.onclick = () => { chosen = held.id; render(); };
+  const select = () => { chosen = held.id; render(); };
+  box.onclick = select;
+
+  box.draggable = true;
+  box.ondragstart = (event) => {
+    dragging = held.id;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", held.id);
+    }
+  };
+  box.ondragend = () => { dragging = null; clearDragMarks(); };
+
+  /* Alt and an arrow moves a button one cell, which is the same key this
+   * product already uses to reorder the talker's sets. The alternative -
+   * editor-diy's arm-with-Enter, drop-with-Enter - reads well on four keys in
+   * a fixed square and badly on sixty-six, where the two ends of the gesture
+   * can be a screen apart.
+   *
+   * Claimed even where the move has nowhere to go: Alt+Left is history-back in
+   * some engines, and rearranging a board must never walk off the page. */
+  box.setAttribute("aria-keyshortcuts", "Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight");
+  box.onkeydown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      select();
+      return;
+    }
+    const step = ({ ArrowUp: [-1, 0], ArrowDown: [1, 0],
+                    ArrowLeft: [0, -1], ArrowRight: [0, 1] } as const)[
+                      event.key as "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight"];
+    if (!event.altKey || !step) return;
+    event.preventDefault();
+    const grid = board().grid;
+    const to = [held.row + step[0], held.col + step[1]] as const;
+    if (to[0] < 0 || to[0] >= grid.rows || to[1] < 0 || to[1] >= grid.columns) return;
+    moveButton(on, held.id, to[0], to[1]);
+    chosen = held.id;
+    commit();
+    // render() rebuilt every cell, so the element that had focus is gone. It
+    // follows the button rather than staying at the coordinate, which is what
+    // makes a run of presses move one thing across the board.
+    ($("appGrid").children[(to[0] * grid.columns) + to[1]] as HTMLElement)?.focus();
+  };
   return box;
 }
 
@@ -533,6 +621,9 @@ function paintCell(held: AppButton): void {
 /* --- Drawing, and the two controls that are not in the panel -------------- */
 
 export function render(): void {
+  // A drag does not survive a redraw: the element that carried it is thrown
+  // away with the rest of the grid.
+  dragging = null;
   const layout = board();
   if (!pageById(layout, here)) here = layout.pages[0]!.id;
   $<HTMLInputElement>("appRows").value = String(layout.grid.rows);

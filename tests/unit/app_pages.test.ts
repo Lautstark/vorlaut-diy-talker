@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, outside,
-  pageById, reachable, resize, unreachable,
+  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, moveButton,
+  outside, pageById, reachable, resize, unreachable,
 } from "../../src/editor-app/pages.js";
 import type { AppButton, AppLayout } from "../../src/core/types.js";
 
@@ -141,6 +141,49 @@ describe("deleting a page others point at", () => {
     const layout = twoPages();
     expect(deletePage(layout, "nobody")).toBe(0);
     expect(layout.pages).toHaveLength(2);
+  });
+});
+
+describe("moving a button", () => {
+  it("trades places with whatever is already there", () => {
+    const layout = twoPages();
+    const page = layout.pages[0]!;
+    page.buttons.push(button({ id: "other", row: 2, col: 2, label: "Mehr" }));
+    const pointer = page.buttons.find((one) => one.id === "to-food")!;
+
+    moveButton(page, "to-food", 2, 2);
+
+    // Both named cells moved and nothing else did. Pushing a third button out
+    // of the way would move something nobody touched; refusing would make a
+    // full board impossible to rearrange.
+    expect([pointer.row, pointer.col]).toEqual([2, 2]);
+    const other = page.buttons.find((one) => one.id === "other")!;
+    expect([other.row, other.col]).toEqual([0, 1]);
+    expect(page.buttons).toHaveLength(2);
+  });
+
+  it("just moves when the cell is empty", () => {
+    const layout = twoPages();
+    const page = layout.pages[0]!;
+    moveButton(page, "to-food", 1, 4);
+    const pointer = page.buttons[0]!;
+    expect([pointer.row, pointer.col]).toEqual([1, 4]);
+    expect(page.buttons).toHaveLength(1);
+  });
+
+  it("does nothing when a button is dropped where it already is", () => {
+    const layout = twoPages();
+    const page = layout.pages[0]!;
+    moveButton(page, "to-food", 0, 1);
+    expect([page.buttons[0]!.row, page.buttons[0]!.col]).toEqual([0, 1]);
+    expect(page.buttons).toHaveLength(1);
+  });
+
+  it("ignores a button that is not on the page", () => {
+    const layout = twoPages();
+    const page = layout.pages[0]!;
+    moveButton(page, "nobody", 2, 2);
+    expect([page.buttons[0]!.row, page.buttons[0]!.col]).toEqual([0, 1]);
   });
 });
 

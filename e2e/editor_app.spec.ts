@@ -372,6 +372,74 @@ test("the grid grows in silence and asks before it shrinks", async ({ page }) =>
   await expect(page.locator("#appGrid .appcell", { hasText: "Start" })).toHaveCount(1);
 });
 
+test("a button moves to another cell, by keyboard and by drag", async ({ page }) => {
+  await standIn(page);
+  await build(page);
+
+  // Back to the start page, where the words are.
+  await page.locator("#appPages .tab").first().click();
+  const at = (n: number) => cells(page).nth(n).locator(".appcell__label");
+
+  // Alt and an arrow: the same key that reorders the talker's sets. "ich" is
+  // in the first cell; one press down puts it in the sixth, which is empty.
+  await cells(page).nth(0).focus();
+  await page.keyboard.press("Alt+ArrowDown");
+  await expect(at(0)).toHaveCount(0);
+  await expect(at(5)).toHaveText("ich");
+
+  // Focus follows the button rather than staying at the cell, so a run of
+  // presses moves one thing across the board.
+  await page.keyboard.press("Alt+ArrowRight");
+  await expect(at(6)).toHaveText("ich");
+
+  // And back onto an occupied cell: the two trade places rather than one
+  // overwriting the other or the move being refused.
+  await page.keyboard.press("Alt+ArrowUp");
+  await expect(at(1)).toHaveText("ich");
+  await expect(at(6)).toHaveText("will");
+  await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
+
+  /* And it is really stored, which is the whole of what "moved" has to mean.
+   *
+   * Through a Sammlung switch rather than a reload. A structural edit writes
+   * without awaiting - commit() draws first and lets the write follow - so
+   * three presses queue three writes, and the status line reads "saved" from
+   * the first of them while the last is still in flight. A reload there races
+   * it and reads the board one move short, which is exactly what this
+   * assertion caught. Switching goes through open(), which awaits saveNow()
+   * before it reads anything back, so the round trip is the product's own. */
+  const rows = page.locator("#collectionList > *");
+  await rows.filter({ hasText: /^(Sammlung vom|Collection of)/ }).first().click();
+  await expect(page.locator("#releaseBtn")).toBeVisible();
+  await rows.filter({ hasText: "Tablet" }).click();
+  await expect(at(1)).toHaveText("ich");
+  await expect(at(6)).toHaveText("will");
+
+  // And the mouse gesture, which is the same operation reached differently.
+  // Cell 10 holds "Sprich", so this is the swap rather than the plain move:
+  // the two named cells trade and nothing else on the board shifts.
+  await cells(page).nth(1).dragTo(cells(page).nth(10));
+  await expect(at(10)).toHaveText("ich");
+  await expect(at(1)).toHaveText("Sprich");
+  await expect(at(6)).toHaveText("will");
+});
+
+test("a move stops at the edge of the grid rather than walking off it",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await page.locator("#appPages .tab").first().click();
+
+    // "ich" is in the top left. Up and left have nowhere to go, and Alt+Left
+    // is history-back in some engines - so both are claimed and neither moves
+    // anything.
+    await cells(page).nth(0).focus();
+    await page.keyboard.press("Alt+ArrowUp");
+    await page.keyboard.press("Alt+ArrowLeft");
+    await expect(cells(page).nth(0).locator(".appcell__label")).toHaveText("ich");
+    expect(page.url()).toContain("vorlaut-diy-talker");
+  });
+
 test("a talker Sammlung and a tablet Sammlung swap cleanly", async ({ page }) => {
   await standIn(page);
   await build(page);

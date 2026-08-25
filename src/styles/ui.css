@@ -816,6 +816,11 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    A cell with no class keeps the surface colour and the theme's own text. */
 .appcell:not([style*="--cell-color"]) { color: var(--text); }
 .appcell.current { border-color: var(--accent); }
+/* Where a dragged button would land. The same mark the five-key board uses for
+   the same gesture, so one dashed outline means one thing in both editors. */
+.appcell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
+.appcell[draggable="true"] { cursor: grab; }
+.appcell[draggable="true"]:active { cursor: grabbing; }
 .appcell img { max-width: 100%; max-height: 60%; object-fit: contain; }
 .appcell__label {
   font-size: 13px; line-height: 1.2; text-align: center;
