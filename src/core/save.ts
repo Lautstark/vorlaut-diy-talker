@@ -7,9 +7,8 @@ import { $, status} from "../shell/dom.js";
 import { reason } from "./errors.js";
 import { loadLayout, saveLayout } from "../backend/index.js";
 import { state } from "./state.js";
-import { applyTexts, t } from "./texts.js";
-import { LANG, setLanguage } from "./boot.js";
-import { paintLanguage } from "../shell/voices.js";
+import { t } from "./texts.js";
+import { paintCollectionLanguage } from "../shell/voices.js";
 import { editorFor, FIRST_TARGET, showEditorFor } from "./editor.js";
 import type { Layout } from "./types.js";
 
@@ -17,39 +16,26 @@ let saveTimer = null;
 let layoutVersion = null;   // the state this page loaded
 let unsaved = false;        // there are changes not yet in the file
 
-/* The language the arriving layout was written in, put in force.
+/* The arriving layout's language, shown - and deliberately not put in force.
  *
- * boot.ts opens the page in the reader's own language because that is the only
- * answer it has before the store has said anything - and it says so: the one
- * in the layout wins once it has been read. This is the reading. Without it
- * the choice was written on every switch and read back on none, so it lasted
- * exactly as long as the tab did.
+ * This function used to call setLanguage(): a Sammlung carried one language
+ * field, and opening one re-languaged the editor around whoever opened it.
+ * That was the reading half of a single control that wrote both - somebody
+ * building an English talker had to work in an English page, and switching
+ * Sammlung moved their page under them. The layout's language is the device's
+ * own menu language now, and this page's is remembered in this browser (see
+ * CHOICE in boot.ts), which is why nothing here touches LANG, applyTexts() or
+ * the button naming the page's language.
  *
- * At every arrival rather than only at load, because an imported board is
- * saved as it lands: a page that kept the old language here would come up in
- * the board's at the next reload anyway, and the two answers must not differ.
+ * What is left is the one thing that does go stale when a layout arrives: the
+ * control that names *this Sammlung's* language, over in the settings sheet.
+ * At every arrival rather than only at load, because the sheet can be open
+ * while a layout is replaced - importing a board is a button inside it.
  *
- * Only the fixed labels and the button naming the language. applyTexts() also
- * carries the lang attribute on <html>, so that is not set again here. The
- * caller renders the board, and the settings sheet paints its own state lines
- * when it opens - which is why nothing here reaches into a sheet that has
- * never been opened and has nothing loaded to paint. */
-function adoptLanguage(layout) {
-  // setLanguage() refuses a code the page does not speak, so an unreadable
-  // language in a layout leaves everything as it was rather than emptying it.
-  if (!layout.language || layout.language === LANG) return;
-  setLanguage(layout.language);
-  applyTexts();
-  paintLanguage();
-  /* The credit line used to need a fourth call here. It was the one thing in
-   * the symbol dialog applyTexts() did not reach, so it alone kept whatever
-   * language the browser had guessed - English under a German heading, and
-   * subtle enough that it took a while to find.
-   *
-   * It cannot happen again, and not because somebody remembered: the line is
-   * built when a sheet opens and there is no standing copy of it to fall out
-   * of date. A board arriving in another language redraws every sheet that
-   * follows it, because every sheet is new. */
+ * The sheet's markup is mounted once with the page, so there is always
+ * something there to paint, whether or not anybody has opened it. */
+function sayCollectionLanguage() {
+  paintCollectionLanguage();
 }
 
 export async function load() {
@@ -64,11 +50,12 @@ export async function load() {
   const fresh = await loadLayout(editorFor(FIRST_TARGET).blank());
   layoutVersion = fresh.version;
   state.layout = fresh.layout;
-  // Before the two below, and that is the order rather than the arrangement:
-  // a build-mark subscriber writes its button's title through t() and the
-  // editor draws the board, so a language adopted after them would leave both
-  // saying what the browser guessed until something else redrew them.
-  adoptLanguage(state.layout);
+  // The order here no longer carries an argument. It did while this line put a
+  // language in force: everything below draws labels, so a switch after them
+  // left the page half in the language the browser had guessed. Nothing is
+  // switched now - this paints one control in a sheet nothing else here
+  // touches - and it stays first only because that is where it has always been.
+  sayCollectionLanguage();
   tellBuildState(fresh.buildCurrent);
   $("conflict").classList.remove("show");
   unsaved = false;
@@ -153,9 +140,9 @@ export function saveNow() {
  */
 export async function replaceLayout(layout) {
   state.layout = layout;
-  adoptLanguage(state.layout);
+  sayCollectionLanguage();
   // An imported Sammlung may be for the other target than the one on screen,
-  // so this is the same call load() makes rather than a bare adopt().
+  // so this is the same call load() makes rather than a bare showEditor().
   showEditorFor(state.layout);
   await saveNow();
 }
