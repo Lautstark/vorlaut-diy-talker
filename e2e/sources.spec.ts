@@ -185,7 +185,15 @@ test("a folder arriving after the page did brings its collection back", async ({
   await expectCredits(page, phrase("ui.metacom_offer"));
 
   await supplyFiles(page);
-  await page.locator("#metacomUse").click();
+  // No second press. Going and finding a licensed collection is somebody
+  // saying which one they want searched, and it used to take two steps for
+  // that one intention - the folder, and then "Diese Quelle verwenden".
+  // Switching source changes what every search from here on answers with, so
+  // it is said out loud rather than left to be noticed.
+  await expect(page.locator("#status")).toHaveText(label("ui.metacom_now_active"));
+  // And the button that did it is gone, because it names the move that has
+  // just been made.
+  await expect(page.locator("#metacomUse")).toBeHidden();
   await page.locator("#voiceClose").click();
   await expectSource(page, label("ui.search_metacom"));
   // And METACOM is owed its own line rather than ARASAAC's.
@@ -221,6 +229,34 @@ async function openPanel(page: Page, id: string) {
   const panel = page.locator(id);
   if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
 }
+
+test("a folder restored at boot does not decide which source is active", async ({ page }) => {
+  /* The other side of adopting, and the one that would be a silent
+   * regression: somebody with a METACOM folder set up who is deliberately
+   * searching ARASAAC. Their folder comes back on every visit - that is what
+   * bildquelle stores a handle for - and a page load must not read that as an
+   * answer to which source they want. bildhaft passes its adopt flag per call
+   * for exactly this.
+   *
+   * connectFolder() plants the handle and the index the way bildquelle keeps
+   * them, so the reload below is a real restore rather than a pick. */
+  await page.goto("./");
+  await connectFolder(page);
+  await page.reload();
+  await expect(cells(page)).toHaveCount(6);
+
+  // The folder is here - there is something to forget - and ARASAAC is still
+  // what a search asks.
+  await page.locator("#settingsLink").click();
+  await openPanel(page, "#symbolsPanel");
+  await expect(page.locator("#metacomForget")).toBeVisible();
+  // Offered rather than taken: the control that would switch is on screen and
+  // has not been pressed.
+  await expect(page.locator("#metacomUse")).toBeVisible();
+  await expect(page.locator("#status")).not.toHaveText(label("ui.metacom_now_active"));
+  await page.locator("#voiceClose").click();
+  await expectSource(page, label("ui.search_arasaac"));
+});
 
 test.describe("with the folder already connected at load", () => {
   test.beforeEach(async ({ page }) => {
