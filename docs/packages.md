@@ -135,9 +135,116 @@ a symbol but cannot serialise, upload or store one.
 
 There is a second entry point, `@lautstark/bildquelle/german`, which turns what
 somebody wrote into the words worth looking up — lemmas, compounds, separable
-verbs. vorlaut does not import it: a key here is a word already. It is its own
+verbs. `searchIn()` in `src/data/symbols.ts` imports it, lazily, on the first
+keystroke in the picker: a key on a board says "Ich habe Durst" where the
+collection holds "durstig", and the raw string finds neither. It is its own
 entry point because the tables behind it are about 160 KB, which is exactly the
-weight a consumer that only shows symbols should not carry.
+weight a visit that only presses a key to hear it should not carry.
+
+### The 1.6.0 bump, not yet made
+
+Written down on 2026-08-25 because the release it describes was prepared and
+then deliberately held. Whoever picks it up should be able to do so without
+re-deriving any of this.
+
+**Where things stand.** `v1.5.0` is bildquelle's newest tag and the pin is on
+it, so `pins.js` has nothing to report. But bildquelle's `main` is one commit
+past that tag — `1b0c0c2`, *Search the language somebody is actually reading*
+— and `package.json` there already says `1.6.0`. A release was prepared and
+the tag was never cut. At the time of writing `1b0c0c2` is not even pushed:
+`origin/main` is still at `95ed75c`.
+
+**What `1b0c0c2` changes.** ARASAAC keeps its keywords per language and the
+language is a path segment, which was hardcoded to `/de` for as long as
+everything consuming the package was German. So the endpoint, the pipeline and
+the licence notice all follow a language now, set through
+`setSymbolLanguage(lang)` and read back with `symbolLanguage()`. There is a
+sibling `@lautstark/bildquelle/english` beside the German entry point — a
+separate pipeline rather than the same one with the tables swapped, with no
+compound splitting and no synonym rung. The search cache is keyed by language
+too, or a German row would answer an English question for thirty days looking
+exactly like a correct answer. One breaking rename: `ARASAAC_ATTRIBUTION` is
+now `ARASAAC_ATTRIBUTIONS`, keyed by language. vorlaut never imported it —
+`attributionsFor()` is what `attributionFor()` calls — so nothing here has to
+move for it.
+
+**Is it safe to ship?** Yes, and it fixes something that was already shipping.
+This page has offered English throughout while every symbol search went to
+ARASAAC's German endpoint, and that endpoint does not refuse an English word,
+it answers one out of its tags and synsets: `/de/search/water` comes back with
+a water-transport sign. An English reader was being handed the wrong picture
+rather than none, which on a board is worse than an empty square, because an
+empty square is something a carer fixes.
+
+**Which of vorlaut's two languages drives it — they agree.** Since 2026-08-25
+this repository has two, and [languages.md](languages.md) is where the split is
+written down: the *interface's* language belongs to this browser and to the
+person building a board in it, and the *device's* belongs to a Sammlung and
+travels with an export. The picker is used by the person building the board, so
+it is the interface's language that decides which collection is searched, and
+the Sammlung's does not enter into it. A carer working in German may be
+building an English talker; the symbols they are shown while building it are
+theirs to read. That is the same thing bildquelle means by "the language
+somebody is actually reading", so the bump needs no reconciliation on this
+axis. It is worth having checked: the two settings were one setting until the
+day before this note, and the reading that looks equally plausible — that a
+Sammlung's language should pick its symbols — would have been wrong in a way
+no test would have caught.
+
+**Where they do disagree: METACOM.** `setSymbolLanguage` deliberately does not
+touch the METACOM provider, and the package says why. METACOM is a German
+product and a symbol's id *is* the filename in somebody's own licensed folder,
+so a collection of `trinken.png` matches the German word whatever the language
+is set to. But the *pipeline* is chosen per language and then run against
+whichever provider the Sammlung uses — `suggest(term, { provider })` takes
+either — so an interface set to English with a METACOM Sammlung would put the
+English lemmatiser in front of German filenames. `orderedLadder()` tries the
+word as written on the first rung, so exact matches survive; what is lost is
+the German inflection and compound handling that used to run there
+unconditionally. That is a narrow regression rather than a blocker, and it
+arrives with the bump rather than being fixed by it.
+
+bildquelle's README names the remedy and it is not a pipeline switch: *a host
+offering English should say so where METACOM is chosen — in English, ARASAAC
+is the source that works.* vorlaut does not say so today. `ui.metacom_needed`
+is the string that would carry it, and `src/shell/picker.ts` is where it is
+built. That is a UI decision rather than part of the bump, and it should not
+hold the bump up.
+
+**What the bump will need**, in order:
+
+1. **The tag, once.** `1b0c0c2` is held so that one release can carry it *and*
+   the symbol-search fix being made in `~/Code/bildquelle` alongside it.
+   Tagging `1.6.0` before that fix lands means tagging again straight after,
+   and then bumping here twice. Push `main` and cut `v1.6.0` when both are in.
+2. **The spec in `package.json`:** `github:Lautstark/bildquelle#v1.6.0`.
+3. **The lockfile**, through `npm install` and not `npm ci` — this is the one
+   deliberate act the section above says `npm install` is for. It resolves the
+   new tag and writes the new commit in.
+4. **`node tools/installcheck.mjs` quiet afterwards**, then all four suites.
+   Everyone else picks the new commit up with `npm ci`, and until they do,
+   installcheck in front of the suites is what tells them.
+5. **The example block at the top of this file**, which still shows `v1.4.0`
+   for bildquelle.
+
+**Why any of this needed writing down.** On 2026-08-25 the main checkout at
+`~/Code/vorlaut` was running `1.6.0` against a pin that said `1.5.0`, so every
+test taken there for part of an afternoon measured one version while naming the
+other. It was not an accidental re-resolution and it could not have been:
+`1b0c0c2` exists only on the local machine, and `node_modules/.package-lock.json`
+still recorded a correct `1.5.0` install at `95ed75c`. `dist/`, `src/` and
+`package.json` inside the installed package had been overwritten a minute after
+that install, byte-for-byte identical to the working tree of `~/Code/bildquelle`,
+while `LICENSE` and `README.md` beside them were still the ones npm put there.
+A partial in-place overwrite is not something npm does. Somebody was testing the
+unreleased search fix by hand, which is a reasonable thing to want and left no
+note. `installcheck` caught it, as designed — that is the case it describes
+above as "a package whose directory was replaced by hand".
+
+The lasting form of that want is a tag, or failing that a
+`file:../bildquelle` pin held in an uncommitted `package.json` and reverted
+after. What it must not be is a copy into `node_modules`, which outlives the
+session that made it and is invisible to everyone except the check.
 
 ## sicherung — the standing backup
 
