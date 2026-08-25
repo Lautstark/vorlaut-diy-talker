@@ -13,9 +13,15 @@
    to - that is the rule, not a regression. */
 * { box-sizing: border-box; }
 :root { --sidebar-w: 268px; }
+/* Both halves from the tokens. This hardcoded a stack of its own - starting at
+   -apple-system where --font starts at ui-sans-serif - so the page rendered in
+   a different typeface from its siblings on some platforms, and at 1.45 where
+   they were at 1.55. The second one is why a sidebar row built from the same
+   shared .collections rules came out 1.4px shorter here than in either of the
+   other two. */
 body {
   margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font); font-size: 15px; line-height: var(--leading);
 }
 /* The Sammlung being edited IS the page's title, so it is a field rather than a
    heading with a pencil beside it - bildhaft's title input.
@@ -26,21 +32,11 @@ body {
    that happens without anybody typing. It grows into the row instead, from a
    floor that fits that name. */
 .title-input {
-  font: inherit; font-weight: 600; color: var(--text);
-  background: transparent; border: 1px solid transparent; border-radius: 8px;
   /* It may grow into the row and must not shrink below the name this page
      invents - `1 1 26ch` let it, because the two controls beside it take the
      room first and a flex basis is only a starting point. */
-  padding: 4px 8px; flex: 1 1 auto; min-width: 24ch; max-width: 40ch;
+  flex: 1 1 auto; min-width: 24ch; max-width: 40ch;
 }
-/* It has to look like something that can be typed in before it is hovered,
-   or it reads as a heading that happens to take a caret. An outline that
-   arrives on hover is the compromise bildhaft settled on: quiet while you are
-   reading, obvious the moment you go near it. */
-.title-input:hover { border-color: var(--line); }
-.title-input:focus { border-color: var(--accent); background: var(--bg); }
-.title-input::placeholder { color: var(--text-dim); font-weight: 400; }
-.title-input:disabled { color: var(--text-dim); }
 
 /* --------------------------------------------------------------- the frame ---
 
@@ -68,8 +64,8 @@ body {
    its content, so without it they push the row past the height just set and
    nothing below can scroll. */
 .sidebar {
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 14px; border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 20px;
+  padding: 16px 14px; border-right: 1px solid var(--line);
   background: var(--surface);
   min-height: 0;
 }
@@ -91,10 +87,11 @@ body {
 }
 /* The list takes the room, so the foot sits at the bottom of the column. */
 .sidebar__grow { flex: 1; min-height: 0; overflow: auto; }
-/* The column itself is components.css's `.collections`; this is the one thing
-   about it that is this sidebar's - a slightly looser gap than the shared
-   rule, because these rows are taller than a sentence row. */
-.sidebar__list { gap: 2px; }
+/* The column itself is components.css's `.collections`, gap included. It had a
+   2px of its own here, justified by these rows being taller than a sentence
+   row - which they were not: the rows are the same shared component in all
+   three products, and what made this one look different was a line-height this
+   page had invented, not the gap. */
 /* The two quiet buttons at the foot, pushed there rather than placed: the list
    above them grows, and they stay at the bottom of the column. */
 /* No rule above it. The gap is the separation, the way it is between every
