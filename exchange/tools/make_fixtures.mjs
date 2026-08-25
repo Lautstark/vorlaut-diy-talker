@@ -864,7 +864,10 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
               wibble: "a field no version of OBF has ever defined" },
           ],
           grid: { rows: 1, columns: 1, order: [["f1"]] },
-          ext_vorlaut_active: true,
+          // Deliberately not the colour beside it: an importer that reads the
+          // talker's field instead of the app's produces #FF6B35 and fails,
+          // rather than passing because both happened to say the same thing.
+          ext_vorlaut_color: "#FF6B35",
           ext_lautstark_board_color: "#3B5BDB",
         }) },
     ],
@@ -883,7 +886,7 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
         "manifest.ext_vorlaut_sleep_timeout_seconds",
         "manifest.ext_someoneelse_tracking_id",
         "boards/fields.obf#description_html",
-        "boards/fields.obf#ext_vorlaut_active",
+        "boards/fields.obf#ext_vorlaut_color",
         "button f1#ext_lautstark_comes_later",
         "button f1#ext_vorlaut_color",
         "button f1#ext_someoneelse_weight",
@@ -891,7 +894,8 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
       ],
       notes: [
         "No warning is produced for any of these. An unknown field is the format working as designed; warning about it would fill the caregiver-facing warning list with noise and train people to ignore it.",
-        "ext_vorlaut_* gets no special handling. It is the talker's namespace and an app importer must treat it exactly like any other vendor's - see adr/0001. In particular ext_vorlaut_color must not be read as a button colour, even though it looks like one and holds a plausible value.",
+        "ext_vorlaut_* gets no special handling. It is the talker's namespace and an app importer must treat it exactly like any other vendor's - see adr/0001. In particular ext_vorlaut_color must not be read as a colour, even though it looks like one and holds a plausible value - it appears twice here, once on a button and once on the board, which are the two places the talker's export puts it.",
+        "The board carries ext_vorlaut_color and ext_lautstark_board_color at once, holding different colours. That is the pair that catches an importer reading the wrong namespace: the expected board colour is the lautstark one, so reading the vorlaut one gives #FF6B35 and fails rather than agreeing by coincidence.",
         "This fixture is the one that catches an importer written with a strict schema validator bolted on.",
       ],
     },

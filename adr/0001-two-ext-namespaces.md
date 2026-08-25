@@ -6,12 +6,18 @@
 
 Two OBF extension namespaces now exist in the Lautstark projects.
 
-`ext_vorlaut_*` came first. The board builder's `.obz` export writes four
-fields — `ext_vorlaut_color`, `ext_vorlaut_active`,
-`ext_vorlaut_sleep_timeout_seconds`, `ext_vorlaut_voice` — for the DIY ESP32
-talker. Two of them are meaningless off that device: `active` marks which of the
-talker's sets is live, and `sleep_timeout_seconds` is a power setting for a
-battery-powered box with physical keys.
+`ext_vorlaut_*` came first. The board builder's `.obz` export writes three
+fields — `ext_vorlaut_color`, `ext_vorlaut_sleep_timeout_seconds`,
+`ext_vorlaut_voice` — for the DIY ESP32 talker. One of them is meaningless off
+that device: `sleep_timeout_seconds` is a power setting for a battery-powered
+box with physical keys.
+
+It wrote a fourth when this was decided, `ext_vorlaut_active`, marking which of
+the talker's sets went onto the device — the clearest example there was of a
+field meaningless off that device. It went on 2026-08-25, with the
+active/inactive distinction behind it. That removal is not an argument against
+this decision; it is the first piece of evidence for it, and what it cost is
+recorded at the end.
 
 That export is pinned by a frozen reference file. The Python implementation it
 was checked against has been deleted, so the frozen file is the only remaining
@@ -41,10 +47,15 @@ Specifically:
 ## Why
 
 **The two describe different things.** They are not the same vocabulary under
-two names. Half of `ext_vorlaut_*` is about a device with four keys and a
-battery; none of `ext_lautstark_*` is. Unifying them would produce one namespace
-in which most fields are meaningless to most readers, which is worse than two
-honest ones.
+two names. `sleep_timeout_seconds` is about a device with four keys and a
+battery; nothing in `ext_lautstark_*` is about anything of the sort. Unifying
+them would produce one namespace holding fields meaningless to most of its
+readers, which is worse than two honest ones.
+
+This claim was stronger when it was made: half of `ext_vorlaut_*` read that way,
+and one field of three does now that `active` has gone. It is left standing
+rather than restated, because the two arguments below do not depend on the
+proportion and this one never carried the decision on its own.
 
 **The frozen reference cannot be regenerated.** Renaming the talker's fields
 means rewriting the one surviving record of a mapping whose oracle is gone. The
@@ -66,8 +77,10 @@ muddled namespace.
 - A talker `.obz` opened by the app viewer imports as a board with default
   colours and no voice hint. It is not an app package and is not expected to be
   one; nothing crashes and nothing warns.
-- Fixture `unknown-ext` asserts this. It carries `ext_vorlaut_color` on a button
-  and `ext_vorlaut_active` on a board, and an importer that reads either fails.
+- Fixture `unknown-ext` asserts this. It carries `ext_vorlaut_color` twice, on a
+  button and on a board, and an importer that reads either fails. On the board
+  it sits beside `ext_lautstark_board_color` holding a *different* colour, so
+  reading the wrong namespace fails rather than agreeing by coincidence.
 - A future builder that wants one export serving both must write both
   namespaces into one file. This is permitted: they do not collide.
 
@@ -77,3 +90,24 @@ This ADR exists because the duplication looks like an oversight and will invite
 a cleanup. It is not an oversight. Anyone proposing to unify the namespaces
 should first establish that the frozen reference can be regenerated against
 something other than itself — and it cannot, which is the point.
+
+**What removing one field actually cost, 2026-08-25.** `ext_vorlaut_active` was
+deleted — not renamed, and for a reason the format had nothing to do with: the
+distinction it expressed was replaced by Sammlungen. It is worth writing down
+what that came to, because a rename would pay the same price and buy less.
+
+`tests/reference/obf.lock.json` holds 151 answers about that field and its
+`active` counterpart on a set. They could not be re-recorded and could not be
+made green: the lock has 123 `true` against 23 `false`, so no constant would
+satisfy it. `tests/reference/layout.lock.json` lost a case outright, because its
+file lists were frozen per *active* set and the middle one has no names to be
+written with. Neither lock was touched. Both tests were narrowed instead, each
+naming what it gave up — `ACTIVE_IS_GONE`, `THE_CAP_MOVED`,
+`THE_FILTER_IS_GONE` — and none of it is recoverable, because the only thing
+left that could write either lock is the module it checks.
+
+That was one field, deleted because the product stopped needing it. A rename for
+tidiness would put every remaining `ext_vorlaut_*` field through the same thing
+and end with the same records unregenerable, in exchange for a namespace nobody
+reads twice. See [`docs/frozen-references.md`](../docs/frozen-references.md),
+"What two locks have stopped answering for".
