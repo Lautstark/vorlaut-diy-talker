@@ -118,7 +118,25 @@ export function dropdown(choices: Choice[], value: string,
 
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "btn quiet sm dropdown";
+  /* A field wearing a chevron, not a button wearing one.
+   *
+   * components.css draws `.dropdown` on a `.btn`, which is as wide as the word
+   * on it - right for the ⋯ at the end of a row, and for a picker standing on
+   * its own in a settings panel. In a column of questions it is wrong: the
+   * fields above and below are full-width, so a trigger that stops after
+   * "Wort" leaves four controls reading as four kinds of thing with no left
+   * edge to follow down.
+   *
+   * `.dropdown` asks nothing of `.btn` - it sets a custom property and an
+   * `::after`, and both work on whatever they are put on. So this composes two
+   * shared classes rather than restating either one's geometry here, which is
+   * what `.dropdown`'s own comment warns against: an earlier version of that
+   * rule set radius and padding and silently outranked `.btn`.
+   *
+   * Worth promoting to a named variant in @lautstark/design the next time a
+   * second product wants a dropdown inside a form - the same test `.dropdown`
+   * and `.menu-anchor.start` were each promoted on. */
+  button.className = "field dropdown";
   button.setAttribute("aria-haspopup", "menu");
   button.setAttribute("aria-expanded", "false");
   anchor.appendChild(button);

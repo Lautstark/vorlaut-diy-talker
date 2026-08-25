@@ -1329,53 +1329,57 @@ dialog.sheet--page { max-width: 520px; }
 .form__row { display: grid; gap: 6px; }
 .form__row > .lbl { margin-bottom: 0; }
 /* A row whose control is a button takes the width the button needs, not the
-   column's. A dropdown is a button inside its anchor, and the anchor is what
-   the row is handed - see dropdown() in shell/sheet.ts. */
-.form__row > .btn, .form__row > .menu-anchor { justify-self: start; }
+   column's. A dropdown is not one of those: it answers a question the way the
+   fields above and below it do, so it spans the row as they do - see the note
+   at dropdown() in shell/sheet.ts for why it wears .field rather than .btn.
+   The anchor is what the row is handed; the trigger inside it is already
+   width: 100% from .field. */
+.form__row > .btn { justify-self: start; }
+.form__row > .menu-anchor { justify-self: stretch; }
+
+/* .field leaves display alone, which suits an <input> and not a <button> with
+   a mark at its far end. Layout only: everything the trigger is drawn with -
+   fill, border, radius, padding, focus - is still components.css's. */
+.field.dropdown {
+  display: flex; align-items: center; justify-content: space-between; gap: 7px;
+  text-align: left; cursor: pointer;
+}
 
 /* ---- where a row's sentence goes -----------------------------------------
 
    Three stacked lines - a caption, a control, a sentence - is what a question
-   costs by default, and four of them is most of this sheet. Neither modifier
-   below drops a word: what they do is put the sentence on a line that already
-   exists, which is only possible where something on that line is short.
+   costs by default, and four of them is most of this sheet. This modifier
+   drops no word: it puts the sentence on a line that already exists.
 
-   Both are `order` over the same DOM, so formRow() keeps building one shape:
-   caption, control, sentence. Reordering there instead would make the row's
-   markup depend on which modifier the caller was about to add.
+   `order` over the same DOM, so formRow() keeps building one shape: caption,
+   control, sentence. Reordering there instead would make a row's markup depend
+   on which modifier the caller was about to add.
 
-   `--caption`: the sentence qualifies the *question*, and rides beside it.
-   Aufschrift and Gesprochen are the two - "leave it empty and only the
-   picture shows", "leave it empty and the label is what gets said" - each a
-   note on what its field means, neither of them changing, and both captions
-   one word wide. The field keeps its own full-width line under both.
+   The sentence qualifies the *question*, so it rides beside it - on every row
+   that has one, whatever the control underneath happens to be. The control
+   keeps its own full-width line below.
 
-   Which is why both sentences have to fit on one line and are written short
-   enough to. The caption's line is what is left of a 380px column after the
-   caption, and a note that wraps there is two lines where the note under the
-   field was one - the modifier would then cost the height it was written to
-   save. `flex: 1 1 14ch` below is a basis rather than a cap: it lets the note
-   take what the caption leaves and wrap if it has to, because a clipped
-   sentence is worse than a tall row.
+   A sentence pays for itself only by fitting on that line, which is what is
+   left of a 380px column after the caption: one that wraps is two lines where
+   the note under the field was one, and costs the height the modifier exists
+   to save. Aufschrift's and Gesprochen's are written short enough. `flex: 1 1
+   14ch` below is a basis rather than a cap, so a note that does not fit wraps
+   instead of being clipped - a clipped sentence is worse than a tall row.
 
-   `--beside`: the sentence describes the *answer*, and rides beside the
-   control. That is only affordable because the control stopped being a
-   full-width field: a dropdown trigger is as wide as the word on it, and the
-   note that tells Wort from Ausruf is the one thing on the row that has to be
-   read. It follows the choice, which is why it must stay next to the control
-   that changes it rather than move to the caption. */
-.form__row--caption, .form__row--beside {
+   There was briefly a second modifier that hung a sentence off the *control*
+   instead. It was affordable only while a dropdown trigger was a narrow
+   button; triggers are fields now, and a reader who has to work out a
+   different rule per row is worse off than one reading a line that wrapped.
+   The act row carries the note that does wrap, and its real home is a second
+   line on the menu items themselves - see the note at that row in
+   editor-app/editor.ts. */
+.form__row--caption {
   display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 6px;
+  column-gap: 9px;
 }
-.form__row--caption { column-gap: 9px; }
 .form__row--caption > .lbl { order: 1; flex: 0 0 auto; }
 .form__row--caption > .form__hint { order: 2; flex: 1 1 14ch; }
 .form__row--caption > * { order: 3; flex: 1 0 100%; }
-
-.form__row--beside { column-gap: 10px; }
-.form__row--beside > .lbl { flex: 1 0 100%; }
-.form__row--beside > .form__hint { flex: 1 1 16ch; }
-.form__row--beside > .menu-anchor { flex: 0 0 auto; }
 
 /* The spoken text sits next to the way to hear it, because they are one
    question: does this say the right thing. */
