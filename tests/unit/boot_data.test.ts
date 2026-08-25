@@ -79,7 +79,10 @@ if (LANGUAGES.length === 2) {
         `${same.length} of ${keysOf(a).length} labels identical`);
 }
 
-check("the palette is there for the set colours",
+// No control offers these any more; a set is seeded with one by position and
+// data/obf.ts is what still carries it. Checked all the same, because an
+// empty or malformed table is a .obf that will not come back in.
+check("the palette is there for the colour a set is seeded with",
       Array.isArray(PALETTE) && PALETTE.length > 0
       && PALETTE.every((c) => /^#[0-9A-Fa-f]{6}$/.test(c)),
       JSON.stringify(PALETTE));
