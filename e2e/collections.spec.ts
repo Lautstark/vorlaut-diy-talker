@@ -469,6 +469,38 @@ test("the one just edited is at the top of the list", async ({ page }) => {
   await expect(rows(page).first()).toContainText("Nursery");
 });
 
+/* And the other half of that rule: visiting a Sammlung is not working on it.
+ *
+ * Switching writes the Sammlung being left - so that what happens next reads a
+ * store the screen agrees with - and every write is a touch of the stamp this
+ * list is ordered by. So a switch with nothing typed behind it used to
+ * reorder the list around the pointer: the one just left rose to the top,
+ * which is where the finger already was, and the row that had just been
+ * pressed slid down a place. Pressing the top row twice landed in two
+ * different Sammlungen, which is what this last part is really about.
+ */
+test("visiting a collection does not move it, or the one left behind",
+  async ({ page }) => {
+    await openCollection(page);
+    await newCollection(page, "Nursery");
+    await newCollection(page, "Garden");
+    await expect(rows(page).first()).toContainText("Garden");
+
+    // Twice, and nothing typed in either: the second switch is the one that
+    // used to show it, because it leaves a Sammlung that was not already top.
+    await switchTo(page, "Nursery");
+    await switchTo(page, "Garden");
+    await expect(rows(page).first()).toContainText("Garden");
+    await expect(rows(page).nth(1)).toContainText("Nursery");
+
+    // As somebody meets it: the top row is still the row that was just
+    // pressed, so pressing it again stays where it is rather than landing in
+    // the one before it.
+    await rows(page).first().click();
+    await expect(rows(page).first()).toHaveClass(/active/);
+    await expect(rows(page).first()).toContainText("Garden");
+  });
+
 /* An edit is a debounced save, so switching collection straight after typing is the
  * race that loses work: the pending write fires after the other collection is on
  * screen and lands the old text under the new collection's stamp. */

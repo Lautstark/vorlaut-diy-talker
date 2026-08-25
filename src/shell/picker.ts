@@ -253,9 +253,17 @@ export async function takeSymbol(item: SymbolHit): Promise<{ symbol: string; lab
   return { symbol: result.symbol, label: (result.label || "").trim() };
 }
 
-/** Somebody's own picture, stored and handed back as a reference. */
-export async function uploadOwn(file: File): Promise<string> {
-  const result = await uploadSymbol(file);
+/** Somebody's own picture, stored and handed back as a reference.
+ *
+ * A Blob and a name rather than the File the two of them used to arrive in,
+ * because what is kept is no longer always what was chosen: a picture that
+ * went through the square is a PNG the page has just drawn and has no name of
+ * its own. The name still comes from the file either way, so the key in the
+ * store is still recognisably somebody's photograph - safeName() in
+ * data/store.ts owns what becomes of it from there.
+ */
+export async function uploadOwn(picture: Blob, name: string): Promise<string> {
+  const result = await uploadSymbol(picture, name);
   return result.symbol;
 }
 
