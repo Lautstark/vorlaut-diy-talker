@@ -1276,6 +1276,20 @@ dialog.sheet--page { max-width: 520px; }
 
 /* -------------------------------------------------------------- the fields */
 
+/* The column of questions, and the one measurement worth writing down about
+   it: it is not what makes this sheet tall.
+
+   Four rows and three gaps come to 303px at 1280x720, and the box they sit in
+   is 478px - the grid row is as tall as the taller of the two columns, and
+   that is the picture one, whose 478px is a 272px square preview, a search
+   field, the two acts and the licence line under them. The 19px the body
+   overflows by is therefore the picture column's overflow, and no amount of
+   folding sentences onto lines that already exist over here will take it
+   back. What this column has is 175px of slack.
+
+   `align-content: start` is why the slack shows as space under the last row
+   rather than as four rows spread down the column. Which is the honest
+   drawing: the questions end where they end. */
 .form { display: grid; gap: 14px; align-content: start; }
 .form__row { display: grid; gap: 6px; }
 .form__row > .lbl { margin-bottom: 0; }
@@ -1296,9 +1310,18 @@ dialog.sheet--page { max-width: 520px; }
    markup depend on which modifier the caller was about to add.
 
    `--caption`: the sentence qualifies the *question*, and rides beside it.
-   Aufschrift is the case - "leave it empty and only the picture shows" is a
-   note on what the field means, it never changes, and the caption is one word
-   wide. The field keeps its own full-width line under both.
+   Aufschrift and Gesprochen are the two - "leave it empty and only the
+   picture shows", "leave it empty and the label is what gets said" - each a
+   note on what its field means, neither of them changing, and both captions
+   one word wide. The field keeps its own full-width line under both.
+
+   Which is why both sentences have to fit on one line and are written short
+   enough to. The caption's line is what is left of a 380px column after the
+   caption, and a note that wraps there is two lines where the note under the
+   field was one - the modifier would then cost the height it was written to
+   save. `flex: 1 1 14ch` below is a basis rather than a cap: it lets the note
+   take what the caption leaves and wrap if it has to, because a clipped
+   sentence is worse than a tall row.
 
    `--beside`: the sentence describes the *answer*, and rides beside the
    control. That is only affordable because the control stopped being a
