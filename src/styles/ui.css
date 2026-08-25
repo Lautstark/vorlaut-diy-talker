@@ -704,8 +704,14 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    fact about the Sammlung rather than about the page on screen, and putting it
    next to the strip would read as belonging to whichever tab is current. */
 .tab.current { color: var(--text); background: var(--surface-2); }
-.tab__home, .tab__lost { font-size: 12px; line-height: 1; }
-.tab__lost { color: var(--warn, #c76a00); }
+.tab__home, .tab__lost { line-height: 1; }
+/* Two glyphs, two sizes, because they are not drawn to the same scale. U+2302
+   is a small house sitting low in its em box; U+26A0 fills its own. At one
+   font-size the house came out as a speck beside a warning sign that did not,
+   which is the mark on the page somebody opens *first* being the harder one to
+   see. So the size is chosen per glyph to make them read as one pair. */
+.tab__home { font-size: 15px; }
+.tab__lost { font-size: 12px; color: var(--warn, #c76a00); }
 
 /* The grid, at the shape the tablet will draw it in. `aspect-ratio` rather
    than a fixed cell size, so that 3x5 and 6x11 both fill the column and a
