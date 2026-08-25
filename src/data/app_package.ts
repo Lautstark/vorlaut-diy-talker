@@ -81,7 +81,7 @@ import type { AppButton, AppLayout, CollectionRef, DiyLayout, Layout }
  *
  * §12: a builder writes the version it targets, not the version it happens to
  * fit. Bumping this is a decision about having read the changelog. */
-export const SPEC_VERSION = "1.0.0";
+export const SPEC_VERSION = "1.1.0";
 
 export const FORMAT = "open-board-0.1";
 const MANIFEST = "manifest.json";
@@ -157,6 +157,7 @@ export interface PackageManifest {
   ext_lautstark_symbol_source: SymbolSource;
   ext_lautstark_redistributable: boolean;
   ext_lautstark_tts_voice?: string;
+  ext_lautstark_first_column_gap?: boolean;
 }
 
 /** §5.1: one source for the whole package, and mixing is not representable. */
@@ -464,6 +465,12 @@ export function buildAppPackage(input: PackageInput): AppPackage {
   // is synthesised, which is not a thing an Android viewer can act on.
   const voice = input.voice.replace(/^(piper|azure):/, "");
   if (voice) manifest.ext_lautstark_tts_voice = voice;
+  // §4.1: false is the default, so the field is written only where it is
+  // asked for. A talker Sammlung never asks - its first column is the set key
+  // and the speaker's empty corner, which is not a column of anything.
+  if (layout.target === "app" && layout.firstColumnGap === true) {
+    manifest.ext_lautstark_first_column_gap = true;
+  }
 
   return { manifest, boards, files };
 }
@@ -786,6 +793,27 @@ export function checkPackage(pkg: AppPackage): string[] {
       && manifest.ext_lautstark_redistributable !== false) {
     say("licence-inconsistent",
         "symbol_source is metacom, which requires redistributable false");
+  }
+  // §4.1: a hint, and an importer that cannot read it must not fail - which is
+  // exactly why a builder checks it here. A value that is not a boolean is
+  // ignored on the tablet and silently drops the gap, so the only place it can
+  // still be reported to somebody who can fix it is this side.
+  const gap = manifest.ext_lautstark_first_column_gap;
+  if (gap !== undefined && typeof gap !== "boolean") {
+    say("manifest",
+        `ext_lautstark_first_column_gap is ${JSON.stringify(gap)}, which is not a boolean`);
+  }
+  // And a gap after the first column of a one-column board is a gap after the
+  // only column. Nothing can draw it, and a Sammlung that asks for it is one
+  // where somebody set a column apart from nothing.
+  if (gap === true) {
+    for (const board of boards) {
+      const columns = board.grid?.columns ?? 0;
+      if (columns < 2) {
+        say("first-column-gap",
+            `${board.id}: the package asks for a gap after the first column and the board has ${columns}`);
+      }
+    }
   }
 
   const boardPaths = manifest.paths?.boards ?? {};

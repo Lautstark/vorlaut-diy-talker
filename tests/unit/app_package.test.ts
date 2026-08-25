@@ -111,7 +111,7 @@ describe("a DIY Sammlung as a board package", () => {
     // Off the Sammlung's updatedAt rather than the clock, so that re-exporting
     // an unchanged Sammlung does not look to the viewer like an update.
     expect(manifest.ext_lautstark_modified).toBe("2026-08-24T09:00:00Z");
-    expect(manifest.ext_lautstark_spec_version).toBe("1.0.0");
+    expect(manifest.ext_lautstark_spec_version).toBe("1.1.0");
     expect(manifest.format).toBe("open-board-0.1");
     expect(manifest.root).toBe("boards/set-1.obf");
   });
@@ -435,6 +435,39 @@ describe("a tablet Sammlung as a board package", () => {
       .toThrow(/nothing in this Sammlung/);
   });
 
+  it("asks for the gap after the first column only where the layout does", () => {
+    // §4.1's hint, and it is written only when it is true: the field defaults
+    // to false, and a manifest saying so in as many words would be a package
+    // asserting the absence of something it never had.
+    const plain = buildAppPackage(tabletInput());
+    expect("ext_lautstark_first_column_gap" in plain.manifest).toBe(false);
+
+    const layout = tablet();
+    layout.firstColumnGap = true;
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(pkg.manifest.ext_lautstark_first_column_gap).toBe(true);
+    expect(checkPackage(pkg)).toEqual([]);
+  });
+
+  it("changes nothing but the manifest when the gap is asked for", () => {
+    // The hint is about drawing and nothing else. An importer that has never
+    // heard of it produces the same boards, the same grid and the same ids -
+    // which is what makes this a minor version rather than a major one (§12).
+    const layout = tablet();
+    layout.firstColumnGap = true;
+    const withGap = buildAppPackage(tabletInput({ layout }));
+    const without = buildAppPackage(tabletInput());
+    expect(withGap.boards).toEqual(without.boards);
+    expect([...withGap.files.keys()]).toEqual([...without.files.keys()]);
+  });
+
+  it("never asks for it on a talker Sammlung", () => {
+    // The device's first column is the set key and the speaker's empty corner,
+    // which is not a column of anything to set apart.
+    expect("ext_lautstark_first_column_gap" in buildAppPackage(input()).manifest)
+      .toBe(false);
+  });
+
   it("finds a mixed symbol source across pages", () => {
     const layout = tablet();
     layout.pages[1]!.buttons[0]!.symbol = "metacom:essen.png";
@@ -591,6 +624,24 @@ describe("what the checker refuses", () => {
       pkg.manifest.ext_lautstark_symbol_source = "metacom";
       pkg.manifest.ext_lautstark_redistributable = true;
     })).toEqual([expect.stringContaining("[licence-inconsistent]")]);
+  });
+
+  it("catches a gap asked for on a board with nothing to separate", () => {
+    // §4.1 leaves this to a builder: an importer must not fail over a hint, so
+    // the only side that can still tell somebody is this one. A gap after the
+    // first column of a one-column board is a gap after the only column.
+    const layout = tablet();
+    layout.firstColumnGap = true;
+    layout.grid = { rows: 2, columns: 1 };
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(checkPackage(pkg))
+      .toEqual(expect.arrayContaining([expect.stringContaining("[first-column-gap]")]));
+  });
+
+  it("catches a gap hint that is not a boolean", () => {
+    expect(broken((pkg) => {
+      (pkg.manifest as Record<string, unknown>).ext_lautstark_first_column_gap = "yes";
+    })).toEqual([expect.stringContaining("[manifest]")]);
   });
 
   it("catches an image entry that is a reference rather than pixels", () => {

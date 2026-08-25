@@ -1,7 +1,7 @@
 {
   "fixture": "warning-order",
   "file": "warning-order.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "Six warnings across three boards, in the one order SPEC.md 9.5 allows.",
   "outcome": "accepted",
   "package": {

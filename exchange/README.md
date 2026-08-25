@@ -5,7 +5,7 @@ viewer, plus the fixtures an importer is checked against.
 
 | | |
 |---|---|
-| [`SPEC.md`](SPEC.md) | The specification. Version 1.0.0, **draft**. |
+| [`SPEC.md`](SPEC.md) | The specification. Version 1.1.0, **draft**. |
 | [`fixtures/`](fixtures/) | The `.obz` packages, each with an `.expected.json`. |
 | [`fixtures/index.json`](fixtures/index.json) | Machine-readable list of them. |
 | [`fixtures/source/`](fixtures/source/) | German fixture content, kept out of the generator. |
@@ -29,7 +29,7 @@ than a branch.
 Tags are named `exchange-vMAJOR.MINOR.PATCH` and track `SPEC.md`'s version.
 
 > **No tag exists yet.** The spec is a draft and stays one until a real board
-> round-trips to a tablet, so `exchange-v1.0.0` is not cut. Pin a **commit
+> round-trips to a tablet, so `exchange-v1.1.0` is not cut. Pin a **commit
 > SHA** in the meantime, and expect the fixtures to move under you.
 
 ### As a submodule
@@ -39,7 +39,7 @@ git submodule add https://github.com/Lautstark/vorlaut-diy-talker.git third_part
 ```
 
 ```bash
-git -C third_party/vorlaut checkout exchange-v1.0.0
+git -C third_party/vorlaut checkout exchange-v1.1.0
 ```
 
 Only `exchange/` is of interest; the rest of the repository comes along and can
@@ -51,7 +51,7 @@ change with a test run attached — never as a routine bump.
 If a submodule is unwelcome, fetch the tag and verify what arrived:
 
 ```bash
-curl -sSL https://github.com/Lautstark/vorlaut-diy-talker/archive/refs/tags/exchange-v1.0.0.tar.gz -o exchange.tar.gz
+curl -sSL https://github.com/Lautstark/vorlaut-diy-talker/archive/refs/tags/exchange-v1.1.0.tar.gz -o exchange.tar.gz
 ```
 
 ```bash
@@ -93,7 +93,7 @@ states no count, because one restated here drifts from the directory.
 {
   "fixture": "minimal",
   "file": "minimal.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "…",
 
   "outcome": "accepted",        // or "rejected"
@@ -101,7 +101,8 @@ states no count, because one restated here drifts from the directory.
 
   "package": { "id": "…", "name": "…", "modified": "…",
                "symbol_source": "…", "redistributable": true,
-               "tts_voice": "…", "root_board": "…" },
+               "tts_voice": "…", "root_board": "…",
+               "first_column_gap": false },
   "boards":  [ { "id": "…", "name": "…", "rows": 1, "columns": 1, "color": "…" } ],
   "buttons": [ { "board": "…", "id": "…", "label": "…", "vocalization": "…",
                  "on_activate": "…", "image": "…", "audio": "…",
@@ -242,6 +243,7 @@ repository's code-language check for this reason; the generator is not.
 | `identity-a` | accepted | Baseline for the identity group |
 | `identity-b` | accepted | Same name, different id — must not overwrite |
 | `identity-a-v2` | accepted | Same id, newer timestamp — must replace |
+| `first-column-gap` | accepted | The §4.1 layout hint, and the repeated column it marks |
 
 ## What they do not cover
 

@@ -1,7 +1,7 @@
 {
   "fixture": "multipage",
   "file": "multipage.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "Three boards: a root with two load_board buttons, and :home back from each.",
   "outcome": "accepted",
   "package": {

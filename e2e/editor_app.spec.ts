@@ -233,7 +233,7 @@ test("a tablet Sammlung leaves as a package, and it passes the spec's own checks
 
     expect(checkPackage(pkg)).toEqual([]);
     expect(pkg.manifest.format).toBe("open-board-0.1");
-    expect(pkg.manifest.ext_lautstark_spec_version).toBe("1.0.0");
+    expect(pkg.manifest.ext_lautstark_spec_version).toBe("1.1.0");
     expect(pkg.manifest.ext_lautstark_tts_voice).toBe("de-DE-KatjaNeural");
 
     // Two pages, two boards, and the root is the page the layout calls home.

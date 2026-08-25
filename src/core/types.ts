@@ -129,6 +129,19 @@ export interface AppLayout {
   /** Every page, in the order the editor's page strip shows them. Presentation
    *  only: what leads where is the buttons, not this order. */
   pages: AppPage[];
+  /** Whether the leftmost column is drawn set apart from the rest.
+   *
+   *  Written out as exchange/SPEC.md §4.1's ext_lautstark_first_column_gap,
+   *  and it is a hint about drawing rather than about behaviour: the buttons
+   *  in that column are ordinary buttons, and what makes them always reachable
+   *  is a builder putting them on every page. The gap is what tells somebody
+   *  looking at the board that those are the ones that stay - MetaTalk sets
+   *  its leftmost column apart for exactly that reason.
+   *
+   *  Absent counts as false, and a viewer that has never heard of the field
+   *  draws the board without the gap, which is a board with the wrong emphasis
+   *  rather than a wrong board. */
+  firstColumnGap?: boolean;
   /** The page the tablet opens on, and what a `:home` button goes to. It
    *  becomes `manifest.root`.
    *

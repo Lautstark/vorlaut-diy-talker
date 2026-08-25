@@ -1,8 +1,8 @@
 # Lautstark Board Package — exchange format specification
 
-**Version 1.0.0** · status: **draft, not ratified** · 2026-08-24
+**Version 1.1.0** · status: **draft, not ratified** · 2026-08-25
 
-> No `exchange-v1.0.0` tag is cut, and none will be, until a real board has
+> No `exchange-v1.1.0` tag is cut, and none will be, until a real board has
 > been built, exported, and opened on a tablet. Until then this document is a
 > proposal with fixtures attached: pin a commit if you need to build against
 > it, and expect it to move.
@@ -107,13 +107,14 @@ hand these to each other, and where a builder should say so.
     "images": { "img-food": "images/food.png" },
     "sounds": { "snd-food": "sounds/food.opus" }
   },
-  "ext_lautstark_spec_version": "1.0.0",
+  "ext_lautstark_spec_version": "1.1.0",
   "ext_lautstark_package_id": "1f0a5c2e-0000-4000-8000-000000000001",
   "ext_lautstark_package_name": "Home",
   "ext_lautstark_modified": "2026-08-24T09:00:00Z",
   "ext_lautstark_symbol_source": "arasaac",
   "ext_lautstark_redistributable": true,
-  "ext_lautstark_tts_voice": "en_GB-alba-medium"
+  "ext_lautstark_tts_voice": "en_GB-alba-medium",
+  "ext_lautstark_first_column_gap": true
 }
 ```
 
@@ -133,7 +134,7 @@ and `paths.images` disagree, the importer MUST use `paths`, and SHOULD warn
 
 ## 4. Extension fields
 
-OBF has no room for seven things this format needs. Each is prefixed
+OBF has no room for eight things this format needs. Each is prefixed
 `ext_lautstark_`, which is the OBF-sanctioned way to add a field, and each is
 listed below with the reason it cannot be expressed in plain OBF.
 
@@ -148,6 +149,7 @@ listed below with the reason it cannot be expressed in plain OBF.
 | `ext_lautstark_symbol_source` | string | yes | One of `arasaac`, `metacom`, `none`. OBF permits per-image symbol sets and so cannot state a package-wide invariant. See §5.1. |
 | `ext_lautstark_redistributable` | boolean | yes | Whether the package may be passed on. OBF's per-image `license` block describes a licence but carries no instruction, and the METACOM case needs one. See §5.2. |
 | `ext_lautstark_tts_voice` | string | no | Preferred voice for synthesised speech. OBF has no voice concept — it assumes recorded audio or the platform default. A hint only: the importer falls back to the platform default when the voice is unavailable, and MUST NOT fail. |
+| `ext_lautstark_first_column_gap` | boolean | no, default `false` | When true the viewer draws extra space between the first column and the second, on every board. **OBF has no gutter of its own**, and the one implementation that comes closest — AsTeRICS Grid — has a single `elementMargin` applied uniformly, so a gap in one place cannot be asked for. What the gap says is that the leftmost column is always reachable: MetaTalk sets that column apart because its buttons stay put while the pages behind them change. The persistence itself needs no field — a builder repeats those buttons on every board — but a repeated column that looks like every other column reads as four boards that happen to start the same way. A hint, like the voice above: an importer that ignores it renders a correct board with the wrong emphasis, and MUST NOT fail. A value that is not a boolean MUST be treated as absent. |
 
 ### 4.2 Board extensions
 
@@ -161,7 +163,7 @@ listed below with the reason it cannot be expressed in plain OBF.
 |---|---|---|---|
 | `ext_lautstark_speak_immediately` | boolean | no, default `false` | When true the button speaks at once instead of appending to the message bar. **OBF cannot express this.** Its model is that a button either appends or performs an action, with no "speak this now and leave the bar alone". Interjections need it: `Ouch!`, `stop that`, a greeting. Composing those into a sentence first defeats their purpose. |
 
-That is the whole list. Nine fields, seven of them in the manifest. Anything
+That is the whole list. Ten fields, eight of them in the manifest. Anything
 else beginning `ext_lautstark_` is not part of v1 and MUST be ignored.
 
 ---
@@ -710,7 +712,7 @@ A builder MUST write the version it targets, not the version it happens to fit.
 
 ## 13. Conformance
 
-An importer is conformant at v1.0.0 when it produces, for **every** fixture
+An importer is conformant at v1.1.0 when it produces, for **every** fixture
 listed in [`fixtures/index.json`](fixtures/index.json), the outcome in the
 matching `.expected.json`. That index is the authoritative list; no count
 appears in this document, because a number restated in prose drifts from the
@@ -723,6 +725,28 @@ disagreement is a bug in this document. Report it.
 ---
 
 ## 14. Changelog
+
+### 1.1.0 — 2026-08-25
+
+Adds `ext_lautstark_first_column_gap` (§4.1), a package-wide layout hint: draw
+extra space after the first column. Minor, per §12 — an importer written against
+1.0.0 ignores the field under §10.3 and renders the board without the gap, which
+is the right thing for a viewer that does not know what the space would mean.
+
+**A boolean rather than a column count**, which was the other shape considered.
+The count is the more general field and generality is what makes it wrong here:
+the thing being expressed is the MetaTalk convention of one always-reachable
+column, so `2` and `3` would be values no builder writes and every importer has
+to decide something about — including the reading where the number is a column
+index rather than a count, which is the same field meaning two things. §5.1 made
+the same trade for symbol sources: a shape that cannot express the case nobody
+wants is cheaper than prose forbidding it. If a second separated column ever has
+a reason, it arrives as its own field and its own minor bump.
+
+**What the field is not.** It does not make a column persistent, and no field
+does. A button that stays reachable across pages is a button the builder wrote
+onto every board, which plain OBF expresses already; this hint is only the gap
+that tells a reader those buttons are the ones that stay.
 
 ### 1.0.0 — 2026-08-24
 

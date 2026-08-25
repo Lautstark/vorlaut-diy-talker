@@ -176,7 +176,7 @@ test("a Sammlung leaves as a package, and it passes the spec's own checks",
 
     // §3: what a package must say about itself.
     expect(pkg.manifest.format).toBe("open-board-0.1");
-    expect(pkg.manifest.ext_lautstark_spec_version).toBe("1.0.0");
+    expect(pkg.manifest.ext_lautstark_spec_version).toBe("1.1.0");
     expect(pkg.manifest.ext_lautstark_package_id)
       .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(pkg.manifest.ext_lautstark_modified).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);

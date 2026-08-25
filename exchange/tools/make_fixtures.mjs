@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "..", "fixtures");
 const ASSETS = join(HERE, "..", "assets");
-const SPEC_VERSION = "1.0.0";
+const SPEC_VERSION = "1.1.0";
 
 /** German fixture content, kept in fixtures/source/ so this file stays English
  *  like the rest of the code. See the note in that file. */
@@ -277,11 +277,18 @@ function coherent(name, members, expected, deliberate) {
       ["symbol_source", "ext_lautstark_symbol_source"],
       ["redistributable", "ext_lautstark_redistributable"],
       ["tts_voice", "ext_lautstark_tts_voice"],
+      ["first_column_gap", "ext_lautstark_first_column_gap"],
     ];
+    // SPEC.md 4.1 gives first_column_gap a default, so an expectation may state
+    // `false` where the manifest says nothing at all - which is the assertion
+    // that pins the default rather than the field. Written as a table so that
+    // the next defaulted field is a line here and not a special case.
+    const DEFAULTS = { ext_lautstark_first_column_gap: false };
     for (const [field, key] of pairs) {
       const said = expected.package?.[field];
-      if (said !== undefined && said !== manifest[key]) {
-        fail("expected-package", `package.${field} says ${JSON.stringify(said)}, manifest ${key} is ${JSON.stringify(manifest[key])}`);
+      const wrote = manifest[key] ?? DEFAULTS[key];
+      if (said !== undefined && said !== wrote) {
+        fail("expected-package", `package.${field} says ${JSON.stringify(said)}, manifest ${key} is ${JSON.stringify(wrote)}`);
       }
     }
 
@@ -384,7 +391,7 @@ function fixture({ name, summary, members, corrupt, expected, deliberate = [] })
 /** The manifest every well-formed fixture starts from. */
 function manifest({ id, modified, packageName, root, boards, images = {}, sounds = {},
                     symbolSource = "arasaac", redistributable = true, voice = "en_GB-alba-medium",
-                    extra = {} }) {
+                    firstColumnGap = false, extra = {} }) {
   return {
     format: "open-board-0.1",
     root,
@@ -396,6 +403,10 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
     ext_lautstark_symbol_source: symbolSource,
     ext_lautstark_redistributable: redistributable,
     ext_lautstark_tts_voice: voice,
+    // SPEC.md 4.1: optional and false by default, so it is written only where a
+    // package asks for the gap. Every other fixture leaves it out, which is what
+    // makes minimal's `first_column_gap: false` an assertion about the default.
+    ...(firstColumnGap ? { ext_lautstark_first_column_gap: true } : {}),
     ...extra,
   };
 }
@@ -444,7 +455,7 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
       package: { id: "1f0a5c2e-0000-4000-8000-000000000001", name: "Hello",
                  modified: "2026-08-24T09:00:00Z", symbol_source: "arasaac",
                  redistributable: true, tts_voice: "en_GB-alba-medium",
-                 root_board: "hallo" },
+                 root_board: "hallo", first_column_gap: false },
       boards: [{ id: "hallo", name: "Hello", locale: "en", rows: 1, columns: 1,
                  color: "#3B5BDB" }],
       buttons: [{ board: "hallo", id: "b1", label: "Hello", vocalization: "Hello",
@@ -454,6 +465,7 @@ function manifest({ id, modified, packageName, root, boards, images = {}, sounds
       notes: [
         "The smallest package an importer must accept. If this one fails, nothing else in the set is worth running.",
         "The button carries no action, so it appends its vocalization to the message bar - the default and the common case.",
+        "first_column_gap is false and the manifest does not carry the field at all. That is the assertion: SPEC.md 4.1 gives it a default, and an importer that reads a missing hint as anything but false separates a column nobody asked to separate.",
       ],
     },
   });
@@ -1182,6 +1194,95 @@ fixture({
         "The order is the whole fixture. Every warning here would also be produced by an importer that emits them in some other sequence, so an implementation that compares warnings as an unordered set passes while still shuffling a caregiver-facing list between imports.",
         "Three wrong answers this discriminates. Sorting board ids without putting the root first gives aaa, start, zzz. Walking buttons[] instead of grid.order gives b1, b2, b3 within the root board. Emitting package-scoped warnings last puts path_normalization at the end.",
         "The two image_oversized warnings share a code and a detail and differ only in which board they came from. They are not interchangeable: a caregiver reads this list to find out which page to fix.",
+      ],
+    },
+  });
+}
+
+// =============================================================================
+// 11. first-column-gap - the SPEC.md 4.1 layout hint, and what it marks.
+// =============================================================================
+
+{
+  // Two boards whose first column holds the same two buttons. That repetition
+  // is the persistence, and it needs nothing from the format: they are ordinary
+  // buttons the builder wrote onto both boards. The manifest flag is only the
+  // gap that tells a reader those two are the ones that stay put.
+  //
+  // Ids differ per board on purpose - SPEC.md 7.1 scopes a button id to its
+  // board, and an importer must not pair p1 with q1 or conclude anything from
+  // their labels matching.
+  const columnOne = (prefix) => [
+    { id: `${prefix}1`, label: "I", vocalization: "I" },
+    { id: `${prefix}2`, label: "Speak", action: ":speak" },
+  ];
+
+  fixture({
+    name: "first-column-gap",
+    summary: "ext_lautstark_first_column_gap on a package whose leftmost column repeats across both boards.",
+    members: [
+      { name: "manifest.json", data: json(manifest({
+          id: "1f0a5c2e-0000-4000-8000-00000000000d",
+          modified: "2026-08-25T09:00:00Z",
+          packageName: "Left column",
+          root: "boards/start.obf",
+          boards: { start: "boards/start.obf", food: "boards/food.obf" },
+          images: {}, sounds: {},
+          symbolSource: "none",
+          firstColumnGap: true,
+        })) },
+      { name: "boards/start.obf", data: json({
+          format: "open-board-0.1", id: "start", locale: "en", name: "Start",
+          buttons: [
+            ...columnOne("p"),
+            { id: "s1", label: "want", vocalization: "want" },
+            { id: "s2", label: "Food",
+              load_board: { id: "food", name: "Food", path: "boards/food.obf" } },
+            { id: "s3", label: "Clear", action: ":clear" },
+            { id: "s4", label: "Undo", action: ":backspace" },
+          ],
+          grid: { rows: 2, columns: 3,
+                  order: [["p1", "s1", "s2"], ["p2", "s3", "s4"]] },
+        }) },
+      { name: "boards/food.obf", data: json({
+          format: "open-board-0.1", id: "food", locale: "en", name: "Food",
+          buttons: [
+            ...columnOne("q"),
+            { id: "f1", label: "Apple", vocalization: "an apple" },
+            { id: "f2", label: "Start", action: ":home" },
+          ],
+          grid: { rows: 2, columns: 3,
+                  order: [["q1", "f1", "f2"], ["q2", null, null]] },
+        }) },
+    ],
+    expected: {
+      outcome: "accepted",
+      package: { id: "1f0a5c2e-0000-4000-8000-00000000000d", name: "Left column",
+                 modified: "2026-08-25T09:00:00Z", symbol_source: "none",
+                 redistributable: true, root_board: "start",
+                 first_column_gap: true },
+      boards: [
+        { id: "start", name: "Start", locale: "en", rows: 2, columns: 3 },
+        { id: "food", name: "Food", locale: "en", rows: 2, columns: 3 },
+      ],
+      buttons: [
+        { board: "start", id: "p1", label: "I", vocalization: "I", on_activate: "append", audio: "tts", state: "normal" },
+        { board: "start", id: "s1", label: "want", vocalization: "want", on_activate: "append", audio: "tts", state: "normal" },
+        { board: "start", id: "s2", label: "Food", on_activate: "navigate:food", state: "normal" },
+        { board: "start", id: "p2", label: "Speak", on_activate: "speak_bar", state: "normal" },
+        { board: "start", id: "s3", label: "Clear", on_activate: "clear", state: "normal" },
+        { board: "start", id: "s4", label: "Undo", on_activate: "backspace", state: "normal" },
+        { board: "food", id: "q1", label: "I", vocalization: "I", on_activate: "append", audio: "tts", state: "normal" },
+        { board: "food", id: "f1", label: "Apple", vocalization: "an apple", on_activate: "append", audio: "tts", state: "normal" },
+        { board: "food", id: "f2", label: "Start", on_activate: "home", state: "normal" },
+        { board: "food", id: "q2", label: "Speak", on_activate: "speak_bar", state: "normal" },
+      ],
+      warnings: [],
+      notes: [
+        "The whole assertion about the hint is one boolean on the package: first_column_gap is true and every board in it is drawn with extra space after column 1. It is package-wide by design - a gap that came and went from page to page would move every other column as the user navigated, which is the opposite of what a fixed column is for.",
+        "The flag changes no button, no grid and no id. An importer that ignores it produces this same model with the same warnings, renders a correct board with the wrong emphasis, and is still conformant at 1.0.0 - which is what makes this a minor version (SPEC.md 12).",
+        "Nothing here says a button is persistent, because the format has no such field. The first column repeats because the builder wrote it onto both boards, and that is all persistence ever is in a package. Reading the gap as an instruction to carry column 1 over from the previous board would render this package right by accident and the next one wrong.",
+        "Rendering is not covered by any fixture and is not covered by this one either - see the README. What is asserted is that the flag arrives on the model, in a package that also gives an importer something to draw it around.",
       ],
     },
   });
