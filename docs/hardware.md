@@ -239,6 +239,21 @@ foam would waste most of what the extra depth just bought.
 The four holes come back with `spk_front_screws = true` in the model, for which
 you then need four M2.5 × 8 with nuts.
 
+### The name on the front
+
+The band the Feather's bay opened above the keys carries the speech bubble and
+the device's name, cut 0.8 mm into the front. One string in
+[case/vorlaut-case.scad](../case/vorlaut-case.scad) sets it:
+
+```
+name_text = "Bente";   // "" for none
+```
+
+Cut in rather than raised, because the tub prints front-face-down and nothing
+can stand proud of the face that lies on the bed. The bubble is drawn as an
+outline there — a filled one would leave a wide bridge in the only surface you
+see. Details in [case/building.md](../case/building.md).
+
 ### No feet
 
 There were four pads, 10 mm across and 1.6 mm proud, near the corners of the

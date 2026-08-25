@@ -638,12 +638,83 @@ logo_side_on   = true;   // [K] small logo on the bottom edge
 logo_side_b    = 20.00;  // [K]
 logo_side_h    =  0.60;  // [K]
 
+/* --- Name and icon on the front ---------------------------------------
+   The top margin left a band above the keys. This is what goes in it.
+
+   CUT IN, and that is not a preference. The tub prints front face DOWN on
+   the bed, so anything standing proud of the front would have to print below
+   it. Raising these would mean turning the tub over, which makes overhangs
+   of all five key cutouts and stands the lid bosses in mid air.
+
+   Cutting into the bed face has a cost of its own: the floor of the cut is a
+   bridge, and that floor is exactly what you look at. Which is why the bubble
+   is an OUTLINE here and stays filled on the lid - an outline spans nothing
+   wider than a stroke, where the filled one would have spanned its whole
+   width.                                                                 */
+front_mark_on = true;      // [K]
+name_text   = "Bente";     // [K] whose device this is. "" for none - and then
+                           //     nothing here needs a font at all.
+name_font   = "Helvetica"; // [K] PINNED on purpose. text() draws with whatever
+                           //     the machine happens to have, and everything
+                           //     else in this file is hand-built geometry so
+                           //     that nothing outside it can change the part.
+                           //     This is the one exception, and it is what a
+                           //     name you can type costs. See building.md.
+name_size   = 10.00;       // [K]
+name_w      = 34.00;       // [K] how wide the name comes out. OpenSCAD cannot
+                           //     measure text, so this is set by hand; it only
+                           //     centres the pair and checks it fits. The echo
+                           //     at the end prints roughly what it should be -
+                           //     roughly, because 0.68 x size per character is
+                           //     an average and a name of narrow letters comes
+                           //     out shorter. "Bente" at 10 measures 34.00.
+mark_icon_w = 18.00;       // [K] the bubble, as a line
+mark_stroke =  1.20;       // [K] 3 passes with a 0.4 nozzle
+mark_depth  =  0.80;       // [K] 4 layers at 0.2
+mark_gap    =  6.00;       // [K] between the icon and the name
+
 
 /* =====================================================================
    4.  CHECKS
    If anything here turns red the geometry is wrong - then do not print,
    but find the number that is to blame first.
    ===================================================================== */
+
+/* --- Name and icon: where they land ----------------------------------
+   Between whatever reaches highest on the face - the key cutouts or the
+   speaker grille - and the top edge, less its chamfer. Centred in what is
+   left rather than set by hand, so the band cannot be got wrong by moving
+   something else.                                                        */
+mark_icon_h  = mark_icon_w * 332/360;      // [G] 16.60  bubble plus its tail
+mark_band_lo = max(blk_my2 + sk_cap_h/2 + gap_cap,
+                   spk_my + grille_field_d/2);          // [G] 77.69
+mark_band_hi = env_h + margin_top + wall - chamfer_front;  // [G] 100.79
+mark_y       = (mark_band_lo + mark_band_hi)/2;         // [G] 89.24
+
+// With no name it is the icon alone, and centred on its own.
+mark_name_w  = name_text == "" ? 0 : name_w;                    // [G] 28.00
+mark_pair_w  = name_text == "" ? mark_icon_w
+                               : mark_icon_w + mark_gap + name_w;  // [G] 52.00
+// +x is the child's LEFT, so the icon goes at the higher x to read first.
+mark_icon_x  = centre_x + mark_pair_w/2 - mark_icon_w/2;        // [G]  72.56
+mark_name_x  = centre_x - mark_pair_w/2 + mark_name_w/2;        // [G]  43.56
+
+assert(!front_mark_on || mark_depth <= front_d - 1.2,
+  str("The marks are cut ", mark_depth, " mm into a ", front_d,
+      " mm front plate - less than 1.2 mm of it would be left."));
+assert(!front_mark_on || mark_stroke >= 0.8,
+  str("An outline ", mark_stroke, " mm wide is under two passes of a 0.4 ",
+      "nozzle. It will come out as a scratch or not at all."));
+assert(!front_mark_on || mark_icon_h + 2.0 <= mark_band_hi - mark_band_lo,
+  str("The icon is ", mark_icon_h, " mm tall and the band above the keys is ",
+      mark_band_hi - mark_band_lo, ". Either shrink mark_icon_w or give the ",
+      "top margin more room."));
+assert(!front_mark_on ||
+       (centre_x - mark_pair_w/2 >= -inner_margin - wall + chamfer_front + 2.0 &&
+        centre_x + mark_pair_w/2 <=  env_b + inner_margin + wall - chamfer_front - 2.0),
+  str("The icon and the name come to ", mark_pair_w, " mm and run off the ",
+      "flat of the front face. Shorten the name, drop name_size, or set ",
+      "name_w to what the name really measures."));
 
 /* --- Cap spacing in the plane --- */
 gap_cap_x = pitch_x - sk_cap_b;      // should be 20.0
@@ -1049,6 +1120,15 @@ echo(str("key cap             : ", sk_cap_overhang, " mm proud, ",
 echo(str("speaker fixing      : ", spk_front_screws ?
          "4 x M2.5 through the front, heads visible, nut in the chamber" :
          "none - foam behind the driver, the lid clamps it"));
+echo(str("front marks         : ", front_mark_on ?
+         str("icon ", mark_icon_w, " mm outline + \"", name_text,
+             "\" at ", name_size, ", cut ", mark_depth,
+             " mm deep, centred at y = ", mark_y)
+       : "none"));
+echo(str("  name_w is set to ", name_w, " - for \"", name_text,
+         "\" at size ", name_size, " it should be about ",
+         round(len(name_text) * name_size * 0.68 * 10)/10,
+         " mm. Only centring and the fit check use it."));
 echo(str("logo                : ", logo_recessed ?
          str(logo_lid_h, " mm deep, cut into the lid") :
          str(logo_lid_h, " mm proud of the lid")));
@@ -1133,24 +1213,49 @@ module rprism_chamfer_top(b, h, r, t, f) {
 function bezier(t, p0, p1, p2, p3) =
   pow(1-t,3)*p0 + 3*pow(1-t,2)*t*p1 + 3*(1-t)*t*t*p2 + t*t*t*p3;
 
+// The three pieces of the bubble, in raw SVG units, so that the outline
+// version below can take the silhouette on its own. logo_2d is unchanged in
+// what it produces - it just says it in three parts instead of one.
+module logo_body_svg() {
+  hull() for (p = [[128,128],[384,128],[384,272],[128,272]])
+    translate(p) circle(52);
+  polygon([[314,310],[256,408],[198,310]]);            // tail of the bubble
+}
+module logo_face_svg() {
+  smile = [[190,226],[190,288],[322,288],[322,226]];   // cubic Bezier
+  n = 14;
+  translate([200,178]) circle(22);                      // left eye
+  translate([312,178]) circle(22);                      // right eye
+  for (i = [0 : n-1]) hull() {                          // smile, stroke 26
+    translate(bezier(i/n,      smile[0],smile[1],smile[2],smile[3]))
+      circle(13);
+    translate(bezier((i+1)/n,  smile[0],smile[1],smile[2],smile[3]))
+      circle(13);
+  }
+}
+
 module logo_2d(width) {
   s = width / 360;      // 360 = bubble width in SVG units (436 - 76)
-  smile = [[190,226],[190,288],[322,288],[322,226]];  // cubic Bezier
-  n = 14;
   mirror([0,1]) scale(s) translate([-256, -242]) difference() {
-    union() {
-      hull() for (p = [[128,128],[384,128],[384,272],[128,272]])
-        translate(p) circle(52);
-      polygon([[314,310],[256,408],[198,310]]);        // tail of the bubble
+    logo_body_svg();
+    logo_face_svg();
+  }
+}
+
+/* --- The same bubble as a line drawing --------------------------------
+   For the front, where the mark is cut INTO the face that lies on the print
+   bed. A filled bubble would leave its own visible floor spanning the whole
+   width as a bridge; an outline leaves nothing wider than a stroke. The eyes
+   and the smile stay solid - at this size they are already only 2.2 and
+   1.3 mm across.                                                        */
+module logo_outline_2d(width, stroke) {
+  s = width / 360;
+  mirror([0,1]) scale(s) translate([-256, -242]) {
+    difference() {
+      logo_body_svg();
+      offset(r = -stroke/s) logo_body_svg();
     }
-    translate([200,178]) circle(22);                    // left eye
-    translate([312,178]) circle(22);                    // right eye
-    for (i = [0 : n-1]) hull() {                        // smile, stroke 26
-      translate(bezier(i/n,      smile[0],smile[1],smile[2],smile[3]))
-        circle(13);
-      translate(bezier((i+1)/n,  smile[0],smile[1],smile[2],smile[3]))
-        circle(13);
-    }
+    logo_face_svg();
   }
 }
 
@@ -1358,6 +1463,23 @@ module usb_window() {
   }
 }
 
+/* --- Name and icon on the front ---------------------------------------
+   One solid to subtract, so both are cut with the same depth and neither can
+   drift from the other. Mirrored in x, because +x is the child's left and
+   text has to read for the child, not for the coordinate frame.         */
+module front_marks() {
+  if (front_mark_on) {
+    translate([mark_icon_x, mark_y, -0.01])
+      linear_extrude(mark_depth + 0.01) mirror([1,0,0])
+        logo_outline_2d(mark_icon_w, mark_stroke);
+    if (name_text != "")
+      translate([mark_name_x, mark_y, -0.01])
+        linear_extrude(mark_depth + 0.01) mirror([1,0,0])
+          text(name_text, size = name_size, font = name_font,
+               halign = "center", valign = "center");
+  }
+}
+
 /* --- Logo on the bottom edge --- */
 // Placed the same way round whether it stands out or is cut in; only the
 // solid changes. The pocket starts logo_side_h further INTO the wall, so that
@@ -1389,6 +1511,7 @@ module tub() {
     lid_dome_core();
     usb_window();
     chamber_cable();
+    front_marks();
     if (logo_recessed) logo_bottom_edge();
   }
 }
