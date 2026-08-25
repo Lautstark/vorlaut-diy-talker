@@ -395,6 +395,20 @@ touched — the tests were narrowed instead, each naming what it gave up:
   `images` and `sounds` were frozen per *active* set, so the middle set has no
   names to be written with. The hash check still covers it, so hand-editing
   that case into agreement is still caught. The other sixteen are untouched.
+- `tests/test_layout_frozen.py`, `THE_COLOUR_IS_GONE`. The per-set colour left
+  the talker on 2026-08-26, so a set entry is 184 bytes where every frozen case
+  has 186, and the version byte is 2 where every frozen case has 1. This one is
+  not a case set aside but a transformation applied: the frozen bytes have two
+  struck out of each set entry and the version raised, by hand, at a stated
+  offset, and *then* the comparison runs. Every other byte is still what
+  `layout_format.py` wrote, and the C reader still has to read them into the
+  frozen fields, so a wrong offset shifts the name and all sixteen slot hashes
+  and fails loudly. It is a deletion rather than a guess, which is the only
+  reason it is not the refreeze this document forbids — nothing new had to be
+  known. What is lost outright is `older_file`: a layout.bin from before the
+  language byte, frozen to show that it stayed readable, is refused for its
+  version now and is held to being refused for *that* rather than for its
+  length.
 - `tests/test_obf_frozen.py`, `ACTIVE_IS_GONE` and `THE_CAP_MOVED`. Two field
   names — `active` on a set, `ext_vorlaut_active` on its board — drop out of
   every comparison, 151 recorded answers between them. Separately, the two
@@ -405,11 +419,21 @@ touched — the tests were narrowed instead, each naming what it gave up:
   which are still compared as text and so still hold the writer to sorted keys
   and its indent.
 
-Both are the case each lock's own `invalidated_by` anticipates — "a change to
-render_layout_bin()", "a change to the mapping in obf.py". That is what makes
-them a price rather than a fault, and neither is recoverable: the oracles went
-on 2026-08-22, and the only thing left that could write either lock is the
-module it checks.
+Each is the case its lock's own `invalidated_by` anticipates — "a change to
+render_layout_bin()", "a change to the structure in
+firmware/vorlaut/layout_format.h", "a change to the mapping in obf.py". That is
+what makes them a price rather than a fault, and none is recoverable: the
+oracles went on 2026-08-22, and the only thing left that could write either
+lock is the module it checks.
+
+**Anticipated is not the same as answerable, and that is the distinction to
+carry forward.** An `invalidated_by` line says a change of this kind was
+expected to break the lock. It does not say the lock can be rewritten
+afterwards, and here it cannot. So the question a change of this kind faces is
+not "may I refreeze" but "how much of the frozen answer survives the change" -
+a case set aside, a field dropped from the comparison, or two bytes struck out
+of it. Refreezing from the module under test is still the one thing that is
+never the answer.
 
 ## What is still only checked against itself
 

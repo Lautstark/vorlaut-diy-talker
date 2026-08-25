@@ -310,8 +310,9 @@ a soldering iron. Two things should be added to that, and both make it worse.
 refuses on the magic, the version or the stride, and five displays say there is
 no content, which is a true sentence. The dangerous mistakes are the ones that
 *parse*. A hash read at the wrong offset gives a key that speaks a different
-sentence. A truncated tile draws black because `drawTile()` zero-fills. A colour
-read big-endian is the wrong page. Each of those is a device that works and is
+sentence. A truncated tile draws black because `drawTile()` zero-fills. A
+`sleep_timeout_seconds` read big-endian is a device that sleeps in eight
+minutes or in eighty years. Each of those is a device that works and is
 wrong — and a key that says the wrong sentence is worse than a key that says
 nothing, because it is said to somebody who believes it.
 
@@ -373,39 +374,48 @@ The rule, adjusted for a reader that cannot be updated:
 
 ---
 
-## 8. Known pending change against v1.0.0: the page colour
+## 8. The page colour, which has since gone
 
-**Specify the colour. Do not design it out.** It ships today:
-[`app_package.ts`](../src/data/app_package.ts) line 718 writes
-`ext_lautstark_board_color` from the set's colour, `layout_format.h` carries
-`uint16_t color` as the first field of a `SetEntry` — RGB565, little-endian in
-the file, whatever the tile's own big-endian order — and `vorlaut.ino` draws it
-at lines 349 and 352, as the six-pixel border around all five displays including
-the set key. The border is deliberately *not* in the tile file, which is what
-lets one symbol be one file across differently coloured pages.
+This section asked that a specification describe the colour as shipped and
+carry its removal as an open question. The removal happened first, on
+2026-08-26, and the section is kept rather than deleted because what it got
+right and what it got wrong are both useful to whoever writes the fixtures.
 
-It is also a live product question, and SPEC.md's own justification for the field
-is a real argument: pages are told apart by colour before they are read, *"which
-matters for a user who does not read."* Removing it is not this document's
-decision.
+**What went.** The Set sheet's swatches; the two bytes at the front of a
+`SetEntry`, which is 184 bytes now and sits behind `LAYOUT_VERSION 2`;
+`drawTile()`'s frame argument, those six pixels being blacked out with nothing
+in their place; and both fields it reached in an app package —
+`ext_lautstark_board_color` on the board *and* `border_color` on every button,
+which was the easier one to miss. `exchange/SPEC.md` is untouched: §4.2's field
+is optional, so ceasing to write it needs no version, and taking it out of the
+document is a separate act §12 has no category for while `~/Code/vorlaut-app`
+still reads `Board.color`.
 
-What whoever takes that decision should know:
+**Where this section was right.** The lock really was invalidated, and the
+oracle really is gone. That is the whole difficulty, and it named it.
 
-- It is a **MAJOR** bump under the rule above, and it invalidates
-  `layout.lock.json` — every one of the seventeen frozen cases contains a colour.
-- **It costs more today than it did on 2026-08-21.** The oracle that could have
-  rewritten that lock went with the Python half on 2026-08-22. Refreezing now
-  means restoring `layout.py`, `layout_format.py` and `tools/layoutfreeze.py` from
-  git for as long as it takes, which `frozen-references.md` says is the only
-  acceptable route and is not a small one.
+**Where it was wrong, and it matters for the fixtures.** It read "restore the
+oracle from git" as the only acceptable route. It was not the route taken.
+`layout.lock.json` is untouched: `test_layout_frozen.py` narrows what it
+compares, the way `THE_FILTER_IS_GONE` already did, and strikes the two bytes
+out of each frozen entry by hand at a stated offset — so every remaining byte is
+still Python's answer and the C reader still has to agree field for field.
+Restoring `layout_format.py` to re-freeze would have meant editing the oracle
+and the subject in one session, which is less independence than the frozen
+bytes already carry, not more. See `THE_COLOUR_IS_GONE` for the argument in
+full.
 
-So the first version of the specification describes the colour as shipped, and
-carries this section as an open question against it.
+The version bump is the other correction. A shorter set entry does not make an
+old file too short — 186 per set is *more* than 184 — so its length still adds
+up and `parseLayout` would have read every name and hash two bytes late. That is
+exactly this document's §6: the dangerous mistakes are the ones that parse.
+`LAYOUT_VERSION 2` turns it into a refusal, which is the silence §6 calls the
+good outcome.
 
-*Separately and not in the format's names:* the outstanding rename of the
-talker's *Set* to *Seite* on screen is screen vocabulary. The wire has
-`SetEntry`, `name` and `setCount`, and a change to what a person reads on a
-display must not rename a field.
+*Separately and not in the format's names:* the rename of the talker's *Set* to
+*Seite* on screen has since landed, and it is screen vocabulary. The wire still
+has `SetEntry`, `name` and `setCount`, which is the point — a change to what a
+person reads on a display must not rename a field.
 
 ---
 
