@@ -4,11 +4,13 @@
 // separate module for one reason, and it is a real one: an ES import runs
 // before any statement in the file that imports it, so nothing here could be
 // guaranteed to happen after the templates had mounted while it lived beside
-// them. editor.ts looks #removeSet up at module level, and under the old
+// them. editor.ts looked #removeSet up at module level, and under the old
 // single-file page that element was already in the document when the first
-// module loaded. It is not any more, and the failure was the page throwing
+// module loaded. It stopped being so, and the failure was the page throwing
 // before it drew anything - which is exactly the shape of breakage this
-// repository shipped once already.
+// repository shipped once already. That button is in the set's own card now
+// and the lookup went with it; the ordering this file exists for has not
+// changed, because #previewToggle is reached the same way.
 //
 // main.ts mounts, then imports this. The ordering is then a fact about the
 // module graph rather than a convention somebody has to keep.
@@ -98,10 +100,10 @@ export function start(): void {
         clearEditor();
         diyBoard.render($("editor"), $("collectionAction"));
       },
-      // Both, because wireRelease() binds #releaseBtn and #previewToggle and
-      // #removeSet are wireEditor()'s - and all three are elements the mount
-      // above has just made. wireDevice() is not here: it binds the settings
-      // sheet, which is the shell's markup and mounts once.
+      // Both, because wireRelease() binds #releaseBtn and #previewToggle is
+      // wireEditor()'s - and both are elements the mount above has just made.
+      // wireDevice() is not here: it binds the settings sheet, which is the
+      // shell's markup and mounts once.
       //
       // wireRelease() answers with a teardown and this hands it on: it
       // subscribes to the build mark, which is the shell's and outlives this

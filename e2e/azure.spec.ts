@@ -45,7 +45,7 @@ async function openPanel(page: Page, id: string) {
 
 async function typeKeyAndSave(page: Page, region: string) {
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
   await page.locator("#settingsLink").click();
   await openPanel(page, "#azurePanel");
   await page.locator("#azureKey").fill("0000fakekeyfakekeyfakekey0000");
@@ -132,7 +132,7 @@ test("a stored key can be removed, and the azure rows leave with it", async ({ p
   // And gone from storage, not just from the screen: a fresh visit holds no
   // key and asks Azure nothing.
   await page.reload();
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
   await page.locator("#settingsLink").click();
   await expect(page.locator("#azureState")).toHaveText(AZURE_NONE);
 });

@@ -51,7 +51,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("./");
   // The board is what says the layout has been read; before that the page is
   // still wearing the labels it painted from the browser's own preference.
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
   await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
 });
 
@@ -86,7 +86,7 @@ test("the choice survives a reload, over what the browser asks for",
       { timeout: 10_000 });
 
     await page.reload();
-    await expect(page.locator("#device .tile")).toHaveCount(5);
+    await expect(page.locator("#device .cell")).toHaveCount(6);
 
     // The whole bug: this was the browser's answer again, every time.
     await expect(page.locator("html")).toHaveAttribute("lang", CHOSEN);

@@ -82,9 +82,9 @@ async function standIn(page: Page): Promise<void> {
 
 /* --- driving the editor -------------------------------------------------- */
 
-const cells = (page: Page) => page.locator("#appGrid .appcell");
+const cells = (page: Page) => page.locator("#appGrid .cell");
 /** What a press lands on. The cell is the box around it. */
-const hit = (page: Page, at: number) => cells(page).nth(at).locator(".appcell__open");
+const hit = (page: Page, at: number) => cells(page).nth(at).locator(".cell__open");
 /** The button sheet, which a press on any cell opens. */
 const buttonSheet = (page: Page) => sheet(page, "ui.app_button_title");
 
@@ -134,12 +134,12 @@ async function put(page: Page, at: number, fields: {
     // choose a symbol is the second dialog this design removed.
     const [chooser] = await Promise.all([
       page.waitForEvent("filechooser"),
-      box.locator("button", { hasText: label("ui.app_symbol_own") }).click(),
+      box.locator("button", { hasText: label("ui.symbol_own") }).click(),
     ]);
     await chooser.setFiles(fields.upload);
     await expect(box.locator(".pick__preview img")).toBeVisible();
   }
-  await box.locator("button", { hasText: label("ui.app_done") }).click();
+  await box.locator("button", { hasText: label("ui.done") }).click();
   await expect(box).toBeHidden();
 }
 
@@ -217,7 +217,7 @@ async function build(page: Page): Promise<void> {
   // the board nobody could ever edit - so the strip is the way across, and it
   // holds every page including the ones nothing leads to yet.
   await page.locator("#appPages .tab", { hasText: "Essen" }).click();
-  await expect(cells(page).locator(".appcell__label")).toHaveCount(0);
+  await expect(cells(page).locator(".cell__word")).toHaveCount(0);
   await put(page, 0, { label: "Mehr", wordClass: "descriptor" });
   await put(page, 14, { label: "Start", wordClass: "other", act: "home" });
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
@@ -380,11 +380,11 @@ test("deleting a page keeps the buttons that led to it", async ({ page }) => {
 
   // The button that led there is still on the start page, with its label, its
   // colour and its cell. Only the edge is gone.
-  const essen = page.locator("#appGrid .appcell", { hasText: "Essen" });
+  const essen = page.locator("#appGrid .cell", { hasText: "Essen" });
   await expect(essen).toHaveCount(1);
   await expect(essen).toHaveAttribute("style", /--cell-color:\s*#d8af97/);
   // The → badge is what said it led somewhere, and it does not any more.
-  await expect(essen.locator(".appcell__act")).toHaveCount(0);
+  await expect(essen.locator(".cell__act")).toHaveCount(0);
 });
 
 /** The card behind the ⋯ beside the Sammlung's name: the grid size and the
@@ -415,7 +415,7 @@ test("the grid grows in silence and asks before it shrinks", async ({ page }) =>
   await expect(card.locator(".notice")).toHaveCount(0);
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
   await expect(cells(page)).toHaveCount(66);
-  await expect(page.locator("#appGrid .appcell", { hasText: "Mehr" })).toHaveCount(1);
+  await expect(page.locator("#appGrid .cell", { hasText: "Mehr" })).toHaveCount(1);
 
   /* Something in the far corner, which only the big grid has: the last cell of
    * 6 x 11 is outside 3 x 5, and it is what makes going back a loss. Nothing
@@ -435,8 +435,8 @@ test("the grid grows in silence and asks before it shrinks", async ({ page }) =>
   // Declined: nothing was written, so the board is the size it was and the
   // button that would have gone is still on it.
   await expect(cells(page)).toHaveCount(66);
-  await expect(page.locator("#appGrid .appcell", { hasText: "Ecke" })).toHaveCount(1);
-  await expect(page.locator("#appGrid .appcell", { hasText: "Start" })).toHaveCount(1);
+  await expect(page.locator("#appGrid .cell", { hasText: "Ecke" })).toHaveCount(1);
+  await expect(page.locator("#appGrid .cell", { hasText: "Start" })).toHaveCount(1);
 
   // Said, and only then done. The button outside goes; the ones inside stay
   // exactly where they were, because none of them was ever re-indexed.
@@ -444,8 +444,8 @@ test("the grid grows in silence and asks before it shrinks", async ({ page }) =>
   await size(card, 3, 5).click();
   await card.locator("button", { hasText: label("ui.app_grid_shrink_go") }).click();
   await expect(cells(page)).toHaveCount(15);
-  await expect(page.locator("#appGrid .appcell", { hasText: "Ecke" })).toHaveCount(0);
-  await expect(page.locator("#appGrid .appcell", { hasText: "Start" })).toHaveCount(1);
+  await expect(page.locator("#appGrid .cell", { hasText: "Ecke" })).toHaveCount(0);
+  await expect(page.locator("#appGrid .cell", { hasText: "Start" })).toHaveCount(1);
 });
 
 test("a word class is worn as a fill, as a border, or not at all", async ({ page }) => {
@@ -456,8 +456,8 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
    * page it made second. By its whole label rather than by a substring:
    * "Sprich" is on the same board and contains "ich". */
   await page.locator("#appPages .tab").first().click();
-  const ich = page.locator("#appGrid .appcell")
-    .filter({ has: page.locator(".appcell__label", { hasText: /^ich$/ }) });
+  const ich = page.locator("#appGrid .cell")
+    .filter({ has: page.locator(".cell__word", { hasText: /^ich$/ }) });
 
   // A fill is what a Sammlung wears when nobody has said otherwise, which is
   // also what every layout stored before the choice existed wears.
@@ -497,7 +497,7 @@ test("a button moves to another cell, by keyboard and by drag", async ({ page })
 
   // Back to the start page, where the words are.
   await page.locator("#appPages .tab").first().click();
-  const at = (n: number) => cells(page).nth(n).locator(".appcell__label");
+  const at = (n: number) => cells(page).nth(n).locator(".cell__word");
 
   // Alt and an arrow: the same key that reorders the talker's sets. "ich" is
   // in the first cell; one press down puts it in the sixth, which is empty.
@@ -553,14 +553,14 @@ test("a button can be heard from the board, and only where there is something to
     // "Apfel" shows, "einen Apfel" is what the tablet will say.
     const said = page.waitForRequest((r) => SYNTHESIS.test(r.url()));
     await cells(page).nth(2).hover();
-    await cells(page).nth(2).locator(".appcell__play").click();
+    await cells(page).nth(2).locator(".cell__play").click();
     expect((await said).postData() ?? "").toContain("einen Apfel");
 
     // Not on the navigation button or the bar controls: pressing those on the
     // tablet says nothing, so offering to audition them would offer silence.
-    await expect(cells(page).nth(3).locator(".appcell__play")).toHaveCount(0);
-    await expect(cells(page).nth(10).locator(".appcell__play")).toHaveCount(0);
-    await expect(cells(page).nth(11).locator(".appcell__play")).toHaveCount(0);
+    await expect(cells(page).nth(3).locator(".cell__play")).toHaveCount(0);
+    await expect(cells(page).nth(10).locator(".cell__play")).toHaveCount(0);
+    await expect(cells(page).nth(11).locator(".cell__play")).toHaveCount(0);
 
     /* And a press on it does not open the cell behind it. Asserted as "no
      * sheet came up" rather than through aria-pressed, which is what said this
@@ -581,9 +581,9 @@ test("a cell says it opens a dialog, and carries no selected state", async ({ pa
    * survived a whole redesign because it was drawn from state nothing read. */
   await hit(page, 0).click();
   await expect(buttonSheet(page)).toBeVisible();
-  await buttonSheet(page).locator("button", { hasText: label("ui.app_done") }).click();
+  await buttonSheet(page).locator("button", { hasText: label("ui.done") }).click();
   await expect(buttonSheet(page)).toBeHidden();
-  await expect(page.locator("#appGrid .appcell.current")).toHaveCount(0);
+  await expect(page.locator("#appGrid .cell.current")).toHaveCount(0);
   await expect(hit(page, 0)).not.toHaveAttribute("aria-pressed", /.*/);
 
   // What it does say instead, on a filled cell and on an empty one - both open
@@ -604,7 +604,7 @@ test("a move stops at the edge of the grid rather than walking off it",
     await hit(page, 0).focus();
     await page.keyboard.press("Alt+ArrowUp");
     await page.keyboard.press("Alt+ArrowLeft");
-    await expect(cells(page).nth(0).locator(".appcell__label")).toHaveText("ich");
+    await expect(cells(page).nth(0).locator(".cell__word")).toHaveText("ich");
     expect(page.url()).toContain("vorlaut-diy-talker");
   });
 
@@ -645,7 +645,7 @@ test("a sheet somebody closes costs nothing, on an empty cell and on a full one"
      * blank button on the board - and a dialog somebody closes must cost
      * exactly what it looked like it would. */
     const empty = cells(page).nth(5);
-    await expect(empty).toHaveClass(/appcell--empty/);
+    await expect(empty).toHaveClass(/cell--empty/);
     await hit(page, 5).click();
     await expect(buttonSheet(page)).toBeVisible();
     await buttonSheet(page).locator("#appLabel").fill("weg damit");
@@ -653,9 +653,9 @@ test("a sheet somebody closes costs nothing, on an empty cell and on a full one"
     await expect(buttonSheet(page)).toBeHidden();
     // Still empty, and still empty after a reload - nothing was written to be
     // read back.
-    await expect(empty).toHaveClass(/appcell--empty/);
+    await expect(empty).toHaveClass(/cell--empty/);
     await page.reload();
-    await expect(cells(page).nth(5)).toHaveClass(/appcell--empty/);
+    await expect(cells(page).nth(5)).toHaveClass(/cell--empty/);
 
     // The same for a button that already exists: the draft is thrown away and
     // the label on the board is the one it had.
@@ -665,7 +665,7 @@ test("a sheet somebody closes costs nothing, on an empty cell and on a full one"
     await buttonSheet(page).locator("#appLabel").fill("nicht ich");
     await page.keyboard.press("Escape");
     await expect(buttonSheet(page)).toBeHidden();
-    await expect(cells(page).nth(0).locator(".appcell__label")).toHaveText("ich");
+    await expect(cells(page).nth(0).locator(".cell__word")).toHaveText("ich");
   });
 
 test("the four kinds are a relabelling, and they carry the acts they always did",
@@ -695,8 +695,8 @@ test("the four kinds are a relabelling, and they carry the acts they always did"
 
     // And the default carries no mark on the board at all, which is what makes
     // the marks on the others worth reading.
-    await expect(cells(page).nth(0).locator(".appcell__act")).toHaveCount(0);
-    await expect(cells(page).nth(6).locator(".appcell__act")).toHaveCount(1);
+    await expect(cells(page).nth(0).locator(".cell__act")).toHaveCount(0);
+    await expect(cells(page).nth(6).locator(".cell__act")).toHaveCount(1);
   });
 
 test("the page sheet offers the start page, or says the page already is it",
@@ -717,7 +717,7 @@ test("the page sheet offers the start page, or says the page already is it",
     await expect(card().locator(".notice")).toHaveCount(0);
     // Renaming through the sheet, which is where a page's name lives now.
     await card().locator("#appPageName").fill("Mittags");
-    await card().locator("button", { hasText: label("ui.app_done") }).click();
+    await card().locator("button", { hasText: label("ui.done") }).click();
     await expect(card()).toBeHidden();
     await expect(page.locator("#appPages .tab", { hasText: "Mittags" })).toHaveCount(1);
 

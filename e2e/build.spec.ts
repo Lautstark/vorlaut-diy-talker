@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 /* The labels are asserted out of the table the page reads them from, rather
  * than written out here in one language. */
 import { TEXTS } from "../src/core/boot_data.js";
+import { put } from "./diy.js";
 /* Out of the modules that decide them rather than written here: a stride
  * this test spelled out for itself would agree with nothing. */
 import { HEADER_BYTES, SET_BYTES } from "../src/data/layout_format.js";
@@ -216,7 +217,7 @@ async function seed(page: import("@playwright/test").Page) {
                     body: "stand-in" }));
 
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 
   await page.evaluate(`(async () => {
     ${IDB}
@@ -243,7 +244,7 @@ async function seed(page: import("@playwright/test").Page) {
      screen first, so a board that never reached the editor would be written
      straight back over by the one that did. */
   await page.reload();
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 }
 
 /** The transfer sheet, whichever step it is on. openDialog() appends it to the
@@ -357,9 +358,8 @@ test("a second build replaces what changed and leaves nothing behind", async ({ 
      module the bundle has renamed. The symbol is changed in both places it
      stands, or it would - correctly - keep its tile and the count would be
      measuring nothing. */
-  const keyText = page.locator("#device .tile:not(.setTile) input[type=text]");
   await page.locator("#tabs .tab").nth(1).click();
-  await keyText.nth(2).fill("Guten Tag");
+  await put(page, 2, "Guten Tag");
   await page.waitForTimeout(1500);
 
   const second = await release(page);

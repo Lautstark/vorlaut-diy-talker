@@ -157,7 +157,7 @@ body.collapsed .frame { grid-template-columns: minmax(0, 1fr); }
 /* Capped and centred, like both siblings, and the number is chosen for height
    rather than for measure.
 
-   The thumbs are square, so the board's width *is* its height: three columns
+   The cells are 4:3, so the board's width *is* its height: three columns
    across, two rows down, and width bought here is paid for below the fold. 720
    - mitreden's number, and what this had - ends exactly at the fold on a 900px
    window and overflows a 13-inch laptop, which is the machine it is used on.
@@ -195,21 +195,10 @@ main {
 .tab.active { color: var(--text); background: var(--surface-2); }
 .tab.add { border: 1px dashed var(--line); }
 
-/* Three across, mirroring the device: the set key and two speech keys, then the
-   other two under them. The columns grow with the window rather than sitting at
-   a third of 640px, which is what made the cards small and left a wide empty
-   strip beside them.
-
-   The cap is on the whole board rather than on a card, and it is generous
-   rather than tight: a tile is square-ish, so three columns of a 2000px window
-   would be cards too tall to see at once, and past about this width more room
-   stops buying a better look at a symbol. */
-.device { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.tile {
-  background: var(--surface); border-radius: 14px; padding: 9px;
-  display: flex; flex-direction: column; gap: 7px; justify-content: flex-start;
-  border: 3px solid var(--accent);
-}
+/* The swatches are the set's colour, in the card behind its tab. They were in
+   the tile beside the board, with a colour input and a hex field under them;
+   what is left is the row the mock draws, which is the palette the device is
+   built around. */
 .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
 .swatch {
   width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
@@ -217,40 +206,6 @@ main {
 }
 .swatch:hover { border-color: var(--text-dim); }
 .swatch.active { border-color: var(--text); }
-/* White here is not a surface and does not follow the scheme: it is the sheet
-   the pictogram is drawn on. AAC symbols are authored for white, and a dark
-   plane behind them loses the ones drawn in black outline. Same reason the
-   mark's eyes stay plain #fff. */
-.thumb {
-  /* Square, and as big as its tile. It was capped for a while to make the page
-     fit a short window, and that was the wrong thing to give: the picture is
-     what this page exists to show, and a symbol shrunk to make room is a symbol
-     somebody cannot judge. The room comes out of the furniture instead - see
-     the paddings below and around the tabs. */
-  aspect-ratio: 1/1; flex: 0 0 auto; background: #fff; border-radius: 8px;
-  cursor: pointer;
-  /* The sheet needs an edge now that the ground can be light: white on a dark
-     tile drew its own boundary, white on a light one does not, and the symbol
-     area stopped being findable. An inset ring rather than a border, so the
-     box does not change size between the two schemes. */
-  box-shadow: inset 0 0 0 1px var(--line);
-  display: flex; align-items: center; justify-content: center; overflow: hidden;
-  position: relative; border: none; padding: 0;
-}
-.thumb img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
-/* Not .empty: components.css owns that name for the empty-state block, whose
-   dashed border and 34px of padding would land on this caption. */
-/* On the white sheet below, not on a surface - so this one keeps a literal in
-   both schemes, for the same reason the sheet does. A token would follow the
-   scheme and go invisible on white the moment the page went light. */
-.thumb .blank { color: #8b93a1; font-size: 13px; text-align: center; padding: 8px; }
-.thumb:hover::after {
-  content: var(--pick-label); position: absolute; inset: auto 0 0 0;
-  /* Also on the sheet rather than on a surface: black at 65% over white reads
-     in both schemes, and a token here would vanish in one of them. */
-  background: rgba(0, 0, 0, .65); color: #fff; font-size: 11px; padding: 4px;
-  text-align: center;
-}
 .row { display: flex; gap: 8px; }
 /* .field carries the fill, the border and the focus lift; what stays here is
    how a field sits in vorlaut's boxes, which is layout and not vocabulary. */
@@ -267,23 +222,12 @@ main {
    the same value 3.92:1 where it checked it and 3.18:1 where it landed. */
 textarea::placeholder { color: var(--text-faint); }
 .row .field { flex: 1 1 auto; }
-.colorRow { display: flex; gap: 8px; }
-input[type=color] {
-  width: 42px; height: 36px; flex: none; padding: 2px; background: var(--surface-2);
-  border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
-}
-input[type=color]:hover { border-color: var(--text-dim); }
-/* Set slightly narrower so that "#4A90D9" fits in completely. */
-.colorRow .field {
-  flex: 1 1 auto; padding: 8px 6px; font-family: ui-monospace, monospace;
-  font-size: 13px;
-}
 /* No rule for the button element any more: .btn in components.css is the
    button, in three tiers, and styling the element underneath it meant every
    control on the page opted in to a look whether or not it wanted one.
    What is left is the font. That is a reset and not a look, and it has to
    keep covering the button element: .btn brings `font: inherit` with it, but
-   the tab, the swatch, the thumb and the grip are buttons that are none of
+   the tab, the swatch and a cell's two controls are buttons that are none of
    the three tiers, and without this they come out in the browser's face. */
 button, select, input, textarea { font-family: inherit; }
 
@@ -308,21 +252,6 @@ button, select, input, textarea { font-family: inherit; }
    is now a token - --accent-ink is the same idea solved rather than guessed,
    and it comes out at 6.0:1. */
 .play { width: 40px; flex: none; justify-content: center; padding: 8px 0; }
-.slotNr {
-  color: var(--text-dim); font-size: 12px; letter-spacing: .5px;
-  display: flex; align-items: center; gap: 6px;
-}
-.grip {
-  margin-left: auto; cursor: grab; font-size: 15px; line-height: 1;
-  color: var(--text-dim); opacity: .55; padding: 0 2px;
-}
-.grip:hover { opacity: 1; }
-.grip:active { cursor: grabbing; }
-.grip:focus-visible { opacity: 1; }
-/* An armed swap has no drag image to show for itself, so the grip that
-   holds it speaks the accent the focus ring already uses. */
-.grip.armed { opacity: 1; color: var(--accent); }
-.tile.dragover { border-style: dashed; }
 .tab.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
 .tab[draggable=true] { cursor: grab; }
 
@@ -354,16 +283,6 @@ button, select, input, textarea { font-family: inherit; }
 .toggle input:focus-visible + .pill {
   outline: 2px solid var(--text-dim); outline-offset: 2px;
 }
-/* Original size: 15.21 mm are visible on the device. Roughly life-size on
-   screen, so one can judge whether a symbol is recognisable on it at all. */
-.actualSize {
-  display: flex; align-items: center; gap: 8px;
-  color: var(--text-dim); font-size: 11px;
-}
-.actualSize img {
-  width: 15.21mm; height: 15.21mm; image-rendering: pixelated;
-  border-radius: 2px;
-}
 /* --danger-soft is the plane and --danger the text colour on plain ground;
    the line drawn between them has no token, so it is mixed out of --danger
    rather than written down a third time. Declared on the user rather than at
@@ -386,12 +305,6 @@ button, select, input, textarea { font-family: inherit; }
   background: color-mix(in oklab, var(--danger) 15%, var(--danger-soft));
   border-color: var(--danger-line); color: var(--text);
 }
-/* Left column: set tile with the delete button below it. */
-.setCol {
-  grid-row: span 2; display: flex; flex-direction: column; gap: 10px;
-  justify-content: flex-start;
-}
-#removeSet { width: 100%; }
 /* A plane BELOW --bg - a log sunk into what holds it rather than sitting on it
    - and the token set has no name for that in either scheme. It used to be the
    literal #101216, which was a step down from a dark ground and a hole in a
@@ -472,8 +385,8 @@ pre.log {
      The status keeps its auto margin: with the wordmark hidden just above,
      that margin is what still pushes the group against the right edge.
 
-     Scoped to the header on purpose - .toggle is also the active switch on
-     the set tile, and an auto margin sent that one to the right edge too. */
+     Scoped to the header on purpose - .toggle is also the device preview in
+     the work head, and an auto margin sent that one to the right edge too. */
 
   /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
      sets past the edge with nothing to say they are there - and the sets
@@ -483,9 +396,10 @@ pre.log {
   .tabs .tab { flex: none; padding: 8px 12px; }
 
   main { padding: 12px; overflow-y: visible; }
-  .device { grid-template-columns: 1fr 1fr; }
-  .setCol { grid-row: auto; grid-column: 1 / -1; }
-  #removeSet { width: auto; align-self: flex-start; }
+  /* The board is not reflowed. Two of three columns would be a board that is
+     not the thing on the table - the speaker is top left because the speaker
+     is top left. It gets smaller instead, which .cell's ratio does on its
+     own. */
 }
 
 dialog {
@@ -523,10 +437,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .results p { grid-column: 1 / -1; margin: 4px 2px; color: var(--text-dim); }
 .results figure { margin: 0; cursor: pointer; text-align: center; }
 .results img {
-  /* White for the reason .thumb is white: the pictogram's sheet. */
+  /* White for the reason .pick__preview is white: the pictogram's sheet. */
   width: 100%; aspect-ratio: 1/1; object-fit: contain; background: #fff;
   border-radius: 8px; padding: 4px;
-  /* Same as the thumb: the sheet is white in both schemes, so on a light
+  /* Same as the preview: the sheet is white in both schemes, so on a light
      ground it needs an edge of its own. The transparent border is the slot
      the hover accent fills, and it must stay the same width either way or
      the grid reflows under the pointer. */
@@ -765,11 +679,22 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .folderbox .row { margin-top: 8px; }
 
 /* ---------------------------------------------------------------------------
-   The tablet editor.
+   The board, in both editors.
 
-   Everything in here is editor-app's and nothing else uses it. It sits beside
-   the five-key board's rules rather than in a file of its own for the same
-   reason those are here: this is the layout that is vorlaut's alone, and the
+   One cell and one grid, at design's docs/mocks/editor.css names. They were
+   .appcell and .appgrid while the tablet was the only editor that had them,
+   and the prefix stopped being true the moment the talker's board became six
+   of the same cell: a rule called .appcell on the five-key device would be a
+   rule lying about which device it is for.
+
+   What differs between the two is only what a cell *holds* - a tablet button
+   has a word class and a badge for what a press does, a talker key has
+   neither - and that is each editor's markup rather than anything here. The
+   talker's own additions are the three below the cell rules: the hole where
+   the speaker sits, the set key, and the device-size preview.
+
+   It sits in this file rather than one of its own for the same reason the
+   rules around it do: this is the layout that is vorlaut's alone, and the
    vocabulary it is written in - .btn, .tab, the tokens - comes from
    @lautstark/design one layer down. */
 
@@ -839,7 +764,7 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .sizeask { display: grid; gap: 8px; margin-bottom: 4px; }
 .sizeask .note { margin: 0; }
 
-.appgrid {
+.grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
   grid-template-rows: repeat(var(--rows, 3), minmax(0, 1fr));
@@ -856,12 +781,15 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    that is deliberately spaced. The track leaves all --cols columns the same
    width and puts the space between two of them, which is what a gutter is.
    Every cell names its track, because auto-flow would otherwise drop the
-   second cell of each row into the spacer - see cell(). */
-.appgrid--gap {
+   second cell of each row into the spacer - see cell().
+
+   The tablet's alone: the talker's grid is the hardware's own 2x3 and has no
+   first column to share. */
+.grid--gap {
   grid-template-columns:
     minmax(0, 1fr) 14px repeat(calc(var(--cols, 5) - 1), minmax(0, 1fr));
 }
-.appcell {
+.cell {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4px; aspect-ratio: 4 / 3; min-width: 0; padding: 4px;
   border-radius: 10px; cursor: pointer; position: relative;
@@ -881,28 +809,28 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 /* The label sits over a word-class colour, which is a light fill from the
    Fitzgerald key - so the text on a cell is dark whatever the page's theme is.
    A cell with no class keeps the surface colour and the theme's own text. */
-.appcell:not([style*="--cell-color"]) { color: var(--text); }
+.cell:not([style*="--cell-color"]) { color: var(--text); }
 /* The same colour worn as an edge instead, which is the second of the three
    states a Sammlung can be in - see AppLayout.wordColor. Wider than the plain
    border, because a 2px line in a light Fitzgerald hue reads as no line at
    all; the cell keeps the surface behind it, so a photograph on it stays a
    photograph. The third state sets neither property and is this rule and the
    fill both not applying. */
-.appcell[style*="--cell-edge"] { border-width: 3px; }
+.cell[style*="--cell-edge"] { border-width: 3px; }
 
 /* What a press lands on: a box filling the cell, under the corner control
    rather than around it. The cell is a container; these two are the widgets
    in it. */
-.appcell__open {
+.cell__open {
   position: absolute; inset: 0; z-index: 1;
   border-radius: inherit; cursor: pointer;
 }
-.appcell__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cell__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Hear it without opening anything. Hidden until the pointer or the keyboard
    is on the cell - the five-key board spends a permanent slot on this, and at
    eleven columns there is no slot to spend. */
-.appcell__play {
+.cell__play {
   position: absolute; top: 4px; right: 4px; z-index: 2;
   width: 24px; height: 24px; padding: 0; line-height: 1;
   display: grid; place-items: center;
@@ -912,20 +840,20 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   font: inherit; font-size: 11px;
   opacity: 0; transition: opacity .12s ease;
 }
-.appcell:hover .appcell__play,
-.appcell:focus-within .appcell__play { opacity: 1; }
-.appcell__play:hover { color: var(--text); }
-.appcell__play:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
+.cell:hover .cell__play,
+.cell:focus-within .cell__play { opacity: 1; }
+.cell__play:hover { color: var(--text); }
+.cell__play:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
 /* Where a dragged button would land. The same mark the five-key board uses for
    the same gesture, so one dashed outline means one thing in both editors. */
-.appcell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
-.appcell[draggable="true"] { cursor: grab; }
-.appcell[draggable="true"]:active { cursor: grabbing; }
+.cell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
+.cell[draggable="true"] { cursor: grab; }
+.cell[draggable="true"]:active { cursor: grabbing; }
 /* `min-height: 0` so the picture is the part that gives: a flex item will not
    shrink past its own content without it, and at eleven columns two lines of
    word and a picture at 60% want more height than the cell has. The word is
    the part somebody is reading. */
-.appcell img { max-width: 100%; max-height: 60%; min-height: 0; object-fit: contain; }
+.cell__pic { max-width: 100%; max-height: 60%; min-height: 0; object-fit: contain; }
 /* Two lines, then an ellipsis.
  *
  * AsTeRICS Grid's TextConfig offers three answers to a label that does not fit
@@ -938,7 +866,7 @@ dl.transfer dd { margin: 0; font-size: 14px; }
  *
  * `flex: none` because the two lines are the point: without it the label is a
  * shrinkable flex item and a tall picture squeezes it back to one. */
-.appcell__label {
+.cell__word {
   flex: none;
   font-size: 13px; line-height: 1.2; text-align: center;
   overflow: hidden; text-overflow: ellipsis; max-width: 100%;
@@ -951,27 +879,91 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    them read as deliberate. There is no placeholder glyph for the same reason:
    an empty picture slot on a board is furniture announcing an absence, and the
    way to add one is a press away. */
-.appcell--words .appcell__label { font-size: 20px; -webkit-line-clamp: 3; }
+.cell--words .cell__word { font-size: 20px; -webkit-line-clamp: 3; }
 /* Where the cell came out small - eleven columns and up - the same two rules
    at a size that still fits the lines it promises. */
 @container (max-width: 120px) {
-  .appcell__label { font-size: 12px; }
-  .appcell--words .appcell__label { font-size: 15px; }
+  .cell__word { font-size: 12px; }
+  .cell--words .cell__word { font-size: 15px; }
 }
 /* Moved to the leading corner: the trailing one is the play button's, and a
    badge under a control nobody can see until they hover is a badge nobody
    reads. */
-.appcell__act { position: absolute; top: 3px; left: 5px; font-size: 11px; opacity: .75; }
-.appcell--empty {
+.cell__act { position: absolute; top: 3px; left: 5px; font-size: 11px; opacity: .75; }
+.cell--empty {
   background: transparent; border-style: dashed; color: var(--text-faint);
 }
-.appcell--empty::after { content: "+"; font-size: 20px; }
+.cell--empty::after { content: "+"; font-size: 20px; }
 /* Which column is the Sammlung's, said on the board rather than only in the
    sheet that opens from it - and quietly, on the cells that are still empty. A
    filled one already tells the truth about itself by being on every page, and
    a second mark on every one of them would be a column of badges. */
-.appcell--shared.appcell--empty { border-style: dashed; }
-.appcell .blank { font-size: 11px; text-align: center; color: var(--text-faint); }
+.cell--shared.cell--empty { border-style: dashed; }
+.cell .blank { font-size: 11px; text-align: center; color: var(--text-faint); }
+
+/* --------------------------------------------- the three the talker adds
+
+   Everything above is both editors'. These three are the five-key device, and
+   each of them is a fact about the hardware rather than a choice.
+
+   The board itself is #device, at --cols:3 and --rows:2 written into the
+   markup: unlike the tablet's, this grid is not a setting. It needs no width
+   rule of its own - the tablet lifts main's 640px cap because eleven columns
+   do not fit in it, and three columns of 640px is a cell about 200px wide,
+   which is a symbol somebody can judge. */
+
+/* The hole where the speaker is.
+
+   Not a cell somebody can do anything with, so not a control and not a drop
+   target: no cursor, no hover, and nothing focusable inside it. Drawn as the
+   speaker rather than captioned as an absence - a cell saying "empty" invites
+   somebody to fill it, and this one cannot be filled, because behind it there
+   is a 40 mm cone. */
+.cell--hole {
+  cursor: default; border-style: dashed; background: transparent;
+  color: var(--text-faint);
+}
+.cell--hole > span {
+  display: grid; justify-items: center; gap: 4px; font-size: 11px;
+}
+.cell--hole svg {
+  width: 38px; height: 38px; fill: none; stroke: currentColor;
+}
+
+/* The set key, which is a display like the four beside it and is also the set.
+   It wears the set's colour the way the device does - round the edge, not as a
+   fill - because on the device that colour is a border drawn round all five
+   screens, and a filled cell here would promise a coloured key.
+
+   It does not move and is not a drop target: its position is the hardware's.
+   The cursor says so, and the absence of a draggable attribute is what
+   actually stops it. */
+.cell--setkey { border-color: var(--screen, var(--line)); border-width: 3px; }
+/* What this cell is, over what is on it. Small and shouted, which is what the
+   two words have to be to sit above a picture without competing with it - and
+   the shouting is here rather than in the table, where a capitalised string is
+   read out letter by letter by a screen reader. */
+.cell__eyebrow {
+  position: absolute; top: 4px; left: 0; right: 0; text-align: center;
+  font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-faint); pointer-events: none;
+}
+.cell--setkey .cell__pic { max-height: 48%; margin-top: 8px; }
+
+/* The device preview, which is the picture at the size the display really
+   shows it: 15.21 mm, scaled to 116x116 and rounded to RGB565 by
+   previewInto(). Life-size on screen, so somebody can judge whether a
+   pictogram survives the trip at all.
+
+   It replaces the cell's picture rather than joining it - the reasoning is at
+   editor-diy's deviceImage(), and the short version is that a cell is a fixed
+   ratio and a second image plus a caption is exactly the content that makes a
+   row ragged. So the only rule needed here is the size, which must be the
+   millimetres and not a percentage of the cell. */
+.cell__pic--device {
+  width: 15.21mm; height: 15.21mm; max-width: none; max-height: none;
+  image-rendering: pixelated; border-radius: 2px;
+}
 
 /* The two choices a new Sammlung is made from. Stacked and full width, because
    each is a heading and a sentence rather than a word - the sentence is what
@@ -1078,6 +1070,13 @@ dialog.sheet--button { max-width: 720px; width: 100%; }
 .pick__hit img { width: 100%; height: 100%; object-fit: contain; }
 .pick__hit:hover { border-color: var(--line); }
 .pick__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* What is owed for the collection the hits came from, under them. Hint-sized
+   and hint-coloured: it is a condition of a licence rather than something
+   somebody is reading, and it must not compete with the pictures it is about.
+   It is never empty for ARASAAC - see picker.ts's creditLine(). */
+.pick__credits {
+  margin: 0; font-size: 11px; line-height: 1.45; color: var(--text-faint);
+}
 
 /* -------------------------------------------------------------- the fields */
 

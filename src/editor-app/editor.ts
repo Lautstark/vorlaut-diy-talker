@@ -22,7 +22,7 @@
 // near it: what happens to the buttons that pointed at a deleted page is the
 // part of this that is expensive to get wrong, so it is the part that can be
 // tested without a browser.
-import { $, say, status } from "../shell/dom.js";
+import { $, status } from "../shell/dom.js";
 import { symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
@@ -32,12 +32,16 @@ import type {
 } from "../core/types.js";
 import { GRID, LANG, WORD_CLASSES } from "../core/boot.js";
 import { t } from "../core/texts.js";
-import { reason } from "../core/errors.js";
 import { save } from "../core/save.js";
-import { findSymbols, takeSymbol, uploadOwn } from "../shell/picker.js";
-import type { SymbolHit } from "../shell/picker.js";
 import { speak } from "../shell/speech.js";
 import { confirmDialog, openDialog } from "@lautstark/design/dialog";
+/* The sheet is the shell's now, and the whole of what this file hands it is a
+ * title, a picture, some rows and three labelled things to do. It was written
+ * here, and moving it is what let the talker have the same one: an editor may
+ * not import out of another editor - tests/unit/layers.test.ts - so anything
+ * genuinely shared between the two belongs in the shell. */
+import { formRow, missing, openSheet, option, textField } from "../shell/sheet.js";
+import type { Left } from "../shell/sheet.js";
 import { collectionMenuExtras, exportApp, sizeChoices }
   from "../shell/collections.js";
 import {
@@ -190,7 +194,7 @@ function drawGrid(): void {
    * AppLayout.firstColumnGap. The board on this screen is a picture of the
    * board on the tablet, and a hint that only showed up after export would be
    * a setting somebody had to take on faith. */
-  grid.classList.toggle("appgrid--gap", layout.firstColumnGap === true);
+  grid.classList.toggle("grid--gap", layout.firstColumnGap === true);
 
   for (let row = 0; row < layout.grid.rows; row++) {
     for (let col = 0; col < layout.grid.columns; col++) {
@@ -243,7 +247,7 @@ const cellHolder = (on: AppPage, row: number, col: number): AppButton | undefine
   inColumn(col) ? sharedAt(board(), row) : buttonAt(on, row, col);
 
 function clearDragMarks(): void {
-  for (const one of document.querySelectorAll(".appcell.dragover")) {
+  for (const one of document.querySelectorAll(".cell.dragover")) {
     one.classList.remove("dragover");
   }
 }
@@ -257,7 +261,7 @@ function clearDragMarks(): void {
  * written out at each call site. */
 function opener(label: string): HTMLElement {
   const hit = document.createElement("div");
-  hit.className = "appcell__open";
+  hit.className = "cell__open";
   hit.setAttribute("role", "button");
   hit.tabIndex = 0;
   hit.setAttribute("aria-label", label);
@@ -276,15 +280,15 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
    * plays. Nesting the second inside the first would be a control inside a
    * control, which no keyboard can reach and no markup validator allows. */
   const box = document.createElement("div");
-  box.className = "appcell";
-  // What the gap is drawn against - see .appgrid--gap. On the cell rather than
+  box.className = "cell";
+  // What the gap is drawn against - see .grid--gap. On the cell rather than
   // by counting children in CSS, because nth-child cannot be told how wide the
   // grid is.
-  if (col === 0) box.classList.add("appcell--first");
-  if (inColumn(col)) box.classList.add("appcell--shared");
+  if (col === 0) box.classList.add("cell--first");
+  if (inColumn(col)) box.classList.add("cell--shared");
   /* Placed rather than left to auto-flow, but only while the gap is drawn.
    *
-   * .appgrid--gap puts a real spacer track between the first column and the
+   * .grid--gap puts a real spacer track between the first column and the
    * second, which is the only way to set a column apart without making it
    * narrower than the ones beside it - a margin comes out of the cell, and a
    * first column 5% short of the rest is a board that looks slightly wrong
@@ -297,7 +301,7 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
   acceptsDrop(box, on, row, col);
 
   if (!held) {
-    box.classList.add("appcell--empty");
+    box.classList.add("cell--empty");
     box.title = t("ui.app_button_add");
     const hit = opener(t("ui.app_button_add"));
     box.appendChild(hit);
@@ -324,8 +328,8 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     || (held.symbol ? held.vocalization.trim() || t("ui.app_button_symbol") : "");
   const hit = opener(named || t("ui.app_button_empty"));
   // A word with no picture is its own kind of button, and takes the room the
-  // picture would have had. The class carries it; see .appcell--words.
-  box.classList.toggle("appcell--words", !held.symbol);
+  // picture would have had. The class carries it; see .cell--words.
+  box.classList.toggle("cell--words", !held.symbol);
   box.appendChild(hit);
   /* The word class, worn as the Sammlung says: a fill, a border, or nothing.
    *
@@ -344,13 +348,13 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
 
   if (held.symbol) {
     const image = document.createElement("img");
+    image.className = "cell__pic";
     symbolInto(image, held.symbol);
-    // Two different absences, and the words point at different remedies - the
-    // same reading editor-diy makes of the same two cases.
-    image.onerror = () => {
-      image.replaceWith(mark(held.symbol.startsWith("metacom:")
-        ? t("ui.symbol_needs_folder") : t("ui.symbol_missing")));
-    };
+    // Two different absences, and the words point at different remedies. The
+    // reading is shell/sheet.ts's, because the sheet's own preview and both
+    // editors' cells all have to make it and it was three copies of one
+    // sentence-picking rule.
+    image.onerror = () => { image.replaceWith(missing(held.symbol)); };
     box.appendChild(image);
   }
 
@@ -368,7 +372,7 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
   const badge = actBadge(held.act);
   if (badge) {
     const tag = document.createElement("span");
-    tag.className = "appcell__act";
+    tag.className = "cell__act";
     tag.textContent = badge;
     tag.title = t(`ui.app_act_${actKey(held.act.kind)}`);
     box.appendChild(tag);
@@ -389,7 +393,7 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
   if (saying && (held.act.kind === "append" || held.act.kind === "speak")) {
     const play = document.createElement("button");
     play.type = "button";
-    play.className = "appcell__play";
+    play.className = "cell__play";
     play.textContent = "▶";
     play.title = t("ui.play_title");
     play.setAttribute("aria-label", t("ui.play_title"));
@@ -451,7 +455,7 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     // follows the button rather than staying at the coordinate, which is what
     // makes a run of presses move one thing across the board.
     ($("appGrid").children[(to[0] * grid.columns) + to[1]]
-      ?.querySelector(".appcell__open") as HTMLElement)?.focus();
+      ?.querySelector(".cell__open") as HTMLElement)?.focus();
   };
   return box;
 }
@@ -461,16 +465,9 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
  *  into the panel, and the panel and its live redraw are both gone. */
 function wordSpan(text: string): HTMLElement {
   const span = document.createElement("span");
-  span.className = "appcell__label";
+  span.className = "cell__word";
   span.textContent = text;
   return span;
-}
-
-function mark(text: string): HTMLElement {
-  const line = document.createElement("span");
-  line.className = "blank";
-  line.textContent = text;
-  return line;
 }
 
 /** One character for what a press does. Deliberately the glyphs the format's
@@ -519,19 +516,15 @@ const wordColor = (layout: AppLayout): WordColor => layout.wordColor ?? "fill";
  * back on the confirming press, so every way out that is not that press costs
  * exactly nothing - which is the rule an empty cell made unavoidable (pressing
  * one must not leave a blank button behind when the sheet is dismissed) and
- * which is no less true of an existing button. The panel wrote as you typed
- * because it was always on screen and there was nothing to dismiss.
+ * which is no less true of an existing button.
  *
- * **Each promise settles from the presses, with a guard.** design.md §3.4, and
- * the comment in shell/collections.ts's askTarget() is where the reasoning is
- * written out: `close` is what a *host* fires, and a host that hides a dialog
- * without firing it would leave the promise pending for the life of the page -
- * a button that did nothing, with no error anywhere. So the presses resolve for
- * themselves and `close` only carries the dismissal.
+ * **What is left here is the rows.** The frame - the picture column with its
+ * search, the foot with the destructive act on the left, and the promise that
+ * settles from the presses rather than from `close` alone - is
+ * shell/sheet.ts's, and the head of that file is where the reasoning for each
+ * of those now lives. This file says what a *button* has on it and what a
+ * *page* has on it, which is the half that is genuinely the tablet's.
  */
-
-/** How a sheet was left. `null` is every way out that wrote nothing. */
-type Left = "done" | "next" | null;
 
 /* --- The page sheet ------------------------------------------------------ */
 
@@ -549,91 +542,66 @@ type Left = "done" | "next" | null;
  * that is the part somebody standing here cannot see.
  */
 function openPageSheet(on: AppPage): Promise<void> {
-  return new Promise((resolve) => {
-    const layout = board();
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-      // After resolving, so a close event arriving as a consequence of this
-      // call finds the guard already set.
-      sheet?.close();
-    };
+  const layout = board();
 
-    let name = on.name;
-    // Drafted like the name beside it. Pressing it on a page that is not home
-    // swaps this row for the notice, so the sheet says what it will be once
-    // Fertig is pressed - and dismissing leaves home where it was.
-    let makeHome = false;
+  let name = on.name;
+  // Drafted like the name beside it. Pressing it on a page that is not home
+  // swaps this row for the notice, so the sheet says what it will be once
+  // Fertig is pressed - and dismissing leaves home where it was.
+  let makeHome = false;
 
-    const form = document.createElement("div");
-    form.className = "form";
+  const pageName = textField(name, (value) => { name = value; });
+  pageName.id = "appPageName";
 
-    const pageName = textField(name, (value) => { name = value; });
-    pageName.id = "appPageName";
-    form.appendChild(formRow(t("ui.app_page_name"), pageName,
-                             t("ui.app_page_name_note")));
+  // Rebuilt in place rather than redrawn whole: the name field above is being
+  // typed in, and replacing the form would take the caret with it.
+  const homeRow = document.createElement("div");
+  const drawHome = () => {
+    homeRow.innerHTML = "";
+    if (on.id === layout.home || makeHome) {
+      const notice = document.createElement("div");
+      notice.className = "notice";
+      notice.textContent = t("ui.app_page_home_is");
+      homeRow.appendChild(formRow("", notice, t("ui.app_page_home_is_note")));
+      return;
+    }
+    const make = document.createElement("button");
+    make.type = "button";
+    make.className = "btn";
+    make.textContent = t("ui.app_page_home_set");
+    make.onclick = () => { makeHome = true; drawHome(); };
+    homeRow.appendChild(formRow("", make, t("ui.app_page_home_note")));
+  };
+  drawHome();
 
-    // Rebuilt in place rather than redrawn whole: the name field above is
-    // being typed in, and replacing the form would take the caret with it.
-    const homeRow = document.createElement("div");
-    const drawHome = () => {
-      homeRow.innerHTML = "";
-      if (on.id === layout.home || makeHome) {
-        const notice = document.createElement("div");
-        notice.className = "notice";
-        notice.textContent = t("ui.app_page_home_is");
-        homeRow.appendChild(formRow("", notice, t("ui.app_page_home_is_note")));
-        return;
-      }
-      const make = document.createElement("button");
-      make.type = "button";
-      make.className = "btn";
-      make.textContent = t("ui.app_page_home_set");
-      make.onclick = () => { makeHome = true; drawHome(); };
-      homeRow.appendChild(formRow("", make, t("ui.app_page_home_note")));
-    };
-    drawHome();
-    form.appendChild(homeRow);
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "btn destructive";
-    remove.textContent = t("ui.app_page_delete");
-    remove.onclick = () => {
+  /* No picture column: a page on a tablet has none. That is also what makes
+   * this the narrower sheet - see openSheet, which takes the single-column
+   * shape when there is nothing to show. The talker's own page card *does*
+   * have one, because its page has a key on the device that shows a picture. */
+  return openSheet({
+    title: t("ui.app_page_title"),
+    rows: [
+      formRow(t("ui.app_page_name"), pageName, t("ui.app_page_name_note")),
+      homeRow,
+    ],
+    remove: {
+      label: t("ui.app_page_delete"),
       // The question is askDelete's, and it draws a dialog of its own over
       // this one. Only a yes closes this sheet, because a no leaves somebody
       // exactly where they were.
-      void askDelete(on).then((gone) => { if (gone) finish(); });
-    };
-
-    const done = document.createElement("button");
-    done.type = "button";
-    done.className = "btn primary";
-    done.textContent = t("ui.app_done");
-    done.onclick = () => {
-      on.name = name;
-      if (makeHome) layout.home = on.id;
-      finish();
-      commit();
-    };
-
-    const right = document.createElement("span");
-    right.className = "foot__right";
-    right.appendChild(done);
-
-    const sheet: ReturnType<typeof openDialog> | undefined = openDialog({
-      title: t("ui.app_page_title"),
-      closeLabel: t("ui.close"),
-      body: [form],
-      footer: [remove, right],
-      onClose: finish,
-    });
-    // Two columns are the button sheet's; a page has one thing to say, so the
-    // narrower sheet the mock draws is what this one takes.
-    sheet.dialog.classList.add("sheet--button", "sheet--page");
-  });
+      onPress: (settle) => {
+        void askDelete(on).then((gone) => { if (gone) settle(); });
+      },
+    },
+    done: {
+      label: t("ui.done"),
+      onPress: () => {
+        on.name = name;
+        if (makeHome) layout.home = on.id;
+        commit();
+      },
+    },
+  }).then(() => undefined);
 }
 
 /**
@@ -727,399 +695,232 @@ const doesOf = (act: Act): Does =>
  * the board.
  */
 function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<Left> {
-  return new Promise((resolve) => {
-    const layout = board();
-    let settled = false;
-    const finish = (how: Left) => {
-      if (settled) return;
-      settled = true;
-      resolve(how);
-      sheet?.close();
-    };
+  const layout = board();
 
-    const draft: Draft = held
-      ? { label: held.label, vocalization: held.vocalization, symbol: held.symbol,
-          wordClass: held.wordClass, act: held.act }
-      : { label: "", vocalization: "", symbol: "", wordClass: "",
-          act: { kind: "append" } };
-    /* Whether "Neue Seite ..." is what the target select is standing on.
-     *
-     * Held here rather than written straight into the layout, so that the page
-     * is minted by the same press that writes everything else - and named from
-     * the label as it finally reads, rather than as it read at the moment the
-     * option was chosen. The panel minted immediately and took the label it
-     * had, which was usually the empty one. */
-    let wantsNewPage = false;
+  const draft: Draft = held
+    ? { label: held.label, vocalization: held.vocalization, symbol: held.symbol,
+        wordClass: held.wordClass, act: held.act }
+    : { label: "", vocalization: "", symbol: "", wordClass: "",
+        act: { kind: "append" } };
+  /* Whether "Neue Seite ..." is what the target select is standing on.
+   *
+   * Held here rather than written straight into the layout, so that the page
+   * is minted by the same press that writes everything else - and named from
+   * the label as it finally reads, rather than as it read at the moment the
+   * option was chosen. The panel minted immediately and took the label it had,
+   * which was usually the empty one. */
+  let wantsNewPage = false;
 
-    /* --- the picture, its search and the upload --- */
+  /* --- the fields --- */
 
-    const pick = document.createElement("div");
-    pick.className = "pick";
+  const rows: HTMLElement[] = [];
 
-    const preview = document.createElement("div");
-    const drawPreview = () => {
-      preview.innerHTML = "";
-      preview.className = "pick__preview";
-      if (!draft.symbol) {
-        preview.classList.add("pick__preview--none");
-        preview.setAttribute("role", "img");
-        preview.setAttribute("aria-label", t("ui.app_symbol_none"));
-        preview.innerHTML =
-          `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18"`
-          + ` height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/>`
-          + `<path d="M21 16l-5-5-5 5-3-3-5 5"/></svg>`;
-        return;
-      }
-      preview.removeAttribute("role");
-      preview.removeAttribute("aria-label");
-      const image = document.createElement("img");
-      image.alt = "";
-      symbolInto(image, draft.symbol);
-      // Two different absences, and the words point at different remedies -
-      // the same reading the cell behind this sheet makes of the same two
-      // cases. Not the "no picture yet" glyph: there is one, and saying there
-      // is not would send somebody to pick a second.
-      image.onerror = () => {
-        image.replaceWith(mark(draft.symbol.startsWith("metacom:")
-          ? t("ui.symbol_needs_folder") : t("ui.symbol_missing")));
-      };
-      preview.appendChild(image);
-    };
-    drawPreview();
-    pick.appendChild(preview);
+  /* A button in the shared column is one button on every page, and the sheet
+   * says so before anything is typed into it.
+   *
+   * The surprise this heads off is not the edit, it is *where* the edit
+   * lands: somebody standing on page three, changing a word, has no way to
+   * see that pages one, two and four changed with it - and the same press
+   * that renames it can delete it from all of them. conventions.md's rule
+   * about counting what somebody cannot see, one floor down from the page
+   * delete question. It is a notice rather than a question because nothing
+   * is lost and nothing is hidden: the board behind the sheet redraws with
+   * the change on it, and every other page is one tab away. */
+  if (inColumn(at[1])) {
+    const notice = document.createElement("div");
+    notice.className = "notice";
+    notice.textContent = t("ui.app_first_column_button");
+    rows.push(notice);
+  }
 
-    const query = document.createElement("input");
-    query.type = "search";
-    query.className = "field";
-    query.autocomplete = "off";
-    query.placeholder = t("ui.app_symbol_search");
-    query.setAttribute("aria-label", t("ui.app_symbol_search"));
-    // Seeded with the word already on the button, which is what somebody is
-    // most likely looking for a picture of.
-    query.value = draft.label.trim();
-    pick.appendChild(query);
+  const labelInput = textField(draft.label, (value) => { draft.label = value; });
+  labelInput.id = "appLabel";
+  labelInput.placeholder = t("ui.app_button_label_hint");
+  rows.push(formRow(t("ui.app_button_label"), labelInput,
+                    t("ui.app_button_label_note")));
 
-    const results = document.createElement("div");
-    results.className = "pick__results";
-    pick.appendChild(results);
+  const spoken = textField(draft.vocalization, (value) => {
+    draft.vocalization = value;
+  });
+  spoken.id = "appSpoken";
+  spoken.placeholder = t("ui.app_button_spoken_hint");
+  const play = document.createElement("button");
+  play.type = "button";
+  play.className = "btn";
+  play.textContent = "▶";
+  play.setAttribute("aria-label", t("ui.play_title"));
+  play.title = t("ui.play_title");
+  // What the tablet would say, which is the vocalization where there is one
+  // and the label where there is not - exchange/SPEC.md §7.2's rule, said out
+  // loud rather than described.
+  play.onclick = () => {
+    const saying = (draft.vocalization || draft.label).trim();
+    if (saying) void speak(saying, play);
+  };
+  const withPlay = document.createElement("div");
+  withPlay.className = "form__withplay";
+  withPlay.append(spoken, play);
+  rows.push(formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id));
 
-    /** A chosen picture, however it was chosen. Fills an empty label from the
-     *  collection's own word for the symbol but never writes over one somebody
-     *  typed - the same rule both editors have always kept, and for the same
-     *  reason: the symbol may be called "zustimmen" while the button should
-     *  say "Ja!". */
-    const took = (symbol: string, caption: string) => {
-      draft.symbol = symbol;
-      if (caption && !draft.label.trim()) {
-        draft.label = caption;
-        labelInput.value = caption;
-      }
-      drawPreview();
-      drawResults();
-    };
+  const classes = document.createElement("select");
+  classes.className = "field";
+  classes.id = "appClass";
+  classes.append(option("", t("ui.wordclass_none")));
+  for (const one of WORD_CLASSES) {
+    classes.append(option(one.key, t(`ui.wordclass_${one.key}`)));
+  }
+  classes.value = draft.wordClass;
+  classes.onchange = () => { draft.wordClass = classes.value; };
+  rows.push(formRow(t("ui.app_button_class"), classes));
 
-    let hits: SymbolHit[] = [];
-    const drawResults = () => {
-      results.innerHTML = "";
-      for (const hit of hits) {
-        const one = document.createElement("button");
-        one.type = "button";
-        one.className = "pick__hit";
-        // The hint tells twins apart - four METACOM tiles captioned "ja"
-        // differ only by picture - and is display only, never the reference.
-        one.setAttribute("aria-label",
-          hit.label + ("hint" in hit && hit.hint ? ` - ${hit.hint}` : ""));
-        const image = document.createElement("img");
-        image.src = hit.url;
-        image.loading = "lazy";
-        image.alt = "";
-        one.appendChild(image);
-        one.onclick = () => {
-          status(t(hit.source === "metacom" ? "ui.taking_symbol" : "ui.loading_symbol"));
-          void takeSymbol(hit).then(
-            (taken) => { took(taken.symbol, taken.label); status(""); },
-            (error: unknown) => status(t("ui.symbol_failed", { error: reason(error) })));
-        };
-        results.appendChild(one);
-      }
-    };
+  /* --- what a press does --- */
 
-    // So a slow answer cannot overtake a newer one. The sheet's own, because
-    // the sheet is its own search: the picker dialog is not open behind it.
-    let token = 0;
-    const search = () => {
-      const word = query.value.trim();
-      if (!word) return;
-      const mine = ++token;
-      say(results, t("ui.searching"));
-      void findSymbols(word).then((answer) => {
-        if (mine !== token) return;
-        hits = answer.hits;
-        drawResults();
-        // Both silences - a word the collection does not have, and a browser
-        // that never managed to ask - come back as a sentence from the seam.
-        if (answer.empty) say(results, answer.empty);
-      });
-    };
-    query.onkeydown = (event) => {
-      if (event.key !== "Enter") return;
-      // The sheet is not a form, but Enter in a search field inside a dialog
-      // is otherwise the browser's own way to close it.
-      event.preventDefault();
-      search();
-    };
+  const does = document.createElement("div");
+  does.className = "does";
+  does.setAttribute("role", "radiogroup");
+  /** Which page a navigation button leads to, and the four bar controls: what
+   *  a choice needs once it is chosen, tucked under it rather than in a fifth
+   *  control that is dead most of the time. */
+  const more: Partial<Record<Does, HTMLElement>> = {};
 
-    /* Somebody's own picture, reached from inside the sheet rather than by
-     * opening the picker dialog on top of it. A modal over a modal to choose a
-     * symbol is the second dialog this design set out to remove. */
-    const file = document.createElement("input");
-    file.type = "file";
-    file.accept = "image/*";
-    file.hidden = true;
-    file.onchange = () => {
-      const chose = file.files?.[0];
-      file.value = "";
-      if (!chose) return;
-      status(t("ui.uploading"));
-      void uploadOwn(chose).then(
-        (symbol) => { took(symbol, ""); status(t("ui.upload_done")); },
-        (error: unknown) => status(t("ui.upload_failed", { error: reason(error) })));
-    };
-    const own = document.createElement("button");
-    own.type = "button";
-    own.className = "btn quiet";
-    own.textContent = t("ui.app_symbol_own");
-    own.onclick = () => file.click();
-    pick.append(own, file);
+  const targets = document.createElement("select");
+  targets.className = "field";
+  targets.id = "appGoto";
+  for (const [index, one] of layout.pages.entries()) {
+    targets.append(option(one.id, one.name || t("ui.app_page_n", { n: index + 1 })));
+  }
+  targets.append(option("+", t("ui.app_goto_new")));
+  targets.setAttribute("aria-label", t("ui.app_goto_page"));
+  targets.value = draft.act.kind === "goto" && draft.act.page ? draft.act.page : page().id;
+  targets.onchange = () => {
+    wantsNewPage = targets.value === "+";
+    draft.act = { kind: "goto", page: wantsNewPage ? "" : targets.value };
+  };
+  more.goto = targets;
 
-    /* --- the fields --- */
+  const bar = document.createElement("select");
+  bar.className = "field";
+  bar.id = "appBar";
+  for (const kind of BAR_KINDS) bar.append(option(kind, t(`ui.app_act_${actKey(kind)}`)));
+  bar.setAttribute("aria-label", t("ui.app_does_bar_which"));
+  bar.value = doesOf(draft.act) === "bar" ? draft.act.kind : "sayBar";
+  bar.onchange = () => { draft.act = { kind: bar.value } as Act; };
+  more.bar = bar;
 
-    const form = document.createElement("div");
-    form.className = "form";
-
-    /* A button in the shared column is one button on every page, and the sheet
-     * says so before anything is typed into it.
-     *
-     * The surprise this heads off is not the edit, it is *where* the edit
-     * lands: somebody standing on page three, changing a word, has no way to
-     * see that pages one, two and four changed with it - and the same press
-     * that renames it can delete it from all of them. conventions.md's rule
-     * about counting what somebody cannot see, one floor down from the page
-     * delete question. It is a notice rather than a question because nothing
-     * is lost and nothing is hidden: the board behind the sheet redraws with
-     * the change on it, and every other page is one tab away. */
-    if (inColumn(at[1])) {
-      const notice = document.createElement("div");
-      notice.className = "notice";
-      notice.textContent = t("ui.app_first_column_button");
-      form.appendChild(notice);
+  const chose = doesOf(draft.act);
+  for (const kind of ["word", "shout", "goto", "bar"] as const) {
+    const opt = document.createElement("label");
+    opt.className = "does__opt";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "appDoes";
+    radio.value = kind;
+    radio.id = `appDoes_${kind}`;
+    radio.checked = kind === chose;
+    const head = document.createElement("b");
+    head.textContent = t(`ui.app_does_${kind}`);
+    const note = document.createElement("small");
+    note.textContent = t(`ui.app_does_${kind}_note`);
+    opt.append(radio, head, note);
+    if (more[kind]) {
+      const box = document.createElement("span");
+      box.className = "does__more";
+      box.appendChild(more[kind]!);
+      opt.appendChild(box);
     }
+    radio.onchange = () => {
+      if (!radio.checked) return;
+      // A `goto` is never left pointing at nothing: a button with no target
+      // exports as an ordinary appending button, which is not what the list
+      // said was chosen. So it takes whatever the target select is standing
+      // on, which is the current page until somebody changes it.
+      draft.act = kind === "word" ? { kind: "append" }
+        : kind === "shout" ? { kind: "speak" }
+        : kind === "goto" ? { kind: "goto", page: targets.value === "+" ? "" : targets.value }
+        : { kind: bar.value } as Act;
+      wantsNewPage = kind === "goto" && targets.value === "+";
+    };
+    does.appendChild(opt);
+  }
+  rows.push(formRow(t("ui.app_button_act"), does));
 
-    const labelInput = textField(draft.label, (value) => { draft.label = value; });
-    labelInput.id = "appLabel";
-    labelInput.placeholder = t("ui.app_button_label_hint");
-    form.appendChild(formRow(t("ui.app_button_label"), labelInput,
-                         t("ui.app_button_label_note")));
-
-    const spoken = textField(draft.vocalization, (value) => {
-      draft.vocalization = value;
+  /** The draft, written where it belongs. Everything the sheet changed lands
+   *  in one press, including the button's own existence. */
+  const keep = () => {
+    if (draft.act.kind === "goto" && wantsNewPage) {
+      // Named from the label as it finally reads. The authoring move is "this
+      // button should lead somewhere new", and making somebody leave, make a
+      // page, come back and select it is one thought in three steps.
+      draft.act = { kind: "goto", page: addPage(layout, draft.label.trim()).id };
+    } else if (draft.act.kind === "goto" && !draft.act.page) {
+      draft.act = { kind: "goto", page: page().id };
+    }
+    const on = page();
+    const target = held ?? blankButton(at[0], at[1]);
+    // Into the column when the cell is the column's, and onto the page
+    // otherwise. An existing button is already in whichever store it belongs
+    // to, and nothing here moves it between them - see acceptsDrop().
+    if (!held) {
+      if (inColumn(at[1])) layout.firstColumn!.push(target);
+      else on.buttons.push(target);
+    }
+    Object.assign(target, {
+      label: draft.label, vocalization: draft.vocalization,
+      symbol: draft.symbol, wordClass: draft.wordClass, act: draft.act,
     });
-    spoken.id = "appSpoken";
-    spoken.placeholder = t("ui.app_button_spoken_hint");
-    const play = document.createElement("button");
-    play.type = "button";
-    play.className = "btn";
-    play.textContent = "▶";
-    play.setAttribute("aria-label", t("ui.play_title"));
-    play.title = t("ui.play_title");
-    // What the tablet would say, which is the vocalization where there is one
-    // and the label where there is not - exchange/SPEC.md §7.2's rule, said
-    // out loud rather than described.
-    play.onclick = () => {
-      const saying = (draft.vocalization || draft.label).trim();
-      if (saying) void speak(saying, play);
-    };
-    const withPlay = document.createElement("div");
-    withPlay.className = "form__withplay";
-    withPlay.append(spoken, play);
-    form.appendChild(formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id));
+    commit();
+  };
 
-    const classes = document.createElement("select");
-    classes.className = "field";
-    classes.id = "appClass";
-    classes.append(option("", t("ui.wordclass_none")));
-    for (const one of WORD_CLASSES) {
-      classes.append(option(one.key, t(`ui.wordclass_${one.key}`)));
-    }
-    classes.value = draft.wordClass;
-    classes.onchange = () => { draft.wordClass = classes.value; };
-    form.appendChild(formRow(t("ui.app_button_class"), classes));
-
-    /* --- what a press does --- */
-
-    const does = document.createElement("div");
-    does.className = "does";
-    does.setAttribute("role", "radiogroup");
-    /** Which page a navigation button leads to, and the four bar controls:
-     *  what a choice needs once it is chosen, tucked under it rather than in a
-     *  fifth control that is dead most of the time. */
-    const more: Partial<Record<Does, HTMLElement>> = {};
-
-    const targets = document.createElement("select");
-    targets.className = "field";
-    targets.id = "appGoto";
-    for (const [index, one] of layout.pages.entries()) {
-      targets.append(option(one.id, one.name || t("ui.app_page_n", { n: index + 1 })));
-    }
-    targets.append(option("+", t("ui.app_goto_new")));
-    targets.setAttribute("aria-label", t("ui.app_goto_page"));
-    targets.value = draft.act.kind === "goto" && draft.act.page ? draft.act.page : page().id;
-    targets.onchange = () => {
-      wantsNewPage = targets.value === "+";
-      draft.act = { kind: "goto", page: wantsNewPage ? "" : targets.value };
-    };
-    more.goto = targets;
-
-    const bar = document.createElement("select");
-    bar.className = "field";
-    bar.id = "appBar";
-    for (const kind of BAR_KINDS) bar.append(option(kind, t(`ui.app_act_${actKey(kind)}`)));
-    bar.setAttribute("aria-label", t("ui.app_does_bar_which"));
-    bar.value = doesOf(draft.act) === "bar" ? draft.act.kind : "sayBar";
-    bar.onchange = () => { draft.act = { kind: bar.value } as Act; };
-    more.bar = bar;
-
-    const chose = doesOf(draft.act);
-    for (const kind of ["word", "shout", "goto", "bar"] as const) {
-      const opt = document.createElement("label");
-      opt.className = "does__opt";
-      const radio = document.createElement("input");
-      radio.type = "radio";
-      radio.name = "appDoes";
-      radio.value = kind;
-      radio.id = `appDoes_${kind}`;
-      radio.checked = kind === chose;
-      const head = document.createElement("b");
-      head.textContent = t(`ui.app_does_${kind}`);
-      const note = document.createElement("small");
-      note.textContent = t(`ui.app_does_${kind}_note`);
-      opt.append(radio, head, note);
-      if (more[kind]) {
-        const box = document.createElement("span");
-        box.className = "does__more";
-        box.appendChild(more[kind]!);
-        opt.appendChild(box);
-      }
-      radio.onchange = () => {
-        if (!radio.checked) return;
-        // A `goto` is never left pointing at nothing: a button with no target
-        // exports as an ordinary appending button, which is not what the list
-        // said was chosen. So it takes whatever the target select is standing
-        // on, which is the current page until somebody changes it.
-        draft.act = kind === "word" ? { kind: "append" }
-          : kind === "shout" ? { kind: "speak" }
-          : kind === "goto" ? { kind: "goto", page: targets.value === "+" ? "" : targets.value }
-          : { kind: bar.value } as Act;
-        wantsNewPage = kind === "goto" && targets.value === "+";
-      };
-      does.appendChild(opt);
-    }
-    form.appendChild(formRow(t("ui.app_button_act"), does));
-
-    /* --- the foot --- */
-
-    /** The draft, written where it belongs. Everything the sheet changed lands
-     *  in one press, including the button's own existence. */
-    const keep = () => {
-      if (draft.act.kind === "goto" && wantsNewPage) {
-        // Named from the label as it finally reads. The authoring move is
-        // "this button should lead somewhere new", and making somebody leave,
-        // make a page, come back and select it is one thought in three steps.
-        draft.act = { kind: "goto", page: addPage(layout, draft.label.trim()).id };
-      } else if (draft.act.kind === "goto" && !draft.act.page) {
-        draft.act = { kind: "goto", page: page().id };
-      }
-      const on = page();
-      const target = held ?? blankButton(at[0], at[1]);
-      // Into the column when the cell is the column's, and onto the page
-      // otherwise. An existing button is already in whichever store it belongs
-      // to, and nothing here moves it between them - see acceptsDrop().
-      if (!held) {
-        if (inColumn(at[1])) board().firstColumn!.push(target);
-        else on.buttons.push(target);
-      }
-      Object.assign(target, {
-        label: draft.label, vocalization: draft.vocalization,
-        symbol: draft.symbol, wordClass: draft.wordClass, act: draft.act,
-      });
-    };
-
-    const foot: HTMLElement[] = [];
-    // Only where there is something to delete. On an empty cell the button
-    // would close a sheet that had written nothing, which is what the corner
-    // and Escape already do.
-    if (held) {
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "btn destructive";
-      // A shared button leaves every page at once, so the button that does it
-      // says that rather than "delete this button". Still no question: the
-      // notice at the head of the sheet has said what the column is, and
-      // putting it back is one press in the cell it came from.
-      remove.textContent = t(inColumn(at[1]) ? "ui.app_first_column_remove"
-                                             : "ui.app_button_remove");
-      remove.onclick = () => {
-        const layout = board();
-        if (inColumn(at[1])) {
-          layout.firstColumn = (layout.firstColumn ?? [])
-            .filter((one) => one.id !== held.id);
-        } else {
-          const on = page();
-          on.buttons = on.buttons.filter((one) => one.id !== held.id);
+  return openSheet({
+    title: t("ui.app_button_title"),
+    pick: {
+      symbol: draft.symbol,
+      // Seeded with the word already on the button, which is what somebody is
+      // most likely looking for a picture of.
+      seed: draft.label,
+      /* Fills an empty label from the collection's own word for the symbol but
+       * never writes over one somebody typed - the same rule both editors have
+       * always kept, and for the same reason: the symbol may be called
+       * "zustimmen" while the button should say "Ja!". */
+      onPick: (symbol, caption) => {
+        draft.symbol = symbol;
+        if (caption && !draft.label.trim()) {
+          draft.label = caption;
+          labelInput.value = caption;
         }
-        finish("done");
-        commit();
-      };
-      foot.push(remove);
-    } else {
-      // The foot puts the destructive act on the left and the confirming one
-      // on the right; with nothing on the left the spacer is what keeps the
-      // right where it is on every other sheet.
-      const spacer = document.createElement("span");
-      foot.push(spacer);
-    }
-
-    const next = document.createElement("button");
-    next.type = "button";
-    next.className = "btn quiet";
-    next.textContent = t("ui.app_button_next");
-    next.onclick = () => { keep(); finish("next"); commit(); };
-
-    const done = document.createElement("button");
-    done.type = "button";
-    done.className = "btn primary";
-    done.textContent = t("ui.app_done");
-    done.onclick = () => { keep(); finish("done"); commit(); };
-
-    const right = document.createElement("span");
-    right.className = "foot__right";
-    right.append(next, done);
-    foot.push(right);
-
-    const sheet: ReturnType<typeof openDialog> | undefined = openDialog({
-      title: t("ui.app_button_title"),
-      closeLabel: t("ui.close"),
-      body: [pick, form],
-      footer: foot,
-      onClose: () => finish(null),
-    });
-    sheet.dialog.classList.add("sheet--button");
-
-    if (query.value) search();
+      },
+    },
+    rows,
+    /* Only where there is something to delete. On an empty cell the button
+     * would close a sheet that had written nothing, which is what the corner
+     * and Escape already do.
+     *
+     * A shared button leaves every page at once, so the button that does it
+     * says that rather than "delete this button". Still no question: the
+     * notice at the head of the sheet has said what the column is, and putting
+     * it back is one press in the cell it came from. */
+    ...(held ? {
+      remove: {
+        label: t(inColumn(at[1]) ? "ui.app_first_column_remove"
+                                 : "ui.app_button_remove"),
+        onPress: (settle: () => void) => {
+          if (inColumn(at[1])) {
+            layout.firstColumn = (layout.firstColumn ?? [])
+              .filter((one) => one.id !== held.id);
+          } else {
+            const on = page();
+            on.buttons = on.buttons.filter((one) => one.id !== held.id);
+          }
+          settle();
+          commit();
+        },
+      },
+    } : {}),
+    next: { label: t("ui.app_button_next"), onPress: keep },
+    done: { label: t("ui.done"), onPress: keep },
     // Into the label, because a button somebody has just opened is a button
-    // they are about to name. showModal() would otherwise land focus on the
-    // corner close.
-    labelInput.focus();
+    // they are about to name.
+    focus: labelInput,
   });
 }
 
@@ -1144,67 +945,6 @@ async function editButton(row: number, col: number): Promise<void> {
     if (how !== "next" || at + 1 >= grid.rows * grid.columns) break;
     at += 1;
   }
-}
-
-/* --- Small builders ------------------------------------------------------ */
-
-function option(value: string, text: string): HTMLOptionElement {
-  const one = document.createElement("option");
-  one.value = value;
-  one.textContent = text;
-  return one;
-}
-
-/** One labelled thing in a sheet: a label, a control, and a sentence under it.
- *
- * A <div> with a <label for>, rather than a <label> wrapped round the whole
- * row. A wrapping label owns every control inside it, which is right for one
- * input and wrong for a radio group or a control with a play button beside it -
- * pressing the caption would then land on whichever the browser picked first.
- * An empty `text` leaves the caption out, for a row that is a button.
- */
-function formRow(text: string, control: HTMLElement, note = "",
-                 forId = control.id): HTMLElement {
-  const box = document.createElement("div");
-  box.className = "form__row";
-  if (text) {
-    const caption = document.createElement("label");
-    caption.className = "lbl";
-    /* `for` where there is one control to point at, and aria-labelledby where
-     * there is not. A radio group is four controls and a play button makes the
-     * row two, so a wrapping <label> would hand the caption's press to
-     * whichever the browser picked first - which is why this is a <div> with a
-     * <label for> rather than a <label> round the row. */
-    if (forId) caption.htmlFor = forId;
-    else {
-      caption.id = `row${++captions}`;
-      control.setAttribute("aria-labelledby", caption.id);
-    }
-    caption.textContent = text;
-    box.appendChild(caption);
-  }
-  box.appendChild(control);
-  if (note) {
-    const hint = document.createElement("span");
-    hint.className = "form__hint";
-    hint.textContent = note;
-    box.appendChild(hint);
-  }
-  return box;
-}
-let captions = 0;
-
-/** A text field that writes into the draft as it is typed. Nothing reaches the
- *  layout until the sheet's confirming press - see the note at the head of the
- *  sheets - so there is no debounce here and nothing to save yet. */
-function textField(value: string, onInput: (value: string) => void): HTMLInputElement {
-  const input = document.createElement("input");
-  input.type = "text";
-  input.className = "field";
-  input.value = value;
-  input.autocomplete = "off";
-  input.oninput = () => onInput(input.value);
-  return input;
 }
 
 /* --- Drawing, and the two controls that are not in a sheet ---------------- */

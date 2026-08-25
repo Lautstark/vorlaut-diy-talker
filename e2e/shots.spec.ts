@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import { key, keySheet, press, put, setCard, setKey } from "./diy.js";
 
 /* Not a test. A camera.
  *
@@ -76,13 +77,18 @@ test("the five-key editor, four states", async ({ page }) => {
   await page.setViewportSize(WINDOW);
   await page.goto("./");
   await make(page, "diy");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
   await shot(page, "diy-1-first-run");
 
-  await page.locator("#device .setTile input[type=text]").first().fill(SCREEN);
-  const keys = page.locator("#device .tile:not(.setTile) input[type=text]");
-  for (const [at, word] of WORDS.entries()) await keys.nth(at).fill(word);
-  await page.locator("#device .setTile .swatch").nth(1).click();
+  /* Each sentence goes in through the sheet a press opens, which is the same
+     handgrip the tablet below uses - that sameness is now half of what these
+     eight pictures are for. The set's name and colour are its own card, the
+     one the set key and the ⋯ on the tab both open. */
+  for (const [at, word] of WORDS.entries()) await put(page, at, word);
+  await setKey(page).click();
+  await setCard(page).locator("#diySetName").fill(SCREEN);
+  await setCard(page).locator(".swatch").nth(1).click();
+  await press(setCard(page), "ui.done");
   // Nothing focused, to match the tablet shot where nothing is selected: this
   // state is "a screen with buttons on it" and the next one is "one of them
   // being edited".
@@ -90,14 +96,19 @@ test("the five-key editor, four states", async ({ page }) => {
   await settled(page);
   await shot(page, "diy-2-a-screen");
 
-  // "One button being edited" is not a state this editor has - every key is a
-  // live field at all times. The nearest thing is a caret in one of them, so
-  // that is what is photographed.
-  await keys.nth(0).focus();
+  /* "One key being edited" is a state this editor has now, and it is the same
+     state the tablet's shot below is in: the sheet, open on one thing. It was
+     a caret in a live field before, because every key was a field at all
+     times and there was nothing else to photograph. */
+  await key(page, 0).click();
+  await expect(keySheet(page)).toBeVisible();
+  await settled(page);
   await shot(page, "diy-3-editing");
+  await page.keyboard.press("Escape");
 
-  await page.locator("#removeSet").click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await setKey(page).click();
+  await press(setCard(page), "ui.remove_set");
+  await expect(page.getByRole("dialog", { name: label("ui.remove_set") })).toBeVisible();
   await shot(page, "diy-4-delete");
 });
 
@@ -105,21 +116,21 @@ test("the tablet editor, four states", async ({ page }) => {
   await page.setViewportSize(WINDOW);
   await page.goto("./");
   await make(page, "app");
-  await expect(page.locator("#appGrid .appcell")).toHaveCount(15);
+  await expect(page.locator("#appGrid .cell")).toHaveCount(15);
   await shot(page, "app-1-first-run");
 
-  const cells = page.locator("#appGrid .appcell");
+  const cells = page.locator("#appGrid .cell");
   const open = page.locator("dialog[open]");
   /* Each word goes in through the sheet a press opens, which is what there is
    * to photograph now: the property row under the grid is gone, and with it
    * the "pick one" state the five-key shot above is still in. */
   for (const [at, word] of WORDS.entries()) {
-    await cells.nth(at).locator(".appcell__open").click();
+    await cells.nth(at).locator(".cell__open").click();
     await expect(open).toBeVisible();
     await open.locator("#appLabel").fill(word);
     await open.locator("#appClass")
       .selectOption(["pronoun", "verb", "noun", "social"][at]!);
-    await open.locator("button", { hasText: label("ui.app_done") }).click();
+    await open.locator("button", { hasText: label("ui.done") }).click();
     await expect(open).toBeHidden();
   }
 
@@ -127,14 +138,14 @@ test("the tablet editor, four states", async ({ page }) => {
   await page.locator("#appPages .tab[aria-current=true] .tab__more").click();
   await expect(open).toBeVisible();
   await open.locator("#appPageName").fill(SCREEN);
-  await open.locator("button", { hasText: label("ui.app_done") }).click();
+  await open.locator("button", { hasText: label("ui.done") }).click();
   await expect(open).toBeHidden();
   await settled(page);
   // Nothing but the strip and the grid, which is the whole of what this
   // redesign left on the board.
   await shot(page, "app-2-a-screen");
 
-  await cells.nth(0).locator(".appcell__open").click();
+  await cells.nth(0).locator(".cell__open").click();
   await expect(open).toBeVisible();
   await shot(page, "app-3-editing");
   await page.keyboard.press("Escape");

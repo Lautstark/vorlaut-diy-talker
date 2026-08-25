@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openBoard, put } from "./diy.js";
 
 /* That what the page reports is reported out loud.
  *
@@ -11,7 +12,7 @@ import { expect, test } from "@playwright/test";
  * gone red for it, which is why it gets its own file. */
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
+  await openBoard(page);
 });
 
 test("the status line is a live region before it has anything to say", async ({ page }) => {
@@ -24,11 +25,10 @@ test("the status line is a live region before it has anything to say", async ({ 
 });
 
 test("what the page reports lands in that same element", async ({ page }) => {
-  // Typing into a key is enough: the board saves itself on a debounce and says
-  // so, which is the most ordinary thing this page reports.
-  const field = page.locator(".tile input[type=text]").first();
-  await field.fill("Hallo");
-  await field.blur();
+  // Putting a sentence on a key is enough: the board saves itself and says so,
+  // which is the most ordinary thing this page reports. It goes through the
+  // sheet, because that is where a key is typed now.
+  await put(page, 0, "Hallo");
 
   const line = page.locator("#status");
   await expect(line).not.toHaveText("");
