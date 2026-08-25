@@ -107,6 +107,14 @@ export interface DiyLayout {
   sleep_timeout_seconds?: number;
 }
 
+/** How a button wears the colour of its word class.
+ *
+ * A preference rather than a rule - which is the point. The Fitzgerald key
+ * says a lot on a board of few big cells and rather less on one of sixty-six,
+ * where a photograph under a fill is a photograph with a wash over it. The
+ * border says the same thing and leaves the picture alone. */
+export type WordColor = "fill" | "border" | "off";
+
 /** A tablet Sammlung: pages of buttons that compose a sentence in a bar.
  *
  * The MetaTalk shape, and what the Android viewer already renders - see
@@ -142,6 +150,21 @@ export interface AppLayout {
    *  draws the board without the gap, which is a board with the wrong emphasis
    *  rather than a wrong board. */
   firstColumnGap?: boolean;
+  /** Whether a word class is drawn as a fill, as a border, or not at all.
+   *
+   *  One choice for the whole Sammlung, beside the grid size and for the same
+   *  reason: it is decided once and holds for every page.
+   *
+   *  Absent counts as "fill", which is what every layout stored before this
+   *  field existed was drawn as - so an old Sammlung opens looking exactly as
+   *  it did, and nothing has to be migrated.
+   *
+   *  "off" is not colourless. A page keeps whatever colour it has, because
+   *  that says *where* somebody is; what goes away is the colour that means
+   *  *what a word is*. The family this follows treats it the same way:
+   *  AsTeRICS Grid carries `colorSchemesActivated` beside a `colorMode` of
+   *  background, border or both. */
+  wordColor?: WordColor;
   /** The page the tablet opens on, and what a `:home` button goes to. It
    *  becomes `manifest.root`.
    *

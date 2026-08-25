@@ -51,8 +51,9 @@
 // Nothing, in the sense that matters: the format already had all of it. A page
 // is an OBF board with the Sammlung's own grid on it, a button is an OBF
 // button, navigation is `load_board`, the four bar controls are §7.4's
-// actions, and a word class is a `background_color`. SPEC.md was not touched
-// for this and SPEC_VERSION below did not move.
+// actions, and a word class is a `background_color` or a `border_color` -
+// whichever of the two the Sammlung wears, and neither when it wears none.
+// SPEC.md was not touched for this and SPEC_VERSION below did not move.
 //
 //   one page         -> one board, at the Sammlung's grid size
 //   one button       -> one button, in the cell it sits in
@@ -74,8 +75,9 @@ import { LANGUAGE_CODES, DEFAULT_LANGUAGE, hexToRgb } from "./layout_format.js";
 import { encodeOpus, ENCODER_RATE, type OpusClip } from "./opus.js";
 import { zipBytes, type ZipMember } from "./zip.js";
 import { WORD_CLASSES } from "../core/boot_data.js";
-import type { AppButton, AppLayout, CollectionRef, DiyLayout, Layout }
-  from "../core/types.js";
+import type {
+  AppButton, AppLayout, CollectionRef, DiyLayout, Layout, WordColor,
+} from "../core/types.js";
 
 /** The version of exchange/SPEC.md this builder targets.
  *
@@ -621,6 +623,10 @@ function appBoards(
   }
   const rows = Math.max(1, Math.trunc(layout.grid?.rows ?? 1));
   const columns = Math.max(1, Math.trunc(layout.grid?.columns ?? 1));
+  // Absent counts as "fill", for the reason AppLayout.wordColor gives: every
+  // layout stored before the field existed was drawn that way, and a package
+  // built from one has to come out looking like the board it was built from.
+  const mode: WordColor = layout.wordColor ?? "fill";
   const idOf = new Map(pages.map((page, at) => [page.id, appBoardId(at)]));
   const nameOf = new Map(pages.map((page) => [page.id, String(page.name ?? "")]));
   const boards: PackageBoard[] = [];
@@ -657,8 +663,20 @@ function appBoards(
       // left it out would read in the bar as whatever its label happened to
       // be shortened to.
       if (spoken) button.vocalization = spoken;
-      const colour = wordClassColor(String(one.wordClass ?? ""));
-      if (colour) button.background_color = cssColor(colour);
+      /* The word class, as the field the Sammlung asks for.
+       *
+       * Baked in rather than declared: the package carries the drawing, so a
+       * viewer that has never heard of the preference draws the board the way
+       * it was built. Both fields are OBF's own, which is what makes "as a
+       * border" an ordinary package rather than an extension.
+       *
+       * "off" writes neither, and that is not the same as a button with no
+       * class - it just reaches the same place, which is the viewer's own
+       * default. A page keeps whatever colour it has either way; what is being
+       * turned off is the colour that means a word class. */
+      const colour = mode === "off" ? "" : wordClassColor(String(one.wordClass ?? ""));
+      if (colour && mode === "border") button.border_color = cssColor(colour);
+      else if (colour) button.background_color = cssColor(colour);
 
       const act = one.act ?? { kind: "append" as const };
       switch (act.kind) {
