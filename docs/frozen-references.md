@@ -132,7 +132,8 @@ anybody could name would be worse than no shared reference.
 ### Tile rendering — honest, but the reference evaporated
 
 `tests/test_tile_render_js.py` really did render both ways and compare, which
-is why it could say 0 of 13456 pixels differ. But it built its inputs with
+is why it could say 0 of 13456 pixels differ (16384 since the tile grew to fill
+the display — see "The one lock that was rewritten" below). But it built its inputs with
 `Image.new()` and took its expected bytes from `tiles.render_symbol()`, so both
 sides were recomputed by Pillow on every run. Remove Pillow and the reference
 did not fail loudly — it evaporated: the test skipped, said Pillow was missing,
@@ -152,8 +153,8 @@ else reaches:
 | `small-wider` | smaller than the tile in both directions: nothing is resampled and the whole answer is where it gets centred |
 | `corners-differ` | fully opaque, one corner a different colour — the only fixture that reaches white by the corner test rather than the alpha test |
 | `nearly-opaque` | one pixel at alpha 254, with the corners in agreement, so the two paths give *different* grounds and 39 rows of strip to show it in |
-| `odd-leftover` | shrinks to 116×57, leaving 59 rows to halve — rounding instead of flooring moves every pixel |
-| `quantisation` | already 116×116, so nothing is resampled and the RGB565 conversion is alone. Values sit either side of every bit it throws away |
+| `odd-leftover` | shrinks to 128×63, leaving 65 rows to halve — rounding instead of flooring moves every pixel |
+| `quantisation` | 116×116, which `thumbnail()` will not enlarge, so nothing is resampled and the RGB565 conversion is alone. Values sit either side of every bit it throws away. It was exactly tile-sized when it was drawn and is 6 px shy of it now, which adds a centring offset to what it proves rather than taking anything away |
 | `fully-transparent` | every pixel transparent over a colour, which must be dropped rather than smeared into the edges |
 
 The test now makes three comparisons and is explicit about which survives: node
@@ -380,6 +381,42 @@ It is test data and its loss was accepted deliberately when this was raised.
 Recorded here only so that nobody later mistakes the gitignore for an
 oversight, or spends an afternoon trying to recover something nobody wanted
 kept.
+
+## The one lock that was rewritten
+
+Every other entry in this document is about a lock that could not be rewritten.
+`tiles.lock.json` was, on 2026-08-26, and how it went is the reason the rule
+above is a rule and not a superstition.
+
+**Why it could not be narrowed.** The tile stopped being the 116×116 square
+inside a border and became the whole 128×128 display. Nothing about that is a
+deletion: a different target size means a different scale factor, different
+Lanczos weights and a different centring offset, so every pixel of every
+fixture changes. There is no field to drop and no bytes to strike out — this
+lock *is* the pixels. Narrowing it would have meant deleting it, and tile
+rendering would have become the one subsystem here with no outside opinion at
+all.
+
+**So the oracle came back.** `tiles.py` and `tools/tilefreeze.py` were restored
+from `6be078e^`, along with the four modules they import — `config`, `metacom`,
+`buildbase`, `texts` — into a throwaway virtualenv with **Pillow 12.3.0**, the
+version named in the lock's own provenance.
+
+**The step that made it worth doing** was running `tilefreeze.py --check`
+*before* changing anything. It answered `unchanged - this Pillow renders what
+the fixtures hold`: the restored oracle reproduced all fourteen frozen tiles
+byte for byte. Without that the re-freeze would have been a new opinion of
+unknown relation to the old one. With it, the new bytes come from the same
+renderer at the same version, differing only in the one constant that was meant
+to differ.
+
+Then `TILE_SIZE` moved in both implementations independently, `TILE_PIPELINE`
+went 2 → 3, the tool re-rendered, and the browser's own hand-written Lanczos
+was held to the result: **0 of 16384 pixels differ, on every one of the
+fourteen**. That is the check doing its job on a reference it did not produce.
+
+The restored files were deleted again the same session; they are in git and
+nowhere else. `--check` before `--freeze` is the part to copy.
 
 ## What two locks have stopped answering for
 

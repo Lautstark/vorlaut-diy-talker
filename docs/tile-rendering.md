@@ -42,7 +42,7 @@ Hence the bar. Anything short of identical means bumping the number.
 Pillow is not doing anything exotic here, but four details are not the obvious
 choice and all four move pixels:
 
-- **`Image.thumbnail()` never enlarges.** A picture smaller than 116x116 keeps
+- **`Image.thumbnail()` never enlarges.** A picture smaller than 128x128 keeps
   its size and is only centred.
 - **The rounded side is picked, not floored.** Of floor and ceil, `thumbnail()`
   takes whichever leaves the aspect ratio closer to the original, ties to
@@ -81,7 +81,10 @@ strip that takes the symbol's colour, one whose corners disagree, one smaller
 than a tile, one soft-edged throughout, and one that does not resolve. Anything
 in `content/symbols/` is picked up as well.
 
-Measured 2026-08-22 on macOS 26.5, in Chromium 148 and Safari 26.5:
+Measured 2026-08-22 on macOS 26.5, in Chromium 148 and Safari 26.5, when a
+tile was the 116×116 square inside a border. It is the whole 128×128 display
+now; these numbers were not taken again, and the count below is the pixel count
+of the tile they were taken on:
 
 | renderer | pixels differing | worst | max delta r/g/b |
 |---|---|---|---|

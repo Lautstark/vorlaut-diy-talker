@@ -14,13 +14,21 @@
 // to answer - see docs/tile-rendering.md and tools/tilecheck.py.
 
 export const IMG_SIZE = 128;          // display area
-export const BORDER = 6;              // border width, drawn by the firmware
-export const TILE_SIZE = IMG_SIZE - 2 * BORDER;   // 116, what becomes a file
+export const TILE_SIZE = IMG_SIZE;    // the whole of it, and what becomes a file
+
+// There was a BORDER of 6 between those two, and the tile was the 116 square
+// inside it. The border was the set's colour, drawn by the firmware so that
+// one symbol stayed one file across differently coloured sets; the colour is
+// gone and the six pixels were being blacked out for nothing. A symbol gets
+// them now - about a tenth wider in each direction, which is the whole of the
+// change and is worth 22% more bytes a file.
 
 // Mirrors TILE_PIPELINE in tiles.py, and tests/test_tile_render_js.py fails
 // if the two ever drift. The tile file name is a hash over this number, so the
-// device only re-fetches everything when it is bumped on purpose.
-export const TILE_PIPELINE = 2;
+// device only re-fetches everything when it is bumped on purpose - and this is
+// such a time: every tile is a different size, so every one of them has to be
+// rendered again and none of the old ones may be mistaken for current.
+export const TILE_PIPELINE = 3;
 
 const WHITE = [255, 255, 255];
 const PLACEHOLDER_GREY = [200, 200, 200];
@@ -36,8 +44,14 @@ const PLACEHOLDER_WIDTH = 4;
  * Thicker and further out than the placeholder's cross, and that is the point
  * of them being two numbers rather than one. The placeholder says "no picture
  * yet" to somebody building a board on a screen; this says "not" to a child
- * reading a 116-pixel key across a room, over line art it must not be mistaken
- * for a part of. */
+ * reading a 128-pixel key across a room, over line art it must not be mistaken
+ * for a part of.
+ *
+ * The width is device pixels and stayed 9 when the tile grew from 116 to 128,
+ * which is the answer rather than an oversight: the panel is 15.21 mm either
+ * way, so 9 pixels is the same 1.07 mm of stroke to look at. The inset is a
+ * share of the tile and so grew with it, which keeps the cross the same shape
+ * over a larger picture. */
 const NEGATION_RED = [173, 51, 44];
 const NEGATION_WIDTH = 9;
 /** How far in from the edge the cross starts, as a share of the tile. */
