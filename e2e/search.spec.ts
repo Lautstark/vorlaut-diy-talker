@@ -1,7 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import { key, keySheet, openBoard, search, searchNote } from "./diy.js";
 
-/* What the picker says when a search does not work.
+/* What the search says when it does not work.
+ *
+ * It is the sheet's own search now rather than a dialog opened on top of the
+ * board - both editors carry the picture, its search and the upload in the
+ * left column of the sheet a press opens. What is under test is unchanged and
+ * is not the markup: findSymbols() in src/shell/picker.ts is the one place
+ * that decides which of these three sentences a caller gets, and it is the
+ * seam both sheets go through.
  *
  * searchActive() used to catch everything and return [], so every way a search
  * could fail arrived at the dialog wearing the same words: "nichts gefunden zu
@@ -25,7 +33,8 @@ const filled = (key: string, word: string) => new RegExp(
 const opening = (key: string) => new RegExp(
   `^(${LANGUAGES.map((l) => escape(table[l][key].split("{")[0])).join("|")})`);
 
-const note = (page: Page) => page.locator("#results p");
+/** What the search says instead of results. say() writes a bare <p>. */
+const note = (box: Locator) => searchNote(box);
 
 /** ARASAAC, answering with one hit for "trinken" and nothing else. */
 async function arasaacAnswers(page: Page) {
@@ -42,17 +51,19 @@ async function arasaacAnswers(page: Page) {
     route.fulfill({ contentType: "image/png", body: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }));
 }
 
-async function openPicker(page: Page) {
-  await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
-  await page.locator("#device .tile:not(.setTile) .thumb").first().click();
-  await expect(page.locator("#picker")).toBeVisible();
+/** A key's sheet, open, with its picture column showing. */
+async function openPicker(page: Page): Promise<Locator> {
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  await expect(box.locator(".pick")).toBeVisible();
+  return box;
 }
 
-async function searchFor(page: Page, word: string) {
-  await page.locator("#q").fill(word);
-  await page.locator("#searchBtn").click();
-}
+/** Enter runs it: there is no search button beside the field, because the
+ *  sheet is not a form and Enter in a search field inside a dialog is
+ *  otherwise the browser's own way to close it. */
+const searchFor = (box: Locator, word: string) => search(box, word);
 
 test("a collection that cannot be reached does not read as an empty one", async ({ page }) => {
   // Not a refusal and not an empty answer: no answer at all, which is what a
@@ -61,11 +72,11 @@ test("a collection that cannot be reached does not read as an empty one", async 
   // difference still exists.
   await page.route("**/api.arasaac.org/**", (route) => route.abort());
 
-  await openPicker(page);
-  await searchFor(page, "trinken");
+  const box = await openPicker(page);
+  await searchFor(box, "trinken");
 
-  await expect(note(page)).toHaveText(filled("ui.search_no_answer", "trinken"));
-  await expect(note(page)).not.toHaveText(filled("ui.nothing_found", "trinken"));
+  await expect(note(box)).toHaveText(filled("ui.search_no_answer", "trinken"));
+  await expect(note(box)).not.toHaveText(filled("ui.nothing_found", "trinken"));
 });
 
 test("a word the collection really does not hold still says so", async ({ page }) => {
@@ -74,10 +85,10 @@ test("a word the collection really does not hold still says so", async ({ page }
   // one wrong message with another.
   await arasaacAnswers(page);
 
-  await openPicker(page);
-  await searchFor(page, "Kaugummiautomat");
+  const box = await openPicker(page);
+  await searchFor(box, "Kaugummiautomat");
 
-  await expect(note(page)).toHaveText(filled("ui.nothing_found", "Kaugummiautomat"));
+  await expect(note(box)).toHaveText(filled("ui.nothing_found", "Kaugummiautomat"));
 });
 
 test("a search that could not be run says so, rather than finding nothing", async ({ page }) => {
@@ -98,20 +109,20 @@ test("a search that could not be run says so, rather than finding nothing", asyn
   await arasaacAnswers(page);
 
   const chunks = new Set<string>();
-  await openPicker(page);
+  let box = await openPicker(page);
   page.on("request", (request) => {
     if (/\/assets\/.*\.js$/.test(request.url())) chunks.add(request.url());
   });
-  await searchFor(page, "trinken");
-  await expect(page.locator("#results figure")).toHaveCount(1);
+  await searchFor(box, "trinken");
+  await expect(box.locator(".pick__hit")).toHaveCount(1);
   expect(chunks.size).toBeGreaterThan(0);
 
   // Again from cold, with exactly those chunks refused.
   const blocked = [...chunks];
   await page.route((url) => blocked.includes(url.href), (route) => route.abort());
-  await openPicker(page);
-  await searchFor(page, "trinken");
+  box = await openPicker(page);
+  await searchFor(box, "trinken");
 
-  await expect(note(page)).toHaveText(opening("ui.search_failed"));
-  await expect(note(page)).not.toHaveText(filled("ui.nothing_found", "trinken"));
+  await expect(note(box)).toHaveText(opening("ui.search_failed"));
+  await expect(note(box)).not.toHaveText(filled("ui.nothing_found", "trinken"));
 });

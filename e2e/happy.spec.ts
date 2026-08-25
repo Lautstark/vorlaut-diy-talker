@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import {
+  KEY_CELL, cells, expectSaid, key, keySheet, label, nameSet, openBoard, press,
+  put, search, searchNote, setCard, setKey, word,
+} from "./diy.js";
 
 /* The whole editing loop, end to end, in one browser.
  *
@@ -18,24 +21,24 @@ import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
  * prove is stimmquelle's business, tested in that repository. The line drawn
  * here is: everything up to the seam, and the page's own answer when there is
  * no voice to speak with.
+ *
+ * ## What moved, and why so much of it
+ *
+ * The board stopped being a place you type into. A key was a tile holding a
+ * thumb, a sentence field and a play button; it is a cell now, and everything
+ * about it is in a sheet a press opens - the same arrangement editor-app has,
+ * which is what the convergence was for. So the sentences below are typed
+ * through that sheet, by e2e/diy.ts's put(), and what the board is asked for
+ * is what it *draws*.
+ *
+ * That is a better question than the one this file used to ask. A filled field
+ * proves the field was filled; a word on a cell proves the editor believes it,
+ * which is the thing a person actually looks at.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-/** A label in whichever language the runner's browser picked, from the same
- *  table the page reads - asserting a literal here would pass on a German
- *  machine and fail in CI, or the other way round. */
-const label = (key: string) => new RegExp(
-  `^(${LANGUAGES.map((l) =>
-    (TEXTS as Record<string, Record<string, string>>)[l][key]
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
-
 const SAVED = label("ui.saved");
-
-async function openBoard(page: Page) {
-  await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
-}
 
 /** Opens the Board panel inside the settings sheet, whatever state the
  *  <details> was left in - it keeps its fold across closings of the sheet. */
@@ -47,26 +50,62 @@ async function openBoardPanel(page: Page) {
   }
 }
 
-/** The sentence inputs on the four speech keys, set tile excluded. */
-const keyText = (page: Page) =>
-  page.locator("#device .tile:not(.setTile) input[type=text]");
+test("the board is the device: a hole, the set key and four speech keys", async ({ page }) => {
+  /* The arrangement, asserted because it is the thing that was wrong. This
+   * editor drew a set tile and four tiles in a row of three while
+   * data/obf.ts's grid() exported two rows of three with a hole in it, so the
+   * one screen somebody arranges a board on disagreed with the file that board
+   * becomes. docs/hardware.md is the authority for both. */
+  await openBoard(page);
+  await expect(cells(page).nth(0)).toHaveClass(/cell--hole/);
+  await expect(cells(page).nth(3)).toHaveClass(/cell--setkey/);
+  // The hole is neither a control nor a drop target: nothing in it is
+  // focusable and it cannot be dragged.
+  await expect(cells(page).nth(0).locator(".cell__open")).toHaveCount(0);
+  await expect(cells(page).nth(0)).not.toHaveAttribute("draggable", "true");
+  // Nor does the set key move: its position is the hardware's.
+  await expect(cells(page).nth(3)).not.toHaveAttribute("draggable", "true");
+  // The four that do.
+  for (const at of KEY_CELL) {
+    await expect(cells(page).nth(at)).toHaveAttribute("draggable", "true");
+  }
+});
 
 test("a set can be named, coloured, filled and kept", async ({ page }) => {
   await openBoard(page);
 
-  await page.locator("#device .setTile input[type=text]").first().fill("Morgens");
-  await keyText(page).first().fill("Ich will nach draussen");
-  // The second swatch: a real recolour, not the seeded default.
-  await page.locator("#device .setTile .swatch").nth(1).click();
-  await expect(page.locator("#device .setTile .swatch.active"))
-    .toHaveCount(1);
+  await nameSet(page, "Morgens");
+  await put(page, 0, "Ich will nach draussen");
+
+  // The colour is one row in the set's card now, and one control in it: the
+  // swatches. It was three - swatches, a colour input and a hex field - spread
+  // through a tile, which is why moving it was worth doing before the firmware
+  // stops reading it at all.
+  await setKey(page).click();
+  const card = setCard(page);
+  await card.locator(".swatch").nth(1).click();
+  await expect(card.locator(".swatch.active")).toHaveCount(1);
+  await press(card, "ui.done");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   await page.reload();
-  await expect(page.locator("#device .tile")).toHaveCount(5);
-  await expect(page.locator("#device .setTile input[type=text]").first())
-    .toHaveValue("Morgens");
-  await expect(keyText(page).first()).toHaveValue("Ich will nach draussen");
+  await expect(cells(page)).toHaveCount(6);
+  await expect(cells(page).nth(3).locator(".cell__word")).toHaveText("Morgens");
+  await expectSaid(page, 0, "Ich will nach draussen");
+});
+
+test("a dismissed sheet writes nothing", async ({ page }) => {
+  /* The rule the whole draft model exists for, and the one an empty cell makes
+   * unavoidable: pressing one must not leave a blank key behind. The tile
+   * wrote as you typed, because it was always on screen and there was nothing
+   * to dismiss. */
+  await openBoard(page);
+  await key(page, 0).click();
+  await keySheet(page).locator("#diyKeyText").fill("Nicht bestaetigt");
+  await page.keyboard.press("Escape");
+  await expect(keySheet(page)).toHaveCount(0);
+  await expectSaid(page, 0, "");
+  await expect(cells(page).nth(KEY_CELL[0])).toHaveClass(/cell--empty/);
 });
 
 test("a second set can be added and removed again", async ({ page }) => {
@@ -77,7 +116,7 @@ test("a second set can be added and removed again", async ({ page }) => {
   await page.locator("#tabs .tab.add").click();
   await expect(tabs).toHaveCount(2);
   // Something on it, so the question below has a number to carry.
-  await keyText(page).first().fill("Noch einmal");
+  await put(page, 0, "Noch einmal");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   /* This used to be `page.once("dialog", d => d.accept())` - a native
@@ -88,22 +127,32 @@ test("a second set can be added and removed again", async ({ page }) => {
    * uses a floor down: a <dialog> that counts what goes and names the act on
    * the button. Both halves are asserted here, because the count is the whole
    * reason the question exists and a button reading OK would still pass a test
-   * that only checked the set disappeared. */
-  await page.locator("#removeSet").click();
+   * that only checked the set disappeared.
+   *
+   * It is reached from the set's own card now rather than from a red button
+   * under the board, which is where every other destructive act in this
+   * product sits. */
+  await setKey(page).click();
+  await press(setCard(page), "ui.remove_set");
   const asked = page.getByRole("dialog", { name: label("ui.remove_set") });
   await expect(asked).toBeVisible();
   await expect(asked.locator(".body")).toContainText(/(einen Taste|one key)/);
 
-  // Dismissed deletes nothing - the rule this repository keeps everywhere.
+  // Dismissed deletes nothing - the rule this repository keeps everywhere -
+  // and it leaves the card it was asked from standing, because a no leaves
+  // somebody exactly where they were.
   await asked.locator("button", { hasText: label("ui.cancel") }).click();
+  await expect(setCard(page)).toBeVisible();
   await expect(tabs).toHaveCount(2);
 
-  await page.locator("#removeSet").click();
+  await press(setCard(page), "ui.remove_set");
   await asked.locator("button", { hasText: label("ui.set_delete_go") }).click();
   await expect(tabs).toHaveCount(1);
+  // And this time the card goes with the set it was about.
+  await expect(setCard(page)).toHaveCount(0);
 });
 
-test("tabs, swatches and thumbs answer the keyboard", async ({ page }) => {
+test("tabs and cells answer the keyboard", async ({ page }) => {
   await openBoard(page);
 
   // A second set, then back to the first, without touching the mouse.
@@ -115,16 +164,19 @@ test("tabs, swatches and thumbs answer the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(tabs.first()).toHaveClass(/active/);
 
-  // Space recolours through a swatch...
-  const swatch = page.locator("#device .setTile .swatch").nth(1);
-  await swatch.focus();
-  await page.keyboard.press("Space");
-  await expect(swatch).toHaveClass(/active/);
-
-  // ...and Enter on a key's thumb opens the picker.
-  await page.locator("#device .tile:not(.setTile) .thumb").first().focus();
+  // Enter on a cell opens its sheet, which is the whole of what a press does
+  // now - there is nothing on the board to reach past it to.
+  await key(page, 0).focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator("#picker")).toBeVisible();
+  await expect(keySheet(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // And the ⋯ on the current tab opens the set's card, the same one the set
+  // key opens. Two doors to one set, which is not what conventions.md §3.2
+  // forbids: the tab and the set key are the same set drawn twice.
+  await page.locator("#tabs .tab.active .tab__more").focus();
+  await page.keyboard.press("Enter");
+  await expect(setCard(page)).toBeVisible();
 });
 
 test("sets move and keys swap without a mouse", async ({ page }) => {
@@ -137,7 +189,10 @@ test("sets move and keys swap without a mouse", async ({ page }) => {
   const tabs = page.locator("#tabs .tab:not(.add)");
   await expect(tabs).toHaveCount(2);
 
-  // Alt+Arrow moves the focused tab, and focus travels with it.
+  // Alt+Arrow moves the focused tab, and focus travels with it. On this device
+  // the order of the sets *is* the navigation - the firmware advances with
+  // `rtcCurrentSet = (rtcCurrentSet + 1) % layout.setCount` - so this is not
+  // presentation the way the tablet's page strip is.
   await tabs.nth(1).focus();
   await page.keyboard.press("Alt+ArrowLeft");
   await expect(tabs.first()).toHaveText(/Set 2/);
@@ -146,52 +201,120 @@ test("sets move and keys swap without a mouse", async ({ page }) => {
   await expect(tabs.nth(1)).toHaveText(/Set 2/);
   await expect(tabs.nth(1)).toBeFocused();
 
-  // Two keys with distinguishable sentences, to see the swap by its work.
-  const texts = keyText(page);
-  await texts.first().fill("Eins");
-  await texts.nth(1).fill("Zwei");
+  /* Four keys with distinguishable sentences, to see a move by its work.
+   *
+   * Alt+Arrow on a cell replaces the grip that armed a swap with Enter and
+   * completed it with a second Enter. It is the key editor-app uses for the
+   * same act, and it needs no state between two ends - so there is nothing to
+   * arm, nothing to mark and nothing to let go of with Escape. */
+  await put(page, 0, "Eins");
+  await put(page, 1, "Zwei");
+  await put(page, 2, "Drei");
+  await put(page, 3, "Vier");
 
-  // Enter on a grip arms the swap, Escape lets go of it again...
-  const grips = page.locator("#device .grip");
-  await grips.first().focus();
-  await page.keyboard.press("Enter");
-  await expect(grips.first()).toHaveAttribute("aria-pressed", "true");
-  await page.keyboard.press("Escape");
-  await expect(grips.first()).toHaveAttribute("aria-pressed", "false");
+  await key(page, 0).focus();
+  await page.keyboard.press("Alt+ArrowRight");
+  await expectSaid(page, 0, "Zwei");
+  await expectSaid(page, 1, "Eins");
+  // Focus follows the key rather than staying at the cell, which is what makes
+  // a run of presses carry one key across the block.
+  await expect(key(page, 1)).toBeFocused();
 
-  // ...and Enter on a second grip completes it. Focus lands where the armed
-  // key went.
-  await page.keyboard.press("Enter");
-  await grips.nth(1).focus();
-  await page.keyboard.press("Enter");
-  await expect(texts.first()).toHaveValue("Zwei");
-  await expect(texts.nth(1)).toHaveValue("Eins");
-  await expect(grips.nth(1)).toBeFocused();
+  await page.keyboard.press("Alt+ArrowDown");
+  await expectSaid(page, 1, "Vier");
+  await expectSaid(page, 3, "Eins");
+  await expect(key(page, 3)).toBeFocused();
+
+  /* And the block is the whole of where a key may go. The cells to the left of
+   * it are the speaker's hole and the set key, and neither is a place a key
+   * can be: their positions are the hardware's. */
+  const slots = [0, 1, 2, 3];
+  const was = await Promise.all(slots.map((slot) => word(page, slot).textContent()));
+  await key(page, 2).focus();
+  await page.keyboard.press("Alt+ArrowLeft");
+  await key(page, 0).focus();
+  await page.keyboard.press("Alt+ArrowUp");
+  expect(await Promise.all(slots.map((slot) => word(page, slot).textContent())))
+    .toEqual(was);
 });
 
 test("an own picture lands on a key and renders", async ({ page }) => {
   await openBoard(page);
 
-  // Through the picker, the way a person does it: the key's thumb opens the
-  // dialog and "own image" reaches the hidden file input. Uploading exercises
-  // the store write and symbolInto's blob rendering - the path that shipped
-  // setting img.src to "[object Promise]".
-  await page.locator("#device .tile:not(.setTile) .thumb").first().click();
-  await expect(page.locator("#picker")).toBeVisible();
+  /* Through the sheet, the way a person does it: the cell opens it and "own
+   * image" reaches the hidden file input in its picture column. Uploading
+   * exercises the store write and symbolInto's blob rendering - the path that
+   * shipped setting img.src to "[object Promise]".
+   *
+   * There is no second dialog in front of this any more. The picture, its
+   * search and the upload are the sheet's left column, which is what a modal
+   * over a modal to choose a symbol was replaced by. */
+  await key(page, 0).click();
+  const box = keySheet(page);
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.locator("#uploadBtn").click(),
+    box.locator(".pick button", { hasText: label("ui.symbol_own") }).click(),
   ]);
   await chooser.setFiles(join(HERE, "fixtures", "symbol.png"));
 
-  const image = page.locator("#device .tile:not(.setTile) .thumb img").first();
+  // The sheet's own preview takes it first.
+  await expect(box.locator(".pick__preview img")).toBeVisible();
+  await press(box, "ui.done");
+
+  // And then the cell behind it.
+  const image = cells(page).nth(KEY_CELL[0]).locator(".cell__pic");
   await expect(image).toBeVisible();
   await expect(image).toHaveJSProperty("naturalWidth", 16);
 });
 
+test("the preview draws the keys the way the display will", async ({ page }) => {
+  /* The one thing on this board that the mock does not cover, because a tablet
+   * has no display to preview. It replaces the cell's picture rather than
+   * adding a strip under it - editor-diy's deviceImage() is where that is
+   * argued - so what is asserted is that the picture on the cell becomes the
+   * device's rendering, at the millimetres the device really shows.
+   *
+   * Nothing here checks the pixels. What previewInto() produces is
+   * data/tiles.ts's business and tests/reference/tiles.lock.json is the
+   * outside opinion on it; this is the wiring. */
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    box.locator(".pick button", { hasText: label("ui.symbol_own") }).click(),
+  ]);
+  await chooser.setFiles(join(HERE, "fixtures", "symbol.png"));
+  await expect(box.locator(".pick__preview img")).toBeVisible();
+  await press(box, "ui.done");
+
+  const image = cells(page).nth(KEY_CELL[0]).locator(".cell__pic");
+  await expect(image).not.toHaveClass(/cell__pic--device/);
+
+  // The label, not the box: .toggle hides the checkbox at 0x0 and draws the
+  // pill, which is what a person presses and what carries the focus ring.
+  await page.locator("#previewLabel").click();
+  await expect(image).toHaveClass(/cell__pic--device/);
+  /* 15.21 mm, which is the whole visible area of a ScreenKey -
+     docs/hardware.md. Life-size on screen, so a pictogram that does not
+     survive the trip can be seen not to.
+
+     Within a tenth of a pixel rather than exactly: the browser resolves a
+     millimetre length in its own precision, and pinning the rounding would be
+     asserting Chromium's arithmetic rather than that the rule is in
+     millimetres at all. A percentage of the cell - which is what every other
+     picture on the board takes - would be off by tens of pixels, not by a
+     hundredth of one. */
+  const width = parseFloat(await image.evaluate((el) => getComputedStyle(el).width));
+  expect(Math.abs(width - (15.21 / 25.4 * 96))).toBeLessThan(0.1);
+
+  await page.locator("#previewLabel").click();
+  await expect(image).not.toHaveClass(/cell__pic--device/);
+});
+
 test("a Sammlung leaves as a .obz and comes back beside the others", async ({ page }) => {
   await openBoard(page);
-  await keyText(page).first().fill("Das bleibt");
+  await put(page, 0, "Das bleibt");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   // Exporting is in the work head's ⋯, beside the Sammlung it exports.
@@ -206,7 +329,7 @@ test("a Sammlung leaves as a .obz and comes back beside the others", async ({ pa
   // Scribble over the sentence. The import must NOT take it back: a file
   // arriving joins what is here rather than replacing it, so the scribble
   // survives and the file arrives beside it as a second Sammlung.
-  await keyText(page).first().fill("Uebergeschrieben");
+  await put(page, 0, "Uebergeschrieben");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   const rows = page.locator("#collectionList .collections__item");
@@ -214,9 +337,7 @@ test("a Sammlung leaves as a .obz and comes back beside the others", async ({ pa
 
   // Importing is inside Einstellungen now: the sidebar holds the list, the way
   // to make one, and the way out of the page.
-  await page.locator("#settingsLink").click();
-  const panel = page.locator("#boardPanel");
-  if ((await panel.getAttribute("open")) === null) await panel.locator("summary").click();
+  await openBoardPanel(page);
   const [importChooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.locator("#boardImport").click(),
@@ -226,11 +347,11 @@ test("a Sammlung leaves as a .obz and comes back beside the others", async ({ pa
   await page.locator("#voiceClose").click();
   await expect(rows).toHaveCount(2);
   // The one that arrived is open, and it holds what was exported.
-  await expect(keyText(page).first()).toHaveValue("Das bleibt");
+  await expectSaid(page, 0, "Das bleibt");
 
   // And the one it was imported next to still has the scribble.
   await rows.filter({ hasNotText: "board" }).last().click();
-  await expect(keyText(page).first()).toHaveValue("Uebergeschrieben");
+  await expectSaid(page, 0, "Uebergeschrieben");
 });
 
 test("a voice can be chosen and is still ticked on reopening", async ({ page }) => {
@@ -238,10 +359,6 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
 
-  // The list is not folded any more - it stands open in a box that scrolls,
-  // narrowed by the search field and the language chips above it rather than
-  // by a "show all" row. A fresh board has nothing chosen, and what the sheet
-  // opens on is the whole list.
   // The voice list lives in a folded panel now, like every other section.
   await page.locator("#voicePanel summary").click();
   const rows = page.locator("#voiceList .voiceRow");
@@ -307,15 +424,17 @@ test("the voice that rushes a single word says so, on its row alone", async ({ p
 
 test("pressing play with no voice says what to do, not that it failed", async ({ page }) => {
   await openBoard(page);
-  await keyText(page).first().fill("Hallo");
-  await page.locator("#device .tile:not(.setTile) button.play").first().click();
+  await put(page, 0, "Hallo");
+  // The play button on the cell, which appears once there is something to
+  // hear. The sheet has one too, and both go through the same seam.
+  await cells(page).nth(KEY_CELL[0]).locator(".cell__play").click();
   // The words come from the table; what must NOT appear is the catalogue's
   // refusal of an empty name, which is what every press produced before.
   await expect(page.locator("#status")).toHaveText(label("ui.no_voice_yet"));
 });
 
 test("a whole sentence finds the symbol its words point at", async ({ page }) => {
-  // The collection answers for one word only: the lemma. Everything the picker
+  // The collection answers for one word only: the lemma. Everything the search
   // is typed at below has to be reduced to it before ARASAAC is ever asked,
   // which is the whole of what bildquelle's German half is for.
   const asked: string[] = [];
@@ -333,16 +452,30 @@ test("a whole sentence finds the symbol its words point at", async ({ page }) =>
     route.fulfill({ contentType: "image/png", body: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }));
 
   await openBoard(page);
-  await page.locator("#device .tile:not(.setTile) .thumb").first().click();
-  await expect(page.locator("#picker")).toBeVisible();
+  await key(page, 0).click();
+  const box = keySheet(page);
+  await expect(box).toBeVisible();
 
   // Typed as somebody would write it on a key: a sentence, with a full stop.
   // Before this, the raw string went to the collection and came back empty.
-  await page.locator("#q").fill("Ich bin durstig.");
-  await page.locator("#searchBtn").click();
-  await expect(page.locator("#results figure")).toHaveCount(1);
+  await search(box, "Ich bin durstig.");
+  await expect(searchNote(box)).toHaveCount(0);
+  await expect(box.locator(".pick__hit")).toHaveCount(1);
 
   // And it got there by asking for the word, not the sentence.
   expect(asked).toContain("durstig");
   expect(asked).not.toContain("Ich bin durstig.");
+});
+
+test("the sheet says what is owed for the pictures it shows", async ({ page }) => {
+  /* ARASAAC is CC BY-NC-SA and the wording is a condition of the licence, so
+   * it has to appear wherever its pictures do. That used to be one place - the
+   * picker dialog - because there was one place pictures were shown. A sheet
+   * carries its own search now, in both editors, so the line is part of the
+   * picture column rather than of the dialog nothing opens. */
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  await expect(box.locator(".pick__credits")).not.toBeEmpty();
+  await expect(box.locator(".pick__credits")).toContainText("ARASAAC");
 });

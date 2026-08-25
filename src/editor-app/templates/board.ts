@@ -47,7 +47,7 @@ export const markup = `
   <button id="appPageNew" class="btn quiet sm" type="button"></button>
 </div>
 
-<div class="appgrid" id="appGrid"></div>
+<div class="grid" id="appGrid"></div>
 `;
 
 /* The one action that applies to the whole Sammlung, in the work head's slot

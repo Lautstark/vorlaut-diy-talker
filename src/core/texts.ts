@@ -42,13 +42,11 @@ export function t(key: string, params?: Record<string, string | number>): string
 // Fills in every fixed label. Runs once - the page is served in one language
 // and reloads when it changes, so nothing here has to react later.
 export function applyTexts() {
-  document.documentElement.style.setProperty(
-    "--pick-label", JSON.stringify(t("ui.pick_symbol")));
-  // The controls the editor owns - the device preview, Release, the button
-  // that deletes a set - name themselves. They used to be five lines here, in
-  // a file that also fills in the imprint: this function would have had to
-  // know about "sets" and about a cable, which are the two things the shell
-  // deliberately does not. See core/editor.ts.
+  // The controls the editor owns - the device preview, Release - name
+  // themselves. They used to be five lines here, in a file that also fills in
+  // the imprint: this function would have had to know about "sets" and about a
+  // cable, which are the two things the shell deliberately does not. See
+  // core/editor.ts.
   //
   // Guarded, and it is the one place a missing editor is a real state rather
   // than a broken page: this runs at the first paint so that the shell's own

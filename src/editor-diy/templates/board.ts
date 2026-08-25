@@ -1,6 +1,15 @@
 /* The five-key board. Structure only - editor.ts fills #tabs, #slots and
  * #device on every render.
  *
+ * Three elements, and there used to be a fourth: a red button under the board
+ * that deleted the set. It is in the set's own card now, at the foot where
+ * every other destructive act in this product sits, which is what took the
+ * last thing off this board that was not the board. What is left is the tabs,
+ * a line saying how full the device is, and the grid.
+ *
+ * #device is the grid rather than a row of tiles now, and editor.ts's CELLS is
+ * where the six places in it are written down.
+ *
  * The log of what was sent used to be a <pre> at the foot of this, growing
  * under the work head while a transfer ran. It is inside the transfer sheet
  * now, with the rest of that flow - see src/editor-diy/release.ts.
@@ -13,12 +22,13 @@
  */
 import { mount } from "../../shell/templates/mount.js";
 
+/* --cols and --rows are written here rather than by render(): unlike the
+ * tablet's, this grid is not a setting - it is the shape of the hardware, and
+ * a board that could be a different size is not this device. */
 export const markup = `
 <div class="tabs" id="tabs"></div>
 <div class="slots" id="slots"></div>
-<div class="device" id="device"></div>
-
-<button id="removeSet" class="btn destructive" type="button"></button>
+<div class="grid" id="device" style="--cols:3; --rows:2"></div>
 `;
 
 /* The one action that applies to the whole Sammlung, in the work head's slot

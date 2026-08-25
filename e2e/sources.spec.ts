@@ -2,8 +2,16 @@ import { expect, test, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import { cells, hits, key, keySheet, query, search } from "./diy.js";
 
-/* Which collection the picker offers, across a reload.
+/* Which collection the sheet offers, across a reload.
+ *
+ * It is the sheet's own picture column that names it now, not a standing
+ * dialog: a press on a key opens the picture, its search and the upload
+ * together, in both editors. Which source that column is searching, and what
+ * is owed for it, come from one place - searchPlaceholder() and creditLine()
+ * in src/shell/picker.ts - so that a second copy cannot say something the
+ * search is not doing, which is the bug below in its other form.
  *
  * The bug this holds shut: the chosen source was read out of storage by
  * loadSettings(), and the only thing that ever called loadSettings() was the
@@ -25,12 +33,59 @@ const label = (key: string) => new RegExp(
     (TEXTS as Record<string, Record<string, string>>)[l][key]
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 
-/** The same, unanchored: the picker's credit line is one of these sentences
- *  followed by the licence notice, which bildquelle owns and we do not quote. */
+/** The same, unanchored: the credit line is one of these sentences followed
+ *  by the licence notice, which bildquelle owns and we do not quote. */
 const phrase = (key: string) => new RegExp(
   `(${LANGUAGES.map((l) =>
     (TEXTS as Record<string, Record<string, string>>)[l][key]
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`);
+
+/** A key's sheet, open. The picture column is inside it, which is where a
+ *  symbol is searched for now - a sheet carries its own search rather than
+ *  opening a second modal on top of itself. */
+async function openSheet(page: Page) {
+  // Whatever was open first. A sheet is modal, so a press on the cell behind
+  // one never lands - and dismissing costs nothing, which is the rule the
+  // draft model exists for.
+  while (await page.locator("dialog[open]").count()) {
+    await page.keyboard.press("Escape");
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
+  }
+  await key(page, 0).click();
+  const box = keySheet(page);
+  await expect(box.locator(".pick")).toBeVisible();
+  return box;
+}
+
+/** Asserts which collection the sheet says it is searching, and closes it
+ *  again.
+ *
+ *  Opened fresh each time on purpose: the placeholder is read as the sheet is
+ *  built, so a sheet opened after a folder arrived is the only thing that can
+ *  prove the page noticed. Closed again because everything these tests do
+ *  next is in the settings sheet, and a modal is a modal - a press on the gear
+ *  behind one never lands. */
+async function expectSource(page: Page, expected: string | RegExp): Promise<void> {
+  const box = await openSheet(page);
+  await expect(query(box)).toHaveAttribute("placeholder", expected);
+  await shut(page);
+}
+
+/** The same for the line under the pictures saying what is owed for them. */
+async function expectCredits(page: Page, expected: RegExp): Promise<void> {
+  const box = await openSheet(page);
+  await expect(box.locator(".pick__credits")).toContainText(expected);
+  await shut(page);
+}
+
+/** Closes whatever sheet is open. Dismissing writes nothing - that is the rule
+ *  the whole draft model exists for - so this is free. */
+async function shut(page: Page): Promise<void> {
+  while (await page.locator("dialog[open]").count()) {
+    await page.keyboard.press("Escape");
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
+  }
+}
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -122,30 +177,30 @@ test("a folder arriving after the page did brings its collection back", async ({
    * Driven here through the file input rather than a handle, because that is
    * the same arrival with a shape a test can produce. */
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(cells(page)).toHaveCount(6);
 
-  // With nothing connected, the line under the picker offers METACOM to
+  // With nothing connected, the line under the pictures offers METACOM to
   // somebody who might own a licence. That is the branch it is for, and the
   // one it used to cover a folder that was already set up as well.
-  await expect(page.locator("#credits")).toContainText(phrase("ui.metacom_offer"));
+  await expectCredits(page, phrase("ui.metacom_offer"));
 
   await supplyFiles(page);
   await page.locator("#metacomUse").click();
   await page.locator("#voiceClose").click();
-  await expect(page.locator("#q")).toHaveAttribute("placeholder", label("ui.search_metacom"));
+  await expectSource(page, label("ui.search_metacom"));
   // And METACOM is owed its own line rather than ARASAAC's.
-  await expect(page.locator("#credits")).toContainText(phrase("ui.credits_metacom"));
+  await expectCredits(page, phrase("ui.credits_metacom"));
 
   // The folder is genuinely gone now, and ARASAAC is the honest answer.
   await page.reload();
-  await expect(page.locator("#device .tile")).toHaveCount(5);
-  await expect(page.locator("#q")).toHaveAttribute("placeholder", label("ui.search_arasaac"));
+  await expect(cells(page)).toHaveCount(6);
+  await expectSource(page, label("ui.search_arasaac"));
 
   // Handing it back is the reconnect click. The choice was never withdrawn,
   // so it is METACOM that is being searched again - and it has to say so.
   await supplyFiles(page);
   await page.locator("#voiceClose").click();
-  await expect(page.locator("#q")).toHaveAttribute("placeholder", label("ui.search_metacom"));
+  await expectSource(page, label("ui.search_metacom"));
 
   // And the field is not the only thing that has to have moved with it.
   let asked = false;
@@ -153,10 +208,9 @@ test("a folder arriving after the page did brings its collection back", async ({
     asked = true;
     route.fulfill({ contentType: "application/json", body: "[]" });
   });
-  await page.locator("#device .tile:not(.setTile) .thumb").first().click();
-  await page.locator("#q").fill("trinken");
-  await page.locator("#searchBtn").click();
-  await expect(page.locator("#results figure")).toHaveCount(1);
+  const box = await openSheet(page);
+  await search(box, "trinken");
+  await expect(hits(box)).toHaveCount(1);
   expect(asked).toBe(false);
 });
 
@@ -173,18 +227,18 @@ test.describe("with the folder already connected at load", () => {
     await page.goto("./");
     await connectFolder(page);
     await page.reload();
-    await expect(page.locator("#device .tile")).toHaveCount(5);
+    await expect(page.locator("#device .cell")).toHaveCount(6);
     await useMetacom(page);
 });
 
   test("the chosen collection is the one named, before anything is opened", async ({ page }) => {
-    await expect(page.locator("#q")).toHaveAttribute("placeholder", label("ui.search_metacom"));
+    await expectSource(page, label("ui.search_metacom"));
 
     // And after a reload, which is the half that was broken: nothing had read
     // the setting yet, so the field named the collection it was not searching.
     await page.reload();
-    await expect(page.locator("#device .tile")).toHaveCount(5);
-    await expect(page.locator("#q")).toHaveAttribute("placeholder", label("ui.search_metacom"));
+    await expect(cells(page)).toHaveCount(6);
+    await expectSource(page, label("ui.search_metacom"));
   });
 
   test("a search after a reload asks the chosen collection, not ARASAAC", async ({ page }) => {
@@ -196,15 +250,15 @@ test.describe("with the folder already connected at load", () => {
     });
 
     await page.reload();
-    await expect(page.locator("#device .tile")).toHaveCount(5);
+    await expect(page.locator("#device .cell")).toHaveCount(6);
 
-    await page.locator("#device .tile:not(.setTile) .thumb").first().click();
-    await expect(page.locator("#picker")).toBeVisible();
-    await page.locator("#q").fill("trinken");
-    await page.locator("#searchBtn").click();
+    const box = await openSheet(page);
+    await search(box, "trinken");
 
-    await expect(page.locator("#results figure")).toHaveCount(1);
-    await expect(page.locator("#results figcaption")).toHaveText("trinken");
+    await expect(hits(box)).toHaveCount(1);
+    // The hit names itself out of the collection's own index, which is what
+    // says the answer came from METACOM rather than from an empty ARASAAC.
+    await expect(hits(box)).toHaveAttribute("aria-label", /trinken/);
     expect(asked).toBe(false);
   });
 
@@ -234,12 +288,15 @@ test.describe("with the folder already connected at load", () => {
     await openPanel(page, "#languagePanel");
     await trigger.click();
     await page.locator(".menu button", { hasText: other === "de" ? "Deutsch" : "English" }).click();
-    // The switch itself repaints the picker, so the field is right going in.
-    await expect(page.locator("#q"))
-      .toHaveAttribute("placeholder", table[other]["ui.search_metacom"]);
+    // The switch itself moves the sheet's own words, so the field is right
+    // going in. Checking it means opening a key's sheet, which means leaving
+    // the settings sheet - so the settings sheet is opened again after.
+    await page.locator("#voiceClose").click();
+    await expectSource(page, table[other]["ui.search_metacom"]!);
 
     // Back to the panel the import button is in: the language switch above
     // happened in another one, and one panel is open at a time.
+    await page.locator("#settingsLink").click();
     await openPanel(page, "#boardPanel");
     const [chooser] = await Promise.all([
       page.waitForEvent("filechooser"),
@@ -251,7 +308,6 @@ test.describe("with the folder already connected at load", () => {
     // The board carries its language and the page follows it back - and the
     // field has to name the collection, in the language it just landed in.
     await expect(trigger).toHaveText(was === "de" ? "Deutsch" : "English");
-    await expect(page.locator("#q"))
-      .toHaveAttribute("placeholder", table[was]["ui.search_metacom"]);
+    await expectSource(page, table[was]["ui.search_metacom"]!);
   });
 });

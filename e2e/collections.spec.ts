@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import { expectSaid, put } from "./diy.js";
 
 /* Several Sammlungen in one browser: making them, switching, copying, deleting.
  *
@@ -72,13 +73,10 @@ async function switchTo(page: Page, name: string) {
   await row(page, name).click();
   await expect(row(page, name)).toHaveClass(/active/);
 }
-/** The sentence inputs on the four speech keys, set tile excluded. */
-const keyText = (page: Page) =>
-  page.locator("#device .tile:not(.setTile) input[type=text]");
 
 async function openCollection(page: Page) {
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 }
 
 /** Makes a Sammlung and gives it a name, the way somebody does: the field in
@@ -136,34 +134,34 @@ test("three can be made, switched between, and keep their own words", async ({ p
 
   // The first visit's Sammlung is unnamed, so the list draws one for it.
   const first = (await rows(page).first().locator(".collections__name").innerText()).trim();
-  await keyText(page).first().fill("The first one speaks");
+  await put(page, 0, "The first one speaks");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   await newCollection(page, "Nursery");
   // A new one is empty rather than a copy of the one that was open.
-  await expect(keyText(page).first()).toHaveValue("");
-  await keyText(page).first().fill("The second one speaks");
+  await expectSaid(page, 0, "");
+  await put(page, 0, "The second one speaks");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   await newCollection(page, "Garden");
-  await keyText(page).first().fill("The third one speaks");
+  await put(page, 0, "The third one speaks");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   await expect(rows(page)).toHaveCount(3);
 
   // Back to the first, and it still says what was typed on it.
   await switchTo(page, first);
-  await expect(keyText(page).first()).toHaveValue("The first one speaks");
+  await expectSaid(page, 0, "The first one speaks");
 
   await switchTo(page, "Nursery");
-  await expect(keyText(page).first()).toHaveValue("The second one speaks");
+  await expectSaid(page, 0, "The second one speaks");
   await expect(page.locator("#collectionName")).toHaveValue("Nursery");
 
   // And all three survive the page being closed and opened again, which is
   // the whole of what "kept" means here.
   await page.reload();
   await expect(rows(page)).toHaveCount(3);
-  await expect(keyText(page).first()).toHaveValue("The second one speaks");
+  await expectSaid(page, 0, "The second one speaks");
 });
 
 /* The order the sidebar shows: last written first. What makes it worth a test
@@ -176,7 +174,7 @@ test("the one just edited is at the top of the list", async ({ page }) => {
   await expect(rows(page).first()).toContainText("Garden");
 
   await switchTo(page, "Nursery");
-  await keyText(page).first().fill("Something typed here");
+  await put(page, 0, "Something typed here");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   await page.reload();
@@ -196,22 +194,22 @@ test("typing and switching at once does not spill one collection into the other"
     await newCollection(page, "Second");
     // Something to tell the second one by, so that arriving on it is
     // distinguishable from not having left the first yet.
-    await keyText(page).first().fill("Second collection");
+    await put(page, 0, "Second collection");
     await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
     await switchTo(page, "Kitchen");
-    await expect(keyText(page).first()).toHaveValue("");
+    await expectSaid(page, 0, "");
 
     // And now the race this test is for: typed, and switched away from inside
     // the one-second debounce, with no wait for "saved" in between. The switch
     // writes what is on screen before it moves, or the pending write fires
     // afterwards and puts these words in the collection that is arriving.
-    await keyText(page).first().fill("Meant for the first collection");
+    await put(page, 0, "Meant for the first collection");
     await switchTo(page, "Second");
-    await expect(keyText(page).first()).toHaveValue("Second collection");
+    await expectSaid(page, 0, "Second collection");
 
     await switchTo(page, "Kitchen");
-    await expect(keyText(page).first()).toHaveValue("Meant for the first collection");
+    await expectSaid(page, 0, "Meant for the first collection");
   });
 
 /* The two halves of a destructive question, and the second one is the half
@@ -250,7 +248,7 @@ test("deleting asks first, and a dismissed question deletes nothing", async ({ p
   await expect(rows(page)).toHaveCount(1);
   // Never a page with no collection on it: what took its place is open.
   await expect(rows(page).first()).toHaveClass(/active/);
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 });
 
 /* The failure that has no failing assertion.
@@ -318,8 +316,8 @@ test("deleting the last collection leaves a fresh one rather than nothing", asyn
   // The seed steps in, the same as a first visit. A page with no collection on it
   // is the one outcome that has nothing to offer.
   await expect(rows(page)).toHaveCount(1);
-  await expect(page.locator("#device .tile")).toHaveCount(5);
-  await expect(keyText(page).first()).toHaveValue("");
+  await expect(page.locator("#device .cell")).toHaveCount(6);
+  await expectSaid(page, 0, "");
 });
 
 /* A rename lands on the Sammlung it was typed for, and not on the next one.

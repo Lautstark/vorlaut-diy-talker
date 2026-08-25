@@ -7,7 +7,6 @@ import { $, say, status} from "./dom.js";
 import { reason } from "../core/errors.js";
 import { pickSymbol, readSettings, uploadSymbol } from "../backend/index.js";
 import * as symbols from "../data/symbols.js";
-import type { ProviderId } from "@lautstark/bildquelle";
 import { t } from "../core/texts.js";
 
 /** What the dialog was opened for.
@@ -220,41 +219,60 @@ export async function loadSources() {
   symbols.subscribeMetacom(() => void adoptSource());
 }
 
-export function showSources() {
+/** Which collection is being searched, as the words a search field wears.
+ *
+ * Exported because there are two search fields now and only one answer. The
+ * dialog below has one; shell/sheet.ts's pick column is the other, and it is
+ * the one both editors actually reach - a sheet carries its own search rather
+ * than opening this dialog on top of itself. A second copy of this line is how
+ * a field comes to name a collection it is not searching, which is the bug
+ * adoptSource() below was written for. */
+export const searchPlaceholder = (): string =>
+  t(symbols.activeSource() === "metacom" ? "ui.search_metacom" : "ui.search_arasaac");
+
+/** What is owed for the collection being searched, as one line.
+ *
+ * Exported for the same reason and with more riding on it: ARASAAC is
+ * CC BY-NC-SA and the wording is a condition of the licence, so wherever its
+ * pictures are shown this sentence has to be shown too. That used to be one
+ * place, because there was one place pictures were shown. There are two now.
+ *
+ * The notice itself is not written here and is not in the text table: it comes
+ * from the package that owns the provider - a translated paraphrase beside it
+ * is how the two drifted apart, and the copy that was here had lost both
+ * arasaac.org and the Regierung von Aragón. METACOM returns nothing, on
+ * purpose: it is the user's own licensed copy and owes no notice.
+ *
+ * Ours to say, and only where it applies: that METACOM is referenced rather
+ * than copied, or - when it is not the source - that a licence somebody owns
+ * could be one. Nobody opens settings to find that out, so it is said where
+ * they are standing.
+ *
+ * Three cases and not two, because "no collection" was covering a state it has
+ * no business covering. A folder chosen last visit comes back needing its
+ * permission re-confirmed - routine on Chromium, where the grant is scoped to
+ * the site rather than to the app - and the line asked somebody who had
+ * already set METACOM up whether they happened to own a licence. The remedy is
+ * a click, so the sentence names it, and names the answer in the browser's own
+ * prompt that stops it being asked again.
+ */
+export function creditLine(): string {
   const metacom = symbols.activeSource() === "metacom";
-  $<HTMLInputElement>("q").placeholder = t(metacom ? "ui.search_metacom" : "ui.search_arasaac");
-
-  // The notice is not written here and is not in the text table. ARASAAC is
-  // CC BY-NC-SA and the wording is a condition of the licence, so it comes
-  // from the package that owns the provider - a translated paraphrase beside
-  // it is how the two drifted apart, and the copy that was here had lost both
-  // arasaac.org and the Regierung von Aragón. METACOM returns nothing, on
-  // purpose: it is the user's own licensed copy and owes no notice.
-  //
-  // The one source the picker is offering. A key already on the board may
-  // have come from the other one - switching source never took anything off a
-  // board - but what is owed here is owed for what is on this screen.
-  const sources: ProviderId[] = [symbols.activeSource()];
-  const owed = symbols.attributionFor(sources).join(" ");
-
-  // Ours to say, and only where it applies: that METACOM is referenced rather
-  // than copied, or - when it is not the source - that a licence somebody owns
-  // could be one. Nobody opens settings to find that out, so it is said where
-  // they are standing.
-  //
-  // Three cases and not two, because "no collection" was covering a state it
-  // has no business covering. A folder chosen last visit comes back needing
-  // its permission re-confirmed - routine on Chromium, where the grant is
-  // scoped to the site rather than to the app - and the line asked somebody
-  // who had already set METACOM up whether they happened to own a licence.
-  // The remedy is a click, so the sentence names it, and names the answer in
-  // the browser's own prompt that stops it being asked again.
+  // The one source the picker is offering. A key already on the board may have
+  // come from the other one - switching source never took anything off a board
+  // - but what is owed here is owed for what is on this screen.
+  const owed = symbols.attributionFor([symbols.activeSource()]).join(" ");
   const state = symbols.metacomStatus();
   const waiting = state.kind === "needs-setup" && state.code === "permission-needed";
   const ours = metacom ? t("ui.credits_metacom")
     : waiting ? t("ui.metacom_waiting")
     : symbols.metacomReady() ? "" : t("ui.metacom_offer");
-  $("credits").textContent = `${ours} ${owed}`.trim();
+  return `${ours} ${owed}`.trim();
+}
+
+export function showSources() {
+  $<HTMLInputElement>("q").placeholder = searchPlaceholder();
+  $("credits").textContent = creditLine();
 }
 
 export function wirePicker() {

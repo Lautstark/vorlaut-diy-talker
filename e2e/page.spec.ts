@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import { expectSaid, put } from "./diy.js";
 
 /* The page opens in whatever language the browser asks for, and a test runner
  * picks its own. So the label to wait for comes out of the same table the page
@@ -44,7 +45,7 @@ test("it opens with a board on it and asks no server for anything", async ({ pag
   // The set tile and its four keys. They only appear if the module graph
   // loaded, boot.ts handed over the texts and the store seeded a first
   // layout - which is the whole page in one assertion.
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
   await expect(page.locator("#tabs .tab").first()).toBeVisible();
 
   expect(problems, problems.join("\n")).toEqual([]);
@@ -60,13 +61,13 @@ test("it opens with a board on it and asks no server for anything", async ({ pag
 test("what is typed survives a reload", async ({ page }) => {
   const problems = watch(page);
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 
-  /* A key's sentence, not the set's name and not the colour field - the set
-   * tile carries both of those and comes first in the document. */
-  const keyText = page.locator("#device .tile:not(.setTile) input[type=text]");
+  /* A key's sentence, typed where it is typed now: in the sheet the key
+   * opens. It is not on the board at all any more - the board draws what a key
+   * says and a press is how it is changed. */
   const sentence = "Ich will nach draussen";
-  await keyText.first().fill(sentence);
+  await put(page, 0, sentence);
 
   /* The save is debounced, so the reload has to wait for it. The status line
    * saying so is the page's own signal that it landed, which is a better thing
@@ -74,15 +75,15 @@ test("what is typed survives a reload", async ({ page }) => {
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   await page.reload();
-  await expect(page.locator("#device .tile")).toHaveCount(5);
-  await expect(keyText.first()).toHaveValue(sentence);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
+  await expectSaid(page, 0, sentence);
 
   expect(problems, problems.join("\n")).toEqual([]);
 });
 
 test("the settings sheet opens", async ({ page }) => {
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
   await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
   // Populated rather than merely present: the voice list comes from the
@@ -107,9 +108,14 @@ test("the settings sheet opens", async ({ page }) => {
  * rather than pass.
  */
 test("the way into Einstellungen is on screen on a window the board does not fit", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 600 });
+  /* Shorter than the window this used to need. The board became the device's
+     own two rows of 4:3 cells, where it was five tall tiles with a field, a
+     row of swatches and a colour picker in them, so 600px stopped being a
+     window it overflows. The precondition below is what said so rather than
+     letting this pass while testing nothing. */
+  await page.setViewportSize({ width: 1280, height: 380 });
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 
   /* The board is taller than the window - the case this is about. Measured
    * against the window rather than against the column's own client height:
@@ -131,5 +137,5 @@ test("the way into Einstellungen is on screen on a window the board does not fit
   const link = page.locator("#settingsLink");
   await expect(link).toBeVisible();
   const box = (await link.boundingBox())!;
-  expect(box.y + box.height).toBeLessThanOrEqual(600);
+  expect(box.y + box.height).toBeLessThanOrEqual(380);
 });

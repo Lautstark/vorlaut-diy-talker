@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { checkPackage } from "../src/data/app_package.js";
 import { readPackage, unzip } from "./obz.js";
+import { KEY_CELL, cells, key, keySheet, nameSet, press, put } from "./diy.js";
 
 /* The app package, made by the real page and read back off disk.
  *
@@ -89,35 +90,38 @@ async function standIn(page: Page): Promise<void> {
  *  picture on one key, and a voice that can be spoken without a CDN. */
 async function fill(page: Page): Promise<void> {
   await page.goto("./");
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 
-  await page.locator("#device .setTile input[type=text]").first().fill("Morgens");
-  const keys = page.locator("#device .tile:not(.setTile) input[type=text]");
-  await keys.nth(0).fill("Ich habe Hunger");
-  await keys.nth(1).fill("Ich habe Durst");
+  await nameSet(page, "Morgens");
+  await put(page, 0, "Ich habe Hunger");
+  await put(page, 1, "Ich habe Durst");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   // A picture on the first key, uploaded rather than searched for: ARASAAC is
-  // a network away and this is not the test for it.
-  await page.locator("#device .tile:not(.setTile) .thumb").first().click();
-  await expect(page.locator("#picker")).toBeVisible();
+  // a network away and this is not the test for it. It goes in through the
+  // key's own sheet, whose left column carries the picture, the search and the
+  // upload together.
+  await key(page, 0).click();
+  const box = keySheet(page);
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.locator("#uploadBtn").click(),
+    box.locator(".pick button", { hasText: label("ui.symbol_own") }).click(),
   ]);
   await chooser.setFiles(join(HERE, "fixtures", "symbol.png"));
   // The status line says the picture was taken rather than that the board was
-  // saved, so the picture on the key is what says the pick landed. The export
-  // saves before it packages anything, which is what makes that enough.
-  await expect(page.locator("#device .tile:not(.setTile) .thumb img").first()).toBeVisible();
+  // saved, so the picture is what says the pick landed. The export saves
+  // before it packages anything, which is what makes that enough.
+  await expect(box.locator(".pick__preview img")).toBeVisible();
+  await press(box, "ui.done");
+  await expect(cells(page).nth(KEY_CELL[0]!).locator(".cell__pic")).toBeVisible();
 
   // A second set, so the package has two boards and a ring between them. One
   // board would leave load_board pointing at itself, which is legal and proves
   // nothing about navigation.
   await page.locator("#tabs .tab.add").click();
   await expect(page.locator("#tabs .tab")).toHaveCount(3);   // two sets and the +
-  await page.locator("#device .setTile input[type=text]").first().fill("Spielen");
-  await keys.nth(0).fill("Noch einmal");
+  await nameSet(page, "Spielen");
+  await put(page, 0, "Noch einmal");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   // The Azure key, and Katja chosen with it. The stored voice is what the

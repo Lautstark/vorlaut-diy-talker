@@ -33,7 +33,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("./");
   // The board, so that what follows is running against a page that came up
   // rather than against an empty document that happens to have a footer.
-  await expect(page.locator("#device .tile")).toHaveCount(5);
+  await expect(page.locator("#device .cell")).toHaveCount(6);
 });
 
 test("the three pages are reachable from the page itself", async ({ page }) => {
