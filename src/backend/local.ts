@@ -199,12 +199,16 @@ export async function pickSymbol(choice) {
   return { symbol: name, label: choice.label || "" };
 }
 
-export async function uploadSymbol(file) {
+export async function uploadSymbol(file, name = file.name) {
   // The name is what somebody's file was called, made safe to be a key - see
   // safeName() in data/store.ts, which owns that rule because the key is its.
-  const name = store.safeName(file.name);
-  await store.putFile("symbols", name, await file.arrayBuffer());
-  return { symbol: name };
+  //
+  // Named apart from the bytes since the crop: a square cut out of a photo is
+  // a Blob the page drew and carries no name, so the caller says what to call
+  // it. The default keeps every other caller writing what it always wrote.
+  const key = store.safeName(name);
+  await store.putFile("symbols", key, await file.arrayBuffer());
+  return { symbol: key };
 }
 
 /** The 128x128 the panel really shows: the tile, and the six pixels round it.

@@ -53,6 +53,8 @@ import { negationCross, say, status } from "./dom.js";
 import { symbolInto } from "../backend/index.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
+import { cropSquare, pngName } from "./crop.js";
+import type { Cropper } from "./crop.js";
 import { creditLine, findSymbols, searchPlaceholder, takeSymbol, uploadOwn }
   from "./picker.js";
 import type { SymbolHit } from "./picker.js";
@@ -386,6 +388,21 @@ function drawPick(spec: PickColumn): HTMLElement {
   drawPreview();
   pick.appendChild(preview);
 
+  /* Where the crop's slider and its one sentence go while there is a crop.
+   *
+   * Directly under the box and above everything else, built empty and hidden,
+   * because the alternative is inserting elements into a live column at the
+   * moment somebody is looking at it. What fills it comes from shell/crop.ts;
+   * what it says is this column's, the way every other sentence here is. */
+  const cropBar = document.createElement("div");
+  cropBar.className = "pick__crop";
+  cropBar.hidden = true;
+  const cropHint = document.createElement("p");
+  cropHint.className = "pick__crophint";
+  cropHint.id = "pickCropHint";
+  cropHint.textContent = t("ui.crop_hint");
+  pick.appendChild(cropBar);
+
   const query = document.createElement("input");
   query.type = "search";
   query.className = "field";
@@ -509,10 +526,22 @@ function drawPick(spec: PickColumn): HTMLElement {
     const chose = file.files?.[0];
     file.value = "";
     if (!chose) return;
-    status(t("ui.uploading"));
-    void uploadOwn(chose).then(
-      (made) => { took(made, ""); status(t("ui.upload_done")); },
-      (error: unknown) => status(t("ui.upload_failed", { error: reason(error) })));
+    const keep = (picture: Blob, name: string) => {
+      status(t("ui.uploading"));
+      return uploadOwn(picture, name).then(
+        (made) => { took(made, ""); status(t("ui.upload_done")); },
+        (error: unknown) => status(t("ui.upload_failed", { error: reason(error) })));
+    };
+    /* No crop offered is not a failure and does not get a sentence: the
+     * picture was already square, or the browser could not read a size off it,
+     * and in both cases the file goes exactly as it did before this step
+     * existed. cropSquare()'s own head says which is which. */
+    void cropSquare(chose).then(
+      (cutter) => {
+        if (cutter) beginCrop(cutter, chose.name);
+        else void keep(chose, chose.name);
+      },
+      () => void keep(chose, chose.name));
   };
   const own = document.createElement("button");
   own.type = "button";
@@ -547,10 +576,91 @@ function drawPick(spec: PickColumn): HTMLElement {
     status(t("ui.symbol_off_done"));
   };
 
+  /* The two buttons the crop puts in the same row, in place of the two above.
+   *
+   * `quiet` for both, though one of them confirms. The sheet's foot already
+   * has the one primary button on screen and a second would be two things
+   * claiming to be the way onward; the labels say plainly enough which is
+   * which. What the foot's button does while a crop is open is nothing to do
+   * with the crop - it closes the sheet, the crop is dropped, and the key
+   * keeps whatever picture it had, because nothing has been written. That is
+   * the rule this whole module is shaped around and it holds here for free. */
+  const take = document.createElement("button");
+  take.type = "button";
+  take.className = "btn quiet";
+  take.textContent = t("ui.crop_take");
+  take.hidden = true;
+  const drop = document.createElement("button");
+  drop.type = "button";
+  drop.className = "btn quiet";
+  drop.textContent = t("ui.crop_off");
+  drop.hidden = true;
+
   const acts = document.createElement("div");
   acts.className = "pick__acts";
-  acts.append(own, off);
+  acts.append(own, off, take, drop);
   pick.append(acts, file);
+
+  /* Going in and coming out of the crop.
+   *
+   * The search, its two sentences and the results go away for the duration
+   * rather than dimming: a live grid of pictures under an open crop invites a
+   * press that throws the crop away without saying so, and hiding them is one
+   * property against a disabled look this stylesheet has nowhere else. It also
+   * leaves the row of buttons sitting directly under the box, which is where
+   * the two that matter now belong. */
+  let cropping: Cropper | null = null;
+
+  const endCrop = () => {
+    cropping?.close();
+    cropping = null;
+    cropBar.hidden = true;
+    cropBar.replaceChildren();
+    take.hidden = drop.hidden = true;
+    own.hidden = false;
+    off.hidden = !symbol;
+    if (spec.onNegate) negateLabel.hidden = !symbol;
+    query.hidden = results.hidden = credits.hidden = false;
+    // Whatever it was saying before, said again by the rule that put it there:
+    // hidden when empty, because an empty <p> over the grid is a layout fault.
+    near.hidden = !near.textContent;
+    drawPreview();
+    // The press that would have moved focus has just vanished from under it,
+    // so it goes back to the button that opened the crop in the first place.
+    own.focus();
+  };
+
+  const beginCrop = (cutter: Cropper, name: string) => {
+    cropping = cutter;
+    preview.replaceChildren();
+    preview.className = "pick__preview pick__preview--crop";
+    preview.removeAttribute("role");
+    preview.removeAttribute("aria-label");
+    preview.appendChild(cutter.surface);
+    cropBar.append(cutter.zoom, cropHint);
+    cropBar.hidden = false;
+    own.hidden = off.hidden = true;
+    if (spec.onNegate) negateLabel.hidden = true;
+    query.hidden = near.hidden = results.hidden = credits.hidden = true;
+    take.hidden = drop.hidden = false;
+    take.onclick = () => {
+      status(t("ui.uploading"));
+      void cutter.cut()
+        .then((square) => uploadOwn(square, pngName(name)))
+        .then(
+          (made) => { endCrop(); took(made, ""); status(t("ui.upload_done")); },
+          (error: unknown) => {
+            endCrop();
+            status(t("ui.upload_failed", { error: reason(error) }));
+          });
+    };
+    drop.onclick = () => { endCrop(); status(t("ui.crop_off_done")); };
+    // The sentence under the slider is the box's description as well as the
+    // column's copy: somebody who cannot see it has just been handed a control
+    // whose name says what it is and not what to do with it.
+    cutter.surface.setAttribute("aria-describedby", cropHint.id);
+    cutter.surface.focus();
+  };
 
   /* Crossing the picture out.
    *
