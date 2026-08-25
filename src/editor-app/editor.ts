@@ -234,10 +234,20 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     return box;
   }
 
-  const hit = opener(held.label || t("ui.app_button_empty"));
+  /* What a screen reader calls the cell. A button carrying a picture and no
+   * word is a deliberate button rather than an unfinished one, so it is not
+   * announced as empty: what it says when pressed names it, and where it says
+   * nothing the picture is named as the whole of it. Only a button with
+   * neither is empty. */
+  const named = held.label
+    || (held.symbol ? held.vocalization.trim() || t("ui.app_button_symbol") : "");
+  const hit = opener(named || t("ui.app_button_empty"));
   hit.classList.toggle("current", held.id === chosen);
   hit.setAttribute("aria-pressed", held.id === chosen ? "true" : "false");
   box.classList.toggle("current", held.id === chosen);
+  // A word with no picture is its own kind of button, and takes the room the
+  // picture would have had. The class carries it; see .appcell--words.
+  box.classList.toggle("appcell--words", !held.symbol);
   box.appendChild(hit);
   const colour = classColor(held.wordClass);
   if (colour) box.style.setProperty("--cell-color", colour);
@@ -254,10 +264,13 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     box.appendChild(image);
   }
 
-  const label = document.createElement("span");
-  label.className = "appcell__label";
-  label.textContent = held.label || "";
-  box.appendChild(label);
+  /* The word, where there is one.
+   *
+   * A picture with no word is ordinary AAC and the format allows it -
+   * exchange/SPEC.md §7.2 - so nothing stands in for the word that is not
+   * there. An empty slot on a board is furniture announcing an absence, and
+   * the way to fill it is a press away. */
+  if (held.label) box.appendChild(wordSpan(held.label));
 
   // What the button does, where it is not the default. An appending button is
   // the common case and carries no mark: marking every ordinary cell would
@@ -344,6 +357,15 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
       ?.querySelector(".appcell__open") as HTMLElement)?.focus();
   };
   return box;
+}
+
+/** The word on a cell. One maker, because paintCell() has to be able to put
+ *  one there as it is typed and the two must not disagree about it. */
+function wordSpan(text: string): HTMLElement {
+  const span = document.createElement("span");
+  span.className = "appcell__label";
+  span.textContent = text;
+  return span;
 }
 
 function mark(text: string): HTMLElement {
@@ -660,8 +682,18 @@ function field(text: string, value: string,
 function paintCell(held: AppButton): void {
   const at = (held.row * board().grid.columns) + held.col;
   const box = $("appGrid").children[at];
-  const label = box?.querySelector(".appcell__label");
-  if (label) label.textContent = held.label;
+  if (!box) return;
+  const label = box.querySelector(".appcell__label");
+  /* Typed away to nothing, the word goes rather than staying as an empty line:
+   * a button may carry a picture and no word, and an empty span holds the room
+   * a word would have had. Typed into from nothing, it has to be made - the
+   * cell was drawn without one. */
+  if (!held.label) { label?.remove(); return; }
+  if (label) { label.textContent = held.label; return; }
+  /* After the picture, which is the only other thing in the cell's flow - the
+   * corner controls are positioned out of it. */
+  const flow = box.querySelector("img, .blank") ?? box.querySelector(".appcell__open");
+  box.insertBefore(wordSpan(held.label), flow?.nextSibling ?? null);
 }
 
 /* --- Drawing, and the two controls that are not in the panel -------------- */
