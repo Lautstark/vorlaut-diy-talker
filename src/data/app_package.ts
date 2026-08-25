@@ -260,22 +260,55 @@ export const rfc3339 = (at: number): string =>
  * "none" - which is the value that says the viewer owes no attribution.
  */
 export function symbolSource(layout: Layout): SymbolSource {
-  let metacom = false;
-  let arasaac = false;
-  for (const reference of references(layout)) {
-    if (!reference) continue;
-    if (reference.startsWith("metacom:")) metacom = true;
-    else if (/^arasaac-/.test(reference)) arasaac = true;
-  }
-  if (metacom && arasaac) {
+  const drawn = drawnFrom(layout);
+  if (drawn.metacom.length && drawn.arasaac.length) {
+    // The minority, because that is the shorter list to put right - and
+    // because the sentence has to name something. "Replace the odd ones out"
+    // with nothing said about which they are sends somebody through every page
+    // of a Sammlung comparing references by eye, which is the one thing they
+    // cannot see: what a key holds is a file name nothing on screen shows.
+    const odd = drawn.metacom.length <= drawn.arasaac.length
+      ? drawn.metacom : drawn.arasaac;
     throw new Error(
       "This Sammlung draws on two symbol collections at once, and a package " +
-      "may only carry one (exchange/SPEC.md §5.1). Replace the odd ones out " +
-      "so that every key comes from the same collection.");
+      "may only carry one (exchange/SPEC.md §5.1). " +
+      (odd.length === 1
+        ? `The odd one out is ${naming(odd)}; replace it with a symbol `
+        : `The odd ones out are ${naming(odd)}; replace them with symbols `) +
+      "from the same collection as the rest.");
   }
-  if (metacom) return "metacom";
-  return arasaac ? "arasaac" : "none";
+  if (drawn.metacom.length) return "metacom";
+  return drawn.arasaac.length ? "arasaac" : "none";
 }
+
+/**
+ * Which collections a Sammlung draws on, and where each was drawn from.
+ *
+ * The reading behind symbolSource(), exported separately because its two
+ * readers want different things out of a mixed Sammlung. The export refuses
+ * one - that is §5.1. The picker must not refuse: a Sammlung mixed before the
+ * picker learned to follow it is exactly the Sammlung somebody has to be able
+ * to open a picture column in and put right.
+ */
+export function drawnFrom(layout: Layout): Record<"metacom" | "arasaac", SymbolPlace[]> {
+  const metacom: SymbolPlace[] = [];
+  const arasaac: SymbolPlace[] = [];
+  for (const place of symbolPlaces(layout)) {
+    if (!place.reference) continue;
+    if (place.reference.startsWith("metacom:")) metacom.push(place);
+    else if (/^arasaac-/.test(place.reference)) arasaac.push(place);
+  }
+  return { metacom, arasaac };
+}
+
+/** The odd keys out as a phrase: three of them at most, and a count for the
+ *  rest. A sentence naming forty buttons is a sentence nobody reads, and the
+ *  three that are named are enough to find the collection they came from. */
+const naming = (places: readonly SymbolPlace[]): string => {
+  const shown = places.slice(0, 3).map((one) => one.where);
+  const rest = places.length - shown.length;
+  return rest ? `${shown.join(", ")} and ${rest} more` : shown.join(", ");
+};
 
 /** §7.1's grid: the five keys where they really sit, with the speaker's
  *  corner left empty. The same shape obf.ts writes, for the same reason. */
@@ -306,30 +339,71 @@ export function grid(boardId: string, present: readonly boolean[]) {
  * synthesises shows a count while it works, and counting the same clip four
  * times would make a Sammlung look four times the work it is.
  */
-const appButtons = (layout: AppLayout): AppButton[] => [
-  ...(layout.pages ?? []).flatMap((page) => page.buttons ?? []),
-  ...(layout.firstColumn ?? []),
+const appButtons = (layout: AppLayout): { button: AppButton; where: string }[] => [
+  ...(layout.pages ?? []).flatMap((page) => (page.buttons ?? []).map((button) => ({
+    button,
+    where: `${named(button.label, "an unnamed button")} on page `
+         + `${named(page.name, "an unnamed page")}`,
+  }))),
+  ...(layout.firstColumn ?? []).map((button) => ({
+    button,
+    where: `${named(button.label, "an unnamed button")} in the shared column`,
+  })),
 ];
 
-/** Every symbol reference in a Sammlung, whichever shape it is.
+/** One place a symbol can sit, and what sits there. */
+export interface SymbolPlace {
+  /** What that place holds, "" when it holds no picture. */
+  reference: string;
+  /** Where it is, in words, for a message whose job is to send somebody to
+   *  it: the button and its page, or the key and its set. English, like every
+   *  other sentence this module raises. */
+  where: string;
+}
+
+/** A name in quotes, or a stand-in where there is nothing to quote. */
+const named = (text: string, none: string): string =>
+  String(text ?? "").trim() ? `"${String(text).trim()}"` : none;
+
+/** Every place a symbol can sit in a Sammlung, whichever shape it is, with
+ *  what sits there.
  *
  * One walker rather than one per caller: symbolSource() and the bake loop in
  * backend/local.ts both need exactly this list, and the way §5.1 gets broken
  * is a new place to put a symbol that one of the two walkers never learned
  * about. Duplicates are left in - both callers de-duplicate for their own
- * reasons, and neither wants this function guessing which. */
-export function references(layout: Layout): string[] {
-  const out: string[] = [];
+ * reasons, and neither wants this function guessing which.
+ *
+ * It carries `where` because the refusal has to be actionable. A message that
+ * says a Sammlung is mixed and nothing else leaves somebody opening sheets
+ * one at a time: which collection a picture came from is a fact about the
+ * reference, and the reference is the one thing the editor never shows. */
+export function symbolPlaces(layout: Layout): SymbolPlace[] {
+  const out: SymbolPlace[] = [];
   if (layout.target === "app") {
-    for (const button of appButtons(layout)) out.push(String(button.symbol ?? ""));
+    for (const { button, where } of appButtons(layout)) {
+      out.push({ reference: String(button.symbol ?? ""), where });
+    }
     return out;
   }
   for (const set of layout.sets ?? []) {
-    out.push(String(set.symbol ?? ""));
-    for (const slot of set.slots ?? []) out.push(String(slot.symbol ?? ""));
+    const which = named(set.name, "an unnamed set");
+    out.push({ reference: String(set.symbol ?? ""), where: `the set key of ${which}` });
+    for (const slot of set.slots ?? []) {
+      out.push({
+        reference: String(slot.symbol ?? ""),
+        where: `${named(slot.text, "an unnamed key")} in ${which}`,
+      });
+    }
   }
   return out;
 }
+
+/** Every symbol reference in a Sammlung, in the order it is met. What the
+ *  bake loop wants: it has no use for where a picture sits, only for the list
+ *  of pictures to fetch once each. */
+export const references = (layout: Layout): string[] =>
+  symbolPlaces(layout).map((one) => one.reference);
 
 /** Every sentence a Sammlung will need a recording of, in the order it is met.
  *
@@ -351,7 +425,7 @@ export function references(layout: Layout): string[] {
 export function spokenTexts(layout: Layout): string[] {
   const out: string[] = [];
   if (layout.target === "app") {
-    for (const button of appButtons(layout)) {
+    for (const { button } of appButtons(layout)) {
       if (button.act?.kind !== "append" && button.act?.kind !== "speak") continue;
       const spoken = spokenTextOf(button);
       if (spoken) out.push(spoken);
