@@ -128,7 +128,21 @@ spk_front_screws  = false;  // [K]
 /* --- Adafruit ESP32-S3 Feather --- */
 feather_l           = 50.80;  // [R] 2.0"
 feather_b           = 22.80;  // [R] 0.9"
-feather_h           =  8.00;  // [A] total height with soldered headers
+feather_h           =  8.00;  // [A] the board itself, with soldered headers
+
+// CLEAR AIR above that, and it is a requirement rather than an allowance. The
+// cables arrive in black push-on Dupont shells that slide down over the
+// headers and stand well above them, and the shells need room to go on and
+// come off - a connector you cannot unplug with the lid on is a connector you
+// cannot service.
+//
+// This is the same 14 mm the first build was given. It went in then as
+// extra_above_carrier, a generic "cable headroom" above whatever the tallest
+// part happened to be, which is why it kept getting spent: shrinking the case
+// looked like trimming an allowance when it was actually taking the
+// connectors' room away. Named after the thing that needs it, it stops moving
+// by accident.
+feather_headroom    = 14.00;  // [M] Stefanie, hardware in hand, August 2026
 feather_pcb_d       =  1.60;  // [A] board thickness, typical FR4
 feather_hole_l      = 45.72;  // [R] hole spacing lengthwise (Feather spec: 0.1" margin)
 feather_hole_b      = 17.78;  // [R] hole spacing across
@@ -284,6 +298,19 @@ part_clearance    = 0.60;   // [K] clearance between the tallest part and the li
 // were the plate's bottom layers. The saving was never the sinking - it was
 // deleting the standoff - so the pads are full plate thickness now and the M2
 // gets six threads, which is what the lid bosses already rely on.
+// STANDING ON EDGE, in a bay in the top margin. The board's 22.8 mm width
+// becomes the depth it occupies instead of its 8.0 mm thickness plus 14.0 mm
+// of connector headroom - and, more to the point, the connectors then point
+// SIDEWAYS. Their 22.0 mm comes out of the plan rather than out of the depth,
+// which is the whole trick: the Feather stops being the tallest thing behind
+// the front plate and becomes the shortest of the three.
+//
+// Turning the board on the spot buys nothing - its 22.8 mm width and its
+// 22.0 mm connector stack are the same number, so on edge it would simply
+// swap them. What buys the depth is getting it OUT of the stack above the
+// plate, and that needs the bay.
+feather_standing = true;   // [K] false = lying flat on the plate
+
 feather_pins_through = true;  // [K] false = back to standing on feather_support
 feather_pad_d   = 4.50;   // [K] pad round each mounting hole. Deliberately
                           //     small: the nearest header pin is not far from
@@ -308,10 +335,16 @@ carrier_z_top     = carrier_z_bottom + carrier_d;                // [G] 23.80 ca
 // Measured as absolute z now, not as heights above the carrier, because the
 // Feather no longer starts from the carrier's top face - it hangs INTO the
 // plate. Mixing the two datums is how the first draft lost 1.3 mm into the lid.
-feather_z_bottom = feather_pins_through ? carrier_z_top
+// One ternary per assignment, each with the ? at the top of its expression.
+// verify.py rewrites `a ? b : c` into Python and can only do it in that shape -
+// nested or parenthesised and it gives up on the whole file.
+feather_z_flat   = feather_pins_through ? carrier_z_top
                                         : carrier_z_top + feather_support;  // [G] 23.80
+feather_z_bottom = feather_standing ? front_d : feather_z_flat;             // [G]  2.40
 top_battery = carrier_z_top + battery_d;                  // [G] 31.90 <- governs
-top_feather = feather_z_bottom + feather_h;               // [G] 30.60
+// Standing, what reaches upward is the board's WIDTH, not its thickness.
+feather_up  = feather_standing ? feather_b : feather_h;   // [G] 22.80
+top_feather = feather_z_bottom + feather_up;              // [G] 25.20
 top_amp     = carrier_z_top + amp_support + amp_d;        // [G] 28.80
 parts_top   = max(top_battery, top_feather, top_amp);     // [G] 31.90
 
@@ -320,25 +353,42 @@ parts_top   = max(top_battery, top_feather, top_amp);     // [G] 31.90
 // stack-up says - the battery lead, the JST plug and the ribbon cables coming
 // up through the carrier all want their bend radius, and the lid pressed on
 // them. The carrier stays exactly where it is; the case grows backwards only.
-// Was 14.00 after the first build, measured with the Feather standing proud on
-// 2 mm standoffs and every cable running over the top of it. Sunk into the
-// plate, the tallest thing left above the plate is the battery at 8.1 mm and
-// the cables have somewhere flatter to lie. 6.00 is the estimate that replaces
-// it - and it is the one number here still owed a measurement, because every
-// millimetre of it is a millimetre of case.
-extra_above_carrier =  6.00;  // [A] re-measure with the wiring actually in
+// Slack ON TOP of everything the parts actually need, for cables to bend in.
+// It was 14.00 after the first build and then 6.00 as an estimate, and both
+// were standing in for a thing nobody had measured: the height of the push-on
+// connectors on the Feather. That is feather_h now, counted explicitly, so
+// this is back to what it says on the tin - spare room, and there is none.
+// Every millimetre of it is a millimetre of case, so it stays at zero until
+// something is found that needs it.
+extra_above_carrier =  0.00;  // [K]
 
-inner_z_h       = parts_top + part_clearance
-                  + extra_above_carrier;                // [G] 38.50
+// Every part clear of the lid by part_clearance - and, only while the Feather
+// lies flat, clear of it by feather_headroom as well. Standing, that headroom
+// is a plan dimension (see the bay) and asks nothing of the depth at all.
+feather_flat_floor = feather_standing ? 0 : top_feather + feather_headroom;
+inner_z_h       = max(parts_top + part_clearance, feather_flat_floor)
+                  + extra_above_carrier;                // [G] 32.50
 outer_t        = inner_z_h + lid_d;                     // [G] 41.50 total depth
 
 /* --- Outer dimensions --- */
-inner_b  = env_b + 2*inner_margin;      // [G] 141.12
-inner_h  = env_h + 2*inner_margin;      // [G]  94.59
-outer_b = inner_b + 2*wall;          // [G] 145.92
-outer_h = inner_h + 2*wall;          // [G]  99.39
+// The margin above the component rectangle is NOT the same as the other
+// three. That band is where the Feather stands on edge, and it needs the
+// board's 50.8 mm of length and its 22.0 mm of sideways connector stack. The
+// keys, the speaker and the chamber do not move for it - the component
+// rectangle is untouched and every key position is built from board sizes and
+// gaps, not from margins. All that grows is the border above them.
+margin_top  = 19.00;  // [K] 7.00 would be the plain margin. What the bay
+                      //     needs is 18.30, and the block only leaves 6.00 mm
+                      //     of the component rectangle above it.
+
+inner_b  = env_b + 2*inner_margin;             // [G] 125.12
+inner_h  = env_h + inner_margin + margin_top;  // [G] 103.59
+outer_b = inner_b + 2*wall;          // [G] 129.92
+outer_h = inner_h + 2*wall;          // [G] 108.39
 centre_x  = env_b/2;                   // [G]
-centre_y  = env_h/2;                   // [G]
+// Not env_h/2 any more: the inner rectangle runs from -inner_margin to
+// env_h + margin_top, so its centre sits above the component rectangle's.
+centre_y  = (env_h + margin_top - inner_margin)/2;   // [G] 45.09
 
 /* --- Tolerances --- */
 gap_cap   = 0.30;   // [M] air all round the key cap in the front cutout.
@@ -437,18 +487,67 @@ battery_y    =   2.50;  // [K]
 // reaches the case edge. That is the wall the speaker and the set key are
 // nearest, the child's left-hand side, and it is the only wall this board
 // can reach. Vertically into the lower strip, below the speaker chamber.
-feather_x = env_b + inner_margin - feather_l;   // [G] 83.32
+// The bracket that holds it: a channel hanging off the UNDERSIDE of the mid
+// plate, board slid down between its two walls. That face is otherwise flat,
+// so this is the only thing on the plate that needs support - a 51 x 8 mm
+// footprint, and the rest of the part prints as it always did.
+feather_br_wall = 1.60;  // [K] each wall of the channel, 4 passes
+feather_br_l    = 19.00;  // [A] how far down it grips - MEASURE against a
+                          //     board, it only sets the plate's build height
+feather_br_slot = feather_pcb_d + 0.40;   // [G] 2.00, the board plus a little
+// Lowest point of the carrier, and so where it meets the print bed. With the
+// bracket hanging under it, that is no longer the plate's underside.
+carrier_z_low = feather_standing ? carrier_z_bottom - feather_br_l
+                                 : carrier_z_bottom;
+feather_br_clip = 8.00;   // [A] how much of the far end the clip wraps. It has
+                          //     to miss the header rows, and where those start
+                          //     is the one thing here taken from a drawing.
+
+/* --- The Feather's bay, when it stands ---------------------------------
+   In the top margin, hard against the -x wall so the socket on its short edge
+   can reach that wall, and clear of the block below it. 50.8 mm of board
+   length, and 22.0 mm across for the connectors: that 22.0 is what the 16 mm
+   top margin was grown for.                                              */
+feather_bay_x  = -inner_margin;                               // [G]  -7.00
+// The bay starts AT the board, not a bracket-wall below it: the strip below
+// is what the bracket hangs from. Cut the bay down to the bracket and it hangs
+// off a 1.7 mm tab at one corner, which is neither strong nor 2-manifold.
+feather_bay_y  = blk_my2 + sk_board_h/2 + 0.4
+                 + feather_br_wall;                           // [G]  76.59
+// Nothing in the bay may reach down over the block's top boards, which end at
+// blk_my2 + sk_board_h/2 - the bay is in the top margin but the board and its
+// connectors hang down into the board plane, where the block is.
+feather_bay_l  = feather_l + 2*feather_play;                  // [G]  51.40
+feather_bay_w  = feather_h + feather_headroom + feather_play; // [G]  22.30
+// In x the board cannot start at the bay's edge: the bay is a hole in the
+// PLATE, where the wall is at -inner_margin, but the board hangs down into the
+// board plane, where the wall is standoff thicker. It starts there instead,
+// and its socket still reaches the window because the socket overhangs it by
+// usb_overhang and the window is cut through both wall and thickening.
+feather_board_x = -inner_margin + standoff + feather_play;    // [G]  -4.70
+
+feather_x = feather_standing ? feather_board_x
+                             : env_b + inner_margin - feather_l;   // [G] 83.32
 // Not free: the well has to pass BETWEEN the set key's two rows of screw pads.
 // They leave 25.00 mm clear and the well is 23.40, so there are 0.8 mm of play
 // each side and this number sits in the middle of them. verify.py holds it.
-feather_y =   6.25;         // [K]
+// Standing, the board sits against the near side of its bay and the
+// connectors reach across it; lying flat it threads between the set key's two
+// rows of screws, which is where the 6.25 comes from.
+feather_y_flat = 6.25;                                     // [K]
+feather_y_stand = feather_bay_y;                           // [G] 76.59
+feather_y = feather_standing ? feather_y_stand
+                             : feather_y_flat;             // [G] 76.59
 
 // Amplifier: on the -x side of the chamber wall, above the battery. The runs
 // to the speaker are short there and the carrier is not cut away.
 // (In the first draft it sat down in a corner — there its bed protruded
 //  1.9 mm beyond the carrier edge and hit the case wall.)
-amp_x     =  40.00;  // [K]
-amp_y     =  58.50;  // [K]
+// Where the Feather used to lie. It has gone up into the bay, and this is the
+// only piece of carrier left that takes 24.2 x 22.6: the battery fills
+// everything to the -x side, the chamber everything above y = 34.49.
+amp_x     =  66.50;  // [K]
+amp_y     =   8.00;  // [K]
 
 // Retaining ribs on the carrier. The same numbers are used by the checks in
 // section 4 and by the modules in section 8 - otherwise they drift apart.
@@ -458,14 +557,18 @@ bed_margin = rib_b + part_play;   // [G] 2.40 added all round
 
 /* --- Lid bosses: 4 corners + middle top + middle bottom --- */
 boss_e = inner_margin - boss_d/2;   // [G] 4.0 - boss axis away from the inner wall
+boss_e_top = margin_top - boss_d/2; // [G] 13.0 - the same, on the taller side
 // Left and right are the child's here too, so -x is their right.
 boss_pos = [
   [ -boss_e        , -boss_e        ],   // bottom right
   [ env_b + boss_e , -boss_e        ],   // bottom left
-  [ -boss_e        , env_h + boss_e ],   // top right
-  [ env_b + boss_e , env_h + boss_e ],   // top left (sits inside the chamber)
+  // Not env_h + boss_e_top: that corner is the Feather's bay. It drops down
+  // the same wall to just below it, and the lid's top-right corner is held by
+  // its neighbours rather than by a screw of its own.
+  [ -boss_e        , feather_bay_y - boss_d/2 - 1.5 ],   // top right
+  [ env_b + boss_e , env_h + boss_e_top ],   // top left (sits inside the chamber)
   [ env_b/2       , -boss_e        ],   // middle bottom
-  [ env_b/2       , env_h + boss_e ]    // middle top
+  [ env_b/2       , env_h + boss_e_top ]    // middle top
 ];
 
 /* --- Carrier supports: short posts with locating pegs --- */
@@ -646,17 +749,32 @@ inner_t = inner_z_h - front_d;    // usable inner depth
 assert(inner_t >= spk_depth + 0.5,
   str("Inner depth ", inner_t, " mm is not enough for the speaker (",
       spk_depth, " mm)."));
-assert(inner_z_h - carrier_z_top >= battery_d,
-  "No room above the carrier for the battery.");
-// The Feather stands on standoffs - those belong in the budget. Exactly this
-// line was missing in the first draft; the Feather reached 1.3 mm into the
-// lid without any assert going off.
-assert(inner_z_h - carrier_z_top >= feather_support + feather_h,
-  str("No room above the carrier for the Feather: ",
-      inner_z_h - carrier_z_top, " mm free, ",
-      feather_support + feather_h, " mm needed."));
-assert(inner_z_h - carrier_z_top >= amp_support + amp_d,
-  "No room above the carrier for the amplifier.");
+// Each part against the lid, from the top it actually reaches - top_battery,
+// top_feather and top_amp are absolute z and already know where their part is
+// mounted. These used to be written as heights above the carrier, with the
+// Feather's counted as feather_support + feather_h; that stopped being true
+// the moment the Feather's pins went through the plate instead of standing on
+// it, and the line sat there dormant, passing for the wrong reason, until
+// feather_h grew enough to trip it. Absolute z cannot drift like that.
+assert(inner_z_h - top_battery >= part_clearance,
+  str("The battery reaches z = ", top_battery, " and the lid is at ",
+      inner_z_h, ". It presses on the lid."));
+// The connectors need feather_headroom, but which direction that is depends
+// on how the board is mounted: upward while it lies flat, sideways across the
+// bay while it stands. Same requirement, different axis.
+assert(feather_standing || inner_z_h - top_feather >= feather_headroom,
+  str("Only ", inner_z_h - top_feather, " mm of headroom above the Feather, ",
+      "and the push-on connectors need ", feather_headroom,
+      ". The Feather tops out at z = ", top_feather, " and the lid is at ",
+      inner_z_h, "."));
+assert(!feather_standing || feather_bay_w >= feather_h + feather_headroom,
+  str("The bay is ", feather_bay_w, " mm across and the board plus its ",
+      "connectors need ", feather_h + feather_headroom,
+      ". They would have to be plugged in before the board goes in, and ",
+      "could never come out."));
+assert(inner_z_h - top_amp >= part_clearance,
+  str("The amplifier reaches z = ", top_amp, " and the lid is at ",
+      inner_z_h, "."));
 
 /* --- What sits on the carrier must not get in each other's way --------
    Instead of individual hand checks ("is the battery beside the amp?") there is a
@@ -673,8 +791,14 @@ function overlaps(a, b) =
 carrier_items = [
   ["battery",        [battery_x - bed_margin,    battery_y - bed_margin,
                    battery_x + battery_b + bed_margin,    battery_y + battery_h + bed_margin]],
-  ["Feather",     [feather_x,        feather_y,
-                   feather_x + feather_l,     feather_y + feather_b]],
+  // Standing, the Feather is not a thing lying ON the carrier at all - it is
+  // the bay, which the carrier is cut away for and which nothing else may
+  // reach into. Either way it is one rectangle in this list.
+  ["Feather",     feather_standing
+                  ? [ feather_bay_x, feather_bay_y,
+                      feather_bay_x + feather_bay_l, feather_bay_y + feather_bay_w ]
+                  : [ feather_x, feather_y,
+                      feather_x + feather_l, feather_y + feather_b ]],
   ["amplifier", [amp_x - bed_margin,     amp_y - bed_margin,
                    amp_x + amp_b + bed_margin,      amp_y + amp_h + bed_margin]] ];
 
@@ -703,7 +827,7 @@ assert(len(collisions) == 0,
 outside = [ for (b = carrier_items)
                if (b[1][0] < -inner_margin - 0.001 || b[1][1] < -inner_margin - 0.001 ||
                    b[1][2] > env_b + inner_margin + 0.001 ||
-                   b[1][3] > env_h + inner_margin + 0.001) b[0] ];
+                   b[1][3] > env_h + margin_top + 0.001) b[0] ];
 assert(len(outside) == 0,
   str("Sticks out past the inner wall: ", outside));
 
@@ -810,19 +934,38 @@ assert(len(poles_off_plate) == 0,
 // sunk that is 3.2 mm lower than it used to be, which puts the window level
 // with the mid plate rather than above it - so the plate is notched there.
 // It gets that notch for free: the Feather's own cutout reaches the plate edge.
-usb_z    = feather_z_bottom + feather_pcb_d + usb_centre_above_pcb;
+// Standing, the socket sits on a short edge and therefore halfway up the
+// board; lying flat, it sits just above the board's top face.
+usb_z    = feather_standing
+         ? feather_z_bottom + feather_b/2
+         : feather_z_bottom + feather_pcb_d + usb_centre_above_pcb;
 usb_win_h = usb_socket_h + 1.4;
+usb_win_b = usb_socket_b + 1.4;
+// The socket turns with the board, so which of those two is the opening's
+// height depends on how the Feather is mounted. Standing, the wide dimension
+// is the one that runs up the wall.
+usb_win_z = feather_standing ? usb_win_b : usb_win_h;
 // The board lies on the plate's top face whichever way it is mounted, so the
 // window is above the plate either way - it just sits 2.0 mm lower without the
 // standoff under it, and that is the whole clearance there is to check.
-assert(usb_z - usb_win_h/2 > carrier_z_top + 0.6,
+// Standing, the socket is halfway up a board that starts at the front plate,
+// so the window sits well BELOW the mid plate rather than above it. What it
+// has to clear then is the ledge the plate rests on, from underneath.
+assert(!feather_standing || usb_z + usb_win_z/2 < carrier_z_bottom - 0.6,
+  str("The USB window runs to z = ", usb_z + usb_win_z/2,
+      " and the carrier ledge starts at ", carrier_z_bottom,
+      ". The window would cut the ledge away."));
+assert(!feather_standing || usb_z - usb_win_z/2 > front_d + 0.6,
+  str("The USB window starts at z = ", usb_z - usb_win_z/2,
+      " and the front plate is ", front_d, " thick."));
+assert(feather_standing || usb_z - usb_win_h/2 > carrier_z_top + 0.6,
   str("The USB window runs from z = ", usb_z - usb_win_h/2, " to ",
       usb_z + usb_win_h/2, " and the mid plate sits at ", carrier_z_bottom,
       " .. ", carrier_z_top, ". The socket would have to cut the plate ",
       "somewhere it is not notched."));
 // ... and the well has to run out to the plate edge, or the plate stands in
 // front of the socket instead of the wall doing it.
-assert(!feather_pins_through ||
+assert(feather_standing || !feather_pins_through ||
        feather_x + feather_l + feather_play >= env_b + inner_margin - carrier_play/2,
   str("The Feather's well stops ",
       env_b + inner_margin - carrier_play/2 - (feather_x + feather_l + feather_play),
@@ -918,18 +1061,33 @@ echo(str("screws              : ", threaded_insert ? "M3 threaded inserts" :
 echo(str("wall ", wall, " mm = ", wall/0.4, " passes with a 0.4 nozzle"));
 echo(str("print bed needed    : tub ", outer_b, " x ", outer_h,
          " mm, ", outer_t, " mm tall"));
-echo(str("carrier printing    : flat, ribs up, no support"));
-echo(str("Feather             : ", feather_pins_through ?
+echo(str("carrier printing    : ", feather_standing ?
+         str("ribs up, and SUPPORT under the Feather bracket (",
+             feather_l, " x ", feather_br_slot + 2*feather_br_wall,
+             " mm, ", feather_br_l, " deep)")
+       : "flat, ribs up, no support"));
+echo(str("Feather             : ", feather_standing ?
+         str("on edge in the top-margin bay, z ", feather_z_bottom, " .. ",
+             top_feather, ", connectors sideways, bracket under the plate")
+       : feather_pins_through ?
          str("pins through the plate, board flat on it at z = ",
              feather_z_bottom, ", top at ", top_feather,
              ", M2 into ", carrier_d, " mm of plate")
        : str("standing on ", feather_support, " mm standoffs, top at ",
              top_feather)));
+// Inlined rather than named: verify.py evaluates every assignment in this
+// file as Python, and `!` and `&&` are not Python. feather_flat_floor is
+// already the same thing in a shape it can read - 0 while the board stands.
 echo(str("what governs the depth: ",
-         parts_top == top_battery ? "battery" :
-         parts_top == top_feather ? "Feather" : "amplifier",
-         ", top at z = ", parts_top, ", then ", part_clearance,
-         " mm clearance + ", extra_above_carrier, " mm cable headroom"));
+         feather_flat_floor >= parts_top + part_clearance
+           ? str(feather_headroom, " mm of headroom over the Feather (top z = ",
+                 top_feather, "), for the push-on connectors")
+           : str(parts_top == top_battery ? "battery" :
+                 parts_top == top_feather ? "Feather" : "amplifier",
+                 ", top at z = ", parts_top, ", plus ", part_clearance,
+                 " mm clearance")));
+echo(str("the connectors' ", feather_headroom, " mm is ", feather_standing ?
+         "sideways, across the bay" : "upward, above the board"));
 echo(str("---------------------------------------------------------"));
 
 
@@ -1176,15 +1334,28 @@ module carrier_supports() {
 // no other, which is what puts the window here.
 // Deliberately tight: the wall takes the side loads, not the soldered socket.
 // The cable bend rests on the outside, that is the strain relief.
+/* --- USB-C window ------------------------------------------------------
+   Which wall, and which way up, both follow from how the board is mounted.
+   Lying flat it reaches the +x wall with the socket the normal way up, so the
+   opening is wide and short. Standing, the board reaches the -x wall instead
+   and the socket has turned with it: the opening is narrow and tall, and it
+   sits low enough to be in the thicker wall of the board plane.          */
 module usb_window() {
   fb = usb_socket_b + 1.4;
   fh = usb_win_h;
-  yc = feather_y + feather_b/2;
-  translate([env_b + inner_margin - 2, yc, usb_z]) rotate([0,90,0])
-    linear_extrude(wall + 4) rrect(fh, fb, 1.0);
-  // local wall pocket, so the socket can move into the opening
-  translate([env_b + inner_margin - 0.2, yc, usb_z]) rotate([0,90,0])
-    linear_extrude(1.4) rrect(fh + 4, fb + 5, 1.5);
+  if (feather_standing) {
+    yc = feather_y + feather_pcb_d/2;
+    translate([-inner_margin - wall - 2, yc, usb_z]) rotate([0,90,0])
+      linear_extrude(wall + standoff + 4) rrect(fb, fh, 1.0);
+    translate([-inner_margin - standoff - 1.4, yc, usb_z]) rotate([0,90,0])
+      linear_extrude(1.4) rrect(fb + 5, fh + 4, 1.5);
+  } else {
+    yc = feather_y + feather_b/2;
+    translate([env_b + inner_margin - 2, yc, usb_z]) rotate([0,90,0])
+      linear_extrude(wall + 4) rrect(fh, fb, 1.0);
+    translate([env_b + inner_margin - 0.2, yc, usb_z]) rotate([0,90,0])
+      linear_extrude(1.4) rrect(fh + 4, fb + 5, 1.5);
+  }
 }
 
 /* --- Logo on the bottom edge --- */
@@ -1262,19 +1433,53 @@ module carrier_outline() {
     // cable passages: slots in the gaps between the boards
     for (sl = carrier_slots)
       translate([sl[0], sl[1]]) square([sl[2] - sl[0], sl[3] - sl[1]]);
-    // The well the Feather's pins drop through: its footprint, less the four
-    // pads it rests and screws on. Those are ordinary plate, full thickness -
-    // they are what is LEFT of the plate, not something added back to it.
-    if (feather_pins_through)
+    // Standing, the whole bay is cut out of the plate: the board passes
+    // through it and its connectors reach across it, and the bracket that
+    // holds the board hangs off the plate around the edges of the hole.
+    if (feather_standing)
+      translate([feather_bay_x, feather_bay_y])
+        square([feather_bay_l, feather_bay_w]);
+    // Lying flat, the well is only its footprint, less the four pads it rests
+    // and screws on. Those are ordinary plate, full thickness - they are what
+    // is LEFT of the plate, not something added back to it.
+    if (!feather_standing && feather_pins_through)
       difference() {
         translate([feather_x - feather_play, feather_y - feather_play])
           square([feather_l + 2*feather_play, feather_b + 2*feather_play]);
         feather_pads_2d();
       }
     // and the pilot holes through those pads
-    if (feather_pins_through)
+    if (!feather_standing && feather_pins_through)
       for (q = feather_seats) translate(q) circle(d = feather_screw_core);
   }
+}
+
+/* --- The Feather's bracket -------------------------------------------
+   Two walls hanging under the plate with the board's slot between them, and a
+   back wall at each end so the channel cannot spread. Everything here points
+   DOWN, which is the one place in this design that wants support - see
+   building.md. In carrier-local coordinates z = 0 is the plate's underside,
+   so the bracket runs to -feather_br_l.                                  */
+module feather_bracket() {
+  if (feather_standing)
+    translate([0, 0, -feather_br_l]) linear_extrude(feather_br_l) {
+      // The long wall goes on the face the connectors do NOT come out of. A
+      // wall on the other face would sit exactly where the Dupont shells are.
+      translate([feather_board_x, feather_y - feather_br_wall])
+        square([feather_l, feather_br_wall]);
+      // and one clip at the far end, round three sides, to stop the board
+      // leaning away from that wall. Not at the near end: the USB socket is
+      // there. Whether it clears the header rows is the open question - see
+      // building.md.
+      translate([feather_board_x + feather_l - feather_br_clip,
+                 feather_y - feather_br_wall])
+        difference() {
+          square([feather_br_clip + feather_br_wall,
+                  feather_br_slot + 2*feather_br_wall]);
+          translate([0, feather_br_wall])
+            square([feather_br_clip, feather_br_slot]);
+        }
+    }
 }
 
 /* --- What the Feather rests and screws on -----------------------------
@@ -1374,6 +1579,7 @@ module carrier_additions() {
 
 module carrier() {
   translate([0, 0, carrier_z_bottom]) {
+    feather_bracket();
     difference() {
       linear_extrude(carrier_d) carrier_outline();
       sk_screw_holes();
@@ -1452,7 +1658,7 @@ module dummies() {
    ===================================================================== */
 
 if (part == "tub")        tub();
-else if (part == "carrier") translate([0,0,-carrier_z_bottom]) carrier();
+else if (part == "carrier") translate([0,0,-carrier_z_low]) carrier();
 else if (part == "lid")  translate([0,0,-inner_z_h]) lid();
 else if (part == "assembly") {
   color("#dcd8e8") tub();
@@ -1469,6 +1675,6 @@ else if (part == "exploded") {
 else if (part == "printbed") {
   // all three parts side by side, each in its print orientation
   tub();
-  translate([0, outer_h + 8, -carrier_z_bottom]) carrier();
+  translate([0, outer_h + 8, -carrier_z_low]) carrier();
   translate([0, 2*outer_h + 16, -inner_z_h]) lid();
 }

@@ -147,9 +147,13 @@ def compute(p, bed_x, bed_y):
               (G('blk_mx1'), G('blk_my1')), (G('blk_mx2'), G('blk_my1')),
               (G('blk_mx1'), G('blk_my2')), (G('blk_mx2'), G('blk_my2'))]
     boss_e = G('boss_e')
+    # Mirrored from the .scad, including that the top margin is its own number
+    # and that the -x top boss steps down out of the Feather's bay.
+    boss_e_top = G('margin_top') - G('boss_d') / 2
     boss_pos = [(-boss_e, -boss_e), (env_b + boss_e, -boss_e),
-               (-boss_e, env_h + boss_e), (env_b + boss_e, env_h + boss_e),
-               (env_b / 2, -boss_e), (env_b / 2, env_h + boss_e)]
+               (-boss_e, G('feather_bay_y') - G('boss_d') / 2 - 1.5),
+               (env_b + boss_e, env_h + boss_e_top),
+               (env_b / 2, -boss_e), (env_b / 2, env_h + boss_e_top)]
 
     # --- 1. Operation by a small child ------------------------------------
     g = '1. Operation - is the spacing enough for a child hand?'
@@ -291,21 +295,39 @@ def compute(p, bed_x, bed_y):
             ('amplifier', G('top_amp')))
     tallest = max(tops, key=lambda t: t[1])
     b.info(g, 'Feather',
+           'standing on edge in the top-margin bay, connectors sideways'
+           if G('feather_standing') else
            ('pins through the plate, board flat on it - %.1f mm lower than on '
             'standoffs' % G('feather_support')) if G('feather_pins_through')
            else 'standing on %.1f mm standoffs' % G('feather_support'))
     for n, t in tops:
         b.info(g, 'top of the %s' % n, 'z = %.2f mm' % t)
-    b.info(g, 'what governs the depth', '%s, at z = %.2f' % tallest)
-    b.info(g, 'above the carrier', '%.1f mm the parts need + %.1f mm of cable '
-                                   'headroom = %.1f mm'
-           % (G('parts_top') - G('carrier_z_top') + G('part_clearance'),
-              G('extra_above_carrier'), free_above_carrier))
-    # The headroom goes entirely BEHIND the parts. If it went in front, the
-    # five ScreenKeys would move with it and so would the cap protrusion.
-    b.check(g, 'the headroom is all behind the parts',
+    by_parts = G('parts_top') + G('part_clearance')
+    by_head = G('top_feather') + G('feather_headroom')
+    b.info(g, 'what governs the depth',
+           ('%.1f mm of headroom over the Feather, for the push-on connectors'
+            % G('feather_headroom')) if by_head >= by_parts
+           else '%s, at z = %.2f' % tallest)
+    # Only a depth requirement while the board lies flat. Standing, the
+    # connectors point sideways and the same 14 mm is the bay's width.
+    if G('feather_standing'):
+        b.check(g, 'bay wide enough for the connectors',
+                 G('feather_bay_w'), '>=',
+                 G('feather_h') + G('feather_headroom'),
+                 note='the connectors cannot be plugged or unplugged')
+    else:
+        b.check(g, 'headroom above the Feather',
+                 G('inner_z_h') - G('top_feather'), '>=', G('feather_headroom'),
+                 note='the connectors cannot be plugged or unplugged')
+    b.info(g, 'above the carrier', '%.1f mm to the top of the parts, then '
+                                   'whichever floor is higher = %.1f mm'
+           % (G('parts_top') - G('carrier_z_top'), free_above_carrier))
+    # It all goes BEHIND the parts. If any of it went in front, the five
+    # ScreenKeys would move with it and so would the cap protrusion.
+    b.check(g, 'the room is all behind the parts',
              G('inner_z_h'), '==',
-             G('parts_top') + G('part_clearance') + G('extra_above_carrier'),
+             max(by_parts, 0.0 if G('feather_standing') else by_head)
+             + G('extra_above_carrier'),
              note='the front of the device moves with it')
     for n, t in tops:
         b.check(g, 'the %s clears the lid' % n,
@@ -342,7 +364,14 @@ def compute(p, bed_x, bed_y):
         ('battery', (G('battery_x') - bed_margin, G('battery_y') - bed_margin,
                   G('battery_x') + G('battery_b') + bed_margin,
                   G('battery_y') + G('battery_h') + bed_margin)),
-        ('Feather', (G('feather_x'), G('feather_y'),
+        # Standing, the Feather is not a thing lying ON the carrier - it is
+        # the bay, which the plate is cut away for and nothing else may reach
+        # into. Either way it is one rectangle here.
+        ('Feather', (G('feather_bay_x'), G('feather_bay_y'),
+                     G('feather_bay_x') + G('feather_bay_l'),
+                     G('feather_bay_y') + G('feather_bay_w'))
+                    if G('feather_standing') else
+                    (G('feather_x'), G('feather_y'),
                      G('feather_x') + G('feather_l'),
                      G('feather_y') + G('feather_b'))),
         ('amplifier', (G('amp_x') - bed_margin, G('amp_y') - bed_margin,
@@ -375,7 +404,7 @@ def compute(p, bed_x, bed_y):
                     if r[0] < -G('inner_margin') - 1e-3
                     or r[1] < -G('inner_margin') - 1e-3
                     or r[2] > env_b + G('inner_margin') + 1e-3
-                    or r[3] > env_h + G('inner_margin') + 1e-3]
+                    or r[3] > env_h + G('margin_top') + 1e-3]
     b.check(g, 'protrudes past the inner wall', len(sticking_out), '==', 0,
              unit='pcs', note=', '.join(sticking_out))
 
@@ -481,15 +510,35 @@ def compute(p, bed_x, bed_y):
     # The +x wall, the one the speaker and the set key are nearest - the
     # child's left. The board reaches no other, so the window can be nowhere
     # else either.
-    b.check(g, 'Feather edge at the inner wall',
-             abs(G('feather_x') + G('feather_l') - env_b - G('inner_margin')),
-             '<=', 0.01,
-             note='the socket does not reach the case edge')
+    # Standing, the socket is on a SHORT edge, so it is the bay that has to
+    # touch a wall - the -x one, which is the child's right.
+    if G('feather_standing'):
+        b.check(g, 'bay against the inner wall', 
+                 abs(G('feather_bay_x') + G('inner_margin')), '<=', 0.01,
+                 note='the socket does not reach the case edge')
+    else:
+        b.check(g, 'Feather edge at the inner wall',
+                 abs(G('feather_x') + G('feather_l') - env_b - G('inner_margin')),
+                 '<=', 0.01,
+                 note='the socket does not reach the case edge')
     b.check(g, 'socket reaches into the wall',
              G('usb_overhang'), '>=', 0.5)
     win_h = G('usb_win_h')
-    b.check(g, 'window bottom edge above the carrier ledge',
-             G('usb_z') - win_h / 2, '>=', G('carrier_z_top') + 0.6)
+    # Standing, the socket is halfway up a board that starts at the front
+    # plate, so the window is well BELOW the carrier - it lives in the thicker
+    # wall of the board plane instead, and what it has to clear is the plate.
+    if G('feather_standing'):
+        # Turned on its side with the board, so the wide dimension is the one
+        # that runs up the wall.
+        wz = G('usb_win_z')
+        b.check(g, 'window above the front plate',
+                 G('usb_z') - wz / 2, '>=', G('front_d') + 0.6)
+        b.check(g, 'window below the carrier ledge',
+                 G('usb_z') + wz / 2, '<=', G('carrier_z_bottom') - 0.6,
+                 note='the window cuts into the ledge the carrier rests on')
+    else:
+        b.check(g, 'window bottom edge above the carrier ledge',
+                 G('usb_z') - win_h / 2, '>=', G('carrier_z_top') + 0.6)
     b.check(g, 'window top edge below the lid rebate',
              G('usb_z') + win_h / 2, '<=', G('inner_z_h') - 1.0)
     b.check(g, 'window wider than the socket',
