@@ -811,6 +811,16 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   border-radius: 10px; cursor: pointer; position: relative;
   background: var(--cell-color, var(--surface)); color: #1c1f24;
   border: 2px solid var(--line);
+  /* A grid item's automatic minimum size is its content, so a cell holding a
+     two-line word and a picture pushed its whole row taller than the ratio and
+     left every other cell in that row short - a board that goes ragged at the
+     one word somebody wrote a sentence into. The cell keeps the shape the
+     ratio gives it, and what is in it fits. */
+  min-height: 0;
+  /* The board has no dense/roomy class - it is sized by --cols alone - so the
+     label is sized by how wide the cell came out, which is the thing the
+     column count was standing in for anyway. */
+  container-type: inline-size;
 }
 /* The label sits over a word-class colour, which is a light fill from the
    Fitzgerald key - so the text on a cell is dark whatever the page's theme is.
@@ -849,10 +859,42 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .appcell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
 .appcell[draggable="true"] { cursor: grab; }
 .appcell[draggable="true"]:active { cursor: grabbing; }
-.appcell img { max-width: 100%; max-height: 60%; object-fit: contain; }
+/* `min-height: 0` so the picture is the part that gives: a flex item will not
+   shrink past its own content without it, and at eleven columns two lines of
+   word and a picture at 60% want more height than the cell has. The word is
+   the part somebody is reading. */
+.appcell img { max-width: 100%; max-height: 60%; min-height: 0; object-fit: contain; }
+/* Two lines, then an ellipsis.
+ *
+ * AsTeRICS Grid's TextConfig offers three answers to a label that does not fit
+ * - shrink to fit, truncate, ellipsis - and defaults to one line and shrink.
+ * Two lines and an ellipsis is the better default here: at eleven columns a
+ * cell is about 95px, and shrinking "Ich habe Durst" to one line of that makes
+ * type nobody can read, while truncating loses the end of the sentence with no
+ * sign that anything is missing. Which of the three it is could become a
+ * setting later; it should not be one before somebody wants it.
+ *
+ * `flex: none` because the two lines are the point: without it the label is a
+ * shrinkable flex item and a tall picture squeezes it back to one. */
 .appcell__label {
+  flex: none;
   font-size: 13px; line-height: 1.2; text-align: center;
   overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+/* A button with a word and no picture is its own thing, not a cell missing
+   something. AsTeRICS Grid sets text-only buttons at 35% of the cell height
+   against 15% with a picture - more than twice - and that ratio is what makes
+   them read as deliberate. There is no placeholder glyph for the same reason:
+   an empty picture slot on a board is furniture announcing an absence, and the
+   way to add one is a press away. */
+.appcell--words .appcell__label { font-size: 20px; -webkit-line-clamp: 3; }
+/* Where the cell came out small - eleven columns and up - the same two rules
+   at a size that still fits the lines it promises. */
+@container (max-width: 120px) {
+  .appcell__label { font-size: 12px; }
+  .appcell--words .appcell__label { font-size: 15px; }
 }
 /* Moved to the leading corner: the trailing one is the play button's, and a
    badge under a control nobody can see until they hover is a badge nobody
