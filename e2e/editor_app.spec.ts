@@ -562,10 +562,35 @@ test("a button can be heard from the board, and only where there is something to
     await expect(cells(page).nth(10).locator(".appcell__play")).toHaveCount(0);
     await expect(cells(page).nth(11).locator(".appcell__play")).toHaveCount(0);
 
-    // And a press on it does not open the cell behind it.
-    await expect(cells(page).nth(2).locator(".appcell__open"))
-      .toHaveAttribute("aria-pressed", "false");
+    /* And a press on it does not open the cell behind it. Asserted as "no
+     * sheet came up" rather than through aria-pressed, which is what said this
+     * while the panel existed: a cell is not a thing that stays down, it is a
+     * thing that opens a dialog, and it says so with aria-haspopup now. */
+    await expect(buttonSheet(page)).toHaveCount(0);
   });
+
+test("a cell says it opens a dialog, and carries no selected state", async ({ page }) => {
+  await standIn(page);
+  await build(page);
+  await page.locator("#appPages .tab").first().click();
+
+  /* The mark that outlived its meaning. A button used to be selected and the
+   * panel showed it, so the cell drew an accent border to say which one the
+   * panel was about - and once the panel became a sheet that closes over the
+   * board, the border was announcing a selection nothing could act on. It
+   * survived a whole redesign because it was drawn from state nothing read. */
+  await hit(page, 0).click();
+  await expect(buttonSheet(page)).toBeVisible();
+  await buttonSheet(page).locator("button", { hasText: label("ui.app_done") }).click();
+  await expect(buttonSheet(page)).toBeHidden();
+  await expect(page.locator("#appGrid .appcell.current")).toHaveCount(0);
+  await expect(hit(page, 0)).not.toHaveAttribute("aria-pressed", /.*/);
+
+  // What it does say instead, on a filled cell and on an empty one - both open
+  // the same sheet.
+  await expect(hit(page, 0)).toHaveAttribute("aria-haspopup", "dialog");
+  await expect(hit(page, 14)).toHaveAttribute("aria-haspopup", "dialog");
+});
 
 test("a move stops at the edge of the grid rather than walking off it",
   async ({ page }) => {
