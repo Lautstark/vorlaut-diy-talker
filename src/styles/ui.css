@@ -120,8 +120,22 @@ body {
 .workhead {
   display: flex; align-items: center; gap: 10px; padding: 12px 20px;
 }
-/* The action and the ⋯ sit at the end, past whatever the name did not use. */
-.workhead .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* The status, the action and the ⋯ sit at the end, past whatever the name did
+   not use - so the auto margin is on the first of the three rather than on the
+   action.
+
+   It used to be on .tools, which left the status line glued to the name: a
+   word that appears, changes and goes away, a few characters from a field
+   somebody is typing in. Two things move there and only one of them is being
+   read. At the far end it is beside the controls whose work it is reporting -
+   the transfer, the export - which is where somebody looks after pressing one,
+   and the name is left alone.
+
+   It keeps the auto margin whether or not there is anything to say: an empty
+   span still pushes, so the group does not slide sideways the moment
+   status() has a word. */
+.workhead .status { margin-left: auto; }
+.workhead .tools { display: flex; align-items: center; gap: 8px; }
 
 /* Put away, and the button that brings it back. Display rather than a width
    transition: the sidebar is a grid column, and animating one costs a reflow of
@@ -704,8 +718,14 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    fact about the Sammlung rather than about the page on screen, and putting it
    next to the strip would read as belonging to whichever tab is current. */
 .tab.current { color: var(--text); background: var(--surface-2); }
-.tab__home, .tab__lost { font-size: 12px; line-height: 1; }
-.tab__lost { color: var(--warn, #c76a00); }
+.tab__home, .tab__lost { line-height: 1; }
+/* Two glyphs, two sizes, because they are not drawn to the same scale. U+2302
+   is a small house sitting low in its em box; U+26A0 fills its own. At one
+   font-size the house came out as a speck beside a warning sign that did not,
+   which is the mark on the page somebody opens *first* being the harder one to
+   see. So the size is chosen per glyph to make them read as one pair. */
+.tab__home { font-size: 15px; }
+.tab__lost { font-size: 12px; color: var(--warn, #c76a00); }
 
 /* The grid, at the shape the tablet will draw it in. `aspect-ratio` rather
    than a fixed cell size, so that 3x5 and 6x11 both fill the column and a
@@ -791,7 +811,13 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 }
 .cell {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 4px; aspect-ratio: 4 / 3; min-width: 0; padding: 4px;
+  /* The gap is between the picture and the word, and it is the only thing that
+     keeps them two things. At 4px they touched at the ascenders and read as one
+     block - a symbol with a caption stuck to it rather than a symbol and the
+     word it stands for, which is the pairing the whole board is teaching. The
+     picture is the part that gives up the height, and it can: it is capped at
+     60% of the cell and the word is capped at two lines. */
+  gap: 8px; aspect-ratio: 4 / 3; min-width: 0; padding: 4px;
   border-radius: 10px; cursor: pointer; position: relative;
   background: var(--cell-color, var(--surface)); color: #1c1f24;
   border: 2px solid var(--cell-edge, var(--line));
@@ -829,15 +855,32 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 
 /* Hear it without opening anything. Hidden until the pointer or the keyboard
    is on the cell - the five-key board spends a permanent slot on this, and at
-   eleven columns there is no slot to spend. */
+   eleven columns there is no slot to spend.
+
+   Sized off the cell rather than fixed, which is what the cell being a
+   container is for. 24px was one number for two boards whose cells differ by a
+   factor of three: on the talker, where a cell is about 200px, it was a speck
+   in a corner of a key, and at 3 x 5 - which is what every tablet Sammlung
+   starts as - the cell is wider still and the speck was the same speck.
+
+   So it grows with the cell, and the two ends of the clamp are where the
+   argument actually is. The bottom is eleven columns, where a cell is about
+   95px and can be 80 with the sidebar open: there the button is over the
+   picture with the word below it, and every pixel it takes is one the picture
+   had, so it stops at 26px - past the 24px WCAG 2.2 §2.5.8 floor and no
+   further. The top is 36px, which is a mouse target rather than a speck and is
+   what a 120px cell and everything above it gets. Nothing here can reach the
+   word: it is a flex item at the foot of the cell and this is absolutely
+   positioned above it. */
 .cell__play {
   position: absolute; top: 4px; right: 4px; z-index: 2;
-  width: 24px; height: 24px; padding: 0; line-height: 1;
+  width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
+  padding: 0; line-height: 1;
   display: grid; place-items: center;
   border: 0; border-radius: var(--radius-pill);
   background: var(--surface); color: var(--text-dim);
   box-shadow: var(--shadow-sm); cursor: pointer;
-  font: inherit; font-size: 11px;
+  font: inherit; font-size: clamp(12px, 14cqw, 16px);
   opacity: 0; transition: opacity .12s ease;
 }
 .cell:hover .cell__play,
@@ -885,6 +928,10 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 @container (max-width: 120px) {
   .cell__word { font-size: 12px; }
   .cell--words .cell__word { font-size: 15px; }
+  /* No gap rule in here, and it is not an omission: an element is never its own
+     query container, so a `.cell` selector inside this block matches nothing.
+     8px turned out to hold at eleven columns anyway - the picture is what gives
+     up the height, and it has 60% of the cell to give it out of. */
 }
 /* Moved to the leading corner: the trailing one is the play button's, and a
    badge under a control nobody can see until they hover is a badge nobody
@@ -901,9 +948,9 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .cell--shared.cell--empty { border-style: dashed; }
 .cell .blank { font-size: 11px; text-align: center; color: var(--text-faint); }
 
-/* --------------------------------------------- the three the talker adds
+/* ---------------------------------------------- the four the talker adds
 
-   Everything above is both editors'. These three are the five-key device, and
+   Everything above is both editors'. These four are the five-key device, and
    each of them is a fact about the hardware rather than a choice.
 
    The board itself is #device, at --cols:3 and --rows:2 written into the
@@ -912,15 +959,35 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    do not fit in it, and three columns of 640px is a cell about 200px wide,
    which is a symbol somebody can judge. */
 
+/* Square, because the display is square.
+
+   The shared .cell is 4:3, which is the tablet's cell and a fair picture of a
+   tablet button. It is not a fair picture of this one: a key on this device is
+   a 128x128 screen showing a 116x116 tile - IMG_SIZE and TILE_SIZE in
+   src/data/tiles.ts - so a 4:3 cell here reports a shape the hardware does not
+   have, and reports it while somebody is deciding whether a pictogram survives
+   at that size. Whatever else the board is doing, it is drawing the device.
+
+   The tablet is not bound by this and keeps 4:3: nothing about a tablet button
+   is square, and the cell it draws is the cell the viewer draws. */
+#device .cell { aspect-ratio: 1 / 1; }
+
 /* The hole where the speaker is.
 
    Not a cell somebody can do anything with, so not a control and not a drop
    target: no cursor, no hover, and nothing focusable inside it. Drawn as the
    speaker rather than captioned as an absence - a cell saying "empty" invites
    somebody to fill it, and this one cannot be filled, because behind it there
-   is a 40 mm cone. */
+   is a 40 mm cone.
+
+   No border at all, which is design's docs/mocks/editor.css and the last step
+   of that same argument. A dashed outline is this product's word for a place
+   something can go - .cell--empty wears it, and so does every drop target - so
+   drawing the speaker with one said the opposite of the sentence above it: an
+   empty cell you could put a key in. What is left is the glyph and its
+   caption, which are the whole of what this is. */
 .cell--hole {
-  cursor: default; border-style: dashed; background: transparent;
+  cursor: default; border: 0; background: transparent;
   color: var(--text-faint);
 }
 .cell--hole > span {
@@ -1134,11 +1201,40 @@ dialog.sheet--page { max-width: 520px; }
 
    A page has no cell on a tablet - its name belongs to nothing on the board -
    so the current tab carries the way in. The same ... the work head uses for a
-   Sammlung, one level down, on the thing it acts on. */
+   Sammlung, one level down, on the thing it acts on.
+
+   It stays a control of its own, and here is what it was weighed against. The
+   tab is already a 100px target and a second press on the one you are standing
+   on does nothing, so that press was free to take - but a modal that opens on
+   the second click of the page you are already on is a modal that opens by
+   accident, and the gesture has nothing on screen to announce it. The other
+   way round - dropping the ... and letting the tab carry both - loses the only
+   labelled, keyboard-reachable way to a page's own card. So what was wrong was
+   never that it needed a door somewhere else: it was that this door was drawn
+   at glyph size with 2px of padding round it, which is a 16x11 target for
+   something the work head gives a 40px button to.
+
+   So: a box rather than a glyph, at 26px, past the 24px WCAG 2.2 §2.5.8 floor,
+   and a glyph inside it big enough to read as the same ... the work head has.
+   The negative margins take it back out of the tab's own padding, so a tab
+   carrying one is the height of a tab that is not.
+
+   And it is on every tab, not only the current one - see drawPages() and
+   drawTabs(). Hidden with `visibility`, which keeps the box: the strip used to
+   reflow on every page change, because the tab being left grew a control and
+   the tab being arrived at lost one, and every tab after them slid. Reserving
+   it is what makes the enlargement free, and it fixes the jump that was
+   already there. `visibility: hidden` is also what keeps the reserved copies
+   out of the accessibility tree and out of the tab order, so there is still
+   exactly one of these to find. */
 .tab__more {
+  flex: none; width: 26px; height: 26px; margin: -5px -7px -5px 0;
+  display: grid; place-items: center;
   border: 0; background: transparent; color: var(--text-faint);
-  cursor: pointer; font: inherit; line-height: 1; padding: 0 2px;
+  cursor: pointer; font: inherit; font-size: 17px; line-height: 1;
   border-radius: var(--radius-sm);
 }
 .tab__more:hover { color: var(--text); background: var(--surface-3); }
 .tab__more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The reserved copy on every other tab: it holds its box and does nothing. */
+.tab__more--idle { visibility: hidden; pointer-events: none; }

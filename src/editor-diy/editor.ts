@@ -432,14 +432,21 @@ function drawTabs(): void {
      * and once as what is on the device. Both lead to the thing itself.
      *
      * A <span> wearing role="button" for the reason the tab is a <div>: it is
-     * inside something that is already pressed and dragged. */
+     * inside something that is already pressed and dragged.
+     *
+     * Every set tab gets the element and only the current one gets the
+     * control, which is editor-app's drawPages() and the same reason: the
+     * strip reflowed on every switch, and here the tabs are also dragged to
+     * reorder, so a row that resizes under the pointer is a row that resizes
+     * mid-drag. The reserved copies are `visibility: hidden` - the box, and
+     * nothing in the accessibility tree or the tab order. */
+    const more = document.createElement("span");
+    more.className = "tab__more";
+    more.textContent = "⋯";
     if (index === current) {
-      const more = document.createElement("span");
-      more.className = "tab__more";
       more.setAttribute("role", "button");
       more.tabIndex = 0;
       more.setAttribute("aria-label", t("ui.set_more"));
-      more.textContent = "⋯";
       const edit = (event: Event) => {
         // Or the press falls through to the tab, which would redraw the strip
         // out from under the sheet that is opening.
@@ -452,8 +459,11 @@ function drawTabs(): void {
         event.preventDefault();
         edit(event);
       };
-      tab.appendChild(more);
+    } else {
+      more.classList.add("tab__more--idle");
+      more.setAttribute("aria-hidden", "true");
     }
+    tab.appendChild(more);
 
     // Reorder sets: the order determines how the set key cycles through, so on
     // this device it is the navigation rather than the presentation - the
