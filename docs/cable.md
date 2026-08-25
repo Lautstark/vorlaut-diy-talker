@@ -458,8 +458,28 @@ was sent, which read as the dialog having been ignored; then the chooser was
 moved out of the press altogether, which fixed it by removing the thing
 somebody had pressed the button for. Every press after the first goes straight
 through — `getPorts()` hands the port back with no gesture at all, and the
-sheet names it rather than asking again. Choosing a different port later is in
-the settings, under *Device*, along with the folder export.
+sheet names it rather than asking again.
+
+**Choosing a different port later needs no settings panel**, and since
+2026-08-25 there is not one. A port that stops answering — a different cable, a
+different talker, or one that was never the talker — fails the transfer with
+`cable_no_device`; that sets `askAgain` in `release.ts`, and the next press is
+back at the step with *Choose the device* on it. The error text says so, so
+somebody knows a second press is worth making rather than guessing.
+
+**What that costs is one build, and it is a real cost.** `run()` builds and
+then sends, so the press that discovers a dead port has already paid for a full
+build with every synthesis in it. One press, one wasted build, then the chooser
+and a second build.
+
+The fix is to find the talker before building rather than after, and the
+obvious way to write it is wrong in a way worth recording: `hello` starts a
+session, and the device ends one after `CABLE_QUIET_MS` — four seconds — of the
+browser not talking (`firmware/vorlaut/cable.h`, the loop that reports "the
+browser stopped talking"). A build is minutes, so holding the cable open across
+it would break every transfer rather than only the unlucky ones. The shape that
+works is open, hello, **close**, build, open again — a second greeting on the
+good path to save a whole build on the bad one. Not built yet.
 
 **The bench is still here for what that button cannot be.** `tools/serialcheck.html`
 is where a payload can be invented with no build behind it — so that a failure
@@ -516,9 +536,10 @@ build writes IndexedDB, and the backup export leaves build output out on
 purpose, so `mklittlefs` had nothing to image and this bench's folder picker
 had nothing to pick.
 
-That is what *Device → Write the build into a folder* in the editor's
-settings is for. It writes exactly what the cable would send, into a folder you
-choose, and it is the second way in:
+That is what *Write the build into a folder* is for — in the `⋯` beside the
+Sammlung's name, with the two exports, because it writes that one Sammlung's
+files. It writes exactly what the cable would send, into a folder you choose,
+and it is the second way in:
 
 - **The bench can send it.** Pick that folder under *Pick a `data/` folder*
   below. The page and the bench are then two independent clients of the same
