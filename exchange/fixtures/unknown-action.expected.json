@@ -1,7 +1,7 @@
 {
   "fixture": "unknown-action",
   "file": "unknown-action.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "Three buttons with actions outside the mandatory set, including a v1-out-of-scope spelling button.",
   "outcome": "accepted",
   "package": {

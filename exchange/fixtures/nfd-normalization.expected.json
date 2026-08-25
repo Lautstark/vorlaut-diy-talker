@@ -1,7 +1,7 @@
 {
   "fixture": "nfd-normalization",
   "file": "nfd-normalization.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "Archive member name is NFD; the manifest and board refer to it in NFC. The importer must still find the image.",
   "outcome": "accepted",
   "package": {

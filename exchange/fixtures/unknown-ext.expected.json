@@ -1,7 +1,7 @@
 {
   "fixture": "unknown-ext",
   "file": "unknown-ext.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "Unknown ext_lautstark_*, the talker's ext_vorlaut_*, a foreign vendor's fields, and unknown plain OBF fields.",
   "outcome": "accepted",
   "package": {

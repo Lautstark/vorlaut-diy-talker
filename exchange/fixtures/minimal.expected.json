@@ -1,7 +1,7 @@
 {
   "fixture": "minimal",
   "file": "minimal.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "One board, one button, one baked image, one baked Opus clip.",
   "outcome": "accepted",
   "package": {
@@ -11,7 +11,8 @@
     "symbol_source": "arasaac",
     "redistributable": true,
     "tts_voice": "en_GB-alba-medium",
-    "root_board": "hallo"
+    "root_board": "hallo",
+    "first_column_gap": false
   },
   "boards": [
     {
@@ -38,6 +39,7 @@
   "warnings": [],
   "notes": [
     "The smallest package an importer must accept. If this one fails, nothing else in the set is worth running.",
-    "The button carries no action, so it appends its vocalization to the message bar - the default and the common case."
+    "The button carries no action, so it appends its vocalization to the message bar - the default and the common case.",
+    "first_column_gap is false and the manifest does not carry the field at all. That is the assertion: SPEC.md 4.1 gives it a default, and an importer that reads a missing hint as anything but false separates a column nobody asked to separate."
   ]
 }

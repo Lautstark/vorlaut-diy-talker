@@ -1,5 +1,5 @@
 {
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "generated_by": "exchange/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -92,6 +92,13 @@
       "expected": "warning-order.expected.json",
       "outcome": "accepted",
       "summary": "Six warnings across three boards, in the one order SPEC.md 9.5 allows."
+    },
+    {
+      "fixture": "first-column-gap",
+      "file": "first-column-gap.obz",
+      "expected": "first-column-gap.expected.json",
+      "outcome": "accepted",
+      "summary": "ext_lautstark_first_column_gap on a package whose leftmost column repeats across both boards."
     }
   ]
 }

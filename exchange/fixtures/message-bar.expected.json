@@ -1,7 +1,7 @@
 {
   "fixture": "message-bar",
   "file": "message-bar.obz",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "summary": "Append, :speak, :clear, :backspace, and one ext_lautstark_speak_immediately button. German content, umlauts and eszett included.",
   "outcome": "accepted",
   "package": {
