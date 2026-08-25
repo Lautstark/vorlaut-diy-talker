@@ -7,10 +7,15 @@
 // import it. The shell reaches it through core/editor.ts, and `app` at the
 // foot of this file is what it reaches.
 //
-// `here` and `chosen` live here and nowhere else. They are where the editor is
-// standing - which page, which button - and they are reset by adopt() for the
-// same reason editor-diy's `current` is: page three of the kitchen Sammlung
-// and page three of the nursery Sammlung have nothing to do with each other.
+// `here` lives here and nowhere else. It is where the editor is standing -
+// which page - and it is reset by adopt() for the same reason editor-diy's
+// `current` is: page three of the kitchen Sammlung and page three of the
+// nursery Sammlung have nothing to do with each other.
+//
+// There is no `chosen` beside it any more. A button was once selected and the
+// panel showed it, so which one that was had to be remembered between renders;
+// now a press opens a sheet that carries its own copy and closes over it, and
+// the board goes back to having nothing on it that outlives a press.
 //
 // The graph itself is in pages.ts, deliberately without a document anywhere
 // near it: what happens to the buttons that pointed at a deleted page is the
@@ -43,8 +48,6 @@ import {
  *  deleting a page shifts every index after it and would silently move where
  *  somebody is standing. */
 let here = "";
-/** Which button the panel is showing, by id. "" for none. */
-let chosen = "";
 /** The button being dragged, by id. Null when nothing is. */
 let dragging: string | null = null;
 
@@ -168,7 +171,7 @@ function drawPages(): void {
       tab.appendChild(more);
     }
 
-    tab.onclick = () => { here = one.id; chosen = ""; render(); };
+    tab.onclick = () => { here = one.id; render(); };
     strip.appendChild(tab);
   });
 }
@@ -208,7 +211,6 @@ function acceptsDrop(box: HTMLElement, on: AppPage, row: number, col: number): v
     const id = dragging;
     dragging = null;
     moveButton(on, id, row, col);
-    chosen = id;
     commit();
   };
 }
@@ -232,6 +234,11 @@ function opener(label: string): HTMLElement {
   hit.setAttribute("role", "button");
   hit.tabIndex = 0;
   hit.setAttribute("aria-label", label);
+  /* What a press actually does, said rather than left to be found out. This
+   * was aria-pressed while the panel existed, which described a button that
+   * stays down - and once every cell opened a sheet instead, a screen reader
+   * was announcing a toggle state for something that toggles nothing. */
+  hit.setAttribute("aria-haspopup", "dialog");
   return hit;
 }
 
@@ -272,9 +279,6 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
   const named = held.label
     || (held.symbol ? held.vocalization.trim() || t("ui.app_button_symbol") : "");
   const hit = opener(named || t("ui.app_button_empty"));
-  hit.classList.toggle("current", held.id === chosen);
-  hit.setAttribute("aria-pressed", held.id === chosen ? "true" : "false");
-  box.classList.toggle("current", held.id === chosen);
   // A word with no picture is its own kind of button, and takes the room the
   // picture would have had. The class carries it; see .appcell--words.
   box.classList.toggle("appcell--words", !held.symbol);
@@ -390,7 +394,6 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     const to = [held.row + step[0], held.col + step[1]] as const;
     if (to[0] < 0 || to[0] >= grid.rows || to[1] < 0 || to[1] >= grid.columns) return;
     moveButton(on, held.id, to[0], to[1]);
-    chosen = held.id;
     commit();
     // render() rebuilt every cell, so the element that had focus is gone. It
     // follows the button rather than staying at the coordinate, which is what
@@ -622,7 +625,6 @@ async function askDelete(on: AppPage): Promise<boolean> {
 
   deletePage(layout, on.id);
   here = layout.pages[0]!.id;
-  chosen = "";
   commit();
   return true;
 }
@@ -974,7 +976,6 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
         label: draft.label, vocalization: draft.vocalization,
         symbol: draft.symbol, wordClass: draft.wordClass, act: draft.act,
       });
-      chosen = target.id;
     };
 
     const foot: HTMLElement[] = [];
@@ -992,7 +993,6 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
       remove.onclick = () => {
         const on = page();
         on.buttons = on.buttons.filter((one) => one.id !== held.id);
-        chosen = "";
         finish("done");
         commit();
       };
@@ -1167,8 +1167,6 @@ function openGrid(): void {
     // size into the bounds, so it runs whether or not anything moved.
     resize(layout, size.rows, size.columns);
     layout.wordColor = colour;
-    // Whatever was selected may have been one of the buttons that just went.
-    chosen = "";
     sheet.close();
     commit();
   };
@@ -1253,7 +1251,6 @@ export function wireEditor(): () => void {
   $<HTMLButtonElement>("appPageNew").onclick = () => {
     const made = addPage(board());
     here = made.id;
-    chosen = "";
     commit();
   };
 
@@ -1297,12 +1294,10 @@ export const app: Editor = {
   },
 
   /* A different Sammlung is in force. Back to its own home page rather than
-   * clamped to wherever the last one was standing, and with nothing selected:
-   * the panel would otherwise open on a button belonging to a board that is no
-   * longer on screen. */
+   * clamped to wherever the last one was standing rather than at whichever
+   * page the Sammlung before it happened to be open at. */
   adopt(): void {
     here = isApp(state.layout) ? state.layout.home : "";
-    chosen = "";
     render();
   },
 

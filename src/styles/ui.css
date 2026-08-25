@@ -845,7 +845,6 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    photograph. The third state sets neither property and is this rule and the
    fill both not applying. */
 .appcell[style*="--cell-edge"] { border-width: 3px; }
-.appcell.current { border-color: var(--accent); }
 
 /* What a press lands on: a box filling the cell, under the corner control
    rather than around it. The cell is a container; these two are the widgets
