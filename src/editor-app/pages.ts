@@ -36,9 +36,9 @@ import type { AppButton, AppLayout, AppPage } from "../core/types.js";
  *  a name or a position, because buttons point at it and both of those move. */
 const mint = (): string => crypto.randomUUID();
 
-/** An empty page, at whatever colour the caller wants it in. */
-export function blankPage(color: string, name = ""): AppPage {
-  return { id: mint(), name, color, buttons: [] };
+/** An empty page. */
+export function blankPage(name = ""): AppPage {
+  return { id: mint(), name, buttons: [] };
 }
 
 /** An empty button for one cell. Appending, with no word class: the default
@@ -114,8 +114,8 @@ export function unreachable(layout: AppLayout): AppPage[] {
  * gesture is the "new page" entry on a `goto` button's target select -
  * editor.ts calls this and then points the button at what comes back.
  */
-export function addPage(layout: AppLayout, color: string, name = ""): AppPage {
-  const page = blankPage(color, name);
+export function addPage(layout: AppLayout, name = ""): AppPage {
+  const page = blankPage(name);
   layout.pages.push(page);
   return page;
 }
@@ -156,7 +156,7 @@ export function addPage(layout: AppLayout, color: string, name = ""): AppPage {
  * Answers how many buttons were turned back into plain ones, which is the
  * number the question was asked with.
  */
-export function deletePage(layout: AppLayout, pageId: string, color: string): number {
+export function deletePage(layout: AppLayout, pageId: string): number {
   const at = layout.pages.findIndex((one) => one.id === pageId);
   if (at < 0) return 0;
 
@@ -164,7 +164,7 @@ export function deletePage(layout: AppLayout, pageId: string, color: string): nu
   for (const button of inbound) button.act = { kind: "append" };
 
   layout.pages.splice(at, 1);
-  if (!layout.pages.length) layout.pages.push(blankPage(color));
+  if (!layout.pages.length) layout.pages.push(blankPage());
   // Whether or not the deleted page was home: a home naming a page that is not
   // here is a package whose root does not resolve, and the same one-line fix
   // covers a layout that arrived that way.

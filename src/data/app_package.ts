@@ -708,7 +708,10 @@ function appBoards(
       grid: { rows, columns, order },
       images: [...images.values()].sort(byId),
       sounds: [...sounds.values()].sort(byId),
-      ext_lautstark_board_color: normalizeHex(page.color),
+      // No ext_lautstark_board_color. §4.2's field is optional and stays
+      // defined; a page has no colour to put in it while that idea is being
+      // reconsidered, and the viewer already treats the value as nullable. The
+      // talker's boards above still carry one, from the set.
     });
   }
 

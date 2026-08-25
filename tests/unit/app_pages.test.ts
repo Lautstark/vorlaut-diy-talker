@@ -28,8 +28,8 @@ const button = (over: Partial<AppButton> = {}): AppButton => ({
 
 /** Two pages, the second reached from a button on the first. */
 function twoPages(): AppLayout {
-  const home = blankPage("#3B5BDB", "Start");
-  const food = blankPage("#2F9E44", "Essen");
+  const home = blankPage("Start");
+  const food = blankPage("Essen");
   home.buttons.push(button({
     id: "to-food", row: 0, col: 1, label: "Essen", wordClass: "category",
     symbol: "arasaac-2462.png", act: { kind: "goto", page: food.id },
@@ -61,14 +61,14 @@ describe("what leads where", () => {
     expect([...reachable(layout)].length).toBe(2);
     // :home leads to where the walk started, so it can never make anything
     // reachable that was not. A page holding only one is still unreachable.
-    const attic = addPage(layout, "#000000", "Dachboden");
+    const attic = addPage(layout, "Dachboden");
     attic.buttons.push(button({ id: "back", act: { kind: "home" } }));
     expect(unreachable(layout).map((one) => one.name)).toEqual(["Dachboden"]);
   });
 
   it("reports an unreachable page rather than refusing to have one", () => {
     const layout = twoPages();
-    const made = addPage(layout, "#000000");
+    const made = addPage(layout);
     // Nothing links to it, and that is the ordinary state for the five seconds
     // between making a page and making the button that leads to it. It is
     // still in the Sammlung, and pageById still finds it.
@@ -83,7 +83,7 @@ describe("deleting a page others point at", () => {
     const food = layout.pages[1]!;
     const pointer = layout.pages[0]!.buttons[0]!;
 
-    expect(deletePage(layout, food.id, "#111111")).toBe(1);
+    expect(deletePage(layout, food.id)).toBe(1);
 
     // Everything the button was authored with survives. This is the whole rule:
     // a button reading "Essen" with a food symbol on it is still worth having
@@ -101,14 +101,14 @@ describe("deleting a page others point at", () => {
   it("does not touch the buttons that were on it - it takes them with it", () => {
     const layout = twoPages();
     const food = layout.pages[1]!;
-    deletePage(layout, food.id, "#111111");
+    deletePage(layout, food.id);
     expect(layout.pages.map((one) => one.name)).toEqual(["Start"]);
   });
 
   it("moves home when home is what went", () => {
     const layout = twoPages();
     const home = layout.pages[0]!;
-    deletePage(layout, home.id, "#111111");
+    deletePage(layout, home.id);
     // Allowed, rather than refused: refusing would leave a page nothing on
     // screen explains as undeletable. Home lands on the first page left.
     expect(layout.home).toBe(layout.pages[0]!.id);
@@ -117,8 +117,8 @@ describe("deleting a page others point at", () => {
 
   it("leaves an empty page behind when the last one goes", () => {
     const layout = twoPages();
-    deletePage(layout, layout.pages[1]!.id, "#111111");
-    deletePage(layout, layout.pages[0]!.id, "#111111");
+    deletePage(layout, layout.pages[1]!.id);
+    deletePage(layout, layout.pages[0]!.id);
     // conventions.md §1.9 one floor down: a button always belongs to a page, so
     // a page always exists. The alternative is a Sammlung with nowhere to put
     // anything and an empty state that has to teach two things at once.
@@ -130,7 +130,7 @@ describe("deleting a page others point at", () => {
   it("repairs a home that names no page at all", () => {
     const layout = twoPages();
     layout.home = "a page that is not here";
-    deletePage(layout, layout.pages[1]!.id, "#111111");
+    deletePage(layout, layout.pages[1]!.id);
     // Not a case the editor can reach, and the one line that fixes the case it
     // can also fixes this - which matters because `home` becomes manifest.root,
     // and a root naming nothing is a package the viewer rejects whole.
@@ -139,7 +139,7 @@ describe("deleting a page others point at", () => {
 
   it("does nothing at all for a page that is not there", () => {
     const layout = twoPages();
-    expect(deletePage(layout, "nobody", "#111111")).toBe(0);
+    expect(deletePage(layout, "nobody")).toBe(0);
     expect(layout.pages).toHaveLength(2);
   });
 });
@@ -181,10 +181,10 @@ describe("the grid", () => {
 
 describe("what a page and a button start as", () => {
   it("mints an id that is not derived from anything editable", () => {
-    const one = blankPage("#3B5BDB", "Essen");
-    const two = blankPage("#3B5BDB", "Essen");
-    // Same name, same colour, different pages. Buttons point at these values,
-    // so an id derived from a name would break every edge on a rename.
+    const one = blankPage("Essen");
+    const two = blankPage("Essen");
+    // Same name, different pages. Buttons point at these values, so an id
+    // derived from a name would break every edge on a rename.
     expect(one.id).not.toBe(two.id);
   });
 

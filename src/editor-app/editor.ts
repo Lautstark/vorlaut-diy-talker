@@ -22,7 +22,7 @@ import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
 import { isApp } from "../core/types.js";
 import type { Act, AppButton, AppLayout, AppPage, Layout } from "../core/types.js";
-import { GRID, LANG, palette, WORD_CLASSES } from "../core/boot.js";
+import { GRID, LANG, WORD_CLASSES } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save, saveSoon } from "../core/save.js";
 import { openPicker } from "../shell/picker.js";
@@ -64,15 +64,6 @@ function page(): AppPage {
   return pageById(layout, here) ?? layout.pages[0]!;
 }
 
-/** The next colour for a new page, walking the product palette.
- *
- * The palette rather than the Fitzgerald key, and that is the distinction the
- * whole colour scheme rests on: Fitzgerald colours a *word*, and a page is not
- * a word - it is a place, told apart from the other places at a glance by
- * somebody who does not read. Two schemes on one board would make green mean
- * "verb" in a cell and nothing at all round the edge of it. */
-const nextColor = (): string => palette[board().pages.length % palette.length]!;
-
 /* --- Writing ------------------------------------------------------------- */
 
 /**
@@ -113,11 +104,6 @@ function drawPages(): void {
     tab.className = "tab";
     tab.classList.toggle("current", one.id === page().id);
     tab.setAttribute("aria-current", one.id === page().id ? "true" : "false");
-    // The page's own colour, which is what the tablet will show: the strip is
-    // the only place in the editor where all of them are side by side, and
-    // telling them apart by colour is the whole reason they carry one.
-    tab.style.setProperty("--page-color", one.color);
-
     if (one.id === layout.home) {
       const home = document.createElement("span");
       home.className = "tab__home";
@@ -294,14 +280,6 @@ function pageControls(): HTMLElement {
   });
   box.appendChild(name);
 
-  const colour = document.createElement("input");
-  colour.type = "color";
-  colour.value = on.color;
-  colour.setAttribute("aria-label", t("ui.app_page_color"));
-  colour.oninput = () => { on.color = colour.value; saveSoon(); };
-  colour.onchange = () => { commit(); };
-  box.appendChild(labelled(t("ui.app_page_color"), colour));
-
   if (on.id !== layout.home) {
     const home = document.createElement("button");
     home.type = "button";
@@ -360,7 +338,7 @@ async function askDelete(on: AppPage): Promise<void> {
     danger: true,
   })) return;
 
-  deletePage(layout, on.id, nextColor());
+  deletePage(layout, on.id);
   here = layout.pages[0]!.id;
   chosen = "";
   commit();
@@ -487,7 +465,7 @@ function gotoPicker(held: AppButton): HTMLElement {
   select.value = held.act.kind === "goto" ? held.act.page : "";
   select.onchange = () => {
     if (select.value === "+") {
-      const made = addPage(layout, nextColor(), held.label.trim());
+      const made = addPage(layout, held.label.trim());
       held.act = { kind: "goto", page: made.id };
     } else {
       held.act = { kind: "goto", page: select.value };
@@ -609,7 +587,7 @@ export function wireEditor(): void {
   cols.onchange = moved;
 
   $<HTMLButtonElement>("appPageNew").onclick = () => {
-    const made = addPage(board(), nextColor());
+    const made = addPage(board());
     here = made.id;
     chosen = "";
     commit();
@@ -631,7 +609,7 @@ export const app: Editor = {
    * because a first board is big cells and few of them - and because the size
    * is a number now, so growing into the larger one costs nothing. */
   blank(): Layout {
-    const first = blankPage(palette[0]!);
+    const first = blankPage();
     return {
       target: "app",
       // The language the page is already in, read at the moment the Sammlung

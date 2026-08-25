@@ -166,11 +166,15 @@ export interface AppPage {
    *  moment somebody renamed a page. */
   id: string;
   name: string;
-  /** Hex, "#RRGGBB". The whole page's colour, which is what tells one page
-   *  from another before anything on it is read - exchange/SPEC.md §4.2's
-   *  ext_lautstark_board_color. This is a different job from a button's
-   *  colour: this one marks a place, that one marks a word class. */
-  color: string;
+  /* A page carried a colour here, written out as exchange/SPEC.md §4.2's
+   * ext_lautstark_board_color. It is gone from this half while the whole idea
+   * of colouring a *page* is reconsidered - a button's colour is untouched,
+   * because that one marks a word class and is the Fitzgerald key.
+   *
+   * The field in the format is optional and stays defined; this builder simply
+   * writes no value for it, which the viewer already handles (Board.color is
+   * nullable there). The talker still has one, on a set rather than a page,
+   * and that half goes with the firmware in its own change. */
   /** Sparse, and each one carries where it sits. There is deliberately no
    *  dense array of cells: growing the grid from 3x5 to 6x11 would re-index
    *  every entry of one, and that re-indexing is the rewrite this shape exists

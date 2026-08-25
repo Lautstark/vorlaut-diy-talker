@@ -775,11 +775,6 @@ dl.transfer dd { margin: 0; font-size: 14px; }
                 color: var(--text-dim); font-size: 13px; }
 .appbar__grid .num { width: 4.5em; }
 
-/* A page tab wears its own colour as a bar down the side - the same colour the
-   tablet draws round the whole page. Not as a background: ten pages of filled
-   tabs is a strip that competes with the board under it, and the colour's job
-   here is only to say "this tab is that page". */
-.tab { border-left: 4px solid var(--page-color, transparent); }
 .tab.current { color: var(--text); background: var(--surface-2); }
 .tab__home, .tab__lost { font-size: 12px; line-height: 1; }
 .tab__lost { color: var(--warn, #c76a00); }
