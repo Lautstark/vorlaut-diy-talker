@@ -1269,13 +1269,13 @@ function gridPanel(into: HTMLElement,
     /* Three alternatives, drawn the way the button sheet draws its four: one
      * radio group, so that which one is in force is said by the markup rather
      * than only by the colour it is drawn in. */
-    const does = document.createElement("div");
-    does.className = "does";
-    does.setAttribute("role", "radiogroup");
-    does.setAttribute("aria-label", t("ui.app_word_color"));
+    const choices = document.createElement("div");
+    choices.className = "opts";
+    choices.setAttribute("role", "radiogroup");
+    choices.setAttribute("aria-label", t("ui.app_word_color"));
     for (const one of ["fill", "border", "off"] as const) {
       const opt = document.createElement("label");
-      opt.className = "does__opt";
+      opt.className = "opts__opt";
       const radio = document.createElement("input");
       radio.type = "radio";
       radio.name = "appWordColor";
@@ -1287,9 +1287,9 @@ function gridPanel(into: HTMLElement,
       note.textContent = t(`ui.app_word_color_${one}_note`);
       opt.append(radio, head, note);
       radio.onchange = () => { if (radio.checked) colour = one; };
-      does.appendChild(opt);
+      choices.appendChild(opt);
     }
-    body.push(does);
+    body.push(choices);
 
     /* --- the first column ------------------------------------------------ */
 
@@ -1316,13 +1316,13 @@ function gridPanel(into: HTMLElement,
      * that the whole card reads as one list of decisions rather than as two
      * kinds of control that happen to share a sheet. */
     const switches = document.createElement("div");
-    switches.className = "does";
+    switches.className = "opts";
     switches.setAttribute("role", "group");
     switches.setAttribute("aria-label", t("ui.app_first_column"));
     const flag = (key: string, on: boolean, set: (on: boolean) => void,
                   note: string): void => {
       const opt = document.createElement("label");
-      opt.className = "does__opt";
+      opt.className = "opts__opt";
       const box = document.createElement("input");
       box.type = "checkbox";
       box.checked = on;
