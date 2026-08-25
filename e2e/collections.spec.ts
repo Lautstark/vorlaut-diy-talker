@@ -398,13 +398,13 @@ test("the open Sammlung's row follows what is done inside it", async ({ page }) 
   await openPanel(page, "#collectionEditorPanel");
   const card = page.locator("#collectionEditorPanel");
   await card.locator(".size")
-    .filter({ has: page.locator("b", { hasText: /^4 . 6$/ }) }).click();
+    .filter({ has: page.locator("b", { hasText: /^4 . 7$/ }) }).click();
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
-  await expect(page.locator("#collectionEditorState")).toHaveText(/^4 . 6$/);
+  await expect(page.locator("#collectionEditorState")).toHaveText(/^4 . 7$/);
 
   // The sheet is still open over it, and the row underneath has already moved.
   await expect(mine.locator(".collections__sub"))
-    .toHaveText(label("ui.collection_row_app", { rows: 4, columns: 6 }));
+    .toHaveText(label("ui.collection_row_app", { rows: 4, columns: 7 }));
 });
 
 test("a first visit has one collection, and it is open", async ({ page }) => {
