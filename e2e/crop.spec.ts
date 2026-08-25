@@ -38,10 +38,13 @@ async function upload(page: Page, box: Locator, fixture: string): Promise<void> 
 }
 
 const crop = (box: Locator) => box.locator(".crop");
-const takeCrop = (box: Locator) =>
-  box.locator(".pick button", { hasText: label("ui.crop_take") });
 const dropCrop = (box: Locator) =>
   box.locator(".pick button", { hasText: label("ui.crop_off") });
+
+/* Keeping the square is the foot's Fertig and nothing else - the crop has no
+ * confirming button of its own, because the sheet already had one. So the two
+ * steps every test below used to take are one step now. */
+const keepCrop = (box: Locator) => press(box, "ui.done");
 
 /** One pixel out of a picture that is on screen, as [r, g, b].
  *
@@ -87,7 +90,6 @@ test("a square picture is kept as it is, with nothing to answer", async ({ page 
 
   await expect(box.locator(".pick__preview img")).toBeVisible();
   await expect(crop(box)).toHaveCount(0);
-  await expect(takeCrop(box)).toBeHidden();
   await press(box, "ui.done");
 
   await expect(kept(page)).toHaveJSProperty("naturalWidth", 16);
@@ -131,8 +133,7 @@ test("the square it opens on is the middle of the picture", async ({ page }) => 
   await key(page, 0).click();
   const box = keySheet(page);
   await upload(page, box, "wide.png");
-  await takeCrop(box).click();
-  await press(box, "ui.done");
+  await keepCrop(box);
 
   const image = kept(page);
   await expect(image).toBeVisible();
@@ -163,8 +164,7 @@ test("the arrow keys move the square, and it stops at the edge",
   await upload(page, box, "wide.png");
 
   for (let nudge = 0; nudge < 20; nudge++) await crop(box).press("ArrowLeft");
-  await takeCrop(box).click();
-  await press(box, "ui.done");
+  await keepCrop(box);
 
   const image = kept(page);
   await expect(image).toHaveJSProperty("naturalWidth", 12);
@@ -200,8 +200,7 @@ test("dragging the picture moves what is kept, the other way", async ({ page }) 
   await page.mouse.move(at.x + at.width, midY, { steps: 8 });
   await page.mouse.up();
 
-  await takeCrop(box).click();
-  await press(box, "ui.done");
+  await keepCrop(box);
 
   const image = kept(page);
   await expect(image).toHaveJSProperty("naturalWidth", 12);
@@ -223,12 +222,48 @@ test("the slider takes a smaller square", async ({ page }) => {
   await upload(page, box, "wide.png");
 
   await box.locator(".crop__zoom").fill("200");
-  await takeCrop(box).click();
-  await press(box, "ui.done");
+  await keepCrop(box);
 
   const image = kept(page);
   await expect(image).toHaveJSProperty("naturalWidth", 6);
   await expect(image).toHaveJSProperty("naturalHeight", 6);
   expect(await pixelAt(image, 0, 3)).toEqual(GREEN);
   expect(await pixelAt(image, -1, 3)).toEqual(GREEN);
+});
+
+test("the foot's Fertig keeps the square, rather than closing over it", async ({ page }) => {
+  /* What somebody actually does. The square is adjusted, and then the eye goes
+   * to the one primary button on the screen - which says Fertig and is three
+   * inches away from the crop's own two.
+   *
+   * It used to drop the crop and close, and it was defensible on paper: nothing
+   * had been written, so the key kept what it had and no way out of this sheet
+   * had cost anything. From where somebody is sitting it was a picture chosen,
+   * a picture adjusted, and then nothing at all.
+   *
+   * The other ways out are unchanged and still cost nothing - see the cancel
+   * test above, and the corner ✕ below. */
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  await upload(page, box, "wide.png");
+  await expect(crop(box)).toBeVisible();
+
+  await keepCrop(box);
+
+  const image = kept(page);
+  await expect(image).toHaveJSProperty("naturalWidth", 12);
+  expect(await pixelAt(image, 0, 6)).toEqual(GREEN);
+});
+
+test("the corner ✕ still drops it, because that is what ✕ means", async ({ page }) => {
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  await upload(page, box, "wide.png");
+  await expect(crop(box)).toBeVisible();
+
+  await box.locator(".head button").click();
+  await expect(box).toBeHidden();
+  await expect(kept(page)).toHaveCount(0);
 });
