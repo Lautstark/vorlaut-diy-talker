@@ -76,10 +76,30 @@ test("a second set can be added and removed again", async ({ page }) => {
 
   await page.locator("#tabs .tab.add").click();
   await expect(tabs).toHaveCount(2);
+  // Something on it, so the question below has a number to carry.
+  await keyText(page).first().fill("Noch einmal");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
-  page.once("dialog", (dialog) => dialog.accept());
+  /* This used to be `page.once("dialog", d => d.accept())` - a native
+   * confirm(), which conventions.md §3.4 forbids and which asked "really
+   * delete?" with an OK button and no idea what was inside.
+   *
+   * What replaced it is the shape §1.7 asks for and the one editor-app already
+   * uses a floor down: a <dialog> that counts what goes and names the act on
+   * the button. Both halves are asserted here, because the count is the whole
+   * reason the question exists and a button reading OK would still pass a test
+   * that only checked the set disappeared. */
   await page.locator("#removeSet").click();
+  const asked = page.getByRole("dialog", { name: label("ui.remove_set") });
+  await expect(asked).toBeVisible();
+  await expect(asked.locator(".body")).toContainText(/(einen Taste|one key)/);
+
+  // Dismissed deletes nothing - the rule this repository keeps everywhere.
+  await asked.locator("button", { hasText: label("ui.cancel") }).click();
+  await expect(tabs).toHaveCount(2);
+
+  await page.locator("#removeSet").click();
+  await asked.locator("button", { hasText: label("ui.set_delete_go") }).click();
   await expect(tabs).toHaveCount(1);
 });
 

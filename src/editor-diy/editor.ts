@@ -22,6 +22,7 @@ import { t } from "../core/texts.js";
 import { save, saveSoon } from "../core/save.js";
 import { speak } from "../shell/speech.js";
 import { openPicker } from "../shell/picker.js";
+import { confirmDialog } from "@lautstark/design/dialog";
 
 let dragSet = null;         // index of the dragged set
 let dragSlot = null;        // index of the dragged key
@@ -519,15 +520,56 @@ export function wireEditor() {
     render();
   };
 
-  removeSetBtn().onclick = async () => {
-    if (!board().sets.length) return;
-    if (!confirm(t("ui.confirm_delete",
-                   { name: board().sets[current].name || "" }))) return;
-    board().sets.splice(current, 1);
-    current = Math.max(0, current - 1);
-    await save();
-    render();
-  };
+  removeSetBtn().onclick = () => { void askDelete(); };
+}
+
+/**
+ * The question asked before a set goes.
+ *
+ * A `<dialog>`, and this is the change: it was `window.confirm`, which
+ * conventions.md §3.4 forbids outright - the browser's own chrome is the one
+ * surface in the product no design token reaches, so it is the one place that
+ * cannot follow the scheme. The divergence list named mitreden for this and
+ * recorded vorlaut as compliant; vorlaut was not, and only this call site was
+ * left.
+ *
+ * It also failed §1.7's shape twice over. The question named the set and
+ * counted nothing inside it, so it asked somebody to decide without the one
+ * fact that could change their mind; and the confirming button said OK, which
+ * asks the reader to hold what it refers to in their head.
+ *
+ * What is counted is the keys with something on them rather than the four
+ * slots, which are always four. An empty set is the case where there is
+ * genuinely nothing to lose, and it says so instead of counting to zero.
+ *
+ * The same shape as editor-app's page delete, deliberately: they are the same
+ * act on the same kind of object, one editor apart.
+ */
+async function askDelete(): Promise<void> {
+  const sets = board().sets;
+  if (!sets.length) return;
+  const entry = sets[current]!;
+  const name = entry.name || t("ui.set_n", { n: current + 1 });
+  const n = (entry.slots || []).filter(
+    (slot) => (slot.text || "").trim() || (slot.symbol || "").trim()).length;
+
+  if (!await confirmDialog({
+    title: t("ui.remove_set"),
+    body: t(n === 0 ? "ui.set_delete_ask_none"
+             : n === 1 ? "ui.set_delete_ask_one" : "ui.set_delete_ask",
+            { name, n }),
+    confirmLabel: t("ui.set_delete_go"),
+    cancelLabel: t("ui.cancel"),
+    // Never the same word as the button beside it: two dismissals sharing an
+    // accessible name is ambiguous to anyone navigating by it.
+    closeLabel: t("ui.close"),
+    danger: true,
+  })) return;
+
+  sets.splice(current, 1);
+  current = Math.max(0, current - 1);
+  await save();
+  render();
 }
 
 /* What the shell is handed, and the whole of what it may ask for.
