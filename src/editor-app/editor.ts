@@ -772,7 +772,18 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * is short enough to read as one. Under the control it was a third stacked
    * line saying something the placeholder in the field had half said already;
    * beside the caption it says the half the placeholder cannot, and costs no
-   * height at all. */
+   * height at all.
+   *
+   * Short enough is a measured claim rather than a hope. The caption's line
+   * is the form column less the caption, which is 312px here, and the whole
+   * sentence has to fit in one of them - a note that wraps there is taller
+   * than the row it was moved out of, which is the modifier costing the
+   * height it was written to save. The sentence this row used to carry filled
+   * that line with nothing to spare; the one in ui.app_button_label_note now
+   * says the same thing in half of it, which is the margin a longer caption
+   * or a larger text size needs. ui.app_button_spoken_note is the same
+   * sentence about the other field, and the two are written to read as a
+   * pair. */
   const labelRow = formRow(t("ui.app_button_label"), labelInput,
                            t("ui.app_button_label_note"));
   labelRow.classList.add("form__row--caption");
@@ -817,8 +828,15 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   }
 
   const note = hint();
+  note.id = "appDoesNote";
   const does = dropdown(kinds, chose ?? draft.act.kind, () => { chosen(); });
   does.button.id = "appDoes";
+  /* Named to the trigger by hand, because this row builds its sentence rather
+   * than handing formRow() one: it is rewritten on every choice, so the row
+   * cannot be given a string once. What the association buys is the same
+   * thing it buys everywhere else - "Wort" on its own does not say what a
+   * word does, and this is the distinction people get wrong. */
+  does.button.setAttribute("aria-describedby", note.id);
   /* The note sits beside the trigger rather than under it, which is what the
    * trigger being a button rather than a full-width field buys: "Ausruf" is
    * three quarters of an empty line, and the sentence that tells it from
@@ -868,7 +886,6 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
     draft.vocalization = value;
   });
   spoken.id = "appSpoken";
-  spoken.placeholder = t("ui.app_button_spoken_hint");
   const play = document.createElement("button");
   play.type = "button";
   play.className = "btn";
@@ -885,7 +902,19 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   const withPlay = document.createElement("div");
   withPlay.className = "form__withplay";
   withPlay.append(spoken, play);
-  const spokenRow = formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id);
+  /* The same treatment as Aufschrift, and the same sentence about the other
+   * field: leave it empty and the label is what gets said.
+   *
+   * It was the field's placeholder, which is one place too few and one too
+   * many at once. Too few, because a placeholder is gone the moment somebody
+   * types - and the thing it says is about the empty field, so it disappears
+   * exactly when somebody might want to undo their way back to it. Too many,
+   * because the row would otherwise say it twice. So it moves onto the
+   * caption's line, where it stays put and costs no height, and the field is
+   * left bare. */
+  const spokenRow = formRow(t("ui.app_button_spoken"), withPlay,
+                            t("ui.app_button_spoken_note"), spoken.id);
+  spokenRow.classList.add("form__row--caption");
   rows.push(spokenRow);
 
   /* Eleven entries, which is the longest list in the product and the one that
