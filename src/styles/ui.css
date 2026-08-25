@@ -835,15 +835,32 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 
 /* Hear it without opening anything. Hidden until the pointer or the keyboard
    is on the cell - the five-key board spends a permanent slot on this, and at
-   eleven columns there is no slot to spend. */
+   eleven columns there is no slot to spend.
+
+   Sized off the cell rather than fixed, which is what the cell being a
+   container is for. 24px was one number for two boards whose cells differ by a
+   factor of three: on the talker, where a cell is about 200px, it was a speck
+   in a corner of a key, and at 3 x 5 - which is what every tablet Sammlung
+   starts as - the cell is wider still and the speck was the same speck.
+
+   So it grows with the cell, and the two ends of the clamp are where the
+   argument actually is. The bottom is eleven columns, where a cell is about
+   95px and can be 80 with the sidebar open: there the button is over the
+   picture with the word below it, and every pixel it takes is one the picture
+   had, so it stops at 26px - past the 24px WCAG 2.2 §2.5.8 floor and no
+   further. The top is 36px, which is a mouse target rather than a speck and is
+   what a 120px cell and everything above it gets. Nothing here can reach the
+   word: it is a flex item at the foot of the cell and this is absolutely
+   positioned above it. */
 .cell__play {
   position: absolute; top: 4px; right: 4px; z-index: 2;
-  width: 24px; height: 24px; padding: 0; line-height: 1;
+  width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
+  padding: 0; line-height: 1;
   display: grid; place-items: center;
   border: 0; border-radius: var(--radius-pill);
   background: var(--surface); color: var(--text-dim);
   box-shadow: var(--shadow-sm); cursor: pointer;
-  font: inherit; font-size: 11px;
+  font: inherit; font-size: clamp(12px, 14cqw, 16px);
   opacity: 0; transition: opacity .12s ease;
 }
 .cell:hover .cell__play,
