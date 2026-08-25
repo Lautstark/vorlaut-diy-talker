@@ -66,6 +66,14 @@ export const pageById = (layout: AppLayout, id: string): AppPage | undefined =>
  * The number the delete question needs, and the only fact in it that somebody
  * cannot see from the page they are standing on: what is *on* a page is on
  * screen, what points *at* it is on five other pages.
+ *
+ * A shared first-column button counts once, and it counts even when the page
+ * it leads to is the page being asked about. Both follow from what it is: it
+ * was authored once, so deletePage() has one edge to take from it - and it is
+ * drawn on every other page too, so it really does lead here from elsewhere.
+ * The rule above it - a page does not lead to itself - is about a button
+ * sitting on the very page it points at, and a shared button sits on all of
+ * them.
  */
 export function inboundTo(layout: AppLayout, pageId: string): AppButton[] {
   const found: AppButton[] = [];
@@ -75,6 +83,9 @@ export function inboundTo(layout: AppLayout, pageId: string): AppButton[] {
       if (button.act.kind === "goto" && button.act.page === pageId) found.push(button);
     }
   }
+  for (const button of sharedColumn(layout)) {
+    if (button.act.kind === "goto" && button.act.page === pageId) found.push(button);
+  }
   return found;
 }
 
@@ -82,17 +93,25 @@ export function inboundTo(layout: AppLayout, pageId: string): AppButton[] {
  *
  * A `:home` button is not an edge for this purpose: it leads to the page the
  * walk starts from, so it can never make anything reachable that was not.
+ *
+ * A shared first-column button is an edge from every page, which is the whole
+ * of what makes the column persistent - so one `goto` in it puts its target
+ * one press from anywhere, and the strip must stop calling that target
+ * unreachable. Walked per page rather than seeded once at home, because that
+ * is what it is, and because a Sammlung whose home page is missing then still
+ * reaches nothing rather than reaching the column's targets out of nowhere.
  */
 export function reachable(layout: AppLayout): Set<string> {
   const seen = new Set<string>();
   const queue = pageById(layout, layout.home) ? [layout.home] : [];
+  const column = sharedColumn(layout);
   while (queue.length) {
     const at = queue.shift()!;
     if (seen.has(at)) continue;
     seen.add(at);
     const page = pageById(layout, at);
     if (!page) continue;
-    for (const button of page.buttons) {
+    for (const button of [...page.buttons, ...column]) {
       if (button.act.kind === "goto" && !seen.has(button.act.page)) {
         queue.push(button.act.page);
       }
@@ -204,15 +223,16 @@ export function moveButton(page: AppPage, id: string, row: number, col: number):
  * has any - which is the point of buttons carrying their own coordinates
  * rather than living in a dense array of cells: 3x5 to 6x11 moves nothing and
  * re-indexes nothing.
+ *
+ * The shared column is walked with everything else and counted **once**, not
+ * once per page: it is authored once and a number that multiplied it by the
+ * page count would say four buttons are about to go when one is. Fewer rows is
+ * the only way it can lose anything - every button in it sits at column zero,
+ * and there is no grid narrower than one column.
  */
 export function outside(layout: AppLayout, rows: number, columns: number): AppButton[] {
-  const found: AppButton[] = [];
-  for (const page of layout.pages) {
-    for (const button of page.buttons) {
-      if (button.row >= rows || button.col >= columns) found.push(button);
-    }
-  }
-  return found;
+  return allButtons(layout).filter(
+    (one) => one.row >= rows || one.col >= columns);
 }
 
 /** The grid becomes this size, and anything outside it goes.
@@ -226,11 +246,145 @@ export function resize(layout: AppLayout, rows: number, columns: number): void {
     rows: clamp(rows, GRID.minRows, GRID.maxRows),
     columns: clamp(columns, GRID.minColumns, GRID.maxColumns),
   };
-  for (const page of layout.pages) {
-    page.buttons = page.buttons.filter(
-      (one) => one.row < layout.grid.rows && one.col < layout.grid.columns);
-  }
+  const inside = (one: AppButton): boolean =>
+    one.row < layout.grid.rows && one.col < layout.grid.columns;
+  for (const page of layout.pages) page.buttons = page.buttons.filter(inside);
+  /* The shared column is trimmed by the same predicate, and by the same call:
+   * a row that is gone is gone from every page at once, which is what the
+   * column being one thing means.
+   *
+   * Narrowing to a single column leaves the shared column and nothing else,
+   * and that is left to happen rather than refused. It is not a state anybody
+   * reaches from the four offered sizes - the narrowest is five columns wide -
+   * and every page button it costs was already counted by outside(), so the
+   * question that got here named the whole number. */
+  if (layout.firstColumn) layout.firstColumn = layout.firstColumn.filter(inside);
 }
 
 const clamp = (value: number, low: number, high: number): number =>
   Math.max(low, Math.min(high, Math.trunc(value) || low));
+
+/* --- The first column, when it belongs to the Sammlung -------------------- */
+
+/**
+ * The Sammlung's own first column, or an empty list where each page owns its.
+ *
+ * The array and the flag are one thing - see AppLayout.firstColumn - so this
+ * is the reader for the buttons and shared() below is the reader for whether
+ * there are any to have. Both exist because `layout.firstColumn ?? []` at
+ * thirty call sites is thirty chances to write `?? undefined` once.
+ */
+export const sharedColumn = (layout: AppLayout): AppButton[] =>
+  layout.firstColumn ?? [];
+
+/** Whether the first column is the Sammlung's rather than each page's. */
+export const shared = (layout: AppLayout): boolean =>
+  Array.isArray(layout.firstColumn);
+
+/** What sits at this row of the shared column, or undefined. `buttonAt` for
+ *  the column that has no page. */
+export const sharedAt = (layout: AppLayout, row: number): AppButton | undefined =>
+  sharedColumn(layout).find((one) => one.row === row);
+
+/** Whether this button is one of the shared ones. What the sheets ask before
+ *  they say that an edit lands on every page. */
+export const isShared = (layout: AppLayout, id: string): boolean =>
+  sharedColumn(layout).some((one) => one.id === id);
+
+/** Every button in the Sammlung, each counted once.
+ *
+ * A shared button is authored once and drawn on every page, so the walk that
+ * answers "how much is in here" has to meet it once - see the Editor port's
+ * count(). Page buttons first, in page order, because that is the order every
+ * other walk in this file uses.
+ */
+export function allButtons(layout: AppLayout): AppButton[] {
+  const out: AppButton[] = [];
+  for (const page of layout.pages) out.push(...page.buttons);
+  out.push(...sharedColumn(layout));
+  return out;
+}
+
+/**
+ * The first-column buttons that are not on the page whose column will be kept.
+ *
+ * Asked before the column becomes the Sammlung's, so the question can name the
+ * number - the same shape as outside(), and for the same reason: what goes is
+ * on pages nobody is looking at.
+ *
+ * There is no merge to offer instead. Five pages with five different buttons
+ * in row 0 have five answers to "what is in row 0 now", and any rule for
+ * picking between them - first page wins, the fullest column wins - is the
+ * editor deciding what a core word is. One page's column, named in the
+ * question, is the answer somebody can predict before they press it.
+ */
+export function elsewhere(layout: AppLayout, keepPageId: string): AppButton[] {
+  const found: AppButton[] = [];
+  for (const page of layout.pages) {
+    if (page.id === keepPageId) continue;
+    for (const button of page.buttons) if (button.col === 0) found.push(button);
+  }
+  return found;
+}
+
+/**
+ * The first column becomes the Sammlung's, taken from one page.
+ *
+ * The named page's column zero is moved - the same objects, so ids, labels,
+ * symbols and edges all survive - and every other page's column zero goes.
+ * Answers with what went, which is what elsewhere() counted beforehand.
+ *
+ * Moved rather than copied onto a Sammlung-level list that shadows the pages:
+ * two stores holding the same button is two things to keep in step, and the
+ * one that is not drawn is the one that goes stale without anybody seeing it.
+ *
+ * A page that is not there names an empty column, which is switching the
+ * feature on with nothing in it - a legal state and the one somebody who wants
+ * to author the column from scratch is asking for.
+ */
+export function shareFirstColumn(layout: AppLayout, keepPageId: string): AppButton[] {
+  const gone = elsewhere(layout, keepPageId);
+  const keep = layout.pages.find((one) => one.id === keepPageId);
+  const taken = keep ? keep.buttons.filter((one) => one.col === 0) : [];
+  for (const page of layout.pages) {
+    page.buttons = page.buttons.filter((one) => one.col !== 0);
+  }
+  layout.firstColumn = taken;
+  return gone;
+}
+
+/**
+ * The first column goes back to being each page's own, and every page keeps it.
+ *
+ * The inverse of the export rather than of shareFirstColumn(): the column is
+ * written onto every page, exactly as data/app_package.ts writes it onto every
+ * board. So nothing is lost, and there is nothing to ask about - which is why
+ * this half has no question where the other half has one.
+ *
+ * Fresh ids per page, because the copies are now separate buttons that can be
+ * edited apart from each other, and two buttons in one Sammlung sharing an id
+ * would make "which one did I just change" unanswerable.
+ */
+export function spreadFirstColumn(layout: AppLayout): void {
+  const column = sharedColumn(layout);
+  for (const page of layout.pages) {
+    for (const one of column) page.buttons.push({ ...one, id: mint() });
+  }
+  delete layout.firstColumn;
+}
+
+/** A shared button moves up or down its column, trading places with whatever
+ *  is at the row it lands on.
+ *
+ * moveButton()'s rule, in one dimension: the column is one cell wide, so there
+ * is nowhere sideways to go and the swap is the whole of it. Crossing between
+ * the column and the page is not a move at all - it changes whether a button
+ * is on one page or on all of them - so it is not offered as one. */
+export function moveShared(layout: AppLayout, id: string, row: number): void {
+  const column = sharedColumn(layout);
+  const moving = column.find((one) => one.id === id);
+  if (!moving || moving.row === row) return;
+  const sitting = sharedAt(layout, row);
+  if (sitting) sitting.row = moving.row;
+  moving.row = row;
+}

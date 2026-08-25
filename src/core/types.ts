@@ -137,6 +137,33 @@ export interface AppLayout {
   /** Every page, in the order the editor's page strip shows them. Presentation
    *  only: what leads where is the buttons, not this order. */
   pages: AppPage[];
+  /** The buttons of the leftmost column, when that column belongs to the
+   *  Sammlung rather than to each page.
+   *
+   *  This is what MetaTalk's handbook describes when it says the keys of the
+   *  leftmost column stay reachable while subpages are opened, and it is the
+   *  same argument `grid` above is made with, one column narrower: what
+   *  somebody learns on a board of this kind is where a word *is*, and core
+   *  words only stay put while every page puts them in the same place.
+   *
+   *  Absent means the column is nothing special and each page owns its own -
+   *  which is every Sammlung stored before this field existed, so nothing has
+   *  to be migrated. An empty array is not the same absence: it means the
+   *  column is the Sammlung's and there is nothing in it yet, which is what
+   *  switching it on before authoring anything leaves behind.
+   *
+   *  Every button in here sits at `col: 0`; `row` is where in the column it
+   *  is. While this is present no page holds a button of its own at column
+   *  zero - the editor is what keeps that true, in the same way and with the
+   *  same standing as the rule that two buttons may not share a cell.
+   *
+   *  **Nothing about this reaches the package**, and that is deliberate:
+   *  exchange/SPEC.md §4.1 says persistence needs no field, because a builder
+   *  writes those buttons onto every board and a viewer then sees an ordinary
+   *  board. So this is an authoring shape - written once, exported many times -
+   *  and data/app_package.ts is where the many-times happens.
+   */
+  firstColumn?: AppButton[];
   /** Whether the leftmost column is drawn set apart from the rest.
    *
    *  Written out as exchange/SPEC.md §4.1's ext_lautstark_first_column_gap,
