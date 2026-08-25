@@ -56,7 +56,7 @@ import { t } from "../core/texts.js";
 import { safeName } from "../data/store.js";
 import { GRID, LANG, LANGUAGE_NAMES, LANGUAGES } from "../core/boot.js";
 import { isApp } from "../core/types.js";
-import type { CollectionList, GridSize, Target } from "../core/types.js";
+import type { CollectionList, GridSize, Layout, Target } from "../core/types.js";
 
 /** The list as it was last read. Kept so that the name field and the menu do
  *  not each have to go back to the store to find out which one is open. */
@@ -90,6 +90,31 @@ const defaultName = (): string =>
 
 /* --- Drawing ---------------------------------------------------------------- */
 
+/** The second line under a name in the sidebar: which device this Sammlung is
+ * built for, and - on a tablet - how big its pages are.
+ *
+ * The one fact the row was missing. A count means *sets* on the talker and
+ * *buttons* on a tablet, so 5 and 78 sat in one column of tabular figures as
+ * if they were comparable, and two Sammlungen for two different devices were
+ * indistinguishable until one was opened.
+ *
+ * The package draws this line and does not compose it (its `subtitle` field
+ * says why): it holds no vocabulary, so the words are here, in TEXTS, beside
+ * the rest of vorlaut's German and English. The grid rides in the same string
+ * rather than in a column of its own - ~/Code/design's
+ * docs/mocks/vorlaut-sammlung-zeile.html measured six answers to this, and a
+ * second column cost a third of the name on exactly the names §1.5 mints
+ * unaided.
+ *
+ * isApp rather than a bare target check, for the reason types.ts gives: "diy"
+ * is written on nothing saved before there were two editors. */
+function rowSubtitle(layout: Layout): string {
+  return isApp(layout)
+    ? t("ui.collection_row_app",
+        { rows: layout.grid.rows, columns: layout.grid.columns })
+    : t("ui.collection_row_diy");
+}
+
 /** The sidebar and the work head, from whatever the store last said. */
 export async function paintCollections(): Promise<void> {
   held = await listCollections();
@@ -101,9 +126,13 @@ export async function paintCollections(): Promise<void> {
    * small JSON, which is cheaper than keeping a denormalised number in the
    * registry and being wrong about it. */
   const counts = new Map<string, number>();
+  // Which device each one is for, from the same layouts the counts come from -
+  // so the second line costs no read that was not already happening.
+  const subtitles = new Map<string, string>();
   await Promise.all(held.collections.map(async (one) => {
     if (one.id === held.current) {
       counts.set(one.id, editorOf(state.layout).count(state.layout));
+      subtitles.set(one.id, rowSubtitle(state.layout));
       return;
     }
     const layout = await layoutOf(one.id);
@@ -111,7 +140,10 @@ export async function paintCollections(): Promise<void> {
     // screen. This read `editor().count(...)` while there was one, and the
     // first tablet Sammlung in a list opened on a talker Sammlung would have
     // been counted in sets, found none, and drawn "0" beside sixty buttons.
-    if (layout) counts.set(one.id, editorOf(layout).count(layout));
+    if (layout) {
+      counts.set(one.id, editorOf(layout).count(layout));
+      subtitles.set(one.id, rowSubtitle(layout));
+    }
   }));
 
   const list = $("collectionList");
@@ -130,6 +162,7 @@ export async function paintCollections(): Promise<void> {
   drawCollections(list, {
     rows: held.collections.map((one) => ({
       id: one.id, name: nameOf(one.name), count: counts.get(one.id),
+      subtitle: subtitles.get(one.id),
     })),
     open: held.current ? [held.current] : [],
     onPick: (id) => { closeOnPick(); void open(id); },

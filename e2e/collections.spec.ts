@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
+import { GRID, LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { expectSaid, put } from "./diy.js";
 import { openCollectionSettings, openPanel, pickFromMenu } from "./sheets.js";
 
@@ -293,6 +293,44 @@ test("the settings sheet has no per-Sammlung control left in it", async ({ page 
     await expect(page.locator(`#voices ${gone}`)).toHaveCount(0);
   }
 });
+
+/* The one fact the row was missing.
+ *
+ * A count means *sets* on the talker and *buttons* on a tablet, so 5 and 78 sat
+ * in one column of tabular figures as if they were comparable, and two
+ * Sammlungen for two different devices were indistinguishable until one of them
+ * was opened.
+ *
+ * Both halves are asserted, and the second is the one that matters: a test that
+ * only checks the talker passes just as well against a line that says
+ * "DIY-Talker" on every row. conventions.md §1.5's entry is the argument - a
+ * rule with two halves needs a test with two halves.
+ *
+ * The count is still there beside it. §1.8 keeps it and §1.7 asks the delete
+ * question with it, so this line was added to the row and did not replace
+ * anything; asserting the count here is what would catch a later change that
+ * quietly traded one for the other. */
+test("a row says which device it is for, and a tablet row says its grid",
+  async ({ page }) => {
+    await openCollection(page);
+    await newCollection(page, "Morgens");
+
+    const talker = row(page, "Morgens");
+    await expect(talker.locator(".collections__sub"))
+      .toHaveText(label("ui.collection_row_diy"));
+    await expect(talker.locator(".collections__count")).not.toBeEmpty();
+
+    const asked = await askTarget(page, "app");
+    await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+    await expect(page.locator("#collectionName")).toBeFocused();
+    await page.locator("#collectionName").fill("Kindergarten");
+    await page.locator("#collectionName").blur();
+
+    // The size the dialog starts on, which is the first of the four presets.
+    await expect(row(page, "Kindergarten").locator(".collections__sub"))
+      .toHaveText(label("ui.collection_row_app",
+                        { rows: GRID.rows, columns: GRID.columns }));
+  });
 
 test("a first visit has one collection, and it is open", async ({ page }) => {
   await openCollection(page);
