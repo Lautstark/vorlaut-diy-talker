@@ -128,8 +128,12 @@ test("the tablet editor, four states", async ({ page }) => {
     await cells.nth(at).locator(".cell__open").click();
     await expect(open).toBeVisible();
     await open.locator("#appLabel").fill(word);
-    await open.locator("#appClass")
-      .selectOption(["pronoun", "verb", "noun", "social"][at]!);
+    // A button and a menu, not a select - the whole list is drawn by the page
+    // now, so an entry is reached by its own words.
+    await open.locator("#appClass").click();
+    await page.getByRole("menuitemradio", {
+      name: label(`ui.wordclass_${["pronoun", "verb", "noun", "social"][at]!}`),
+    }).click();
     await open.locator("button", { hasText: label("ui.done") }).click();
     await expect(open).toBeHidden();
   }

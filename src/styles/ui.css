@@ -1265,8 +1265,10 @@ dialog.sheet--page { max-width: 520px; }
 .form__row { display: grid; gap: 6px; }
 .form__row > .lbl { margin-bottom: 0; }
 /* A row whose control is a button takes the width the button needs, not the
-   column's. */
-.form__row > .btn { justify-self: start; }
+   column's. A dropdown is a button inside its anchor, and the anchor is what
+   the row is handed - see dropdown() in shell/sheet.ts. */
+.form__row > .btn, .form__row > .menu-anchor { justify-self: start; }
+
 /* The spoken text sits next to the way to hear it, because they are one
    question: does this say the right thing. */
 .form__withplay { display: flex; gap: 8px; align-items: center; }
@@ -1281,6 +1283,19 @@ dialog.sheet--page { max-width: 520px; }
    own `display: grid` is an author one, so the row would otherwise keep its
    box and its height while claiming to be hidden. */
 .form__row[hidden] { display: none; }
+
+/* An open list, kept inside the sheet.
+
+   fit() in shell/sheet.ts measures the room the body has left and writes a
+   max-height; these two are the drawing half of it. Without the overflow the
+   cap would only cut the last rows off, and without the flip a menu near the
+   foot - the eleven word classes - would be capped at nothing worth opening.
+
+   The body is the sheet's one scrolling area, so a list hanging out of it does
+   not overhang the sheet: it lengthens what the sheet scrolls, which moves the
+   scrollbar and the fields under it while somebody is choosing. */
+.form__row .menu { overflow-y: auto; overscroll-behavior: contain; }
+.menu-anchor--up > .menu { top: auto; bottom: calc(100% + 6px); }
 
 /* The foot carries the destructive act on the left, away from the confirming
    one - and between them the way to keep going, because a board is built in
