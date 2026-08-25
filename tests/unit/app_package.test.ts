@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  buildAppPackage, checkPackage, localeFor, packageBytes, symbolSource,
-  type AppPackage, type PackageInput,
+  buildAppPackage, checkPackage, localeFor, packageBytes, references,
+  spokenTexts, symbolSource, type AppPackage, type PackageInput,
 } from "../../src/data/app_package.js";
 import { readPackage, readPackageFile, unzip } from "./obz.js";
 import type {
@@ -514,6 +514,140 @@ describe("a tablet Sammlung as a board package", () => {
     expect("ext_lautstark_first_column_gap" in buildAppPackage(input()).manifest)
       .toBe(false);
   });
+
+/* The first column, when the Sammlung owns it.
+ *
+ * §4.1 is explicit that the format has no field for a button that carries
+ * over: the persistence *is* the builder writing those buttons onto every
+ * board. So this is where the whole feature reaches a tablet, and what these
+ * assertions are really about is that a reader of the package cannot tell -
+ * every board is an ordinary board that happens to start the same way.
+ */
+
+/** tablet(), with its first column lifted off the pages and made the
+ *  Sammlung's. Two buttons, and one of them speaks. */
+const tabletColumn = (): AppLayout => {
+  const layout = tablet();
+  const column = layout.pages[0]!.buttons.filter((one) => one.col === 0);
+  for (const page of layout.pages) {
+    page.buttons = page.buttons.filter((one) => one.col !== 0);
+  }
+  layout.firstColumn = column;
+  return layout;
+};
+
+describe("a first column the whole Sammlung shares", () => {
+  it("writes it onto every board, with each board's own ids", () => {
+    const layout = tabletColumn();
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(checkPackage(pkg)).toEqual([]);
+
+    for (const boardId of ["board-1", "board-2"]) {
+      const one = board(pkg, boardId);
+      // Column zero of every row, on the page that had the column and on the
+      // page that never did. §7.1's ids are unique within a *board*, so one
+      // authored button becomes board-1-r1c1 here and board-2-r1c1 there:
+      // what is shared is the authoring, not the identity.
+      expect(one.grid.order[0]![0]).toBe(`${boardId}-r1c1`);
+      expect(one.grid.order[1]![0]).toBe(`${boardId}-r2c1`);
+      expect(button(pkg, boardId, `${boardId}-r1c1`).label).toBe("ich");
+      expect(button(pkg, boardId, `${boardId}-r2c1`).label).toBe("Aua");
+    }
+  });
+
+  it("says nothing about persistence anywhere in the package", () => {
+    // The whole point of §4.1's argument. A viewer needs to know nothing: it
+    // opens a board, and the board has those buttons on it. Reading the gap
+    // hint as an instruction to carry column one over would render this
+    // package right by accident and the next one wrong.
+    const pkg = buildAppPackage(tabletInput({ layout: tabletColumn() }));
+    const text = JSON.stringify({ manifest: pkg.manifest, boards: pkg.boards });
+    expect(text).not.toMatch(/persist|first_column|firstColumn/i);
+  });
+
+  it("bakes what the column says, once, and lets both boards play it", () => {
+    const layout = tabletColumn();
+    const pkg = buildAppPackage(tabletInput({ layout }));
+
+    // "Aua" is one recording however many boards draw it - the archive is
+    // keyed by content, so the same clip on two pages is one member and one
+    // decode on the phone.
+    const clips = [...pkg.files.keys()].filter((one) => one.startsWith("sounds/"));
+    expect(clips.filter((one) => one.includes("3333cccc"))).toHaveLength(1);
+    for (const boardId of ["board-1", "board-2"]) {
+      expect(button(pkg, boardId, `${boardId}-r2c1`).sound_id).toBe("snd-3333cccc");
+      expect(board(pkg, boardId).sounds.map((one) => one.id))
+        .toContain("snd-3333cccc");
+    }
+  });
+
+  it("carries a picture in the column onto every board", () => {
+    const layout = tabletColumn();
+    layout.firstColumn![0]!.symbol = "arasaac-2462.png";
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(checkPackage(pkg)).toEqual([]);
+    // Both boards name it, and §7.1's per-board images list on each of them
+    // carries the entry - which is what the viewer reads to find the file.
+    for (const boardId of ["board-1", "board-2"]) {
+      expect(button(pkg, boardId, `${boardId}-r1c1`).image_id).toBe("img-aaaa1111");
+      expect(board(pkg, boardId).images.map((one) => one.id))
+        .toContain("img-aaaa1111");
+    }
+  });
+
+  it("resolves a `goto` in the column from every board", () => {
+    const layout = tabletColumn();
+    layout.firstColumn![1]!.act = { kind: "goto", page: "p-food" };
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(checkPackage(pkg)).toEqual([]);
+    // Including from the food board itself, which is what a persistent
+    // navigation button is: the way back is in the same place wherever you are.
+    for (const boardId of ["board-1", "board-2"]) {
+      expect(button(pkg, boardId, `${boardId}-r2c1`).load_board)
+        .toEqual({ id: "board-2", name: "Essen", path: "boards/board-2.obf" });
+    }
+  });
+
+  it("lets the column have column zero where a page also claims it", () => {
+    const layout = tabletColumn();
+    // Not a state the editor can reach - shareFirstColumn() clears column zero
+    // off every page. If a layout arrives that way, the column somebody made
+    // persistent is the one that should win, and the existing rule that
+    // refuses a second button in one cell is what settles it.
+    layout.pages[1]!.buttons.push({
+      id: "stray", row: 0, col: 0, label: "nicht ich", vocalization: "",
+      symbol: "", wordClass: "", act: { kind: "append" },
+    });
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(checkPackage(pkg)).toEqual([]);
+    expect(button(pkg, "board-2", "board-2-r1c1").label).toBe("ich");
+    expect(board(pkg, "board-2").buttons.map((one) => one.label))
+      .not.toContain("nicht ich");
+  });
+
+  it("counts the column once in what has to be synthesised", () => {
+    // spokenTexts() is what backend/local.ts renders, and it shows a count
+    // while it works. A column met once per page would make a Sammlung look
+    // several times the work it is - and the far worse failure is the other
+    // way: a column met never, whose buttons then ship silent.
+    const layout = tabletColumn();
+    expect(spokenTexts(layout).filter((one) => one === "ich")).toEqual(["ich"]);
+    expect(spokenTexts(layout)).toContain("Aua");
+  });
+
+  it("lets §5.1 see a symbol that is only in the column", () => {
+    const layout = tabletColumn();
+    // The pages carry an ARASAAC picture already. Putting a METACOM one in the
+    // column makes the Sammlung mixed, and references() has to meet it for
+    // that to be noticed at all - a symbol the walker never learned about is a
+    // mixed package nobody was warned about, which is exactly the failure the
+    // comment on references() names.
+    expect(symbolSource(layout)).toBe("arasaac");
+    layout.firstColumn![0]!.symbol = "metacom:ich.png";
+    expect(references(layout)).toContain("metacom:ich.png");
+    expect(() => symbolSource(layout)).toThrow(/two symbol collections/);
+  });
+});
 
   it("finds a mixed symbol source across pages", () => {
     const layout = tablet();
