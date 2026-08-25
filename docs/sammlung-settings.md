@@ -170,12 +170,20 @@ synthesis in it — one wasted build, then the chooser, then a second. The panel
 was the way to skip that for somebody who knew to look, so removing it makes
 this the only path rather than the usual one.
 
-Worth fixing, and the obvious fix is wrong: probing at the top of `run()` and
-holding the cable open across the build would drop the session on every
-transfer, because the device ends one after `CABLE_QUIET_MS` — four seconds —
-of browser silence. It has to be open, hello, **close**, build, open again. A
-second greeting on the good path buys a whole build back on the bad one. Named
-here and in [cable.md](cable.md); not built.
+This amendment proposed the fix and left it unbuilt: probing at the top of
+`run()`, as open, hello, **close**, build, open again — holding the cable open
+across the build being ruled out already, since the device ends a session after
+`CABLE_QUIET_MS` — four seconds — of browser silence.
+
+**That was taken up on 2026-08-25 and the answer is no.** The second greeting
+on the good path is not the small price this paragraph assumed. `hello` makes
+the device put *Kabel* on all five displays and stop answering keys, and
+closing the port does not take it back — it waits out its four seconds, then
+delays 1500 ms before redrawing. A probe on every press is roughly five and a
+half seconds of a dead talker each time, to save one build on the rare press
+where the port was wrong. [cable.md](cable.md) carries the reasoning and what
+would make it cheap, which is a firmware change rather than a page one. So the
+cost recorded above stands, and `askAgain` remains the way back.
 
 What was left of the module is the build, so it is named for it:
 `src/editor-diy/device_panel.ts` → `folder_build.ts`. Two things went with the

@@ -472,14 +472,39 @@ then sends, so the press that discovers a dead port has already paid for a full
 build with every synthesis in it. One press, one wasted build, then the chooser
 and a second build.
 
-The fix is to find the talker before building rather than after, and the
-obvious way to write it is wrong in a way worth recording: `hello` starts a
+The fix would be to find the talker before building rather than after. Two ways
+of writing it have been ruled out, and the second is why this is still the way
+it is.
+
+**Holding the cable open across the build does not work.** `hello` starts a
 session, and the device ends one after `CABLE_QUIET_MS` — four seconds — of the
 browser not talking (`firmware/vorlaut/cable.h`, the loop that reports "the
-browser stopped talking"). A build is minutes, so holding the cable open across
-it would break every transfer rather than only the unlucky ones. The shape that
-works is open, hello, **close**, build, open again — a second greeting on the
-good path to save a whole build on the bad one. Not built yet.
+browser stopped talking"). A build is minutes, so that breaks every transfer
+rather than only the unlucky ones. Holding it open *without* greeting is no
+better: before a hello the wait is `CABLE_GREET_MS`, a quarter of a second,
+after which `serve()` simply returns. There is nothing there to keep alive.
+
+**So the probe has to be a session of its own** — open, hello, **close**, build,
+open again — and that is where it stops, because `hello` is not free at the
+device. It is not a quiet question: `cable.h` calls `progress("hello")`, and
+`vorlaut.ino` puts *Kabel* on all five displays for it, which is deliberate and
+says so in as many words — it is meant to be obvious at a glance that the keys
+have stopped. Closing the port does not undo it, because nothing on the wire
+tells the device the browser has gone: it waits out its four seconds, gives up,
+delays 1500 ms so a count can be read, and only then redraws. **About five and
+a half seconds of a talker showing *Kabel* and answering no key** — before a
+build that then takes minutes, and before the real transfer greets it a second
+time.
+
+That is the trade backwards: a visible freeze on every good transfer, on a
+device a child may be holding, to save one build on the rare bad one. So the
+build stays first. Checked against the firmware on 2026-08-25 and deliberately
+not built.
+
+**What would make it cheap is a way to ask "are you a vorlaut" that does not
+open a session** — something a device answers before `hello`, without reaching
+for the displays. That is a change to `firmware/` rather than to the page, and
+it is the only thing that turns this from a bad trade into a good one.
 
 **The bench is still here for what that button cannot be.** `tools/serialcheck.html`
 is where a payload can be invented with no build behind it — so that a failure
