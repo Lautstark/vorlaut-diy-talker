@@ -169,7 +169,7 @@ async function decorate(hits, source) {
 /** Hits from one *named* source. Never throws: this is the shape for asking
  *  several collections at once - tools/symbolcheck.html and the unit tests -
  *  where one that cannot answer should cost its own hits and nothing else.
- *  What the picker calls is searchActive() below, which does throw. */
+ *  What the picker calls is searchIn() below, which does throw. */
 export async function search(word, source) {
   const term = (word || "").trim();
   if (!term) return [];
@@ -180,12 +180,19 @@ export async function search(word, source) {
   }
 }
 
-/* Which collection the picker offers. One, not both.
+/* Which collection this *machine* is set to. One, not both.
  *
  * Held here rather than read out of the settings at each call, for the same
  * reason preferRendering is: the picker asks on every keystroke and must not
  * wait on storage to answer. loadSettings() sets it, and readSettings() has
- * already refused "metacom" when no folder is connected. */
+ * already refused "metacom" when no folder is connected.
+ *
+ * Not, on its own, the collection the picker offers. A setting whose answer
+ * changes with the selection is not the app's: the open Sammlung already has
+ * one symbol source - exchange/SPEC.md §5.1 makes that a rule of the format -
+ * so what the picker offers is the Sammlung's, and this is the fallback for a
+ * Sammlung that has nothing to say yet. picker.ts's offeredSource() is where
+ * those two meet, and it is the only reader of this that decides anything. */
 let active: ProviderId = "arasaac";
 
 export const activeSource = (): ProviderId => active;
@@ -231,16 +238,16 @@ const loadGerman = () => (german ??= import("@lautstark/bildquelle/german"));
  * left the page saying "nothing found for X" whether the collection held
  * nothing or the browser had never managed to ask. Those are different
  * sentences, and picker.ts's findSymbols() picks between them. */
-export async function searchActive(word: string) {
+export async function searchIn(source: ProviderId, word: string) {
   const term = (word || "").trim();
   if (!term) return [];
   const { suggest, tokenize } = await loadGerman();
   const single = tokenize(term).length <= 1;
   const hits = await suggest(term, {
-    provider: getProvider(active),
+    provider: getProvider(source),
     stopwords: single ? [] : undefined,
   });
-  return await decorate(hits, active);
+  return await decorate(hits, source);
 }
 
 /* How the active collection is doing, for telling an empty answer apart from
@@ -248,7 +255,7 @@ export async function searchActive(word: string) {
  * bildquelle's contract, and ARASAAC keeps to it by returning [] when the
  * fetch fails - so an empty list is the only thing a failed network hands
  * back, and this is the only place that says which of the two it was. */
-export const activeStatus = () => getProvider(active).status();
+export const statusOf = (source: ProviderId) => getProvider(source).status();
 
 /* --------------------------------------------------------------- image --- */
 

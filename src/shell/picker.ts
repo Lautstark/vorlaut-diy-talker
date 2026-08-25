@@ -1,8 +1,9 @@
-// Picking a symbol: searching the active source, resolving a hit to what a
-// layout stores, uploading an image of your own, and saying which collection
-// that was and what is owed for it.
+// Picking a symbol: searching the collection the open Sammlung is drawn in,
+// resolving a hit to what a layout stores, uploading an image of your own, and
+// saying which collection that was and what is owed for it.
 //
 // Which sources are available is bildquelle's answer, not a variable of ours.
+// Which of them is offered is the Sammlung's - see offeredSource().
 //
 // ## There is no dialog here any more
 //
@@ -11,7 +12,7 @@
 // now carry the picture, its search and the upload in the left column of the
 // sheet a press opens, so the modal had no way in and nothing to do. What is
 // left is what the callers could not have written for themselves and must not
-// each own a copy of: which source is active, what an empty answer means, the
+// each own a copy of: which source is offered, what an empty answer means, the
 // fact that an ARASAAC pick is a download while a METACOM one is a reference,
 // and the sentence the licence requires. See shell/sheet.ts's drawPick(),
 // which is the only thing that draws any of it now.
@@ -21,7 +22,10 @@
 import { readSettings, pickSymbol, uploadSymbol } from "../backend/index.js";
 import { reason } from "../core/errors.js";
 import * as symbols from "../data/symbols.js";
+import { drawnFrom } from "../data/app_package.js";
+import { state } from "../core/state.js";
 import { t } from "../core/texts.js";
+import type { ProviderId } from "@lautstark/bildquelle";
 
 /* --- The seam ------------------------------------------------------------
  *
@@ -32,7 +36,65 @@ import { t } from "../core/texts.js";
  * reasoning below; only the markup is the caller's. */
 
 /** One hit, as the two sources between them describe it. */
-export type SymbolHit = Awaited<ReturnType<typeof symbols.searchActive>>[number];
+export type SymbolHit = Awaited<ReturnType<typeof symbols.searchIn>>[number];
+
+/**
+ * Which collection the picker offers - the open Sammlung's, and only failing
+ * that the machine's.
+ *
+ * "One symbol source per package" is a rule of the format, not a preference:
+ * exchange/SPEC.md §5.1, with a licence behind it, and app_package.ts's
+ * symbolSource() refuses to build a mixed one. What used to be asked here was
+ * symbols.activeSource(), which is a setting of this *browser* - so a second
+ * child set up on ARASAAC, or a folder handle that lapsed over a restart,
+ * silently changed what the next button added to a METACOM Sammlung came from.
+ * The board went mixed and nothing said so until the export, hundreds of
+ * syntheses later.
+ *
+ * So the Sammlung is asked first. It already knows: the answer is derived from
+ * the buttons rather than stored beside them, which is why there is no
+ * per-Sammlung setting for it and should not be. A source that could be
+ * flipped would invite flipping it, and flipping it means replacing every
+ * symbol on the board - a deliberate act, and nobody has asked for one.
+ *
+ * Two Sammlungen defer to the machine rather than to themselves, and they are
+ * the same case: one with no symbols yet, and one holding nothing but
+ * uploaded pictures. An upload counts towards no source - a photograph of a
+ * grandmother is not a symbol collection - so both read as "none", which is
+ * the value that says no attribution is owed and nothing has been decided.
+ *
+ * A Sammlung that is already mixed defers too. It cannot be exported until it
+ * is put right, and refusing to search inside it would take away the one
+ * place it could be put right from.
+ */
+export function offeredSource(): ProviderId {
+  const drawn = drawnFrom(state.layout);
+  if (drawn.metacom.length && !drawn.arasaac.length) return "metacom";
+  if (drawn.arasaac.length && !drawn.metacom.length) return "arasaac";
+  return symbols.activeSource();
+}
+
+/** Whether the picker is offering a collection it cannot currently reach.
+ *
+ * Only ever the Sammlung's doing: readSettings() refuses "metacom" when no
+ * folder is connected, so the machine setting can never land here. A METACOM
+ * Sammlung opened in a browser that has not been given the folder back can,
+ * and that is the moment the mixed board used to be built - the search quietly
+ * answered from ARASAAC and every picture taken from it was the odd one out. */
+const outOfReach = (source: ProviderId): boolean =>
+  source === "metacom" && !symbols.metacomReady();
+
+/** What to say about it, and what to do: the folder is remembered and wants a
+ *  click, or there is none here at all. Both sentences send somebody to the
+ *  gear, and the first names the browser prompt that stops it being asked
+ *  again. `ui.metacom_needed` is in front of whichever it is, because neither
+ *  of them says the thing that matters here - that this Sammlung's symbols
+ *  come from METACOM and a picture from anywhere else would mix it. */
+function folderWanted(): string {
+  const status = symbols.metacomStatus();
+  const waiting = status.kind === "needs-setup" && status.code === "permission-needed";
+  return `${t("ui.metacom_needed")} ${waiting ? t("ui.metacom_waiting") : ""}`.trim();
+}
 
 /** A finished search: the hits, and - when there are none - the sentence that
  *  says which of the two silences this was.
@@ -48,17 +110,22 @@ export interface SymbolAnswer {
   empty: string;
 }
 
-/** Searches the active source. Never throws: a failure is a sentence in
- *  `empty`, because every caller has a place to put one and none of them has
- *  anything else to do about it. */
+/** Searches the collection this Sammlung is drawn in. Never throws: a failure
+ *  is a sentence in `empty`, because every caller has a place to put one and
+ *  none of them has anything else to do about it. */
 export async function findSymbols(word: string): Promise<SymbolAnswer> {
   const term = word.trim();
   if (!term) return { hits: [], empty: "" };
+  const source = offeredSource();
+  // Answering from the other collection is what has to not happen: a hit taken
+  // from ARASAAC here is a key this Sammlung can no longer export. So there
+  // are no hits, and the sentence is the one click that fixes it.
+  if (outOfReach(source)) return { hits: [], empty: folderWanted() };
   try {
-    const hits = await symbols.searchActive(term);
+    const hits = await symbols.searchIn(source, term);
     if (hits.length) return { hits, empty: "" };
-    const state = symbols.activeStatus();
-    return { hits, empty: state.kind === "ready"
+    const how = symbols.statusOf(source);
+    return { hits, empty: how.kind === "ready"
       ? t("ui.nothing_found", { word: term })
       : t("ui.search_no_answer", { word: term }) };
   } catch (error) {
@@ -140,7 +207,7 @@ export async function loadSources() {
  * opening asks this afresh. Five calls to a showSources() existed to keep the
  * dialog's copy of this honest, and all five went with the dialog. */
 export const searchPlaceholder = (): string =>
-  t(symbols.activeSource() === "metacom" ? "ui.search_metacom" : "ui.search_arasaac");
+  t(offeredSource() === "metacom" ? "ui.search_metacom" : "ui.search_arasaac");
 
 /** What is owed for the collection being searched, as one line.
  *
@@ -171,14 +238,20 @@ export const searchPlaceholder = (): string =>
  * prompt that stops it being asked again.
  */
 export function creditLine(): string {
-  const metacom = symbols.activeSource() === "metacom";
-  // The one source the picker is offering. A key already on the board may have
-  // come from the other one - switching source never took anything off a board
-  // - but what is owed here is owed for what is on this screen.
-  const owed = symbols.attributionFor([symbols.activeSource()]).join(" ");
-  const state = symbols.metacomStatus();
-  const waiting = state.kind === "needs-setup" && state.code === "permission-needed";
-  const ours = metacom ? t("ui.credits_metacom")
+  // The one source the picker is offering, which is the Sammlung's before it
+  // is the machine's. A key already on the board may have come from the other
+  // one - a Sammlung mixed before the picker followed it still opens - but
+  // what is owed here is owed for what is on this screen.
+  const source = offeredSource();
+  const owed = symbols.attributionFor([source]).join(" ");
+  const status = symbols.metacomStatus();
+  const waiting = status.kind === "needs-setup" && status.code === "permission-needed";
+  const ours = source === "metacom"
+    // Owed nothing, so the whole line is ours: either the note that these
+    // pictures are referenced rather than copied, or - the fourth case, and
+    // the one the mixed board was built through - that the collection this
+    // Sammlung is drawn in is not reachable from this browser yet.
+    ? (outOfReach(source) ? folderWanted() : t("ui.credits_metacom"))
     : waiting ? t("ui.metacom_waiting")
     : symbols.metacomReady() ? "" : t("ui.metacom_offer");
   return `${ours} ${owed}`.trim();
