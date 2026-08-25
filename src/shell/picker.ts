@@ -96,8 +96,9 @@ function folderWanted(): string {
   return `${t("ui.metacom_needed")} ${waiting ? t("ui.metacom_waiting") : ""}`.trim();
 }
 
-/** A finished search: the hits, and - when there are none - the sentence that
- *  says which of the two silences this was.
+/** A finished search: the hits, and the sentence that says what kind of answer
+ *  they are - which of the two silences an empty one was, or that a full grid
+ *  is a grid of near misses.
  *
  *  Packaged together rather than left to the caller, because the difference is
  *  the part that is easy to get wrong: a provider's search() must not throw,
@@ -108,28 +109,113 @@ export interface SymbolAnswer {
   hits: SymbolHit[];
   /** "" when there are hits. */
   empty: string;
+  /** The line above hits that answer something other than what was typed.
+   *  "" when one of them really is the word. Never set together with `empty`:
+   *  it is about hits, and there are none to be about. */
+  near: string;
 }
+
+/* --- Whether the grid means the word --------------------------------------
+ *
+ * A search that finds nothing says so. A search that finds the wrong thing
+ * used to look exactly like one that found the right thing: twelve tiles, all
+ * confident. Searching "nicht" in METACOM is the case that showed it - every
+ * hit a rendering of "nichtbinaer", because METACOM has no "nicht" symbol at
+ * all and never will: German AAC negates by crossing out the symbol being
+ * negated rather than with a picture of its own. Nothing on the screen said
+ * so, and only somebody who already knew the collection could tell.
+ *
+ * bildquelle grades every candidate on one ladder, the same for both sources:
+ * the label is the word (100), begins with it as a phrase (70), holds it as
+ * one of its words (60), begins with it (55), has a word beginning with it
+ * (40), or merely contains it (25). See scoreLabel() in bildquelle's text.ts.
+ */
+
+/**
+ * Where a hit stops being a hit: the whole word.
+ *
+ * Not 100. "Nothing matches exactly" is a claim about spelling and this is a
+ * claim about pictures - a collection that files the picture as "trinken
+ * wasser" has a picture for "trinken", and a reader told otherwise would go
+ * looking for a second one that does not exist. 60 is the rung where the word
+ * typed is still a word the label is made of, and 70 above it is the same
+ * thing with the word at the front.
+ *
+ * The rung below is where it stops. 55 is "nichtbinaer" for "nicht": a
+ * different word that happens to start the same way, and the whole of the
+ * case this exists for. 40 and 25 are less again.
+ */
+const WHOLE_WORD = 60;
+
+/**
+ * What ARASAAC adds on top of the ladder for a symbol drawn for AAC use.
+ *
+ * ARASAAC's rank() does not hand back the ladder score. It hands back the
+ * ladder plus a preference for pictograms flagged aacColor (12) and aac (8),
+ * minus penalties for schematic, explicit and whole-phrase artwork, minus half
+ * a point per place in ARASAAC's own ordering. Read as a match grade that is
+ * one number too many: a word-prefix at 40 on a flagged pictogram arrives as
+ * 60 and would pass a ladder threshold, which is the "nichtbinaer" answer
+ * again with the other collection's name on it.
+ *
+ * So the preference comes back off before the score is read as a grade, and at
+ * its maximum. A bonus is a reason to show one picture before another; it is
+ * not evidence that the word matched. Everything else in that sum only
+ * subtracts, so what is left can understate the ladder but never overstate it
+ * - the direction that matters, because understating shows a line above
+ * results that stay, and overstating is the silence this is here to end.
+ *
+ * bildquelle's, not ours, and not exported by it. If it moves, this
+ * over-warns rather than going quiet, and tests/unit/picker_match.test.ts
+ * searches a live provider rather than a made-up score, so it moves too.
+ */
+const AAC_PREFERENCE = 20;
+
+/** The ladder grade a hit carries, once its source's own ranking is off it. */
+const gradeOf = (hit: SymbolHit): number =>
+  hit.source === "arasaac" ? hit.score - AAC_PREFERENCE : hit.score;
+
+/** Whether any of these pictures is a picture of the word that was typed.
+ *
+ * Any, not the first: the sources sort by their own score, and ARASAAC's is
+ * not the grade this reads. Both collections, and deliberately not METACOM
+ * alone - a search is a search, and ARASAAC misses the same way.
+ *
+ * The word itself is not compared here. What the grade answers to is the word
+ * bildquelle actually looked the collection up with, which after lemmatising
+ * "Hunde" or splitting "Handtuch" is not always the word typed - and a
+ * collection that holds the lemma does hold the picture. */
+const matchesWord = (hits: SymbolHit[]): boolean =>
+  hits.some((hit) => gradeOf(hit) >= WHOLE_WORD);
 
 /** Searches the collection this Sammlung is drawn in. Never throws: a failure
  *  is a sentence in `empty`, because every caller has a place to put one and
  *  none of them has anything else to do about it. */
 export async function findSymbols(word: string): Promise<SymbolAnswer> {
   const term = word.trim();
-  if (!term) return { hits: [], empty: "" };
+  if (!term) return { hits: [], empty: "", near: "" };
   const source = offeredSource();
   // Answering from the other collection is what has to not happen: a hit taken
   // from ARASAAC here is a key this Sammlung can no longer export. So there
   // are no hits, and the sentence is the one click that fixes it.
-  if (outOfReach(source)) return { hits: [], empty: folderWanted() };
+  if (outOfReach(source)) return { hits: [], empty: folderWanted(), near: "" };
   try {
     const hits = await symbols.searchIn(source, term);
-    if (hits.length) return { hits, empty: "" };
+    // Kept whatever they turn out to be. Somebody searching "nicht" may well
+    // want nichtbinaer, and the nearest thing the collection holds is the best
+    // answer there is to give - it is being taken for something else that was
+    // the fault. So the near misses stay and a line above them says what they
+    // are.
+    if (hits.length) {
+      return { hits, empty: "",
+               near: matchesWord(hits) ? "" : t("ui.search_near", { word: term }) };
+    }
     const how = symbols.statusOf(source);
-    return { hits, empty: how.kind === "ready"
+    return { hits, near: "", empty: how.kind === "ready"
       ? t("ui.nothing_found", { word: term })
       : t("ui.search_no_answer", { word: term }) };
   } catch (error) {
-    return { hits: [], empty: t("ui.search_failed", { error: reason(error) }) };
+    return { hits: [], near: "", empty: t("ui.search_failed", { error: reason(error) }) };
   }
 }
 

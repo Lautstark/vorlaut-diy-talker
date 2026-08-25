@@ -144,6 +144,10 @@ export const hits = (box: Locator) => box.locator(".pick__hit");
 /** What a search says when it has nothing to show: say() writes a bare <p>. */
 export const searchNote = (box: Locator) => box.locator(".pick__results p");
 
+/** What the search says about hits it is still showing - the line above the
+ *  grid, which is outside the grid because the grid scrolls. */
+export const searchNear = (box: Locator) => box.locator(".pick__near");
+
 /** Types a word into the sheet's search and runs it. Enter, because that is
  *  what the field answers to - there is no search button beside it. */
 export async function search(box: Locator, word: string): Promise<void> {
