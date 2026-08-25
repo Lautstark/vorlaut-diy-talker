@@ -40,8 +40,9 @@ import { confirmDialog, openDialog } from "@lautstark/design/dialog";
  * here, and moving it is what let the talker have the same one: an editor may
  * not import out of another editor - tests/unit/layers.test.ts - so anything
  * genuinely shared between the two belongs in the shell. */
-import { formRow, missing, openSheet, option, textField } from "../shell/sheet.js";
-import type { Left } from "../shell/sheet.js";
+import { dropdown, formRow, hint, missing, openSheet, textField }
+  from "../shell/sheet.js";
+import type { Choice, Left } from "../shell/sheet.js";
 import { collectionMenuExtras, exportApp, sizeChoices }
   from "../shell/collections.js";
 import {
@@ -755,18 +756,27 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * delete question. It is a notice rather than a question because nothing
    * is lost and nothing is hidden: the board behind the sheet redraws with
    * the change on it, and every other page is one tab away. */
+  let notice: HTMLElement | undefined;
   if (inColumn(at[1])) {
-    const notice = document.createElement("div");
+    notice = document.createElement("div");
     notice.className = "notice";
     notice.textContent = t("ui.app_first_column_button");
-    rows.push(notice);
   }
 
   const labelInput = textField(draft.label, (value) => { draft.label = value; });
   labelInput.id = "appLabel";
   labelInput.placeholder = t("ui.app_button_label_hint");
-  rows.push(formRow(t("ui.app_button_label"), labelInput,
-                    t("ui.app_button_label_note")));
+  /* The hint rides on the caption's line rather than under the field.
+   *
+   * It is a qualification of the question - what an empty one means - and it
+   * is short enough to read as one. Under the control it was a third stacked
+   * line saying something the placeholder in the field had half said already;
+   * beside the caption it says the half the placeholder cannot, and costs no
+   * height at all. */
+  const labelRow = formRow(t("ui.app_button_label"), labelInput,
+                           t("ui.app_button_label_note"));
+  labelRow.classList.add("form__row--caption");
+  rows.push(labelRow);
 
   /* --- what a press does, and the rows that follow from it ---------------
    *
@@ -787,12 +797,8 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * wrong. So the chosen option's note follows the control as a hint, and the
    * sheet still says it.
    */
-  const does = document.createElement("select");
-  does.className = "field";
-  does.id = "appDoes";
-  for (const kind of ["word", "shout", "goto"] as const) {
-    does.append(option(kind, t(`ui.app_does_${kind}`)));
-  }
+  const kinds: Choice[] = (["word", "shout", "goto"] as const)
+    .map((kind) => ({ value: kind, label: t(`ui.app_does_${kind}`) }));
   const chose = doesOf(draft.act);
   /* A button made in this editor before the sheet stopped offering the bar
    * controls keeps its act, and keeps saying what that act is: a fourth entry
@@ -805,12 +811,20 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * can carry one here. The only source is this editor's own past, in this
    * browser's IndexedDB.
    */
-  if (!chose) does.append(option(draft.act.kind, t(`ui.app_act_${actKey(draft.act.kind)}`)));
-  does.value = chose ?? draft.act.kind;
+  if (!chose) {
+    kinds.push({ value: draft.act.kind,
+                 label: t(`ui.app_act_${actKey(draft.act.kind)}`) });
+  }
 
-  const note = document.createElement("span");
-  note.className = "form__hint";
-  const actRow = formRow(t("ui.app_button_act"), does);
+  const note = hint();
+  const does = dropdown(kinds, chose ?? draft.act.kind, () => { chosen(); });
+  does.button.id = "appDoes";
+  /* The note sits beside the trigger rather than under it, which is what the
+   * trigger being a button rather than a full-width field buys: "Ausruf" is
+   * three quarters of an empty line, and the sentence that tells it from
+   * "Wort" is the one thing on this row that has to be read. */
+  const actRow = formRow(t("ui.app_button_act"), does.anchor, "", does.button);
+  actRow.classList.add("form__row--beside");
   actRow.appendChild(note);
   rows.push(actRow);
 
@@ -825,16 +839,12 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * at once, it is the difference between "back to the start" and "back to the
    * page that used to be the start".
    */
-  const targets = document.createElement("select");
-  targets.className = "field";
-  targets.id = "appGoto";
-  targets.append(option(GOTO_HOME, t("ui.app_act_home")));
-  for (const [index, one] of layout.pages.entries()) {
-    targets.append(option(one.id, one.name || t("ui.app_page_n", { n: index + 1 })));
-  }
-  targets.append(option(GOTO_NEW, t("ui.app_goto_new")));
-  targets.value = draft.act.kind === "home" ? GOTO_HOME
-    : draft.act.kind === "goto" && draft.act.page ? draft.act.page : page().id;
+  const where: Choice[] = [
+    { value: GOTO_HOME, label: t("ui.app_act_home") },
+    ...layout.pages.map((one, index) =>
+      ({ value: one.id, label: one.name || t("ui.app_page_n", { n: index + 1 }) })),
+    { value: GOTO_NEW, label: t("ui.app_goto_new") },
+  ];
   /** What the target list is standing on, as an act. A `goto` is never left
    *  pointing at nothing - a button with no target exports as an ordinary
    *  appending button, which is not what the list said was chosen - so it
@@ -843,11 +853,15 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   const leadsTo = (): Act => targets.value === GOTO_HOME
     ? { kind: "home" }
     : { kind: "goto", page: targets.value === GOTO_NEW ? "" : targets.value };
-  targets.onchange = () => {
-    wantsNewPage = targets.value === GOTO_NEW;
-    draft.act = leadsTo();
-  };
-  const targetRow = formRow(t("ui.app_goto_page"), targets);
+  const targets = dropdown(where,
+    draft.act.kind === "home" ? GOTO_HOME
+      : draft.act.kind === "goto" && draft.act.page ? draft.act.page : page().id,
+    () => {
+      wantsNewPage = targets.value === GOTO_NEW;
+      draft.act = leadsTo();
+    });
+  targets.button.id = "appGoto";
+  const targetRow = formRow(t("ui.app_goto_page"), targets.anchor, "", targets.button);
   rows.push(targetRow);
 
   const spoken = textField(draft.vocalization, (value) => {
@@ -874,16 +888,18 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   const spokenRow = formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id);
   rows.push(spokenRow);
 
-  const classes = document.createElement("select");
-  classes.className = "field";
-  classes.id = "appClass";
-  classes.append(option("", t("ui.wordclass_none")));
-  for (const one of WORD_CLASSES) {
-    classes.append(option(one.key, t(`ui.wordclass_${one.key}`)));
-  }
-  classes.value = draft.wordClass;
-  classes.onchange = () => { draft.wordClass = classes.value; };
-  rows.push(formRow(t("ui.app_button_class"), classes));
+  /* Eleven entries, which is the longest list in the product and the one that
+   * decides whether an open menu still fits inside a sheet. See fit() in
+   * shell/sheet.ts: it opens upward from here and caps itself at what is
+   * above, rather than hanging out of the body and taking the sheet's own
+   * scrollbar with it. */
+  const classes = dropdown(
+    [{ value: "", label: t("ui.wordclass_none") },
+     ...WORD_CLASSES.map((one) =>
+       ({ value: one.key, label: t(`ui.wordclass_${one.key}`) }))],
+    draft.wordClass, (value) => { draft.wordClass = value; });
+  classes.button.id = "appClass";
+  rows.push(formRow(t("ui.app_button_class"), classes.anchor, "", classes.button));
 
   /** The rows that depend on the answer above them, and the note under it.
    *
@@ -908,14 +924,17 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
     targetRow.hidden = !goes;
     spokenRow.hidden = !speaks;
   };
-  does.onchange = () => {
+  /* A declaration rather than the assignment the select's onchange was, and
+   * hoisting is the whole reason: the dropdown is built above the two rows it
+   * governs, so what it is handed has to be nameable before they exist. */
+  function chosen(): void {
     draft.act = does.value === "word" ? { kind: "append" }
       : does.value === "shout" ? { kind: "speak" }
       : does.value === "goto" ? leadsTo()
       : { kind: does.value } as Act;
     wantsNewPage = does.value === "goto" && targets.value === GOTO_NEW;
     follow();
-  };
+  }
   follow();
 
   /** The draft, written where it belongs. Everything the sheet changed lands
@@ -965,6 +984,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
       },
     },
     rows,
+    ...(notice ? { notice } : {}),
     /* Only where there is something to delete. On an empty cell the button
      * would close a sheet that had written nothing, which is what the corner
      * and Escape already do.

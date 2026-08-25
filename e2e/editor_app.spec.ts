@@ -44,6 +44,15 @@ const sheet = (page: Page, key: string) => page.locator("dialog[open]")
   .filter({ has: page.getByRole("heading", { name: label(key) }) });
 const VOICES_LIST = /tts\.speech\.microsoft\.com\/cognitiveservices\/voices\/list/;
 const SYNTHESIS = /tts\.speech\.microsoft\.com\/cognitiveservices\/v1/;
+/* The other network this file reaches, and it reaches it without being asked:
+ * a sheet carries its own symbol search and seeds it with the word already on
+ * the button, so opening one runs a search. A word the collection does not
+ * hold comes back 404, which the console guard below reads as a failure - and
+ * whether it arrives before the test ends is a matter of how long the sheet
+ * stays open. Answered here rather than left to the network, for the reason
+ * the two above are: what these tests are about is everything after an answer
+ * arrives. */
+const SYMBOL_SEARCH = /api\.arasaac\.org\//;
 
 function wav(seconds = 0.8, hz = 220): Buffer {
   const rate = 16000;
@@ -74,6 +83,9 @@ async function standIn(page: Page): Promise<void> {
       { ShortName: "de-DE-KatjaNeural", Locale: "de-DE", Gender: "Female",
         DisplayName: "Katja", LocalName: "Katja" },
     ]),
+  }));
+  await page.route(SYMBOL_SEARCH, (route) => route.fulfill({
+    contentType: "application/json", body: "[]",
   }));
   await page.route(SYNTHESIS, (route) => {
     const said = route.request().postData() ?? "";
@@ -108,7 +120,48 @@ const DOES: Record<string, string> = {
 /** The start page, as the target list spells it. Above the pages themselves,
  *  and kept as the act `home` rather than a `goto` at whichever page is home
  *  today - the two part company the moment somebody moves the start page. */
-const HOME = "⌂";
+const HOME = "ui.app_act_home";
+
+/** Chooses from one of the sheet's dropdowns.
+ *
+ * They were selects and are a button and a menu now, for the reason
+ * components.css gives: a select's open list is the operating system's drawing
+ * and is the one control on a page that cannot follow the tokens. So there is
+ * no value to select by, and an entry is reached by its own words.
+ *
+ * Which does not make this a test of the labels: the words come out of the
+ * same table the page reads, and what is passed in is still the key. The
+ * mapping under it - `append` is "Wort" - is what DOES above holds and what
+ * these tests are for.
+ *
+ * menuitemradio rather than button: these are alternatives with one in force,
+ * which is what `checked` on every item buys. */
+const entry = (page: Page, key: string) =>
+  page.getByRole("menuitemradio", { name: label(key) });
+
+/** The same words, unanchored, for the one entry `entry` cannot reach.
+ *
+ * components.css draws the tick on a checked item as generated content, and
+ * generated content joins both the text and the accessible name - so the entry
+ * in force reads as its label followed by a check, and an anchored match for
+ * the label alone finds nothing. Every entry `entry` is asked for is one that
+ * is about to be chosen, which is by definition not that one. */
+const among = (key: string) => new RegExp(
+  LANGUAGES.map((l) =>
+    (TEXTS as Record<string, Record<string, string>>)[l][key]
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"));
+
+async function pick(page: Page, trigger: string, key: string): Promise<void> {
+  await page.locator(trigger).click();
+  await entry(page, key).click();
+}
+
+/** What a dropdown's trigger says, which is where the chosen answer now
+ *  reads. A select displayed its own selected option; a button's text is ours,
+ *  so this is the assertion that would catch a trigger left naming the answer
+ *  somebody switched away from. */
+const showing = (page: Page, trigger: string, key: string) =>
+  expect(page.locator(trigger)).toHaveText(label(key));
 
 /** Puts a button in one cell and fills it in, through the sheet.
  *
@@ -129,20 +182,20 @@ async function put(page: Page, at: number, fields: {
   await expect(box).toBeVisible();
   await box.locator("#appLabel").fill(fields.label);
   if (fields.act) {
-    await box.locator("#appDoes").selectOption(DOES[fields.act]!);
+    await pick(page, "#appDoes", `ui.app_does_${DOES[fields.act]!}`);
     // Navigation is one question - "where does this lead" - and the start page
     // is one of the answers, so it is an entry in the target list rather than
     // a kind of its own.
-    if (fields.act === "home") await box.locator("#appGoto").selectOption(HOME);
+    if (fields.act === "home") await pick(page, "#appGoto", HOME);
   }
   // After the act, and that order is the sheet's rather than this helper's:
   // Gesprochen is not on screen for a button that leads to a page, so a fill
   // before the act is chosen would be typing into a row about to be hidden.
   if (fields.spoken !== undefined) await box.locator("#appSpoken").fill(fields.spoken);
-  if (fields.wordClass) await box.locator("#appClass").selectOption(fields.wordClass);
+  if (fields.wordClass) await pick(page, "#appClass", `ui.wordclass_${fields.wordClass}`);
   // "Neue Seite ..." mints the page on Fertig rather than on the press, so it
   // is named from the label as it finally reads.
-  if (fields.gotoPage) await box.locator("#appGoto").selectOption(fields.gotoPage);
+  if (fields.gotoPage) await pick(page, "#appGoto", fields.gotoPage);
   if (fields.upload) {
     // The upload is reached from inside the sheet: a modal over a modal to
     // choose a symbol is the second dialog this design removed.
@@ -226,7 +279,7 @@ async function build(page: Page): Promise<void> {
   // button at it, because making somebody leave, make a page and come back is
   // one thought in three steps.
   await put(page, 3, { label: "Essen", wordClass: "category", act: "goto",
-                       gotoPage: "+" });
+                       gotoPage: "ui.app_goto_new" });
   await expect(page.locator("#appPages .tab")).toHaveCount(2);
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
@@ -714,7 +767,7 @@ test("the three kinds carry the acts they always did, and the start page is a ta
      * format's. */
     await put(page, 6, { label: "Aua", wordClass: "social", act: "speak" });
     await hit(page, 6).click();
-    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("shout");
+    await showing(page, "#appDoes", "ui.app_does_shout");
     // It speaks, so it is asked what it says.
     await expect(buttonSheet(page).locator("#appSpoken")).toBeVisible();
     await expect(buttonSheet(page).locator("#appGoto")).toBeHidden();
@@ -726,8 +779,8 @@ test("the three kinds carry the acts they always did, and the start page is a ta
      * which is what makes it follow a start page somebody moves. */
     await page.locator("#appPages .tab", { hasText: "Essen" }).click();
     await hit(page, 14).click();
-    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("goto");
-    await expect(buttonSheet(page).locator("#appGoto")).toHaveValue(HOME);
+    await showing(page, "#appDoes", "ui.app_does_goto");
+    await showing(page, "#appGoto", HOME);
 
     /* A navigation button says nothing, so Gesprochen and its play button are
      * not on screen at all - they were two dead controls with nothing telling
@@ -795,21 +848,122 @@ test("a button made before the bar controls went keeps saying what it is",
      * the silent way for a board to change under somebody who only came to fix
      * a typo. A fourth entry that only such a button has. */
     await hit(page, 10).click();
-    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("sayBar");
-    await expect(buttonSheet(page).locator("#appDoes option[value=sayBar]"))
-      .toHaveText(label("ui.app_act_say_bar"));
+    await showing(page, "#appDoes", "ui.app_act_say_bar");
+    // And it is in the list too, as a fourth alternative rather than a command
+    // among three radios - which is what would happen if `checked` were left
+    // off the one entry that is not one of the three.
+    await page.click("#appDoes");
+    await expect(page.locator(".menu button")).toHaveCount(4);
+    const inForce = page.locator('.menu button[aria-checked="true"]');
+    await expect(inForce).toHaveCount(1);
+    await expect(inForce).toHaveText(among("ui.app_act_say_bar"));
+    await page.keyboard.press("Escape");
 
     // And Fertig on a sheet nobody changed leaves the act where it was. Only
     // choosing one of the three replaces it.
     await buttonSheet(page).locator("button", { hasText: label("ui.done") }).click();
     await expect(buttonSheet(page)).toBeHidden();
     await hit(page, 10).click();
-    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("sayBar");
-    await buttonSheet(page).locator("#appDoes").selectOption("word");
+    await showing(page, "#appDoes", "ui.app_act_say_bar");
+    await pick(page, "#appDoes", "ui.app_does_word");
     await buttonSheet(page).locator("button", { hasText: label("ui.done") }).click();
     await expect(buttonSheet(page)).toBeHidden();
     await hit(page, 10).click();
-    await expect(buttonSheet(page).locator("#appDoes")).toHaveValue("word");
+    await showing(page, "#appDoes", "ui.app_does_word");
+    await page.keyboard.press("Escape");
+  });
+
+test("the sheet's three questions are dropdowns, and the long one stays in the sheet",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await page.locator("#appPages .tab").first().click();
+
+    /* Not one select left in the product. The OS draws a select's open list,
+     * so it is the one control on a page that cannot follow the tokens - the
+     * settings sheet lost its two for that reason and this sheet held the
+     * last three. */
+    await hit(page, 7).click();
+    const box = buttonSheet(page);
+    await expect(box).toBeVisible();
+    expect(await page.locator("select").count()).toBe(0);
+    for (const which of ["#appDoes", "#appGoto", "#appClass"]) {
+      await expect(box.locator(which)).toHaveJSProperty("tagName", "BUTTON");
+      await expect(box.locator(which)).toHaveAttribute("aria-haspopup", "menu");
+    }
+
+    /* The word class is the longest list in the product - eleven entries - and
+     * it hangs off the last row of a sheet whose body is its one scrolling
+     * area. Left alone it lengthened what the sheet scrolls, which moves the
+     * fields under it while somebody is choosing, and put its own last rows
+     * behind the foot. fit() in shell/sheet.ts opens it upward and caps it at
+     * the room there is; what is asserted is the outcome - the list is inside
+     * the body, and the body scrolls no further than it did with the list
+     * shut. */
+    const scroll = () => box.locator(".body").evaluate(
+      (one) => one.scrollHeight - one.clientHeight);
+    const shut = await scroll();
+    await box.locator("#appClass").click();
+    const menu = page.locator(".menu");
+    await expect(menu.locator("button")).toHaveCount(11);
+    expect(await scroll()).toBe(shut);
+    const inside = await menu.evaluate((one) => {
+      const body = one.closest(".body")!.getBoundingClientRect();
+      const list = one.getBoundingClientRect();
+      return list.top >= body.top - 1 && list.bottom <= body.bottom + 1;
+    });
+    expect(inside).toBe(true);
+
+    // One in force and the rest offered, which is what `checked` on every item
+    // buys and a plain list of commands would leave to the drawing.
+    await expect(page.locator('.menu button[aria-checked="true"]')).toHaveCount(1);
+
+    // Escape dismisses the list and leaves the sheet standing, which is the
+    // half a menu inside a <dialog> gets wrong by default.
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    await expect(box).toBeVisible();
+
+    // And the trigger follows the choice, which a select did for free.
+    await pick(page, "#appClass", "ui.wordclass_verb");
+    await showing(page, "#appClass", "ui.wordclass_verb");
+    await page.keyboard.press("Escape");
+  });
+
+test("what the first column costs is said across the sheet, not above one field",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+
+    // The column becomes the Sammlung's rather than each page's, in the card
+    // behind the ⋯ beside its name.
+    const card = await openGrid(page);
+    await card.getByRole("checkbox").first().check();
+    await card.locator("button", { hasText: label("ui.app_first_column_take_go") }).click();
+    await expect(page.locator("#appGrid .cell--shared")).toHaveCount(3);
+
+    await page.locator("#appGrid .cell--shared").first()
+      .locator(".cell__open").click();
+    const box = buttonSheet(page);
+    const notice = box.locator(".notice");
+    await expect(notice).toHaveText(label("ui.app_first_column_button"));
+
+    /* It is about the button, not about the field it used to stand over. So it
+     * is a child of the body spanning both columns rather than the first of
+     * the rows that become the right-hand one - which is a fact about width:
+     * it reaches wider than the form beside it. */
+    await expect(notice).toHaveJSProperty("parentElement.className", "body");
+    const spans = await notice.evaluate((one) =>
+      Math.round(one.getBoundingClientRect().width)
+      > Math.round(one.closest(".body")!.querySelector(".form")!
+          .getBoundingClientRect().width));
+    expect(spans).toBe(true);
+
+    // A cell that is not the column's says nothing, which is what makes the
+    // sentence worth reading where it is said.
+    await page.keyboard.press("Escape");
+    await hit(page, 7).click();
+    await expect(buttonSheet(page).locator(".notice")).toHaveCount(0);
     await page.keyboard.press("Escape");
   });
 

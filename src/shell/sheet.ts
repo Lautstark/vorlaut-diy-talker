@@ -48,6 +48,7 @@
  * the sheet is dismissed.
  */
 import { openDialog } from "@lautstark/design/dialog";
+import { menuOn } from "@lautstark/design/menu";
 import { say, status } from "./dom.js";
 import { symbolInto } from "../backend/index.js";
 import { reason } from "../core/errors.js";
@@ -65,11 +66,135 @@ export type Left = "done" | "next" | null;
  * are built out of. They carry no opinion about what a row is for.
  */
 
-export function option(value: string, text: string): HTMLOptionElement {
-  const one = document.createElement("option");
-  one.value = value;
-  one.textContent = text;
-  return one;
+/** One of the answers a dropdown offers. */
+export interface Choice {
+  /** What the caller stores, and what it reads back. Never drawn. */
+  value: string;
+  /** What is drawn - on the trigger while it is closed, and in the list. */
+  label: string;
+}
+
+/** A trigger and the list it opens. */
+export interface Dropdown {
+  /** What a row is handed: the anchor the list hangs from. menu.js appends
+   *  the list to the trigger's parent, so the anchor is what positions it. */
+  readonly anchor: HTMLElement;
+  /** The trigger itself - the thing a caption names, a test presses and focus
+   *  lands on. A button is not a labelable element, so a row that captions one
+   *  has to point at it with aria-labelledby; see formRow below. */
+  readonly button: HTMLButtonElement;
+  /** Which answer is in force. Assigning redraws the trigger and calls nobody
+   *  back, which is what writing to a select's `.value` did. */
+  value: string;
+}
+
+/**
+ * A button and a menu, which is what this family means by a dropdown.
+ *
+ * Not a `<select>`, and the reason is components.css's rather than this
+ * module's: a select's open list is drawn by the operating system, so it is
+ * the one control on a page that cannot follow the tokens - survivable while a
+ * product committed to one ground and not once the scheme became a choice.
+ * The same reasoning replaced the two pickers in the settings sheet, and this
+ * is the third and last place in the product that had one.
+ *
+ * `checked` is set on every item rather than only the one in force. It is
+ * tri-state on purpose - see docs/lib/menu.d.ts - and these are alternatives,
+ * so leaving it off would make them read as a list of equal commands and put
+ * the current answer beyond anything but the drawing.
+ *
+ * Choosing what is already chosen calls nothing back, which is the one piece
+ * of a select's behaviour worth copying deliberately rather than by accident:
+ * a `change` event that fires on a non-change is how a row that watches one
+ * comes to redraw itself for nothing.
+ */
+export function dropdown(choices: Choice[], value: string,
+                         onChange: (value: string) => void): Dropdown {
+  const anchor = document.createElement("span");
+  // .start, because these stand at the left of a form column: the default
+  // hangs the list rightward off its trigger, which suits the overflow menu at
+  // the right edge of a row and nothing here.
+  anchor.className = "menu-anchor start";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn quiet sm dropdown";
+  button.setAttribute("aria-haspopup", "menu");
+  button.setAttribute("aria-expanded", "false");
+  anchor.appendChild(button);
+
+  let held = value;
+  /* The trigger says what is chosen, which a select did for free and a button
+   * does not. That is the defect this shape shipped with the first time it
+   * replaced a select here - the trigger went on naming the answer somebody
+   * had just switched away from - so it is one function called from both
+   * places that can change the answer. */
+  const paint = () => {
+    button.textContent = choices.find((one) => one.value === held)?.label ?? "";
+  };
+  paint();
+
+  button.onclick = () => {
+    menuOn(button, (add) => {
+      for (const one of choices) {
+        add(one.label, () => {
+          if (one.value === held) return;
+          held = one.value;
+          paint();
+          onChange(held);
+        }, { checked: one.value === held });
+      }
+    });
+    fit(anchor, button);
+  };
+
+  return {
+    anchor, button,
+    get value() { return held; },
+    set value(next: string) { held = next; paint(); },
+  };
+}
+
+/**
+ * Keeps an open list inside the sheet it was opened in.
+ *
+ * A sheet's body is the one scrolling area (see `.sheet > .body`), and a list
+ * that is positioned inside a scrolling box is clipped by it and adds to what
+ * it scrolls. So a long menu near the foot of a sheet - Wortart is eleven
+ * entries - pushed the sheet's own scrollbar out and hid its own last rows
+ * behind the foot.
+ *
+ * Two answers, in this order. Open upward where there is more room above than
+ * below, which is what a menu at the foot of a form needs and all a chooser of
+ * three or four ever needs. Then cap what is left, so that a list too long for
+ * either side scrolls within itself rather than out of the sheet.
+ *
+ * Here rather than in the shared menu: the package positions a list against
+ * its anchor and says so, and which box a product wants it kept inside is the
+ * product's - "the plumbing stays per product", components.css's own words for
+ * the same seam.
+ */
+function fit(anchor: HTMLElement, button: HTMLElement): void {
+  const menu = anchor.querySelector<HTMLElement>(".menu");
+  // A second press on the trigger is a dismissal, and menuOn has already
+  // closed the list rather than opened one.
+  if (!menu) { anchor.classList.remove("menu-anchor--up"); return; }
+
+  const box = anchor.closest(".body");
+  const view = box ? box.getBoundingClientRect()
+                   : new DOMRect(0, 0, innerWidth, innerHeight);
+  const at = button.getBoundingClientRect();
+  // The 6px components.css hangs the list at, spent again at the far end so a
+  // capped list does not sit flush against the edge it was capped by.
+  const gap = 12;
+  const below = view.bottom - at.bottom - gap;
+  const above = at.top - view.top - gap;
+  const up = menu.offsetHeight > below && above > below;
+
+  anchor.classList.toggle("menu-anchor--up", up);
+  // A floor, because a cap small enough to show nothing is worse than a list
+  // that overhangs: two rows and a scrollbar is still a menu.
+  menu.style.maxHeight = `${Math.max(96, Math.floor(up ? above : below))}px`;
 }
 
 /** One labelled thing in a sheet: a label, a control, and a sentence under it.
@@ -79,37 +204,50 @@ export function option(value: string, text: string): HTMLOptionElement {
  * input and wrong for a radio group or a control with a play button beside it -
  * pressing the caption would then land on whichever the browser picked first.
  * An empty `text` leaves the caption out, for a row that is a button.
+ *
+ * `names` says what the caption is the name of, and its type says how:
+ *
+ * - an id, for one labelable control. A real <label for>, so pressing the
+ *   caption reaches it, which is what a field wants.
+ * - an element, where there is no id that would work. A <button> is not a
+ *   labelable element, so `for` pointed at one silently does nothing - the
+ *   association has to be aria-labelledby, and a <label> that labels nothing
+ *   would be furniture. A dropdown's trigger is that case; settings_sheet.ts
+ *   reached the same shape by hand before this did.
+ * - "", for a control that is several controls. The caption names the box.
  */
 export function formRow(text: string, control: HTMLElement, note = "",
-                        forId = control.id): HTMLElement {
+                        names: string | HTMLElement = control.id): HTMLElement {
   const box = document.createElement("div");
   box.className = "form__row";
   if (text) {
-    const caption = document.createElement("label");
+    const points = typeof names === "string" ? "" : names;
+    const caption = document.createElement(points ? "span" : "label");
     caption.className = "lbl";
-    /* `for` where there is one control to point at, and aria-labelledby where
-     * there is not. A radio group is four controls and a play button makes the
-     * row two, so a wrapping <label> would hand the caption's press to
-     * whichever the browser picked first - which is why this is a <div> with a
-     * <label for> rather than a <label> round the row. */
-    if (forId) caption.htmlFor = forId;
-    else {
+    if (typeof names === "string" && names) {
+      (caption as HTMLLabelElement).htmlFor = names;
+    } else {
       caption.id = `row${++captions}`;
-      control.setAttribute("aria-labelledby", caption.id);
+      (points || control).setAttribute("aria-labelledby", caption.id);
     }
     caption.textContent = text;
     box.appendChild(caption);
   }
   box.appendChild(control);
-  if (note) {
-    const hint = document.createElement("span");
-    hint.className = "form__hint";
-    hint.textContent = note;
-    box.appendChild(hint);
-  }
+  if (note) box.appendChild(hint(note));
   return box;
 }
 let captions = 0;
+
+/** The sentence under a row, or beside it. Its own builder because a row whose
+ *  sentence changes with the answer has to rewrite one rather than rebuild the
+ *  row around it. */
+export function hint(text = ""): HTMLElement {
+  const line = document.createElement("span");
+  line.className = "form__hint";
+  line.textContent = text;
+  return line;
+}
 
 /** A text field that writes into the caller's draft as it is typed. Nothing
  *  reaches a layout until the sheet's confirming press - see the head of this
@@ -402,6 +540,13 @@ export interface SheetSpec {
   /** The left column. Absent for a sheet with nothing to show a picture of,
    *  which then takes the narrower single-column shape. */
   pick?: PickColumn;
+  /** A sentence about the whole thing, across both columns and above them.
+   *
+   * Its own slot rather than the first of the rows, because those become the
+   * form column and a sentence about the button as a whole read there as a
+   * sentence about the field under it. It spans, so it also stays right on the
+   * one-column sheets - the page card, and either sheet on a narrow screen. */
+  notice?: HTMLElement;
   /** The right column, in order. Built with formRow() above; this module does
    *  not read them. */
   rows: HTMLElement[];
@@ -440,7 +585,8 @@ export function openSheet(spec: SheetSpec): Promise<Left> {
     form.className = "form";
     form.append(...spec.rows);
 
-    const body: HTMLElement[] = spec.pick ? [drawPick(spec.pick), form] : [form];
+    const columns: HTMLElement[] = spec.pick ? [drawPick(spec.pick), form] : [form];
+    const body: HTMLElement[] = spec.notice ? [spec.notice, ...columns] : columns;
 
     const foot: HTMLElement[] = [];
     if (spec.remove) {

@@ -1167,11 +1167,26 @@ dialog.sheet--button { max-width: 720px; width: 100%; }
    nothing moves. Padding on .pick would only have chosen a different control
    to sit flush. */
 .sheet--button > .body {
-  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 22px;
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  /* The 22px is the gutter between the two columns and was never anything
+     else. A row gap wants less, because the only thing above the columns is a
+     sentence about what is below them - see the spanning notice under this
+     rule - and because at the one-column width below this is what stands
+     between the picture and the fields. */
+  column-gap: 22px; row-gap: 15px;
   color: var(--text); font-size: inherit;
   padding-top: 14px;
   margin-inline: -4px; padding-inline: 4px;
 }
+/* A sentence about the thing as a whole, across the whole of it.
+
+   It was the first of the rows, which put it inside the form column above
+   Aufschrift - so a notice about the button read as a note about the field
+   under it, and it took the narrower measure of the two columns to say a
+   sentence that is about neither. `1 / -1` is the same on the one-column page
+   card and on either sheet below 720px, which is why it is a span rather than
+   a second grid. */
+.sheet--button > .body > .notice { grid-column: 1 / -1; }
 /* A page has one thing to say and no picture beside it.
 
    Scoped `dialog.` for the same reason the rule above is: openSheet puts both
@@ -1261,12 +1276,49 @@ dialog.sheet--page { max-width: 520px; }
 
 /* -------------------------------------------------------------- the fields */
 
-.form { display: grid; gap: 16px; align-content: start; }
+.form { display: grid; gap: 14px; align-content: start; }
 .form__row { display: grid; gap: 6px; }
 .form__row > .lbl { margin-bottom: 0; }
 /* A row whose control is a button takes the width the button needs, not the
-   column's. */
-.form__row > .btn { justify-self: start; }
+   column's. A dropdown is a button inside its anchor, and the anchor is what
+   the row is handed - see dropdown() in shell/sheet.ts. */
+.form__row > .btn, .form__row > .menu-anchor { justify-self: start; }
+
+/* ---- where a row's sentence goes -----------------------------------------
+
+   Three stacked lines - a caption, a control, a sentence - is what a question
+   costs by default, and four of them is most of this sheet. Neither modifier
+   below drops a word: what they do is put the sentence on a line that already
+   exists, which is only possible where something on that line is short.
+
+   Both are `order` over the same DOM, so formRow() keeps building one shape:
+   caption, control, sentence. Reordering there instead would make the row's
+   markup depend on which modifier the caller was about to add.
+
+   `--caption`: the sentence qualifies the *question*, and rides beside it.
+   Aufschrift is the case - "leave it empty and only the picture shows" is a
+   note on what the field means, it never changes, and the caption is one word
+   wide. The field keeps its own full-width line under both.
+
+   `--beside`: the sentence describes the *answer*, and rides beside the
+   control. That is only affordable because the control stopped being a
+   full-width field: a dropdown trigger is as wide as the word on it, and the
+   note that tells Wort from Ausruf is the one thing on the row that has to be
+   read. It follows the choice, which is why it must stay next to the control
+   that changes it rather than move to the caption. */
+.form__row--caption, .form__row--beside {
+  display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 6px;
+}
+.form__row--caption { column-gap: 9px; }
+.form__row--caption > .lbl { order: 1; flex: 0 0 auto; }
+.form__row--caption > .form__hint { order: 2; flex: 1 1 14ch; }
+.form__row--caption > * { order: 3; flex: 1 0 100%; }
+
+.form__row--beside { column-gap: 10px; }
+.form__row--beside > .lbl { flex: 1 0 100%; }
+.form__row--beside > .form__hint { flex: 1 1 16ch; }
+.form__row--beside > .menu-anchor { flex: 0 0 auto; }
+
 /* The spoken text sits next to the way to hear it, because they are one
    question: does this say the right thing. */
 .form__withplay { display: flex; gap: 8px; align-items: center; }
@@ -1281,6 +1333,19 @@ dialog.sheet--page { max-width: 520px; }
    own `display: grid` is an author one, so the row would otherwise keep its
    box and its height while claiming to be hidden. */
 .form__row[hidden] { display: none; }
+
+/* An open list, kept inside the sheet.
+
+   fit() in shell/sheet.ts measures the room the body has left and writes a
+   max-height; these two are the drawing half of it. Without the overflow the
+   cap would only cut the last rows off, and without the flip a menu near the
+   foot - the eleven word classes - would be capped at nothing worth opening.
+
+   The body is the sheet's one scrolling area, so a list hanging out of it does
+   not overhang the sheet: it lengthens what the sheet scrolls, which moves the
+   scrollbar and the fields under it while somebody is choosing. */
+.form__row .menu { overflow-y: auto; overscroll-behavior: contain; }
+.menu-anchor--up > .menu { top: auto; bottom: calc(100% + 6px); }
 
 /* The foot carries the destructive act on the left, away from the confirming
    one - and between them the way to keep going, because a board is built in
