@@ -1,0 +1,113 @@
+# Changelog
+
+## 0.1.0 (2026-08-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **editor:** ask what a press does first, and offer three kinds
+* **case:** every outer dimension moves, so parts printed from the previous model do not fit parts printed from this one. Print all three again, not one.
+* a Sammlung holds at most five sets, and every one of them goes onto the device. Layouts with more sets than that, or with ext_vorlaut_active on a board, are no longer read as they were.
+
+### Features
+
+* a cell draws the word only when there is one ([5acbf4c](https://github.com/Lautstark/vorlaut-diy-talker/commit/5acbf4c3f82bbc23ccc4f2d0c23a92ba91618ef9))
+* a Sammlung ships all its sets, capped at five ([9f19bc1](https://github.com/Lautstark/vorlaut-diy-talker/commit/9f19bc10e72ec05300d55db7dd0cd98e09031856))
+* a second editor, for the tablet boards the app renders ([732e7fa](https://github.com/Lautstark/vorlaut-diy-talker/commit/732e7fae5c84b790b41d773b9ae72063df779daa))
+* a word takes the picture's room, and clamps to two lines ([2044f8e](https://github.com/Lautstark/vorlaut-diy-talker/commit/2044f8e6e15671023847c9262040da35a23bcc4d))
+* **app-package:** carry a word-class colour as a fill, a border or neither ([84ed90a](https://github.com/Lautstark/vorlaut-diy-talker/commit/84ed90acd78c8532395d19be8cbd49eeff91ed4b))
+* **app-package:** name the odd keys out when §5.1 refuses ([5d0ee1c](https://github.com/Lautstark/vorlaut-diy-talker/commit/5d0ee1c3c7a130856c50ca4553bdede7643666fb))
+* **app-package:** write the shared first column onto every board ([02c2e5e](https://github.com/Lautstark/vorlaut-diy-talker/commit/02c2e5e64c6077588426d27b36445c4f01de6b37))
+* **app:** let a tablet Sammlung own its first column ([5a23e3a](https://github.com/Lautstark/vorlaut-diy-talker/commit/5a23e3a041070b0532bc8773b60b5a25643ebdd6))
+* **case:** shrink the case, and let the Feather lie flat on the plate ([fa5eec0](https://github.com/Lautstark/vorlaut-diy-talker/commit/fa5eec0c07fadf43e8c82612a5d8154feb8358d6))
+* **core:** remember the page's language in this browser ([6b82ba2](https://github.com/Lautstark/vorlaut-diy-talker/commit/6b82ba2b5a533614e4b1d98092e6662e208b13a1))
+* **editor-app:** author the first column, and switch the gap on ([ebbb531](https://github.com/Lautstark/vorlaut-diy-talker/commit/ebbb53142cab175847dfdc97b02a27d82fc65c3e))
+* **editor-app:** move the grid size off the editing bar, beside a colour choice ([683ab69](https://github.com/Lautstark/vorlaut-diy-talker/commit/683ab6987c68aef38aab2a336eb83452d5f30db5))
+* **editor-app:** one press, one sheet, for a button and for a page ([7f58cd8](https://github.com/Lautstark/vorlaut-diy-talker/commit/7f58cd8abab58180b3fc5a975a1cdc293eb50c02))
+* **editor-diy:** the board is the device, and a press opens a sheet ([6ae2013](https://github.com/Lautstark/vorlaut-diy-talker/commit/6ae201326dd2160ba3b319b51f066aec89f74af0))
+* **editor:** ask what a press does first, and offer three kinds ([2d18063](https://github.com/Lautstark/vorlaut-diy-talker/commit/2d180631682f583641a71f68e36164d72488d21a))
+* export a Sammlung as the app package the viewer opens ([7aa106b](https://github.com/Lautstark/vorlaut-diy-talker/commit/7aa106b598605b79fb146231df676249d41b3bc9))
+* **export:** ask §5.1 before the synthesis run, not after it ([1753d74](https://github.com/Lautstark/vorlaut-diy-talker/commit/1753d748adbe45bbbbd8b2f301a78e991f59771d))
+* hear a tablet button from the board ([1253221](https://github.com/Lautstark/vorlaut-diy-talker/commit/1253221061f35b04e84643a75ad5ea6f7d96d064))
+* hold several boards, and split the shell from the five-key editor ([ff07ddf](https://github.com/Lautstark/vorlaut-diy-talker/commit/ff07ddf165886b6744f9c6e4f9791d6f28166148))
+* mark the first column with a gap in a board package ([c65d300](https://github.com/Lautstark/vorlaut-diy-talker/commit/c65d300585e072af53b98930de3ffbf6db807c0f))
+* move a tablet button to another cell, by drag or by keyboard ([63f9c6a](https://github.com/Lautstark/vorlaut-diy-talker/commit/63f9c6a2053d8204f4b1538e6df8ea40eb363bbe))
+* move the transfer flow into a dialog ([5b51912](https://github.com/Lautstark/vorlaut-diy-talker/commit/5b519123b9a8d416846d134562bd8b4275be068f))
+* name a picture-only button rather than call it empty ([a05d9f2](https://github.com/Lautstark/vorlaut-diy-talker/commit/a05d9f29e54d559709c5644db311551b99b0e55a))
+* one settings panel open at a time ([28e2c9f](https://github.com/Lautstark/vorlaut-diy-talker/commit/28e2c9f519f7eb0e2edfb142c10a8af1220c4506))
+* **picker:** offer the Sammlung's symbol source, not the machine's ([78045c5](https://github.com/Lautstark/vorlaut-diy-talker/commit/78045c53d65b8a95336b5fbfc78a01dd61acf662))
+* Sammlungen, and the work head that belongs to one ([9c43bf0](https://github.com/Lautstark/vorlaut-diy-talker/commit/9c43bf0977a83674ab262e8060de8a25abeec500))
+* **sheet:** a way to take the picture off a button ([e6fb80a](https://github.com/Lautstark/vorlaut-diy-talker/commit/e6fb80a010c3aa77c3c8563e8dc7f3608f06f824))
+* **shell:** give each Sammlung its own settings sheet behind the ⋯ ([468919c](https://github.com/Lautstark/vorlaut-diy-talker/commit/468919cd54f1727fe1d9d5c986de9b24be2288c6))
+* **symbols:** a METACOM folder becomes the source when it is added ([97ce5bb](https://github.com/Lautstark/vorlaut-diy-talker/commit/97ce5bb9ddf705382fda2ff7cd98951502e488ca))
+* take a page's own colour out of the tablet editor ([a234b0d](https://github.com/Lautstark/vorlaut-diy-talker/commit/a234b0d60aed0b0420d633037d3bbb3a167c2719))
+* **voices:** start a Sammlung on the voice its own language picked ([45d23c7](https://github.com/Lautstark/vorlaut-diy-talker/commit/45d23c7e08b6325545bd6acf8af0d0e5d095997c))
+
+
+### Fixes
+
+* ask before deleting a set the way every other question here does ([e9ebe48](https://github.com/Lautstark/vorlaut-diy-talker/commit/e9ebe488aa22f7bba419752285b650a7482a42c7))
+* **css:** let the create dialog's target question actually hide ([ec91971](https://github.com/Lautstark/vorlaut-diy-talker/commit/ec919716a2bece7d0191e85f9a4083d4ba3d978b))
+* **css:** let the tab strip out of the board's height budget ([b7062ac](https://github.com/Lautstark/vorlaut-diy-talker/commit/b7062acc26bf2690a358cab03bdaf378c0f656b9))
+* draw a withdrawn folder as a warning, and let the packages decide which ([be070ba](https://github.com/Lautstark/vorlaut-diy-talker/commit/be070ba8172f92b2f17415f522bbaef323e1a2b5))
+* **editor-app:** retire the selection mark the panel left behind ([1d6bc8e](https://github.com/Lautstark/vorlaut-diy-talker/commit/1d6bc8e456a402059f5c675fed0ca3a7c2beee43))
+* **editor-app:** the page card is the narrow sheet again ([de40f94](https://github.com/Lautstark/vorlaut-diy-talker/commit/de40f94a145a939e58b3e668008d6437bf1ea9b5))
+* **exchange:** make every fixture expectation agree with its package ([1a23781](https://github.com/Lautstark/vorlaut-diy-talker/commit/1a2378116aa9de2951a3892a0e0793bc8cfa20d3))
+* follow the board's language in the symbol dialog's credit line ([3f32b60](https://github.com/Lautstark/vorlaut-diy-talker/commit/3f32b6049ce80a2b7ca59cacb17c904c8826e820))
+* follow the siblings' layout instead of a third answer ([c8a8ae5](https://github.com/Lautstark/vorlaut-diy-talker/commit/c8a8ae5f1d257b3ef2b57c921e7631d82d6a9ef4))
+* give the symbols their size back, and let the work head span the page ([23f1020](https://github.com/Lautstark/vorlaut-diy-talker/commit/23f10207cc3021bfb60ad0975343eb0e93e58c59))
+* give the tablet board the width eleven columns need ([97a4496](https://github.com/Lautstark/vorlaut-diy-talker/commit/97a449622e95daaf1514df241a84aea33260cbfc))
+* keep the shell the height of the window, so Einstellungen stays on screen ([615c062](https://github.com/Lautstark/vorlaut-diy-talker/commit/615c0624573507bd34803bfcb251eab38d2444b5))
+* make a new board in the language the page is in ([e254e53](https://github.com/Lautstark/vorlaut-diy-talker/commit/e254e53ef9ee8fad1a6d5941907c11561d7241fd))
+* name the two targets, and stop the notes claiming what a key says ([6c7a737](https://github.com/Lautstark/vorlaut-diy-talker/commit/6c7a737affd1cbf1e425559916b2ec8e426bb6f5))
+* put the work head on the page's own ground ([85ec5d6](https://github.com/Lautstark/vorlaut-diy-talker/commit/85ec5d630ca712a394ab87ca21f2a13d3315b3f9))
+* say "umstellen" where "die Seite" meant the other kind of side ([cb8debb](https://github.com/Lautstark/vorlaut-diy-talker/commit/cb8debbe8361dad37d8c6b221e27143b693548a0))
+* say "Zugriff bestätigen" in the heading and put the reason in the panel ([5aaf723](https://github.com/Lautstark/vorlaut-diy-talker/commit/5aaf7235e98b0510764ff68a7726e8f37c42fd45))
+* say DIY-Talker where a tablet is also a talker ([e20731b](https://github.com/Lautstark/vorlaut-diy-talker/commit/e20731b34f7c3fd86d4e61f9d8250e0995cfa2d7))
+* say so when another tab is holding the database open ([ef62d0c](https://github.com/Lautstark/vorlaut-diy-talker/commit/ef62d0cce9221cba3ec1691ee10d518f8d7cb519))
+* say which language a package is in, from the voice that speaks it ([3006e38](https://github.com/Lautstark/vorlaut-diy-talker/commit/3006e3859f91d85dd49302e06e6265584cffbfeb))
+* search ARASAAC in the page's own language, not always German ([fa6e4d2](https://github.com/Lautstark/vorlaut-diy-talker/commit/fa6e4d251fd5e32905be006b9de3f2389d5e837a))
+* search METACOM for the word, not for everything built out of it ([e362fba](https://github.com/Lautstark/vorlaut-diy-talker/commit/e362fba73e82cb9a1061abbdc6b0d88dfb7e4333))
+* **sheet:** stop the sheet body clipping the focus ring ([ecebcdc](https://github.com/Lautstark/vorlaut-diy-talker/commit/ecebcdcd2abda3c96cd2b27ff2742c43dce3b8fb))
+* **shell:** ask about a restore in a dialog, and say how much it replaces ([215aa4f](https://github.com/Lautstark/vorlaut-diy-talker/commit/215aa4f18b3274ae9bae5e6239002378a34c2fca))
+* **shell:** make the narrow sidebar a drawer over the work, like both siblings ([6e7eb23](https://github.com/Lautstark/vorlaut-diy-talker/commit/6e7eb23a66d830b4a0113e27fce16a93ae267931))
+* **shell:** tell the page's language apart from the Sammlung's ([920ae21](https://github.com/Lautstark/vorlaut-diy-talker/commit/920ae210a4d1452385a60cc30d611ee1ae7995e4))
+* size the board for the height it costs, not the width it can have ([2742bbb](https://github.com/Lautstark/vorlaut-diy-talker/commit/2742bbb31f36400b95390ace0157f5be1f80cc87))
+* **tabs:** make the page's ... a target, and hold the strip still ([14c749f](https://github.com/Lautstark/vorlaut-diy-talker/commit/14c749f021b2a14685cfc02a4dab9759a3e4a155))
+* **ui:** scope the settings sheet padding override to the settings sheet ([7099595](https://github.com/Lautstark/vorlaut-diy-talker/commit/70995950bf58acfe245a59d3400bc1d237b2e16e))
+
+
+### Rearranged
+
+* **diy:** take the Device panel out; the transfer dialog grants the port ([18fc78d](https://github.com/Lautstark/vorlaut-diy-talker/commit/18fc78d83c8f5aba0b9cb3850eb378edb3bff4c2))
+* let the shared menu dismiss itself, and stop saying so at every item ([477e465](https://github.com/Lautstark/vorlaut-diy-talker/commit/477e465e85a44ffdac021d620b55dcdd3f3c9b41))
+* **picker:** expose search, take and upload as a seam ([6874315](https://github.com/Lautstark/vorlaut-diy-talker/commit/68743150e2dddd26d506179c6cf32008d9475850))
+* **shell:** retire the symbol picker dialog ([1c1ebf7](https://github.com/Lautstark/vorlaut-diy-talker/commit/1c1ebf7c2546e54e89a992a28592aae6b6331f69))
+* **shell:** take the name field from design, and stop assigning it ([5e2b7e8](https://github.com/Lautstark/vorlaut-diy-talker/commit/5e2b7e8c17f2d1477c41646d31e5667276aad696))
+* **shell:** take the Sammlung rows from design ([6a6cf87](https://github.com/Lautstark/vorlaut-diy-talker/commit/6a6cf87d1ec7749ef187b3f155a23ff4613a5c3f))
+* **store:** keep the boards in object stores, through idb ([54de600](https://github.com/Lautstark/vorlaut-diy-talker/commit/54de600b610c344b601fb2cabc5e184e02905ffc))
+* take the confirm dialog from design, and guard the hang ([0653723](https://github.com/Lautstark/vorlaut-diy-talker/commit/065372367b2499946a1a8d5ba0f836f997456078))
+* take the menu from design instead of keeping a fourth copy ([ac3f87c](https://github.com/Lautstark/vorlaut-diy-talker/commit/ac3f87ce5a4d8c8e6b384e4187c78d439042e009))
+
+
+### Written down
+
+* **cable:** fix the prose the Device panel left stale, and name what it cost ([c2698e2](https://github.com/Lautstark/vorlaut-diy-talker/commit/c2698e204fd4396f99b246a98ea95f3cb362bd3e))
+* **cable:** the pre-build probe is a bad trade, and the firmware says why ([6672f55](https://github.com/Lautstark/vorlaut-diy-talker/commit/6672f559d805e66930fc6783a1d2f09bd10a98d2))
+* **css:** the cells stopped being 4:3, the comment did not ([c0db422](https://github.com/Lautstark/vorlaut-diy-talker/commit/c0db422dd9a2b76854cca9cd9df0626c9c81912f))
+* **editor-app:** the header line still named the panel ([b669c41](https://github.com/Lautstark/vorlaut-diy-talker/commit/b669c413830b05c6ee3f05439a5bc07d0b30a6e4))
+* **exchange:** let index.json be the only place that counts the fixtures ([41329fb](https://github.com/Lautstark/vorlaut-diy-talker/commit/41329fb755e3e0898c3609ea52e47670c3f689b6))
+* follow the removed active field into ADR 0001 ([92edae4](https://github.com/Lautstark/vorlaut-diy-talker/commit/92edae43dad365b344ec80de0d2d93e4f6e0c325))
+* **languages:** two settings, and who each one belongs to ([4b2362e](https://github.com/Lautstark/vorlaut-diy-talker/commit/4b2362e43de0c005ac452b49926af5db64b54c04))
+* **packages:** sequence the bildquelle 1.6.0 bump before cutting it ([639fdef](https://github.com/Lautstark/vorlaut-diy-talker/commit/639fdef375ba889c46e674ab4a5dd200a1083804))
+* propose where a Sammlung's own settings should live ([6476122](https://github.com/Lautstark/vorlaut-diy-talker/commit/647612274c3b2e72c33ac82b7ac738092e06aeb3))
+* record what the two frozen references stopped answering for ([b646433](https://github.com/Lautstark/vorlaut-diy-talker/commit/b646433220ae4fee5c076ecc6e809a5ec91adfec))
+* **sammlung-settings:** record the decision and its four amendments ([ec69c7f](https://github.com/Lautstark/vorlaut-diy-talker/commit/ec69c7febc32ffb31b62abfc5d9c0b4f3cfd9dfe))
+* say what the 0.1.0 notes are missing, and why it is not a rebase ([5e96ca6](https://github.com/Lautstark/vorlaut-diy-talker/commit/5e96ca63d3e037dc88312a1e60e1bf810af1d27a))
+* **symbol-source:** record which half of the rule this was ([544b37d](https://github.com/Lautstark/vorlaut-diy-talker/commit/544b37daa95ea8aa0d658d01974a93a09878fbbe))
+* write down how a branch gets landed ([23a8df0](https://github.com/Lautstark/vorlaut-diy-talker/commit/23a8df08e626fc333566f3d914e999c04d2a20ae))
+
+
+### Build and dependencies
+
+* **deps:** level the design pin at 1.14.1 ([b3eed4b](https://github.com/Lautstark/vorlaut-diy-talker/commit/b3eed4ba2c3963e3ef8e3de8d3cf746cecbf69d1))
