@@ -766,8 +766,17 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   const labelInput = textField(draft.label, (value) => { draft.label = value; });
   labelInput.id = "appLabel";
   labelInput.placeholder = t("ui.app_button_label_hint");
-  rows.push(formRow(t("ui.app_button_label"), labelInput,
-                    t("ui.app_button_label_note")));
+  /* The hint rides on the caption's line rather than under the field.
+   *
+   * It is a qualification of the question - what an empty one means - and it
+   * is short enough to read as one. Under the control it was a third stacked
+   * line saying something the placeholder in the field had half said already;
+   * beside the caption it says the half the placeholder cannot, and costs no
+   * height at all. */
+  const labelRow = formRow(t("ui.app_button_label"), labelInput,
+                           t("ui.app_button_label_note"));
+  labelRow.classList.add("form__row--caption");
+  rows.push(labelRow);
 
   /* --- what a press does, and the rows that follow from it ---------------
    *
@@ -810,7 +819,12 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   const note = hint();
   const does = dropdown(kinds, chose ?? draft.act.kind, () => { chosen(); });
   does.button.id = "appDoes";
+  /* The note sits beside the trigger rather than under it, which is what the
+   * trigger being a button rather than a full-width field buys: "Ausruf" is
+   * three quarters of an empty line, and the sentence that tells it from
+   * "Wort" is the one thing on this row that has to be read. */
   const actRow = formRow(t("ui.app_button_act"), does.anchor, "", does.button);
+  actRow.classList.add("form__row--beside");
   actRow.appendChild(note);
   rows.push(actRow);
 

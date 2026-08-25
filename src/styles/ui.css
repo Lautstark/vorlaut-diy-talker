@@ -1276,13 +1276,48 @@ dialog.sheet--page { max-width: 520px; }
 
 /* -------------------------------------------------------------- the fields */
 
-.form { display: grid; gap: 16px; align-content: start; }
+.form { display: grid; gap: 14px; align-content: start; }
 .form__row { display: grid; gap: 6px; }
 .form__row > .lbl { margin-bottom: 0; }
 /* A row whose control is a button takes the width the button needs, not the
    column's. A dropdown is a button inside its anchor, and the anchor is what
    the row is handed - see dropdown() in shell/sheet.ts. */
 .form__row > .btn, .form__row > .menu-anchor { justify-self: start; }
+
+/* ---- where a row's sentence goes -----------------------------------------
+
+   Three stacked lines - a caption, a control, a sentence - is what a question
+   costs by default, and four of them is most of this sheet. Neither modifier
+   below drops a word: what they do is put the sentence on a line that already
+   exists, which is only possible where something on that line is short.
+
+   Both are `order` over the same DOM, so formRow() keeps building one shape:
+   caption, control, sentence. Reordering there instead would make the row's
+   markup depend on which modifier the caller was about to add.
+
+   `--caption`: the sentence qualifies the *question*, and rides beside it.
+   Aufschrift is the case - "leave it empty and only the picture shows" is a
+   note on what the field means, it never changes, and the caption is one word
+   wide. The field keeps its own full-width line under both.
+
+   `--beside`: the sentence describes the *answer*, and rides beside the
+   control. That is only affordable because the control stopped being a
+   full-width field: a dropdown trigger is as wide as the word on it, and the
+   note that tells Wort from Ausruf is the one thing on the row that has to be
+   read. It follows the choice, which is why it must stay next to the control
+   that changes it rather than move to the caption. */
+.form__row--caption, .form__row--beside {
+  display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 6px;
+}
+.form__row--caption { column-gap: 9px; }
+.form__row--caption > .lbl { order: 1; flex: 0 0 auto; }
+.form__row--caption > .form__hint { order: 2; flex: 1 1 14ch; }
+.form__row--caption > * { order: 3; flex: 1 0 100%; }
+
+.form__row--beside { column-gap: 10px; }
+.form__row--beside > .lbl { flex: 1 0 100%; }
+.form__row--beside > .form__hint { flex: 1 1 16ch; }
+.form__row--beside > .menu-anchor { flex: 0 0 auto; }
 
 /* The spoken text sits next to the way to hear it, because they are one
    question: does this say the right thing. */
