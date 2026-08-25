@@ -1,18 +1,31 @@
 // The chosen voice stands in layout.json next to the language and is saved
 // with everything else. What can be spoken with here is a different question,
-// answered by the server on every open: a key entered in the meantime, or a
-// model that has arrived, should show up without reloading the page.
+// answered on every open: a key entered in the meantime, or a model that has
+// arrived, should show up without reloading the page.
 //
-// This file also owns the settings sheet itself - opening it and its one Save
-// - because that Save is mostly about the voice. The Azure and METACOM panel
-// inside it is settings.js, which this calls into.
+// **Those two questions are on two different sheets now.** Which voice this
+// Sammlung speaks in is behind that Sammlung's own ⋯, beside the language of
+// the device it is built for; which voices this machine has at all - the Azure
+// key, the offer to fetch the offline ones - stayed in Einstellungen. The
+// argument is docs/sammlung-settings.md, and the short version is that a
+// download installs a voice for every Sammlung there is while a choice binds
+// exactly one, so a single panel was two scopes wearing one heading.
+//
+// This file still owns both openers, and that is not a leftover. The voice
+// catalogue is the one thing both sheets need loaded before they can say
+// anything true - the Sammlung's to draw the list, Einstellungen to count what
+// is here - so the module that fetches it is the one that opens them. The
+// Azure and METACOM panels inside Einstellungen are settings.js, which this
+// calls into.
 import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import { listVoices, voiceFetchState, startVoiceFetch } from "../backend/index.js";
-import { LANG, LANGUAGES, rememberLanguage, setLanguage } from "../core/boot.js";
+import { LANG, LANGUAGE_NAMES, LANGUAGES, rememberLanguage, setLanguage }
+  from "../core/boot.js";
 import { DEFAULT_LANGUAGE } from "../core/boot_data.js";
 import { state } from "../core/state.js";
+import { isApp } from "../core/types.js";
 import { applyTexts, t } from "../core/texts.js";
 import { save } from "../core/save.js";
 import { editor } from "../core/editor.js";
@@ -288,7 +301,13 @@ function renderVoices() {
     empty.textContent = t("ui.voice_none");
     list.appendChild(empty);
     renderOffer();
-    $("voiceHint").textContent = fetchNote();
+    // Where to go, said on the one sheet where somebody is looking at nothing
+    // to choose between. This is the whole of the round trip the split costs:
+    // the offer that would fix it is installation-scoped and lives in
+    // Einstellungen, so an empty list here has to name the door rather than
+    // leave somebody in front of a search field with no voices behind it.
+    $("voiceHint").textContent = t("ui.voice_none_where");
+    paintVoiceState();
     return;
   }
   // An empty entry in layout.json means "whatever works here", and that is
@@ -327,11 +346,18 @@ function renderVoices() {
         needsKey: false },
       t("ui.voice_gone"), true, true, false));
   }
+  // The other sheet, kept in step from the same pass. Neither is expensive and
+  // they are never both on screen, but a fetch that finishes while the
+  // Sammlung's sheet is open adds voices to both answers at once - so one
+  // render writes both rather than leaving whichever sheet is closed stale
+  // until somebody notices.
   renderOffer();
   // The standing rule, whether or not anything was just ticked: a voice is
   // part of what every sentence is spoken with, so changing it re-records all
-  // of them rather than only the ones edited afterwards.
-  $("voiceHint").textContent = fetchNote() || t("ui.voice_rebuild");
+  // of them rather than only the ones edited afterwards. It is the whole of
+  // what this line says now - a download's progress belongs to the panel that
+  // started it, which is on the other sheet.
+  $("voiceHint").textContent = t("ui.voice_rebuild");
   paintVoiceState();
 }
 
@@ -350,10 +376,22 @@ function paintVoiceState() {
     : voices.chosenLabel || id || t("ui.voice_state_none");
 }
 
+/* The Einstellungen half: what this machine can speak with at all.
+ *
+ * Three lines and no choosing. The count in the heading is what somebody
+ * opening this panel is asking - "is there anything here" - and it is the
+ * number of rows the other sheet would draw, so the two cannot disagree about
+ * how many voices exist. The offer below it appears only when something is
+ * actually missing.
+ */
 function renderOffer() {
   const box = $("voiceOffer");
   box.innerHTML = "";
   if (fetching.missing) box.appendChild(fetchRow());
+  $("voiceOfferHint").textContent = fetchNote();
+  $("voicesHereState").textContent = voices.voices.length
+    ? t("ui.voices_here_count", { n: voices.voices.length })
+    : t("ui.voices_here_none");
 }
 
 // What the hint line says while a download runs, or "" when it has nothing
@@ -538,14 +576,6 @@ export async function forgetAzureKey() {
   status(t("ui.azure_key_removed"));
 }
 
-// The options name themselves: "Deutsch" stays "Deutsch" whatever the page is
-// set to. That is the point of them here - this is the one control somebody
-// reaches for when they cannot read the interface around it, so it must not
-// depend on being able to read the interface around it. In the header it was
-// "DE"/"EN", because the full words cost a third of the bar on a phone; in a
-// dialog there is room to say it properly.
-const LANGUAGE_NAMES: Record<string, string> = { de: "Deutsch", en: "English" };
-
 /** The button says which language is in force; the menu offers the others. */
 export function paintLanguage() {
   $("langPick").textContent = LANGUAGE_NAMES[LANG] || LANG;
@@ -596,34 +626,67 @@ export function wireLanguage() {
   search.oninput = () => { query = search.value.trim().toLowerCase(); renderVoices(); };
 }
 
-export async function openVoices() {
-  $("voiceList").innerHTML = "";
-  $("voiceHint").textContent = "";
+/** Einstellungen, at the foot of the sidebar: what this browser and this
+ *  installation are set to, and nothing that belongs to one Sammlung.
+ *
+ * It still asks for the voices, which is the one thing that looks left over
+ * and is not: the panel that says how many can speak here counts them, and
+ * saving an Azure key is judged by whether the list changed.
+ */
+export async function openSettings() {
   $("voiceOffer").innerHTML = "";
+  $("voiceOfferHint").textContent = "";
   fetchDone = false;
-  // Folded again on every open, both of them. Somebody who unfolded one last
-  // time was after a single thing in it, not after a preference. The headings
-  // say what is inside, so nothing is hidden by folding them - and
-  // loadSettings() below unfolds the symbols panel again if what is in there
-  // is broken. The voice list is narrowed back the same way, for the same
-  // reason: a filter left on would hide voices with no sign that it had.
-  query = "";
-  onlyLang = null;
-  $<HTMLInputElement>("voiceQuery").value = "";
+  // Folded again on every open. Somebody who unfolded one last time was after
+  // a single thing in it, not after a preference. The headings say what is
+  // inside, so nothing is hidden by folding them - and loadSettings() below
+  // unfolds the symbols panel again if what is in there is broken.
+  $<HTMLDetailsElement>("voicesHerePanel").open = false;
   $<HTMLDetailsElement>("azurePanel").open = false;
   $<HTMLDetailsElement>("symbolsPanel").open = false;
   $<HTMLDialogElement>("voices").showModal();
   await Promise.all([loadVoices(), readFetch(), loadSettings()]);
   paintLanguage();
-  // And the Sammlung's own language, which is read off the layout rather than
-  // out of LANG. It is deliberately not in paintStates() with the rest of the
-  // sheet's state lines: those are redrawn after a language switch because
-  // they are translated, and this one names a language in that language's own
-  // word - "Deutsch" is "Deutsch" whichever way this page is set.
-  paintCollectionLanguage();
-  renderVoices();
+  renderOffer();
   paintStates();
   // A download started before this dialog was opened - in another tab, or
   // before a reload - still has something to report.
+  if (fetching.running) pollFetch();
+}
+
+/** The sheet behind the ⋯ beside the Sammlung's name: the two things that are
+ *  facts about this Sammlung and travel with it.
+ *
+ * The language is the talker's alone. On a tablet package localeFor() reads
+ * the locale off the *voice* first - somebody chose that voice for these
+ * sentences, which is better evidence than a field nobody has looked at - and
+ * only falls back to this one when the voice name carries no usable tag. So
+ * the panel is hidden rather than offered and ignored.
+ *
+ * Whichever panel is first is open on arrival. A sheet of two, or of one,
+ * opening entirely folded is a sheet that asks for a second click before it
+ * says anything - which is the opposite of what the folding is for.
+ */
+export async function openCollectionSettings() {
+  $("voiceList").innerHTML = "";
+  $("voiceHint").textContent = "";
+  // The list is narrowed back on every open, for the reason the panels are
+  // folded back: a filter left on would hide voices with no sign that it had.
+  query = "";
+  onlyLang = null;
+  $<HTMLInputElement>("voiceQuery").value = "";
+  const language = $<HTMLDetailsElement>("collectionLanguagePanel");
+  language.hidden = isApp(state.layout);
+  language.open = !language.hidden;
+  $<HTMLDetailsElement>("voicePanel").open = language.hidden;
+  $<HTMLDialogElement>("collectionSheet").showModal();
+  await Promise.all([loadVoices(), readFetch()]);
+  // Read off the layout rather than out of LANG. It is deliberately not in
+  // paintStates() with the settings sheet's state lines: those are redrawn
+  // after a language switch because they are translated, and this one names a
+  // language in that language's own word - "Deutsch" is "Deutsch" whichever
+  // way this page is set.
+  paintCollectionLanguage();
+  renderVoices();
   if (fetching.running) pollFetch();
 }

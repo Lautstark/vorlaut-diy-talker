@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { checkPackage } from "../src/data/app_package.js";
 import { readPackage } from "./obz.js";
+import { openPanel, openSettings, openVoices } from "./sheets.js";
 
 /* A tablet Sammlung, built through the page and exported.
  *
@@ -224,19 +225,19 @@ async function build(page: Page): Promise<void> {
 
   // The voice, which decides what the package sounds like and what its boards
   // say their locale is.
-  await page.locator("#settingsLink").click();
-  const azure = page.locator("#azurePanel");
-  if ((await azure.getAttribute("open")) === null) await azure.locator("summary").click();
+  // Two sheets, because they are two scopes: the key stocks the list for every
+  // Sammlung on this machine, and the tick binds exactly this one.
+  await openSettings(page);
+  await openPanel(page, "#azurePanel");
   await page.locator("#azureKey").fill("0000fakekeyfakekeyfakekey0000");
   await page.locator("#azureRegion").fill("westeurope");
   await page.locator("#azureSave").click();
 
-  const voices = page.locator("#voicePanel");
-  if ((await voices.getAttribute("open")) === null) await voices.locator("summary").click();
+  await openVoices(page);
   await page.locator("#voiceList .voiceRow", { hasText: "Katja" }).locator("button.voice").click();
   await expect(page.locator('#voiceList .voice[aria-checked="true"]')).toHaveCount(1);
-  await page.locator("#voices").evaluate((sheet: HTMLDialogElement) => sheet.close());
-  await expect(page.locator("#voices")).toBeHidden();
+  await page.locator("#collectionSheetClose").click();
+  await expect(page.locator("#collectionSheet")).toBeHidden();
 }
 
 /* --- the tests ----------------------------------------------------------- */

@@ -37,14 +37,14 @@ import { load, wireConflict } from "./core/save.js";
 import { editor, haveEditor, useEditors } from "./core/editor.js";
 import { wireRelease } from "./editor-diy/release.js";
 import { diy, wireEditor } from "./editor-diy/editor.js";
-import { wireDevice } from "./editor-diy/device_panel.js";
+import { wireBuildEntry, wireDevice } from "./editor-diy/device_panel.js";
 import * as diyBoard from "./editor-diy/templates/board.js";
 import { app, wireEditor as wireApp } from "./editor-app/editor.js";
 import * as appBoard from "./editor-app/templates/board.js";
 import { ensureCollection, nameIfUnnamed, paintCollections, wireCollections }
   from "./shell/collections.js";
 import { loadSources } from "./shell/picker.js";
-import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./shell/voices.js";
+import { forgetAzureKey, openSettings, saveAzure, wireLanguage } from "./shell/voices.js";
 import { wireSymbolFolder, wireImport, wireData, wireSources } from "./shell/settings.js";
 import { wireLegal } from "./shell/legal.js";
 import { subscribeMetacom } from "./data/symbols.js";
@@ -100,15 +100,23 @@ export function start(): void {
         clearEditor();
         diyBoard.render($("editor"), $("collectionAction"));
       },
-      // Both, because wireRelease() binds #releaseBtn and #previewToggle is
-      // wireEditor()'s - and both are elements the mount above has just made.
+      // Three, because wireRelease() binds #releaseBtn and #previewToggle is
+      // wireEditor()'s - both elements the mount above has just made - and
+      // wireBuildEntry() puts the build into the ⋯ beside the Sammlung's name.
       // wireDevice() is not here: it binds the settings sheet, which is the
       // shell's markup and mounts once.
       //
-      // wireRelease() answers with a teardown and this hands it on: it
-      // subscribes to the build mark, which is the shell's and outlives this
-      // editor's markup.
-      wire: () => { wireEditor(); return wireRelease(); },
+      // Two of the three answer with a teardown and this composes them: one
+      // subscribes to the build mark and the other holds a menu entry, and
+      // both of those are the shell's and outlive this editor's markup. A
+      // tablet Sammlung must not be offered a build for hardware it is not
+      // for, which is what taking the entry back is about.
+      wire: () => {
+        wireEditor();
+        const stopRelease = wireRelease();
+        const stopBuildEntry = wireBuildEntry();
+        return () => { stopRelease(); stopBuildEntry(); };
+      },
     },
     app: {
       editor: app,
@@ -147,10 +155,14 @@ export function start(): void {
   // header as well; the header has gone, and design.md §3.4 settles the
   // placement - two doors to one sheet is two things to keep in step for no
   // gain.
-  $<HTMLButtonElement>("settingsLink").onclick = openVoices;
-  // The cross in the corner is the only way out now, because there is nothing
-  // to confirm or to abandon: everything in the sheet is already written.
+  $<HTMLButtonElement>("settingsLink").onclick = openSettings;
+  // The cross in the corner is the only way out of either sheet, because there
+  // is nothing to confirm or to abandon: everything in both is already
+  // written. The Sammlung's has no entrance here - it opens from the ⋯ beside
+  // the name it belongs to, which shell/collections.ts wires.
   $<HTMLButtonElement>("voiceClose").onclick = () => $<HTMLDialogElement>("voices").close();
+  $<HTMLButtonElement>("collectionSheetClose").onclick =
+    () => $<HTMLDialogElement>("collectionSheet").close();
   $<HTMLButtonElement>("azureSave").onclick = saveAzure;
   $<HTMLButtonElement>("azureForget").onclick = forgetAzureKey;
 

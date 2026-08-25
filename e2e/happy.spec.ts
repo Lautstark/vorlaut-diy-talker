@@ -5,6 +5,7 @@ import {
   KEY_CELL, cells, expectSaid, key, keySheet, label, nameSet, openBoard, press, within,
   put, search, searchNote, setCard, setKey, word,
 } from "./diy.js";
+import { openSettings, openVoices } from "./sheets.js";
 
 /* The whole editing loop, end to end, in one browser.
  *
@@ -43,7 +44,7 @@ const SAVED = label("ui.saved");
 /** Opens the Board panel inside the settings sheet, whatever state the
  *  <details> was left in - it keeps its fold across closings of the sheet. */
 async function openBoardPanel(page: Page) {
-  await page.locator("#settingsLink").click();
+  await openSettings(page);
   const panel = page.locator("#boardPanel");
   if ((await panel.getAttribute("open")) === null) {
     await panel.locator("summary").click();
@@ -387,11 +388,10 @@ test("a Sammlung leaves as a .obz and comes back beside the others", async ({ pa
 
 test("a voice can be chosen and is still ticked on reopening", async ({ page }) => {
   await openBoard(page);
-  await page.locator("#settingsLink").click();
-  await expect(page.locator("#voices")).toBeVisible();
-
-  // The voice list lives in a folded panel now, like every other section.
-  await page.locator("#voicePanel summary").click();
+  // The voice is this Sammlung's, so it is behind this Sammlung's ⋯ rather
+  // than in Einstellungen: what a talker sounds like is not a fact about the
+  // browser it was built in.
+  await openVoices(page);
   const rows = page.locator("#voiceList .voiceRow");
   await expect(rows.first()).toBeVisible();
 
@@ -410,18 +410,17 @@ test("a voice can be chosen and is still ticked on reopening", async ({ page }) 
   // No Save: choosing wrote it. The board's own status line is the proof,
   // and it is what every other edit on this page already says.
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
-  await page.locator("#voiceClose").click();
-  await expect(page.locator("#voices")).not.toBeVisible();
+  await page.locator("#collectionSheetClose").click();
+  await expect(page.locator("#collectionSheet")).not.toBeVisible();
 
   // Reopened, exactly one row is marked and it is the one that was picked.
   // The regression this pins: listVoices() once dropped `chosen`, and the
   // sheet opened with nothing marked every time.
-  await page.locator("#settingsLink").click();
-  await page.locator("#voicePanel summary").click();
+  await openVoices(page);
   const on = page.locator('#voiceList .voice[aria-checked="true"]');
   await expect(on).toHaveCount(1);
   await expect(on.locator(".voice__name")).toHaveText(picked);
-  await page.locator("#voiceClose").click();
+  await page.locator("#collectionSheetClose").click();
 });
 
 test("the voice that rushes a single word says so, on its row alone", async ({ page }) => {
@@ -436,8 +435,7 @@ test("the voice that rushes a single word says so, on its row alone", async ({ p
    * What is checked is the shape: the flagged voice has it, an unflagged one
    * does not. Nothing here synthesises; the note is drawn from the list. */
   await openBoard(page);
-  await page.locator("#settingsLink").click();
-  await page.locator("#voicePanel summary").click();
+  await openVoices(page);
   await expect(page.locator("#voiceList .voiceRow").first()).toBeVisible();
 
   const kerstin = page.locator("#voiceList .voiceRow", { hasText: "Kerstin" });
@@ -450,7 +448,7 @@ test("the voice that rushes a single word says so, on its row alone", async ({ p
   expect(await thorsten.count()).toBeGreaterThan(0);
   await expect(thorsten.locator(".voice__hint")).toHaveCount(0);
 
-  await page.locator("#voiceClose").click();
+  await page.locator("#collectionSheetClose").click();
 });
 
 test("a Sammlung nobody has told anything opens on a voice, and says nobody chose it",
@@ -466,8 +464,7 @@ test("a Sammlung nobody has told anything opens on a voice, and says nobody chos
      * would be the page claiming a choice nobody made; a note with no mark
      * would be the preselection not happening at all. */
     await openBoard(page);
-    await page.locator("#settingsLink").click();
-    await page.locator("#voicePanel summary").click();
+    await openVoices(page);
     await expect(page.locator("#voiceList .voiceRow").first()).toBeVisible();
 
     const on = page.locator('#voiceList .voice[aria-checked="true"]');
@@ -479,7 +476,7 @@ test("a Sammlung nobody has told anything opens on a voice, and says nobody chos
     await expect(page.locator("#voiceState"))
       .toContainText((await on.locator(".voice__name").textContent())!);
     await expect(page.locator("#voiceState")).not.toHaveText(label("ui.voice_state_none"));
-    await page.locator("#voiceClose").click();
+    await page.locator("#collectionSheetClose").click();
   });
 
 test("a whole sentence finds the symbol its words point at", async ({ page }) => {

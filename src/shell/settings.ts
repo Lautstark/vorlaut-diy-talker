@@ -14,7 +14,7 @@ import { readSettings, writeSettings, importBoard, azureState, createCollection,
 import { applyTheme, readTheme, saveTheme, THEMES, type Theme }
   from "@lautstark/design/theme";
 import { t } from "../core/texts.js";
-import { LANG } from "../core/boot.js";
+import { LANG, LANGUAGE_NAMES } from "../core/boot.js";
 import { load } from "../core/save.js";
 import { paintCollections } from "./collections.js";
 import * as symbols from "../data/symbols.js";
@@ -324,9 +324,6 @@ const painters: (() => void)[] = [];
 export function onPaintPanels(listener: () => void): void {
   painters.push(listener);
 }
-
-/** The languages this page offers, by their own names. */
-export const LANGUAGE_NAMES: Record<string, string> = { de: "Deutsch", en: "English" };
 
 /* --------------------------------------- the folder this browser can read ---
 

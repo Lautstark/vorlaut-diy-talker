@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
-import { expectSaid, put } from "./diy.js";
+import { expectSaid, label, put } from "./diy.js";
 
 /* The page opens in whatever language the browser asks for, and a test runner
  * picks its own. So the label to wait for comes out of the same table the page
@@ -81,11 +81,19 @@ test("what is typed survives a reload", async ({ page }) => {
   expect(problems, problems.join("\n")).toEqual([]);
 });
 
-test("the settings sheet opens", async ({ page }) => {
+test("both settings sheets open", async ({ page }) => {
   await page.goto("./");
   await expect(page.locator("#device .cell")).toHaveCount(6);
   await page.locator("#settingsLink").click();
   await expect(page.locator("#voices")).toBeVisible();
+  await page.locator("#voiceClose").click();
+
+  // And the Sammlung's own, which is a second sheet rather than a second door
+  // to the first one: it holds what belongs to the Sammlung that is open.
+  await page.locator("#collectionMenu").click();
+  await page.locator('[role="menuitem"]',
+                     { hasText: label("ui.collection_settings") }).click();
+  await expect(page.locator("#collectionSheet")).toBeVisible();
   // Populated rather than merely present: the voice list comes from the
   // catalogue, which is the half that would be empty if the licence gate or
   // the package import had gone wrong.

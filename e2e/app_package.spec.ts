@@ -6,6 +6,7 @@ import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { checkPackage } from "../src/data/app_package.js";
 import { readPackage, unzip } from "./obz.js";
 import { KEY_CELL, cells, key, keySheet, nameSet, press, put } from "./diy.js";
+import { openPanel, openSettings, openVoices } from "./sheets.js";
 
 /* The app package, made by the real page and read back off disk.
  *
@@ -126,21 +127,21 @@ async function fill(page: Page): Promise<void> {
 
   // The Azure key, and Katja chosen with it. The stored voice is what the
   // export synthesises with and what the manifest names as its hint.
-  await page.locator("#settingsLink").click();
-  const azure = page.locator("#azurePanel");
-  if ((await azure.getAttribute("open")) === null) await azure.locator("summary").click();
+  // Two sheets, because they are two scopes: the key stocks the list for every
+  // Sammlung on this machine, and the tick binds exactly this one.
+  await openSettings(page);
+  await openPanel(page, "#azurePanel");
   await page.locator("#azureKey").fill("0000fakekeyfakekeyfakekey0000");
   await page.locator("#azureRegion").fill("westeurope");
   await page.locator("#azureSave").click();
 
-  const voices = page.locator("#voicePanel");
-  if ((await voices.getAttribute("open")) === null) await voices.locator("summary").click();
+  await openVoices(page);
   await page.locator("#voiceList .voiceRow", { hasText: "Katja" }).locator("button.voice").click();
   await expect(page.locator('#voiceList .voice[aria-checked="true"]')).toHaveCount(1);
   // Out of the sheet: the ⋯ this test is heading for is behind it, and a modal
   // <dialog> makes everything under it inert rather than merely covered.
-  await page.locator("#voices").evaluate((sheet: HTMLDialogElement) => sheet.close());
-  await expect(page.locator("#voices")).toBeHidden();
+  await page.locator("#collectionSheetClose").click();
+  await expect(page.locator("#collectionSheet")).toBeHidden();
 }
 
 /* --- the test ------------------------------------------------------------ */

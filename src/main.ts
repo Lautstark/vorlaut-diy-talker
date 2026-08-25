@@ -42,6 +42,7 @@ import "./styles/ui.css";
 import * as frame from "./shell/templates/frame.js";
 import * as footer from "./shell/templates/footer.js";
 import * as settingsSheet from "./shell/templates/settings_sheet.js";
+import * as collectionSheet from "./shell/templates/collection_sheet.js";
 import * as legal from "./shell/templates/legal.js";
 import { initTheme } from "@lautstark/design/theme";
 
@@ -62,6 +63,11 @@ frame.render();
 // mount nowhere at all.
 footer.render(document.querySelector("main")!);
 settingsSheet.render();
+// The Sammlung's own, behind the ⋯ beside its name. Mounted here with the
+// other two and for the same reason: it is one document, it opens over
+// everything and it takes no room at all while it is closed, so where it sits
+// in the flow decides nothing.
+collectionSheet.render();
 legal.render();
 
 const { start } = await import("./app.js");
