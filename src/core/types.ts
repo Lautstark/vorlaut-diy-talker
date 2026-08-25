@@ -17,7 +17,33 @@ export interface Slot {
   /** A file name kept in the browser's store, or "metacom:<name>" for a
    *  reference into somebody's own licensed collection. Empty means none. */
   symbol: string;
+  /** Whether the picture is crossed out - see Negated below. */
+  negated?: boolean;
 }
+
+/* --- Crossing a picture out ------------------------------------------------
+ *
+ * German AAC negates by drawing a cross over the symbol being negated rather
+ * than by using a picture of its own, which is why METACOM ships no "nicht"
+ * and never will. Without a cross the only way to say "kein Brot" on a board
+ * is a picture of bread meaning its opposite, and there is nothing on the key
+ * to tell a reader which.
+ *
+ * A property of the key rather than of the picture, and that is the whole of
+ * why it is a field here instead of a second symbol reference. The same
+ * drawing of bread is bread on one key and not-bread on the next; a collection
+ * holds one of it, the board says which. It also survives switching symbol
+ * source, because it says nothing about where the picture came from.
+ *
+ * Optional and absent for "no", so every layout already stored reads back
+ * unchanged - and so that a false never has to be written to say the ordinary
+ * thing. bildhaft's Slot.negated is the same field for the same reason; the
+ * two products draw the cross from the same convention, not from shared code.
+ *
+ * Where it is drawn is every place a picture is: the cell, the sheet's
+ * preview, the device's tile, and the PNG that goes into an app package. The
+ * last two bake it into pixels rather than carrying a flag, which is what lets
+ * the firmware and the Android viewer show it without knowing it exists. */
 
 /** One set of four keys, and the set key that switches to it. */
 export interface BoardSet {
@@ -261,6 +287,9 @@ export interface AppButton {
   /** A file name in the browser's store, or "metacom:<name>". Same vocabulary
    *  as Slot.symbol, because it is the same picker behind it. */
   symbol: string;
+  /** Whether the picture is crossed out. Same field as Slot.negated and the
+   *  same reasons - the note above it is the one to read. */
+  negated?: boolean;
   /** Which Fitzgerald class this word belongs to, as a key into
    *  boot_data.ts's WORD_CLASSES - or "" for a button that carries no class.
    *
