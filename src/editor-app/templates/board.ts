@@ -8,6 +8,15 @@
  *   #appGrid    the page on screen, as the grid it will be on the tablet
  *   #appPanel   the button on screen, and everything about it
  *
+ * **The bar holds the pages and nothing else.** The grid's size was in it, as
+ * two number fields, and it did not belong: everything else up there is about
+ * the *page*, and the size is one decision for every page in the Sammlung -
+ * which is exactly what makes a button stay in the same place from one page to
+ * the next. So it moved to where the Sammlung's own settings are, the menu
+ * beside its name, and it is asked as pictures when the Sammlung is made. A
+ * number field beside the tabs was also a place to mistype 1 for 11, and there
+ * it costs buttons.
+ *
  * **The strip shows every page, including the ones nothing leads to.** It is
  * the editing-time way around, and it is not the graph: what leads where is
  * the buttons. A page nothing points at is exactly the page somebody needs to
@@ -30,13 +39,6 @@ export const markup = `
 <div class="appbar">
   <div class="tabs" id="appPages"></div>
   <button id="appPageNew" class="btn quiet sm" type="button"></button>
-  <span class="appbar__grid">
-    <label for="appRows" id="appRowsLabel"></label>
-    <input type="number" id="appRows" class="num" min="1" max="6" step="1">
-    <span aria-hidden="true">×</span>
-    <label for="appCols" id="appColsLabel"></label>
-    <input type="number" id="appCols" class="num" min="1" max="11" step="1">
-  </span>
 </div>
 
 <div class="appgrid" id="appGrid"></div>

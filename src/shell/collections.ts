@@ -24,7 +24,7 @@
  * Renaming has no menu entry at all: the name on screen is the field.
  */
 import { $, status } from "./dom.js";
-import { menuOn } from "@lautstark/design/menu";
+import { menuOn, type AddItem } from "@lautstark/design/menu";
 import { confirmDialog, openDialog } from "@lautstark/design/dialog";
 import { renameField, type RenameField } from "@lautstark/design/rename";
 import { drawCollections } from "@lautstark/design/collections";
@@ -44,9 +44,9 @@ import { t } from "../core/texts.js";
 // because the first thing it makes safe is an object-store key; a download's
 // file name is the same question asked about a different destination.
 import { safeName } from "../data/store.js";
-import { LANG } from "../core/boot.js";
+import { GRID, LANG } from "../core/boot.js";
 import { isApp } from "../core/types.js";
-import type { CollectionList, Target } from "../core/types.js";
+import type { CollectionList, GridSize, Target } from "../core/types.js";
 
 /** The list as it was last read. Kept so that the name field and the menu do
  *  not each have to go back to the store to find out which one is open. */
@@ -176,6 +176,72 @@ export async function nameIfUnnamed(): Promise<void> {
   await renameCollection(open.id, defaultName());
 }
 
+/* --- The size of a tablet Sammlung's grid ---------------------------------- */
+
+/** What askTarget() answers with: which editor, and - for a tablet - how big
+ *  its pages are. `grid` is absent for the talker, which has no grid. */
+export interface Made {
+  target: Target;
+  grid?: GridSize;
+}
+
+/** The four sizes, drawn rather than named, with the one on `chosen` pressed.
+ *
+ * A row of pictures instead of two number fields, because what somebody is
+ * choosing is how much fits on a page - "6 x 11" is the answer to that, not
+ * the question - and because a number field is a place to mistype 1 for 11 and
+ * lose two pages of buttons.
+ *
+ * Exported because it is drawn in two places that are a whole Sammlung apart:
+ * here while one is being made, and in the card editor-app opens from the menu
+ * beside the name once it exists. The arrow only runs one way
+ * (tests/unit/layers.test.ts), so the shared control lives on the shell side
+ * and the editor reaches for it - the same direction editor-app already takes
+ * to exportApp() below.
+ *
+ * The mini grid is an `<i>` per cell rather than a picture, so that 3x5 and
+ * 6x11 differ in the way the real thing does: the same width, smaller cells,
+ * more of them. `aria-pressed` says which one is in force, and the accessible
+ * name spells the pair out - "3 x 5" read aloud is a multiplication.
+ */
+export function sizeChoices(chosen: GridSize,
+                            onPick: (size: GridSize) => void): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "sizes";
+  row.setAttribute("role", "group");
+  row.setAttribute("aria-label", t("ui.app_grid_size"));
+
+  for (const size of GRID.sizes) {
+    const one = document.createElement("button");
+    one.type = "button";
+    one.className = "size";
+    const held = size.rows === chosen.rows && size.columns === chosen.columns;
+    one.setAttribute("aria-pressed", held ? "true" : "false");
+
+    const mini = document.createElement("span");
+    mini.className = "size__mini";
+    mini.setAttribute("aria-hidden", "true");
+    mini.style.setProperty("--c", String(size.columns));
+    mini.style.setProperty("--r", String(size.rows));
+    for (let n = 0; n < size.rows * size.columns; n++) {
+      mini.appendChild(document.createElement("i"));
+    }
+
+    const pair = document.createElement("b");
+    pair.textContent = `${size.rows} \u00d7 ${size.columns}`;
+    const many = document.createElement("small");
+    many.textContent = t("ui.app_grid_size_buttons", { n: size.rows * size.columns });
+    one.setAttribute("aria-label",
+      `${size.rows} ${t("ui.app_grid_rows")} \u00d7 `
+      + `${size.columns} ${t("ui.app_grid_columns")}, ${many.textContent}`);
+
+    one.append(mini, pair, many);
+    one.onclick = () => onPick(size);
+    row.appendChild(one);
+  }
+  return row;
+}
+
 /* --- The four things --------------------------------------------------------- */
 
 /** Put a different Sammlung on screen.
@@ -209,7 +275,7 @@ async function open(id: string): Promise<void> {
  * somebody could reasonably expect to be able to undo, and the moment to say
  * so is while they are choosing rather than when they go looking for a switch.
  */
-function askTarget(): Promise<Target | null> {
+function askTarget(): Promise<Made | null> {
   return new Promise((resolve) => {
     /* Settled from the presses, with a guard, and the `close` event only for
      * the ways out that are not a press. That is design.md §3.4's rule, and
@@ -221,54 +287,115 @@ function askTarget(): Promise<Target | null> {
      * anywhere. e2e/collections.spec.ts makes the host into exactly that one,
      * and it is the test that caught this.
      *
-     * So each choice resolves for itself, `close` resolves null for the
+     * So the making button resolves for itself, `close` resolves null for the
      * dismissal, and `settled` makes the second of those a no-op. A host that
      * fires `close` twice still resolves once; a host that fires none still
      * resolves. */
     let settled = false;
-    const finish = (target: Target | null) => {
+    const finish = (made: Made | null) => {
       if (settled) return;
       settled = true;
-      resolve(target);
+      resolve(made);
       // After resolving, so that a close event arriving as a consequence of
       // this call finds the guard already set.
       sheet?.close();
     };
 
+    /* What the two presses set rather than what they resolve, which is the
+     * change: a tablet Sammlung has a second question inside the first, and a
+     * button that made the Sammlung on the way past would ask it too late.
+     * The talker goes through the same footer press for one press more,
+     * because two ways out of one sheet is two things to keep in step. */
+    let target: Target | null = null;
+    let size: GridSize = { rows: GRID.rows, columns: GRID.columns };
+
     const body: HTMLElement[] = [];
-    for (const target of ["diy", "app"] as const) {
+    const choices = new Map<Target, HTMLButtonElement>();
+    for (const one of ["diy", "app"] as const) {
       const choice = document.createElement("button");
       choice.className = "btn choice";
       choice.type = "button";
+      choice.setAttribute("aria-pressed", "false");
       const head = document.createElement("strong");
-      head.textContent = t(`ui.collection_target_${target}`);
+      head.textContent = t(`ui.collection_target_${one}`);
       const note = document.createElement("span");
-      note.textContent = t(`ui.collection_target_${target}_note`);
+      note.textContent = t(`ui.collection_target_${one}_note`);
       choice.append(head, note);
-      choice.onclick = () => finish(target);
+      choice.onclick = () => pick(one);
+      choices.set(one, choice);
       body.push(choice);
     }
+
+    /* How much fits on a page, asked only of the target that has pages.
+     *
+     * Under the tablet choice rather than inside it: a control inside a
+     * control is markup no keyboard can walk and no validator allows, which
+     * is the same reason a cell in the grid is a box holding two widgets
+     * rather than a button holding a button.
+     *
+     * Beside it rather than after the Sammlung exists, because it is the one
+     * thing about a new board somebody already knows - and it says so of
+     * itself that it is not final: growing later costs nothing. */
+    const sizes = document.createElement("div");
+    sizes.className = "sizeask";
+    sizes.hidden = true;
+    const asks = document.createElement("span");
+    asks.className = "lbl";
+    asks.textContent = t("ui.app_grid_size");
+    const later = document.createElement("p");
+    later.className = "note";
+    later.textContent = t("ui.app_grid_later");
+    const drawSizes = () => {
+      sizes.replaceChildren(asks, sizeChoices(size, (picked) => {
+        size = picked;
+        drawSizes();
+      }), later);
+    };
+    drawSizes();
+    body.push(sizes);
+
     const note = document.createElement("p");
     note.className = "note";
     note.textContent = t("ui.collection_target_note");
     body.push(note);
 
+    const make = document.createElement("button");
+    make.className = "btn primary";
+    make.type = "button";
+    make.disabled = true;
+    make.textContent = t("ui.collection_create");
+    make.onclick = () => {
+      if (!target) return;
+      finish(target === "app" ? { target, grid: size } : { target });
+    };
+
+    function pick(one: Target): void {
+      target = one;
+      for (const [which, choice] of choices) {
+        choice.setAttribute("aria-pressed", which === one ? "true" : "false");
+      }
+      sizes.hidden = one !== "app";
+      make.disabled = false;
+    }
+
     const sheet: ReturnType<typeof openDialog> | undefined = openDialog({
       title: t("ui.collection_target"),
       closeLabel: t("ui.close"),
       body,
+      footer: [make],
       onClose: () => finish(null),
     });
   });
 }
 
 async function create(): Promise<void> {
-  const target = await askTarget();
+  const made = await askTarget();
   // Dismissed. Nothing was written and nothing is said: a dialog somebody
   // closes should cost exactly what it looked like it would.
-  if (!target) return;
+  if (!made) return;
   await saveNow();
-  const id = await createCollection(defaultName(), editorFor(target).blank());
+  const id = await createCollection(defaultName(),
+                                    editorFor(made.target).blank(made.grid));
   await useCollection(id);
   await load();
   await paintCollections();
@@ -386,6 +513,26 @@ async function showSidebar(open: boolean, remember = true): Promise<void> {
 
 /* --- Wiring ------------------------------------------------------------------ */
 
+/** Entries the editor on screen adds to the menu beside the Sammlung's name.
+ *
+ * The menu is the shell's - it acts on the Sammlung, which is the shell's
+ * level - but one of its entries is not: the grid size and the colour of a
+ * word class are a tablet's settings, and the card that changes them has to
+ * count what would fall outside a smaller grid, which is editor-app/pages.ts's
+ * work. The shell may not import that (tests/unit/layers.test.ts), so the
+ * editor hands its entries in instead.
+ *
+ * Registered by an editor's wire() and taken back by the teardown it answers
+ * with, for the reason EditorHalf.wire() gives: the shell outlives every
+ * editor, so anything left behind here would draw a tablet's entry over a
+ * talker Sammlung and reach for elements that are no longer in the page.
+ */
+let extras: ((add: AddItem) => void) | null = null;
+
+export function collectionMenuExtras(build: ((add: AddItem) => void) | null): void {
+  extras = build;
+}
+
 export function wireCollections(): void {
   $<HTMLButtonElement>("collectionNew").onclick = () => { void create(); };
   $<HTMLButtonElement>("sidebarHide").onclick = () => { void showSidebar(false); };
@@ -426,6 +573,10 @@ export function wireCollections(): void {
         add(t("ui.collection_export"), () => { void exportOne(); });
         add(t("ui.collection_export_app"), () => { void exportApp(); });
       }
+      // Whatever the editor on screen has to say about the Sammlung itself -
+      // for the tablet, the card that holds the grid size and the colour of a
+      // word class. Above the delete, which stays last wherever it appears.
+      extras?.(add);
       add(t("ui.collection_delete"), () => { void remove(); }, { danger: true });
     });
   };

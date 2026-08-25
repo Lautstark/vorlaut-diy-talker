@@ -21,14 +21,17 @@ import { symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
 import { isApp } from "../core/types.js";
-import type { Act, AppButton, AppLayout, AppPage, Layout } from "../core/types.js";
+import type {
+  Act, AppButton, AppLayout, AppPage, GridSize, Layout, WordColor,
+} from "../core/types.js";
 import { GRID, LANG, WORD_CLASSES } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save, saveSoon } from "../core/save.js";
 import { openPicker } from "../shell/picker.js";
 import { speak } from "../shell/speech.js";
-import { confirmDialog } from "@lautstark/design/dialog";
-import { exportApp } from "../shell/collections.js";
+import { confirmDialog, openDialog } from "@lautstark/design/dialog";
+import { collectionMenuExtras, exportApp, sizeChoices }
+  from "../shell/collections.js";
 import {
   addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, moveButton,
   outside, pageById, reachable, resize,
@@ -239,8 +242,20 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
   hit.setAttribute("aria-pressed", held.id === chosen ? "true" : "false");
   box.classList.toggle("current", held.id === chosen);
   box.appendChild(hit);
+  /* The word class, worn as the Sammlung says: a fill, a border, or nothing.
+   *
+   * Two different custom properties rather than one and a class on the grid,
+   * because the fill is what decides the *text* colour - a label over a light
+   * Fitzgerald fill is dark whatever the theme is, and a label on a bordered
+   * cell is the theme's own. ui.css keys both off which property is set, so a
+   * cell cannot end up dark text on a dark surface by having the class and not
+   * the fill. "off" sets neither, and the cell is left as any other. */
   const colour = classColor(held.wordClass);
-  if (colour) box.style.setProperty("--cell-color", colour);
+  if (colour && wordColor(board()) === "fill") {
+    box.style.setProperty("--cell-color", colour);
+  } else if (colour && wordColor(board()) === "border") {
+    box.style.setProperty("--cell-edge", colour);
+  }
 
   if (held.symbol) {
     const image = document.createElement("img");
@@ -374,6 +389,11 @@ const actKey = (kind: Act["kind"]): string => (kind === "sayBar" ? "say_bar" : k
 
 const classColor = (key: string): string =>
   WORD_CLASSES.find((one) => one.key === key)?.color ?? "";
+
+/** How this Sammlung wears a word class. Absent counts as "fill", which is
+ *  what every layout written before the field existed was drawn as - so an old
+ *  Sammlung opens looking exactly as it did. See AppLayout.wordColor. */
+const wordColor = (layout: AppLayout): WordColor => layout.wordColor ?? "fill";
 
 /* --- The panel ----------------------------------------------------------- */
 
@@ -672,57 +692,115 @@ export function render(): void {
   dragging = null;
   const layout = board();
   if (!pageById(layout, here)) here = layout.pages[0]!.id;
-  $<HTMLInputElement>("appRows").value = String(layout.grid.rows);
-  $<HTMLInputElement>("appCols").value = String(layout.grid.columns);
   drawPages();
   drawGrid();
   drawPanel();
 }
 
-/** The grid's size, which is the Sammlung's rather than the page's.
+/** The card that holds what is true of the whole Sammlung: how big a page is,
+ * and how a word class is worn.
  *
- * Growing is silent: nothing moves and nothing is lost, which is what buttons
- * carrying their own coordinates buys. Shrinking asks, and the question names
- * how many buttons would fall outside - across every page, because the size is
- * one decision for all of them and the losses may be on a page nobody is
- * looking at.
+ * Both are one decision for every page, which is why neither belongs in the
+ * bar over the board where everything else is about the *page* on screen.
+ * They share a card for the same reason they are the same kind of decision:
+ * made once, and then in force wherever somebody goes.
+ *
+ * Nothing is written until the footer is pressed. That is what lets the card
+ * say what a smaller grid would cost while the choice is still being made -
+ * and it is why the footer button changes: growing or leaving the size alone
+ * is an ordinary "apply", and shrinking past something is the destructive act
+ * the notice above it has just counted.
  */
-async function askResize(rows: number, columns: number): Promise<void> {
+function openGrid(): void {
   const layout = board();
-  if (rows === layout.grid.rows && columns === layout.grid.columns) return;
-  const lost = outside(layout, rows, columns).length;
-  if (lost) {
-    if (!await confirmDialog({
-      title: t("ui.app_grid_shrink"),
-      body: t(lost === 1 ? "ui.app_grid_shrink_ask_one" : "ui.app_grid_shrink_ask",
-              { n: lost, rows, cols: columns }),
-      confirmLabel: t("ui.app_grid_shrink_go"),
-      cancelLabel: t("ui.cancel"),
-      closeLabel: t("ui.close"),
-      danger: true,
-    })) {
-      // Declined: put the two fields back, or they sit there showing a size
-      // the board is not.
-      render();
-      return;
+  let size: GridSize = { ...layout.grid };
+  let colour = wordColor(layout);
+
+  const cancel = document.createElement("button");
+  cancel.className = "btn quiet";
+  cancel.type = "button";
+  cancel.textContent = t("ui.cancel");
+  cancel.onclick = () => sheet.close();
+
+  const go = document.createElement("button");
+  go.type = "button";
+  go.onclick = () => {
+    // resize() is what drops whatever is outside; it is also what clamps a
+    // size into the bounds, so it runs whether or not anything moved.
+    resize(layout, size.rows, size.columns);
+    layout.wordColor = colour;
+    // Whatever was selected may have been one of the buttons that just went.
+    chosen = "";
+    sheet.close();
+    commit();
+  };
+
+  const sheet: ReturnType<typeof openDialog> = openDialog({
+    title: t("ui.app_grid"),
+    closeLabel: t("ui.close"),
+    body: [],
+    footer: [cancel, go],
+  });
+
+  /* Redrawn whole on each choice, because the two things that follow from one
+   * are a pressed state somewhere else in the row and a number in a sentence -
+   * and threading those through by hand is how a card comes to disagree with
+   * itself. There is nothing to type in here, so there is no caret to lose. */
+  const draw = (): void => {
+    const why = document.createElement("p");
+    why.className = "note";
+    why.textContent = t("ui.app_grid_all_pages");
+
+    const lost = outside(layout, size.rows, size.columns).length;
+    const body: HTMLElement[] = [why, sizeChoices(size, (picked) => {
+      size = picked;
+      draw();
+    })];
+
+    // The same sentence the question used to ask on its own, said while the
+    // choice is still open rather than after it. It names the number, because
+    // the buttons that would go may be on a page nobody is looking at.
+    if (lost) {
+      const notice = document.createElement("div");
+      notice.className = "notice bad";
+      notice.textContent = t(lost === 1 ? "ui.app_grid_shrink_ask_one"
+                                        : "ui.app_grid_shrink_ask",
+                             { n: lost, rows: size.rows, cols: size.columns });
+      body.push(notice);
     }
-  }
-  resize(layout, rows, columns);
-  chosen = "";
-  commit();
+
+    const rule = document.createElement("hr");
+    rule.className = "cardrule";
+    const what = document.createElement("span");
+    what.className = "lbl";
+    what.textContent = t("ui.app_word_color");
+    body.push(rule, what);
+
+    for (const one of ["fill", "border", "off"] as const) {
+      const choice = document.createElement("button");
+      choice.className = "btn choice";
+      choice.type = "button";
+      choice.setAttribute("aria-pressed", one === colour ? "true" : "false");
+      const head = document.createElement("strong");
+      head.textContent = t(`ui.app_word_color_${one}`);
+      const note = document.createElement("span");
+      note.textContent = t(`ui.app_word_color_${one}_note`);
+      choice.append(head, note);
+      choice.onclick = () => { colour = one; draw(); };
+      body.push(choice);
+    }
+    sheet.body.replaceChildren(...body);
+
+    // Labelled with the act rather than with "OK", and drawn as the danger it
+    // is exactly when it is one: the same press applies a colour and throws
+    // buttons away, and only the second of those needs saying.
+    go.className = lost ? "btn destructive filled" : "btn primary";
+    go.textContent = t(lost ? "ui.app_grid_shrink_go" : "ui.app_grid_apply");
+  };
+  draw();
 }
 
-export function wireEditor(): void {
-  const rows = $<HTMLInputElement>("appRows");
-  const cols = $<HTMLInputElement>("appCols");
-  // On change rather than on input: a number field being typed in passes
-  // through 1 on the way from 3 to 11, and asking to throw away two pages of
-  // buttons because somebody is mid-keystroke is not a question anybody meant
-  // to be asked.
-  const moved = () => { void askResize(Number(rows.value), Number(cols.value)); };
-  rows.onchange = moved;
-  cols.onchange = moved;
-
+export function wireEditor(): () => void {
   $<HTMLButtonElement>("appPageNew").onclick = () => {
     const made = addPage(board());
     here = made.id;
@@ -731,6 +809,13 @@ export function wireEditor(): void {
   };
 
   $<HTMLButtonElement>("appExport").onclick = () => { void exportApp(); };
+
+  /* The card is opened from the menu beside the Sammlung's name, which is the
+   * shell's - so the entry is handed over rather than drawn here. Taken back
+   * when this editor leaves the page: the shell outlives it, and a talker
+   * Sammlung must not be offered a grid to resize. */
+  collectionMenuExtras((add) => add(t("ui.app_grid"), openGrid));
+  return () => collectionMenuExtras(null);
 }
 
 /* What the shell is handed, and the whole of what it may ask for.
@@ -745,7 +830,7 @@ export const app: Editor = {
    * of the palette, on the smallest grid worth having. 3x5 rather than 6x11
    * because a first board is big cells and few of them - and because the size
    * is a number now, so growing into the larger one costs nothing. */
-  blank(): Layout {
+  blank(grid?: GridSize): Layout {
     const first = blankPage();
     return {
       target: "app",
@@ -753,7 +838,10 @@ export const app: Editor = {
       // is made rather than captured at module level: LANG is a live binding
       // and a language switch moves it. The same reasoning as editor-diy's.
       language: LANG,
-      grid: { rows: GRID.rows, columns: GRID.columns },
+      // What was chosen while it was being made, or the first of the offered
+      // sizes for the callers that make one without asking - the seed a
+      // browser with nothing in it gets, and an import.
+      grid: grid ? { ...grid } : { rows: GRID.rows, columns: GRID.columns },
       pages: [first],
       home: first.id,
     };
@@ -808,8 +896,6 @@ export const app: Editor = {
    * reads the table as it goes. */
   labels(): void {
     $<HTMLButtonElement>("appPageNew").textContent = t("ui.app_page_new");
-    $("appRowsLabel").textContent = t("ui.app_grid_rows");
-    $("appColsLabel").textContent = t("ui.app_grid_columns");
     $<HTMLButtonElement>("appExport").textContent = t("ui.package_export");
     status("");
   },

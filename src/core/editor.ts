@@ -32,7 +32,10 @@
  *
  *   blank()   a new Sammlung has to start as something, and what "empty" means
  *             is the target's answer - one set of four keys, or one page of an
- *             empty grid.
+ *             empty grid. The one member that takes anything: the size of that
+ *             grid is asked at the same moment as the target, so the answer
+ *             comes in with the question rather than being written over a
+ *             board that has already been made.
  *   adopt()   a different Sammlung is in force. Where the editor was standing
  *             may not exist in this one.
  *   render()  redraw from state.layout, after something outside changed it.
@@ -43,11 +46,15 @@
  *   count()   how much is in one, for the list and for the delete question.
  *   unit      what that number counts, so the shell can put a word to it.
  */
-import type { Layout, Target } from "./types.js";
+import type { GridSize, Layout, Target } from "./types.js";
 
 export interface Editor {
-  /** What a Sammlung looks like before anybody has typed in it. */
-  blank(): Layout;
+  /** What a Sammlung looks like before anybody has typed in it.
+   *
+   *  `grid` is what was chosen while the Sammlung was being made, and is the
+   *  target's to ignore: the five-key device has no grid to size, so only the
+   *  tablet reads it. Absent means whatever that target calls a first board. */
+  blank(grid?: GridSize): Layout;
   /** A whole different layout is in state now: let go of where you were. */
   adopt(): void;
   /** Draw what state.layout says. */
