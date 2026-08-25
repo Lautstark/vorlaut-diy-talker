@@ -1257,33 +1257,15 @@ dialog.sheet--page { max-width: 520px; }
 .form__withplay { display: flex; gap: 8px; align-items: center; }
 .form__withplay .field { flex: 1 1 auto; }
 .form__hint { font-size: 12.5px; color: var(--text-faint); }
+/* A row the answer above it has made meaningless - Gesprochen on a button
+   that leads to a page, and the target list on one that does not. Gone rather
+   than greyed: the question is not whether somebody may type there, it is
+   whether the button says anything at all.
 
-/* ------------------------------------------------------------ what it does */
-
-/* Four kinds rather than a flat list of seven, because the flat list mixed two
-   different questions - what a word does, and what a bar control does - and
-   put them in one dropdown where they read as alternatives to each other.
-
-   The first two are the correction this sheet is really making. Both speak;
-   the difference is only whether the word joins the sentence, which is what
-   the labels now say. "In die Satzleiste" against "Sofort sprechen" described
-   an axis that does not exist: the viewer utters an appending button too. */
-.does { display: grid; gap: 8px; }
-.does__opt {
-  display: grid; grid-template-columns: auto 1fr; gap: 3px 10px;
-  padding: 10px 12px; cursor: pointer;
-  border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface);
-}
-.does__opt:hover { border-color: var(--text-faint); }
-.does__opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-.does__opt input { grid-row: span 2; align-self: center; accent-color: var(--accent-strong); }
-.does__opt b { font-size: 14px; font-weight: 600; }
-.does__opt small { font-size: 12.5px; color: var(--text-dim); }
-/* What a choice needs once it is chosen, tucked under it rather than in a
-   fifth control that is dead most of the time. */
-.does__more { grid-column: 2; display: none; gap: 8px; margin-top: 8px; }
-.does__opt:has(input:checked) .does__more { display: grid; }
+   The rule is needed because `hidden` is a UA declaration and `.form__row`'s
+   own `display: grid` is an author one, so the row would otherwise keep its
+   box and its height while claiming to be hidden. */
+.form__row[hidden] { display: none; }
 
 /* The foot carries the destructive act on the left, away from the confirming
    one - and between them the way to keep going, because a board is built in
