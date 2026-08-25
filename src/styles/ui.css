@@ -981,6 +981,51 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    word and a picture at 60% want more height than the cell has. The word is
    the part somebody is reading. */
 .cell__pic { max-width: 100%; max-height: 60%; min-height: 0; object-fit: contain; }
+
+/* The ground the picture stands on in a dark scheme.
+ *
+ * AAC line art is drawn for white and carries none of its own: a METACOM
+ * symbol is black strokes on transparency, so on a dark cell it takes the
+ * cell's ground and disappears. "Wort" and the question mark went to nothing
+ * at #1f1f22; "Haus" survived, and the difference is that it happens to be
+ * filled white. The picker already says this - see .pick__preview, where the
+ * white is hardcoded because it is not a surface and does not follow the
+ * scheme - and the board was the one place still missing it.
+ *
+ * Under the <img> rather than on the cell, and that is the whole decision.
+ * Making the cell light in a dark scheme is one rule fewer and turns a 3x5
+ * board into fifteen white rectangles; this leaves the board dark and gives
+ * paper to the one thing that needs it.
+ *
+ * It also decides per picture without being told which is which, because a
+ * background behind a fully opaque edge-to-edge image is never seen: line art
+ * gets the white, a photograph or a full-bleed pictogram covers it. That is
+ * fillColour()'s rule in data/tiles.ts arrived at from the other end - alpha
+ * means white, four matching corners mean that colour continues - and it has
+ * to be the same rule, or the board is lying about the device.
+ *
+ * Only where the cell kept the surface. A Fitzgerald fill is a light hue in
+ * either scheme, so a cell wearing one already gives the picture its ground
+ * and a white plate on top of it would be a hole in the colour; the selector
+ * is the same `[style*="--cell-color"]` test the label colour above keys off.
+ * The border state sets --cell-edge and not the fill, so it keeps the dark
+ * surface and is covered here, which is right.
+ *
+ * Three rules for two schemes, for the reason dialog::backdrop states at
+ * length: the media query is what following the OS means, the attribute rules
+ * are what a choice in Darstellung means, and the dark one has to restate the
+ * default it agrees with in order to beat the light query on a light OS. */
+.cell:not([style*="--cell-color"]) .cell__pic { background: #fff; border-radius: 4px; }
+@media (prefers-color-scheme: light) {
+  .cell:not([style*="--cell-color"]) .cell__pic { background: none; border-radius: 0; }
+}
+:root[data-theme="light"] .cell:not([style*="--cell-color"]) .cell__pic {
+  background: none; border-radius: 0;
+}
+:root[data-theme="dark"] .cell:not([style*="--cell-color"]) .cell__pic {
+  background: #fff; border-radius: 4px;
+}
+
 /* The picture and the cross over it as one box, so the cross is the size of
    the picture and not of the cell. Only a crossed-out key is wrapped: an
    ordinary cell keeps the <img> as its own flex item, which is what the 60%
