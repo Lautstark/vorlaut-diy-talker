@@ -141,8 +141,15 @@ export const folderOf = (path, root) => {
 
 /**
  * Hits from one source, in the shape shell/sheet.ts renders: source, label,
- * a URL for the preview, and whichever identifier the pick step needs — `ref`
- * for METACOM, `id` for ARASAAC.
+ * a URL for the preview, how well the hit answered — and whichever identifier
+ * the pick step needs, `ref` for METACOM, `id` for ARASAAC.
+ *
+ * The score is bildquelle's own and is carried rather than read here. It used
+ * to stop at this function, which left every tile equally confident: a grid of
+ * "nichtbinaer" renderings for a search for "nicht" looks exactly like a grid
+ * of hits, and nothing downstream had anything to tell them apart with. What
+ * the number means, and where the line between a hit and a near miss sits, is
+ * picker.ts's — see matchesWord() there. This one only stops dropping it.
  *
  * Shaping only, and it throws what it is handed: the "never throws" this
  * paragraph used to promise was search()'s rule, written above the wrong
@@ -161,6 +168,7 @@ async function decorate(hits, source) {
     const item = {
       source,
       label: hit.label,
+      score: hit.score,
       url: (await imageUrl(source, hit.id)) || "",
     };
     if (source !== "metacom") return { ...item, id: hit.id };

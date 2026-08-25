@@ -1208,6 +1208,21 @@ dialog.sheet--page { max-width: 520px; }
 .pick__preview--none svg { width: 40px; height: 40px; fill: none; stroke: currentColor;
                            stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 
+/* The third thing a search comes back with: hits that are the nearest the
+   collection holds rather than the word that was typed. Above the grid and
+   outside it, because the grid scrolls and this must not scroll off the
+   pictures it is about - see drawPick() in shell/sheet.ts.
+
+   --text-dim rather than the --text-faint the sentences inside the box wear.
+   Those replace the results and are read because there is nothing else to
+   read; this one stands over a full grid of pictures and has to be read
+   instead of them. Not a warning colour either: nothing has gone wrong, the
+   results are the best answer there is, and a red line over them would say
+   they were not worth looking at. */
+.pick__near {
+  margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-dim);
+}
+
 /* minmax(0, 1fr) rather than 1fr: a grid track's automatic minimum is its
    content's min-content width, and a pictogram's is its intrinsic pixel width
    - so four of them inflated this grid past the column it was given and the

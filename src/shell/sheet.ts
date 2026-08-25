@@ -210,6 +210,24 @@ function drawPick(spec: PickColumn): HTMLElement {
   query.value = spec.seed.trim();
   pick.appendChild(query);
 
+  /* What kind of answer the hits are, above the hits themselves.
+   *
+   * Its own element rather than a line inside the grid: the grid scrolls at
+   * 150px and a sentence written into it scrolls away from the pictures it is
+   * about, which is the same silence as not writing it. Above, because it is
+   * read before the tiles are looked at rather than after.
+   *
+   * role="status" and built empty, so that the sentence is announced when it
+   * arrives. A search runs on every Enter and the results are replaced under
+   * a reader who cannot see them being replaced; the two silences in the box
+   * below have never been announced either, and this one is the one that
+   * changes what somebody does next. */
+  const near = document.createElement("p");
+  near.className = "pick__near";
+  near.setAttribute("role", "status");
+  near.hidden = true;
+  pick.appendChild(near);
+
   const results = document.createElement("div");
   results.className = "pick__results";
   pick.appendChild(results);
@@ -248,6 +266,14 @@ function drawPick(spec: PickColumn): HTMLElement {
     }
   };
 
+  /** Puts the line above the results there, or takes it away. Hidden rather
+   *  than left empty: an empty <p> above the grid is a gap that reads as a
+   *  layout fault. */
+  const tell = (line: string) => {
+    near.textContent = line;
+    near.hidden = !line;
+  };
+
   // So a slow answer cannot overtake a newer one. The sheet's own, because the
   // sheet is its own search - there is no dialog behind it to hold one.
   let token = 0;
@@ -256,6 +282,7 @@ function drawPick(spec: PickColumn): HTMLElement {
     if (!word) return;
     const mine = ++token;
     say(results, t("ui.searching"));
+    tell("");
     void findSymbols(word).then((answer) => {
       if (mine !== token) return;
       hits = answer.hits;
@@ -263,6 +290,9 @@ function drawPick(spec: PickColumn): HTMLElement {
       // Both silences - a word the collection does not have, and a browser that
       // never managed to ask - come back as a sentence from the seam.
       if (answer.empty) say(results, answer.empty);
+      // And the third answer, which is neither: hits that are the nearest the
+      // collection holds rather than the word. They stay; this says so.
+      tell(answer.near);
     });
   };
   query.onkeydown = (event) => {
