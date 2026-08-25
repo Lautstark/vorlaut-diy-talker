@@ -901,9 +901,9 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .cell--shared.cell--empty { border-style: dashed; }
 .cell .blank { font-size: 11px; text-align: center; color: var(--text-faint); }
 
-/* --------------------------------------------- the three the talker adds
+/* ---------------------------------------------- the four the talker adds
 
-   Everything above is both editors'. These three are the five-key device, and
+   Everything above is both editors'. These four are the five-key device, and
    each of them is a fact about the hardware rather than a choice.
 
    The board itself is #device, at --cols:3 and --rows:2 written into the
@@ -911,6 +911,19 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    rule of its own - the tablet lifts main's 640px cap because eleven columns
    do not fit in it, and three columns of 640px is a cell about 200px wide,
    which is a symbol somebody can judge. */
+
+/* Square, because the display is square.
+
+   The shared .cell is 4:3, which is the tablet's cell and a fair picture of a
+   tablet button. It is not a fair picture of this one: a key on this device is
+   a 128x128 screen showing a 116x116 tile - IMG_SIZE and TILE_SIZE in
+   src/data/tiles.ts - so a 4:3 cell here reports a shape the hardware does not
+   have, and reports it while somebody is deciding whether a pictogram survives
+   at that size. Whatever else the board is doing, it is drawing the device.
+
+   The tablet is not bound by this and keeps 4:3: nothing about a tablet button
+   is square, and the cell it draws is the cell the viewer draws. */
+#device .cell { aspect-ratio: 1 / 1; }
 
 /* The hole where the speaker is.
 
