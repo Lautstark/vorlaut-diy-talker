@@ -848,12 +848,22 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * thing it buys everywhere else - "Wort" on its own does not say what a
    * word does, and this is the distinction people get wrong. */
   does.button.setAttribute("aria-describedby", note.id);
-  /* The note sits beside the trigger rather than under it, which is what the
-   * trigger being a button rather than a full-width field buys: "Ausruf" is
-   * three quarters of an empty line, and the sentence that tells it from
-   * "Wort" is the one thing on this row that has to be read. */
+  /* Beside the caption, the same as Aufschrift and Gesprochen.
+   *
+   * It sat beside the *trigger* while the trigger was a narrow button, on the
+   * argument that "Ausruf" left three quarters of a line empty. The trigger
+   * spans the row now, so that line is gone - and the wider point is that a
+   * reader should not have to work out a different rule per row. A note rides
+   * beside the caption that names the question; nowhere else.
+   *
+   * This one is longer than the other two and will wrap here, which is the
+   * cost of the consistency and is worth paying rather than hiding. It has a
+   * better home waiting: the descriptions belong on the menu items themselves,
+   * where all three are readable while somebody is choosing between them
+   * instead of one at a time afterwards. That needs a second line on
+   * @lautstark/design's menu items, which `AddItem` has no room for today. */
   const actRow = formRow(t("ui.app_button_act"), does.anchor, "", does.button);
-  actRow.classList.add("form__row--beside");
+  actRow.classList.add("form__row--caption");
   actRow.appendChild(note);
   rows.push(actRow);
 
