@@ -27,6 +27,14 @@ export const label = (key: string) => new RegExp(
   `^(${LANGUAGES.map((l) => table[l][key]!
     .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`);
 
+/** The same, unanchored: for the lines that join several labels into one -
+ *  a voice's facts are five of them with separators between. Anchoring one of
+ *  those against the whole line only ever asserts that the line holds nothing
+ *  else, which is not what the caller means by "it says this". */
+export const within = (key: string) => new RegExp(
+  `(${LANGUAGES.map((l) => table[l][key]!
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`);
+
 /** The six cells of the board: the hole, the set key and the four speech keys,
  *  in the reading order src/editor-diy/editor.ts's CELLS lays them out in.
  *

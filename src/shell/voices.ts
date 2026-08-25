@@ -512,6 +512,15 @@ async function chooseCollectionLanguage(code: string) {
   state.layout.language = code;
   paintCollectionLanguage();
   await save();
+  // This language is what picks this Sammlung's voice while nobody has picked
+  // one, so the answer to "which voice, if nothing was said" has just moved.
+  // Asked again rather than worked out here: which voice a language starts on
+  // is the catalogue's question and backend/local.js is where the catalogue
+  // is. A voice somebody ticked does not move - that one is `chosen`, and only
+  // `active` is a guess. After the save, because the answer is read off the
+  // stored layout rather than off this one.
+  await loadVoices();
+  renderVoices();
 }
 
 // Removing the key is the same shape of errand as saving one: the list it
