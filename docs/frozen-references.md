@@ -383,11 +383,14 @@ kept.
 
 ## What two locks have stopped answering for
 
-The `active` flag is gone. It marked which of an author's sets went onto the
-device, from when one Sammlung was everything the product had; a Sammlung is
-the selection now, ships all its sets, and the flag was deleted rather than
-migrated. Both locks recorded it, neither can be asked again, and neither was
-touched — the tests were narrowed instead, each naming what it gave up:
+Two things have gone out of the talker, and both locks recorded both. The
+`active` flag marked which of an author's sets went onto the device, from when
+one Sammlung was everything the product had; a Sammlung is the selection now,
+ships all its sets, and the flag was deleted rather than migrated. The per-set
+**colour** went on 2026-08-26 — from the editor, from `layout.bin`, from the
+firmware and from both exports — and it reached further into these files than
+the flag did. Neither can be asked again, and neither lock was touched; the
+tests were narrowed instead, each naming what it gave up:
 
 - `tests/test_layout_frozen.py`, `THE_FILTER_IS_GONE`. One case of seventeen —
   three sets with the middle one switched off — is set aside. Its right answer
@@ -418,6 +421,19 @@ touched — the tests were narrowed instead, each naming what it gave up:
   refused. Everything else keeps its full value, including the zip members,
   which are still compared as text and so still hold the writer to sorted keys
   and its indent.
+- `tests/test_obf_frozen.py`, `THE_COLOUR_IS_GONE`. The widest of the four, and
+  worth reading for how differently its three parts land. `color` on a set
+  drops out of every compared layout — 27 imports, 54 `normalizeLayout` calls,
+  the containers' layouts, the round trip. `ext_vorlaut_color` on a board and
+  `border_color` on every button drop out of the exports and out of the zip
+  members, **but only where this module wrote them**: a document read back from
+  a container keeps both compared, because a foreign board arrives as the
+  dictionary it was parsed from and preserving a field nobody here writes is
+  the one thing about those names still worth checking. That scoping was
+  verified by breaking it — dropping `border_color` on read turns the container
+  comparison red, which is what says the narrowing is a narrowing and not a
+  hole. The third part is a straight loss: `cssColor()` is gone, so its ten
+  frozen answers about malformed colours can be asked of nothing.
 
 Each is the case its lock's own `invalidated_by` anticipates — "a change to
 render_layout_bin()", "a change to the structure in

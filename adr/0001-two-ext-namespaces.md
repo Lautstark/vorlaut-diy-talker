@@ -6,18 +6,19 @@
 
 Two OBF extension namespaces now exist in the Lautstark projects.
 
-`ext_vorlaut_*` came first. The board builder's `.obz` export writes three
-fields — `ext_vorlaut_color`, `ext_vorlaut_sleep_timeout_seconds`,
-`ext_vorlaut_voice` — for the DIY ESP32 talker. One of them is meaningless off
-that device: `sleep_timeout_seconds` is a power setting for a battery-powered
-box with physical keys.
+`ext_vorlaut_*` came first. The board builder's `.obz` export writes two fields
+today — `ext_vorlaut_sleep_timeout_seconds` and `ext_vorlaut_voice` — for the
+DIY ESP32 talker. One of them is meaningless off that device:
+`sleep_timeout_seconds` is a power setting for a battery-powered box with
+physical keys.
 
-It wrote a fourth when this was decided, `ext_vorlaut_active`, marking which of
-the talker's sets went onto the device — the clearest example there was of a
-field meaningless off that device. It went on 2026-08-25, with the
-active/inactive distinction behind it. That removal is not an argument against
-this decision; it is the first piece of evidence for it, and what it cost is
-recorded at the end.
+It wrote four when this was decided. `ext_vorlaut_active` marked which of the
+talker's sets went onto the device — the clearest example there was of a field
+meaningless off that device — and went on 2026-08-25 with the active/inactive
+distinction behind it. `ext_vorlaut_color` went on 2026-08-26 with the per-set
+colour. Neither removal is an argument against this decision; they are the
+first two pieces of evidence for it, and what they cost is recorded at the
+end.
 
 That export is pinned by a frozen reference file. The Python implementation it
 was checked against has been deleted, so the frozen file is the only remaining
@@ -66,21 +67,25 @@ was created to prevent.
 specification that reached into the talker's export to rename its fields would
 be changing something it does not describe, for tidiness.
 
-**The cost is small and one-directional.** `ext_vorlaut_color` and
-`ext_vorlaut_voice` overlap with app concerns, so a builder writing both a
-talker export and an app package writes two fields where one might do. That is
-one duplicated value in a builder, against a rewritten frozen reference and a
-muddled namespace.
+**The cost is small and one-directional.** `ext_vorlaut_voice` overlaps with
+app concerns, so a builder writing both a talker export and an app package
+writes two fields where one might do. `ext_vorlaut_color` was the other one and
+is gone, which makes the standing cost smaller still. That is one duplicated
+value in a builder, against a rewritten frozen reference and a muddled
+namespace.
 
 ## Consequences
 
-- A talker `.obz` opened by the app viewer imports as a board with default
-  colours and no voice hint. It is not an app package and is not expected to be
-  one; nothing crashes and nothing warns.
+- A talker `.obz` opened by the app viewer imports as a board with no colour
+  and no voice hint. It is not an app package and is not expected to be one;
+  nothing crashes and nothing warns.
 - Fixture `unknown-ext` asserts this. It carries `ext_vorlaut_color` twice, on a
   button and on a board, and an importer that reads either fails. On the board
   it sits beside `ext_lautstark_board_color` holding a *different* colour, so
-  reading the wrong namespace fails rather than agreeing by coincidence.
+  reading the wrong namespace fails rather than agreeing by coincidence. The
+  fixture stands although this builder no longer writes that field: it is about
+  what a reader must do with a namespace it does not own, and some other tool's
+  document may still carry one.
 - A future builder that wants one export serving both must write both
   namespaces into one file. This is permitted: they do not collide.
 
@@ -106,7 +111,20 @@ naming what it gave up — `ACTIVE_IS_GONE`, `THE_CAP_MOVED`,
 `THE_FILTER_IS_GONE` — and none of it is recoverable, because the only thing
 left that could write either lock is the module it checks.
 
-That was one field, deleted because the product stopped needing it. A rename for
+**And what removing a second one cost, 2026-08-26.** `ext_vorlaut_color` went
+with the per-set colour — again for a product reason and not a format one, and
+again paid for out of the same locks. `obf.lock.json` stopped answering for the
+field, for `border_color` on every button beside it, for `color` on every set
+of every layout in it, and for `cssColor()` outright, the function having gone:
+ten recorded answers about malformed colours that nothing can be asked for
+again. `layout.lock.json` had every one of its cases transformed rather than
+compared as frozen. Neither lock was touched. Both tests were narrowed —
+`THE_COLOUR_IS_GONE` in each — and the same sentence holds: nothing is
+recoverable, because the only thing left that could write either lock is the
+module it checks.
+
+That is two fields, each deleted because the product stopped needing it, and
+between them most of what these locks used to say about colour. A rename for
 tidiness would put every remaining `ext_vorlaut_*` field through the same thing
 and end with the same records unregenerable, in exchange for a namespace nobody
 reads twice. See [`docs/frozen-references.md`](../docs/frozen-references.md),
