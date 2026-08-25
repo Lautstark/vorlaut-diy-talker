@@ -75,6 +75,21 @@ neither — a photograph is not a symbol collection, and calling the package
 ARASAAC's because it holds one would be a licence claim about a file ARASAAC
 never saw. A Sammlung mixing ARASAAC and METACOM is refused, which is §5.1.
 
+That refusal is asked twice, and the second time is not where it is enforced.
+`buildAppPackage()` is pure and runs last, so a mixed Sammlung used to be
+refused *after* every distinct sentence in it had been synthesised — hundreds
+of inferences on a full tablet Sammlung, and then nothing to show. The same
+function is called at the head of `exportAppPackage()`, where it costs one walk
+over the layout, and the message names the odd keys out rather than leaving
+somebody to compare references by eye: which collection a picture came from is
+the one thing no editor shows.
+
+Reaching that refusal at all is now the exception. The picture column offers
+the collection the **open Sammlung** is drawn in — `offeredSource()` in
+[`src/shell/picker.ts`](../src/shell/picker.ts) — falling back to the machine's
+setting only for a Sammlung that has said nothing yet. A mixed one can still
+arrive from elsewhere; it can no longer be built here.
+
 ## Audio
 
 Ogg Opus, mono, 24 kHz into the encoder, from the synthesiser's master — not
