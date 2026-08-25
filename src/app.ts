@@ -37,7 +37,7 @@ import { load, wireConflict } from "./core/save.js";
 import { editor, haveEditor, useEditors } from "./core/editor.js";
 import { wireRelease } from "./editor-diy/release.js";
 import { diy, wireEditor } from "./editor-diy/editor.js";
-import { wireBuildEntry, wireDevice } from "./editor-diy/device_panel.js";
+import { wireBuildEntry } from "./editor-diy/folder_build.js";
 import * as diyBoard from "./editor-diy/templates/board.js";
 import { app, wireEditor as wireApp } from "./editor-app/editor.js";
 import * as appBoard from "./editor-app/templates/board.js";
@@ -103,8 +103,9 @@ export function start(): void {
       // Three, because wireRelease() binds #releaseBtn and #previewToggle is
       // wireEditor()'s - both elements the mount above has just made - and
       // wireBuildEntry() puts the build into the ⋯ beside the Sammlung's name.
-      // wireDevice() is not here: it binds the settings sheet, which is the
-      // shell's markup and mounts once.
+      // All three belong to this editor now: the one piece of talker wiring
+      // that used to sit outside it, in the settings sheet, was the Device
+      // panel, and that has gone entirely.
       //
       // Two of the three answer with a teardown and this composes them: one
       // subscribes to the build mark and the other holds a menu entry, and
@@ -147,7 +148,6 @@ export function start(): void {
   wireSources();
   wireImport();
   wireData(backup);
-  wireDevice();
   wireLanguage();
   wireLegal();
 

@@ -20,25 +20,20 @@ import {
 } from "../backend/index.js";
 
 let known: SerialPort[] = [];
-const listeners: (() => void)[] = [];
 
 /** The ports the person has granted, in an earlier session or this one. */
 export const devices = (): SerialPort[] => known;
 export const haveDevice = (): boolean => known.length > 0;
 
-function announce(): void {
-  for (const listener of listeners) listener();
-}
-
 async function refresh(): Promise<void> {
   known = await grantedDevices();
-  announce();
 }
 
-/** Told when the list moves, so a panel showing it can redraw. */
-export function onDevices(listener: () => void): void {
-  listeners.push(listener);
-}
+/* There was an onDevices() here, and the settings panel that subscribed to it
+ * is gone. Nothing reads this list except at the moment it is about to be
+ * used: the transfer sheet asks haveDevice() when it draws its first step, and
+ * sendToDevice() takes devices() when it runs. Neither is on screen waiting to
+ * be told, so there is nothing left to announce to. */
 
 /** Asked on load, and again whenever a cable is plugged in or pulled out - so
  *  a page opened before the talker was does not need reloading. */
@@ -60,9 +55,6 @@ export async function connectDevice(): Promise<boolean> {
   // getPorts() ought to carry it now. If a browser is slow to reflect the
   // grant, keep the handle anyway rather than telling somebody who has just
   // chosen a device that there is none.
-  if (!known.includes(got)) {
-    known = [got, ...known];
-    announce();
-  }
+  if (!known.includes(got)) known = [got, ...known];
   return true;
 }

@@ -302,27 +302,18 @@ export function paintStates() {
   // the folder rather than from here - it is the one panel whose sentence is
   // built from a status this file never sees.
   paintBackupFolder();
-  // And every panel this file does not own, for the same reason. The Device
-  // panel is the one there is: it says whether a port has been granted, which
-  // is a state rather than a label, so applyTexts() never touches it. Without
-  // this it kept whatever language the page started in - and the page starts
-  // in the browser's and then adopts the board's, so on a German board that
-  // line was reliably the one English sentence on screen.
-  //
-  // Through a list rather than by name, because the panel belongs to
-  // editor-diy now and the shell may not import it. Registering is how a panel
-  // that draws its own state asks to be included in a language switch.
-  for (const paint of painters) paint();
-}
-
-/* Panels wired outside this file, redrawn whenever the language moves. */
-const painters: (() => void)[] = [];
-
-/** Ask to be redrawn with the rest of the sheet. Called at wiring time, so a
- *  panel that hid itself for want of a browser feature never registers and is
- *  never asked. */
-export function onPaintPanels(listener: () => void): void {
-  painters.push(listener);
+  /* There was a second one, and the hook it registered through has gone with
+   * it. onPaintPanels() let a panel wired outside this file ask to be redrawn
+   * on a language switch, and existed because the Device panel belonged to
+   * editor-diy while the shell may not import that. The Device panel is gone -
+   * the transfer dialog grants a port where it needs one - so the list had no
+   * registrant left, and a registry nothing registers with is an extension
+   * point that reads as working code. It comes back the day something needs
+   * it; the shape is four lines and the reason is recorded here.
+   *
+   * Every panel on this sheet is now either drawn from the text table by
+   * applyTexts() or drawn by the module that owns its state - which is the
+   * line above, and it is the only one of that kind left. */
 }
 
 /* --------------------------------------- the folder this browser can read ---

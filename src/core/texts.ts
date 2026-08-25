@@ -138,12 +138,11 @@ export function applyTexts() {
   $("metacomLabel").textContent = t("ui.metacom_path");
   $("boardSection").textContent = t("ui.collection");
   $("boardNote").textContent = t("ui.collection_note");
-  $("deviceSection").textContent = t("ui.device_section");
-  $("deviceNote").textContent = t("ui.device_note");
-  $<HTMLButtonElement>("deviceConnect").textContent = t("ui.device_connect");
-  // The build that used to sit under that button is a menu entry now, beside
-  // the Sammlung it builds - so its label is drawn with the menu rather than
-  // standing in the page waiting to be translated.
+  // The Device panel's three labels were here. The panel is gone: the build
+  // is an entry in the Sammlung's ⋯ and draws its label with the menu, and the
+  // connect is a button in the transfer sheet, which release.ts builds when it
+  // opens and so labels as it builds. Nothing on this sheet is about a cable
+  // any more.
   $("dataSection").textContent = t("ui.data_section");
   $("dataNote").textContent = t("ui.data_note");
   $("dataExport").textContent = t("ui.data_export");
