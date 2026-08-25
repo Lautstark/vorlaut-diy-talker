@@ -16,12 +16,21 @@
  *
  *   the list, and "+ Neue Sammlung"   in the sidebar - this is their level
  *   the name                          in the work head, as the field that renames
- *   the two exports, delete           in the work head's ⋯
+ *   the exports, the settings, delete in the work head's ⋯
  *
- * The last line is the one worth defending. Both act on exactly the Sammlung
- * that is open, and a button sitting in a list of five can never say which one
- * it means - so they live beside the name of the one they will act on.
+ * The last line is the one worth defending. All of them are about exactly the
+ * Sammlung that is open, and a button sitting in a list of five can never say
+ * which one it means - so they live beside the name of the one they act on.
  * Renaming has no menu entry at all: the name on screen is the field.
+ *
+ * §3.6 says the ⋯ holds what *acts* on a Sammlung, and the word "acts" is now
+ * too narrow for what is in here. The tablet's grid card stretched it first
+ * and nobody noticed; the Sammlung's own settings sheet is the second, and it
+ * is deliberate rather than accidental. The sentence §3.6 needs is that the ⋯
+ * holds what is true of one Sammlung - what acts on it, and what it is set to
+ * - because both answer the question a menu in a list of five cannot: which
+ * one. docs/sammlung-settings.md carries the wording; ~/Code/design is its own
+ * session and this file may not edit it.
  */
 import { $, status } from "./dom.js";
 import { menuOn, type AddItem } from "@lautstark/design/menu";
@@ -36,6 +45,7 @@ import {
 } from "../backend/index.js";
 import { editorFor, editorOf, FIRST_TARGET } from "../core/editor.js";
 import { offer, openPackageExport } from "./packageExport.js";
+import { openCollectionSettings } from "./voices.js";
 import { state } from "../core/state.js";
 import { load, saveNow } from "../core/save.js";
 import { t } from "../core/texts.js";
@@ -44,7 +54,7 @@ import { t } from "../core/texts.js";
 // because the first thing it makes safe is an object-store key; a download's
 // file name is the same question asked about a different destination.
 import { safeName } from "../data/store.js";
-import { GRID, LANG } from "../core/boot.js";
+import { GRID, LANG, LANGUAGE_NAMES, LANGUAGES } from "../core/boot.js";
 import { isApp } from "../core/types.js";
 import type { CollectionList, GridSize, Target } from "../core/types.js";
 
@@ -183,6 +193,10 @@ export async function nameIfUnnamed(): Promise<void> {
 export interface Made {
   target: Target;
   grid?: GridSize;
+  /** Which language the device shows its own menu in. The talker's only: on a
+   *  tablet package localeFor() reads the locale off the voice first, so this
+   *  would be a field with nothing downstream of it. */
+  language?: string;
 }
 
 /** The four sizes, drawn rather than named, with the one on `chosen` pressed.
@@ -314,6 +328,17 @@ function askTarget(): Promise<Made | null> {
      * because two ways out of one sheet is two things to keep in step. */
     let target: Target | null = null;
     let size: GridSize = { rows: GRID.rows, columns: GRID.columns };
+    /* The page's own language, which is the best guess there is at the moment
+     * of making: somebody working in German is more likely than not building a
+     * German talker. Both blank() implementations already start a Sammlung off
+     * this way; what is new is that it is on screen and can be corrected while
+     * the Sammlung is being made rather than found afterwards.
+     *
+     * Asked here rather than answered by a "default language" setting in
+     * Einstellungen. A deferred default is one control whose effect appears
+     * somewhere else, later, and unseen - which is the shape of the bug this
+     * whole change removes. */
+    let language = LANG;
 
     const body: HTMLElement[] = [];
     const choices = new Map<Target, HTMLButtonElement>();
@@ -360,6 +385,47 @@ function askTarget(): Promise<Made | null> {
     drawSizes();
     body.push(sizes);
 
+    /* The language of the device's own menu, asked only of the target that has
+     * one to show.
+     *
+     * Target-conditional the way the grid above it is, which is the shape this
+     * dialog already had: one act with a question inside it, and the question
+     * differs by what is being made. The voice is deliberately not here - a
+     * new Sammlung starts on whatever the catalogue says its language speaks
+     * with, which is a sensible answer nobody has to give, and the Sammlung's
+     * own sheet is where it is corrected. */
+    const langAsk = document.createElement("div");
+    langAsk.className = "sizeask";
+    langAsk.hidden = true;
+    const asksLang = document.createElement("span");
+    asksLang.className = "lbl";
+    asksLang.id = "collectionNewLangLabel";
+    asksLang.textContent = t("ui.collection_language");
+    const anchor = document.createElement("span");
+    anchor.className = "menu-anchor start";
+    const langPick = document.createElement("button");
+    langPick.className = "btn quiet sm dropdown";
+    langPick.type = "button";
+    langPick.setAttribute("aria-haspopup", "menu");
+    langPick.setAttribute("aria-expanded", "false");
+    langPick.setAttribute("aria-labelledby", asksLang.id);
+    // The options name themselves, out of the same table the two other
+    // language controls read - see LANGUAGE_NAMES in core/boot.ts.
+    const sayLang = () => { langPick.textContent = LANGUAGE_NAMES[language] || language; };
+    sayLang();
+    langPick.onclick = () => menuOn(langPick, (add) => {
+      for (const code of LANGUAGES) {
+        add(LANGUAGE_NAMES[code] || code, () => { language = code; sayLang(); },
+            { checked: code === language });
+      }
+    });
+    anchor.appendChild(langPick);
+    const langNote = document.createElement("p");
+    langNote.className = "note";
+    langNote.textContent = t("ui.collection_language_note");
+    langAsk.append(asksLang, anchor, langNote);
+    body.push(langAsk);
+
     const note = document.createElement("p");
     note.className = "note";
     note.textContent = t("ui.collection_target_note");
@@ -372,7 +438,7 @@ function askTarget(): Promise<Made | null> {
     make.textContent = t("ui.collection_create");
     make.onclick = () => {
       if (!target) return;
-      finish(target === "app" ? { target, grid: size } : { target });
+      finish(target === "app" ? { target, grid: size } : { target, language });
     };
 
     function pick(one: Target): void {
@@ -381,6 +447,7 @@ function askTarget(): Promise<Made | null> {
         choice.setAttribute("aria-pressed", which === one ? "true" : "false");
       }
       sizes.hidden = one !== "app";
+      langAsk.hidden = one !== "diy";
       make.disabled = false;
     }
 
@@ -400,8 +467,14 @@ async function create(): Promise<void> {
   // closes should cost exactly what it looked like it would.
   if (!made) return;
   await saveNow();
-  const id = await createCollection(defaultName(),
-                                    editorFor(made.target).blank(made.grid));
+  const blank = editorFor(made.target).blank(made.grid);
+  /* What was chosen while it was being made. blank() already starts a Sammlung
+   * off at the page's language, so this only ever differs when somebody
+   * changed the field - but it is written unconditionally rather than
+   * compared, because "the answer the dialog gave" is the thing this line is
+   * about and a guess that happens to agree is still a guess. */
+  if (made.language) blank.language = made.language;
+  const id = await createCollection(defaultName(), blank);
   await useCollection(id);
   await load();
   await paintCollections();
@@ -605,10 +678,24 @@ export function wireCollections(): void {
         add(t("ui.collection_export"), () => { void exportOne(); });
         add(t("ui.collection_export_app"), () => { void exportApp(); });
       }
-      // Whatever the editor on screen has to say about the Sammlung itself -
-      // for the tablet, the card that holds the grid size and the colour of a
-      // word class. Above the delete, which stays last wherever it appears.
+      /* Whatever the editor on screen has to say about the Sammlung itself -
+       * for the talker, the build written into a folder, which is a third kind
+       * of export and so belongs directly under the two above it; for the
+       * tablet, the card that holds the grid size and the colour of a word
+       * class. */
       extras?.(add);
+      /* Then what this Sammlung is set to, rather than what can be done with
+       * it: the voice it speaks in, and - on a talker - the language the
+       * device shows its own menu in. Both are layout.json fields, both travel
+       * in an export, and both were in the settings sheet at the foot of the
+       * sidebar until it turned out that a panel whose answer changes when you
+       * click a different row in the list is not a setting of the app.
+       *
+       * Below the acts and above the delete. The delete stays last wherever it
+       * appears; everything else in this menu reads as "with this Sammlung, do
+       * X" and this one reads as "about this Sammlung", which is the weaker
+       * claim and so goes second. */
+      add(t("ui.collection_settings"), () => { void openCollectionSettings(); });
       add(t("ui.collection_delete"), () => { void remove(); }, { danger: true });
     });
   };

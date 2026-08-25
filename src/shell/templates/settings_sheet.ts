@@ -1,13 +1,21 @@
-/* The settings sheet: language, voice, where voices come from, where symbols
- * come from, and the Sammlung as a document.
+/* The settings sheet: this page's language, its colour scheme, where voices
+ * come from, where symbols come from, and the Sammlung as a document.
  *
- * Two languages, and they are two panels because they are two choices. The one
- * at the top is this page's, and it is a fact about this browser and the person
- * reading it. The one down beside the Sammlung is the language the device shows
- * its own menu in; it is stored in the layout and travels with an export. They
- * were one control until they were split, and the apology for that - a note
- * saying the switch "reaches the device as well" - is what a reader had instead
- * of being able to choose.
+ * **One scope, and that is the whole rule now.** Everything in here is a fact
+ * about this browser or about this installation. Two panels used to be facts
+ * about whichever Sammlung happened to be open - the voice, and the language
+ * the device shows its own menu in - and a sheet whose answer changed when
+ * somebody clicked a different row in the list is not a settings sheet. They
+ * are behind that Sammlung's own ⋯ now; see templates/collection_sheet.ts and
+ * docs/sammlung-settings.md.
+ *
+ * The voice split rather than moved, and the seam is worth knowing about: the
+ * Azure key and the offer to fetch the offline voices are still here, because
+ * a downloaded voice is installed for every Sammlung there is. What went is
+ * the choosing. So this sheet answers "which voices does this machine have"
+ * and the Sammlung's answers "which one does this one speak in" - which is
+ * also why the round trip the proposal worried about does not exist: the key
+ * and the list it stocks never came apart.
  *
  * Every section is a folded panel whose heading carries its state, so the whole
  * of what this installation is set to reads at a glance and opening one is a
@@ -87,26 +95,32 @@ export const markup = `
     </div>
   </details>
 
-  <details class="panel" name="settings" id="voicePanel">
+  <!-- Which voices this machine has - not which one anything speaks in.
+       In the place the chooser used to hold, and deliberately: somebody who
+       opens Einstellungen looking for "the voice" lands here, and the note
+       inside says where the choosing moved to. The state line is the count,
+       because "how many can speak here" is what this heading is asked.
+       The offer to fetch the offline ones is in the body rather than in a
+       panel of its own. A download installs a voice for every Sammlung there
+       is, which is exactly what this heading claims to be about. -->
+  <details class="panel" name="settings" id="voicesHerePanel">
     <summary>
-      <span class="section" id="voiceSection"></span>
-      <span class="state" id="voiceState"></span>
+      <span class="section" id="voicesHereSection"></span>
+      <span class="state" id="voicesHereState"></span>
     </summary>
     <div class="setting">
-      <!-- The search field is markup rather than rebuilt with the list:
-           redrawing an input somebody is typing into takes the caret with it. -->
-      <input type="search" id="voiceQuery" class="field" autocomplete="off">
-      <div class="voicefilters" id="voiceFilters"></div>
-      <div class="voiceList" id="voiceList"></div>
-      <div class="hint" id="voiceHint"></div>
-      <!-- The offer to fetch the offline voices. Below the note about the
-           chosen one rather than above it: that note belongs to the list, and
-           this is a separate errand. -->
+      <p class="lead" id="voicesHereNote"></p>
+      <!-- Present only when something is actually missing: a button offering
+           to fetch nothing is worse than no button. -->
       <div class="voiceOffer" id="voiceOffer"></div>
+      <!-- How far a download has got, or how it ended. In the body rather than
+           the summary: a summary carries what a section IS, and this is the
+           running commentary on an errand somebody just started. -->
+      <div class="hint" id="voiceOfferHint"></div>
     </div>
   </details>
 
-  <!-- Where voices come from, under the voices themselves. -->
+  <!-- Where the other voices come from, under the ones that are already here. -->
   <details class="panel" name="settings" id="azurePanel">
     <summary>
       <span class="section" id="azureSection"></span>
@@ -210,38 +224,20 @@ export const markup = `
     </div>
   </details>
 
-  <!-- The Sammlung's own language: what the device it is built for shows its
-       own menu in, and on a tablet package what decides which voice reads the
-       sentences aloud. Here rather than beside the page's language at the top,
-       because it is not a fact about this browser at all - it is stored in the
-       layout, it goes out with an export, and it is different from one
-       Sammlung to the next. Beside the Sammlung panel above and the Device
-       panel below, which are the other two things on this sheet that are about
-       one Sammlung rather than about this installation. -->
-  <details class="panel" name="settings" id="collectionLanguagePanel">
-    <summary>
-      <span class="section" id="collectionLanguageSection"></span>
-      <span class="state" id="collectionLanguageState"></span>
-    </summary>
-    <div class="setting">
-      <!-- The options name themselves here too, and for a second reason: this
-           one is the language of a device somebody else will hold. -->
-      <span class="menu-anchor start"><button id="collectionLangPick" class="btn quiet sm dropdown"
-        type="button" aria-haspopup="menu" aria-expanded="false"
-        aria-labelledby="collectionLanguageSection"></button></span>
-      <p class="note" id="collectionLanguageNote"></p>
-    </div>
-  </details>
-
-  <!-- Device. A third act, and it is here rather than in Daten below for the
-       reason wireData() gives for keeping Daten and the board apart: an .obz
-       is a board other software reads, a Sicherung is this browser's whole
-       state, and this is neither - it is the shape the talker's file system
-       should have. Sharing a panel with either would blur all three into
-       "export". Hidden outright where there is no picker. -->
+  <!-- Device: a granted serial port, which is this browser's permission and
+       not any Sammlung's property.
+       The build written into a folder used to be the second half of this
+       panel. It has gone to the ⋯ beside the Sammlung it builds, next to the
+       two exports, because it is an act on one particular Sammlung rather
+       than anything this installation is set to.
+       What is left is one button, and editor-diy/device_panel.ts carries the
+       open question about whether it still earns a panel at all: the release
+       dialog offers the same connect when it needs a port. Hidden outright
+       where there is no picker. -->
   <details class="panel" name="settings" id="devicePanel">
     <summary>
       <span class="section" id="deviceSection"></span>
+      <span class="state" id="deviceLink"></span>
     </summary>
     <div class="setting">
       <!-- Choosing the port, and it is here rather than behind the button in
@@ -253,13 +249,6 @@ export const markup = `
       <div class="row">
         <button id="deviceConnect" class="btn" type="button"></button>
       </div>
-      <p class="note" id="deviceLink"></p>
-
-      <p class="lead" id="buildNote"></p>
-      <div class="row">
-        <button id="buildExport" class="btn" type="button"></button>
-      </div>
-      <p class="note" id="deviceState"></p>
     </div>
   </details>
 

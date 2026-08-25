@@ -87,6 +87,20 @@ function remembered(): string {
 export let LANG = BUILT_IN_LANGUAGES.includes(remembered())
   ? remembered() : preferred();
 export const LANGUAGES = BUILT_IN_LANGUAGES;
+
+/** The languages this page offers, by their own names.
+ *
+ * "Deutsch" stays "Deutsch" whatever the page is set to, and that is the whole
+ * point of the table: the controls it fills are the ones somebody reaches for
+ * when they cannot read the interface around them, so they must not depend on
+ * being able to read the interface around them. Not in the text table for the
+ * same reason - a translated name would be exactly the wrong thing here.
+ *
+ * Here rather than beside any one of them because three controls now draw from
+ * it, in three modules, and it was written out twice before the third came
+ * along: the page's own language, a Sammlung's device language, and the
+ * question the create dialog asks. */
+export const LANGUAGE_NAMES: Record<string, string> = { de: "Deutsch", en: "English" };
 export let TEXTS = BUILT_IN_TEXTS[LANG];
 
 /** Switch language in place. Callers re-apply the labels; this only moves the

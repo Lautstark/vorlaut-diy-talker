@@ -90,9 +90,21 @@ export function applyTexts() {
    * asks picker.ts's searchPlaceholder() as it is built, so there is no
    * standing copy for this function to keep honest. */
   $("settingsHeading").textContent = t("ui.settings");
+  /* The Sammlung's own sheet, behind the ⋯ beside its name. Its two panels are
+   * filled in here with everything else rather than when it opens, for the
+   * reason the footer's three pages are: a heading that arrives only on the
+   * second visit was empty on the first. */
+  $("collectionSheetHeading").textContent = t("ui.collection_settings");
+  $<HTMLButtonElement>("collectionSheetClose").setAttribute("aria-label", t("ui.close"));
+  $<HTMLButtonElement>("collectionSheetClose").title = t("ui.close");
   $("voiceSection").textContent = t("ui.voice");
   $<HTMLInputElement>("voiceQuery").placeholder = t("ui.voice_search_hint");
   $<HTMLInputElement>("voiceQuery").setAttribute("aria-label", t("ui.voice_search_hint"));
+  // What this machine can speak with at all, which is the half of the old
+  // voice panel that stayed in Einstellungen. Its state line is a count and so
+  // is not here - voices.ts draws it, from the list it has just fetched.
+  $("voicesHereSection").textContent = t("ui.voices_here");
+  $("voicesHereNote").textContent = t("ui.voices_here_note");
   $("azureSection").textContent = t("ui.azure");
   $("azureIntro").textContent = t("ui.azure_intro");
   outward("azureLink", "ui.azure_link", "ui.azure_link_url");
@@ -106,9 +118,10 @@ export function applyTexts() {
   // say the opposite, and it was an apology rather than a note: one control
   // moved both languages and this line was where a reader found that out.
   $("languageNote").textContent = t("ui.language_title");
-  // The other language, and the panel is far down the sheet beside the
-  // Sammlung it belongs to. Only the two fixed labels here - the button says
-  // which language, and it is painted from the layout by voices.ts.
+  // The other language, and it is not on this sheet at all any more: it is a
+  // fact about one Sammlung, so it is behind that Sammlung's ⋯. Only the two
+  // fixed labels here - the button says which language, and it is painted from
+  // the layout by voices.ts.
   $("collectionLanguageSection").textContent = t("ui.collection_language");
   $("collectionLanguageNote").textContent = t("ui.collection_language_note");
   $("themeSection").textContent = t("ui.theme");
@@ -128,8 +141,9 @@ export function applyTexts() {
   $("deviceSection").textContent = t("ui.device_section");
   $("deviceNote").textContent = t("ui.device_note");
   $<HTMLButtonElement>("deviceConnect").textContent = t("ui.device_connect");
-  $("buildNote").textContent = t("ui.build_note");
-  $<HTMLButtonElement>("buildExport").textContent = t("ui.build_export");
+  // The build that used to sit under that button is a menu entry now, beside
+  // the Sammlung it builds - so its label is drawn with the menu rather than
+  // standing in the page waiting to be translated.
   $("dataSection").textContent = t("ui.data_section");
   $("dataNote").textContent = t("ui.data_note");
   $("dataExport").textContent = t("ui.data_export");
