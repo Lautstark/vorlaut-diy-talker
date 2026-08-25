@@ -18,7 +18,9 @@ import { LANG, LANGUAGE_NAMES } from "../core/boot.js";
 import { load } from "../core/save.js";
 import { paintCollections } from "./collections.js";
 import * as symbols from "../data/symbols.js";
-import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
+import {
+  addSymbols, exportEverything, importBackup, isBackup, NOT_ONE, TOO_NEW,
+} from "../data/backup.js";
 import { paintBackupFolder, wireBackupFolder } from "./backupFolder.js";
 import type { Sicherung } from "@lautstark/sicherung";
 
@@ -384,6 +386,24 @@ function renderHere() {
  * There is nothing to confirm, which is the other half of adding: nothing is
  * lost, so nothing has to be agreed to first.
  */
+/** What went wrong, in words.
+ *
+ * The data layer has no language and answers with a code - the same division
+ * the Daten panel below works to. Two of the three codes are about a Sicherung
+ * that is the wrong Sicherung, and both sentences point at the panel that does
+ * read those, because "this file is not for this button" without saying which
+ * button it is for is a dead end.
+ */
+function importRefusal(error: unknown): string {
+  const code = error instanceof Error ? error.message : "";
+  if (code === TOO_NEW) return t("ui.data_too_new");
+  if (code === NOT_ONE) {
+    const count = (error as { count?: number }).count ?? 0;
+    return count ? t("ui.collection_many", { n: count }) : t("ui.collection_empty");
+  }
+  return t("ui.collection_failed", { error: reason(error) });
+}
+
 export function wireImport() {
   // One way in, and it is here rather than in the sidebar: the sidebar holds
   // the list, the way to make one, and the way out of the page. Importing is
@@ -395,18 +415,27 @@ export function wireImport() {
     if (!file) return;
     $("boardState").textContent = "";
     try {
-      const layout = await importBoard(file);
-      // The file's own name, minus its extension: it is what the person called
-      // the thing, and it is the only name in the transaction. An .obz carries
-      // a name per board - per OBF page - and no name for the document.
-      const name = file.name.replace(/\.[^.]+$/, "").trim() || t("ui.collection_name");
-      const id = await createCollection(name, layout);
+      const read = await importBoard(file);
+      // What the file called the Sammlung, and the file's own name minus its
+      // extension where it called it nothing. An .obz names every board in it
+      // and the document not at all, so it always falls through to the second;
+      // a Sicherung names the Sammlung, and that name is the better one.
+      const name = read.name.trim()
+        || file.name.replace(/\.[^.]+$/, "").trim()
+        || t("ui.collection_name");
+      const id = await createCollection(name, read.layout);
+      // After the Sammlung, never before: the pictures are the only part of
+      // this that writes outside the new Sammlung, and a failure above must
+      // not leave them behind on their own.
+      const pictures = await addSymbols(read.symbols);
       await useCollection(id);
       await load();
       await paintCollections();
-      $("boardState").textContent = t("ui.collection_imported", { name });
+      $("boardState").textContent = pictures
+        ? t("ui.collection_imported_pictures", { name, n: pictures })
+        : t("ui.collection_imported", { name });
     } catch (error) {
-      $("boardState").textContent = t("ui.collection_failed", { error: reason(error) });
+      $("boardState").textContent = importRefusal(error);
     }
   };
 }

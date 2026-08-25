@@ -491,6 +491,14 @@ function askTarget(): Promise<Made | null> {
       footer: [make],
       onClose: () => finish(null),
     });
+    /* The rhythm between the things in the body, which this body has to ask
+     * for. components.css spaces a sheet body with `p + p` - right for the
+     * sheets that are prose, and it reaches nothing here: the two choices are
+     * buttons, the two conditional questions are divs, and so the closing note
+     * had no space above it at all. A modifier on the shared component rather
+     * than a redefinition of it, which is the move the button sheet already
+     * makes for its two columns; ui.css carries what the gap is and why. */
+    sheet.dialog.classList.add("sheet--target");
   });
 }
 

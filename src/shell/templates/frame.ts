@@ -126,7 +126,7 @@ export const markup = `
 
       <div id="editor"></div>
 
-      <input type="file" id="boardFile" accept=".obf,.obz,application/zip" hidden>
+      <input type="file" id="boardFile" accept=".obf,.obz,.json,application/zip,application/json" hidden>
     </main>
   </div>
 </div>

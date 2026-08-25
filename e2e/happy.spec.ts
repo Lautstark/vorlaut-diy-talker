@@ -431,6 +431,95 @@ test("a Sammlung leaves as a .obz and comes back beside the others", async ({ pa
   await expectSaid(page, 0, "Uebergeschrieben");
 });
 
+/** A Sicherung, as the bytes a file chooser would hand over. Written here
+ *  rather than kept as a fixture: what is being tested is the shape the
+ *  product itself writes, and a fixture beside it would go stale the day that
+ *  shape changes while this file went on passing. */
+function sicherung(boards: { id: string; name: string }[]) {
+  const page = (label: string) => ({
+    id: "start", name: "start",
+    buttons: [{
+      id: "b1", row: 0, col: 1, label, vocalization: "",
+      symbol: "arasaac-2483.png", wordClass: "misc", act: { kind: "append" },
+    }],
+  });
+  return {
+    name: "sicherung-2026-08-26.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({
+      format: "vorlaut-backup",
+      version: 2,
+      exportedAt: "2026-08-26T00:00:00.000Z",
+      boards: boards.map(({ id, name }) => ({
+        id, name,
+        layout: { target: "app", grid: { rows: 3, columns: 5 },
+                  pages: [page(name)], home: "start" },
+      })),
+      current: boards[0]!.id,
+      // One picture, so the sentence about pictures has something to count.
+      symbols: [{ name: "arasaac-2483.png", data: "iVBORw0KGgo=" }],
+      settings: {},
+      notice: "",
+    })),
+  };
+}
+
+interface Handed { name: string; mimeType: string; buffer: Buffer }
+
+/** Hands a file to the Board panel's import button. */
+async function importFile(page: Page, file: Handed) {
+  await openBoardPanel(page);
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.locator("#boardImport").click(),
+  ]);
+  await chooser.setFiles(file);
+}
+
+test("a Sicherung of one Sammlung comes in beside the others, not over them",
+  async ({ page }) => {
+  await openBoard(page);
+  await put(page, 0, "Das bleibt");
+  await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
+
+  const rows = page.locator("#collectionList .collections__item");
+  await expect(rows).toHaveCount(1);
+
+  await importFile(page, sicherung([{ id: "kept-id", name: "Kueche" }]));
+
+  // The sentence counts the pictures, because a Sicherung brings its own and
+  // an .obz does not.
+  await expect(page.locator("#boardState"))
+    .toHaveText(label("ui.collection_imported_pictures", { name: "Kueche", n: 1 }));
+  await page.locator("#voiceClose").click();
+
+  // Beside, not over: two rows, and the Sammlung that was here still has its
+  // sentence.
+  await expect(rows).toHaveCount(2);
+  // Named for what the file called the Sammlung, not for the file - the file
+  // is called sicherung-2026-08-26.
+  await expect(rows.filter({ hasText: "Kueche" })).toHaveCount(1);
+  await rows.filter({ hasNotText: "Kueche" }).last().click();
+  await expectSaid(page, 0, "Das bleibt");
+});
+
+test("a Sicherung of the whole library is refused, and says which button reads it",
+  async ({ page }) => {
+  await openBoard(page);
+  const rows = page.locator("#collectionList .collections__item");
+  await expect(rows).toHaveCount(1);
+
+  await importFile(page, sicherung([
+    { id: "a", name: "Kueche" }, { id: "b", name: "Kinderzimmer" },
+  ]));
+
+  await expect(page.locator("#boardState"))
+    .toHaveText(label("ui.collection_many", { n: 2 }));
+  await page.locator("#voiceClose").click();
+  // Refused whole: nothing was added, and nothing was replaced either.
+  await expect(rows).toHaveCount(1);
+});
+
 test("a voice can be chosen and is still ticked on reopening", async ({ page }) => {
   await openBoard(page);
   // The voice is this Sammlung's, so it is behind this Sammlung's ⋯ rather

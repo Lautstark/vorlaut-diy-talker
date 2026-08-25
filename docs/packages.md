@@ -123,6 +123,71 @@ behave the same in all of them.
 `pins.js` above ships here too, for the same reason `components.css` does:
 every product already depends on this package, so every product already has it.
 
+### One thing that file owes back: what spaces a sheet body
+
+Not a defect in vorlaut, and written down here because it cannot be fixed from
+here. `components.css` spaces the inside of a sheet with two rules:
+
+```css
+.sheet > .body > p { margin: 0; }
+.sheet > .body > p + p { margin-top: 10px; }
+```
+
+That is the rhythm of *prose*, and it holds only while a sheet body is nothing
+but paragraphs. The moment anything that is not a `<p>` stands between two, the
+adjacency stops matching and `margin: 0` is the whole of what applies — so the
+space does not shrink, it is not there at all. It is a silent zero: no warning,
+nothing in a stylesheet to read, just two elements touching.
+
+Every sheet in this repository that is not prose has paid for it separately,
+which is the argument that the rule and not the callers is what is wrong:
+
+- **the create dialog** — two `<button>` cards, a conditional `<div>` question
+  and a closing `<p>`. Nothing in it is a `p` after a `p`, so it had no air
+  anywhere: the cards touched each other and the note stood on the second
+  card's border. Fixed as `dialog.sheet--target > .body` in `ui.css`.
+- **the button and page sheets** — `.sheet--button > .body` is a grid with
+  `row-gap: 15px`, written for its two columns and immune to this by accident.
+- **the transfer sheet** — pays per element instead: `dl.transfer` carries
+  `margin: 16px 0 0` and `.doing` carries `margin: 0 0 10px`, both of them
+  spacing that the body should have given them.
+- **the legal pages** — sidestep it by putting the prose inside a `<section>`,
+  where `.sheet > .body > p` never reaches, and restating the rhythm as
+  `.legal p { margin: 0 0 6px }`.
+- **the Grid card** (`src/editor-app/editor.ts`) — still has it: the lead
+  `<p class="note">` sits flush on the size row under it, and the red
+  `.notice` sits flush on the switches above it. Left alone deliberately; that
+  card is being folded into the Sammlung's settings sheet in its own session,
+  and a rule scoped to a dialog that is about to stop being one is a rule
+  nobody would find again.
+
+**What the rule would need to become.** Not a wider adjacency.
+`.sheet > .body > * + p` fixes the note in the create dialog and still leaves
+the Grid card's `<p>` flush against the `<div>` beneath it; `* + *` fixes both
+and puts 10px between every `<details class="panel">` in the settings sheet,
+which are stacked edge-to-edge on purpose and share their borders. Widening the
+selector only moves which bodies are wrong.
+
+The rhythm belongs to the body, not to the paragraph:
+
+```css
+.sheet > .body { display: grid; align-content: start; gap: var(--sheet-body-gap, 10px); }
+.sheet > .body > p { margin: 0; }
+```
+
+10px so that every sheet that is prose today keeps the number it has now. A
+body that wants its children flush says so in one legible line
+(`--sheet-body-gap: 0`, which is what the settings sheet's accordion and the
+legal pages want) instead of getting it silently. A body that wants columns
+sets `grid-template-columns` and stops having to declare `display: grid`
+itself, which is what `.sheet--button` does here already.
+
+The cost is real and belongs in the same sentence: this moves spacing in every
+sheet in all three products, and the per-element margins listed above would
+double up until they are deleted. So it lands in design first and each product
+removes its own workaround after — it is not a change any one product can make
+half of.
+
 ## bildquelle — symbols
 
 ARASAAC and the user's own licensed METACOM folder, behind one interface. The
