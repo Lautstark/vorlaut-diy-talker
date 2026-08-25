@@ -42,12 +42,12 @@ const layout = (): DiyLayout => ({
   sleep_timeout_seconds: 600,
   sets: [
     {
-      name: "Essen", symbol: "arasaac-31337.png", color: "#3B5BDB", active: true,
+      name: "Essen", symbol: "arasaac-31337.png", color: "#3B5BDB",
       slots: [slot("Ich habe Hunger", "arasaac-2462.png"), slot("Ich habe Durst"),
               slot(""), slot("Mehr bitte", "arasaac-2462.png")],
     },
     {
-      name: "Spielen", symbol: "", color: "#2F9E44", active: true,
+      name: "Spielen", symbol: "", color: "#2F9E44",
       slots: [slot("Noch einmal"), slot(""), slot(""), slot("")],
     },
   ],
@@ -516,7 +516,7 @@ describe("the language a package says it is in", () => {
 describe("one symbol collection per package", () => {
   const withSymbols = (...refs: string[]): Layout => ({
     sets: [{
-      name: "Set", symbol: "", color: "#3B5BDB", active: true,
+      name: "Set", symbol: "", color: "#3B5BDB",
       slots: refs.map((symbol) => ({ text: "x", symbol })),
     }],
   });

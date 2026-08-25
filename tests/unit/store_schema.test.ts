@@ -29,7 +29,6 @@ const board: Layout = {
     name: "Morning",
     symbol: "arasaac-2483.png",
     color: "#3B5BDB",
-    active: true,
     slots: [
       { text: "I want to go outside", symbol: "arasaac-2483.png" },
       { text: "", symbol: "" },
