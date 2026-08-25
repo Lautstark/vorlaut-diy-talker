@@ -29,7 +29,22 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}${BASE}`,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  /* Two, the way both siblings have them. The phone is not a smaller desktop
+     here: below 820px the sidebar is a layer over the work rather than a column
+     beside it (conventions.md §3.1), and that arrangement has no coverage at
+     all from a 1280px viewport. */
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /mobile\.spec\.ts/,
+    },
+    {
+      name: "mobile",
+      use: { ...devices["Pixel 7"] },
+      testMatch: /mobile\.spec\.ts/,
+    },
+  ],
   webServer: {
     // `npm run test:e2e` builds first; this only serves what that produced.
     // --host pins it to 127.0.0.1. Without it vite preview binds IPv6 loopback
