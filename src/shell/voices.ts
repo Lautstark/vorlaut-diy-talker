@@ -10,7 +10,8 @@ import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
 import { reason } from "../core/errors.js";
 import { listVoices, voiceFetchState, startVoiceFetch } from "../backend/index.js";
-import { LANG, LANGUAGES, setLanguage } from "../core/boot.js";
+import { LANG, LANGUAGES, rememberLanguage, setLanguage } from "../core/boot.js";
+import { DEFAULT_LANGUAGE } from "../core/boot_data.js";
 import { state } from "../core/state.js";
 import { applyTexts, t } from "../core/texts.js";
 import { save } from "../core/save.js";
@@ -456,7 +457,8 @@ export async function saveAzure() {
   status(t("ui.settings_saved"));
 }
 
-/* Switching language in place, which is what lets this sheet have no Save.
+/* Switching this page's language in place, which is what lets this sheet have
+ * no Save.
  *
  * It used to be a reload, and the reload was the reason for the Save: a page
  * that reloads on `change` throws away whatever is half-typed in the Azure
@@ -464,13 +466,21 @@ export async function saveAzure() {
  * tables, setLanguage() moves the two live bindings every label is read
  * through, and everything below re-reads them.
  *
- * The language also travels to the device, which is why it is written to the
- * layout rather than kept beside it. */
+ * This language is the reader's and this installation's. It used to write
+ * `state.layout.language` on the same keystroke, and that one line was two
+ * choices held in one hand: a carer whose page is German could not build an
+ * English talker without turning their own page English, and opening a
+ * Sammlung built for an English device re-languaged the editor around them.
+ * The device's language is chooseCollectionLanguage() below, and nothing here
+ * touches the layout - so there is nothing to save either. */
 async function chooseLanguage(code: string) {
   if (!code || code === LANG) return;
   setLanguage(code);
   document.documentElement.lang = code;
-  state.layout.language = code;
+  // Kept for the next visit. In localStorage beside the scheme rather than in
+  // the layout beside the voice, which is where it used to end up - see the
+  // note on CHOICE in boot.ts.
+  rememberLanguage(code);
   // Every fixed label, then everything drawn from one: the board, the voice
   // list with its facts and filters, and the settings panels' own state lines.
   // The line naming the symbol source is not among them and does not need to
@@ -485,6 +495,22 @@ async function chooseLanguage(code: string) {
   paintStates();
   renderVoices();
   editor().render();
+}
+
+/* The other language: the one the device shows its own menu in.
+ *
+ * A property of this Sammlung rather than of this browser, so it is written to
+ * the layout and saved the way every other edit to a layout is saved - it
+ * travels in an export, layout_format.ts puts it in the byte the firmware
+ * indexes its menu by, and on a tablet package it is what localeFor() falls
+ * back to when the chosen voice does not name a language.
+ *
+ * Nothing on this page changes language here, which is the whole point of the
+ * split: only the two controls that name this Sammlung's answer are redrawn. */
+async function chooseCollectionLanguage(code: string) {
+  if (!code || code === state.layout.language) return;
+  state.layout.language = code;
+  paintCollectionLanguage();
   await save();
 }
 
@@ -516,6 +542,21 @@ export function paintLanguage() {
   $("langPick").textContent = LANGUAGE_NAMES[LANG] || LANG;
 }
 
+/** The same pair for the Sammlung's own language: the button that names it and
+ *  the state line in its heading.
+ *
+ * Read off the layout on every call rather than remembered, because the layout
+ * underneath it changes without anybody touching this panel - switching
+ * Sammlung and importing a board both replace it, and save.ts calls this for
+ * exactly that reason. A blank is a Sammlung written before the field existed;
+ * it is shown as the page's default rather than as an empty button, which is
+ * what layout_format.ts and localeFor() both make of it. */
+export function paintCollectionLanguage() {
+  const code = state.layout.language || DEFAULT_LANGUAGE;
+  $("collectionLangPick").textContent = LANGUAGE_NAMES[code] || code;
+  $("collectionLanguageState").textContent = LANGUAGE_NAMES[code] || code;
+}
+
 export function wireLanguage() {
   const pick = $("langPick");
   paintLanguage();
@@ -526,6 +567,18 @@ export function wireLanguage() {
     for (const code of LANGUAGES)
       add(LANGUAGE_NAMES[code] || code, () => void chooseLanguage(code),
         { checked: code === LANG });
+  });
+
+  // The Sammlung's, offered the same way and out of the same table of
+  // self-naming words: this one is the language of a device somebody else will
+  // hold, so being readable to whoever is not reading this page matters here
+  // for a second reason.
+  const collection = $("collectionLangPick");
+  collection.onclick = () => menuOn(collection, (add) => {
+    const live = state.layout.language || DEFAULT_LANGUAGE;
+    for (const code of LANGUAGES)
+      add(LANGUAGE_NAMES[code] || code, () => void chooseCollectionLanguage(code),
+        { checked: code === live });
   });
 
   // Typed into once and read on every render afterwards. The field is in the
@@ -553,6 +606,12 @@ export async function openVoices() {
   $<HTMLDialogElement>("voices").showModal();
   await Promise.all([loadVoices(), readFetch(), loadSettings()]);
   paintLanguage();
+  // And the Sammlung's own language, which is read off the layout rather than
+  // out of LANG. It is deliberately not in paintStates() with the rest of the
+  // sheet's state lines: those are redrawn after a language switch because
+  // they are translated, and this one names a language in that language's own
+  // word - "Deutsch" is "Deutsch" whichever way this page is set.
+  paintCollectionLanguage();
   renderVoices();
   paintStates();
   // A download started before this dialog was opened - in another tab, or

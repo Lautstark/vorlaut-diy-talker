@@ -804,14 +804,16 @@ export const diy: Editor = {
   blank(): Layout {
     return {
       sleep_timeout_seconds: 600,
-      /* The language the page is already in, not a fixed "de".
+      /* The language the device's own menu will be in, not a fixed "de".
        *
-       * A board carries its language and load() adopts it, so a hardcoded one
-       * here meant a first visit rendered in the reader's own language for a
-       * moment and then turned German around them - on a browser that had
-       * asked for English, in a product whose whole audience is people who
-       * need the words to be theirs. boot.ts guessed from navigator.languages
-       * and this threw the guess away; now it is what the guess is for.
+       * This is the Sammlung's language rather than the page's - the two were
+       * one field and one control until they were split - and it is a starting
+       * point that can be changed in the settings sheet afterwards. The page's
+       * is the best guess there is at the moment of making: somebody working
+       * in German is more likely than not building a German talker, and a
+       * hardcoded "de" was rendering an English reader's first board in a
+       * language they had not asked for, in a product whose whole audience is
+       * people who need the words to be theirs.
        *
        * Read at the moment a board is made rather than captured at module
        * level: LANG is a live binding and a language switch moves it, so a

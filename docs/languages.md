@@ -6,12 +6,26 @@ language of whoever uses it; everything read while developing is English.
 ## The product: German and English
 
 The **product** comes in German and English — the interface, the build log and
-the labels on the device. It is switched at the top right of the interface and
-stored as `"language"` in `layout.json`.
+the labels on the device. That is **two** settings, and the difference is who
+each one belongs to.
 
-It is deliberately **one** setting for everything. A talker whose menu says
-`back` while the computer next to it says `zurück` would be one more thing to
-keep in step.
+The **interface's** language belongs to this browser and to the person building
+a board in it. It is the first panel of the settings sheet, and it is kept in
+`localStorage` under `vorlaut.language`, beside the colour scheme and for the
+same reason: both have to be readable before the first paint, and neither is a
+property of anything that gets exported.
+
+The **device's** language is the one the talker draws its own menu labels in.
+It belongs to a Sammlung: it is stored as `"language"` in `layout.json`, it
+travels with an export, and for a tablet package it is the `locale` that picks
+a voice when the chosen one is not installed. It has its own panel in the
+settings sheet, beside the Sammlung's other settings.
+
+They were one setting until 2026-08-25, on the argument that a talker whose
+menu says `back` while the computer next to it says `zurück` is one more thing
+to keep in step. What that cost was larger: a carer working in German could not
+give a child an English talker without turning their own interface English, and
+opening a Sammlung silently re-languaged the interface around them.
 
 The **content** is untouched by it: set names, the words on the keys and
 everything spoken are whatever somebody typed. Switching the interface to

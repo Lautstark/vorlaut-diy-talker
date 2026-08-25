@@ -11,6 +11,20 @@ import { put } from "./diy.js";
 import { HEADER_BYTES, SET_BYTES } from "../src/data/layout_format.js";
 import { TILE_SIZE } from "../src/data/tiles.js";
 
+/* The language this page comes up in, pinned rather than left to the runner.
+ *
+ * Every label asserted below is one the page draws, and the page's language is
+ * this browser's - so on a German laptop and on CI it has to be the same one
+ * or half these assertions read a page nobody is looking at. It used to be
+ * taken from BOARD.language instead, and that was right only while opening a
+ * board re-languaged the editor: the Sammlung's language and the page's are
+ * separate settings now, and BOARD.language below is the device's alone.
+ *
+ * German, because BOARD is German and the sentences in the log read better
+ * beside a board in the same language - not because anything requires it. */
+const PAGE_LANG = "de";
+test.use({ locale: `${PAGE_LANG}-DE` });
+
 /* The Release button, pressed for real, and what it left in the store.
  *
  * page.spec.ts checks a board is on the screen. This goes the step further
@@ -447,13 +461,11 @@ async function withDevice(page: import("@playwright/test").Page) {
   });
 }
 
-/* The language the log comes back in, which is the board's rather than the
- * runner's. BOARD says "de" and the page follows what the layout says, so
- * pinning a language here asserts against a page nobody is looking at - it
- * only passed while the layout's language was written and never read back.
- * Taken from the same field the page reads, so that changing BOARD moves
- * these assertions with it rather than breaking them. */
-const SPEAKS = (TEXTS as Record<string, Record<string, string>>)[BOARD.language];
+/* The language the log comes back in, which is this page's rather than the
+ * board's - the log is written into the page, and it is the page's own labels
+ * these assertions are made of. Pinned at the head of this file; see the note
+ * on PAGE_LANG there for why it is not read off BOARD any more. */
+const SPEAKS = (TEXTS as Record<string, Record<string, string>>)[PAGE_LANG];
 
 /** One line of the page's own log, with its blanks filled in - the same
  *  substitution t() does, so that a count is asserted against the sentence the

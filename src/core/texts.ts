@@ -102,8 +102,15 @@ export function applyTexts() {
   $("languageSection").textContent = t("ui.language");
   // Under the picker, in the size of a footnote, because that is what it is:
   // the heading above already says Language. What it adds is the half nobody
-  // guesses - that this switch reaches the device as well.
+  // guesses - that this switch is this browser's and stops here. It used to
+  // say the opposite, and it was an apology rather than a note: one control
+  // moved both languages and this line was where a reader found that out.
   $("languageNote").textContent = t("ui.language_title");
+  // The other language, and the panel is far down the sheet beside the
+  // Sammlung it belongs to. Only the two fixed labels here - the button says
+  // which language, and it is painted from the layout by voices.ts.
+  $("collectionLanguageSection").textContent = t("ui.collection_language");
+  $("collectionLanguageNote").textContent = t("ui.collection_language_note");
   $("themeSection").textContent = t("ui.theme");
   // The panel's accessible name as well as its heading: the group of buttons
   // inside it is three unlabelled words without one.

@@ -1,6 +1,14 @@
 /* The settings sheet: language, voice, where voices come from, where symbols
  * come from, and the Sammlung as a document.
  *
+ * Two languages, and they are two panels because they are two choices. The one
+ * at the top is this page's, and it is a fact about this browser and the person
+ * reading it. The one down beside the Sammlung is the language the device shows
+ * its own menu in; it is stored in the layout and travels with an export. They
+ * were one control until they were split, and the apology for that - a note
+ * saying the switch "reaches the device as well" - is what a reader had instead
+ * of being able to choose.
+ *
  * Every section is a folded panel whose heading carries its state, so the whole
  * of what this installation is set to reads at a glance and opening one is a
  * decision.
@@ -62,8 +70,8 @@ export const markup = `
        or dark and so has to guess, which is how a tablet that dims itself at
        dusk ends up pinned bright.
        It says "in this browser, not on the device" because on this page that
-       distinction is real: the language above it does travel to the device, and
-       somebody who has just set one would reasonably assume the other does. -->
+       distinction is real - the Sammlung's own language further down does
+       travel there - and this pair is where a reader learns which is which. -->
   <details class="panel" name="settings" id="themePanel">
     <summary>
       <span class="section" id="themeSection"></span>
@@ -199,6 +207,29 @@ export const markup = `
            summary: a summary carries what a section IS set to, and this is
            the outcome of an errand somebody just ran. -->
       <p class="note" id="boardState"></p>
+    </div>
+  </details>
+
+  <!-- The Sammlung's own language: what the device it is built for shows its
+       own menu in, and on a tablet package what decides which voice reads the
+       sentences aloud. Here rather than beside the page's language at the top,
+       because it is not a fact about this browser at all - it is stored in the
+       layout, it goes out with an export, and it is different from one
+       Sammlung to the next. Beside the Sammlung panel above and the Device
+       panel below, which are the other two things on this sheet that are about
+       one Sammlung rather than about this installation. -->
+  <details class="panel" name="settings" id="collectionLanguagePanel">
+    <summary>
+      <span class="section" id="collectionLanguageSection"></span>
+      <span class="state" id="collectionLanguageState"></span>
+    </summary>
+    <div class="setting">
+      <!-- The options name themselves here too, and for a second reason: this
+           one is the language of a device somebody else will hold. -->
+      <span class="menu-anchor start"><button id="collectionLangPick" class="btn quiet sm dropdown"
+        type="button" aria-haspopup="menu" aria-expanded="false"
+        aria-labelledby="collectionLanguageSection"></button></span>
+      <p class="note" id="collectionLanguageNote"></p>
     </div>
   </details>
 
