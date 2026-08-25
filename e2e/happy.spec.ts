@@ -299,6 +299,51 @@ test("a picture can be taken off a key again", async ({ page }) => {
   await expect(cells(page).nth(KEY_CELL[0]!).locator(".cell__pic")).toHaveCount(0);
 });
 
+test("a picture can be crossed out, which is how a key says \"not\"", async ({ page }) => {
+  /* German AAC negates by crossing the symbol out rather than by using a
+   * picture of its own - METACOM ships no "nicht" and never will. Until this
+   * existed the only way to build "kein Brot" here was a picture of bread with
+   * nothing on the key to say it meant the opposite.
+   *
+   * The control is the picture column's, which is one column shared by both
+   * editors - see drawPick() in src/shell/sheet.ts. What is editor-specific is
+   * the cell, and that is what the last two assertions are about. */
+  await openBoard(page);
+  await key(page, 0).click();
+  const box = keySheet(page);
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    box.locator(".pick button", { hasText: label("ui.symbol_own") }).click(),
+  ]);
+  await chooser.setFiles(join(HERE, "fixtures", "symbol.png"));
+  await expect(box.locator(".pick__preview img")).toBeVisible();
+
+  // Nothing to cross out until there is a picture, and something to cross out
+  // as soon as there is.
+  const negate = box.locator(".pick__negate input");
+  await expect(negate).toBeVisible();
+  await expect(negate).not.toBeChecked();
+  await negate.check();
+  // The sheet's own preview says so before anything is kept, because the
+  // question somebody is answering is what the key will look like.
+  await expect(box.locator(".pick__preview .negate")).toBeVisible();
+  await press(box, "ui.done");
+
+  // And the cell behind it. The picture stays - crossing out is not removing.
+  const cell = cells(page).nth(KEY_CELL[0]!);
+  await expect(cell.locator(".cell__pic")).toBeVisible();
+  await expect(cell.locator(".cell__crossed .negate")).toBeVisible();
+
+  // Reopening shows the answer that was given rather than a fresh no, and
+  // taking it back takes the cross off the board.
+  await key(page, 0).click();
+  await expect(box.locator(".pick__negate input")).toBeChecked();
+  await box.locator(".pick__negate input").uncheck();
+  await press(box, "ui.done");
+  await expect(cell.locator(".negate")).toHaveCount(0);
+  await expect(cell.locator(".cell__pic")).toBeVisible();
+});
+
 test("the preview draws the keys the way the display will", async ({ page }) => {
   /* The one thing on this board that the mock does not cover, because a tablet
    * has no display to preview. It replaces the cell's picture rather than

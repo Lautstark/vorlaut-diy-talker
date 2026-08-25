@@ -175,7 +175,7 @@ const showing = (page: Page, trigger: string, key: string) =>
  * see the dismissal test below. */
 async function put(page: Page, at: number, fields: {
   label: string; spoken?: string; wordClass?: string; act?: string;
-  gotoPage?: string; upload?: string;
+  gotoPage?: string; upload?: string; negated?: boolean;
 }): Promise<void> {
   await hit(page, at).click();
   const box = buttonSheet(page);
@@ -206,6 +206,9 @@ async function put(page: Page, at: number, fields: {
     await chooser.setFiles(fields.upload);
     await expect(box.locator(".pick__preview img")).toBeVisible();
   }
+  // After the picture, because there is nothing to cross out before there is
+  // one and the control is not on screen until there is.
+  if (fields.negated) await box.locator(".pick__negate input").check();
   await box.locator("button", { hasText: label("ui.done") }).click();
   await expect(box).toBeHidden();
 }
@@ -1002,3 +1005,64 @@ test("the page sheet offers the start page, or says the page already is it",
     await expect(card().locator("button", { hasText: label("ui.app_page_delete") }))
       .toHaveCount(1);
   });
+
+test("a crossed-out picture is its own picture in the package", async ({ page }) => {
+  /* The tablet half of a convention the five-key editor is tested on in
+   * happy.spec.ts: German AAC negates by crossing the symbol out rather than
+   * by using a picture of its own.
+   *
+   * Two things are asserted and the second is why this test is here rather
+   * than beside that one. The board says it - the cell draws the cross over
+   * the picture. And the package says it in pixels: exchange/SPEC.md closes
+   * its button extensions at v1 §4.3 and §5 already carries every image as a
+   * file, so the cross is baked into the PNG instead of travelling as a flag,
+   * and a viewer that has never heard of negation shows the button correctly.
+   *
+   * What that costs is a second member of the archive for one reference, and
+   * that cost is the thing worth checking. Filed under the reference alone -
+   * which is how every picture in this repository was filed until this - the
+   * plain button and the crossed-out one shared one file, and whichever was
+   * baked first won both. A board that says "Brot" where it was built to say
+   * "kein Brot" is the failure this feature exists to prevent, and it is
+   * silent everywhere except on the device.
+   */
+  await standIn(page);
+  await build(page);
+  await page.locator("#appPages .tab").first().click();
+
+  const picture = join(HERE, "fixtures", "symbol.png");
+  await put(page, 1, { label: "Brot", upload: picture });
+  await put(page, 2, { label: "kein Brot", upload: picture, negated: true });
+
+  // The same uploaded picture on both cells, and one of them crossed out.
+  await expect(cells(page).nth(1).locator(".cell__pic")).toBeVisible();
+  await expect(cells(page).nth(1).locator(".negate")).toHaveCount(0);
+  await expect(cells(page).nth(2).locator(".cell__pic")).toBeVisible();
+  await expect(cells(page).nth(2).locator(".cell__crossed .negate")).toBeVisible();
+
+  await page.locator("#appExport").click();
+  const asked = sheet(page, "ui.package_title");
+  await expect(asked).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    asked.locator("button", { hasText: label("ui.package_go") }).click(),
+  ]);
+  const { pkg, members } = readPackage(
+    new Uint8Array(readFileSync((await download.path())!)));
+
+  // Two PNGs from one upload: the drawing, and the drawing crossed out.
+  const pngs = [...members.keys()].filter((name) => name.endsWith(".png"));
+  expect(pngs).toHaveLength(2);
+
+  // And the two buttons name different ones.
+  const start = pkg.boards.find(
+    (one) => one.buttons.some((two) => two.label === "Brot"))!;
+  const shown = (word: string) =>
+    start.buttons.find((one) => one.label === word)?.image_id;
+  expect(shown("Brot")).toBeTruthy();
+  expect(shown("kein Brot")).toBeTruthy();
+  expect(shown("Brot")).not.toBe(shown("kein Brot"));
+
+  // Still a package the format's own checks accept.
+  expect(checkPackage(pkg)).toEqual([]);
+});
