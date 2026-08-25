@@ -164,6 +164,19 @@ better than a panel somebody has to know to visit: the failure is the moment
 the question becomes worth asking. `e2e/build.spec.ts` pins the whole loop,
 sentence included.
 
+**What that attempt costs is a build, and it is not free.** `run()` builds and
+then sends, so the press that discovers a dead port has already paid for every
+synthesis in it — one wasted build, then the chooser, then a second. The panel
+was the way to skip that for somebody who knew to look, so removing it makes
+this the only path rather than the usual one.
+
+Worth fixing, and the obvious fix is wrong: probing at the top of `run()` and
+holding the cable open across the build would drop the session on every
+transfer, because the device ends one after `CABLE_QUIET_MS` — four seconds —
+of browser silence. It has to be open, hello, **close**, build, open again. A
+second greeting on the good path buys a whole build back on the bad one. Named
+here and in [cable.md](cable.md); not built.
+
 What was left of the module is the build, so it is named for it:
 `src/editor-diy/device_panel.ts` → `folder_build.ts`. Two things went with the
 panel because they had exactly one user each — `onPaintPanels()` in
