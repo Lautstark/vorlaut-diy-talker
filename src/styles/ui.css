@@ -742,6 +742,25 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   grid-template-rows: repeat(var(--rows, 3), minmax(0, 1fr));
   gap: 6px; margin-bottom: 16px;
 }
+/* exchange/SPEC.md §4.1's hint, drawn here and not only asked for in the
+   package: the board on this screen is a picture of the board on the tablet,
+   and a setting whose whole effect showed up after export would be one nobody
+   could judge while making it.
+
+   A track of its own rather than a margin on the cell. A margin comes out of
+   the cell it is on, so the first column would come out narrower than every
+   other column - which reads as a board that is slightly wrong rather than one
+   that is deliberately spaced. The track leaves all --cols columns the same
+   width and puts the space between two of them, which is what a gutter is.
+   Every cell names its track, because auto-flow would otherwise drop the
+   second cell of each row into the spacer - see cell().
+
+   The tablet's alone: the talker's grid is the hardware's own 2x3 and has no
+   first column to share. */
+.grid--gap {
+  grid-template-columns:
+    minmax(0, 1fr) 14px repeat(calc(var(--cols, 5) - 1), minmax(0, 1fr));
+}
 .cell {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4px; aspect-ratio: 4 / 3; min-width: 0; padding: 4px;
@@ -847,6 +866,11 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   background: transparent; border-style: dashed; color: var(--text-faint);
 }
 .cell--empty::after { content: "+"; font-size: 20px; }
+/* Which column is the Sammlung's, said on the board rather than only in the
+   sheet that opens from it - and quietly, on the cells that are still empty. A
+   filled one already tells the truth about itself by being on every page, and
+   a second mark on every one of them would be a column of badges. */
+.cell--shared.cell--empty { border-style: dashed; }
 .cell .blank { font-size: 11px; text-align: center; color: var(--text-faint); }
 
 /* --------------------------------------------- the three the talker adds

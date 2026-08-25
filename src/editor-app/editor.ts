@@ -36,7 +36,7 @@ import { save } from "../core/save.js";
 import { speak } from "../shell/speech.js";
 import { confirmDialog, openDialog } from "@lautstark/design/dialog";
 /* The sheet is the shell's now, and the whole of what this file hands it is a
- * title, a picture, four rows and three labelled things to do. It was written
+ * title, a picture, some rows and three labelled things to do. It was written
  * here, and moving it is what let the talker have the same one: an editor may
  * not import out of another editor - tests/unit/layers.test.ts - so anything
  * genuinely shared between the two belongs in the shell. */
@@ -45,8 +45,9 @@ import type { Left } from "../shell/sheet.js";
 import { collectionMenuExtras, exportApp, sizeChoices }
   from "../shell/collections.js";
 import {
-  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, moveButton,
-  outside, pageById, reachable, resize,
+  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, isShared,
+  moveButton, moveShared, outside, pageById, reachable, resize,
+  shareFirstColumn, shared, sharedAt, spreadFirstColumn,
 } from "./pages.js";
 
 /** Which page is being edited, by id. An id rather than an index because
@@ -189,6 +190,11 @@ function drawGrid(): void {
   grid.innerHTML = "";
   grid.style.setProperty("--rows", String(layout.grid.rows));
   grid.style.setProperty("--cols", String(layout.grid.columns));
+  /* The gap the package asks a viewer for, drawn here too - see
+   * AppLayout.firstColumnGap. The board on this screen is a picture of the
+   * board on the tablet, and a hint that only showed up after export would be
+   * a setting somebody had to take on faith. */
+  grid.classList.toggle("grid--gap", layout.firstColumnGap === true);
 
   for (let row = 0; row < layout.grid.rows; row++) {
     for (let col = 0; col < layout.grid.columns; col++) {
@@ -198,11 +204,21 @@ function drawGrid(): void {
 }
 
 /** Every cell is a drop target, filled or not: dropping onto an empty one is
- *  a move and onto a full one is a swap, and both are the same gesture. */
+ *  a move and onto a full one is a swap, and both are the same gesture.
+ *
+ * Except across the two regions a shared first column makes of the board. A
+ * button dragged out of that column would stop being on every page, and one
+ * dragged into it would start being on all of them - which is not a move, it
+ * is a change of what the button *is*, and no drag should carry that much. So
+ * the cell simply does not become a drop target, which is the same silent "no"
+ * this function already gives a button dropped where it already sits.
+ */
 function acceptsDrop(box: HTMLElement, on: AppPage, row: number, col: number): void {
+  const takes = (id: string): boolean =>
+    isShared(board(), id) === inColumn(col);
   box.ondragover = (event) => {
-    if (dragging === null) return;
-    const already = buttonAt(on, row, col);
+    if (dragging === null || !takes(dragging)) return;
+    const already = cellHolder(on, row, col);
     if (already && already.id === dragging) return;
     // Only a prevented dragover marks an element as a drop target at all.
     event.preventDefault();
@@ -212,13 +228,23 @@ function acceptsDrop(box: HTMLElement, on: AppPage, row: number, col: number): v
   box.ondrop = (event) => {
     event.preventDefault();
     clearDragMarks();
-    if (dragging === null) return;
+    if (dragging === null || !takes(dragging)) return;
     const id = dragging;
     dragging = null;
-    moveButton(on, id, row, col);
+    if (inColumn(col)) moveShared(board(), id, row);
+    else moveButton(on, id, row, col);
     commit();
   };
 }
+
+/** Whether this column of the board is the Sammlung's shared one rather than
+ *  the page's. Column zero, and only while the Sammlung has such a column. */
+const inColumn = (col: number): boolean => col === 0 && shared(board());
+
+/** What sits in one cell of the board on screen, from whichever of the two
+ *  stores owns that cell. */
+const cellHolder = (on: AppPage, row: number, col: number): AppButton | undefined =>
+  inColumn(col) ? sharedAt(board(), row) : buttonAt(on, row, col);
 
 function clearDragMarks(): void {
   for (const one of document.querySelectorAll(".cell.dragover")) {
@@ -248,13 +274,30 @@ function opener(label: string): HTMLElement {
 }
 
 function cell(on: AppPage, row: number, col: number): HTMLElement {
-  const held = buttonAt(on, row, col);
+  const held = cellHolder(on, row, col);
   /* The cell is a box, not a control. It holds two controls side by side: one
    * filling it, and - once there is something to hear - one in the corner that
    * plays. Nesting the second inside the first would be a control inside a
    * control, which no keyboard can reach and no markup validator allows. */
   const box = document.createElement("div");
   box.className = "cell";
+  // What the gap is drawn against - see .grid--gap. On the cell rather than
+  // by counting children in CSS, because nth-child cannot be told how wide the
+  // grid is.
+  if (col === 0) box.classList.add("cell--first");
+  if (inColumn(col)) box.classList.add("cell--shared");
+  /* Placed rather than left to auto-flow, but only while the gap is drawn.
+   *
+   * .grid--gap puts a real spacer track between the first column and the
+   * second, which is the only way to set a column apart without making it
+   * narrower than the ones beside it - a margin comes out of the cell, and a
+   * first column 5% short of the rest is a board that looks slightly wrong
+   * rather than deliberately spaced. A spacer track is a track, though, and
+   * auto-flow would drop the second cell of every row into it. So every cell
+   * says which track it is in, and the empty one stays empty. */
+  if (board().firstColumnGap === true) {
+    box.style.gridColumn = String(col === 0 ? 1 : col + 2);
+  }
   acceptsDrop(box, on, row, col);
 
   if (!held) {
@@ -398,7 +441,15 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     const grid = board().grid;
     const to = [held.row + step[0], held.col + step[1]] as const;
     if (to[0] < 0 || to[0] >= grid.rows || to[1] < 0 || to[1] >= grid.columns) return;
-    moveButton(on, held.id, to[0], to[1]);
+    /* The keyboard move stops at the same boundary the drag does, and stopping
+     * is all it does: a shared button walks its own column, and a page button
+     * may not walk into it. Claimed and then ignored rather than left
+     * unclaimed, for the reason the shortcut is claimed at all - Alt+Left is
+     * history-back in some engines, and rearranging a board must never walk
+     * off the page. */
+    if (inColumn(to[1]) !== inColumn(held.col)) return;
+    if (inColumn(held.col)) moveShared(board(), held.id, to[0]);
+    else moveButton(on, held.id, to[0], to[1]);
     commit();
     // render() rebuilt every cell, so the element that had focus is gone. It
     // follows the button rather than staying at the coordinate, which is what
@@ -465,8 +516,7 @@ const wordColor = (layout: AppLayout): WordColor => layout.wordColor ?? "fill";
  * back on the confirming press, so every way out that is not that press costs
  * exactly nothing - which is the rule an empty cell made unavoidable (pressing
  * one must not leave a blank button behind when the sheet is dismissed) and
- * which is no less true of an existing button. The panel wrote as you typed
- * because it was always on screen and there was nothing to dismiss.
+ * which is no less true of an existing button.
  *
  * **What is left here is the rows.** The frame - the picture column with its
  * search, the foot with the destructive act on the left, and the promise that
@@ -663,9 +713,31 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
 
   /* --- the fields --- */
 
+  const rows: HTMLElement[] = [];
+
+  /* A button in the shared column is one button on every page, and the sheet
+   * says so before anything is typed into it.
+   *
+   * The surprise this heads off is not the edit, it is *where* the edit
+   * lands: somebody standing on page three, changing a word, has no way to
+   * see that pages one, two and four changed with it - and the same press
+   * that renames it can delete it from all of them. conventions.md's rule
+   * about counting what somebody cannot see, one floor down from the page
+   * delete question. It is a notice rather than a question because nothing
+   * is lost and nothing is hidden: the board behind the sheet redraws with
+   * the change on it, and every other page is one tab away. */
+  if (inColumn(at[1])) {
+    const notice = document.createElement("div");
+    notice.className = "notice";
+    notice.textContent = t("ui.app_first_column_button");
+    rows.push(notice);
+  }
+
   const labelInput = textField(draft.label, (value) => { draft.label = value; });
   labelInput.id = "appLabel";
   labelInput.placeholder = t("ui.app_button_label_hint");
+  rows.push(formRow(t("ui.app_button_label"), labelInput,
+                    t("ui.app_button_label_note")));
 
   const spoken = textField(draft.vocalization, (value) => {
     draft.vocalization = value;
@@ -688,6 +760,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   const withPlay = document.createElement("div");
   withPlay.className = "form__withplay";
   withPlay.append(spoken, play);
+  rows.push(formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id));
 
   const classes = document.createElement("select");
   classes.className = "field";
@@ -698,6 +771,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   }
   classes.value = draft.wordClass;
   classes.onchange = () => { draft.wordClass = classes.value; };
+  rows.push(formRow(t("ui.app_button_class"), classes));
 
   /* --- what a press does --- */
 
@@ -768,6 +842,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
     };
     does.appendChild(opt);
   }
+  rows.push(formRow(t("ui.app_button_act"), does));
 
   /** The draft, written where it belongs. Everything the sheet changed lands
    *  in one press, including the button's own existence. */
@@ -782,7 +857,13 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
     }
     const on = page();
     const target = held ?? blankButton(at[0], at[1]);
-    if (!held) on.buttons.push(target);
+    // Into the column when the cell is the column's, and onto the page
+    // otherwise. An existing button is already in whichever store it belongs
+    // to, and nothing here moves it between them - see acceptsDrop().
+    if (!held) {
+      if (inColumn(at[1])) layout.firstColumn!.push(target);
+      else on.buttons.push(target);
+    }
     Object.assign(target, {
       label: draft.label, vocalization: draft.vocalization,
       symbol: draft.symbol, wordClass: draft.wordClass, act: draft.act,
@@ -809,25 +890,27 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
         }
       },
     },
-    rows: [
-      formRow(t("ui.app_button_label"), labelInput, t("ui.app_button_label_note")),
-      formRow(t("ui.app_button_spoken"), withPlay, "", spoken.id),
-      formRow(t("ui.app_button_class"), classes),
-      formRow(t("ui.app_button_act"), does),
-    ],
-    // Only where there is something to delete. On an empty cell the button
-    // would close a sheet that had written nothing, which is what the corner
-    // and Escape already do.
-    //
-    // No question, either. What goes is one button on the page somebody is
-    // looking at, and putting it back is one press in the cell it came from -
-    // which is a smaller act than the dialog would be.
+    rows,
+    /* Only where there is something to delete. On an empty cell the button
+     * would close a sheet that had written nothing, which is what the corner
+     * and Escape already do.
+     *
+     * A shared button leaves every page at once, so the button that does it
+     * says that rather than "delete this button". Still no question: the
+     * notice at the head of the sheet has said what the column is, and putting
+     * it back is one press in the cell it came from. */
     ...(held ? {
       remove: {
-        label: t("ui.app_button_remove"),
+        label: t(inColumn(at[1]) ? "ui.app_first_column_remove"
+                                 : "ui.app_button_remove"),
         onPress: (settle: () => void) => {
-          const on = page();
-          on.buttons = on.buttons.filter((one) => one.id !== held.id);
+          if (inColumn(at[1])) {
+            layout.firstColumn = (layout.firstColumn ?? [])
+              .filter((one) => one.id !== held.id);
+          } else {
+            const on = page();
+            on.buttons = on.buttons.filter((one) => one.id !== held.id);
+          }
           settle();
           commit();
         },
@@ -858,7 +941,7 @@ async function editButton(row: number, col: number): Promise<void> {
   for (;;) {
     const on = page();
     const [r, c] = [Math.floor(at / grid.columns), at % grid.columns];
-    const how = await openButtonSheet(buttonAt(on, r, c) ?? null, [r, c]);
+    const how = await openButtonSheet(cellHolder(on, r, c) ?? null, [r, c]);
     if (how !== "next" || at + 1 >= grid.rows * grid.columns) break;
     at += 1;
   }
@@ -877,23 +960,66 @@ export function render(): void {
 }
 
 /** The card that holds what is true of the whole Sammlung: how big a page is,
- * and how a word class is worn.
+ * how a word class is worn, and what the first column is.
  *
- * Both are one decision for every page, which is why neither belongs in the
- * bar over the board where everything else is about the *page* on screen.
- * They share a card for the same reason they are the same kind of decision:
- * made once, and then in force wherever somebody goes.
+ * Every one of them is one decision for every page, which is why none belongs
+ * in the bar over the board where everything else is about the *page* on
+ * screen. They share a card for the same reason they are the same kind of
+ * decision: made once, and then in force wherever somebody goes.
+ *
+ * The first column is the newest and the one that most needs the company. It
+ * is the same argument the grid size is made with, one column narrower - what
+ * a person learns on a board of this kind is where a word *is*, and core words
+ * only stay put while every page puts them in the same place. The gap under it
+ * is not a second feature but the way that fact is drawn; it sits directly
+ * beneath, because a gap switched on over a column that is not shared marks
+ * something that is not true.
  *
  * Nothing is written until the footer is pressed. That is what lets the card
  * say what a smaller grid would cost while the choice is still being made -
  * and it is why the footer button changes: growing or leaving the size alone
- * is an ordinary "apply", and shrinking past something is the destructive act
- * the notice above it has just counted.
+ * is an ordinary "apply", and shrinking past something, or taking one page's
+ * first column over the rest, is the destructive act the notices above it have
+ * just counted.
  */
 function openGrid(): void {
   const layout = board();
   let size: GridSize = { ...layout.grid };
   let colour = wordColor(layout);
+  let column = shared(layout);
+  let gap = layout.firstColumnGap === true;
+
+  /* What the pending choices would do, applied to a copy.
+   *
+   * A copy rather than arithmetic over the real layout, because the two
+   * destructive halves overlap: a button in another page's first column can
+   * *also* be outside a smaller grid, and two sentences each counting it would
+   * between them claim two buttons are going when one is. Applying the same
+   * sequence apply() will apply, to a throwaway, is the only way to count what
+   * actually happens - and the pages are small enough that doing it on every
+   * redraw of a card costs nothing worth measuring. */
+  const trial = (): { dropped: number; lost: number } => {
+    const copy = structuredClone(layout);
+    const dropped = share(copy);
+    return { dropped, lost: outside(copy, size.rows, size.columns).length };
+  };
+
+  /** The first-column half of the pending changes, in the order apply() runs
+   *  it: before the resize, so that what the resize then counts is the board
+   *  the column has already been made into. Answers how many buttons the
+   *  sharing itself took. */
+  const share = (into: AppLayout): number => {
+    if (column && !shared(into)) {
+      // The home page's column, not the page somebody happens to be standing
+      // on. This card is opened from the Sammlung's menu and shows no board,
+      // so a source that depended on which tab was last pressed would make the
+      // same press do different things for a reason nothing here shows. Home
+      // is the one page the Sammlung itself names, and the notice names it too.
+      return shareFirstColumn(into, into.home).length;
+    }
+    if (!column && shared(into)) spreadFirstColumn(into);
+    return 0;
+  };
 
   const cancel = document.createElement("button");
   cancel.className = "btn quiet";
@@ -904,10 +1030,18 @@ function openGrid(): void {
   const go = document.createElement("button");
   go.type = "button";
   go.onclick = () => {
+    // The first column first, then the size: the same order trial() counted
+    // in, so that what the notices said is what happens.
+    share(layout);
     // resize() is what drops whatever is outside; it is also what clamps a
     // size into the bounds, so it runs whether or not anything moved.
     resize(layout, size.rows, size.columns);
     layout.wordColor = colour;
+    // Absent rather than false, so a Sammlung that never asked for the gap
+    // stays a Sammlung with no such field - which is what data/app_package.ts
+    // reads when it decides whether to write the hint at all.
+    if (gap) layout.firstColumnGap = true;
+    else delete layout.firstColumnGap;
     sheet.close();
     commit();
   };
@@ -928,7 +1062,7 @@ function openGrid(): void {
     why.className = "note";
     why.textContent = t("ui.app_grid_all_pages");
 
-    const lost = outside(layout, size.rows, size.columns).length;
+    const { dropped, lost } = trial();
     const body: HTMLElement[] = [why, sizeChoices(size, (picked) => {
       size = picked;
       draw();
@@ -977,13 +1111,96 @@ function openGrid(): void {
       does.appendChild(opt);
     }
     body.push(does);
+
+    /* --- the first column ------------------------------------------------ */
+
+    const rule2 = document.createElement("hr");
+    rule2.className = "cardrule";
+    const which = document.createElement("span");
+    which.className = "lbl";
+    which.textContent = t("ui.app_first_column");
+    body.push(rule2, which);
+
+    /* Two switches rather than one, and the second is only about drawing.
+     *
+     * They are not the same decision. The column being on every page is what
+     * MetaTalk's handbook is describing when it says those keys stay reachable
+     * - it is behaviour, and it is what the buttons themselves are. The gap is
+     * the mark that says so to somebody looking at the board, and
+     * exchange/SPEC.md §4.1 keeps them apart for the same reason: the
+     * persistence needs no field because a builder repeats the buttons, and
+     * the hint is a hint. Merging them into one switch would make the mark
+     * unavailable to a Sammlung that repeats its column by hand, and would
+     * make it impossible to see the column plainly for a moment.
+     *
+     * A checkbox in the shape the three word-colour choices above take, so
+     * that the whole card reads as one list of decisions rather than as two
+     * kinds of control that happen to share a sheet. */
+    const switches = document.createElement("div");
+    switches.className = "does";
+    switches.setAttribute("role", "group");
+    switches.setAttribute("aria-label", t("ui.app_first_column"));
+    const flag = (key: string, on: boolean, set: (on: boolean) => void,
+                  note: string): void => {
+      const opt = document.createElement("label");
+      opt.className = "does__opt";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = on;
+      const head = document.createElement("b");
+      head.textContent = t(`ui.${key}`);
+      const hint = document.createElement("small");
+      hint.textContent = note;
+      opt.append(box, head, hint);
+      box.onchange = () => { set(box.checked); draw(); };
+      switches.appendChild(opt);
+    };
+    flag("app_first_column_share", column, (on) => { column = on; },
+         t("ui.app_first_column_share_note"));
+    flag("app_first_column_gap", gap, (on) => { gap = on; },
+         t(column ? "ui.app_first_column_gap_note"
+                  : "ui.app_first_column_gap_note_alone"));
+    body.push(switches);
+
+    /* What taking one page's column over the rest costs, counted while the
+     * choice is still open. The same shape the shrink notice takes above, and
+     * for the same reason: the columns that go are on pages nobody is looking
+     * at, and the start page is named because which page is kept is the whole
+     * of what somebody needs to predict here. */
+    if (dropped) {
+      const notice = document.createElement("div");
+      notice.className = "notice bad";
+      notice.textContent = t(dropped === 1 ? "ui.app_first_column_take_one"
+                                           : "ui.app_first_column_take",
+                             { n: dropped });
+      body.push(notice);
+    }
+    // Turning it off costs nothing and says so: the column is written onto
+    // every page, which is what the export has been doing with it all along,
+    // so every page keeps exactly the buttons it was drawn with.
+    if (!column && shared(layout)) {
+      const notice = document.createElement("div");
+      notice.className = "notice";
+      notice.textContent = t("ui.app_first_column_spread");
+      body.push(notice);
+    }
+
     sheet.body.replaceChildren(...body);
 
-    // Labelled with the act rather than with "OK", and drawn as the danger it
-    // is exactly when it is one: the same press applies a colour and throws
-    // buttons away, and only the second of those needs saying.
-    go.className = lost ? "btn destructive filled" : "btn primary";
-    go.textContent = t(lost ? "ui.app_grid_shrink_go" : "ui.app_grid_apply");
+    /* Labelled with the act rather than with "OK", and drawn as the danger it
+     * is exactly when it is one: the same press applies a colour and throws
+     * buttons away, and only the second of those needs saying.
+     *
+     * Two acts can now be the one that throws them away, and they get
+     * different words - "make it smaller" on a press that takes the first
+     * column would name the wrong half. The size wins where both are pending,
+     * because it is the one whose number is the larger reading of the same
+     * press: every button the column costs is already inside the grid, and the
+     * notices above have said which number is whose either way. */
+    go.className = lost || dropped ? "btn destructive filled" : "btn primary";
+    go.textContent = t(lost ? "ui.app_grid_shrink_go"
+                       : dropped ? "ui.app_first_column_take_go"
+                       : "ui.app_grid_apply");
   };
   draw();
 }
@@ -1069,8 +1286,18 @@ export const app: Editor = {
    * anything between nothing and sixty-six. */
   count(layout: Layout): number {
     if (!isApp(layout)) return 0;
+    /* The shared first column adds its own length once, not once per page.
+     *
+     * That is the count's own argument turned on the one case that could
+     * break it: the number is here to say how much work is in a Sammlung, and
+     * a persistent column is authored once however many pages it is drawn on.
+     * Counting it per page would put eight buttons of credit on a Sammlung
+     * holding two, grow that inflation with every page added, and make the
+     * delete question overstate what is about to go - which is the one thing
+     * conventions.md §1.8 asks this number to be honest about. */
     return (layout.pages ?? []).reduce(
-      (total, one) => total + (one.buttons?.length ?? 0), 0);
+      (total, one) => total + (one.buttons?.length ?? 0), 0)
+      + (layout.firstColumn?.length ?? 0);
   },
 
   unit: "button",

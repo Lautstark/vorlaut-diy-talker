@@ -291,6 +291,26 @@ export function grid(boardId: string, present: readonly boolean[]) {
   };
 }
 
+/** Every button a tablet Sammlung was authored with, each met once.
+ *
+ * The pages' own, and then the shared first column where there is one -
+ * AppLayout.firstColumn. Both walkers below go through here rather than
+ * writing the loop out twice, which is the point references() makes about
+ * itself one comment down: §5.1 gets broken by a new place to put a symbol
+ * that one of the two walkers never learned about, and the first column was
+ * exactly such a place.
+ *
+ * Once rather than once per page, which is right for both callers even though
+ * they de-duplicate anyway: a symbol met four times is still one picture, and
+ * a sentence met four times is still one synthesis - but the caller that
+ * synthesises shows a count while it works, and counting the same clip four
+ * times would make a Sammlung look four times the work it is.
+ */
+const appButtons = (layout: AppLayout): AppButton[] => [
+  ...(layout.pages ?? []).flatMap((page) => page.buttons ?? []),
+  ...(layout.firstColumn ?? []),
+];
+
 /** Every symbol reference in a Sammlung, whichever shape it is.
  *
  * One walker rather than one per caller: symbolSource() and the bake loop in
@@ -301,9 +321,7 @@ export function grid(boardId: string, present: readonly boolean[]) {
 export function references(layout: Layout): string[] {
   const out: string[] = [];
   if (layout.target === "app") {
-    for (const page of layout.pages ?? []) {
-      for (const button of page.buttons ?? []) out.push(String(button.symbol ?? ""));
-    }
+    for (const button of appButtons(layout)) out.push(String(button.symbol ?? ""));
     return out;
   }
   for (const set of layout.sets ?? []) {
@@ -333,12 +351,10 @@ export function references(layout: Layout): string[] {
 export function spokenTexts(layout: Layout): string[] {
   const out: string[] = [];
   if (layout.target === "app") {
-    for (const page of layout.pages ?? []) {
-      for (const button of page.buttons ?? []) {
-        if (button.act?.kind !== "append" && button.act?.kind !== "speak") continue;
-        const spoken = spokenTextOf(button);
-        if (spoken) out.push(spoken);
-      }
+    for (const button of appButtons(layout)) {
+      if (button.act?.kind !== "append" && button.act?.kind !== "speak") continue;
+      const spoken = spokenTextOf(button);
+      if (spoken) out.push(spoken);
     }
     return out;
   }
@@ -643,7 +659,26 @@ function appBoards(
     const order: (string | null)[][] =
       Array.from({ length: rows }, () => Array.from({ length: columns }, () => null));
 
-    for (const one of page.buttons ?? []) {
+    /* The Sammlung's shared first column, written onto this board as ordinary
+     * buttons, and then the page's own.
+     *
+     * This is the whole of how persistence reaches a tablet, and exchange/
+     * SPEC.md §4.1 is explicit that it is: the format has no field saying a
+     * button carries over, so a builder repeats those buttons on every board
+     * and the viewer opens an ordinary board that happens to start the same
+     * way. Reading the gap hint as an instruction to carry column one over
+     * would render this package right by accident and the next one wrong.
+     *
+     * Ids stay per board - appButtonId() is built from the board id - so one
+     * authored button becomes `board-1-r1c1` here and `board-2-r1c1` there,
+     * which is what §7.1's uniqueness rule asks for. What is shared is the
+     * authoring, not the identity.
+     *
+     * First in the walk, so it owns column zero: a page button that somehow
+     * sits there is dropped by the rule below that already refuses a second
+     * button in one cell, and the column somebody made persistent is the one
+     * that should win that. */
+    for (const one of [...(layout.firstColumn ?? []), ...(page.buttons ?? [])]) {
       const row = Math.trunc(one.row);
       const col = Math.trunc(one.col);
       // Outside the grid, or on top of a button already placed. Neither should
