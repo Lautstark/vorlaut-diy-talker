@@ -324,10 +324,27 @@ margin in the part.
 the block — the four speech keys go on reading as one group and the set key
 goes on reading as not part of it.
 
-**The depth.** What governs it is now the battery lying on the carrier, at
-z = 31.9. It used to be the Feather, standing 2 mm proud of the same plate and
-reaching z = 33.8. Letting its pins through the plate — see below — puts its
-top at z = 31.8, just under the battery, and hands back 1.9 mm.
+**The depth.** `feather_headroom`, and it is a requirement rather than an
+allowance: **14.0 mm of clear air above the Feather**, because the cables
+arrive in black push-on Dupont shells that slide down over the headers and
+stand well above them. They have to go on and come off with the case open — a
+connector you cannot unplug is a connector you cannot service.
+
+The Feather tops out at z = 31.8, so the lid's inner face sits at 45.8 and the
+case is 48.8 mm deep. Nothing else comes close: the battery has 13.9 mm above
+it and the amplifier 17.0.
+
+This is the same 14 mm the first build was given, and it is worth writing down
+how it nearly got lost. It went in as `extra_above_carrier` — generic "cable
+headroom" above whatever part happened to be tallest — and generic allowances
+are exactly what gets trimmed when someone is shrinking a case. It was cut to
+6.00, then to 0.00, and each time that looked like removing slack when it was
+really taking the connectors' room away. Named after the thing that needs it,
+it stops moving by accident, and `verify.py` refuses anything under it.
+
+So of the 9.9 mm the case lost on depth, **only 2.6 mm was real**: 2.0 from
+deleting the Feather's standoffs and 0.6 from tightening the headroom to
+exactly 14.0. The width is where this case actually got smaller.
 
 **What can't be shrunk.** The 40 mm driver. It needs 25.3 mm plus 4 mm of
 clamping foam, so front plate + driver + foam + lid is **34.7 mm** whatever
@@ -525,7 +542,8 @@ figures went in, which is the usual sign that a guess had been drifting.
 | `sk_screw_engage` | 4.00 mm | how far into the spacer the screw goes — it sets the screw length |
 | `sk_hole_d` | 2.20 mm | hole diameter |
 | `sk_board_d` | 1.60 mm | board thickness |
-| `feather_h` | 8.00 mm | tallest component on the Feather — sets the case depth |
+| `feather_h` | 8.00 mm | the board with its soldered headers |
+| `feather_headroom` | 14.00 mm | **measured.** Clear air the push-on connectors need above it — sets the case depth |
 | `usb_overhang` | 1.50 mm | how far does the socket protrude past the board edge? |
 | `usb_centre_above_pcb` | 1.60 mm | height of the socket centre above the board |
 | `amp_b`, `amp_h` | 19.4 × 17.8 | dimensions of the MAX98357A breakout |

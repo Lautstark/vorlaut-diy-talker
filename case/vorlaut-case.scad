@@ -128,7 +128,21 @@ spk_front_screws  = false;  // [K]
 /* --- Adafruit ESP32-S3 Feather --- */
 feather_l           = 50.80;  // [R] 2.0"
 feather_b           = 22.80;  // [R] 0.9"
-feather_h           =  8.00;  // [A] total height with soldered headers
+feather_h           =  8.00;  // [A] the board itself, with soldered headers
+
+// CLEAR AIR above that, and it is a requirement rather than an allowance. The
+// cables arrive in black push-on Dupont shells that slide down over the
+// headers and stand well above them, and the shells need room to go on and
+// come off - a connector you cannot unplug with the lid on is a connector you
+// cannot service.
+//
+// This is the same 14 mm the first build was given. It went in then as
+// extra_above_carrier, a generic "cable headroom" above whatever the tallest
+// part happened to be, which is why it kept getting spent: shrinking the case
+// looked like trimming an allowance when it was actually taking the
+// connectors' room away. Named after the thing that needs it, it stops moving
+// by accident.
+feather_headroom    = 14.00;  // [M] Stefanie, hardware in hand, August 2026
 feather_pcb_d       =  1.60;  // [A] board thickness, typical FR4
 feather_hole_l      = 45.72;  // [R] hole spacing lengthwise (Feather spec: 0.1" margin)
 feather_hole_b      = 17.78;  // [R] hole spacing across
@@ -320,16 +334,20 @@ parts_top   = max(top_battery, top_feather, top_amp);     // [G] 31.90
 // stack-up says - the battery lead, the JST plug and the ribbon cables coming
 // up through the carrier all want their bend radius, and the lid pressed on
 // them. The carrier stays exactly where it is; the case grows backwards only.
-// Was 14.00 after the first build, measured with the Feather standing proud on
-// 2 mm standoffs and every cable running over the top of it. Sunk into the
-// plate, the tallest thing left above the plate is the battery at 8.1 mm and
-// the cables have somewhere flatter to lie. 6.00 is the estimate that replaces
-// it - and it is the one number here still owed a measurement, because every
-// millimetre of it is a millimetre of case.
-extra_above_carrier =  6.00;  // [A] re-measure with the wiring actually in
+// Slack ON TOP of everything the parts actually need, for cables to bend in.
+// It was 14.00 after the first build and then 6.00 as an estimate, and both
+// were standing in for a thing nobody had measured: the height of the push-on
+// connectors on the Feather. That is feather_h now, counted explicitly, so
+// this is back to what it says on the tin - spare room, and there is none.
+// Every millimetre of it is a millimetre of case, so it stays at zero until
+// something is found that needs it.
+extra_above_carrier =  0.00;  // [K]
 
-inner_z_h       = parts_top + part_clearance
-                  + extra_above_carrier;                // [G] 38.50
+// Two floors, whichever is higher: every part clear of the lid by
+// part_clearance, and the Feather clear of it by feather_headroom.
+inner_z_h       = max(parts_top + part_clearance,
+                      top_feather + feather_headroom)
+                  + extra_above_carrier;                // [G] 45.80
 outer_t        = inner_z_h + lid_d;                     // [G] 41.50 total depth
 
 /* --- Outer dimensions --- */
@@ -646,17 +664,24 @@ inner_t = inner_z_h - front_d;    // usable inner depth
 assert(inner_t >= spk_depth + 0.5,
   str("Inner depth ", inner_t, " mm is not enough for the speaker (",
       spk_depth, " mm)."));
-assert(inner_z_h - carrier_z_top >= battery_d,
-  "No room above the carrier for the battery.");
-// The Feather stands on standoffs - those belong in the budget. Exactly this
-// line was missing in the first draft; the Feather reached 1.3 mm into the
-// lid without any assert going off.
-assert(inner_z_h - carrier_z_top >= feather_support + feather_h,
-  str("No room above the carrier for the Feather: ",
-      inner_z_h - carrier_z_top, " mm free, ",
-      feather_support + feather_h, " mm needed."));
-assert(inner_z_h - carrier_z_top >= amp_support + amp_d,
-  "No room above the carrier for the amplifier.");
+// Each part against the lid, from the top it actually reaches - top_battery,
+// top_feather and top_amp are absolute z and already know where their part is
+// mounted. These used to be written as heights above the carrier, with the
+// Feather's counted as feather_support + feather_h; that stopped being true
+// the moment the Feather's pins went through the plate instead of standing on
+// it, and the line sat there dormant, passing for the wrong reason, until
+// feather_h grew enough to trip it. Absolute z cannot drift like that.
+assert(inner_z_h - top_battery >= part_clearance,
+  str("The battery reaches z = ", top_battery, " and the lid is at ",
+      inner_z_h, ". It presses on the lid."));
+assert(inner_z_h - top_feather >= feather_headroom,
+  str("Only ", inner_z_h - top_feather, " mm of headroom above the Feather, ",
+      "and the push-on connectors need ", feather_headroom,
+      ". The Feather tops out at z = ", top_feather, " and the lid is at ",
+      inner_z_h, "."));
+assert(inner_z_h - top_amp >= part_clearance,
+  str("The amplifier reaches z = ", top_amp, " and the lid is at ",
+      inner_z_h, "."));
 
 /* --- What sits on the carrier must not get in each other's way --------
    Instead of individual hand checks ("is the battery beside the amp?") there is a
@@ -926,10 +951,14 @@ echo(str("Feather             : ", feather_pins_through ?
        : str("standing on ", feather_support, " mm standoffs, top at ",
              top_feather)));
 echo(str("what governs the depth: ",
-         parts_top == top_battery ? "battery" :
-         parts_top == top_feather ? "Feather" : "amplifier",
-         ", top at z = ", parts_top, ", then ", part_clearance,
-         " mm clearance + ", extra_above_carrier, " mm cable headroom"));
+         top_feather + feather_headroom >= parts_top + part_clearance
+           ? str(feather_headroom, " mm of headroom over the Feather (top z = ",
+                 top_feather, "), for the push-on connectors")
+           : str(parts_top == top_battery ? "battery" :
+                 parts_top == top_feather ? "Feather" : "amplifier",
+                 ", top at z = ", parts_top, ", plus ", part_clearance,
+                 " mm clearance")));
+echo(str("headroom above the Feather: ", inner_z_h - top_feather, " mm"));
 echo(str("---------------------------------------------------------"));
 
 

@@ -183,16 +183,22 @@ The Feather is 22.8 mm wide and therefore does **not** fit into the 12.6 mm
 next to the battery. It has to go above it, so stacked:
 
 ```
-key 13.4 + spacer 8.0 + plate 2.4 + battery 8.1 = 31.9 mm to the top of the battery
-the Feather, lying flat on the plate, reaches      31.8 mm
-speaker alone:                                     25.3 mm
+key 13.4 + spacer 8.0 + plate 2.4 + Feather 8.0 = 31.8 mm
+                       + 14.0 mm of headroom over it = 45.8  <- governs
+                                  + battery 8.1 = 31.9 mm
+speaker alone:                                    25.3 mm
 ```
 
-The Feather used to be the tallest of these and set the depth on its own,
-because it stood on 2 mm standoffs that existed only to clear its header pin
-tails. The mid plate has a well under it now, the tails go through that, the
-board lies flat on the plate, and the battery governs instead — 1.9 mm of case.
-The USB-C socket comes down with the board, to 27.0 mm behind the front face.
+The 14 mm is not slack. The cables arrive in black push-on Dupont shells that
+slide down over the Feather's headers and stand well above them, and they have
+to go on and come off with the case open. It is `feather_headroom`, named after
+the thing that needs it, because as a generic "cable headroom" figure it kept
+being trimmed by anyone shrinking the case.
+
+The Feather stood on 2 mm standoffs that existed only to clear its header pin
+tails. The mid plate has a well under it now, the tails go through that, and
+the board lies flat on the plate — 1.9 mm of case. The USB-C socket comes down
+with the board, to 27.0 mm behind the front face.
 
 That means the depth is no longer set by the speaker but by the stack:
 **about 32 mm inside, roughly 36 mm outside** — and then the first real build

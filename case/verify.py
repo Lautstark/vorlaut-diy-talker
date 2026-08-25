@@ -296,16 +296,23 @@ def compute(p, bed_x, bed_y):
            else 'standing on %.1f mm standoffs' % G('feather_support'))
     for n, t in tops:
         b.info(g, 'top of the %s' % n, 'z = %.2f mm' % t)
-    b.info(g, 'what governs the depth', '%s, at z = %.2f' % tallest)
-    b.info(g, 'above the carrier', '%.1f mm the parts need + %.1f mm of cable '
-                                   'headroom = %.1f mm'
-           % (G('parts_top') - G('carrier_z_top') + G('part_clearance'),
-              G('extra_above_carrier'), free_above_carrier))
-    # The headroom goes entirely BEHIND the parts. If it went in front, the
-    # five ScreenKeys would move with it and so would the cap protrusion.
-    b.check(g, 'the headroom is all behind the parts',
+    by_parts = G('parts_top') + G('part_clearance')
+    by_head = G('top_feather') + G('feather_headroom')
+    b.info(g, 'what governs the depth',
+           ('%.1f mm of headroom over the Feather, for the push-on connectors'
+            % G('feather_headroom')) if by_head >= by_parts
+           else '%s, at z = %.2f' % tallest)
+    b.check(g, 'headroom above the Feather',
+             G('inner_z_h') - G('top_feather'), '>=', G('feather_headroom'),
+             note='the connectors cannot be plugged or unplugged')
+    b.info(g, 'above the carrier', '%.1f mm to the top of the parts, then '
+                                   'whichever floor is higher = %.1f mm'
+           % (G('parts_top') - G('carrier_z_top'), free_above_carrier))
+    # It all goes BEHIND the parts. If any of it went in front, the five
+    # ScreenKeys would move with it and so would the cap protrusion.
+    b.check(g, 'the room is all behind the parts',
              G('inner_z_h'), '==',
-             G('parts_top') + G('part_clearance') + G('extra_above_carrier'),
+             max(by_parts, by_head) + G('extra_above_carrier'),
              note='the front of the device moves with it')
     for n, t in tops:
         b.check(g, 'the %s clears the lid' % n,
