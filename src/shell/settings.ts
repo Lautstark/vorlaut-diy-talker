@@ -6,10 +6,11 @@
 // Save, are in voices.js.
 import { $, status } from "./dom.js";
 import { menuOn } from "@lautstark/design/menu";
+import { confirmDialog } from "@lautstark/design/dialog";
 import { reason } from "../core/errors.js";
 import type { Settings, WantedSettings } from "../core/types.js";
 import { readSettings, writeSettings, importBoard, azureState, createCollection,
-  useCollection } from "../backend/index.js";
+  listCollections, useCollection } from "../backend/index.js";
 import { applyTheme, readTheme, saveTheme, THEMES, type Theme }
   from "@lautstark/design/theme";
 import { t } from "../core/texts.js";
@@ -411,13 +412,37 @@ export function wireData(backup: Sicherung) {
     try {
       const parsed = JSON.parse(await file.text());
       if (!isBackup(parsed)) throw new Error(t("ui.data_failed", { error: file.name }));
-      // Read first, ask second: a file that turns out to be unreadable should
-      // not have cost anybody a question, and this restore replaces every
-      // board here rather than merging into them - a merge would have to
-      // decide what an arriving board and a stored board with the same id are,
-      // and every answer to that is a rule the person holding the file cannot
-      // see. data/backup.ts argues it at length.
-      if (!confirm(t("ui.data_replace_ask"))) return;
+      /* Read first, ask second: a file that turns out to be unreadable should
+       * not have cost anybody a question, and this restore replaces every
+       * Sammlung here rather than merging into them - a merge would have to
+       * decide what an arriving Sammlung and a stored one with the same id
+       * are, and every answer to that is a rule the person holding the file
+       * cannot see. data/backup.ts argues it at length. conventions.md §1.10
+       * allows the replacement; it is the one act that is a whole-library
+       * restore rather than an import.
+       *
+       * The question is a <dialog>, not window.confirm (§3.4). This was the
+       * last native one in the family and it was on the most destructive path
+       * in the product - the one surface no token reaches, asking about
+       * everything somebody has.
+       *
+       * And it counts what goes (§1.7). "Fortfahren?" named nothing: a person
+       * with one Sammlung and a person with nine were asked the same question,
+       * and the number is the only thing in it that could change a mind. Two
+       * keys rather than a plural rule, the way the delete question does it -
+       * the singular differs by more than an ending in both languages. */
+      const here = (await listCollections()).collections.length;
+      const one = here === 1 ? "_one" : "";
+      if (!await confirmDialog({
+        title: t("ui.data_replace"),
+        body: t(`ui.data_replace_ask${one}`, { n: here }),
+        confirmLabel: t(`ui.data_replace_go${one}`, { n: here }),
+        cancelLabel: t("ui.cancel"),
+        // Never the same word as the button beside it: two dismissals sharing
+        // an accessible name is ambiguous to anyone navigating by it.
+        closeLabel: t("ui.close"),
+        danger: true,
+      })) return;
       const done = await importBackup(parsed);
       // The store has them; this page is still holding the board it had.
       // load() re-reads whichever board the file says was open, adopts its
