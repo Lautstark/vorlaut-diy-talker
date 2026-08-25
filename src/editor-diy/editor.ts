@@ -162,7 +162,7 @@ function emptySet(index: number): BoardSet {
  *
  * The visible area of a ScreenKey is 15.21 mm, and whether a pictogram is
  * recognisable on it shows only at that size and only rendered the way the
- * display renders it: scaled to 116x116 and rounded to RGB565, which is what
+ * display renders it: scaled to 128x128 and rounded to RGB565, which is what
  * previewInto() does.
  *
  * **It replaces the picture rather than joining it, and that is this file's

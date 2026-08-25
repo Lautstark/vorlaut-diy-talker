@@ -62,7 +62,7 @@ rather than a word to build one out of.
 ## Pictures
 
 Re-rendered from the symbol the key references, at up to 512×512, alpha kept —
-**not** scaled up from the device's 116×116 tile. The tile is RGB565 on an
+**not** scaled up from the device's 128×128 tile. The tile is RGB565 on an
 opaque ground because that is what an ESP32 blits; putting it on a tablet at
 four times its size would show the device's pixels and the ground colour it had
 to bake in.

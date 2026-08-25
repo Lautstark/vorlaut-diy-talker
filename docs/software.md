@@ -64,7 +64,7 @@ reads them the same way:
 | File            | Content                                     |
 |-----------------|---------------------------------------------|
 | `a<hash>.wav`   | spoken sentence, 16 kHz mono 16 bit         |
-| `t<hash>.bin`   | 116x116 symbol area, RGB565 big-endian      |
+| `t<hash>.bin`   | 128x128 symbol area, RGB565 big-endian      |
 
 plus `layout.bin` — a compact table with the number of sets, their names, the
 sleep timeout and the hashes saying which file belongs to which key.
@@ -83,14 +83,15 @@ consequences:
 - A file cannot go stale without its name changing along with it. So a name can
   never point at the wrong content.
 
-**The border is not in the image, and there is no longer a border.** The file
-contains only the 116x116 symbol area; the six pixels around it were once the
+**There is no border, and the symbol has the pixels it used to take.** The file
+is the whole 128x128 display. Six pixels around a 116x116 tile were once the
 set's own colour, drawn by the firmware rather than baked into the file so that
-the same symbol in a blue and in a green set stayed one file. The per-set
-colour has gone — from the editor, from this table and from the firmware — and
-nothing replaced it: `drawTile()` blacks those six pixels out. A set is told
-apart by the picture and the name on its set key, which is what the set key was
-always for.
+the same symbol in a blue and in a green set stayed one file. The per-set colour
+has gone — from the editor, from this table and from the firmware — and nothing
+replaced it, so the six pixels were being blacked out to say nothing. A symbol
+gets them: about a tenth wider in each direction on a key 15.21 mm across, for
+22% more bytes a file. A set is told apart by the picture and the name on its
+set key, which is what the set key was always for.
 
 Files from earlier runs that are no longer needed are cleared away by the build
 itself: anything in the store that this run did not produce goes.

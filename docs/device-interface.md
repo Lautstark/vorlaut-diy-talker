@@ -62,7 +62,7 @@ now, and getting it right is most of the work.
 
 ### The three nobody has counted
 
-**The tile payload.** A `t<hash>.bin` is 116 by 116 pixels of RGB565,
+**The tile payload.** A `t<hash>.bin` is 128 by 128 pixels of RGB565,
 big-endian, with no header — the size is not in the file, so both ends have to
 agree on it out of band. The browser's number is `TILE_SIZE` in `tiles.ts`. The
 device's is `TILE_W`, and it is defined in `vorlaut.ino`, not in a header, which
