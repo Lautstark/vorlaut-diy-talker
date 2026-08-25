@@ -594,7 +594,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
 
   // The border says the same thing and leaves the picture under it alone.
   let card = await openGrid(page);
-  await card.locator(".does__opt")
+  await card.locator(".opts__opt")
     .filter({ has: page.locator("b", { hasText: label("ui.app_word_color_border") }) })
     .click();
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
@@ -606,7 +606,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
   // Off is not colourless - the page keeps its own - but no cell says what
   // kind of word is on it any more.
   card = await openGrid(page);
-  await card.locator(".does__opt")
+  await card.locator(".opts__opt")
     .filter({ has: page.locator("b", { hasText: label("ui.app_word_color_off") }) })
     .click();
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
