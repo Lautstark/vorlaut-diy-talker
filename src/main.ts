@@ -41,7 +41,6 @@ import "./styles/ui.css";
 // tests/unit/layers.test.ts.
 import * as frame from "./shell/templates/frame.js";
 import * as footer from "./shell/templates/footer.js";
-import * as picker from "./shell/templates/picker.js";
 import * as settingsSheet from "./shell/templates/settings_sheet.js";
 import * as legal from "./shell/templates/legal.js";
 import { initTheme } from "@lautstark/design/theme";
@@ -53,11 +52,15 @@ import { initTheme } from "@lautstark/design/theme";
 initTheme("vorlaut.theme");
 
 frame.render();
-// Under the board, and it is the last thing in the page's flow. The three
-// after it are dialogs: they sit over everything when they are open and take
-// no room at all when they are not, so where they mount decides nothing.
+// Under the board, and it is the last thing in the page's flow. The two after
+// it are dialogs: they sit over everything when they are open and take no room
+// at all when they are not, so where they mount decides nothing.
+//
+// There were three. The symbol picker was one, and it went when both editors
+// grew a picture column of their own - see src/shell/sheet.ts. The sheets that
+// replaced it are built when they open and removed when they close, so they
+// mount nowhere at all.
 footer.render(document.querySelector("main")!);
-picker.render();
 settingsSheet.render();
 legal.render();
 

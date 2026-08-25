@@ -68,6 +68,43 @@ test("the Impressum names who runs the site and how to reach them", async ({ pag
   await expect(body.locator('a[href^="mailto:"]')).toBeVisible();
 });
 
+test("the ARASAAC licence notice is on the page, standing", async ({ page }) => {
+  /* CC BY-NC-SA, and the wording is a condition of it: wherever ARASAAC's
+   * pictures are shown, this sentence has to be shown too. It is in this file
+   * rather than in sources.spec.ts for the reason at the head - a missing
+   * attribution is a legal defect rather than a visual one, and the deploy is
+   * gated on those.
+   *
+   * **Why it needed a test the day the picker dialog went.** The notice had
+   * two homes: a line under the dialog's search results, and this panel. Both
+   * editors carry their own search now, so the dialog had no way in and was
+   * removed - and the line under the results went with it. What is asserted
+   * here is the half that does not depend on any sheet being open: whatever
+   * somebody is doing, the notice is one press of the gear away.
+   *
+   * The per-screen half is asserted where it belongs, on the sheet that shows
+   * the pictures - see happy.spec.ts's "the sheet says what is owed".
+   *
+   * Not compared against a literal. The sentence comes from the package that
+   * owns the provider, on purpose: a translated paraphrase beside it is how
+   * the two drifted apart once, and the copy that had been written out here
+   * had lost both arasaac.org and the Regierung von Aragón. So what is checked
+   * is that the parts the licence names are present. */
+  await page.locator("#settingsLink").click();
+  const panel = page.locator("#arasaacPanel");
+  if ((await panel.getAttribute("open")) === null) {
+    await panel.locator("summary").click();
+  }
+  const credit = panel.locator("#arasaacCredit");
+  await expect(credit).toBeVisible();
+  await expect(credit).toContainText("ARASAAC");
+  await expect(credit).toContainText("arasaac.org");
+  await expect(credit).toContainText("CC BY-NC-SA");
+  // The two the copy in this repository had lost.
+  await expect(credit).toContainText("Sergio Palao");
+  await expect(credit).toContainText(/Arag/);
+});
+
 test("the privacy notice names everything that leaves the browser", async ({ page }) => {
   await page.getByRole("button", { name: "Datenschutz", exact: true }).click();
 

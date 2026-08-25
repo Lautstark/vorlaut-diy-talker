@@ -1,48 +1,35 @@
-// The symbol dialog: searching two sources, picking a result, uploading an
-// image of your own, and handing the outcome back to whoever opened it.
+// Picking a symbol: searching the active source, resolving a hit to what a
+// layout stores, uploading an image of your own, and saying which collection
+// that was and what is owed for it.
 //
-// pickTarget and searchToken live here and nowhere else. Which sources are
-// available is bildquelle's answer now, not a variable of ours.
-import { $, say, status} from "./dom.js";
+// Which sources are available is bildquelle's answer, not a variable of ours.
+//
+// ## There is no dialog here any more
+//
+// This module was a modal - a search field, a grid of results, a credit line -
+// and every caller opened it on top of whatever they were doing. Both editors
+// now carry the picture, its search and the upload in the left column of the
+// sheet a press opens, so the modal had no way in and nothing to do. What is
+// left is what the callers could not have written for themselves and must not
+// each own a copy of: which source is active, what an empty answer means, the
+// fact that an ARASAAC pick is a download while a METACOM one is a reference,
+// and the sentence the licence requires. See shell/sheet.ts's drawPick(),
+// which is the only thing that draws any of it now.
+//
+// The name survives the dialog because the job did: this is still where a
+// symbol is picked. What went is one way of asking.
+import { readSettings, pickSymbol, uploadSymbol } from "../backend/index.js";
 import { reason } from "../core/errors.js";
-import { pickSymbol, readSettings, uploadSymbol } from "../backend/index.js";
 import * as symbols from "../data/symbols.js";
 import { t } from "../core/texts.js";
 
-/** What the dialog was opened for.
- *
- * `apply` rather than a target the picker then writes into, and that is the
- * whole of what makes this module the shell's. It used to take {kind: "set"}
- * or {kind: "slot", index} and write the chosen file name into
- * state.layout.sets[state.current] itself - which meant the symbol dialog knew
- * what a set was, how many keys were in one, and which of them was on screen.
- * None of that is true of a device this page has not met yet. Now the caller
- * says where the symbol goes, and choosing one is the whole of what is left.
- */
-export interface PickRequest {
-  /** What to put in the search field. Usually the word already on the key. */
-  seed?: string;
-  /** Where the chosen symbol goes. `label` is the collection's word for it,
-   *  "" when it has none; the caller decides whether to write it anywhere,
-   *  and every caller so far only fills a field that is still empty. */
-  apply: (symbol: string, label: string) => void | Promise<void>;
-}
-
-let pickTarget: PickRequest | null = null;
-let searchToken = 0;        // so a slow answer cannot overtake a newer one
-
 /* --- The seam ------------------------------------------------------------
  *
- * Three operations, exported so that a caller can put the search where it is
- * standing instead of opening this dialog on top of its own.
- *
- * The tablet editor is that caller: its button sheet carries the picture, its
- * search and the upload in its own left column, and a second modal over a
- * modal to choose a symbol would be the dialog this design set out to remove.
- * What it must not do is carry a second copy of the reasoning below - which
- * source is active, what an empty answer means, and the fact that an ARASAAC
- * pick is a download while a METACOM one is a reference. All three stay here;
- * only the markup is the caller's. */
+ * Three operations, so that a caller can put the search where it is standing.
+ * Both editors do: a second modal over a modal to choose a symbol is the
+ * dialog this design set out to remove, and removing it is what left this file
+ * as the seam alone. What a caller must not do is carry a second copy of the
+ * reasoning below; only the markup is the caller's. */
 
 /** One hit, as the two sources between them describe it. */
 export type SymbolHit = Awaited<ReturnType<typeof symbols.searchActive>>[number];
@@ -110,78 +97,6 @@ export async function uploadOwn(file: File): Promise<string> {
   return result.symbol;
 }
 
-export function openPicker(request: PickRequest) {
-  pickTarget = request;
-  $<HTMLInputElement>("q").value = (request.seed || "").trim();
-  $("results").innerHTML = "";
-  $<HTMLDialogElement>("picker").showModal();
-  $<HTMLInputElement>("q").focus();
-  if ($<HTMLInputElement>("q").value) doSearch();
-}
-
-// Searching happens here now, not on the server. /api/search and /api/thumb
-// still exist and still work; nothing on this page calls them. See
-// docs/symbol-search.md.
-
-async function doSearch() {
-  const word = $<HTMLInputElement>("q").value.trim();
-  if (!word) return;
-  const box = $("results");
-  const mine = ++searchToken;
-  say(box, t("ui.searching"));
-
-  // No group heading any more: there is one collection to show, and a heading
-  // over the whole of it named the only thing on screen.
-  const show = (items) => {
-    box.innerHTML = "";
-    items.forEach((item) => {
-      const figure = document.createElement("figure");
-      const image = document.createElement("img");
-      image.src = item.url;
-      image.loading = "lazy";
-      image.alt = "";
-      const caption = document.createElement("figcaption");
-      // textContent instead of innerHTML: the caption comes from a foreign
-      // data source and is not markup. The hint tells twins apart - four
-      // METACOM tiles captioned "ja" differ only in rendering - and stays a
-      // separate field because applySymbol may write item.label onto the key.
-      caption.textContent = (item.label || item.id) + (item.hint ? ` · ${item.hint}` : "");
-      figure.append(image, caption);
-      figure.onclick = () => pick(item);
-      box.appendChild(figure);
-    });
-  };
-
-  // Both the empty answer and the failed one come back as a sentence in
-  // `empty` - see findSymbols above, which is where that reading lives now.
-  const answer = await findSymbols(word);
-  if (mine !== searchToken) return;
-  show(answer.hits);
-  if (answer.empty) say(box, answer.empty);
-}
-
-// Hands a finished symbol to whoever opened the dialog, then closes it.
-// label is the word for the symbol, if the source supplies one.
-async function applySymbol(filename: string, label?: string) {
-  // Saving and redrawing are the caller's: it is the one that knows what it
-  // just changed, and this module no longer knows what a key is.
-  await pickTarget?.apply(filename, (label || "").trim());
-  $<HTMLDialogElement>("picker").close();
-}
-
-async function pick(item: SymbolHit) {
-  status(t(item.source === "metacom" ? "ui.taking_symbol" : "ui.loading_symbol"));
-  try {
-    // Which of the two sources this is, and what that costs, is takeSymbol's -
-    // the dialog only has to know where the answer goes.
-    const taken = await takeSymbol(item);
-    await applySymbol(taken.symbol, taken.label);
-    status("");
-  } catch (error) {
-    status(t("ui.symbol_failed", { error: reason(error) }));
-  }
-}
-
 // Which sources exist is no longer fixed at start: METACOM arrives when a
 // folder is chosen and leaves when it is forgotten, both without a reload. So
 // this runs again whenever the provider says something changed.
@@ -205,10 +120,9 @@ async function adoptSource() {
     const settings = await readSettings();
     symbols.setActiveSource(settings.activeProvider || "arasaac");
   } catch {
-    // The picker still opens, on the source that needs no folder. This runs
+    // A search still works, on the source that needs no folder. This runs
     // unawaited from start(), so a throw here would be nobody's to catch.
   }
-  showSources();
 }
 
 export async function loadSources() {
@@ -221,21 +135,21 @@ export async function loadSources() {
 
 /** Which collection is being searched, as the words a search field wears.
  *
- * Exported because there are two search fields now and only one answer. The
- * dialog below has one; shell/sheet.ts's pick column is the other, and it is
- * the one both editors actually reach - a sheet carries its own search rather
- * than opening this dialog on top of itself. A second copy of this line is how
- * a field comes to name a collection it is not searching, which is the bug
- * adoptSource() below was written for. */
+ * Read by the pick column as it is built, which is why nothing has to repaint
+ * it: a sheet that is not open has no stale field in it, and a sheet that is
+ * opening asks this afresh. Five calls to a showSources() existed to keep the
+ * dialog's copy of this honest, and all five went with the dialog. */
 export const searchPlaceholder = (): string =>
   t(symbols.activeSource() === "metacom" ? "ui.search_metacom" : "ui.search_arasaac");
 
 /** What is owed for the collection being searched, as one line.
  *
- * Exported for the same reason and with more riding on it: ARASAAC is
- * CC BY-NC-SA and the wording is a condition of the licence, so wherever its
- * pictures are shown this sentence has to be shown too. That used to be one
- * place, because there was one place pictures were shown. There are two now.
+ * Read the same way, with more riding on it: ARASAAC is CC BY-NC-SA and the
+ * wording is a condition of the licence, so wherever its pictures are shown
+ * this sentence has to be shown too. The place that is now is the pick column
+ * of whichever sheet is open - and, standing rather than per-screen, the
+ * ARASAAC panel in Einstellungen, which draws the same notice from the same
+ * package.
  *
  * The notice itself is not written here and is not in the text table: it comes
  * from the package that owns the provider - a translated paraphrase beside it
@@ -268,31 +182,4 @@ export function creditLine(): string {
     : waiting ? t("ui.metacom_waiting")
     : symbols.metacomReady() ? "" : t("ui.metacom_offer");
   return `${ours} ${owed}`.trim();
-}
-
-export function showSources() {
-  $<HTMLInputElement>("q").placeholder = searchPlaceholder();
-  $("credits").textContent = creditLine();
-}
-
-export function wirePicker() {
-  // Own picture. Where it goes and what happens to it is backend.js's
-  // business; all that matters here is that a symbol comes back.
-  $<HTMLButtonElement>("uploadBtn").onclick = () => $<HTMLInputElement>("fileInput").click();
-  $<HTMLInputElement>("fileInput").onchange = async () => {
-    const file = $<HTMLInputElement>("fileInput").files[0];
-    $<HTMLInputElement>("fileInput").value = "";
-    if (!file) return;
-    status(t("ui.uploading"));
-    try {
-      await applySymbol(await uploadOwn(file));
-      status(t("ui.upload_done"));
-    } catch (error) {
-      status(t("ui.upload_failed", { error: reason(error) }));
-    }
-  };
-
-  $<HTMLButtonElement>("searchBtn").onclick = doSearch;
-  $<HTMLInputElement>("q").onkeydown = (event) => { if (event.key === "Enter") { event.preventDefault(); doSearch(); } };
-  $<HTMLButtonElement>("closeBtn").onclick = () => $<HTMLDialogElement>("picker").close();
 }

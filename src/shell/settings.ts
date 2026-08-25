@@ -16,7 +16,6 @@ import { t } from "../core/texts.js";
 import { LANG } from "../core/boot.js";
 import { load } from "../core/save.js";
 import { paintCollections } from "./collections.js";
-import { showSources } from "./picker.js";
 import * as symbols from "../data/symbols.js";
 import { exportEverything, importBackup, isBackup, TOO_NEW } from "../data/backup.js";
 import { paintBackupFolder, wireBackupFolder } from "./backupFolder.js";
@@ -168,12 +167,16 @@ function paintSources() {
   useMetacom.hidden = active === "metacom" || !symbols.metacomReady();
 }
 
-/** Switches the collection the picker offers. Nothing on any board moves. */
+/** Switches the collection a search offers. Nothing on any board moves.
+ *
+ *  Nothing to repaint afterwards either: the field that names the collection
+ *  and the line that credits it are read as a sheet is built - see
+ *  picker.ts's searchPlaceholder() and creditLine() - so the next sheet to
+ *  open is already right and there is no open one to correct. */
 async function useSource(source: "arasaac" | "metacom") {
   if ((settings.activeProvider || "arasaac") === source) return;
   symbols.setActiveSource(source);
   await saveSettings({ activeProvider: source });
-  showSources();
 }
 
 export function wireSources() {
@@ -476,7 +479,6 @@ export function wireSymbolFolder() {
     if ((settings.activeProvider || "arasaac") === "metacom") {
       symbols.setActiveSource("arasaac");
       await saveSettings({ activeProvider: "arasaac" });
-      showSources();
     }
   };
 
@@ -548,11 +550,6 @@ export async function loadSettings() {
     // this is the source the picker can actually search.
     symbols.setActiveSource(settings.activeProvider || "arasaac");
     renderSettings();
-    // The line above can move the source without anybody pressing anything -
-    // a folder chosen on another machine, or one that has gone away since -
-    // and the picker's field and credit line are drawn from it. useSource()
-    // repaints them because it is a button; this one has to say so itself.
-    showSources();
   } catch (error) {
     status(t("ui.voice_failed", { error: reason(error) }));
   }

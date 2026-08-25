@@ -10,7 +10,6 @@ import { state } from "./state.js";
 import { applyTexts, t } from "./texts.js";
 import { LANG, setLanguage } from "./boot.js";
 import { paintLanguage } from "../shell/voices.js";
-import { showSources } from "../shell/picker.js";
 import { editorFor, FIRST_TARGET, showEditorFor } from "./editor.js";
 import type { Layout } from "./types.js";
 
@@ -42,12 +41,15 @@ function adoptLanguage(layout) {
   setLanguage(layout.language);
   applyTexts();
   paintLanguage();
-  // The symbol dialog's credit line, which applyTexts() does not reach: it is
-  // written by showSources() and by nothing else, so it alone kept whatever
-  // language the browser guessed. Everything else in that dialog is a fixed
-  // label and was already being redrawn - which is why the line sat there in
-  // English under a German heading rather than looking broken enough to find.
-  showSources();
+  /* The credit line used to need a fourth call here. It was the one thing in
+   * the symbol dialog applyTexts() did not reach, so it alone kept whatever
+   * language the browser had guessed - English under a German heading, and
+   * subtle enough that it took a while to find.
+   *
+   * It cannot happen again, and not because somebody remembered: the line is
+   * built when a sheet opens and there is no standing copy of it to fall out
+   * of date. A board arriving in another language redraws every sheet that
+   * follows it, because every sheet is new. */
 }
 
 export async function load() {

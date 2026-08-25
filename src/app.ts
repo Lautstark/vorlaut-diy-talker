@@ -43,7 +43,7 @@ import { app, wireEditor as wireApp } from "./editor-app/editor.js";
 import * as appBoard from "./editor-app/templates/board.js";
 import { ensureCollection, nameIfUnnamed, paintCollections, wireCollections }
   from "./shell/collections.js";
-import { loadSources, wirePicker } from "./shell/picker.js";
+import { loadSources } from "./shell/picker.js";
 import { forgetAzureKey, openVoices, saveAzure, wireLanguage } from "./shell/voices.js";
 import { wireSymbolFolder, wireImport, wireData, wireSources } from "./shell/settings.js";
 import { wireLegal } from "./shell/legal.js";
@@ -135,7 +135,6 @@ export function start(): void {
    * quickly would otherwise ask an editor that does not exist yet to draw. */
   subscribeMetacom(() => { if (haveEditor()) editor().render(); });
   wireCollections();
-  wirePicker();
   wireSymbolFolder();
   wireSources();
   wireImport();
