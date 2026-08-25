@@ -43,7 +43,7 @@ import { confirmDialog } from "@lautstark/design/dialog";
 import { dropdown, formRow, hint, missing, openSheet, textField }
   from "../shell/sheet.js";
 import type { Choice, Left } from "../shell/sheet.js";
-import { exportApp, sizeChoices } from "../shell/collections.js";
+import { exportApp, paintOpenCollection, sizeChoices } from "../shell/collections.js";
 import { collectionSheetPanel } from "../shell/voices.js";
 import {
   addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, isShared,
@@ -105,6 +105,13 @@ function page(): AppPage {
  */
 function commit(): void {
   render();
+  /* The sidebar row for this Sammlung counts its buttons and names its grid,
+   * both off the layout this has just changed - so a button placed leaves the
+   * row at its old number, and a resize leaves it naming the old size while
+   * the panel that did the resizing names the new one an inch away. Cheap by
+   * construction: the open row is the one row paintOpenCollection() need not
+   * go to the store for. See there for why it is not hung off the save. */
+  paintOpenCollection();
   void save();
 }
 

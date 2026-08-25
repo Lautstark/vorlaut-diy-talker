@@ -44,6 +44,7 @@ import type { BoardSet, DiyLayout, Layout } from "../core/types.js";
 import { LANG, limits, palette } from "../core/boot.js";
 import { t } from "../core/texts.js";
 import { save } from "../core/save.js";
+import { paintOpenCollection } from "../shell/collections.js";
 import { speak } from "../shell/speech.js";
 import { formRow, missing, openSheet, textField } from "../shell/sheet.js";
 import type { Left } from "../shell/sheet.js";
@@ -93,6 +94,12 @@ function set(): BoardSet {
  */
 function commit(): void {
   render();
+  /* The sidebar row for this Sammlung counts its sets, off the layout this has
+   * just changed - so adding or removing one leaves the row at its old number
+   * until something redraws it. Cheap by construction: the open row is the one
+   * row paintOpenCollection() need not go to the store for. See there for why
+   * it is not hung off the save instead. */
+  paintOpenCollection();
   void save();
 }
 

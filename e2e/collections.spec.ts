@@ -348,6 +348,65 @@ test("a row says which device it is for, and a tablet row says its grid",
                         { rows: GRID.rows, columns: GRID.columns }));
   });
 
+/* The row is drawn from the layout on screen, so it has to move when that
+ * layout does.
+ *
+ * Both of these were wrong and wrong in the same way: paintCollections() ran
+ * only when the *list* changed - opened, made, renamed, deleted - and an edit
+ * inside the open Sammlung changes neither. So the count sat at the number it
+ * had when the Sammlung was opened and the grid line named the size it used to
+ * be, and either one came right on the next switch or reload, which is the
+ * shape of a bug that looks like lost work.
+ *
+ * The tablet for both halves, because both of the row's two facts move here:
+ * a talker's count is its sets, and its second line names no size at all.
+ *
+ * Nothing in this test switches Sammlung, reloads, or waits for a write - the
+ * repaint is the editor's commit(), which draws before it saves. */
+test("the open Sammlung's row follows what is done inside it", async ({ page }) => {
+  await openCollection(page);
+
+  const asked = await askTarget(page, "app");
+  await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+  await expect(page.locator("#collectionName")).toBeFocused();
+  await page.locator("#collectionName").fill("Kindergarten");
+  await page.locator("#collectionName").blur();
+
+  const mine = row(page, "Kindergarten");
+  // Zero rather than blank: the package leaves the count empty only when it is
+  // not known, and a Sammlung with nothing in it is known to hold nothing.
+  // This is the number the next assertion has to be a move away from.
+  await expect(mine.locator(".collections__count")).toHaveText("0");
+
+  // A button in the first cell, through the sheet a press on it opens - which
+  // is the ordinary way one is made, and the one that goes through commit().
+  await page.locator("#appGrid .cell").first().locator(".cell__open").click();
+  const box = page.locator("dialog[open]")
+    .filter({ has: page.getByRole("heading", { name: label("ui.app_button_title") }) });
+  await expect(box).toBeVisible();
+  await box.locator("#appLabel").fill("ich");
+  await box.locator("button", { hasText: label("ui.done") }).click();
+  await expect(box).toBeHidden();
+
+  await expect(mine.locator(".collections__count")).toHaveText("1");
+
+  /* And the second line, which is the half that was visibly self-contradictory:
+   * the panel's own heading said the new size while the row an inch to its left
+   * said the old one, both on screen at once. Growing, so that nothing is
+   * thrown away and the press is the ordinary apply. */
+  await openCollectionSettings(page);
+  await openPanel(page, "#collectionEditorPanel");
+  const card = page.locator("#collectionEditorPanel");
+  await card.locator(".size")
+    .filter({ has: page.locator("b", { hasText: /^4 . 6$/ }) }).click();
+  await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+  await expect(page.locator("#collectionEditorState")).toHaveText(/^4 . 6$/);
+
+  // The sheet is still open over it, and the row underneath has already moved.
+  await expect(mine.locator(".collections__sub"))
+    .toHaveText(label("ui.collection_row_app", { rows: 4, columns: 6 }));
+});
+
 test("a first visit has one collection, and it is open", async ({ page }) => {
   await openCollection(page);
   await expect(rows(page)).toHaveCount(1);
