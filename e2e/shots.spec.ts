@@ -109,28 +109,40 @@ test("the tablet editor, four states", async ({ page }) => {
   await shot(page, "app-1-first-run");
 
   const cells = page.locator("#appGrid .appcell");
+  const open = page.locator("dialog[open]");
+  /* Each word goes in through the sheet a press opens, which is what there is
+   * to photograph now: the property row under the grid is gone, and with it
+   * the "pick one" state the five-key shot above is still in. */
   for (const [at, word] of WORDS.entries()) {
-    const box = cells.nth(at);
-    await box.click();
-    await expect(box).toHaveAttribute("aria-pressed", "true");
-    await page.locator("#appLabel").fill(word);
-    await page.locator(".apppanel__button select").first()
+    await cells.nth(at).locator(".appcell__open").click();
+    await expect(open).toBeVisible();
+    await open.locator("#appLabel").fill(word);
+    await open.locator("#appClass")
       .selectOption(["pronoun", "verb", "noun", "social"][at]!);
+    await open.locator("button", { hasText: label("ui.app_done") }).click();
+    await expect(open).toBeHidden();
   }
-  await page.locator(".apppanel__page input[type=text]").fill(SCREEN);
-  await page.locator(".apppanel__page input[type=text]").blur();
-  // Nothing selected, so the panel is in its "pick one" state - the same
-  // moment the five-key shot above is in.
-  await page.locator("#appPages .tab").first().click();
+
+  // The page's name is the page sheet's now, reached from the ... on the tab.
+  await page.locator("#appPages .tab[aria-current=true] .tab__more").click();
+  await expect(open).toBeVisible();
+  await open.locator("#appPageName").fill(SCREEN);
+  await open.locator("button", { hasText: label("ui.app_done") }).click();
+  await expect(open).toBeHidden();
   await settled(page);
+  // Nothing but the strip and the grid, which is the whole of what this
+  // redesign left on the board.
   await shot(page, "app-2-a-screen");
 
-  await cells.nth(0).click();
-  await expect(cells.nth(0)).toHaveAttribute("aria-pressed", "true");
-  await page.locator("#appLabel").focus();
+  await cells.nth(0).locator(".appcell__open").click();
+  await expect(open).toBeVisible();
   await shot(page, "app-3-editing");
+  await page.keyboard.press("Escape");
+  await expect(open).toBeHidden();
 
-  await page.locator(".apppanel__page button").last().click();
-  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.locator("#appPages .tab[aria-current=true] .tab__more").click();
+  await expect(open).toBeVisible();
+  await open.locator("button", { hasText: label("ui.app_page_delete") }).click();
+  await expect(page.locator("dialog[open]")).toHaveCount(2);
   await shot(page, "app-4-delete");
 });

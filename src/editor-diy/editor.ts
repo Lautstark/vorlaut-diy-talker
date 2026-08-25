@@ -111,14 +111,9 @@ async function swapSlots(slots, a, b) {
   render();
 }
 
-function activeCount() {
-  return board().sets.filter((s) => s.active !== false).length;
-}
-
-function emptySet(index, active) {
+function emptySet(index) {
   return {
     name: "Set " + (index + 1),
-    active: !!active,
     symbol: "",
     color: palette[index % palette.length],
     slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
@@ -187,9 +182,7 @@ export function render() {
   tabs.innerHTML = "";
   board().sets.forEach((entry, index) => {
     const tab = document.createElement("div");
-    tab.className = "tab" + (index === current ? " active" : "")
-                  + (entry.active === false ? " off" : "");
-    tab.title = entry.active === false ? t("ui.tab_off") : t("ui.tab_on");
+    tab.className = "tab" + (index === current ? " active" : "");
     tab.style.borderColor = index === current ? entry.color : "transparent";
     const dot = document.createElement("span");
     dot.className = "dot";
@@ -253,10 +246,7 @@ export function render() {
     add.className = "tab add";
     add.textContent = t("ui.add_set");
     add.onclick = async () => {
-      // A new set is active straight away only when a slot is still free -
-      // otherwise the layout could not be saved at all.
-      board().sets.push(
-        emptySet(board().sets.length, activeCount() < limits.maxActive));
+      board().sets.push(emptySet(board().sets.length));
       current = board().sets.length - 1;
       await save();
       render();
@@ -264,13 +254,10 @@ export function render() {
     tabs.appendChild(add);
   }
 
-  const used = activeCount();
-  $("slots").classList.toggle("warn", used === 0 && board().sets.length > 0);
-  $("slots").textContent = used === 0 && board().sets.length > 0
-    ? t("ui.none_active", { n: board().sets.length })
-    : t("ui.slots_used", { used: used, max: limits.maxActive })
-      + (board().sets.length > used
-         ? "  ·  " + t("ui.sets_created", { n: board().sets.length }) : "");
+  // How full the Sammlung is. There is nothing to warn about any more: every
+  // set it holds goes onto the device, and it cannot hold more than fit.
+  $("slots").textContent =
+    t("ui.slots_used", { used: board().sets.length, max: limits.maxSets });
 
   const device = $("device");
   device.innerHTML = "";
@@ -318,32 +305,6 @@ export function render() {
   nameInput.oninput = () => { entry.name = nameInput.value; saveSoon(); renderTabsOnly(); };
   setTile.appendChild(nameInput);
 
-  // Only five sets fit onto the device - creating more is allowed. This
-  // switch decides which of them come along.
-  const activeToggle = document.createElement("label");
-  activeToggle.className = "toggle onDevice";
-  // Short, because the device-preview switch sits right next to it - the same
-  // word twice in one view reads like the same thing. The title says what it
-  // means.
-  activeToggle.title = t("ui.active_title", { max: limits.maxActive });
-  const activeBox = document.createElement("input");
-  activeBox.type = "checkbox";
-  activeBox.checked = entry.active !== false;
-  const activePill = document.createElement("span");
-  activePill.className = "pill";
-  activeToggle.append(activeBox, activePill, document.createTextNode(t("ui.active")));
-  activeBox.onchange = async () => {
-    if (activeBox.checked && activeCount() >= limits.maxActive) {
-      activeBox.checked = false;
-      status(t("ui.active_full", { max: limits.maxActive }));
-      return;
-    }
-    entry.active = activeBox.checked;
-    await save();
-    status("");
-    render();
-  };
-
   const colorRow = document.createElement("div");
   colorRow.className = "colorRow";
   const colorInput = document.createElement("input");
@@ -379,20 +340,6 @@ export function render() {
   // Directly below the name field: the quick picks are the normal case, the
   // colour picker below them the exception.
   setTile.insertBefore(swatches, colorRow);
-
-  // At the very bottom and set apart: name and colour describe the set,
-  // "Aktiv" decides what happens to it - the same corner as the delete button
-  // below. Deliberately not in its red: switching off is reversible.
-  const activeRow = document.createElement("div");
-  activeRow.className = "activeRow";
-  activeRow.appendChild(activeToggle);
-  if (entry.active === false) {
-    const note = document.createElement("span");
-    note.className = "note";
-    note.textContent = t("ui.ready_not_on_device");
-    activeRow.appendChild(note);
-  }
-  setTile.appendChild(activeRow);
 
   setCol.append(setTile, removeSetBtn());
   device.appendChild(setCol);
@@ -607,7 +554,6 @@ export const diy: Editor = {
         name: "",
         symbol: "",
         color: palette[0]!,
-        active: true,
         slots: [0, 1, 2, 3].map(() => ({ text: "", symbol: "" })),
       }],
     };

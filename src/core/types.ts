@@ -25,9 +25,6 @@ export interface BoardSet {
   symbol: string;
   /** Hex, "#RRGGBB". Drawn as a border around all five displays. */
   color: string;
-  /** Absent counts as active - the flag arrived after boards already existed,
-   *  and a board written before it must not become an empty device. */
-  active?: boolean;
   slots: Slot[];
 }
 
@@ -97,8 +94,11 @@ export type Layout = DiyLayout | AppLayout;
 export interface DiyLayout {
   /** Absent counts as "diy". Every layout written before there was a second
    *  editor is one of these, and there is no migration - the flag arrived
-   *  after boards already existed, exactly as BoardSet.active did. */
+   *  after boards already existed. */
   target?: "diy";
+  /** Every one of them goes onto the device, in this order, at most five of
+   *  them. A Sammlung is the selection: there is no second flag deciding
+   *  which of its sets ship. */
   sets: BoardSet[];
   /** Which language the device's own menu speaks. */
   language?: string;

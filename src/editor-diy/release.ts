@@ -392,22 +392,15 @@ function board(): DiyLayout {
   return held;
 }
 
-function activeSets() {
-  return board().sets.filter((set) => set.active !== false);
-}
-
 function setsLine(): string {
-  return t("ui.transfer_sets", {
-    active: activeSets().length, total: board().sets.length,
-  });
+  return t("ui.transfer_sets", { n: board().sets.length });
 }
 
-/* Only the active sets: a switched-off set puts nothing in the build, so
- * counting its keys here would promise the device something it will not get.
- * "Has something on it" is the same test the build applies - a key with
- * neither a word nor a picture is a blank one. */
+/* Every set the Sammlung holds, because every one of them goes. "Has something
+ * on it" is the same test the build applies - a key with neither a word nor a
+ * picture is a blank one. */
 function keysLine(): string {
-  const slots = activeSets().flatMap((set) => set.slots || []);
+  const slots = board().sets.flatMap((set) => set.slots || []);
   const filled = slots.filter((slot) => slot.text.trim() || slot.symbol).length;
   return t("ui.transfer_keys", { n: filled, total: slots.length });
 }

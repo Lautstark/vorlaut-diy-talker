@@ -35,14 +35,6 @@ export const DEFAULT_COLOR = "#3B5BDB";
 
 const encoder = new TextEncoder();
 
-/** The sets that go onto the device, in the order of the layout. */
-export function activeSets(layout) {
-  // A missing field means active, so that layouts from before the
-  // distinction stay valid - the same rule as in layout.py.
-  return (layout.sets || []).filter(
-    (entry) => (entry.active === undefined ? true : Boolean(entry.active)));
-}
-
 export function normalizeColor(value) {
   let text = String(value || "").trim();
   if (!text.startsWith("#")) text = "#" + text;
@@ -100,13 +92,14 @@ export function hashBytes(filename) {
 /**
  * The bytes of layout.bin, as build.py would write them.
  *
- * layout is a normalized layout, the three lists are per active set and in
- * its order - exactly what builder.py hands the Python.
+ * layout is a normalized layout, the three lists are per set and in its order
+ * - exactly what builder.py hands the Python.
  */
 export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles) {
-  // The active sets only - the file lists are built the same way, and
-  // setCount in the header has to match them.
-  const sets = activeSets(layout);
+  // Every set in the layout: a Sammlung is the selection, so there is nothing
+  // to filter out here. The file lists are built the same way, and setCount in
+  // the header has to match them.
+  const sets = layout.sets || [];
   if (sets.length > 0xff) {
     throw new RangeError(`${sets.length} sets do not fit in one byte`);
   }

@@ -81,7 +81,7 @@ let dismissed = false;
 const board = (name: string): Layout => ({
   sleep_timeout_seconds: 600,
   language: "de",
-  sets: [{ name, symbol: "", color: "#3B5BDB", active: true,
+  sets: [{ name, symbol: "", color: "#3B5BDB",
            slots: [{ text: "", symbol: "" }] }],
 } as unknown as Layout);
 

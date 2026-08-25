@@ -366,9 +366,10 @@ button, select, input, textarea { font-family: inherit; }
 }
 /* --danger-soft is the plane and --danger the text colour on plain ground;
    the line drawn between them has no token, so it is mixed out of --danger
-   rather than written down a third time. Declared on both users - the buttons
-   inside the banner inherit it - so that it stays one value. */
-.conflict, .slots.warn {
+   rather than written down a third time. Declared on the user rather than at
+   the root - the buttons inside the banner inherit it - so that it stays one
+   value. */
+.conflict {
   --danger-line: color-mix(in oklab, var(--danger) 40%, var(--danger-soft));
 }
 
@@ -539,29 +540,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim);
   border-bottom: 1px solid var(--line); padding-bottom: 4px; }
 .results .group:first-child { margin-top: 0; }
-/* Inactive sets stay visible but recede - the strip should still show at a
-   glance which sets are going to the device. */
-.tab.off { opacity: .45; }
-.tab.off .dot { box-shadow: inset 0 0 0 2px var(--surface); }
 .slots { color: var(--text-dim); font-size: 12px; margin: -8px 2px 14px; }
-/* No active set is allowed - the device catches it and shows a notice.
-   It is rarely intended though, hence the same warning colour as for the
-   save conflict, only as a narrow field instead of a banner. That sharing was
-   already claimed in this sentence and implemented by copying three hex
-   values; now both rules read the same tokens. */
-.slots.warn {
-  color: var(--text); background: var(--danger-soft);
-  border: 1px solid var(--danger-line);
-  border-radius: 8px; padding: 6px 10px; display: inline-block;
-}
-.toggle.onDevice { font-size: 13px; }
-/* Set apart from the rest of the tile: above it says how the set looks,
-   here it says whether it goes onto the device. */
-.activeRow {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
-}
-.activeRow .note { color: var(--text-dim); font-size: 12px; }
 .hint { padding: 0 16px 16px; color: var(--text-dim); font-size: 12px; }
 /* Nothing to say, no room taken. The voice hint is empty whenever there is no
    download running, and its padding was a gap in the middle of the sheet. */
@@ -790,8 +769,9 @@ dl.transfer dd { margin: 0; font-size: 14px; }
  * So the cap moves for this editor and only for it, chosen by what is in the
  * page rather than by a class the shell would have to know to set. A browser
  * without `:has()` keeps the narrow column, which is cramped rather than
- * broken. The panel below widens with it and that is fine - it is a row of
- * fields, not prose. */
+ * broken. Nothing else on the page widens with it: the board is the whole of
+ * what is there now, and what belongs to a button or a page is a sheet, which
+ * takes its own width. */
 .content:has(#appGrid) main { max-width: 1100px; }
 
 /* Size presets, in the dialog that makes a Sammlung and in the card that
@@ -843,6 +823,16 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   border-radius: 10px; cursor: pointer; position: relative;
   background: var(--cell-color, var(--surface)); color: #1c1f24;
   border: 2px solid var(--cell-edge, var(--line));
+  /* A grid item's automatic minimum size is its content, so a cell holding a
+     two-line word and a picture pushed its whole row taller than the ratio and
+     left every other cell in that row short - a board that goes ragged at the
+     one word somebody wrote a sentence into. The cell keeps the shape the
+     ratio gives it, and what is in it fits. */
+  min-height: 0;
+  /* The board has no dense/roomy class - it is sized by --cols alone - so the
+     label is sized by how wide the cell came out, which is the thing the
+     column count was standing in for anyway. */
+  container-type: inline-size;
 }
 /* The label sits over a word-class colour, which is a light fill from the
    Fitzgerald key - so the text on a cell is dark whatever the page's theme is.
@@ -888,10 +878,42 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 .appcell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
 .appcell[draggable="true"] { cursor: grab; }
 .appcell[draggable="true"]:active { cursor: grabbing; }
-.appcell img { max-width: 100%; max-height: 60%; object-fit: contain; }
+/* `min-height: 0` so the picture is the part that gives: a flex item will not
+   shrink past its own content without it, and at eleven columns two lines of
+   word and a picture at 60% want more height than the cell has. The word is
+   the part somebody is reading. */
+.appcell img { max-width: 100%; max-height: 60%; min-height: 0; object-fit: contain; }
+/* Two lines, then an ellipsis.
+ *
+ * AsTeRICS Grid's TextConfig offers three answers to a label that does not fit
+ * - shrink to fit, truncate, ellipsis - and defaults to one line and shrink.
+ * Two lines and an ellipsis is the better default here: at eleven columns a
+ * cell is about 95px, and shrinking "Ich habe Durst" to one line of that makes
+ * type nobody can read, while truncating loses the end of the sentence with no
+ * sign that anything is missing. Which of the three it is could become a
+ * setting later; it should not be one before somebody wants it.
+ *
+ * `flex: none` because the two lines are the point: without it the label is a
+ * shrinkable flex item and a tall picture squeezes it back to one. */
 .appcell__label {
+  flex: none;
   font-size: 13px; line-height: 1.2; text-align: center;
   overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+/* A button with a word and no picture is its own thing, not a cell missing
+   something. AsTeRICS Grid sets text-only buttons at 35% of the cell height
+   against 15% with a picture - more than twice - and that ratio is what makes
+   them read as deliberate. There is no placeholder glyph for the same reason:
+   an empty picture slot on a board is furniture announcing an absence, and the
+   way to add one is a press away. */
+.appcell--words .appcell__label { font-size: 20px; -webkit-line-clamp: 3; }
+/* Where the cell came out small - eleven columns and up - the same two rules
+   at a size that still fits the lines it promises. */
+@container (max-width: 120px) {
+  .appcell__label { font-size: 12px; }
+  .appcell--words .appcell__label { font-size: 15px; }
 }
 /* Moved to the leading corner: the trailing one is the play button's, and a
    badge under a control nobody can see until they hover is a badge nobody
@@ -902,21 +924,6 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 }
 .appcell--empty::after { content: "+"; font-size: 20px; }
 .appcell .blank { font-size: 11px; text-align: center; color: var(--text-faint); }
-
-/* The panel under the board: what can be done to the page, then to the button.
-   Two rows rather than a column beside the grid, because the grid wants the
-   width - a 6x11 board beside a sidebar of controls leaves cells too small to
-   tell apart. */
-.apppanel { display: flex; flex-direction: column; gap: 10px; }
-.apppanel__page, .apppanel__button {
-  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
-  padding: 12px; border-radius: 10px; background: var(--surface);
-}
-.apppanel__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px;
-                   color: var(--text-dim); }
-.apppanel__field input[type=text] { min-width: 12em; }
-.apppanel__field input[type=color] { width: 44px; height: 32px; padding: 2px; }
-.apppanel .note { margin: 0; font-size: 13px; color: var(--text-dim); }
 
 /* The two choices a new Sammlung is made from. Stacked and full width, because
    each is a heading and a sentence rather than a word - the sentence is what
@@ -940,3 +947,137 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   border-color: var(--accent); background: var(--accent-soft);
 }
 .btn.choice[aria-pressed="true"]:hover { background: var(--accent-soft); }
+
+/* ============================================================ the two sheets
+
+   Everything about one button, and everything about one page, in a modal
+   opened by pressing the thing itself. The rules below are design's
+   docs/mocks/editor.css, which carries the reasoning for each of them; what is
+   repeated here is only what that file argues for, at the names this product
+   uses.
+
+   The property row these replaced could hold what fits on one line, which is
+   why the picture and the sound had to live in the cell and why a dense board
+   had to give its tools up. A sheet has room for all of it at every board
+   size, so the eleven-column case is the same interaction as the
+   three-column one. */
+
+/* A width override on the shared component, not a redefinition of it: two
+   columns need more than the 600px a sheet of prose wants. Everything else -
+   the head, body and foot anatomy, the border, the shadow - stays
+   components.css's. */
+dialog.sheet--button { max-width: 720px; width: 100%; }
+
+.sheet--button > .body {
+  display: grid; grid-template-columns: 200px 1fr; gap: 22px;
+  color: var(--text); font-size: inherit;
+  padding-top: 14px;
+}
+/* A page has one thing to say and no picture beside it. */
+.sheet--page { max-width: 520px; }
+.sheet--page > .body { grid-template-columns: 1fr; }
+@media (max-width: 720px) { .sheet--button > .body { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------------------- the picture */
+
+.pick { display: grid; gap: 10px; align-content: start; }
+
+.pick__preview {
+  /* Wider than tall. A pictogram is square, but a preview that is also square
+     at column width takes a third of the sheet to show something the cell
+     behind the sheet is already showing. */
+  aspect-ratio: 4 / 3; display: grid; place-items: center; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  /* White is not a surface and does not follow the scheme: AAC symbols are
+     drawn for white and need it in either one. */
+  background: #fff;
+}
+.pick__preview img { width: 100%; height: 100%; object-fit: contain; }
+/* No picture yet. The same hint-contrast glyph the board uses, at the size the
+   box happens to be - not a bordered placeholder announcing an absence. */
+.pick__preview--none { background: var(--surface-2); color: var(--text-faint); }
+.pick__preview--none svg { width: 40px; height: 40px; fill: none; stroke: currentColor;
+                           stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* minmax(0, 1fr) rather than 1fr: a grid track's automatic minimum is its
+   content's min-content width, and a pictogram's is its intrinsic pixel width
+   - so four of them inflated this grid past the column it was given and the
+   fourth hung under the fields beside it. */
+.pick__results {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;
+  max-height: 150px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+/* The two sentences a search can come back with - a word the collection does
+   not have, and a browser that never managed to ask - in the box the hits
+   would have filled. say() writes a bare <p>, so this is what styles it. */
+.pick__results p {
+  grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--text-faint);
+}
+.pick__hit {
+  padding: 0; cursor: pointer; aspect-ratio: 1;
+  border: 2px solid transparent; border-radius: var(--radius-sm); background: #fff;
+}
+.pick__hit img { width: 100%; height: 100%; object-fit: contain; }
+.pick__hit:hover { border-color: var(--line); }
+.pick__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* -------------------------------------------------------------- the fields */
+
+.form { display: grid; gap: 16px; align-content: start; }
+.form__row { display: grid; gap: 6px; }
+.form__row > .lbl { margin-bottom: 0; }
+/* A row whose control is a button takes the width the button needs, not the
+   column's. */
+.form__row > .btn { justify-self: start; }
+/* The spoken text sits next to the way to hear it, because they are one
+   question: does this say the right thing. */
+.form__withplay { display: flex; gap: 8px; align-items: center; }
+.form__withplay .field { flex: 1 1 auto; }
+.form__hint { font-size: 12.5px; color: var(--text-faint); }
+
+/* ------------------------------------------------------------ what it does */
+
+/* Four kinds rather than a flat list of seven, because the flat list mixed two
+   different questions - what a word does, and what a bar control does - and
+   put them in one dropdown where they read as alternatives to each other.
+
+   The first two are the correction this sheet is really making. Both speak;
+   the difference is only whether the word joins the sentence, which is what
+   the labels now say. "In die Satzleiste" against "Sofort sprechen" described
+   an axis that does not exist: the viewer utters an appending button too. */
+.does { display: grid; gap: 8px; }
+.does__opt {
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 10px;
+  padding: 10px 12px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.does__opt:hover { border-color: var(--text-faint); }
+.does__opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.does__opt input { grid-row: span 2; align-self: center; accent-color: var(--accent-strong); }
+.does__opt b { font-size: 14px; font-weight: 600; }
+.does__opt small { font-size: 12.5px; color: var(--text-dim); }
+/* What a choice needs once it is chosen, tucked under it rather than in a
+   fifth control that is dead most of the time. */
+.does__more { grid-column: 2; display: none; gap: 8px; margin-top: 8px; }
+.does__opt:has(input:checked) .does__more { display: grid; }
+
+/* The foot carries the destructive act on the left, away from the confirming
+   one - and between them the way to keep going, because a board is built in
+   runs and the sheet should not make you re-open it fourteen more times. */
+.sheet--button > .foot { justify-content: space-between; }
+.foot__right { display: flex; align-items: center; gap: 9px; }
+
+/* ------------------------------------------------------- the page's own way in
+
+   A page has no cell on a tablet - its name belongs to nothing on the board -
+   so the current tab carries the way in. The same ... the work head uses for a
+   Sammlung, one level down, on the thing it acts on. */
+.tab__more {
+  border: 0; background: transparent; color: var(--text-faint);
+  cursor: pointer; font: inherit; line-height: 1; padding: 0 2px;
+  border-radius: var(--radius-sm);
+}
+.tab__more:hover { color: var(--text); background: var(--surface-3); }
+.tab__more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

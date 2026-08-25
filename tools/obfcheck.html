@@ -51,15 +51,15 @@ const check = (name, ok, detail = "") => {
 };
 
 // Awkward on purpose, and the same shapes tests/test_obf_js.py drives through
-// both implementations: a switched-off set, a set with no symbol, a key with
-// words and no picture, one with a picture and no words, a METACOM reference
-// beside a plain file name, and characters of one, two, three and four bytes.
+// both implementations: a set with no symbol, a key with words and no picture,
+// one with a picture and no words, a METACOM reference beside a plain file
+// name, and characters of one, two, three and four bytes.
 const AWKWARD = {
   sleep_timeout_seconds: 900,
   language: "de",
   voice: "piper:de_DE-thorsten-low",
   sets: [
-    { name: "Basics", color: "#3B5BDB", symbol: "start.png", active: true,
+    { name: "Basics", color: "#3B5BDB", symbol: "start.png",
       slots: [
         { text: "Yes!", symbol: "ja.png" },
         // Escaped rather than typed: one, two, three and four byte
@@ -69,9 +69,9 @@ const AWKWARD = {
         { text: "", symbol: "hilfe.png" },
       ] },
     { name: "Going out to play", color: "#159947", symbol: "metacom:spielen",
-      active: false, slots: [{ text: "More of that", symbol: "mehr.png" }] },
+      slots: [{ text: "More of that", symbol: "mehr.png" }] },
     { name: "\u00e4\u20ac\u{1F600}", color: "#9B7BFF", symbol: "",
-      active: true, slots: [] },
+      slots: [] },
   ],
 };
 
@@ -103,7 +103,7 @@ document.getElementById("go").onclick = async () => {
     // differs from node at all: CompressionStream is the engine's, not ours.
     const document_ = await obf.readObz(bytes, "board.obz");
     const members = Object.keys(document_.boards);
-    check("one board per set, switched-off ones included",
+    check("one board per set",
           members.length === wanted.sets.length,
           `${members.length} board(s)`);
     check("the root is the first set", document_.root === "set-1",
@@ -126,8 +126,8 @@ document.getElementById("go").onclick = async () => {
           back.sets.map((s) => s.name).join("|")
           === wanted.sets.map((s) => s.name).join("|"),
           back.sets.map((s) => s.name).join("|"));
-    check("the switched-off set is still there and still off",
-          back.sets.length === 3 && back.sets[1].active === false);
+    check("every set comes back", back.sets.length === 3,
+          String(back.sets.length));
     check("the colours survive exactly",
           back.sets.map((s) => s.color).join(" ")
           === wanted.sets.map((s) => s.color).join(" "),

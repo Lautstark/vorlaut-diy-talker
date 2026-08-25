@@ -299,10 +299,8 @@ export function order(document) {
 
 /** The whole of a layout as linked boards.
  *
- * Every set becomes a board, including the switched-off ones: they are part of
- * the collection somebody made, and only the build takes the active ones. So
- * the ring runs through all of them in file order and wraps at the end, and
- * ext_vorlaut_active says which ones go on the device.
+ * Every set becomes a board. The ring runs through all of them in file order
+ * and wraps at the end, which is the order the device cycles them in.
  */
 export async function layoutToDocument(
   layout: DiyLayout,
@@ -385,7 +383,6 @@ export async function layoutToDocument(
       // ext_* is the spec's own way of carrying a field it has no opinion
       // about. These are the ones with no home in OBF.
       ext_vorlaut_color: entry.color,
-      ext_vorlaut_active: entry.active,
     };
   }
 
@@ -546,8 +543,6 @@ export function documentToLayout(document) {
     const colour = board.ext_vorlaut_color;
     sets.push({
       name: text(board.name) || boardId,
-      active: "ext_vorlaut_active" in board
-        ? Boolean(board.ext_vorlaut_active) : true,
       symbol: switchKey === null ? "" : switchKey.symbol,
       // No ext_vorlaut_color means a board from somewhere else, and then
       // normalizeLayout() hands out a colour from the palette. Reading it back
@@ -603,10 +598,14 @@ export function localeToLanguage(locale) {
 // happened to be missing.
 
 // What layout.py says, read where the page already reads it: the palette and
-// the two limits come out of boot_data.js, which tools/bootdata.py writes from
+// the cap come out of boot_data.js, which tools/bootdata.py writes from
 // layout.py itself. One table rather than a second copy to keep level.
+//
+// The cap is five now rather than twenty-five, and it is the only one: a
+// Sammlung is what goes onto the device, so how many sets it may hold and how
+// many the device has room for stopped being two questions. A document with
+// more boards than that is refused rather than imported and half-shown.
 export const MAX_SETS = LIMITS.maxSets;
-export const MAX_ACTIVE_SETS = LIMITS.maxActive;
 export const DEFAULT_PALETTE = PALETTE;
 // The one number that is in neither table. layout.py's DEFAULT_SLEEP_TIMEOUT.
 export const DEFAULT_SLEEP_TIMEOUT = 600;
@@ -675,9 +674,6 @@ export function normalizeLayout(raw) {
     while (slots.length < SLOTS_PER_SET) slots.push({ text: "", symbol: "" });
     return {
       name: text(entry.name || `Set ${index + 1}`).trim(),
-      // If the field is absent the set is active - that keeps layouts from
-      // before this distinction valid unchanged.
-      active: "active" in entry ? Boolean(entry.active) : true,
       symbol: text(entry.symbol).trim(),
       color: normalizeColor(
         entry.color || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]),
@@ -687,12 +683,6 @@ export function normalizeLayout(raw) {
       }),
     };
   });
-
-  const active = cleanSets.filter((entry) => entry.active).length;
-  if (active > MAX_ACTIVE_SETS) {
-    throw new Error(`At most ${MAX_ACTIVE_SETS} sets active at once, ` +
-                    `${active} are chosen. More do not fit on the device.`);
-  }
 
   return { sleep_timeout_seconds: timeout, language, voice, sets: cleanSets };
 }
