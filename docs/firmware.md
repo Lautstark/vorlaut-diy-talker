@@ -272,8 +272,8 @@ than letting a question mark appear on the device.
 
 The menu draws itself without files, from text and rectangles. So it works on a
 freshly flashed device with nothing on it yet — and that is exactly where it is
-needed first. The frame is grey instead of the set colour, so one sees at a
-glance that this is not the talker.
+needed first. The keys wear a grey frame, which a talker key has
+none of, so one sees at a glance that this is not the talker.
 
 **After 30 seconds without input it returns by itself.** A device stuck in the
 menu no longer speaks — that must not happen.

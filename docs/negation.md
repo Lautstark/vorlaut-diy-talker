@@ -156,7 +156,7 @@ buttons with the same picture unable to disagree.
 
 ## 3. The talker forces the device half, and that is the whole of it
 
-`firmware/` draws the coloured border and blits the tile. There is no negation
+`firmware/` blacks out the six pixels round the tile and blits it. There is no negation
 concept in it, this proposal does not ask for one, and it should not: the
 tile is already the one place where the device is told what to show, and a
 firmware that composited a mark would need the mark, a colour, an inset and a

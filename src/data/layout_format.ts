@@ -14,23 +14,45 @@
 //
 // Two places deviate from the Python on purpose, both only for input the
 // Python does not survive either - they are marked where they are.
+//
+// One place deviates on purpose and not only for bad input: the set entry no
+// longer opens with a colour, and the version byte says 2 so that a file the
+// Python wrote is refused rather than read two bytes out of step. What the
+// frozen bytes can still say about that is worked out in
+// tests/test_layout_frozen.py, under THE_COLOUR_IS_GONE.
 
 export const LAYOUT_BIN = "layout.bin";
 export const LAYOUT_MAGIC = "MTRD";
-export const LAYOUT_VERSION = 1;
+// 2 since the set entry lost its colour - see the note on the same
+// constant in firmware/vorlaut/layout_format.h for why a shorter entry
+// needs a new version rather than passing as a shorter file.
+export const LAYOUT_VERSION = 2;
 
 export const SLOTS_PER_SET = 4;
 export const NAME_BYTES = 32;
 export const HASH_BYTES = 16;
 // Fixed strides - the firmware works with the same numbers.
 export const SLOT_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1;                       // 34
-export const SET_BYTES = 2 + NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES; // 186
+export const SET_BYTES = NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES; // 184
 export const HEADER_BYTES = 4 + 4 + 4;                                           // 12
 
 // The index the device labels its own menu by - see LANGUAGE_CODES in
 // layout.py, and LANGUAGES in firmware/vorlaut/texts.h.
 export const LANGUAGE_CODES = { en: 0, de: 1 };
 export const DEFAULT_LANGUAGE = "en";
+
+// --- Colours, which are no longer this file's ---------------------------------
+//
+// The set entry carried a colour until the firmware stopped drawing one, and
+// these three helpers were how it became two bytes. They stay here rather than
+// moving because they are still layout.py's colour helpers, and data/obf.ts is
+// still holding them to what layout.py said - normalizeColor's answers, the
+// default among them, are frozen in tests/reference/obf.lock.json by way of
+// cssColor(). Moving them would be a rename in front of a lock, for no reader.
+//
+// rgbTo565 went with the colour: it was the last step to the panel's own
+// format and nothing else here wanted it. data/tiles.ts has its own, for the
+// pixels inside the tile.
 export const DEFAULT_COLOR = "#3B5BDB";
 
 const encoder = new TextEncoder();
@@ -56,10 +78,6 @@ export function hexToRgb(value: string): [number, number, number] {
   return [parseInt(text.slice(1, 3), 16),
           parseInt(text.slice(3, 5), 16),
           parseInt(text.slice(5, 7), 16)];
-}
-
-export function rgbTo565(r, g, b) {
-  return ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
 }
 
 /** What Path(name).stem does: the file name without its last suffix. */
@@ -131,8 +149,6 @@ export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles) {
   at += 4;
 
   sets.forEach((entry, index) => {
-    view.setUint16(at, rgbTo565(...hexToRgb(entry.color)), true);
-    at += 2;
     // Cut after the 32nd byte, not after the 32nd character. A name of
     // umlauts is half as long as it looks, and cutting the string first would
     // make the two writers disagree the moment one is used.

@@ -4,7 +4,7 @@
 // Same shape as render_symbol() there, and deliberately the same vocabulary -
 // fillColour, TILE_SIZE, toRgb565Be - so the two can be read side by side
 // while both exist. A tile still depends on its symbol and nothing else: the
-// coloured border is drawn by the firmware, not baked in here.
+// six pixels round it are the firmware's, not baked in here.
 //
 // Two things in here look like over-engineering and are not. The thumbnail
 // size is worked out with Pillow's rounding rather than an obvious one,

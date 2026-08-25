@@ -39,8 +39,10 @@ The device is five keys and up to five sets, which is a small corner of what
 the format allows. The mapping keeps the device's own shape rather than
 inventing a tablet layout:
 
-- one set becomes one board, carrying the set's colour as
-  `ext_lautstark_board_color`;
+- one set becomes one board, carrying the set's name; a set has no colour any
+  more, so neither `ext_lautstark_board_color` nor a `border_color` per button
+  is written — both fields stay in the format, and this builder simply writes
+  neither;
 - the four slots become four buttons **in the positions they sit in on the
   case**, with the top-left cell left empty because that is where the speaker
   is ([docs/hardware.md](hardware.md));

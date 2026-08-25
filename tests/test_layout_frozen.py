@@ -39,14 +39,17 @@ anything the browser did: it is compiled from the firmware's source on the
 machine running the test, and it is the reason a frozen byte string means
 something rather than merely being self-consistent.
 
-One case is set aside rather than compared - see THE_FILTER_IS_GONE. The lock
-is not touched and is not refrozen; what is narrowed is what gets compared.
+One case is set aside rather than compared - see THE_FILTER_IS_GONE. Every
+remaining case has two bytes per set taken out of it before it is compared -
+see THE_COLOUR_IS_GONE. The lock is not touched and is not refrozen in either
+case; what changes is what gets compared.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -82,6 +85,85 @@ be the browser compared against itself.
 The other sixteen cases are untouched and keep their full value: the bytes, the
 C reader's fields, the strides and the pre-language file are all still held to
 what layout_format.py said."""
+
+
+THE_COLOUR_IS_GONE = """the two bytes a set entry opened with.
+
+A set carried a colour and the firmware drew it as a border round all five
+displays. That is gone - the editor has no swatches, layout.bin has no colour
+and drawTile() blacks those six pixels out instead. So the set entry is 184
+bytes where it was 186, and the version byte is 2 where it was 1, and every
+frozen case in this lock is bytes that no writer here will ever produce again.
+
+**The lock is not refrozen, because there is nothing left to freeze from.** The
+lock's own invalidated_by names "a change to the structure in
+firmware/vorlaut/layout_format.h" and "a change to render_layout_bin() in
+layout_format.py", so this is an anticipated invalidation rather than a cheat -
+but anticipated is not the same as answerable. layout_format.py,
+tools/layoutfreeze.py and normalize_layout() went with the Python half on
+2026-08-22, and docs/frozen-references.md is explicit that re-deriving the
+bytes from src/data/layout_format.ts would leave the browser compared against
+itself, which is the one thing these files exist to stop.
+
+**What is done instead is a deletion, not a guess.** Nothing new has to be
+known: every byte of the new answer is already in the lock, and the new answer
+is the old one with two bytes struck out of each set entry and the version byte
+raised. That transformation is written below, in one function, by hand - so the
+reference still says what Python said about the name, the label, the four
+slots, the hashes, the language and the sleep timeout. Only the colour is
+dropped, and it is dropped from a stated offset.
+
+It is worth being clear about how much independence survives that. If the two
+bytes were struck from the wrong place here *and* in layout_format.h and
+layout_format.ts in the same way, all three would agree and this file would
+pass. What makes that unlikely rather than merely hoped for is the C reader:
+it is compiled from the header the device includes, and everything after the
+colour shifts if the offset is wrong - the name would come back as two bytes of
+a hash, and the label and all sixteen slot hashes with it. The frozen fields
+still hold every one of those to what Python said. A wrong offset is a
+comparison that fails loudly, not one that passes quietly.
+
+Two cases keep their names and lose their subject: "five sets, long names,
+extreme colours" and "colours that still need normalizing" were frozen for what
+the writer made of a colour, and there is no colour to make anything of. They
+are not set aside, because neither is *wrong* - what they still exercise is
+five sets, names at and past the 32-byte cut, and a file the firmware has to
+take. The names are the lock's and the lock is not edited, so they stay as they
+are and this paragraph is the correction.
+
+What is lost outright is the older file. `older_file` was a layout.bin from
+before the language byte, frozen to show that byte 7 being reserved-and-zero
+kept it readable. Version 2 ends that on purpose - see the note on
+LAYOUT_VERSION in the header - so what it is held to now is the opposite and
+the check is written that way below: it must be refused, and refused for the
+version rather than for its length."""
+
+# The colour sat at the front of a set entry, two bytes, little-endian.
+COLOUR_BYTES = 2
+
+
+def without_the_colour(frozen: bytes, header_bytes: int, set_bytes: int) -> bytes:
+    """The frozen bytes as the writer produces them now - THE_COLOUR_IS_GONE.
+
+    The header keeps its length and gains a version, and each set entry loses
+    the two bytes it opened with. Driven by the set count in the header rather
+    than by the case's own fields, so a case whose name is not text still goes
+    through it.
+    """
+    sets = frozen[5]
+    assert len(frozen) == header_bytes + sets * set_bytes, frozen[:8].hex()
+    out = bytearray(frozen[:header_bytes])
+    out[4] = 2
+    for i in range(sets):
+        at = header_bytes + i * set_bytes
+        out += frozen[at + COLOUR_BYTES:at + set_bytes]
+    return bytes(out)
+
+
+def fields_without_the_colour(fields: list[str]) -> list[str]:
+    """The C reader's frozen output, without the field it no longer prints."""
+    return [re.sub(r"^(set \d+) color [0-9a-f]{4} ", r"\1 ", line)
+            for line in fields]
 
 
 def about_the_filter(case: dict) -> bool:
@@ -234,6 +316,13 @@ def main() -> int:
               f"(THE_FILTER_IS_GONE)")
     cases = [c for c in cases if not about_the_filter(c)]
 
+    # THE_COLOUR_IS_GONE, and after the hash check above for the same reason:
+    # what is derived here is derived from bytes that have been shown to be
+    # the ones that were frozen.
+    print(f"  --    every case: two bytes per set struck out and the version "
+          f"raised, the colour having gone (THE_COLOUR_IS_GONE)")
+    set_bytes = lock["set_bytes"] - COLOUR_BYTES
+
     from_js = render_with_node(cases)
     if from_js is None:
         print("  skipped: node is not installed, so the browser writer was "
@@ -251,7 +340,8 @@ def main() -> int:
                   "nothing independent confirmed what they mean.")
 
         for index, case in enumerate(cases):
-            frozen = bytes.fromhex(case["bytes"])
+            frozen = without_the_colour(bytes.fromhex(case["bytes"]),
+                                        lock["header_bytes"], lock["set_bytes"])
 
             if from_js:
                 problem = difference(frozen, from_js[index])
@@ -272,12 +362,13 @@ def main() -> int:
                 check(f"{case['name']}: the firmware accepts them", False, got)
                 continue
             if case["kind"] == "fields":
+                want = fields_without_the_colour(case["fields"])
                 check(f"{case['name']}: and reads them into the same "
-                      f"{len(case['fields'])} fields",
-                      got == case["fields"],
-                      "" if got == case["fields"] else
+                      f"{len(want)} fields",
+                      got == want,
+                      "" if got == want else
                       "\n".join(f"      frozen: {a}\n      reader: {b}"
-                                for a, b in zip(case["fields"], got) if a != b))
+                                for a, b in zip(want, got) if a != b))
             else:
                 # A name cut mid-character is not text any more, so there is
                 # nothing to compare field by field. What has to hold is that
@@ -287,13 +378,17 @@ def main() -> int:
                       f"{len(subject)} bytes")
 
         if have_reader:
+            # THE_COLOUR_IS_GONE, last paragraph: this file used to be readable
+            # and is now refused, which is what the version byte is for. Held
+            # to the reason as well as to the refusal - LAYOUT_BAD_VERSION is
+            # third in the enum, and a file rejected for its length instead
+            # would mean the version check had stopped running.
             older = lock["older_file"]
             got = read_back(reader, tmp, "old.bin", bytes.fromhex(older["bytes"]))
-            check("a layout.bin from before the language byte still reads as "
-                  "English",
-                  not isinstance(got, str) and got == older["reader"],
-                  "" if not isinstance(got, str) and got == older["reader"]
-                  else str(got))
+            want = "the C reader reports ERROR 3"
+            check("a layout.bin from before the colour went is refused for "
+                  "its version, not misread",
+                  got == want, "" if got == want else str(got))
 
         # The structure is a sum, and the sum is the thing that has to keep
         # agreeing. Checked against the frozen strides rather than against
@@ -302,12 +397,14 @@ def main() -> int:
             if case["kind"] != "fields":
                 continue
             sets = len(case["label"])
-            want = lock["header_bytes"] + sets * lock["set_bytes"]
-            if case["length"] != want:
+            want = lock["header_bytes"] + sets * set_bytes
+            got_length = case["length"] - sets * COLOUR_BYTES
+            if got_length != want:
                 check(f"{case['name']}: {sets} sets is {want} bytes", False,
-                      f"frozen at {case['length']}")
+                      f"frozen at {case['length']}, {got_length} without the "
+                      f"colour")
         check(f"every frozen length is {lock['header_bytes']} + sets * "
-              f"{lock['set_bytes']}", True)
+              f"{set_bytes} once the colour is out of it", True)
 
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")

@@ -82,12 +82,11 @@ test("the five-key editor, four states", async ({ page }) => {
 
   /* Each sentence goes in through the sheet a press opens, which is the same
      handgrip the tablet below uses - that sameness is now half of what these
-     eight pictures are for. The set's name and colour are its own card, the
+     eight pictures are for. The set's name and picture are its own card, the
      one the set key and the ⋯ on the tab both open. */
   for (const [at, word] of WORDS.entries()) await put(page, at, word);
   await setKey(page).click();
   await setCard(page).locator("#diySetName").fill(SCREEN);
-  await setCard(page).locator(".swatch").nth(1).click();
   await press(setCard(page), "ui.done");
   // Nothing focused, to match the tablet shot where nothing is selected: this
   // state is "a screen with buttons on it" and the next one is "one of them

@@ -8,8 +8,8 @@
  * the promise settles are the same for a tablet button, a talker key, a page
  * and a set. What differs is the rows in the right column, and those are the
  * caller's - the tablet has four, the talker one, because a talker key has no
- * word class (the device draws one colour round all five displays, not one per
- * key) and no sentence bar to put anything into.
+ * word class (the device draws no colour at all: the five displays carry the
+ * picture and nothing round it) and no sentence bar to put anything into.
  *
  * ## Why this is in the shell and not in either editor
  *

@@ -207,14 +207,19 @@ export async function uploadSymbol(file) {
   return { symbol: name };
 }
 
-/** The 128x128 the panel really shows: the tile, and the border round it.
+/** The 128x128 the panel really shows: the tile, and the six pixels round it.
  *
  * Reproduces preview_png() in app.py, including the part that looks like a
  * detail and is not - RGB565 has five bits of red and six of green, and a
  * panel lights the missing low bits by repeating the high ones. Dropping that
  * gives a preview very slightly darker than the device, which is exactly the
- * kind of difference nobody can see and everybody argues about. */
-export async function previewInto(image, symbol, colour, negated = false) {
+ * kind of difference nobody can see and everybody argues about.
+ *
+ * The six pixels took the set's colour and are black now, which is what
+ * drawTile() in the firmware fills them with. They are still filled here for
+ * the same reason they are filled there: the preview is the device, and a
+ * transparent margin would show the page through it rather than the panel. */
+export async function previewInto(image, symbol, negated = false) {
   const raw = tiles.renderSymbol(await picture(symbol), { negated });
   const side = tiles.TILE_SIZE;
   const inner = new ImageData(side, side);
@@ -232,7 +237,7 @@ export async function previewInto(image, symbol, colour, negated = false) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = tiles.IMG_SIZE;
   const context = canvas.getContext("2d");
-  context.fillStyle = colour || "#000000";
+  context.fillStyle = "#000000";
   context.fillRect(0, 0, tiles.IMG_SIZE, tiles.IMG_SIZE);
   const patch = document.createElement("canvas");
   patch.width = patch.height = side;

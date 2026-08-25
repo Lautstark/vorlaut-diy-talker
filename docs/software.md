@@ -66,12 +66,12 @@ reads them the same way:
 | `a<hash>.wav`   | spoken sentence, 16 kHz mono 16 bit         |
 | `t<hash>.bin`   | 116x116 symbol area, RGB565 big-endian      |
 
-plus `layout.bin` — a compact table with the number of sets, colours, sleep
-timeout and the hashes saying which file belongs to which key.
+plus `layout.bin` — a compact table with the number of sets, their names, the
+sleep timeout and the hashes saying which file belongs to which key.
 
-**That table sits with the content, not in the firmware.** Creating, renaming
-or recolouring a set therefore changes nothing about the program — nothing has
-to be recompiled and nothing flashed over a cable. The firmware is the same for
+**That table sits with the content, not in the firmware.** Creating or renaming
+a set therefore changes nothing about the program — nothing has to be
+recompiled and nothing flashed over a cable. The firmware is the same for
 everyone.
 
 **The file names are hashes of the content, not of the position.** That has two
@@ -83,12 +83,14 @@ consequences:
 - A file cannot go stale without its name changing along with it. So a name can
   never point at the wrong content.
 
-**The coloured border is not in the image.** The file contains only the 116x116
-symbol area; the six pixels of border are drawn by the firmware itself from
-`SET_COLORS`. Otherwise the image would depend on the set it currently sits in
-— the same symbol would be two different files in a blue and in a green set,
-and a colour change would rewrite every image of a set. This way a colour change
-costs **zero** image data.
+**The border is not in the image, and there is no longer a border.** The file
+contains only the 116x116 symbol area; the six pixels around it were once the
+set's own colour, drawn by the firmware rather than baked into the file so that
+the same symbol in a blue and in a green set stayed one file. The per-set
+colour has gone — from the editor, from this table and from the firmware — and
+nothing replaced it: `drawTile()` blacks those six pixels out. A set is told
+apart by the picture and the name on its set key, which is what the set key was
+always for.
 
 Files from earlier runs that are no longer needed are cleared away by the build
 itself: anything in the store that this run did not produce goes.

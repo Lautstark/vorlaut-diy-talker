@@ -96,7 +96,7 @@ document.getElementById("go").onclick = async () => {
     // The preview is the one that has to look right, not merely return.
     await store.putFile("symbols", "dot.png", await dot());
     const image = document.createElement("img");
-    await local.previewInto(image, "dot.png", "#2F9E44");
+    await local.previewInto(image, "dot.png");
     await new Promise((r) => { image.onload = r; setTimeout(r, 1500); });
     check("a preview draws at the size the panel shows",
           image.naturalWidth === 128 && image.naturalHeight === 128,
@@ -111,7 +111,7 @@ document.getElementById("go").onclick = async () => {
                                    { method: "POST", body: await blobOf() })).json();
     await store.putFile("symbols", cmp.symbol, await (await blobOf()).arrayBuffer());
     const mine = document.createElement("img");
-    await local.previewInto(mine, cmp.symbol, "#2F9E44");
+    await local.previewInto(mine, cmp.symbol);
     await new Promise((r) => { mine.onload = r; setTimeout(r, 2000); });
     const a = await pixels(`/api/preview?symbol=${encodeURIComponent(cmp.symbol)}&color=%232F9E44`);
     const b = await pixels(mine.src);
