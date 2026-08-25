@@ -835,8 +835,12 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    The second rule is not decoration. `display: grid` above is an author rule
    and [hidden] is the user agent's, so setting .hidden on one of these boxes
    did nothing at all without it - the grid question was on screen under the
-   talker choice, offering to size a board that has no grid. */
-.sizeask { display: grid; gap: 8px; margin-bottom: 4px; }
+   talker choice, offering to size a board that has no grid.
+   No margin of its own: the body it sits in now sets the gap between the
+   things in it - see `dialog.sheet--target` below - and a margin here would be
+   added to that gap rather than replacing it, leaving this one question
+   further from the note under it than the cards are from each other. */
+.sizeask { display: grid; gap: 8px; }
 .sizeask[hidden] { display: none; }
 .sizeask .note { margin: 0; }
 
@@ -1113,6 +1117,29 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   width: 15.21mm; height: 15.21mm; max-width: none; max-height: none;
   image-rendering: pixelated; border-radius: 2px;
 }
+
+/* ------------------------------------------------- what a Sammlung is for
+
+   The create dialog is a stack of decisions, not a page of prose, and that is
+   the whole reason it needs a rule of its own here.
+
+   components.css spaces a sheet body with `.sheet > .body > p + p`, which is
+   the right rhythm for the sheets that really are prose and reaches nothing at
+   all in this one: the two choices are buttons, the two conditional questions
+   are divs, and so the closing note - whose previous sibling is never a <p> -
+   had `margin: 0` and stood on the second card's border. The cards had nothing
+   between them either, for the same reason.
+
+   One gap on the body rather than a margin on the note, because what is
+   missing is this dialog's own rhythm and not anything about a .note. A rule
+   naming .note here would be this file redefining a shared component from
+   underneath, which is the mistake `.dropdown`'s comment in components.css
+   records - it set radius and padding and silently outranked .btn.
+
+   14px, so that it reads as the outer rhythm against the 8px inside .sizeask:
+   the size question, its choices and its own note have to go on reading as one
+   group and not as three more items in the stack. */
+dialog.sheet--target > .body { display: grid; gap: 14px; }
 
 /* The two choices a new Sammlung is made from. Stacked and full width, because
    each is a heading and a sentence rather than a word - the sentence is what
