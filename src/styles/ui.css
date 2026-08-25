@@ -829,9 +829,15 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    leaves as a 3D groove. */
 .cardrule { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
 
-/* The size question inside the target dialog: shown only once the tablet is
-   the chosen target, because the talker has no grid to size. */
+/* The two target-conditional questions inside the create dialog: how big the
+   pages are, asked only of the tablet, and which language the device shows its
+   own menu in, asked only of the talker.
+   The second rule is not decoration. `display: grid` above is an author rule
+   and [hidden] is the user agent's, so setting .hidden on one of these boxes
+   did nothing at all without it - the grid question was on screen under the
+   talker choice, offering to size a board that has no grid. */
 .sizeask { display: grid; gap: 8px; margin-bottom: 4px; }
+.sizeask[hidden] { display: none; }
 .sizeask .note { margin: 0; }
 
 .grid {
