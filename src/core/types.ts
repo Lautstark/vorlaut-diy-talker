@@ -24,10 +24,19 @@ export interface Slot {
 /* --- Crossing a picture out ------------------------------------------------
  *
  * German AAC negates by drawing a cross over the symbol being negated rather
- * than by using a picture of its own, which is why METACOM ships no "nicht"
- * and never will. Without a cross the only way to say "kein Brot" on a board
- * is a picture of bread meaning its opposite, and there is nothing on the key
- * to tell a reader which.
+ * than by swapping in a picture of its own.
+ *
+ * Not because a collection has no negation symbol - METACOM files one under
+ * `nichtkein` in `Kleine_Worte`, the German negation pair run together because
+ * a filename cannot hold the slash between them, and bildquelle 1.6.4 splits
+ * it apart so that searching either half reaches it (see `metacom.ts` there).
+ * The reason is that such a symbol can only say the negation *itself*, on a
+ * key of its own. It cannot say which word is being negated, and on a board
+ * of four keys with no sentence bar there is nothing to join it to.
+ *
+ * Crossing out is what puts the negation onto the bread. Without it the only
+ * way to say so is a picture of bread meaning its opposite, with nothing on
+ * the key to tell a reader which it is.
  *
  * A property of the key rather than of the picture, and that is the whole of
  * why it is a field here instead of a second symbol reference. The same
