@@ -62,7 +62,12 @@ export function applyTexts() {
   $("collectionsHeading").textContent = t("ui.collections");
   $<HTMLButtonElement>("collectionNew").textContent = t("ui.collection_new");
   $<HTMLButtonElement>("settingsLink").textContent = t("ui.settings");
+  // The two that dismiss and the two that reveal, each pair sharing a word:
+  // ‹ and ✕ both put the Sammlungen away, ☰ and › both bring them back. Which
+  // one is on screen is a question about the width, not about the words.
   for (const [id, key] of [["sidebarHide", "ui.collections_hide"],
+                           ["sidebarClose", "ui.collections_hide"],
+                           ["sidebarOpenBtn", "ui.collections_show"],
                            ["sidebarShowBtn", "ui.collections_show"]] as const) {
     $<HTMLButtonElement>(id).title = t(key);
     $<HTMLButtonElement>(id).setAttribute("aria-label", t(key));

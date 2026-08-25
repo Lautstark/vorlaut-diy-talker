@@ -1,13 +1,17 @@
 /* The whole page: the Sammlungen down the side, and the one being worked on in
  * the middle.
  *
- * **There is no header.** That is not an omission - it is what both siblings
- * do, and this page had invented a third answer. bildhaft's `.topbar` is
- * `display: none` until the mobile breakpoint and mitreden's the same; on a
- * desktop the mark lives at the top of the sidebar, beside the control that
- * puts the sidebar away, and there is nothing spanning the window. A bar that
- * carries a mark, a toggle and a gear is a bar that costs vertical room on
- * every screen to hold three things that already have homes.
+ * **There is no header on a desktop.** That is not an omission - it is what
+ * both siblings do, and this page had invented a third answer. bildhaft's
+ * `.topbar` is `display: none` until the mobile breakpoint and mitreden's the
+ * same; on a desktop the mark lives at the top of the sidebar, beside the
+ * control that puts the sidebar away, and there is nothing spanning the window.
+ * A bar that carries a mark, a toggle and a gear is a bar that costs vertical
+ * room on every screen to hold three things that already have homes.
+ *
+ * Below 820px there *is* a bar, and it is the same bar the other two have,
+ * because down there the sidebar is a layer over the work rather than a column
+ * beside it and something has to open it. conventions.md §3.1.
  *
  * So: the mark and the collapse are the sidebar's brand row, Einstellungen is
  * the sidebar's foot - one entrance, design.md §3.4 - and everything that acts
@@ -39,11 +43,25 @@ import { mount } from "./mount.js";
 const logo = `${import.meta.env.BASE_URL}icon.svg`;
 
 export const markup = `
+<!-- Narrow screens get a bar instead of a column: the sidebar slides over the
+     work rather than sitting above it, and the scrim closes it. Both siblings
+     have exactly this, at exactly this width. -->
+<div class="topbar">
+  <button id="sidebarOpenBtn" class="btn quiet icon" type="button">&#9776;</button>
+  <h1><img src="${logo}" alt="" class="logo">vorlaut</h1>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+
 <div class="frame">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar__brand">
       <h1><img src="${logo}" alt="" class="logo">vorlaut</h1>
+      <!-- Two controls, because they answer two different questions: on a phone
+           the sidebar is a layer over the work and ✕ dismisses it; on a desktop
+           it is a column of the page and ‹ puts the column away for good. Each
+           is hidden at the width where its question is not being asked. -->
       <button id="sidebarHide" class="btn quiet icon" type="button">&lsaquo;</button>
+      <button id="sidebarClose" class="btn quiet icon" type="button">&#10005;</button>
     </div>
 
     <div class="sidebar__part sidebar__grow">

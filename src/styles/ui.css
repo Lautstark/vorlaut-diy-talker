@@ -143,6 +143,22 @@ body.collapsed .frame { grid-template-columns: minmax(0, 1fr); }
    what it looked like. */
 .reveal[hidden] { display: none; }
 
+/* The bar and the scrim exist only below 820px - see the block at the foot of
+   this file. Both are declared here and switched on there, which is how both
+   siblings write it. */
+.topbar {
+  display: none; position: sticky; top: 0; z-index: 15;
+  align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.topbar h1 {
+  font-size: 19px; margin: 0; display: flex; align-items: center; gap: 8px;
+  font-weight: 650; letter-spacing: -.03em;
+}
+.scrim { position: fixed; inset: 0; z-index: 19; background: rgba(0, 0, 0, .45); }
+.scrim[hidden] { display: none; }
+
 /* Capped and centred, like both siblings - 720px is mitreden's number.
    The board would take more and should not: five cards that grow with the
    window grow taller too, and the whole of this page is meant to be readable at
@@ -327,31 +343,52 @@ pre.log {
 /* Three columns do not fit on a phone - then the set tile across the full
    width and the four speech keys as a 2x2 below it. The spatial
    correspondence is preserved that way. */
-@media (max-width: 620px) {
-  /* A column beside the board costs 15rem the board does not have. The
-     sidebar becomes a row across the top of it instead - the boards scroll
-     sideways, which is what a phone does with a short list of names, and the
-     board itself keeps the full width. Hiding it outright was the other
-     option and is worse: with more than one board it is the only way to reach
-     the others, so a phone would be able to edit whichever board it happened
-     to open on and no other. */
-  /* And here the document scrolls again, which is bildhaft's finding rather
-     than a preference: a phone browser resizes the viewport under a nested
-     full-height scroll container every time the URL bar or the keyboard
-     appears, and what that repaints is blank and black patches. There is no
-     column beside the board to keep on screen down here anyway - the sidebar
-     is a row above it, and it scrolls off with everything else. */
-  .frame { grid-template-columns: minmax(0, 1fr); height: auto; }
+/* --------------------------------------------------- the sidebar, narrowed ---
+
+   Below 820px the sidebar is a layer over the work with a scrim, rather than a
+   column beside it. conventions.md §3.1, and the width is the one both siblings
+   already break at.
+
+   This page had a third answer: the column became a row across the top, with
+   the Sammlungen scrolling sideways under it. The argument for it was that
+   hiding the list outright would strand somebody on whichever board they opened
+   on, which is true and is not an argument for a row - a drawer answers it too,
+   and answers it the way the other two already do. What the row cost was the
+   top of every phone screen: 234px of an 812px viewport was furniture before
+   the board began. A layer costs nothing until it is asked for. */
+@media (max-width: 820px) {
+  .frame { grid-template-columns: minmax(0, 1fr); }
   .sidebar {
-    border-right: none; border-bottom: 1px solid var(--line);
-    min-height: 0; padding: 10px 14px;
+    position: fixed; inset: 0 auto 0 0; z-index: 20;
+    width: min(280px, 84vw);
+    transform: translateX(-100%);
+    box-shadow: var(--shadow);
   }
-  .sidebar__list { flex-direction: row; overflow-x: auto; gap: 6px; }
-  .collections__item { width: auto; flex: 0 0 auto; }
-  .sidebar__foot {
-    flex-direction: row; align-items: center;
-    margin-top: 0; padding-top: 8px;
-  }
+  .sidebar.open { transform: none; }
+  .topbar { display: flex; }
+  /* ‹ collapses a column, and down here there is no column - only a layer to
+     dismiss, which is what ✕ and the scrim are for. */
+  #sidebarHide { display: none; }
+  /* The collapsed state does not apply, and must not. It is remembered across
+     visits (§1.3), so without this a sidebar put away on a laptop arrives on
+     the phone as a drawer that cannot be opened: `display: none` would win over
+     `.open`, and the ☰ in the bar would do nothing at all. */
+  body.collapsed .sidebar { display: flex; }
+  /* Nothing to reveal: the bar's ☰ is the way back, and the reveal carries a
+     second mark beside the one already in the bar. */
+  .reveal { display: none; }
+}
+
+/* Nothing to dismiss when the sidebar is simply part of the page. */
+@media (min-width: 821px) { .scrim, .topbar, #sidebarClose { display: none; } }
+
+@media (max-width: 620px) {
+  /* Here the document scrolls again, which is bildhaft's finding rather than a
+     preference: a phone browser resizes the viewport under a nested full-height
+     scroll container every time the URL bar or the keyboard appears, and what
+     that repaints is blank and black patches. The sidebar is out of the flow at
+     this width, so there is no column beside the board to hold on screen. */
+  .frame { height: auto; }
   /* The name field is the widest thing in the bar after the status line, and
      a Sammlung named after a room and a time of day would push the transfer
      button onto a second row on its own. */
