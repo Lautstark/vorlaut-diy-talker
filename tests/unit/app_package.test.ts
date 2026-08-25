@@ -165,12 +165,18 @@ describe("a DIY Sammlung as a board package", () => {
     expect(button(pkg, "set-2", "set-2-set").load_board?.id).toBe("set-1");
   });
 
-  it("carries the set colour as a page colour and a border", () => {
+  it("gives a set no colour, on the board or on its buttons", () => {
     const pkg = buildAppPackage(input());
-    // §4.2: OBF colours buttons, never pages, and a page told apart by colour
-    // is how somebody who does not read finds it.
-    expect(board(pkg, "set-1").ext_lautstark_board_color).toBe("#3b5bdb");
-    expect(button(pkg, "set-1", "set-1-key-1").border_color).toBe("rgb(59, 91, 219)");
+    // The per-set colour has gone from the talker entirely - the editor, the
+    // device bytes and this. Both fields are checked, because the colour
+    // reached a package twice: §4.2's board field, and §7.2's border on every
+    // button, which was where it went before §4.2 had anywhere to put it.
+    for (const one of pkg.boards) {
+      expect(one.ext_lautstark_board_color).toBeUndefined();
+    }
+    for (const one of pkg.boards.flatMap((b) => b.buttons)) {
+      expect(one.border_color).toBeUndefined();
+    }
   });
 
   it("writes one file per distinct picture and per distinct sentence", () => {
@@ -390,17 +396,12 @@ describe("a tablet Sammlung as a board package", () => {
   it("gives a page no colour of its own", () => {
     const pkg = buildAppPackage(tabletInput());
     // §4.2's ext_lautstark_board_color is optional and stays defined in the
-    // format; a page has nothing to put in it while colouring a *page* is
-    // being reconsidered. A button's colour is untouched - that one is the
-    // Fitzgerald key and means a word class, which is a different job.
+    // format; neither half of this builder writes one now. A button's colour
+    // is untouched - that one is the Fitzgerald key and means a word class,
+    // which is a different job and is asserted above.
     for (const one of pkg.boards) {
       expect(one.ext_lautstark_board_color).toBeUndefined();
     }
-    // And the talker's boards still carry one, from the set. Asserted here so
-    // that removing it from the other half is a deliberate act rather than
-    // something this change quietly did to both.
-    const talker = buildAppPackage(input());
-    expect(board(talker, "set-1").ext_lautstark_board_color).toBe("#3b5bdb");
   });
 
   it("carries a clip only where pressing the button speaks its own text", () => {

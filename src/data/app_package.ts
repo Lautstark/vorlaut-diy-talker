@@ -673,7 +673,10 @@ function diyBoards(
       const button: PackageButton = {
         id: `${boardId}-key-${at + 1}`,
         label: String(slot?.text ?? ""),
-        border_color: cssColor(set.color),
+        // No border_color. It was the set's colour, drawn per button because
+        // OBF has nowhere to put a colour that belongs to a board; the set has
+        // no colour now. §7.2's field stays optional and stays defined - a
+        // word class still writes one, on the tablet's half.
         // The device speaks on press and has no bar to compose in. §4.3.
         ext_lautstark_speak_immediately: true,
       };
@@ -692,7 +695,6 @@ function diyBoards(
     const switchKey: PackageButton = {
       id: `${boardId}-set`,
       label: String(set.name ?? ""),
-      border_color: cssColor(set.color),
       load_board: {
         id: following,
         name: String(sets[(index + 1) % sets.length]!.name ?? ""),
@@ -712,10 +714,15 @@ function diyBoards(
       grid: grid(boardId, present),
       images: [...images.values()].sort(byId),
       sounds: [...sounds.values()].sort(byId),
-      // §4.2: a whole-page colour, which OBF has nowhere else to put. Pages
-      // are told apart by colour before they are read, which is the whole
-      // point on a device whose user does not read.
-      ext_lautstark_board_color: normalizeHex(set.color),
+      // No ext_lautstark_board_color, and now neither half of this builder
+      // writes one. §4.2's field is optional and stays defined in the format,
+      // exactly as the note on the pages below says: not writing a field and
+      // removing it from the format are two different acts, and this is the
+      // first. A reader must already tolerate its absence.
+      //
+      // What a set is told apart by is the picture and the name on its set
+      // key, which the board above carries as a button. That is what the set
+      // key was always for; the colour was the thing beside it.
     });
   }
 
@@ -892,10 +899,6 @@ function appBoards(
 
 const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 const stemOf = (path: string) => path.slice(path.lastIndexOf("/") + 1).replace(/\.[^.]+$/, "");
-const normalizeHex = (value: string): string => {
-  const [red, green, blue] = hexToRgb(value);
-  return "#" + [red, green, blue].map((n) => n.toString(16).padStart(2, "0")).join("");
-};
 
 /* ---------------------------------------------------------- validating --- */
 
