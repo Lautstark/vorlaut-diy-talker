@@ -1187,11 +1187,40 @@ dialog.sheet--page { max-width: 520px; }
 
    A page has no cell on a tablet - its name belongs to nothing on the board -
    so the current tab carries the way in. The same ... the work head uses for a
-   Sammlung, one level down, on the thing it acts on. */
+   Sammlung, one level down, on the thing it acts on.
+
+   It stays a control of its own, and here is what it was weighed against. The
+   tab is already a 100px target and a second press on the one you are standing
+   on does nothing, so that press was free to take - but a modal that opens on
+   the second click of the page you are already on is a modal that opens by
+   accident, and the gesture has nothing on screen to announce it. The other
+   way round - dropping the ... and letting the tab carry both - loses the only
+   labelled, keyboard-reachable way to a page's own card. So what was wrong was
+   never that it needed a door somewhere else: it was that this door was drawn
+   at glyph size with 2px of padding round it, which is a 16x11 target for
+   something the work head gives a 40px button to.
+
+   So: a box rather than a glyph, at 26px, past the 24px WCAG 2.2 §2.5.8 floor,
+   and a glyph inside it big enough to read as the same ... the work head has.
+   The negative margins take it back out of the tab's own padding, so a tab
+   carrying one is the height of a tab that is not.
+
+   And it is on every tab, not only the current one - see drawPages() and
+   drawTabs(). Hidden with `visibility`, which keeps the box: the strip used to
+   reflow on every page change, because the tab being left grew a control and
+   the tab being arrived at lost one, and every tab after them slid. Reserving
+   it is what makes the enlargement free, and it fixes the jump that was
+   already there. `visibility: hidden` is also what keeps the reserved copies
+   out of the accessibility tree and out of the tab order, so there is still
+   exactly one of these to find. */
 .tab__more {
+  flex: none; width: 26px; height: 26px; margin: -5px -7px -5px 0;
+  display: grid; place-items: center;
   border: 0; background: transparent; color: var(--text-faint);
-  cursor: pointer; font: inherit; line-height: 1; padding: 0 2px;
+  cursor: pointer; font: inherit; font-size: 17px; line-height: 1;
   border-radius: var(--radius-sm);
 }
 .tab__more:hover { color: var(--text); background: var(--surface-3); }
 .tab__more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The reserved copy on every other tab: it holds its box and does nothing. */
+.tab__more--idle { visibility: hidden; pointer-events: none; }

@@ -154,14 +154,21 @@ function drawPages(): void {
      * opener() gives: its parent is a <button> already, and a control inside a
      * control is invalid markup that no keyboard can reach the inner half of.
      * So the two things the element would have brought - a place in the tab
-     * order and acting on Enter and Space - are written out here. */
+     * order and acting on Enter and Space - are written out here.
+     *
+     * Every tab gets the element and only the current one gets the control.
+     * The strip reflowed on every page change otherwise - one tab grew a `...`
+     * as another lost one, and every tab to the right of them slid - which is
+     * a moving target in the one row somebody is aiming at. The reserved
+     * copies are `visibility: hidden`, so they hold the width and are in
+     * neither the accessibility tree nor the tab order. */
+    const more = document.createElement("span");
+    more.className = "tab__more";
+    more.textContent = "\u22ef";
     if (one.id === page().id) {
-      const more = document.createElement("span");
-      more.className = "tab__more";
       more.setAttribute("role", "button");
       more.tabIndex = 0;
       more.setAttribute("aria-label", t("ui.app_page_more"));
-      more.textContent = "\u22ef";
       const open = (event: Event) => {
         // Or the press falls through to the tab, which would redraw the strip
         // out from under the sheet that is opening.
@@ -174,8 +181,11 @@ function drawPages(): void {
         event.preventDefault();
         open(event);
       };
-      tab.appendChild(more);
+    } else {
+      more.classList.add("tab__more--idle");
+      more.setAttribute("aria-hidden", "true");
     }
+    tab.appendChild(more);
 
     tab.onclick = () => { here = one.id; render(); };
     strip.appendChild(tab);
