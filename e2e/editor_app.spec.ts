@@ -115,7 +115,7 @@ const buttonSheet = (page: Page) => sheet(page, "ui.app_button_title");
  * the viewer draws Speak, Undo and Clear on the message bar itself, so a grid
  * button for one spent a cell duplicating chrome that is always on screen. */
 const DOES: Record<string, string> = {
-  append: "word", speak: "shout", goto: "goto", home: "goto",
+  append: "word", speak: "shout", goto: "goto", home: "goto", carry: "carry",
 };
 
 /** The start page, as the target list spells it. Above the pages themselves,
@@ -194,9 +194,20 @@ async function put(page: Page, at: number, fields: {
   // before the act is chosen would be typing into a row about to be hidden.
   if (fields.spoken !== undefined) await box.locator("#appSpoken").fill(fields.spoken);
   if (fields.wordClass) await pick(page, "#appClass", `ui.wordclass_${fields.wordClass}`);
-  // "Neue Seite ..." mints the page on Fertig rather than on the press, so it
-  // is named from the label as it finally reads.
-  if (fields.gotoPage) await pick(page, "#appGoto", fields.gotoPage);
+  /* "Neue Seite ..." mints the page on Fertig rather than on the press, so it
+   * is named from the label as it finally reads.
+   *
+   * A key for that entry and the start page, and a page's own name for the
+   * pages themselves - those are not in the text table, because they are what
+   * somebody typed. The one in force wears a tick in its accessible name (see
+   * `among`), and a page being chosen is by definition not the one in force,
+   * so an exact match is safe here. */
+  if (fields.gotoPage) {
+    await page.locator("#appGoto").click();
+    await (fields.gotoPage.startsWith("ui.")
+      ? entry(page, fields.gotoPage)
+      : page.getByRole("menuitemradio", { name: fields.gotoPage, exact: true })).click();
+  }
   if (fields.upload) {
     // The upload is reached from inside the sheet: a modal over a modal to
     // choose a symbol is the second dialog this design removed.
@@ -345,7 +356,7 @@ test("a tablet Sammlung leaves as a package, and it passes the spec's own checks
 
     expect(checkPackage(pkg)).toEqual([]);
     expect(pkg.manifest.format).toBe("open-board-0.1");
-    expect(pkg.manifest.ext_lautstark_spec_version).toBe("1.1.0");
+    expect(pkg.manifest.ext_lautstark_spec_version).toBe("1.2.0");
     expect(pkg.manifest.ext_lautstark_tts_voice).toBe("de-DE-KatjaNeural");
 
     // Two pages, two boards, and the root is the page the layout calls home.
@@ -433,6 +444,68 @@ test("what a press does survives the round trip through the archive",
         expect(new TextDecoder().decode(clip.slice(28, 36))).toBe("OpusHead");
       }
     }
+  });
+
+test("a button puts its word in the sentence and leads onward in one press",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await page.locator("#appPages .tab").first().click();
+
+    /* The carrier phrase, which exchange/SPEC.md §7.3 had no way to say before
+     * 1.2.0: "ich will" belongs in the sentence, and the page its object is on
+     * is where the next press has to happen. Built as two buttons that is two
+     * presses, the second of them on a page somebody has just left.
+     *
+     * Beside "Essen" from build(), which leads to the same page and says
+     * nothing. The pair is what makes the assertions below about the flag
+     * rather than about the navigation. */
+    await put(page, 4, { label: "Ich will", spoken: "ich will",
+                         wordClass: "verb", act: "carry", gotoPage: "Essen" });
+
+    await hit(page, 4).click();
+    const box = buttonSheet(page);
+    await showing(page, "#appDoes", "ui.app_does_carry");
+    // The one kind that draws both rows: it says something, and it leads
+    // somewhere. Every other choice draws one or neither.
+    await expect(box.locator("#appSpoken")).toBeVisible();
+    await expect(box.locator("#appSpoken")).toHaveValue("ich will");
+    await expect(box.locator("#appGoto")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(box).toHaveCount(0);
+
+    // It speaks, so it can be auditioned from the board - and what goes to the
+    // synthesiser is the vocalization, the same as on a word button.
+    const said = page.waitForRequest((r) => SYNTHESIS.test(r.url()));
+    await cells(page).nth(4).hover();
+    await cells(page).nth(4).locator(".cell__play").click();
+    expect((await said).postData() ?? "").toContain("ich will");
+
+    await page.locator("#appExport").click();
+    const asked = sheet(page, "ui.package_title");
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      asked.locator("button", { hasText: label("ui.package_go") }).click(),
+    ]);
+    const { pkg } = readPackage(new Uint8Array(readFileSync((await download.path())!)));
+    expect(checkPackage(pkg)).toEqual([]);
+
+    const start = pkg.boards.find((one) => one.id === "board-1")!;
+    const at = (id: string) => start.buttons.find((one) => one.id === id)!;
+
+    // One button, both halves. The entry it appends is its vocalization, which
+    // is what §7.3 puts in the bar.
+    expect(at("board-1-r1c5").load_board?.id).toBe("board-2");
+    expect(at("board-1-r1c5").ext_lautstark_append_on_navigate).toBe(true);
+    expect(at("board-1-r1c5").vocalization).toBe("ich will");
+    // Appending is what utters, so it carries a clip like any word button.
+    expect(at("board-1-r1c5").sound_id).toBeTruthy();
+
+    // And "Essen", which leads to the same board and says nothing: absent
+    // rather than false, and silent rather than carrying a clip nothing plays.
+    expect(at("board-1-r1c4").load_board?.id).toBe("board-2");
+    expect(at("board-1-r1c4").ext_lautstark_append_on_navigate).toBeUndefined();
+    expect(at("board-1-r1c4").sound_id).toBeUndefined();
   });
 
 test("deleting a page keeps the buttons that led to it", async ({ page }) => {
@@ -895,21 +968,21 @@ test("a button made before the bar controls went keeps saying what it is",
 
     /* It opens, and it opens saying `sayBar` - not re-read as "Wort", which is
      * the silent way for a board to change under somebody who only came to fix
-     * a typo. A fourth entry that only such a button has. */
+     * a typo. An entry of its own that only such a button has. */
     await hit(page, 10).click();
     await showing(page, "#appDoes", "ui.app_act_say_bar");
-    // And it is in the list too, as a fourth alternative rather than a command
-    // among three radios - which is what would happen if `checked` were left
-    // off the one entry that is not one of the three.
+    // And it is in the list too, as one more alternative rather than a command
+    // among radios - which is what would happen if `checked` were left off the
+    // one entry that is not one of the kinds the sheet offers.
     await page.click("#appDoes");
-    await expect(page.locator(".menu button")).toHaveCount(4);
+    await expect(page.locator(".menu button")).toHaveCount(5);
     const inForce = page.locator('.menu button[aria-checked="true"]');
     await expect(inForce).toHaveCount(1);
     await expect(inForce).toHaveText(among("ui.app_act_say_bar"));
     await page.keyboard.press("Escape");
 
     // And Fertig on a sheet nobody changed leaves the act where it was. Only
-    // choosing one of the three replaces it.
+    // choosing one of the kinds it offers replaces it.
     await buttonSheet(page).locator("button", { hasText: label("ui.done") }).click();
     await expect(buttonSheet(page)).toBeHidden();
     await hit(page, 10).click();

@@ -111,7 +111,7 @@ describe("a DIY Sammlung as a board package", () => {
     // Off the Sammlung's updatedAt rather than the clock, so that re-exporting
     // an unchanged Sammlung does not look to the viewer like an update.
     expect(manifest.ext_lautstark_modified).toBe("2026-08-24T09:00:00Z");
-    expect(manifest.ext_lautstark_spec_version).toBe("1.1.0");
+    expect(manifest.ext_lautstark_spec_version).toBe("1.2.0");
     expect(manifest.format).toBe("open-board-0.1");
     expect(manifest.root).toBe("boards/set-1.obf");
   });
@@ -322,6 +322,55 @@ describe("a tablet Sammlung as a board package", () => {
     expect(at("board-1-r2c3").action).toBe(":home");
   });
 
+  it("writes §7.3's flag on a button that carries its word onward", () => {
+    const layout = tablet();
+    // A row for them: the Sammlung's six cells are all spoken for, and two
+    // buttons in one cell is the case the exporter drops rather than the case
+    // this is about.
+    layout.grid = { rows: 3, columns: 3 };
+    const start = layout.pages[0]!;
+    // The carrier phrase: the same navigation k3 does, and the word in the bar
+    // on the way through.
+    start.buttons.push(key({ id: "k7", row: 2, col: 0, label: "Ich will",
+                             vocalization: "ich will",
+                             act: { kind: "goto", page: "p-food", alsoAppend: true } }));
+    // And on `:home`, which is the one action §7.3 lets the flag ride on.
+    start.buttons.push(key({ id: "k8", row: 2, col: 1, label: "bitte",
+                             act: { kind: "home", alsoAppend: true } }));
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(checkPackage(pkg)).toEqual([]);
+    const at = (id: string) => button(pkg, "board-1", id);
+
+    expect(at("board-1-r3c1").load_board?.id).toBe("board-2");
+    expect(at("board-1-r3c1").ext_lautstark_append_on_navigate).toBe(true);
+    expect(at("board-1-r3c2").action).toBe(":home");
+    expect(at("board-1-r3c2").ext_lautstark_append_on_navigate).toBe(true);
+
+    // Absent rather than false on the plain navigation beside it. A package
+    // built before the field existed is written exactly as it was written
+    // then, which is what makes 1.2.0 a minor version.
+    expect(at("board-1-r1c3").load_board?.id).toBe("board-2");
+    expect(at("board-1-r1c3").ext_lautstark_append_on_navigate).toBeUndefined();
+    expect(at("board-1-r1c1").ext_lautstark_append_on_navigate).toBeUndefined();
+  });
+
+  it("drops the flag with the load_board when the page it led to is gone", () => {
+    // A `goto` whose page is deleted writes no load_board and becomes an
+    // ordinary appending button. The flag on that button would say the same
+    // thing the button already does - §7.3 calls that shape meaningless - so
+    // it goes with the navigation rather than outliving it.
+    const layout = tablet();
+    layout.grid = { rows: 3, columns: 3 };
+    layout.pages[0]!.buttons.push(
+      key({ id: "k7", row: 2, col: 0, label: "Ich will",
+            act: { kind: "goto", page: "p-gone", alsoAppend: true } }));
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(checkPackage(pkg)).toEqual([]);
+    const stray = button(pkg, "board-1", "board-1-r3c1");
+    expect(stray.load_board).toBeUndefined();
+    expect(stray.ext_lautstark_append_on_navigate).toBeUndefined();
+  });
+
   it("writes the vocalization, so the bar reads as the sentence it will say", () => {
     const pkg = buildAppPackage(tabletInput());
     const apple = button(pkg, "board-1", "board-1-r1c2");
@@ -420,6 +469,21 @@ describe("a tablet Sammlung as a board package", () => {
     // And the archive holds only the four that are used, not the six offered.
     expect([...pkg.files.keys()].filter((one) => one.startsWith("sounds/")))
       .toHaveLength(4);
+  });
+
+  it("gives a carrying button the clip its appending half needs", () => {
+    // The navigation is silent and the append is not, and this button is both.
+    // The bug the other way round is the quiet one: a sentence starter that
+    // ships without its recording is a button that opens the next page saying
+    // nothing, on a device whose whole job is to say something.
+    const layout = tablet();
+    layout.grid = { rows: 3, columns: 3 };
+    layout.pages[0]!.buttons.push(
+      key({ id: "k7", row: 2, col: 0, label: "Essen",
+            act: { kind: "goto", page: "p-food", alsoAppend: true } }));
+    expect(spokenTexts(layout)).toContain("Essen");
+    const pkg = buildAppPackage(tabletInput({ layout }));
+    expect(button(pkg, "board-1", "board-1-r3c1").sound_id).toBe("snd-5555eeee");
   });
 
   it("keys a recording by what is spoken, not by what is shown", () => {

@@ -322,6 +322,15 @@ export interface AppButton {
  * both, and the exporter would then have to pick a winner - which is the
  * exporter guessing at what somebody meant, in a file that ends up on a child's
  * tablet. A union can only say one thing, so there is nothing to guess.
+ *
+ * `alsoAppend` on the two navigating members is the one thing that is not a
+ * choice between behaviours, and it is written where it is for that reason.
+ * §7.3 calls it a modifier: it says a navigating button puts its entry in the
+ * bar on the way through, and it decides nothing about *which* navigation
+ * happens. Beside `kind` it would be a boolean the other five members would
+ * each have to mean something about - "append and then append" - so it sits
+ * inside the two that navigate, where the states it can reach are the states
+ * the format can write.
  */
 export type Act =
   /** Append one entry to the sentence bar. The default and the common case. */
@@ -329,15 +338,26 @@ export type Act =
   /** Speak this button at once and leave the bar alone. For an interjection -
    *  "Aua", a greeting - which composing into a sentence first would ruin. */
   | { kind: "speak" }
-  /** Go to another page. `page` is an AppPage.id in this same Sammlung. */
-  | { kind: "goto"; page: string }
+  /** Go to another page. `page` is an AppPage.id in this same Sammlung.
+   *
+   *  `alsoAppend` is exchange/SPEC.md §7.3's ext_lautstark_append_on_navigate:
+   *  the entry goes into the bar first, then the page changes. The carrier
+   *  phrase - "ich will ..." leading to the page the next word is on - which
+   *  is one press for what would otherwise be two on two pages. Absent rather
+   *  than false where it is not wanted, like AppButton.negated and for the
+   *  same reason: a button written before this existed is written the same
+   *  way afterwards. */
+  | { kind: "goto"; page: string; alsoAppend?: boolean }
   /** The four sentence-bar controls, exchange/SPEC.md §7.4. `sayBar` is the
    *  spec's `:speak`, renamed here only because "speak" above is the other
    *  thing and two of them in one union would be read wrongly every time. */
   | { kind: "clear" }
   | { kind: "backspace" }
   | { kind: "sayBar" }
-  | { kind: "home" };
+  /** `alsoAppend`, again: §7.3 lets the flag ride on `:home` as well, because
+   *  both are navigation. A "bitte" that adds the word and returns to the
+   *  start page is an ordinary board, not an edge case. */
+  | { kind: "home"; alsoAppend?: boolean };
 
 /** A layout as it comes out of storage, with the two stamps that say whether
  *  somebody else has written since we read and whether a build is due. */

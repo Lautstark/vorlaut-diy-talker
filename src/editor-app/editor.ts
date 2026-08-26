@@ -45,6 +45,10 @@ import { dropdown, formRow, hint, missing, openSheet, textField }
 import type { Choice, Left } from "../shell/sheet.js";
 import { exportApp, paintOpenCollection, sizeChoices } from "../shell/collections.js";
 import { collectionSheetPanel } from "../shell/voices.js";
+/* §7.3's rule about which presses put an entry in the bar, which the exporter
+ * needs for the recordings and this file needs for the play buttons. One
+ * definition, in the module that owns the format. */
+import { appends } from "../data/app_package.js";
 import {
   addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, isShared,
   moveButton, moveShared, outside, pageById, reachable, resize,
@@ -414,11 +418,13 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
    * standing there: a control nobody is reaching for should not be taking room
    * from the word. A real <button>, because nothing drags it.
    *
-   * Only where there is something to say. A navigation button and the four bar
-   * controls speak nothing when pressed on the tablet, so offering to audition
-   * them would be offering silence. */
+   * Only where there is something to say. The four bar controls speak nothing
+   * when pressed on the tablet, and nor does a navigation button - unless it
+   * is one that carries its word into the sentence on the way, which speaks
+   * exactly like the word button it also is. Offering to audition any of the
+   * others would be offering silence. */
   const saying = (held.vocalization || held.label).trim();
-  if (saying && (held.act.kind === "append" || held.act.kind === "speak")) {
+  if (saying && (appends(held.act) || held.act.kind === "speak")) {
     const play = document.createElement("button");
     play.type = "button";
     play.className = "cell__play";
@@ -690,7 +696,7 @@ interface Draft {
   act: Act;
 }
 
-/** The three kinds the sheet offers, which are not the seven the union holds.
+/** The four kinds the sheet offers, which are not the seven the union holds.
  *
  * A question about a *word*, and nothing else - `Act` is unchanged and so is
  * everything in data/app_package.ts. Two things it used to ask are gone.
@@ -713,8 +719,16 @@ interface Draft {
  * exchange/SPEC.md §7.4 still names all four, and so does `Act`: a package
  * from another AAC tool may carry any of them, and vorlaut-app has to read it.
  * This is about what this editor offers to make.
+ *
+ * The fourth kind is the third one wearing §7.3's append-on-navigate: a button
+ * that puts its word in the sentence and *then* leads onward, which is how a
+ * sentence starter is built. It is a kind here rather than a checkbox under
+ * the target list, because the question this dropdown asks is already the
+ * right one - what does one press do - and a checkbox would leave the third
+ * kind's own label naming two different behaviours depending on a control
+ * underneath it.
  */
-type Does = "word" | "shout" | "goto";
+type Does = "word" | "shout" | "goto" | "carry";
 
 /** Which kind an act reads as, or null for one of the three bar controls the
  *  sheet no longer offers. The sheet keeps such a button saying what it is
@@ -722,7 +736,7 @@ type Does = "word" | "shout" | "goto";
 const doesOf = (act: Act): Does | null =>
   act.kind === "append" ? "word"
   : act.kind === "speak" ? "shout"
-  : act.kind === "goto" || act.kind === "home" ? "goto"
+  : act.kind === "goto" || act.kind === "home" ? (act.alsoAppend ? "carry" : "goto")
   : null;
 
 /** The two entries in the target list that are not a page: the start page,
@@ -826,7 +840,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * wrong. So the chosen option's note follows the control as a hint, and the
    * sheet still says it.
    */
-  const kinds: Choice[] = (["word", "shout", "goto"] as const)
+  const kinds: Choice[] = (["word", "shout", "goto", "carry"] as const)
     .map((kind) => ({ value: kind, label: t(`ui.app_does_${kind}`) }));
   const chose = doesOf(draft.act);
   /* A button made in this editor before the sheet stopped offering the bar
@@ -896,9 +910,15 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    *  appending button, which is not what the list said was chosen - so it
    *  takes whatever is selected, which is the current page until somebody
    *  changes it. */
-  const leadsTo = (): Act => targets.value === GOTO_HOME
-    ? { kind: "home" }
-    : { kind: "goto", page: targets.value === GOTO_NEW ? "" : targets.value };
+  const leadsTo = (): Act => {
+    // Absent rather than false where the button only navigates - Act's own
+    // note, and what keeps a button made before this existed byte-identical.
+    const carrying = does.value === "carry" ? { alsoAppend: true } : {};
+    return targets.value === GOTO_HOME
+      ? { kind: "home", ...carrying }
+      : { kind: "goto", page: targets.value === GOTO_NEW ? "" : targets.value,
+          ...carrying };
+  };
   const targets = dropdown(where,
     draft.act.kind === "home" ? GOTO_HOME
       : draft.act.kind === "goto" && draft.act.page ? draft.act.page : page().id,
@@ -964,7 +984,7 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * into Gesprochen, it is whether this button says anything at all, and a
    * greyed field still reads as a field they have failed to reach.
    *
-   * Wortart stays for all three, which looks like an oversight and is not. A
+   * Wortart stays for all four, which looks like an oversight and is not. A
    * page-leading button is coloured as a category on real German boards, and
    * BuilderTabletPackageTest asserts exactly that of the navigating button in
    * the round-trip sample - #D8AF97, the category colour.
@@ -974,8 +994,12 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
    * mind is still there if they change it back.
    */
   const follow = () => {
-    const goes = does.value === "goto";
-    const speaks = does.value === "word" || does.value === "shout";
+    // "carry" is the one that answers both with yes: it says its word and it
+    // leads onward, so it is the only choice that draws Zielseite and
+    // Gesprochen at once.
+    const goes = does.value === "goto" || does.value === "carry";
+    const speaks = does.value === "word" || does.value === "shout"
+                || does.value === "carry";
     note.textContent = goes || speaks ? t(`ui.app_does_${does.value}_note`)
                                       : t("ui.app_does_bar_kept");
     targetRow.hidden = !goes;
@@ -987,9 +1011,10 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
   function chosen(): void {
     draft.act = does.value === "word" ? { kind: "append" }
       : does.value === "shout" ? { kind: "speak" }
-      : does.value === "goto" ? leadsTo()
+      : does.value === "goto" || does.value === "carry" ? leadsTo()
       : { kind: does.value } as Act;
-    wantsNewPage = does.value === "goto" && targets.value === GOTO_NEW;
+    wantsNewPage = (does.value === "goto" || does.value === "carry")
+      && targets.value === GOTO_NEW;
     follow();
   }
   follow();
@@ -1001,9 +1026,12 @@ function openButtonSheet(held: AppButton | null, at: [number, number]): Promise<
       // Named from the label as it finally reads. The authoring move is "this
       // button should lead somewhere new", and making somebody leave, make a
       // page, come back and select it is one thought in three steps.
-      draft.act = { kind: "goto", page: addPage(layout, draft.label.trim()).id };
+      //
+      // Spread rather than rebuilt, so that a carrying button is still one
+      // after the page it leads to has been minted.
+      draft.act = { ...draft.act, page: addPage(layout, draft.label.trim()).id };
     } else if (draft.act.kind === "goto" && !draft.act.page) {
-      draft.act = { kind: "goto", page: page().id };
+      draft.act = { ...draft.act, page: page().id };
     }
     const on = page();
     const target = held ?? blankButton(at[0], at[1]);
