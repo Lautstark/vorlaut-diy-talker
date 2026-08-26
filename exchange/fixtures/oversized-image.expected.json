@@ -1,7 +1,7 @@
 {
   "fixture": "oversized-image",
   "file": "oversized-image.obz",
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "summary": "One image at 2048x2048 (over the 1024 cap), one at 512, and one whose declared size lies.",
   "outcome": "accepted",
   "package": {

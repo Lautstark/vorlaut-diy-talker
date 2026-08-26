@@ -1,8 +1,8 @@
 # Lautstark Board Package — exchange format specification
 
-**Version 1.1.0** · status: **draft, not ratified** · 2026-08-25
+**Version 1.2.0** · status: **draft, not ratified** · 2026-08-26
 
-> No `exchange-v1.1.0` tag is cut, and none will be, until a real board has
+> No `exchange-v1.2.0` tag is cut, and none will be, until a real board has
 > been built, exported, and opened on a tablet. Until then this document is a
 > proposal with fixtures attached: pin a commit if you need to build against
 > it, and expect it to move.
@@ -107,7 +107,7 @@ hand these to each other, and where a builder should say so.
     "images": { "img-food": "images/food.png" },
     "sounds": { "snd-food": "sounds/food.opus" }
   },
-  "ext_lautstark_spec_version": "1.1.0",
+  "ext_lautstark_spec_version": "1.2.0",
   "ext_lautstark_package_id": "1f0a5c2e-0000-4000-8000-000000000001",
   "ext_lautstark_package_name": "Home",
   "ext_lautstark_modified": "2026-08-24T09:00:00Z",
@@ -162,8 +162,9 @@ listed below with the reason it cannot be expressed in plain OBF.
 | Field | Type | Required | Why it exists |
 |---|---|---|---|
 | `ext_lautstark_speak_immediately` | boolean | no, default `false` | When true the button speaks at once instead of appending to the message bar. **OBF cannot express this.** Its model is that a button either appends or performs an action, with no "speak this now and leave the bar alone". Interjections need it: `Ouch!`, `stop that`, a greeting. Composing those into a sentence first defeats their purpose. |
+| `ext_lautstark_append_on_navigate` | boolean | no, default `false` | When true a navigating button appends its entry to the message bar before it navigates. **OBF cannot express this either.** `load_board` is the whole of a button's behaviour there rather than one of two things it does, and no OBF action appends a button's own text — `+text` is spelling, which §7.4 puts out of scope for v1. The carrier phrase needs it: a button reading `I want …` that opens the food board with the sentence already begun. See §7.3. |
 
-That is the whole list. Ten fields, eight of them in the manifest. Anything
+That is the whole list. Eleven fields, eight of them in the manifest. Anything
 else beginning `ext_lautstark_` is not part of v1 and MUST be ignored.
 
 ---
@@ -420,12 +421,36 @@ Activating a button:
 
 | Condition | Behaviour |
 |---|---|
-| `load_board` present | Navigate. MUST NOT touch the bar. |
+| `load_board` present | Navigate. MUST NOT touch the bar — unless the button also carries `ext_lautstark_append_on_navigate`, below. |
 | `action` or `actions` present | §7.4. |
 | `ext_lautstark_speak_immediately: true` | Speak the button's own audio at once. MUST NOT touch the bar. |
 | otherwise | Append one entry to the bar. This is the default and the common case. |
 
 `load_board` takes precedence over an action if both are somehow present.
+
+**Appending on the way through.** `ext_lautstark_append_on_navigate: true` on a
+button that navigates — one carrying `load_board`, or `action: ":home"` — means:
+append one entry exactly as the last row of the table does, **then** navigate.
+Both from one press, and in that order. The entry MUST be in the bar by the time
+the new board is drawn, because what the button is for is that the sentence has
+already begun when the next word is chosen.
+
+The flag is a modifier rather than a fifth row of the table. It does not decide
+*which* navigation happens, and it changes nothing else: the entry shows what
+§7.3 says an entry shows, one press is still one entry, and `:backspace` takes
+that entry back whole like any other.
+
+**On a button that does not navigate, the flag is ignored** — no warning, no
+fault, and the button keeps behaving as its row of the table says. An appending
+button already appends; a `speak_immediately` button carrying it meant something
+the format has no way to say. A button disabled under §7.4 appends nothing
+either, because doing nothing is what disabled means.
+
+What it is for is the carrier phrase, which every grid system able to express it
+builds the same way: `I want …` puts the opening of the sentence in the bar and
+opens the board the next word is on. Without it that is two presses on two
+boards, and the second of them has to be found after leaving the page that named
+it.
 
 ### 7.4 Actions
 
@@ -436,7 +461,7 @@ An importer MUST implement exactly these:
 | `:clear` | Empty the bar. Speak nothing. |
 | `:backspace` | Remove the **last entry**, not the last character. |
 | `:speak` | Speak the whole bar. Leave it standing — `:speak` does not clear. |
-| `:home` | Navigate to the board named by `manifest.root`. MUST NOT touch the bar. |
+| `:home` | Navigate to the board named by `manifest.root`. MUST NOT touch the bar — the one exception is `ext_lautstark_append_on_navigate` (§7.3), which appends before this action navigates. |
 
 Navigation between boards is `load_board`, not an action:
 
@@ -712,7 +737,7 @@ A builder MUST write the version it targets, not the version it happens to fit.
 
 ## 13. Conformance
 
-An importer is conformant at v1.1.0 when it produces, for **every** fixture
+An importer is conformant at v1.2.0 when it produces, for **every** fixture
 listed in [`fixtures/index.json`](fixtures/index.json), the outcome in the
 matching `.expected.json`. That index is the authoritative list; no count
 appears in this document, because a number restated in prose drifts from the
@@ -725,6 +750,41 @@ disagreement is a bug in this document. Report it.
 ---
 
 ## 14. Changelog
+
+### 1.2.0 — 2026-08-26
+
+Adds `ext_lautstark_append_on_navigate` (§4.3, §7.3): a navigating button may
+append its entry to the message bar before it navigates. Minor, per §12 — an
+importer written against 1.1.0 ignores the field under §10.3 and navigates
+without writing, which is the behaviour every earlier version of this document
+required and is a sentence the user can still finish by hand.
+
+**Why the rule it relaxes was wrong.** 1.0.0 said navigation MUST NOT touch the
+bar, and read as a whole-button rule that came from OBF, where `load_board` is
+everything a button does. It is not how boards are actually built. The carrier
+phrase — `I want …`, `can I have …`, `I am …` — is the first thing a grid
+teaches, and the systems that can express it do so as an ordered pair of things
+on one cell: write, then jump. A format that cannot say it makes every sentence
+starter into two presses, the second of them on the far side of a navigation.
+
+**A flag rather than an action list**, which was the other shape considered.
+OBF's `actions` array could hold `[":append", ":home"]` and nothing else would
+be needed — except that §7.4 makes an unimplemented action disable its whole
+button, so a 1.1.0 importer meeting `:append` would render a *dead* sentence
+starter rather than a plain navigation. The flag degrades the other way, which
+is the direction a communication aid has to fail in. There is also no `:append`
+in OBF to reach for: `+text` spells a character, and spelling is out of scope.
+
+**It rides on `:home` too**, which is the one place this document adds behaviour
+to an action rather than to `load_board`. Both are navigation and a builder has
+no way to tell a user why one of them may carry a sentence and the other may
+not — a `please` button that adds the word and returns to the core board is an
+ordinary board convention, not an edge case.
+
+**What it is not.** It is not a general "do two things" mechanism, and no field
+here composes actions. It says one thing: append before navigating. A button
+that needs a third behaviour is a button this format cannot describe, and that
+stays true on purpose.
 
 ### 1.1.0 — 2026-08-25
 

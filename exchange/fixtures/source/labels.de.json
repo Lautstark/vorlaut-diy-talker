@@ -11,6 +11,14 @@
   "apple_spoken": "einen Apfel",
   "football": "Fußball",
 
+  "starter_label": "Ich will",
+  "starter_spoken": "ich will",
+  "food": "Essen",
+  "please": "bitte",
+  "back": "Zurück",
+  "starter_package_name": "Satzanfang",
+  "starter_sentence_spoken": "ich will einen Apfel bitte",
+
   "speak": "Sprechen",
   "clear": "Löschen",
   "backspace": "Zurück",

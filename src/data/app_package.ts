@@ -53,12 +53,19 @@
 // button, navigation is `load_board`, the four bar controls are §7.4's
 // actions, and a word class is a `background_color` or a `border_color` -
 // whichever of the two the Sammlung wears, and neither when it wears none.
-// SPEC.md was not touched for this and SPEC_VERSION below did not move.
+// SPEC.md was not touched for that and SPEC_VERSION below did not move for it.
 //
 //   one page         -> one board, at the Sammlung's grid size
 //   one button       -> one button, in the cell it sits in
 //   a `goto` button  -> load_board, at the page it names
 //   the home page    -> manifest.root, and where `:home` goes
+//
+// One thing did need the format: a button that leads onward *and* puts its
+// word in the message bar - the carrier phrase, "ich will ..." opening the
+// page its object is on. §7.3 forbade that outright until 1.2.0, which is
+// where ext_lautstark_append_on_navigate comes from.
+//
+//   a carrying button -> the same load_board, plus that flag
 //
 // Two mappings in one file rather than two files, and that is not the split
 // §5.2 asks for. That rule is about *pixels against references* - the talker's
@@ -76,14 +83,14 @@ import { encodeOpus, ENCODER_RATE, type OpusClip } from "./opus.js";
 import { zipBytes, type ZipMember } from "./zip.js";
 import { WORD_CLASSES } from "../core/boot_data.js";
 import type {
-  AppButton, AppLayout, CollectionRef, DiyLayout, Layout, WordColor,
+  Act, AppButton, AppLayout, CollectionRef, DiyLayout, Layout, WordColor,
 } from "../core/types.js";
 
 /** The version of exchange/SPEC.md this builder targets.
  *
  * §12: a builder writes the version it targets, not the version it happens to
  * fit. Bumping this is a decision about having read the changelog. */
-export const SPEC_VERSION = "1.1.0";
+export const SPEC_VERSION = "1.2.0";
 
 export const FORMAT = "open-board-0.1";
 const MANIFEST = "manifest.json";
@@ -130,6 +137,16 @@ export interface PackageButton {
    *  holds one thing the viewer cannot do. */
   action?: string;
   ext_lautstark_speak_immediately?: boolean;
+  /** §7.3. True on a navigating button that appends its entry on the way
+   *  through, and written only beside a `load_board` or an `action: ":home"`.
+   *
+   *  There is no check for that in checkPackage(), which every other rule in
+   *  this file has. It would be a check that cannot fire: the flag is written
+   *  inside the two branches that navigate and nowhere else. And the shape it
+   *  would catch is one §7.3 requires a viewer to ignore in silence - fixture
+   *  `navigate-and-append` pins exactly that, on a button of its own, which is
+   *  a package checkPackage() is held against. */
+  ext_lautstark_append_on_navigate?: boolean;
 }
 
 export interface PackageBoard {
@@ -456,16 +473,23 @@ export const references = (layout: Layout): string[] =>
  *
  * A tablet button only earns a clip when pressing it speaks. The viewer's
  * BoardViewModel utters on `Append` and on `SpeakImmediately` and on nothing
- * else - navigation and the four bar controls are silent, and `:speak` always
- * synthesises the composed sentence because the bar has no clip of its own. So
- * a clip on any of those would be a member of the archive nothing can ever
- * play, on a board that may have four hundred buttons.
+ * else - the four bar controls are silent, and `:speak` always synthesises the
+ * composed sentence because the bar has no clip of its own. So a clip on any of
+ * those would be a member of the archive nothing can ever play, on a board that
+ * may have four hundred buttons.
+ *
+ * Navigation is silent too, with one exception: a button carrying `alsoAppend`
+ * appends, and appending is what utters. It is the same press and the same
+ * entry as an ordinary word button - the navigation afterwards changes nothing
+ * about what was said - so it needs the same clip.
  */
 export function spokenTexts(layout: Layout): string[] {
   const out: string[] = [];
   if (layout.target === "app") {
     for (const { button } of appButtons(layout)) {
-      if (button.act?.kind !== "append" && button.act?.kind !== "speak") continue;
+      // Both questions, because both utter: does it join the sentence, or is
+      // it the interjection that speaks without joining one.
+      if (!appends(button.act) && button.act?.kind !== "speak") continue;
       const spoken = spokenTextOf(button);
       if (spoken) out.push(spoken);
     }
@@ -479,6 +503,14 @@ export function spokenTexts(layout: Layout): string[] {
   }
   return out;
 }
+
+/** Whether one press puts an entry in the bar, which is the default case and
+ *  the two navigating acts that carry §7.3's flag. `speak` is deliberately not
+ *  here: it utters without appending, and the two questions - does it speak,
+ *  does it join the sentence - are only the same question for these. */
+export const appends = (act: Act | undefined): boolean =>
+  act === undefined || act.kind === "append"
+  || ((act.kind === "goto" || act.kind === "home") && act.alsoAppend === true);
 
 /** §7.2: what a button says, which is its vocalization or else its label. */
 export const spokenTextOf = (button: AppButton): string =>
@@ -852,6 +884,11 @@ function appBoards(
               name: nameOf.get(act.page) ?? "",
               path: boardPath(target),
             };
+            // Only beside a load_board that was actually written. A dangling
+            // `goto` becomes a plain appending button above, and that button
+            // appends already - the flag on it would say the same thing twice
+            // and would be the one shape §7.3 calls meaningless.
+            if (act.alsoAppend) button.ext_lautstark_append_on_navigate = true;
           }
           break;
         }
@@ -861,14 +898,17 @@ function appBoards(
         case "clear": button.action = ":clear"; break;
         case "backspace": button.action = ":backspace"; break;
         case "sayBar": button.action = ":speak"; break;
-        case "home": button.action = ":home"; break;
+        case "home":
+          button.action = ":home";
+          if (act.alsoAppend) button.ext_lautstark_append_on_navigate = true;
+          break;
         case "append": break;
       }
 
       const picture = put.image(String(one.symbol ?? ""), Boolean(one.negated));
       if (picture) button.image_id = picture;
       // Only where a press speaks this button's own text - see spokenTexts().
-      if (act.kind === "append" || act.kind === "speak") {
+      if (appends(act) || act.kind === "speak") {
         const recording = put.sound(spoken);
         if (recording) button.sound_id = recording;
       }

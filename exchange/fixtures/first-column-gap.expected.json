@@ -1,7 +1,7 @@
 {
   "fixture": "first-column-gap",
   "file": "first-column-gap.obz",
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "summary": "ext_lautstark_first_column_gap on a package whose leftmost column repeats across both boards.",
   "outcome": "accepted",
   "package": {

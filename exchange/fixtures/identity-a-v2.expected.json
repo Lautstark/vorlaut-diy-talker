@@ -1,7 +1,7 @@
 {
   "fixture": "identity-a-v2",
   "file": "identity-a-v2.obz",
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "summary": "The same id as identity-a with a later modified timestamp. Must replace A, not sit beside it.",
   "outcome": "accepted",
   "package": {
