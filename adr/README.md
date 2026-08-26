@@ -19,6 +19,7 @@ says what the cleanup will look like when it is proposed.
 | [0006](0006-builder-and-hardware-one-repo.md) | The builder and the hardware stay in one repository |
 | [0007](0007-reimport-replaces-package-atomically.md) | Re-import replaces a whole package, atomically |
 | [0008](0008-audio-masters-derived-artefacts.md) | One master per utterance; everything else is derived |
+| [0009](0009-device-interface-fixtures.md) | The device interface has fixtures of its own, owned by neither half |
 
 ## The shape
 
