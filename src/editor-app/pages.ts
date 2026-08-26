@@ -123,13 +123,18 @@ export function reachable(layout: AppLayout): Set<string> {
 /**
  * The pages nothing leads to.
  *
- * For a mark in the strip - and, since the strip stopped listing every page,
- * for two more things than that. The row shows what the page on screen opens,
- * so a page nothing opens appears in no row at all: the count beside the
- * picker is what says such pages exist, and the mark inside the picker is what
- * finds them. That is the whole of why the picker is not polish. Without it
- * this list would name pages that had become unopenable, which is worse than
- * the wrapping strip it replaced.
+ * Read in three places, which is what it costs to keep such a page findable
+ * once the strip stopped listing every page. The row shows what the page on
+ * screen opens, and a page nothing opens is in nobody's row - so the row draws
+ * this list as a marked run of its own at its end, the count beside the picker
+ * says how many there are when the run has been folded away, and the mark
+ * inside the picker finds them in the one list that is always complete. That
+ * is the whole of why the picker is not polish. Without it this list would
+ * name pages that had become unopenable, which is worse than the wrapping
+ * strip it replaced.
+ *
+ * Also read for the page somebody is standing on, which is the one page no row
+ * of tiles can carry: the path marks it instead.
  */
 export function unreachable(layout: AppLayout): AppPage[] {
   const found = reachable(layout);

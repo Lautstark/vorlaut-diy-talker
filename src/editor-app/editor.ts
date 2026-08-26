@@ -202,9 +202,13 @@ function drawPath(): void {
   line.appendChild(fade);
 
   const walk = route(layout, page().id);
+  const found = reachable(layout);
   const passed: [HTMLElement, HTMLElement][] = [];
   walk.forEach((one, index) => {
-    if (index === walk.length - 1) { line.appendChild(standing(one)); return; }
+    if (index === walk.length - 1) {
+      line.appendChild(standing(one, found));
+      return;
+    }
     const step = crumb(one);
     const sep = document.createElement("span");
     sep.className = "crumb__sep";
@@ -291,11 +295,27 @@ function named(one: AppPage): HTMLElement {
  * out of existence, which is a page's own card with no door left. Beside the
  * path it cannot shrink and cannot be clipped, and it still reads as belonging
  * to the crumb: the gap between them is smaller than the crumb's own padding.
+ *
+ * **It carries the ⚠ when nothing leads to the page somebody is standing on.**
+ * Without it the whole difference between a page one press from the start and
+ * a page no press reaches is the `|` after the house instead of a `›` - one
+ * glyph, in the faintest colour on the bar, for the one fact about this page
+ * that will make it invisible on the tablet. The mark is the same ⚠ the row
+ * and the picker put on such a page, so it means the same thing in all three
+ * places, and route() has already said as much as it can: a lone crumb.
  */
-function standing(one: AppPage): HTMLElement {
+function standing(one: AppPage, found: Set<string>): HTMLElement {
   const at = document.createElement("span");
   at.className = "crumb crumb--here";
   at.setAttribute("aria-current", "page");
+
+  if (!found.has(one.id)) {
+    const lost = document.createElement("span");
+    lost.className = "crumb__lost";
+    lost.textContent = "⚠";
+    lost.title = t("ui.app_page_unreachable");
+    at.appendChild(lost);
+  }
 
   at.appendChild(named(one));
 
@@ -321,11 +341,17 @@ const pageName = (one: AppPage): string =>
  *
  * **This is what keeps the editor complete, and it is not polish.** The row
  * below shows the pages the page on screen opens, so a page nothing opens is
- * in no row anywhere - and until this existed the strip listed every page,
- * which is how an orphan was reached, fixed or deleted. Take the list away
- * without putting this in its place and a page somebody built has no door at
- * all. See unreachable(), whose comment used to say it served a mark in the
- * strip and nothing else.
+ * in nobody's row - and until this existed the strip listed every page, which
+ * is how an orphan was reached, fixed or deleted. Take the list away without
+ * putting this in its place and a page somebody built has no door at all. See
+ * unreachable(), whose comment used to say it served a mark in the strip and
+ * nothing else.
+ *
+ * The row draws those pages now, marked, at its end - but it draws them in a
+ * height fixed at two rows and folds what does not fit, so on a narrow window
+ * or a Sammlung of forty they are behind this control again. Which is why it
+ * is still the promise: the row makes them *visible*, and this is what makes
+ * them *reachable*, and only one of those can be guaranteed at every width.
  *
  * So the list is every page, in the order they sit in the Sammlung, reachable
  * or not - and the count on the trigger counts them all, orphans included,
@@ -428,6 +454,33 @@ function openPick(): void {
  * **A page that opens nothing gets a sentence, not an empty box.** An empty
  * row and a row that has not been drawn look identical, and the reserved
  * height would make it a blank band over the board with no account of itself.
+ *
+ * **And a run at the end for the pages nothing leads to.** The row on its own
+ * was blank on every new Sammlung - three pages, no navigation yet, so nothing
+ * opens anything and the only tile-shaped thing on screen was the sentence
+ * saying so. Linking pages is the work this editor exists for, which makes
+ * "before any of it is done" the state it is in for the whole first sitting;
+ * a control that is empty then is a control that is empty when it is needed.
+ * The strip this replaced showed every page always, and that is the one thing
+ * it was good at.
+ *
+ * So they are shown - and shown as what they are. The row means *the pages
+ * this page opens*, and that meaning is what makes the strip a model of the
+ * tablet rather than a list of everything; a page appended to it silently
+ * would be a lie about a press that does not exist. What keeps it from being
+ * silent is the ⚠, the same mark the picker and the path use, and that mark is
+ * the whole of it: the tile is otherwise exactly a tile.
+ *
+ * **The mark alone, and a heavier drawing was tried and dropped.** A label
+ * over the run and a dashed edge on every tile in it said the same thing three
+ * times, in a control that already has an orange count at the other end of the
+ * bar - and on a new Sammlung, where every page is unreachable, all of it is
+ * true of everything on screen and none of it distinguishes anything. What is
+ * left is one glyph, which is what the picker has always used for this and
+ * what somebody has to learn once rather than three times.
+ *
+ * Last rather than first, so the pages this page really opens keep the top of
+ * the row and fold() takes the unreachable ones away before it takes them.
  */
 function drawRow(): void {
   const layout = board();
@@ -438,51 +491,91 @@ function drawRow(): void {
   const found = reachable(layout);
   const to = opens(layout, page().id);
 
-  if (!to.length) {
-    const says = document.createElement("p");
-    says.className = "pagerow__none";
+  says(row, layout, found, to.length);
+
+  /* The page somebody is standing on is left out even when nothing leads to
+   * it: no row has ever held its own page, and the path says that one - see
+   * standing(). Anything this page already opens is left out too, since it is
+   * on the row a few tiles to the left, wearing the same mark. */
+  const lost = unreachable(layout)
+    .filter((one) => one.id !== page().id && !to.includes(one));
+
+  /* Everything fold() may take away, in the order it sits in the row - the
+   * sentence is not in it, because a row whose whole content was folded would
+   * be the blank band again. */
+  const tiles = [...to, ...lost].map(
+    (one) => row.appendChild(tile(one, layout, found)));
+  fold(row, tiles);
+}
+
+/**
+ * The one sentence over the row, or none.
+ *
+ * **One line, and two facts want it.** A page nothing leads to and a page that
+ * leads nowhere are different problems, and on a page that is both there is
+ * room to state one. The inbound one wins: it is the one with a remedy - a
+ * button on another page - and a page nobody can get to does not need advice
+ * about where it goes on to. The outbound sentence comes back the moment
+ * something leads here, which is the moment it starts mattering.
+ *
+ * That inbound sentence is also what makes "+ Neue Seite" land somewhere that
+ * reads like a page rather than like a fault. Pressing it puts somebody on a
+ * board that is empty and that nothing opens, and what stood here said only
+ * that no button leads onward - true, and about the wrong end of the page.
+ */
+function says(row: HTMLElement, layout: AppLayout, found: Set<string>,
+              opening: number): void {
+  const line = document.createElement("p");
+  line.className = "pagerow__none";
+  if (!found.has(page().id)) {
+    line.classList.add("pagerow__none--lost");
+    line.textContent = t("ui.app_page_lost_here");
+  } else if (!opening) {
     /* Two sentences, because there are two ways to open nothing and only one
      * of them means what the first one says. A Sammlung with a `goto` in its
      * shared first column leads onward from every page including this one -
      * opens() leaves the column out on purpose, and saying "nothing leads on
      * from here" over a board with a column of navigation on it would be the
      * strip contradicting what is on screen an inch below. */
-    says.textContent = columnTargets(layout).size
+    line.textContent = columnTargets(layout).size
       ? t("ui.app_page_opens_column") : t("ui.app_page_opens_none");
-    row.appendChild(says);
+  } else {
     return;
   }
+  row.appendChild(line);
+}
 
-  const tiles = to.map((one) => {
-    const tab = document.createElement("button");
-    tab.type = "button";
-    tab.className = "tab";
-    if (one.id === layout.home) {
-      const home = document.createElement("span");
-      home.className = "tab__home";
-      home.textContent = "⌂";
-      home.title = t("ui.app_page_home");
-      tab.appendChild(home);
-    }
-    /* A mark rather than a hiding, as it always was - and it still belongs
-     * here rather than only in the picker: being opened by the page on screen
-     * does not make a page reachable, because the page on screen may be an
-     * orphan itself. */
-    if (!found.has(one.id)) {
-      const lost = document.createElement("span");
-      lost.className = "tab__lost";
-      lost.textContent = "⚠";
-      lost.title = t("ui.app_page_unreachable");
-      tab.appendChild(lost);
-    }
-    const name = document.createElement("span");
-    name.textContent = pageName(one);
-    tab.appendChild(name);
-    tab.onclick = () => { here = one.id; render(); };
-    row.appendChild(tab);
-    return tab;
-  });
-  fold(row, tiles);
+/** One page, as a tile on the row.
+ *
+ * The ⚠ hangs off reachability itself rather than off where in the row the
+ * tile sits, and that is the invariant the row is worth reading by: being
+ * opened by the page on screen does not make a page reachable, because the
+ * page on screen may be an orphan itself. So a tile among the pages this one
+ * opens can carry it too, and a marked tile means the same thing wherever it
+ * is - which is what lets the mark be the only difference. */
+function tile(one: AppPage, layout: AppLayout, found: Set<string>): HTMLElement {
+  const tab = document.createElement("button");
+  tab.type = "button";
+  tab.className = "tab";
+  if (one.id === layout.home) {
+    const home = document.createElement("span");
+    home.className = "tab__home";
+    home.textContent = "⌂";
+    home.title = t("ui.app_page_home");
+    tab.appendChild(home);
+  }
+  if (!found.has(one.id)) {
+    const lost = document.createElement("span");
+    lost.className = "tab__lost";
+    lost.textContent = "⚠";
+    lost.title = t("ui.app_page_unreachable");
+    tab.appendChild(lost);
+  }
+  const name = document.createElement("span");
+  name.textContent = pageName(one);
+  tab.appendChild(name);
+  tab.onclick = () => { here = one.id; render(); };
+  return tab;
 }
 
 /**
@@ -498,7 +591,13 @@ function drawRow(): void {
  *
  * Measured rather than counted. A tile is as wide as its page's name, so how
  * many fit in two rows is not a number this file can know - it is read back
- * off the layout, by asking which distinct tops the tiles came to rest at.
+ * off the layout, by asking which distinct tops the row's children came to
+ * rest at.
+ *
+ * **From the end, which is where the unreachable pages are.** Those pages have
+ * two other doors - the warning on the bar and the picker behind it - and the
+ * pages this one opens have only this row, so they are what a narrow window
+ * costs first.
  *
  * The label is written at its widest *before* anything is measured: hiding
  * tiles only ever makes the number smaller, tabular digits make a smaller
@@ -507,7 +606,7 @@ function drawRow(): void {
  * re-measured.
  */
 function fold(row: HTMLElement, tiles: HTMLElement[]): void {
-  if (!pastTwoRows(tiles)) return;
+  if (!pastTwoRows(row)) return;
 
   const more = document.createElement("button");
   more.type = "button";
@@ -518,20 +617,25 @@ function fold(row: HTMLElement, tiles: HTMLElement[]): void {
   more.onclick = (event) => { event.stopPropagation(); openPick(); };
   row.appendChild(more);
 
-  let hidden = 0;
-  while (hidden < tiles.length && pastTwoRows([...tiles, more])) {
-    tiles[tiles.length - 1 - hidden]!.hidden = true;
-    hidden += 1;
+  let gone = 0;
+  while (gone < tiles.length && pastTwoRows(row)) {
+    tiles[tiles.length - 1 - gone]!.hidden = true;
+    gone += 1;
   }
-  more.textContent = t("ui.app_page_fold", { n: hidden });
+  more.textContent = t("ui.app_page_fold", { n: gone });
 }
 
 /** Whether anything still showing came to rest below the second row. Distinct
- *  tops rather than arithmetic over a line height: the tiles say where they
- *  are, and a gap read out of the stylesheet would be a second copy of it. */
-function pastTwoRows(items: HTMLElement[]): boolean {
-  const tops = new Set(items.filter((one) => !one.hidden)
-                            .map((one) => one.offsetTop));
+ *  tops rather than arithmetic over a line height: the children say where they
+ *  are, and a gap read out of the stylesheet would be a second copy of it.
+ *
+ *  Every child, not only the tiles. The sentence over the row takes a line of
+ *  its own and pushes what follows down by it, so a measurement that skipped
+ *  it counted the two lines *below* it as the whole row and folded nothing. */
+function pastTwoRows(row: HTMLElement): boolean {
+  const tops = new Set([...row.children]
+    .filter((one) => !(one as HTMLElement).hidden)
+    .map((one) => (one as HTMLElement).offsetTop));
   return tops.size > 2;
 }
 

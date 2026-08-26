@@ -1374,6 +1374,92 @@ test("the picker lists every page, orphans and all, and opens one",
     await expect(items).toHaveCount(3);
   });
 
+/* The case the row was blank on, which is every Sammlung before any of the
+ * linking is done.
+ *
+ * The row holds the pages the page on screen opens, so on a board where
+ * nothing opens anything it held nothing - and linking pages is precisely the
+ * work this editor exists for, which makes "nothing links yet" the state of
+ * the whole first sitting rather than a rare one. Three pages, no navigation,
+ * and the strip was a sentence and a count at the far end of the bar with no
+ * page on it anywhere. Nothing in the suite caught that, because every test
+ * here builds its links first.
+ *
+ * So the pages are shown, and shown as unreachable. Both halves are asserted:
+ * a tile without the ⚠ would make the row claim a press that does not exist,
+ * and the row's meaning is what makes the strip a model of the tablet rather
+ * than a list. The mark is the only difference between the two kinds of tile,
+ * which is why the count of marked ones is what these assertions are about.
+ */
+test("the pages nothing leads to are on the row, marked, from the start",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await goHome(page);
+
+    const row = page.locator("#appPages");
+    /* A tile carrying the mark. The tile itself is drawn exactly as a
+     * reachable one, so there is no class to ask for - the ⚠ inside it is the
+     * whole difference, and asking for it is asking the same question a person
+     * looking at the row asks.
+     *
+     * By the glyph and not by the span that holds it. `.tab__lost` with
+     * nothing in it is a tile that reads as reachable on screen and matches a
+     * `:has()` all the same, which is a guard that passes on the one bug it
+     * exists to catch - and this row has no other difference left to fall back
+     * on. */
+    const marked = row.locator(".tab").filter({ hasText: "⚠" });
+    const reserved = (await row.boundingBox())!.height;
+    // build() links its second page from the first, so there is nothing
+    // unreachable yet and nothing marked.
+    await expect(row.locator(".tab")).toHaveCount(1);
+    await expect(marked).toHaveCount(0);
+
+    // Two pages that nothing leads to, made the way somebody makes them.
+    await page.locator("#appPageNew").click();
+    await page.locator("#appPageNew").click();
+
+    /* Standing on the second of them: the page somebody has just made. What
+     * the row said here was that no button on this page leads onward - true,
+     * and about the wrong end of a page nothing opens. It says the fact with a
+     * remedy in it instead, and the crumb carries the mark, because `⌂ | Seite
+     * 4` is otherwise indistinguishable from a page one press from the start.
+     */
+    await expect(row.locator(".pagerow__none"))
+      .toHaveText(label("ui.app_page_lost_here"));
+    await expect(standingOn(page)).toHaveText(/⚠/);
+    // The page somebody is standing on is not a tile in its own row - no row
+    // has ever held its own page - so what is left to mark is the other one.
+    await expect(marked).toHaveCount(1);
+
+    /* And from the start page, which is where somebody building a board comes
+     * back to: both of them, visible, at the end of the row. This is the
+     * assertion the old strip would have passed and the row it replaced could
+     * not. */
+    await goHome(page);
+    const lost = marked.locator("visible=true");
+    await expect(lost).toHaveCount(2);
+    // And the page this one really does open is on the row too, unmarked:
+    // whether the child can reach a page is the ⚠ on its tile, and nothing
+    // else on the row says it.
+    await expect(row.locator(".tab:visible")).toHaveCount(3);
+    await expect(row.locator(".tab", { hasText: "Essen" }))
+      .not.toHaveText(/⚠/);
+    // The height the whole change bought is untouched by any of it.
+    expect((await row.boundingBox())!.height).toBe(reserved);
+
+    /* The picker keeps its promise and its warning keeps its count. The run is
+     * a second way to those pages, not a replacement for the only complete
+     * list - see drawPick(). */
+    await expect(page.locator("#appPagesLost")).toBeVisible();
+    await expect(page.locator("#appPagePick")).toHaveText(/4/);
+
+    // A tile in the run is a way there, the same as any other tile on the row.
+    await lost.first().click();
+    await expect(standingOn(page)).toHaveText(/3/);
+    await expect(standingOn(page)).toHaveText(/⚠/);
+  });
+
 test("the page sheet offers the start page, or says the page already is it",
   async ({ page }) => {
     await standIn(page);
