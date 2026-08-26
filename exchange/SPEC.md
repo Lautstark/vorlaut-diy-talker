@@ -57,6 +57,16 @@ the consumer reading a package; "builder" means the producer writing one.
 A package is a ZIP archive with the extension `.obz` and the media type
 `application/zip`.
 
+The media type is what an importer goes by. **An importer MUST NOT require a
+particular extension** — it may never see a filename at all, because a package
+can arrive as a stream, a content URI or a share. Where a platform refuses
+`.obz`, a builder MAY hand the same bytes over as `.zip`: Chrome on Android
+goes by the media type for an unregistered extension, so a file declared
+`application/zip` and named `.obz` is one its download manager will not take,
+and a package that cannot reach the tablet is worse than one whose name does
+not say what it is. vorlaut's app export does exactly this; its board export,
+which other AAC software reads, keeps `.obz`.
+
 ```
 manifest.json           required, exactly one, at the archive root
 boards/<id>.obf         required, one or more
