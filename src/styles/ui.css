@@ -820,6 +820,16 @@ button.crumb:hover { color: var(--text); background: var(--surface-2); }
    wearing role="button" - see standing(), and opener() for the rule it is an
    exception to. */
 .crumb--here { color: var(--text); font-weight: 600; cursor: default; }
+/* The ⚠ on the page somebody is standing on, when nothing leads to it. Never
+   shrinks and never ellipsises: it is one glyph, the name beside it is what
+   gives width up, and a mark that could be cut off is a mark that reports the
+   page as fine at exactly the widths where the words for it are gone too. The
+   size is 12px for the reason `.tab__lost` is - U+26A0 fills its own em box.
+
+   The name beside it keeps its own colour. The glyph is the mark, here as on
+   a tile, and a crumb tinted as well would be the same fact drawn twice in a
+   bar that already carries the count in orange at its other end. */
+.crumb__lost { flex: none; color: var(--warn, #c76a00); font-size: 12px; line-height: 1; }
 .crumb__bar { flex: none; color: var(--line); }
 .crumb__sep { flex: none; color: var(--text-faint); font-size: 13px; }
 .crumb__sep[hidden] { display: none; }
@@ -894,12 +904,36 @@ button.crumb:hover { color: var(--text); background: var(--surface-2); }
 .pagerow .tab[hidden] { display: none; }
 /* A page that opens nothing says so. An empty row and a row that has not been
    drawn look identical, and with the height reserved it would be a blank band
-   over the board accounting for itself in no way at all. */
+   over the board accounting for itself in no way at all.
+
+   `flex-basis: 100%` puts it on a line of its own at every width, which is
+   what makes the run of unreachable pages below it a run rather than prose
+   with tiles trailing off the end of it. It costs nothing where it is the only
+   thing in the row, and where it is not, the two rows are the sentence and
+   then the pages - which is the reading order the sentence is written for.
+
+   Ordinary leading inside a box one tile tall, rather than `line-height` doing
+   the centring. A 38px line-height centres one line and makes two lines 76px,
+   which is the whole reserved height spent on a sentence that had wrapped - so
+   a narrow window lost the tiles to a sentence about them. */
 .pagerow__none {
-  align-self: flex-start; margin: 0;
-  line-height: var(--pagerow-tile);
-  color: var(--text-dim); font-size: 13px;
+  display: flex; align-items: center; flex: 0 0 100%;
+  margin: 0; min-height: var(--pagerow-tile);
+  line-height: 1.35; color: var(--text-dim); font-size: 13px;
 }
+/* The page somebody is standing on is one nothing leads to. Said in the row's
+   own colour would be a remark; it is the reason the board below will not be
+   on the tablet at all, so it carries the same colour as the ⚠ that goes with
+   it on the crumb above. */
+.pagerow__none--lost { color: var(--warn, #c76a00); }
+/* A page nothing leads to has no rule of its own here, and that is the
+   decision rather than an omission. It is drawn as exactly the tile a
+   reachable page is, and what says which is which is the ⚠ inside it -
+   `.tab__lost` below, the same glyph the picker and the path use. A label over
+   them and a dashed edge on each were both drawn and dropped: on a Sammlung
+   nobody has linked yet every page is unreachable, so a second and a third
+   drawing of that fact distinguish nothing and only make the quietest control
+   on the page the loudest. */
 /* What is past two rows. It opens the picker rather than expanding in place -
    see fold() - so it is drawn as a way somewhere rather than as a tile: no
    fill, a dashed edge, the same one `.tab.add` uses for the thing that is not

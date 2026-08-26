@@ -41,7 +41,15 @@
  * needs to reach in order to give it a way in, so hiding it would hide the
  * only thing that can be done about it. That promise is the picker's - it
  * lists every page and marks the ones nothing reaches - and it is a promise
- * rather than a convenience: nothing else on this bar can open an orphan.
+ * rather than a convenience: it is the only control here that can open an
+ * orphan at every width.
+ *
+ * The row shows them too, at its end, each wearing the same ⚠. Without that
+ * the row was empty on every Sammlung nobody had linked yet, which is the
+ * state a board is in for the whole of its first sitting - a control that is
+ * blank exactly while somebody is doing the work it is for. The mark is the
+ * only difference between those tiles and the rest, because the row already
+ * has an orange count at the far end of the bar saying how many there are.
  *
  * **The count is on the picker, and the warning sits immediately before it.**
  * The picker is pinned to the right edge of the bar and the warning grows
