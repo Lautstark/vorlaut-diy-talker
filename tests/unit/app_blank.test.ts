@@ -91,7 +91,24 @@ describe("a new tablet Sammlung", () => {
     // a key nobody chose.
     expect(startKey(blank()).symbol).toBe("arasaac-6964-sw.png");
     setActiveSource("metacom");
-    expect(startKey(blank()).symbol).toBe("metacom:Haus/haus4SW");
+    expect(startKey(blank()).symbol)
+      .toBe("metacom:METACOM_Symbole/Symbole_PNG/PNG_ohne_Rahmen/Haus/haus4SW");
+  });
+
+  it("names the rendering, not only the symbol", () => {
+    // METACOM ships every symbol in parallel folders holding identical file
+    // names, so a reference that stops at the stem names all of them at once
+    // and resolves to whichever the index walked first. That is the fault
+    // symbols.ts's pickReference() exists to prevent, and this constant is the
+    // one reference in the product that never goes through it - it is written
+    // by hand, so the property has to be asserted by hand too.
+    //
+    // The assertion is the shape rather than the folder: which rendering is
+    // right is a decision recorded in homekey.ts, but a reference carrying no
+    // folder at all cannot be right by anything better than luck.
+    const inside = homeSymbol("metacom").slice("metacom:".length);
+    expect(inside).toContain("/");
+    expect(inside.split("/").length).toBeGreaterThan(2);
   });
 
   it("takes the black-and-white variant from either collection", () => {

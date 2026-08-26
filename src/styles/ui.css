@@ -1205,17 +1205,69 @@ button.crumb:hover { color: var(--text); background: var(--surface-2); }
  * Three rules for two schemes, for the reason dialog::backdrop states at
  * length: the media query is what following the OS means, the attribute rules
  * are what a choice in Darstellung means, and the dark one has to restate the
- * default it agrees with in order to beat the light query on a light OS. */
-.cell:not([style*="--cell-color"]) .cell__pic { background: #fff; border-radius: 4px; }
+ * default it agrees with in order to beat the light query on a light OS.
+ *
+ * `:not(.cell--home)` on the two that hand out white is the one exception, and
+ * it is written into the rule rather than out-specified underneath it. A
+ * start key is chrome and carries no paper - see .cell--home below - and the
+ * alternative was a later rule clawing the white back off, which would leave
+ * two rules disagreeing about the same cell and the cascade deciding. The
+ * picker makes this exception the same way and says so: "the exception is
+ * declared rather than smuggled in". The two that hand out `none` need no
+ * exception, because none is what a start key wants from them. */
+.cell:not([style*="--cell-color"]):not(.cell--home) .cell__pic {
+  background: #fff; border-radius: 4px;
+}
 @media (prefers-color-scheme: light) {
   .cell:not([style*="--cell-color"]) .cell__pic { background: none; border-radius: 0; }
 }
 :root[data-theme="light"] .cell:not([style*="--cell-color"]) .cell__pic {
   background: none; border-radius: 0;
 }
-:root[data-theme="dark"] .cell:not([style*="--cell-color"]) .cell__pic {
+:root[data-theme="dark"] .cell:not([style*="--cell-color"]):not(.cell--home) .cell__pic {
   background: #fff; border-radius: 4px;
 }
+
+/* The start key, drawn as the tablet draws it.
+ *
+ * The one cell on the board whose appearance belongs to the viewer rather than
+ * to the collection: a dark plate with the picture's luminance mapped onto two
+ * tones, so the house reads as a drawing on the key instead of a white card
+ * lying on it. editor-app/editor.ts decides which cell this is, and it decides
+ * it with BoardScreen.kt's own test - a bare `home`, no fill, no border - so
+ * the editor and the tablet mark the same button.
+ *
+ * Not scheme-dependent, and that is deliberate rather than an omission: this
+ * is the tablet's tile, and what the tablet looks like does not change when
+ * the editor goes light. .pick__hit--home says the same of the picker's
+ * preview, and the two are the same key seen in two places.
+ *
+ * --home-plate is set on the element from HOME_TONES, and #homeTone is the
+ * filter those same numbers are - mounted once with the frame, which is what
+ * templates/frame.ts means by a filter being reachable by id from anywhere in
+ * the document. invert(1) is not this map; the note there says why. */
+.cell--home { background: var(--home-plate); }
+.cell--home .cell__pic { filter: url(#homeTone); }
+/* Doubled to out-weigh `.cell:not([style*="--cell-color"])` above, which is
+   two selectors to this one's one and would otherwise keep handing the plate
+   the theme's own ink - readable in a dark editor and invisible in a light
+   one, on a cell whose colour does not follow the editor either way. */
+.cell.cell--home { color: var(--home-ink); }
+/* The word comes off the plate, as it does on the tablet.
+ *
+ * BoardScreen.kt drops the label on this one button and says why: a key that
+ * navigates is read by where it sits and what it shows, and the word is still
+ * in the package. The same holds here, and there is a second reason to match
+ * it rather than merely tolerate it - the editor's job on this cell is to
+ * predict the tablet, and a word the tablet will not draw is the editor
+ * predicting wrong.
+ *
+ * Nothing is lost to a screen reader: the cell is named by .cell__open's
+ * aria-label, which is built from the label before this rule ever applies, so
+ * the word is still announced and still sits in Aufschrift one press away.
+ * The picker keeps its caption for the opposite reason and does not contradict
+ * this - .pick__homecap is *beside* the tile, not on the plate. */
+.cell--home .cell__word { display: none; }
 
 /* The picture and the cross over it as one box, so the cross is the size of
    the picture and not of the cell. Only a crossed-out key is wrapped: an
