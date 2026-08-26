@@ -46,6 +46,7 @@ import {
 import { editorFor, editorOf, FIRST_TARGET } from "../core/editor.js";
 import { offer, openPackageExport } from "./packageExport.js";
 import { openCollectionSettings } from "./voices.js";
+import { homeSymbol, homeSymbolSource, takeHomeSymbol } from "./homekey.js";
 import { state } from "../core/state.js";
 import { load, saveNow } from "../core/save.js";
 import { t } from "../core/texts.js";
@@ -557,6 +558,60 @@ function askTarget(): Promise<Made | null> {
   });
 }
 
+/**
+ * The picture the start key of a brand new tablet Sammlung points at, fetched
+ * into this browser and then drawn.
+ *
+ * blank() names the picture; this is what makes the name resolve. The two are
+ * apart because they can only be apart: naming it is one expression and
+ * fetching it is a download, and blank() answers a synchronous question the
+ * shell asks of every editor.
+ *
+ * **Not awaited, and after the Sammlung exists rather than before it.** A
+ * Sammlung being made is a press somebody is waiting on, and making it wait on
+ * a pictogram download would put the network between "new" and a board - on a
+ * page whose whole point is that everything else in it works offline. So the
+ * Sammlung is written, opened and named first, this runs behind it, and the
+ * board is drawn again when the picture lands. Until then the key is a key with
+ * a picture that is not here yet, which is a state every board in this product
+ * can already be in and already says out loud.
+ *
+ * Which collection is asked is read off the Sammlung blank() has just made
+ * rather than asked afresh. That answer is live - a METACOM folder arrives and
+ * leaves without a reload - so two reads of it are two chances to fetch a
+ * picture nothing points at, or to leave the one that is pointed at unfetched.
+ * A METACOM start key needs nothing fetched at all: the reference resolves out
+ * of somebody's own licensed folder, which is the rule the whole symbol seam is
+ * built around.
+ *
+ * A failure costs the picture and nothing else, and it is said in the status
+ * line rather than swallowed: an ARASAAC that could not be reached is worth
+ * knowing about, because the remedy is to try again in a minute and the key is
+ * one press from being given a picture by hand.
+ */
+async function keepHomeSymbol(made: Layout, id: string): Promise<void> {
+  if (!isApp(made)) return;
+  const source = homeSymbolSource();
+  const wanted = (made.firstColumn ?? [])
+    .some((one) => one.symbol === homeSymbol(source));
+  if (!wanted) return;
+  try {
+    await takeHomeSymbol(source);
+  } catch (error) {
+    status(t("ui.symbol_failed", { error: reason(error) }));
+    return;
+  }
+  /* Drawn again, because the board was drawn while the picture was still on
+   * its way and every cell holding it decided then that there was none.
+   *
+   * Guarded on the Sammlung still being the open one: a download takes long
+   * enough for somebody to have clicked away to another Sammlung, and
+   * re-rendering there would draw this Sammlung's board over theirs. Nothing
+   * is lost by not drawing - the file is in the store, and the board is
+   * correct the next time it is opened. */
+  if (held.current === id) editorOf(state.layout).render();
+}
+
 async function create(): Promise<void> {
   const made = await askTarget();
   // Dismissed. Nothing was written and nothing is said: a dialog somebody
@@ -580,6 +635,10 @@ async function create(): Promise<void> {
   const field = $<HTMLInputElement>("collectionName");
   field.focus();
   field.select();
+  // And the start key's picture, behind all of that - see keepHomeSymbol. The
+  // caret is already in the name field by the time this so much as asks the
+  // network, which is the whole reason it is the last line here.
+  void keepHomeSymbol(blank, id);
 }
 
 /** The open Sammlung's name as somebody would read it, fallback included. */

@@ -25,6 +25,9 @@ import * as symbols from "../data/symbols.js";
 import { drawnFrom } from "../data/app_package.js";
 import { state } from "../core/state.js";
 import { t } from "../core/texts.js";
+import {
+  asksForHome, homeSymbolUrl, homeWord, takeHomeSymbol,
+} from "./homekey.js";
 import type { ProviderId } from "@lautstark/bildquelle";
 
 /* --- The seam ------------------------------------------------------------
@@ -113,6 +116,32 @@ export interface SymbolAnswer {
    *  "" when one of them really is the word. Never set together with `empty`:
    *  it is about hits, and there are none to be about. */
   near: string;
+  /** The picture a start key is prescribed, when the word typed is a word for
+   *  one - see shell/homekey.ts. null otherwise, which is nearly always.
+   *
+   *  Beside the hits and not among them, because it is not one: it is the one
+   *  picture in the collection this product has an opinion about, and it is
+   *  the same picture whatever the search found. That is also why it survives
+   *  an `empty` answer - a collection with no word for "home" still has the
+   *  house that was chosen out of it, and that is exactly the search where
+   *  somebody most needs to be shown it. */
+  home: HomeSuggestion | null;
+}
+
+/** The prescribed start-key picture, ready to draw and ready to take.
+ *
+ * A shape of its own rather than a SymbolHit, and the difference is worth the
+ * type. A hit is something a collection answered with and carries whichever
+ * identifier its source needs resolving by; this was decided once, for both
+ * collections, and already knows what a press stores. Squeezing it into a hit
+ * would put a "and also this one is special" flag through takeSymbol(), which
+ * is the seam that must stay the plain reading of what each source hands back.
+ */
+export interface HomeSuggestion {
+  /** A URL for `<img src>`. */
+  url: string;
+  /** What the tile is called, on the tile and to a reader. */
+  caption: string;
 }
 
 /* --- Whether the grid means the word --------------------------------------
@@ -202,12 +231,19 @@ const matchesWord = (hits: SymbolHit[]): boolean =>
  *  none of them has anything else to do about it. */
 export async function findSymbols(word: string): Promise<SymbolAnswer> {
   const term = word.trim();
-  if (!term) return { hits: [], empty: "", near: "" };
+  if (!term) return { hits: [], empty: "", near: "", home: null };
   const source = offeredSource();
+  // Asked before the collection is searched and answered whatever the search
+  // then does, because it is not an answer *from* the collection: it is the one
+  // picture in it this product picked. A word the collection cannot answer at
+  // all is the search where showing it matters most.
+  const home = await homeFor(source, term);
   // Answering from the other collection is what has to not happen: a hit taken
   // from ARASAAC here is a key this Sammlung can no longer export. So there
   // are no hits, and the sentence is the one click that fixes it.
-  if (outOfReach(source)) return { hits: [], empty: folderWanted(), near: "" };
+  if (outOfReach(source)) {
+    return { hits: [], empty: folderWanted(), near: "", home };
+  }
   try {
     const hits = await symbols.searchIn(source, term);
     // Kept whatever they turn out to be. Somebody searching "nicht" may well
@@ -216,17 +252,43 @@ export async function findSymbols(word: string): Promise<SymbolAnswer> {
     // the fault. So the near misses stay and a line above them says what they
     // are.
     if (hits.length) {
-      return { hits, empty: "",
+      return { hits, empty: "", home,
                near: matchesWord(hits) ? "" : t("ui.search_near", { word: term }) };
     }
     const how = symbols.statusOf(source);
-    return { hits, near: "", empty: how.kind === "ready"
+    return { hits, near: "", home, empty: how.kind === "ready"
       ? t("ui.nothing_found", { word: term })
       : t("ui.search_no_answer", { word: term }) };
   } catch (error) {
-    return { hits: [], near: "", empty: t("ui.search_failed", { error: reason(error) }) };
+    return { hits: [], near: "", home,
+             empty: t("ui.search_failed", { error: reason(error) }) };
   }
 }
+
+/** The prescribed house for this collection, when the word asks for it and the
+ *  collection can be reached.
+ *
+ * Silent about everything that goes wrong. There is no sentence to write: the
+ * search itself already says whatever there is to say about an unreachable
+ * METACOM folder or a browser with no network, and a second line about a tile
+ * nobody asked for would be the picker explaining a feature instead of
+ * answering a search. So an unresolvable picture simply is not offered. */
+async function homeFor(source: ProviderId, term: string): Promise<HomeSuggestion | null> {
+  if (!asksForHome(term)) return null;
+  try {
+    const url = await homeSymbolUrl(source);
+    return url ? { url, caption: homeWord() } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The prescribed house, taken - the same act the tiles beside it perform, in
+ *  the one shape both collections already answer to. Throws what the download
+ *  throws, exactly as takeSymbol() above does, and for the same reason: a
+ *  caller that asked for this one picture has somewhere to say so. */
+export const takeHome = (): Promise<{ symbol: string; label: string }> =>
+  takeHomeSymbol(offeredSource());
 
 /** A hit, resolved to what a layout stores: a reference and the collection's
  *  own word for it. Throws, because a caller that asked for this one symbol

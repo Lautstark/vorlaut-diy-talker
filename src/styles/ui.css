@@ -1051,6 +1051,15 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   fill: none; stroke: var(--danger); stroke-width: 7; stroke-linecap: round;
   pointer-events: none;
 }
+/* The other SVG in the page, and the opposite kind: nothing to look at, only
+   something for a filter: rule to point at by id. templates/frame.ts mounts
+   it and says why it is there rather than inside the sheet that uses it.
+
+   Taken out of the flow entirely rather than hidden with [hidden] or
+   display:none, because a filter inside a display:none subtree is not
+   guaranteed to be applied - what is wanted is an element that occupies
+   nothing, not one that is not rendered. */
+.filters { position: absolute; width: 0; height: 0; overflow: hidden; }
 /* Two lines, then an ellipsis.
  *
  * AsTeRICS Grid's TextConfig offers three answers to a label that does not fit
@@ -1434,6 +1443,36 @@ dialog.sheet--page { max-width: 520px; }
 .pick__hit img { width: 100%; height: 100%; object-fit: contain; }
 .pick__hit:hover { border-color: var(--line); }
 .pick__hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The prescribed start-key picture, drawn the way the key is drawn.
+   One grid cell like any other tile, but a tile with a word under it - so the
+   cell is a little column and the row it is in grows by the height of that
+   word. That is the point rather than a cost: it is the one thing in the box
+   the collection did not answer with, and a tile that took exactly the room a
+   hit takes would be a hit. See homeTile() in shell/sheet.ts.
+
+   White is the grid's rendering rule and this is the exception to it. The
+   exception is declared rather than smuggled in: the dark plate, the caption
+   and the row it makes are three ways of saying the same thing, which is that
+   this picture is being shown as it will be *used* rather than as the
+   collection draws it. The collection's own drawing of the same house is still
+   in the grid beside it. */
+.pick__home { display: grid; gap: 3px; }
+/* --home-plate is set on the element, from HOME_TONES in shell/homekey.ts,
+   which is also where the filter's numbers come from. Not a theme token and
+   not scheme-dependent: this is the tablet's tile, and what the tile looks
+   like does not change when the editor goes light. */
+.pick__hit--home { background: var(--home-plate); }
+/* #homeTone is mounted with the frame - see templates/frame.ts, which says why
+   a colour matrix cannot be a CSS filter shorthand and why invert(1) is not
+   this map. */
+.pick__hit--home img { filter: url(#homeTone); }
+/* Smaller than the sentences around the box, and dimmer: it names a tile that
+   is already unmistakable, so it has to be readable without pulling the eye
+   off the pictures. Centred under the square it belongs to. */
+.pick__homecap {
+  font-size: 10.5px; line-height: 1.2; text-align: center; color: var(--text-dim);
+}
 /* The two things done to the picture as a whole - put one there from a file,
    take the one that is there off - side by side, because they are the same
    question answered two ways. They wrap rather than shrink: a button whose

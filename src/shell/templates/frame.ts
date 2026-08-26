@@ -38,6 +38,11 @@
  * src/editor-diy/templates/board.ts mounts into #editor.
  */
 import { mount } from "./mount.js";
+/* The numbers the filter below is, from the module that owns what a start
+ * key looks like. Interpolated rather than written out here, so the editor
+ * and the Android viewer are reading one set of numbers with one comment
+ * above it - see HOME_TONES. */
+import { HOME_TONES } from "../homekey.js";
 
 /* The logo lives in public/, so Vite copies it verbatim and does not rewrite
  * references to it that sit inside a template string the way it would inside
@@ -130,6 +135,28 @@ export const markup = `
     </main>
   </div>
 </div>
+
+<!-- The one piece of drawing on this page a stylesheet cannot express.
+     The CSS filter property has no colour matrix, and the nearest shorthand -
+     invert(1) - is not this map and looks wrong: it takes the white inside the
+     house to pure black, which on a dark key reads as a hole cut through it.
+     So the map is an SVG filter, defined once here and named by ui.css.
+
+     color-interpolation-filters="sRGB" because the default is linearRGB, and
+     the numbers are a map between the colours as they are written rather than
+     between their linear energies - left to the default, the strokes come out
+     visibly dark of the tone that was chosen.
+
+     Mounted with the frame rather than with the sheet that uses it: an SVG
+     filter is referenced by id from anywhere in the document, and one that came
+     and went with a dialog would be a picture that renders correctly only while
+     something else is open. Zero-sized and aria-hidden - there is nothing here
+     to see or to read, only something to point at. -->
+<svg class="filters" aria-hidden="true" focusable="false">
+  <filter id="homeTone" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values="${HOME_TONES.matrix.join(" ")}"/>
+  </filter>
+</svg>
 `;
 
 export function render(): void {
