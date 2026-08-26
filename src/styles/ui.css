@@ -448,34 +448,15 @@ pre.log {
      are the navigation. Several lines cost height, but only as many lines
      as there are actually sets.
 
-     The talker's strip, not the tablet's - `.pagerow` below is capped at two
-     rows by construction and does not wrap past them. */
+     The talker's strip, and now the only one: the tablet's pages are a list
+     in the sidebar. */
   .tabs { flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .tabs .tab { flex: none; padding: 8px 12px; }
 
-  /* The tablet's bar, where the path, the warning and the picker share one
-     line, and the order in which they give it up.
-
-     **The path first.** It is the only one of the three that degrades instead
-     of disappearing: the crumbs passed through ellipsise on every width, and
-     here the page somebody is standing on joins them, so the line can come all
-     the way down to a house, a rule, an ellipsis and the ... into the page's
-     own card. Both ends of a path still say the two things that matter - where
-     you are and the way out - at any width.
-
-     **Then the warning's words.** The mark stays and keeps its colour and its
-     press; what goes is the sentence, which is a count somebody can read off
-     the picker's own list a press later.
-
-     **The picker never gives.** It is the only way to a page nothing leads to,
-     so it is the last thing on this bar that may be sacrificed for room - and
-     on a phone it is the thing the warning beside it is pointing at. */
-  .pagelost { padding: 6px; }
-  .pagelost__text { display: none; }
-  /* Every pixel the three of them are short is one the path has to give, so
-     the bar spends fewer of them on air down here. */
-  .appbar { gap: 8px; }
-  .appbar__right { gap: 6px; }
+  /* Nothing here for the tablet any more. The bar this block used to shrink -
+     a path, a warning and a picker sharing one line - is gone; what is over the
+     board now is a name and a line of numbers, and both wrap on their own. The
+     pages moved into the sidebar, which is already a drawer at this width. */
 
   main { padding: 12px; overflow-y: visible; }
   /* The board is not reflowed. Two of three columns would be a board that is
@@ -745,219 +726,134 @@ dl.transfer dd { margin: 0; font-size: 14px; }
    rules around it do: this is the layout that is vorlaut's alone, and the
    vocabulary it is written in - .btn, .tab, the tokens - comes from
    @lautstark/design one layer down. */
+/* The page over the board: its own head, one line of facts, and nothing else.
+   A path, a row of page tiles and a picker stood here; templates/board.ts holds
+   the argument for why all three are gone and where each of them went. */
 
-/* The bar holds the path and the three controls at its right end. The pages
-   are the row below it, not in it. */
-/* One line, and it stays one. Wrapping was the other way to fit a narrow
-   window and it puts the height back that the row below just gave up - the bar
-   grows downward into the board, which is the failure this whole change is
-   about. So the path shrinks instead, in the order below. */
-.appbar { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; margin-bottom: 8px; }
-
-/* The path: a house, a rule, and one crumb per page from the start page to the
-   one on screen. It is where the strip says how far in somebody is, and it is
-   the only thing on this page that says so - templates/board.ts has the three
-   drawings that tried to say it below instead.
-
-   It takes the whole line and gives it back first. `flex: 1 1 auto` with
-   `min-width: 0` is what lets the crumbs in the middle ellipsise while the
-   house and the page on screen keep their width, so a path too long for the
-   window loses the pages passed through rather than either end of itself.
-   Which is the answer to what goes first when this line runs out of room, and
-   it is deliberate: the two ends are where somebody is and the way out, and
-   both survive down to a phone. */
-.pagepath {
-  display: flex; align-items: center; gap: 2px;
-  /* Only as wide as it needs, so the ... beside it sits against the last crumb
-     rather than being pushed to the far end of the bar. What pins the group at
-     the right edge is that group's own auto margin. */
-  flex: 0 1 auto; min-width: 0; overflow: hidden;
+/* The head. The name is the field that renames it, so it is a field that does
+   not look like one until it is reached for - the same treatment .title-input
+   gets one floor up, one size down. */
+.pagehead { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.pagehead__home { flex: none; color: var(--accent-strong); font-size: 15px; line-height: 1; padding: 0 2px 0 4px; }
+.pagehead__warn { flex: none; color: var(--warn, #c76a00); font-size: 12px; line-height: 1; }
+.pagehead__name {
+  flex: 0 1 auto; min-width: 0; width: 12em;
+  border: 0; background: none; color: var(--text);
+  font: inherit; font-size: 15px; font-weight: 600;
+  padding: 3px 6px; border-radius: var(--radius-item, 7px);
 }
-.crumb {
-  display: flex; align-items: center; gap: 6px;
-  flex: 0 100 auto; min-width: 0;
-  padding: 5px 7px; border: 0; border-radius: var(--radius-sm);
-  background: none; color: var(--text-dim); font-size: 14px;
-  white-space: nowrap; overflow: hidden;
+.pagehead__name:hover { background: var(--surface-2); }
+.pagehead__name:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+/* Both acts sit at the right end, quiet, and exactly one of them is ever
+   drawn beside the other: "make this the start page" is hidden on the page
+   that already is one, where the house at the left says so instead. */
+.pagehead__act, .pagehead__del {
+  flex: none; margin-left: auto;
+  border: 0; background: none; color: var(--text-faint);
+  font: inherit; font-size: 12.5px; padding: 5px 8px;
+  border-radius: var(--radius-item, 7px); cursor: pointer;
+}
+/* `+` matches a hidden sibling too - it is still in the markup - so the second
+   act would lose its auto margin and sit against the name on every page that
+   is the start page. Only a drawn one counts. */
+.pagehead__act:not([hidden]) + .pagehead__del { margin-left: 0; }
+.pagehead__act[hidden], .pagehead__del[hidden] { display: none; }
+.pagehead__act:hover { background: var(--surface-2); color: var(--text); }
+/* Delete is the one act here with no way back, and it is on screen rather than
+   two presses deep now that the page's menu is gone. It stays the quietest
+   thing on the line until it is reached for, and the question in front of it
+   still counts what leads here - see askDelete(). */
+.pagehead__del:hover { background: var(--danger-soft); color: var(--danger); }
+
+/* One line of numbers, each of which unfolds. A sentence, not a toolbar: the
+   separator is a middot and nothing here has a fill, because a row of boxes
+   over the board is what this whole change removed. */
+.facts {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0 4px;
+  margin-bottom: 10px;
+  font-size: 12.5px; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.facts__dot { color: var(--line); }
+.facts__plain { padding: 3px 2px; }
+.facts__one {
+  border: 0; background: none; color: var(--text-dim);
+  font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums;
+  padding: 3px 4px; border-radius: 5px; cursor: pointer;
+}
+.facts__one:hover { color: var(--text); }
+/* Open is the accent, not a fill. A filled box here would be the only box in a
+   line made of text. */
+.facts__one[aria-expanded="true"] { color: var(--accent-strong); font-weight: 600; }
+.facts__one:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The one zero that is a fault. A page leading nowhere is a leaf and most
+   pages are leaves; nothing leading to a page that is not the start page is a
+   page the tablet cannot reach. Only the second is coloured - drawFacts(). */
+.facts__zero { color: var(--warn, #c76a00); }
+
+/* What the open number says. Text links with middots between them: a row of
+   names reads as a sentence, a row of chips reads as a second toolbar. */
+.factlinks {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 3px;
+  margin: -4px 0 10px; padding: 0 2px;
+  font-size: 12.5px; line-height: 1.7; color: var(--text-faint);
+}
+.factlinks[hidden] { display: none; }
+/* Each sentence of the effort explanation on its own line; the page names of
+   the two directions flow together on one. */
+.factlinks__line { flex: 0 0 100%; }
+.factlinks__sum { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.factlinks__to {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 0; background: none; color: var(--accent-strong);
+  font: inherit; font-size: 12.5px; padding: 0 2px; border-radius: 4px;
   cursor: pointer;
 }
-/* The ellipsis lives on the name and not on the crumb: a crumb is a flex
-   container, where a bare text node becomes an anonymous item that
-   `text-overflow` cannot reach, so a shortened crumb was cut off square. */
-.crumb__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-button.crumb:hover { color: var(--text); background: var(--surface-2); }
-/* What gives first, and what gives last.
+.factlinks__to:hover { text-decoration: underline; }
+.factlinks__to:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+a.factlinks__line { color: var(--accent-strong); text-decoration: none; }
+a.factlinks__line:hover { text-decoration: underline; }
 
-   The house never shrinks: it is the way out, it is one glyph, and it costs
-   nothing to keep. The pages *passed through* shrink to an ellipsis, down to
-   a couple of characters - they are the part of the path a person can afford
-   to lose, because what a walk went through matters less than where it ended.
-   The page on screen shrinks too, a hundredth as fast, so it only starts
-   giving once the middle has nothing left: flex shares a shortfall out in
-   proportion to shrink factor times width.
+/* The pages of the open Sammlung, under its row in the sidebar.
+   shell/collections.ts inserts the container; what goes in it is the tablet
+   editor's, and the talker passes nothing and gets none of this.
 
-   100 and 1 rather than 1 and 0.1, and the difference is not cosmetic. Where
-   the unfrozen items' shrink factors add up to *less than one*, flexbox scales
-   the shortfall by that sum instead of absorbing it - so a lone item at 0.1
-   takes a tenth of what it should and the rest overflows, which here clipped
-   the ... off the right end of the path. Two factors that sum past one make
-   the same ordering and absorb all of it. */
-.crumb--home { flex: none; font-size: 15px; padding: 4px 8px; }
-.crumb--here { flex-shrink: 1; }
-/* A floor under the ellipsis, and it is what makes shorten() the next step
-   rather than the last resort. Squeezed to a couple of characters a crumb says
-   nothing a person can use - "S…" is not a page - and the one ellipsis that
-   stands for all of them says the same thing in less room. So a page passed
-   through either stays readable or goes. */
-.pagepath .crumb:not(.crumb--home):not(.crumb--here) { min-width: 6ch; }
-/* The ... sits beside the path rather than in it - see standing(). Inside, it
-   was inside the box that gives its width up first, and a 375px window
-   squeezed it out of existence, which is a page's own card with no way to it.
-   Out here it cannot shrink and cannot be clipped. */
-.crumb__more { flex: none; }
-/* Where somebody is: not a control, because it leads where they already are.
-   That is what lets the ⋯ inside it be a real <button> rather than a <span>
-   wearing role="button" - see standing(), and opener() for the rule it is an
-   exception to. */
-.crumb--here { color: var(--text); font-weight: 600; cursor: default; }
-/* The ⚠ on the page somebody is standing on, when nothing leads to it. Never
-   shrinks and never ellipsises: it is one glyph, the name beside it is what
-   gives width up, and a mark that could be cut off is a mark that reports the
-   page as fine at exactly the widths where the words for it are gone too. The
-   size is 12px for the reason `.tab__lost` is - U+26A0 fills its own em box.
-
-   The name beside it keeps its own colour. The glyph is the mark, here as on
-   a tile, and a crumb tinted as well would be the same fact drawn twice in a
-   bar that already carries the count in orange at its other end. */
-.crumb__lost { flex: none; color: var(--warn, #c76a00); font-size: 12px; line-height: 1; }
-.crumb__bar { flex: none; color: var(--line); }
-.crumb__sep { flex: none; color: var(--text-faint); font-size: 13px; }
-.crumb__sep[hidden] { display: none; }
-/* One ellipsis for however many pages the width cost - see shorten(). It
-   carries its own separator, so the crumbs it stands in for take theirs with
-   them and the line never ends up with two in a row. */
-.crumb__fade { flex: none; color: var(--text-faint); font-size: 13px; }
-.crumb__fade[hidden] { display: none; }
-.crumb[hidden] { display: none; }
-
-/* The right-hand end of the bar: the warning, the picker and the way to a new
-   page, pinned there by the auto margin.
-
-   The order is the point. The warning is immediately before the picker, and
-   the group grows leftward, so a Sammlung that gains or loses an orphan moves
-   the warning's own left edge and nothing else - the picker stays exactly
-   where it was, which is the rule the page's own ... was given when it stopped
-   reflowing the strip it sat in. "+ Neue Seite" is past the picker rather than
-   before it, because "immediately before" is a promise about those two and a
-   third control between them would break it. */
-.appbar__right { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
-.pagelost {
-  display: flex; align-items: center; gap: 6px; flex: none;
-  padding: 6px 9px; border: 0; border-radius: var(--radius-sm);
-  background: none; color: var(--warn, #c76a00); font-size: 13px;
-  white-space: nowrap; cursor: pointer;
+   No fill on a row and no fill on the open one. The Sammlung above it is the
+   row that carries the accent surface, and a second filled block directly
+   under it reads as two things being open at once. Here the open page is the
+   one in the accent's colour, which is as much as it needs. */
+.pagelist {
+  display: flex; flex-direction: column; gap: 0;
+  margin: 3px 0 4px 12px; padding-left: 8px;
+  border-left: 1px solid var(--surface-2);
+  max-height: 260px; overflow-y: auto; overscroll-behavior: contain;
 }
-.pagelost:hover { background: var(--surface-2); }
-/* An author rule beats the user agent's `[hidden] { display: none }` at the
-   same specificity, so `display: flex` above showed a warning saying nothing
-   was wrong. Restated here rather than dropped: the flex box is what puts the
-   mark beside the words. */
-.pagelost[hidden] { display: none; }
-/* Pressable, and it opens the picker: a warning that names a problem with no
-   way to the thing it is about is a dead end, and the picker is the only place
-   those pages can be reached from. */
-.pagelost__text { color: inherit; }
-/* A Sammlung of forty pages is a list taller than the window. fit() caps it
-   against whatever box it is in - here the window, since there is no sheet -
-   and this is what makes the cap scroll rather than clip. */
-#appPagePickAt .menu { overflow-y: auto; overscroll-behavior: contain; }
-
-/* The row under the bar: the pages the page on screen opens.
-
-   **Two rows' worth of height, reserved, whatever is in it.** This is the
-   whole of the change. `.tabs` above is `flex-wrap: wrap` with no cap and no
-   scroll, so a real MetaTalk board of twenty-one pages wrapped to three rows
-   and forty would take six - growing *downward*, which pushes the board being
-   edited off the bottom of the screen. That is chrome describing the work
-   taking the work's own space, and it fails in the one direction that cannot
-   be lived with. A fixed height cannot, and it buys a second thing the
-   wrapping strip never had: the board's top edge holds still while somebody
-   walks from page to page.
-
-   `overflow: hidden` is the floor under drawRow(), which hides what is past
-   two rows itself and puts a fold in its place. This is what the frame before
-   that measurement looks like, and what a browser mid-resize gets.
-
-   The tile height is written down rather than left to the type, because the
-   reserved height is two of it plus the gap and the two numbers have to be one
-   number. */
-.pagerow {
-  --pagerow-tile: 38px;
-  display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;
-  height: calc((2 * var(--pagerow-tile)) + 8px); overflow: hidden;
-  margin-bottom: 12px;
+.pagelist__item {
+  display: flex; align-items: center; gap: 7px;
+  width: 100%; text-align: left; padding: 4px 4px 4px 2px;
+  border: 0; border-radius: 5px; background: none;
+  color: var(--text-dim); font: inherit; font-size: 13px; cursor: pointer;
 }
-.pagerow .tab { height: var(--pagerow-tile); padding-block: 0; }
-/* The same trap `.pagelost[hidden]` fell into: `.tab`'s own display beats the
-   user agent's rule for the attribute, so the tiles drawRow() folds away would
-   have stayed on screen at full size. */
-.pagerow .tab[hidden] { display: none; }
-/* A page that opens nothing says so. An empty row and a row that has not been
-   drawn look identical, and with the height reserved it would be a blank band
-   over the board accounting for itself in no way at all.
-
-   `flex-basis: 100%` puts it on a line of its own at every width, which is
-   what makes the run of unreachable pages below it a run rather than prose
-   with tiles trailing off the end of it. It costs nothing where it is the only
-   thing in the row, and where it is not, the two rows are the sentence and
-   then the pages - which is the reading order the sentence is written for.
-
-   Ordinary leading inside a box one tile tall, rather than `line-height` doing
-   the centring. A 38px line-height centres one line and makes two lines 76px,
-   which is the whole reserved height spent on a sentence that had wrapped - so
-   a narrow window lost the tiles to a sentence about them. */
-.pagerow__none {
-  display: flex; align-items: center; flex: 0 0 100%;
-  margin: 0; min-height: var(--pagerow-tile);
-  line-height: 1.35; color: var(--text-dim); font-size: 13px;
+.pagelist__item:hover { color: var(--text); }
+.pagelist__item[aria-current="true"] { color: var(--accent-strong); font-weight: 600; }
+.pagelist__item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pagelist__home { flex: none; font-size: 14px; line-height: 1; }
+.pagelist__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* What the page costs to reach. Tabular figures so the column lines up, and
+   the faintest thing on the row: it is a fact to glance at, not a label. */
+.pagelist__cost { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-faint); }
+.pagelist__item[aria-current="true"] .pagelist__cost { color: inherit; }
+.pagelist__new {
+  border: 0; background: none; color: var(--text-faint);
+  font: inherit; font-size: 12.5px; text-align: left;
+  padding: 4px 4px 4px 2px; margin-top: 2px; border-radius: 5px; cursor: pointer;
 }
-/* The page somebody is standing on is one nothing leads to. Said in the row's
-   own colour would be a remark; it is the reason the board below will not be
-   on the tablet at all, so it carries the same colour as the ⚠ that goes with
-   it on the crumb above. */
-.pagerow__none--lost { color: var(--warn, #c76a00); }
-/* A page nothing leads to has no rule of its own here, and that is the
-   decision rather than an omission. It is drawn as exactly the tile a
-   reachable page is, and what says which is which is the ⚠ inside it -
-   `.tab__lost` below, the same glyph the picker and the path use. A label over
-   them and a dashed edge on each were both drawn and dropped: on a Sammlung
-   nobody has linked yet every page is unreachable, so a second and a third
-   drawing of that fact distinguish nothing and only make the quietest control
-   on the page the loudest. */
-/* What is past two rows. It opens the picker rather than expanding in place -
-   see fold() - so it is drawn as a way somewhere rather than as a tile: no
-   fill, a dashed edge, the same one `.tab.add` uses for the thing that is not
-   a page yet. */
-.pagerow__fold {
-  flex: none; height: var(--pagerow-tile); padding: 0 13px;
-  border: 1px dashed var(--line); border-radius: 10px;
-  background: none; color: var(--text-dim);
-  font: inherit; font-size: 13px; font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-.pagerow__fold:hover { color: var(--text); background: var(--surface-2); }
-/* No `.tab.current` any more, and there is nothing to put in its place: the
-   row holds the pages the page on screen *opens*, so none of them is the one
-   being edited. Which page that is is the path's last crumb, and the mark on
-   it is that it is not a control at all. */
-.tab__home, .tab__lost { line-height: 1; }
-/* Two glyphs, two sizes, because they are not drawn to the same scale. U+2302
-   is a small house sitting low in its em box; U+26A0 fills its own. At one
-   font-size the house came out as a speck beside a warning sign that did not,
-   which is the mark on the page somebody opens *first* being the harder one to
-   see. So the size is chosen per glyph to make them read as one pair. */
-.tab__home { font-size: 15px; }
-.tab__lost { font-size: 12px; color: var(--warn, #c76a00); }
+.pagelist__new:hover { color: var(--text); }
+
+/* The mark on a page nothing leads to, wherever it appears: the sidebar row,
+   the head over the board, a name under an unfolded number. U+26A0 fills its
+   own em box, which is why it is set smaller than the text beside it. */
+.tab__lost { font-size: 12px; line-height: 1; color: var(--warn, #c76a00); }
 
 /* The grid, at the shape the tablet will draw it in. `aspect-ratio` rather
    than a fixed cell size, so that 3x5 and 6x11 both fill the column and a
@@ -1196,6 +1092,34 @@ button.crumb:hover { color: var(--text); background: var(--surface-2); }
 .cell:focus-within .cell__play { opacity: 1; }
 .cell__play:hover { color: var(--text); }
 .cell__play:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The corner that follows a navigation button.
+
+   Always drawn rather than appearing under the pointer, which is the one place
+   it differs from the play control. This is now the only way from a page to
+   the page it opens - the row of tiles that used to repeat them is gone - and
+   a tablet has no pointer to hover with.
+
+   **It shares the top right with the play control, and the two do meet.** A
+   `goto` button that carries its word into the sentence has something to
+   audition as well as a page to follow, so where both are drawn the follow
+   steps one button to the left. The play control keeps the corner: it is the
+   older of the two and every test that reaches for it aims at that spot. */
+.cell__follow {
+  position: absolute; top: 4px; right: 4px; z-index: 2;
+  width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
+  padding: 0; line-height: 1;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--surface); color: var(--accent-strong);
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  font: inherit; font-size: clamp(14px, 16cqw, 18px);
+}
+.cell__follow:hover { background: var(--surface-2); }
+/* One button width plus the gap, in the same clamp the buttons themselves are
+   sized with, so the pair stays a pair at every cell size. */
+.cell--corners .cell__follow { right: calc(clamp(26px, 30cqw, 36px) + 8px); }
+.cell__follow:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* Where a dragged button would land. The same mark the five-key board uses for
    the same gesture, so one dashed outline means one thing in both editors. */
 .cell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
@@ -1890,30 +1814,30 @@ dialog.sheet--page { max-width: 520px; }
 .sheet--button > .foot { justify-content: space-between; }
 .foot__right { display: flex; align-items: center; gap: 9px; }
 
-/* ---------------------------------------- the page's and the set's own way in
+/* ------------------------------------------------- the set's own way in
 
-   Neither has a cell on the board - a page's name belongs to nothing on a
-   tablet, a set's to nothing on the device - so something else carries the way
-   in. On the talker that is the tab that is already open; on the tablet it is
-   the last crumb of the path, which is what is left naming the page being
-   edited now that the strip below holds the pages it *opens* rather than a tab
-   per page.
+   A set has no key on the device that names it, so something on the strip has
+   to carry the way into its card, and that is the ⋯ on its tab.
 
    It stays a control of its own, and here is what it was weighed against. The
    tab is already a 100px target and a second press on the one you are standing
    on does nothing, so that press was free to take - but a modal that opens on
-   the second click of the page you are already on is a modal that opens by
+   the second click of the tab you are already on is a modal that opens by
    accident, and the gesture has nothing on screen to announce it. The other
    way round - dropping the ... and letting the tab carry both - loses the only
-   labelled, keyboard-reachable way to a page's own card. So what was wrong was
+   labelled, keyboard-reachable way to a set's own card. So what was wrong was
    never that it needed a door somewhere else: it was that this door was drawn
    at glyph size with 2px of padding round it, which is a 16x11 target for
    something the work head gives a 40px button to.
 
    So: a box rather than a glyph, at 26px, past the 24px WCAG 2.2 §2.5.8 floor,
    and a glyph inside it big enough to read as the same ... the work head has.
-   The negative margins take it back out of the padding of whatever carries it,
-   so a tab or a crumb holding one is the height of one that is not.
+   The negative margin takes it back out of the tab's padding, so a tab holding
+   one is the height of one that is not.
+
+   The tablet had the twin of this on the last crumb of its path. Both are gone
+   with the path: a page's name is now the field that renames it, and the two
+   acts left have words of their own over the board - see .pagehead.
 
    On the talker it is on every tab, not only the current one - see drawTabs().
    Hidden with `visibility`, which keeps the box: that strip reflowed on every
@@ -1921,28 +1845,20 @@ dialog.sheet--page { max-width: 520px; }
    at lost one, and every tab after them slid; those tabs are also dragged to
    reorder, so the row was resizing mid-drag. `visibility: hidden` is also what
    keeps the reserved copies out of the accessibility tree and out of the tab
-   order, so there is still exactly one of these to find.
-
-   The path needs no such reservation. There is exactly one of these on it, it
-   is at the right end of a line anchored at its left edge, and nothing already
-   drawn moves when it appears. */
-.tab__more, .crumb__more {
+   order, so there is still exactly one of these to find. */
+.tab__more {
   flex: none; width: 26px; height: 26px;
   display: grid; place-items: center;
   border: 0; background: transparent; color: var(--text-faint);
   cursor: pointer; font: inherit; font-size: 17px; line-height: 1;
   border-radius: var(--radius-sm);
+  /* Back out of the tab's own padding, so a tab holding one is the height of
+     one that is not. */
+  margin: -5px -7px -5px 0;
 }
-/* The negative margins take the box back out of the padding of whatever
-   carries it, so a tab or a crumb holding one is the height of one that is
-   not. Two sets of them, because the two have different padding. */
-.tab__more { margin: -5px -7px -5px 0; }
-.crumb__more { margin: -4px 0 -4px -3px; }
-.tab__more:hover, .crumb__more:hover { color: var(--text); background: var(--surface-3); }
-.tab__more:focus-visible, .crumb__more:focus-visible {
+.tab__more:hover { color: var(--text); background: var(--surface-3); }
+.tab__more:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
-/* The reserved copy on every other tab: it holds its box and does nothing.
-   The path needs none - it is anchored at its left edge and the ⋯ sits at its
-   right end, so nothing already drawn moves when it appears. */
+/* The reserved copy on every other tab: it holds its box and does nothing. */
 .tab__more--idle { visibility: hidden; pointer-events: none; }

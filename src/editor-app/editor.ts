@@ -32,19 +32,21 @@ import type {
 } from "../core/types.js";
 import { GRID, LANG, WORD_CLASSES } from "../core/boot.js";
 import { t } from "../core/texts.js";
-import { save } from "../core/save.js";
+import { save, saveSoon } from "../core/save.js";
 import { speak } from "../shell/speech.js";
 import { confirmDialog } from "@lautstark/design/dialog";
-import { menuOn } from "@lautstark/design/menu";
 /* The sheet is the shell's now, and the whole of what this file hands it is a
  * title, a picture, some rows and three labelled things to do. It was written
  * here, and moving it is what let the talker have the same one: an editor may
  * not import out of another editor - tests/unit/layers.test.ts - so anything
  * genuinely shared between the two belongs in the shell. */
-import { dropdown, fit, formRow, hint, missing, openSheet, textField }
+import { dropdown, formRow, hint, missing, openSheet, textField }
   from "../shell/sheet.js";
 import type { Choice, Left } from "../shell/sheet.js";
-import { exportApp, paintOpenCollection, sizeChoices } from "../shell/collections.js";
+import {
+  collectionMenuExtras, collectionPages, exportApp, paintOpenCollection,
+  paintPages, sizeChoices,
+} from "../shell/collections.js";
 /* Which house a start key opens with, and which collection it comes out of.
  * The shell's, not this file's: exchange/SPEC.md §5.1 allows one symbol source
  * per package, so "the prescribed picture" is a different answer per
@@ -58,11 +60,12 @@ import { collectionSheetPanel } from "../shell/voices.js";
  * definition, in the module that owns the format. */
 import { appends } from "../data/app_package.js";
 import {
-  addPage, blankButton, blankPage, buttonAt, columnTargets, deletePage,
+  addPage, blankButton, blankPage, buttonAt, deletePage,
   inboundTo, isShared, moveButton, moveShared, opens, outside, pageById,
-  reachable, resize, route, shareFirstColumn, shared, sharedAt,
-  spreadFirstColumn, unreachable,
+  reachable, resize, shareFirstColumn, shared, sharedAt, sharedColumn,
+  spreadFirstColumn,
 } from "./pages.js";
+import { effortByPage, pageEffort } from "./effort.js";
 
 /** Which page is being edited, by id. An id rather than an index because
  *  deleting a page shifts every index after it and would silently move where
@@ -127,209 +130,36 @@ function commit(): void {
   paintOpenCollection();
   void save();
 }
-
-/* --- The page strip: a path, a row and a picker --------------------------
+/* --- The page: its own head, and the two facts about it -------------------
  *
- * Three parts, and between them they replace a tab per page.
+ * What stood here was a path, a row of tiles and a picker, and all three are
+ * gone. The row showed the pages the page on screen opened, so it was empty on
+ * every board nobody had linked yet - which is every board for its whole first
+ * sitting. Five drawings were tried against that (see the mock pages in the
+ * design session) and each of them made a claim about the graph that the graph
+ * does not support: a level, a parent, a set of neighbours.
  *
- *   drawPath()  a ⌂ anchor and the crumbs from the start page to this one.
- *               The only thing here that says how far in somebody is.
- *   drawRow()   the pages this page opens, in a height fixed at two rows'
- *               worth so that the board below never moves.
- *   drawPick()  every page in the Sammlung, reachable or not. The only way to
- *               a page nothing leads to, and therefore not optional.
+ * **The path went for a reason worth writing down.** `route()` walks
+ * breadth-first and takes the shortest chain, so where two ways reach a page it
+ * showed one of them, arbitrarily, as though it were *the* way. On a graph
+ * where a Food page hangs off both Meals and Morning - the ordinary case this
+ * editor is built for - a breadcrumb cannot be truthful. What it was really
+ * trying to answer is "what leads here", and that question has an exact answer
+ * in inboundTo(): all of them, not one.
  *
- * The strip they replace was `flex-wrap: wrap` with no cap: twenty-one pages
- * took three rows of it and forty would take six, growing downward into the
- * board. Everything below follows from fixing that without losing the one
- * thing the old strip was good at, which is that every page was on it.
+ * So the chrome over the board is now two lines. The page's own head - its
+ * name, which is the field that renames it - and one line of numbers, each of
+ * which unfolds. Which pages exist, and getting to them, is the list in the
+ * sidebar; where a page leads is the buttons on the board, each of which
+ * carries a corner that follows it.
  */
 
-/**
- * Where the editor is standing, drawn as the way it got there: a ⌂ anchor, a
- * divider, and then one crumb per page from the start page to this one.
- *
- * **This is where depth is stated, and it is the only place it is stated.**
- * The strip under it is flat and stays flat - see templates/board.ts for the
- * three shapes that tried to carry depth there and what each of them
- * misreported. A path is the one drawing of a directed graph that is honest
- * about being a single walk through it rather than a picture of the whole
- * thing, which is what somebody editing one page actually needs: not the
- * graph, but how far in they are and how to get back out.
- *
- * route() picks the shortest way, so the crumbs are not "the" path - there is
- * no such thing in a graph where two pages can lead to the same third. They
- * are *a* way, the shortest one, and every step in them is a step through the
- * row below: both are walked over the same edges. See opens() for why the
- * shared first column is not one of them.
- *
- * ⌂ is separated by a rule rather than being the first crumb. It is not a step
- * in the walk - it is the way out of any walk - and a page that is its own
- * start page would otherwise be drawn as a crumb repeating the anchor beside
- * it.
- */
-function drawPath(): void {
-  const layout = board();
-  const line = $("appPath");
-  line.innerHTML = "";
-  line.setAttribute("role", "navigation");
-  line.setAttribute("aria-label", t("ui.app_path"));
-
-  const home = document.createElement("button");
-  home.type = "button";
-  home.className = "crumb crumb--home";
-  home.textContent = "⌂";
-  home.setAttribute("aria-label", t("ui.app_page_home_go"));
-  home.title = t("ui.app_page_home_go");
-  home.onclick = () => { here = layout.home; render(); };
-  line.appendChild(home);
-
-  const bar = document.createElement("span");
-  bar.className = "crumb__bar";
-  bar.setAttribute("aria-hidden", "true");
-  bar.textContent = "|";
-  line.appendChild(bar);
-
-  /* What stands in for the pages dropped when the line runs out of room. In
-   * the document from the start and hidden, so that showing it is a width
-   * change of about ten pixels rather than an insertion that could re-wrap
-   * what has already been measured. */
-  const fade = document.createElement("span");
-  fade.className = "crumb__fade";
-  fade.hidden = true;
-  fade.setAttribute("aria-hidden", "true");
-  fade.textContent = "… ›";
-  line.appendChild(fade);
-
-  const walk = route(layout, page().id);
-  const found = reachable(layout);
-  const passed: [HTMLElement, HTMLElement][] = [];
-  walk.forEach((one, index) => {
-    if (index === walk.length - 1) {
-      line.appendChild(standing(one, found));
-      return;
-    }
-    const step = crumb(one);
-    const sep = document.createElement("span");
-    sep.className = "crumb__sep";
-    sep.setAttribute("aria-hidden", "true");
-    sep.textContent = "›";
-    line.append(step, sep);
-    passed.push([step, sep]);
-  });
-  shorten(line, fade, passed);
-}
-
-/**
- * The path, brought down to the width it has.
- *
- * **This is the answer to what gives when the bar runs out of room, and the
- * order is deliberate.** The pages *passed through* go first, oldest first,
- * each replaced by the one ellipsis that says some were dropped: what a walk
- * went through matters less than where it ended, and the house at the head of
- * the line is still the way out of any of it. Only after they have all gone
- * does anything else on the bar give - and what gives then is the warning's
- * words, not the picker, which is the one control here that cannot be spared
- * because it is the only way to a page nothing leads to.
- *
- * The crumbs ellipsise before any of this happens, which the stylesheet does
- * on its own; this is what is left when even that is not enough. Measured
- * rather than counted for the same reason fold() is: a crumb is as wide as its
- * page's name.
- */
-function shorten(line: HTMLElement, fade: HTMLElement,
-                 passed: [HTMLElement, HTMLElement][]): void {
-  const over = () => line.scrollWidth > line.clientWidth;
-  if (!over()) return;
-  fade.hidden = false;
-  for (const [step, sep] of passed) {
-    if (!over()) return;
-    step.hidden = true;
-    sep.hidden = true;
-  }
-  // Past that there is nothing left to say a page was passed through, so the
-  // mark saying some were goes too rather than crowding out the name of the
-  // page somebody is actually on.
-  if (over()) fade.hidden = true;
-}
-
-/** One page along the way, pressable. */
-function crumb(one: AppPage): HTMLElement {
-  const step = document.createElement("button");
-  step.type = "button";
-  step.className = "crumb";
-  step.appendChild(named(one));
-  step.onclick = () => { here = one.id; render(); };
-  return step;
-}
-
-/** The name, in a box of its own. A crumb is a flex container, and
- *  `text-overflow` has nothing to act on there - the text becomes an anonymous
- *  item and is cut off square. A span is a box it can ellipsise. */
-function named(one: AppPage): HTMLElement {
-  const name = document.createElement("span");
-  name.className = "crumb__name";
-  name.textContent = pageName(one);
-  return name;
-}
-
-/**
- * The last crumb: the page on screen, and the way into its own card.
- *
- * **This is where the ⋯ went.** It sat on the current tab, and there is no
- * current tab any more - the row below holds the pages this one *opens*, none
- * of which is this one. The last crumb is what is left that names the page
- * somebody is standing on, so it is what a page's name, its start-page-ness
- * and its deletion hang off, which is the same relation the ⋯ had to the tab.
- *
- * Not pressable as a crumb, because it leads where somebody already is - so
- * unlike every crumb before it this one is a <span>, and the ⋯ beside it can
- * be a real <button> rather than the span wearing role="button" that a control
- * inside a control forced on the tab. Nothing is reserved on the other crumbs
- * either: the path is anchored at its left edge and the ⋯ is at its right end,
- * so nothing already drawn moves when it appears.
- *
- * **The ⋯ is not inside the crumb, and not inside the path at all.** It sits
- * next to them in the bar, because the path is the box that gives its width up
- * first and anything inside it goes down with it - at 375px the ⋯ was squeezed
- * out of existence, which is a page's own card with no door left. Beside the
- * path it cannot shrink and cannot be clipped, and it still reads as belonging
- * to the crumb: the gap between them is smaller than the crumb's own padding.
- *
- * **It carries the ⚠ when nothing leads to the page somebody is standing on.**
- * Without it the whole difference between a page one press from the start and
- * a page no press reaches is the `|` after the house instead of a `›` - one
- * glyph, in the faintest colour on the bar, for the one fact about this page
- * that will make it invisible on the tablet. The mark is the same ⚠ the row
- * and the picker put on such a page, so it means the same thing in all three
- * places, and route() has already said as much as it can: a lone crumb.
- */
-function standing(one: AppPage, found: Set<string>): HTMLElement {
-  const at = document.createElement("span");
-  at.className = "crumb crumb--here";
-  at.setAttribute("aria-current", "page");
-
-  if (!found.has(one.id)) {
-    const lost = document.createElement("span");
-    lost.className = "crumb__lost";
-    lost.textContent = "⚠";
-    lost.title = t("ui.app_page_unreachable");
-    at.appendChild(lost);
-  }
-
-  at.appendChild(named(one));
-
-  /* No ⌂ on it, even standing on the start page. The anchor at the head of the
-   * line is that mark, and route() always begins at home - so a house on the
-   * first crumb would be the same house twice, and on any later crumb it would
-   * never appear. */
-
-  const more = $<HTMLButtonElement>("appPageMore");
-  more.textContent = "\u22ef";
-  more.setAttribute("aria-label", t("ui.app_page_more"));
-  more.onclick = () => { void openPageSheet(one); };
-  return at;
-}
+/** Two decimals, in the page's language. The effort numbers sit in a column in
+ *  the sidebar and beside each other in the facts line, so they are formatted
+ *  once, here, rather than by each caller. */
+const decimals = new Intl.NumberFormat(LANG, {
+  minimumFractionDigits: 2, maximumFractionDigits: 2,
+});
 
 /** What a page is called in the strip. Its name, or its position where nobody
  *  has named it - the same fallback the delete question uses. */
@@ -337,306 +167,285 @@ const pageName = (one: AppPage): string =>
   one.name || t("ui.app_page_n", { n: board().pages.indexOf(one) + 1 });
 
 /**
- * Every page in the Sammlung, behind a control saying how many there are.
+ * The page's own head: the name, and the two things that can be done to it.
  *
- * **This is what keeps the editor complete, and it is not polish.** The row
- * below shows the pages the page on screen opens, so a page nothing opens is
- * in nobody's row - and until this existed the strip listed every page, which
- * is how an orphan was reached, fixed or deleted. Take the list away without
- * putting this in its place and a page somebody built has no door at all. See
- * unreachable(), whose comment used to say it served a mark in the strip and
- * nothing else.
+ * **The name is the field that renames it.** shell/templates/frame.ts settles
+ * that for a Sammlung - "renaming a thing you are looking at should be typing
+ * over its name" - and a page was the last name in this editor that had to go
+ * through a menu to change. With renaming out of it, the ⋯ that used to sit
+ * beside the path held two entries, and then one, and a menu with one entry is
+ * not a menu.
  *
- * The row draws those pages now, marked, at its end - but it draws them in a
- * height fixed at two rows and folds what does not fit, so on a narrow window
- * or a Sammlung of forty they are behind this control again. Which is why it
- * is still the promise: the row makes them *visible*, and this is what makes
- * them *reachable*, and only one of those can be guaranteed at every width.
- *
- * So the list is every page, in the order they sit in the Sammlung, reachable
- * or not - and the count on the trigger counts them all, orphans included,
- * because the picker is where orphans live and a count that skipped them would
- * disagree with its own list.
- *
- * Three marks, and each says something the name cannot:
- *
- *   ⌂  the start page, the one the tablet opens with.
- *   ⚠  nothing leads here. The same mark the row puts on a tile.
- *   ·  reached from the shared first column, which is an edge from every page
- *      - so this page is one press from anywhere and is in nobody's row. This
- *      is the one place that is said. opens() has the argument for why the
- *      rows leave it out; leaving it out *silently* was the option not taken.
- *
- * A menu rather than a sheet. It is a list of alternatives, one of which is in
- * force, which is what `checked` and role="menuitemradio" are for - and a
- * modal to change page would be heavier than the tab it replaced.
+ * **The ⌂ appears only on the start page.** It is a mark for a state, not a
+ * switch for one: on any other page it would be a house standing over a page
+ * that is not the start page, which is the sort of thing a reader has to test
+ * by pressing. Getting there is an act, so it is an act - a quiet word at the
+ * right end, and only where it would do something.
  */
-function drawPick(): void {
+function drawPageHead(found: Set<string>): void {
   const layout = board();
-  const pick = $<HTMLButtonElement>("appPagePick");
-  const n = layout.pages.length;
-  pick.textContent = n === 1 ? t("ui.app_pages_n_one") : t("ui.app_pages_n", { n });
-  pick.setAttribute("aria-haspopup", "menu");
-  pick.setAttribute("aria-expanded", "false");
-  pick.onclick = () => openPick();
+  const one = page();
 
-  const lost = unreachable(layout);
-  const warn = $<HTMLButtonElement>("appPagesLost");
-  warn.hidden = lost.length === 0;
-  warn.innerHTML = "";
-  /* The mark and the words are two elements because the narrow window keeps
-   * one and drops the other - see the 620px block in ui.css. */
-  const mark = document.createElement("span");
-  mark.className = "tab__lost";
-  mark.textContent = "⚠";
-  const says = document.createElement("span");
-  says.className = "pagelost__text";
-  says.textContent = lost.length === 1
-    ? t("ui.app_pages_lost_one") : t("ui.app_pages_lost", { n: lost.length });
-  warn.append(mark, says);
-  warn.setAttribute("aria-label", says.textContent);
-  /* Pressable, and it opens the picker. A warning naming a problem with no way
-   * to the thing it is about would be a dead end, and the picker is the only
-   * place those pages can be reached from.
-   *
-   * The press is claimed, or it opens the list and closes it again in the same
-   * gesture: the menu dismisses itself on any click that did not land inside a
-   * `.menu-anchor`, and this control is outside the one the list hangs from.
-   * Wrapping both in the anchor would silence it too, and would tie where the
-   * list hangs to what else happens to be in the group. menuOn's own items
-   * claim their presses the same way. */
-  warn.onclick = (event) => { event.stopPropagation(); openPick(); };
-}
+  const house = $("appPageHome");
+  house.hidden = one.id !== layout.home;
+  house.textContent = "\u2302";
+  house.title = t("ui.app_page_home");
 
-/** The picker's list, opened from the trigger, from the warning beside it, or
- *  from the row's fold. One function, because all three are asking the same
- *  question: which page. */
-function openPick(): void {
-  const layout = board();
-  const anchor = $("appPagePickAt");
-  const pick = $<HTMLButtonElement>("appPagePick");
-  const found = reachable(layout);
-  const column = columnTargets(layout);
-  menuOn(pick, (add) => {
-    for (const one of layout.pages) {
-      let label = pageName(one);
-      if (column.has(one.id)) label = t("ui.app_page_pick_column", { name: label });
-      if (one.id === layout.home) label = `⌂ ${label}`;
-      if (!found.has(one.id)) label = `⚠ ${label}`;
-      add(label, () => { here = one.id; render(); },
-          { checked: one.id === page().id });
-    }
-  });
-  fit(anchor, pick);
+  const name = $<HTMLInputElement>("appPageName");
+  name.setAttribute("aria-label", t("ui.app_page_name"));
+  name.placeholder = t("ui.app_page_n", { n: layout.pages.indexOf(one) + 1 });
+  // Only when it is not the field somebody is typing in: writing the value
+  // back under the caret moves it to the end on every keystroke.
+  if (document.activeElement !== name) name.value = one.name;
+
+  const warn = $("appPageWarn");
+  warn.hidden = found.has(one.id);
+  warn.textContent = "\u26a0";
+  warn.title = t("ui.app_page_unreachable");
+
+  const start = $<HTMLButtonElement>("appPageStart");
+  start.hidden = one.id === layout.home;
+  start.textContent = t("ui.app_page_home_set");
+
+  const remove = $<HTMLButtonElement>("appPageDelete");
+  remove.textContent = t("ui.app_page_delete");
 }
 
 /**
- * One row: the pages the page on screen opens.
+ * One line of numbers: what leads here, where it leads, what it costs, how much
+ * is on it. Three of the four unfold.
  *
- * **It replaces the row, it never adds one.** Pressing a tile makes that page
- * current and the row is redrawn as what *it* opens - so there is one row at
- * any moment, no indentation and no second level. Depth is the path's, and
- * templates/board.ts has the three drawings that tried to carry it here.
+ * **Both directions are real edges.** inboundTo() and opens() are the graph
+ * read forwards and backwards; nothing here is derived from a walk that had to
+ * pick a parent. That is the whole difference between this line and the five
+ * drawings it replaces.
  *
- * **Its height is fixed at two rows' worth, whatever is in it.** That is the
- * whole point of the change: `.tabs` wrapped without a cap, so a MetaTalk
- * board of twenty-one pages ate three rows and forty ate six, growing
- * *downward* into the board - the thing being edited went off the bottom of
- * the screen because of chrome describing it. A reserved height cannot do
- * that, and it also means the board's top edge holds still while somebody
- * navigates, which the wrapping strip could not promise from one page to the
- * next either.
+ * **Only one zero is a fault, and only it is coloured.** Nothing leading to a
+ * page that is not the start page is the state that makes it invisible on the
+ * tablet. A page leading nowhere is a leaf, and most pages of a board are
+ * leaves - a board where every page led onward would be a board with no words
+ * on it. Colouring that would be an editor tutting at ordinary work.
  *
- * Nothing caps the row from the page count, and nothing needs to: a page can
- * only lead to as many pages as it has cells. The fold below exists for the
- * two-row overflow and for nothing else.
- *
- * **A page that opens nothing gets a sentence, not an empty box.** An empty
- * row and a row that has not been drawn look identical, and the reserved
- * height would make it a blank band over the board with no account of itself.
- *
- * **And a run at the end for the pages nothing leads to.** The row on its own
- * was blank on every new Sammlung - three pages, no navigation yet, so nothing
- * opens anything and the only tile-shaped thing on screen was the sentence
- * saying so. Linking pages is the work this editor exists for, which makes
- * "before any of it is done" the state it is in for the whole first sitting;
- * a control that is empty then is a control that is empty when it is needed.
- * The strip this replaced showed every page always, and that is the one thing
- * it was good at.
- *
- * So they are shown - and shown as what they are. The row means *the pages
- * this page opens*, and that meaning is what makes the strip a model of the
- * tablet rather than a list of everything; a page appended to it silently
- * would be a lie about a press that does not exist. What keeps it from being
- * silent is the ⚠, the same mark the picker and the path use, and that mark is
- * the whole of it: the tile is otherwise exactly a tile.
- *
- * **The mark alone, and a heavier drawing was tried and dropped.** A label
- * over the run and a dashed edge on every tile in it said the same thing three
- * times, in a control that already has an orange count at the other end of the
- * bar - and on a new Sammlung, where every page is unreachable, all of it is
- * true of everything on screen and none of it distinguishes anything. What is
- * left is one glyph, which is what the picker has always used for this and
- * what somebody has to learn once rather than three times.
- *
- * Last rather than first, so the pages this page really opens keep the top of
- * the row and fold() takes the unreachable ones away before it takes them.
+ * The start page has nothing leading to it and that is not a fault either: the
+ * tablet opens with it. Its zero is left plain and says so when unfolded.
  */
-function drawRow(): void {
+function drawFacts(found: Set<string>): void {
   const layout = board();
-  const row = $("appPages");
+  const one = page();
+  const row = $("appFacts");
   row.innerHTML = "";
-  row.setAttribute("role", "group");
-  row.setAttribute("aria-label", t("ui.app_page_row"));
-  const found = reachable(layout);
-  const to = opens(layout, page().id);
 
-  says(row, layout, found, to.length);
+  const into = inboundPages(layout, one.id);
+  const outOf = opens(layout, one.id);
+  const cost = effortByPage(layout).get(one.id);
 
-  /* The page somebody is standing on is left out even when nothing leads to
-   * it: no row has ever held its own page, and the path says that one - see
-   * standing(). Anything this page already opens is left out too, since it is
-   * on the row a few tiles to the left, wearing the same mark. */
-  const lost = unreachable(layout)
-    .filter((one) => one.id !== page().id && !to.includes(one));
+  row.appendChild(fact("in", t("ui.app_page_here"), into.length,
+    into.length === 0 && one.id !== layout.home));
+  row.appendChild(dot());
+  row.appendChild(fact("out", t("ui.app_page_from_here"), outOf.length, false));
+  row.appendChild(dot());
+  if (cost === undefined) {
+    const nil = document.createElement("span");
+    nil.className = "facts__plain facts__zero";
+    nil.textContent = t("ui.app_page_unreachable");
+    row.appendChild(nil);
+  } else {
+    row.appendChild(fact("cost", t("ui.app_page_effort"), cost, false));
+  }
+  row.appendChild(dot());
+  const many = document.createElement("span");
+  many.className = "facts__plain";
+  const n = one.buttons.length + sharedColumn(layout).length;
+  many.textContent = t(n === 1 ? "ui.app_pages_buttons_one" : "ui.app_pages_buttons",
+                       { n });
+  row.appendChild(many);
 
-  /* Everything fold() may take away, in the order it sits in the row - the
-   * sentence is not in it, because a row whose whole content was folded would
-   * be the blank band again. */
-  const tiles = [...to, ...lost].map(
-    (one) => row.appendChild(tile(one, layout, found)));
-  fold(row, tiles);
+  drawUnfolded(found, into, outOf, cost);
 }
 
+/** The separator between two facts. A middot rather than a rule: the line is a
+ *  sentence of numbers, and a rule would make it a toolbar. */
+function dot(): HTMLElement {
+  const mark = document.createElement("span");
+  mark.className = "facts__dot";
+  mark.setAttribute("aria-hidden", "true");
+  mark.textContent = "\u00b7";
+  return mark;
+}
+
+/** One number, pressable, with what it says beside it. */
+function fact(key: string, label: string, value: number, bad: boolean): HTMLElement {
+  const shown = key === "cost" ? decimals.format(value) : String(value);
+  const one = document.createElement("button");
+  one.type = "button";
+  one.className = "facts__one" + (bad ? " facts__zero" : "");
+  one.textContent = `${label} ${shown}`;
+  one.setAttribute("aria-expanded", String(unfolded === key));
+  one.onclick = (event) => {
+    event.stopPropagation();
+    unfolded = unfolded === key ? null : key;
+    render();
+  };
+  return one;
+}
+
+/** Which fact is open, or none. Module state rather than the DOM's, because
+ *  every render throws the line away and rebuilds it. */
+let unfolded: string | null = null;
+
 /**
- * The one sentence over the row, or none.
+ * What the open number says, under the line.
  *
- * **One line, and two facts want it.** A page nothing leads to and a page that
- * leads nowhere are different problems, and on a page that is both there is
- * room to state one. The inbound one wins: it is the one with a remedy - a
- * button on another page - and a page nobody can get to does not need advice
- * about where it goes on to. The outbound sentence comes back the moment
- * something leads here, which is the moment it starts mattering.
- *
- * That inbound sentence is also what makes "+ Neue Seite" land somewhere that
- * reads like a page rather than like a fault. Pressing it puts somebody on a
- * board that is empty and that nothing opens, and what stood here said only
- * that no button leads onward - true, and about the wrong end of the page.
+ * Text links with middots between them, not chips: a row of names reads as a
+ * sentence and a row of boxes reads as a second toolbar, which is the thing
+ * this whole change is removing.
  */
-function says(row: HTMLElement, layout: AppLayout, found: Set<string>,
-              opening: number): void {
-  const line = document.createElement("p");
-  line.className = "pagerow__none";
-  if (!found.has(page().id)) {
-    line.classList.add("pagerow__none--lost");
-    line.textContent = t("ui.app_page_lost_here");
-  } else if (!opening) {
-    /* Two sentences, because there are two ways to open nothing and only one
-     * of them means what the first one says. A Sammlung with a `goto` in its
-     * shared first column leads onward from every page including this one -
-     * opens() leaves the column out on purpose, and saying "nothing leads on
-     * from here" over a board with a column of navigation on it would be the
-     * strip contradicting what is on screen an inch below. */
-    line.textContent = columnTargets(layout).size
-      ? t("ui.app_page_opens_column") : t("ui.app_page_opens_none");
-  } else {
+function drawUnfolded(found: Set<string>, into: AppPage[], outOf: AppPage[],
+                      cost: number | undefined): void {
+  const layout = board();
+  const box = $("appFactLinks");
+  box.innerHTML = "";
+  box.hidden = unfolded === null;
+  if (unfolded === null) return;
+
+  if (unfolded === "cost") {
+    if (cost === undefined) { box.hidden = true; return; }
+    box.appendChild(sum(layout));
+    const what = document.createElement("span");
+    what.className = "factlinks__line";
+    what.textContent = t("ui.app_page_effort_what", { n: decimals.format(1) });
+    box.appendChild(what);
+    /* Where the arithmetic comes from, and deliberately nothing more. The CARE
+     * numbers published beside it average this over English core word lists,
+     * so they are no yardstick for a German board - see effort.ts. */
+    const more = document.createElement("a");
+    more.className = "factlinks__line";
+    more.href = "https://www.openaac.org/vocabularies/";
+    more.target = "_blank";
+    more.rel = "noreferrer noopener";
+    more.textContent = t("ui.app_page_effort_more");
+    box.appendChild(more);
     return;
   }
-  row.appendChild(line);
+
+  const set = unfolded === "in" ? into : outOf;
+  if (!set.length) {
+    const nil = document.createElement("span");
+    nil.className = "factlinks__line";
+    if (unfolded === "out") {
+      nil.textContent = t("ui.app_page_opens_none");
+    } else if (page().id === layout.home) {
+      nil.textContent = t("ui.app_page_here_home");
+    } else {
+      nil.className += " facts__zero";
+      nil.textContent = t("ui.app_page_here_none");
+    }
+    box.appendChild(nil);
+    return;
+  }
+  set.forEach((one, at) => {
+    if (at) box.appendChild(dot());
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "factlinks__to";
+    if (!found.has(one.id)) {
+      const lost = document.createElement("span");
+      lost.className = "tab__lost";
+      lost.textContent = "\u26a0";
+      lost.title = t("ui.app_page_unreachable");
+      link.appendChild(lost);
+    }
+    link.appendChild(document.createTextNode(pageName(one)));
+    link.onclick = (event) => { event.stopPropagation(); goToPage(one.id); };
+    box.appendChild(link);
+  });
 }
 
-/** One page, as a tile on the row.
- *
- * The ⚠ hangs off reachability itself rather than off where in the row the
- * tile sits, and that is the invariant the row is worth reading by: being
- * opened by the page on screen does not make a page reachable, because the
- * page on screen may be an orphan itself. So a tile among the pages this one
- * opens can carry it too, and a marked tile means the same thing wherever it
- * is - which is what lets the mark be the only difference. */
-function tile(one: AppPage, layout: AppLayout, found: Set<string>): HTMLElement {
-  const tab = document.createElement("button");
-  tab.type = "button";
-  tab.className = "tab";
-  if (one.id === layout.home) {
-    const home = document.createElement("span");
-    home.className = "tab__home";
-    home.textContent = "⌂";
-    home.title = t("ui.app_page_home");
-    tab.appendChild(home);
+/** The arithmetic, page by page along the cheapest way here. Shown rather than
+ *  summarised, because a number somebody is asked to act on should be one they
+ *  can check. */
+function sum(layout: AppLayout): HTMLElement {
+  const line = document.createElement("span");
+  line.className = "factlinks__line factlinks__sum";
+  const cost = effortByPage(layout);
+  const parts: string[] = [];
+  for (const one of cheapestWay(layout, page().id)) {
+    const own = decimals.format(pageEffort(layout, one));
+    parts.push(parts.length
+      ? `+ ${decimals.format(1)} + ${own} (${pageName(one)})`
+      : `${own} (${pageName(one)})`);
   }
-  if (!found.has(one.id)) {
-    const lost = document.createElement("span");
-    lost.className = "tab__lost";
-    lost.textContent = "⚠";
-    lost.title = t("ui.app_page_unreachable");
-    tab.appendChild(lost);
-  }
-  const name = document.createElement("span");
-  name.textContent = pageName(one);
-  tab.appendChild(name);
-  tab.onclick = () => { here = one.id; render(); };
-  return tab;
+  const total = cost.get(page().id);
+  line.textContent = total === undefined ? "" : parts.join(" ");
+  return line;
 }
 
 /**
- * What is past two rows, folded into one control.
+ * The pages passed through on the cheapest way from the start page, ending on
+ * this one.
  *
- * **It opens the picker rather than expanding in place.** Expanding would
- * un-reserve the height the row was given - the board would drop by a row the
- * moment somebody pressed it, which is the jump the fixed height exists to
- * prevent, and it would do it on the one press whose purpose is to look at
- * something. The picker is already the complete list, already the way to a
- * page that is in no row, and already open at a keystroke; a second way of
- * showing more pages would be a second answer to one question.
- *
- * Measured rather than counted. A tile is as wide as its page's name, so how
- * many fit in two rows is not a number this file can know - it is read back
- * off the layout, by asking which distinct tops the row's children came to
- * rest at.
- *
- * **From the end, which is where the unreachable pages are.** Those pages have
- * two other doors - the warning on the bar and the picker behind it - and the
- * pages this one opens have only this row, so they are what a narrow window
- * costs first.
- *
- * The label is written at its widest *before* anything is measured: hiding
- * tiles only ever makes the number smaller, tabular digits make a smaller
- * number no wider, so the arrangement this settles on is one the real label
- * also fits into. Setting it afterwards would be a width change nothing
- * re-measured.
+ * Not route(). That walks breadth-first and answers "the fewest page changes",
+ * which is a different question from "the least effort" and was the reason the
+ * old path could be wrong - see effortByPage(). This one is derived from the
+ * costs themselves: step back to whichever neighbour the total was reached
+ * through.
  */
-function fold(row: HTMLElement, tiles: HTMLElement[]): void {
-  if (!pastTwoRows(row)) return;
-
-  const more = document.createElement("button");
-  more.type = "button";
-  more.className = "pagerow__fold";
-  more.textContent = t("ui.app_page_fold", { n: tiles.length });
-  more.setAttribute("aria-label", t("ui.app_pages_all"));
-  // Claimed, for the reason the warning's press is - see drawPick().
-  more.onclick = (event) => { event.stopPropagation(); openPick(); };
-  row.appendChild(more);
-
-  let gone = 0;
-  while (gone < tiles.length && pastTwoRows(row)) {
-    tiles[tiles.length - 1 - gone]!.hidden = true;
-    gone += 1;
+function cheapestWay(layout: AppLayout, pageId: string): AppPage[] {
+  const cost = effortByPage(layout);
+  const out: AppPage[] = [];
+  let at = pageById(layout, pageId);
+  const seen = new Set<string>();
+  while (at && !seen.has(at.id)) {
+    seen.add(at.id);
+    out.unshift(at);
+    if (at.id === layout.home) break;
+    const here = cost.get(at.id);
+    if (here === undefined) break;
+    const own = pageEffort(layout, at);
+    let from: AppPage | undefined;
+    for (const other of layout.pages) {
+      const theirs = cost.get(other.id);
+      if (theirs === undefined || other.id === at.id) continue;
+      const leadsOn = opens(layout, other.id).some((x) => x.id === at!.id)
+        || sharedColumn(layout).some((b) =>
+             b.act.kind === "goto" && b.act.page === at!.id);
+      if (!leadsOn) continue;
+      if (Math.abs(theirs + 1 + own - here) < 1e-9) { from = other; break; }
+    }
+    at = from;
   }
-  more.textContent = t("ui.app_page_fold", { n: gone });
+  return out;
 }
 
-/** Whether anything still showing came to rest below the second row. Distinct
- *  tops rather than arithmetic over a line height: the children say where they
- *  are, and a gap read out of the stylesheet would be a second copy of it.
+/** Every page whose buttons lead to this one, each once.
  *
- *  Every child, not only the tiles. The sentence over the row takes a line of
- *  its own and pushes what follows down by it, so a measurement that skipped
- *  it counted the two lines *below* it as the whole row and folded nothing. */
-function pastTwoRows(row: HTMLElement): boolean {
-  const tops = new Set([...row.children]
-    .filter((one) => !(one as HTMLElement).hidden)
-    .map((one) => (one as HTMLElement).offsetTop));
-  return tops.size > 2;
+ * inboundTo() answers in buttons, because that is what the delete question
+ * counts. The line over the board answers in pages: two buttons on one page
+ * leading here is one place to go back to, not two. */
+function inboundPages(layout: AppLayout, pageId: string): AppPage[] {
+  const out: AppPage[] = [];
+  const seen = new Set<string>();
+  for (const one of layout.pages) {
+    if (one.id === pageId || seen.has(one.id)) continue;
+    if (one.buttons.some((b) => b.act.kind === "goto" && b.act.page === pageId)) {
+      seen.add(one.id);
+      out.push(one);
+    }
+  }
+  return out;
+}
+
+/** Somebody chose a page - from the sidebar list, from an unfolded fact, or by
+ *  following a button's corner. The one way in, so that the list and the board
+ *  cannot disagree about where they are. */
+export function goToPage(id: string): void {
+  if (!pageById(board(), id)) return;
+  const fromList = document.activeElement instanceof HTMLElement
+    && document.activeElement.classList.contains("pagelist__item");
+  here = id;
+  unfolded = null;
+  wantFocus = fromList;
+  render();
 }
 
 /* --- The grid ------------------------------------------------------------ */
@@ -908,6 +717,41 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     box.appendChild(play);
   }
 
+  /* And the corner that follows a navigation button.
+   *
+   * The row of page tiles over the board is gone, and this is where the half
+   * of it that was not duplication went: a `goto` button already carries the
+   * name of the page it opens, so the way there belongs on the button rather
+   * than on a copy of it two centimetres higher.
+   *
+   * **It shares the top right with the play control, and the two do meet.** A
+   * `goto` button that carries its word into the sentence on the way - §7.3's
+   * `ext_lautstark_append_on_navigate` - has something to audition *and* a page
+   * to follow, so the seat is not free. Where both are there the follow moves
+   * one button to the left, which is `.cell--corners` below; the play control
+   * keeps the corner it has always had.
+   *
+   * The press itself still opens the button's own sheet, for the reason
+   * templates/board.ts gives: a `goto` button that navigated when pressed
+   * would be the one button on the board nobody could ever edit. */
+  if (held.act.kind === "goto") {
+    const to = pageById(board(), held.act.page);
+    if (to) {
+      const follow = document.createElement("button");
+      follow.type = "button";
+      follow.className = "cell__follow";
+      follow.textContent = "\u203a";
+      follow.title = t("ui.app_page_follow", { name: pageName(to) });
+      follow.setAttribute("aria-label", follow.title);
+      follow.onclick = (event) => {
+        event.stopPropagation();
+        goToPage(to.id);
+      };
+      box.appendChild(follow);
+      if (box.querySelector(".cell__play")) box.classList.add("cell--corners");
+    }
+  }
+
   const select = () => { void editButton(held.row, held.col); };
   hit.onclick = select;
 
@@ -1030,82 +874,6 @@ const wordColor = (layout: AppLayout): WordColor => layout.wordColor ?? "fill";
  */
 
 /* --- The page sheet ------------------------------------------------------ */
-
-/**
- * The page itself: its name, whether it is the start page, and deleting it.
- *
- * Reached from the `...` on the last crumb of the path, because a page has no
- * cell on a tablet - its name belongs to nothing on the board - so the crumb
- * naming the page being edited is the thing it can be pressed on.
- *
- * Two variants rather than a control that would do nothing: on any other page
- * the sheet offers "make this the start page", and on the start page it says
- * that it already is. Deleting works either way - deletePage() moves home to
- * the first page left - and the sentence under the notice says so, because
- * that is the part somebody standing here cannot see.
- */
-function openPageSheet(on: AppPage): Promise<void> {
-  const layout = board();
-
-  let name = on.name;
-  // Drafted like the name beside it. Pressing it on a page that is not home
-  // swaps this row for the notice, so the sheet says what it will be once
-  // Fertig is pressed - and dismissing leaves home where it was.
-  let makeHome = false;
-
-  const pageName = textField(name, (value) => { name = value; });
-  pageName.id = "appPageName";
-
-  // Rebuilt in place rather than redrawn whole: the name field above is being
-  // typed in, and replacing the form would take the caret with it.
-  const homeRow = document.createElement("div");
-  const drawHome = () => {
-    homeRow.innerHTML = "";
-    if (on.id === layout.home || makeHome) {
-      const notice = document.createElement("div");
-      notice.className = "notice";
-      notice.textContent = t("ui.app_page_home_is");
-      homeRow.appendChild(formRow("", notice, t("ui.app_page_home_is_note")));
-      return;
-    }
-    const make = document.createElement("button");
-    make.type = "button";
-    make.className = "btn";
-    make.textContent = t("ui.app_page_home_set");
-    make.onclick = () => { makeHome = true; drawHome(); };
-    homeRow.appendChild(formRow("", make, t("ui.app_page_home_note")));
-  };
-  drawHome();
-
-  /* No picture column: a page on a tablet has none. That is also what makes
-   * this the narrower sheet - see openSheet, which takes the single-column
-   * shape when there is nothing to show. The talker's own page card *does*
-   * have one, because its page has a key on the device that shows a picture. */
-  return openSheet({
-    title: t("ui.app_page_title"),
-    rows: [
-      formRow(t("ui.app_page_name"), pageName, t("ui.app_page_name_note")),
-      homeRow,
-    ],
-    remove: {
-      label: t("ui.app_page_delete"),
-      // The question is askDelete's, and it draws a dialog of its own over
-      // this one. Only a yes closes this sheet, because a no leaves somebody
-      // exactly where they were.
-      onPress: (settle) => {
-        void askDelete(on).then((gone) => { if (gone) settle(); });
-      },
-    },
-    done: {
-      label: t("ui.done"),
-      onPress: () => {
-        on.name = name;
-        if (makeHome) layout.home = on.id;
-        commit();
-      },
-    },
-  }).then(() => undefined);
-}
 
 /**
  * The question asked before a page goes.
@@ -1610,10 +1378,14 @@ export function render(): void {
   dragging = null;
   const layout = board();
   if (!pageById(layout, here)) here = layout.pages[0]!.id;
-  drawPath();
-  drawPick();
-  drawRow();
+  const found = reachable(layout);
+  drawPageHead(found);
+  drawFacts(found);
   drawGrid();
+  /* The list in the sidebar carries which page is open and what each costs,
+   * and both change here. It belongs to the shell, so it is asked to repaint
+   * rather than reached into - the layers test forbids the other direction. */
+  paintPages();
 }
 
 /** The panel that holds what is true of the whole Sammlung: how big a page is,
@@ -1893,46 +1665,154 @@ function gridPanel(into: HTMLElement,
 }
 
 export function wireEditor(): () => void {
-  $<HTMLButtonElement>("appPageNew").onclick = () => {
-    const made = addPage(board());
-    here = made.id;
+  /* The page's name is the field that renames it, the way the Sammlung's is
+   * one floor up. Typed straight into the page, saved on the debounce that
+   * every other field here uses - no sheet, no Fertig, nothing to dismiss. */
+  const named = $<HTMLInputElement>("appPageName");
+  named.oninput = () => {
+    page().name = named.value;
+    /* The sidebar row for this page carries the same name, so it is repainted
+     * with every keystroke - a handful of rows, and the alternative is a list
+     * that disagrees with the field above it until something else happens. */
+    paintPages();
+    saveSoon();
+  };
+
+  $<HTMLButtonElement>("appPageStart").onclick = () => {
+    board().home = page().id;
     commit();
   };
 
-  $<HTMLButtonElement>("appExport").onclick = () => { void exportApp(); };
+  $<HTMLButtonElement>("appPageDelete").onclick = () => {
+    void askDelete(page());
+  };
 
-  /* The two halves of the bar that are measured rather than counted have to be
-   * measured again when the room they were measured in changes.
-   *
-   * Both fold() and shorten() read where things came to rest, so a window
-   * resized after a render leaves a fold naming a number that is no longer
-   * true, or tiles hidden that would now fit - and the row's `overflow:
-   * hidden` makes that silent rather than visibly wrong.
-   *
-   * A ResizeObserver on the row rather than a window listener, because the
-   * width here changes without the window doing anything: collapsing the
-   * sidebar widens the whole column. The row is the right thing to watch for
-   * both, since the bar above it is exactly as wide.
-   *
-   * It cannot feed itself. What these two redraws change is what is *inside*
-   * two boxes whose own size is fixed - the row's height is written down and
-   * its width is the column's - so nothing they do is a resize. */
-  const watch = new ResizeObserver(() => {
-    // The observer outlives a Sammlung being swapped for a talker's, and
-    // board() throws rather than handling that.
-    if (!isApp(state.layout)) return;
-    drawPath();
-    drawRow();
+  /* The list of pages under the open Sammlung in the sidebar. Handed over
+   * rather than drawn here for the reason the grid panel is: the sidebar is
+   * the shell's, an editor may import the shell and not the other way round
+   * (tests/unit/layers.test.ts), and a talker Sammlung must not be given a
+   * list of pages when this editor leaves the page. */
+  collectionPages(drawPageList);
+
+  /* The package, as an entry in the ⋯ beside the Sammlung's name. It was a
+   * filled button in the work head - see templates/board.ts for what that
+   * symmetry was and why it is given up. */
+  collectionMenuExtras((add) => {
+    add(t("ui.collection_export_this"), () => { void exportApp(); });
   });
-  watch.observe($("appPages"));
 
-  /* The grid is a panel in the sheet behind the ⋯ beside the Sammlung's name,
-   * which is the shell's - so it is handed over rather than drawn here. Taken
-   * back when this editor leaves the page: the shell outlives it, and a talker
-   * Sammlung must not be offered a grid to resize. */
+  /* The grid is a panel in the sheet behind that same ⋯, and unchanged by any
+   * of this. Taken back with the rest when this editor leaves the page: the
+   * shell outlives it, and a talker Sammlung must not be offered a grid to
+   * resize. */
   collectionSheetPanel(gridPanel);
-  return () => { watch.disconnect(); collectionSheetPanel(null); };
+  return () => {
+    collectionPages(null);
+    collectionMenuExtras(null);
+    collectionSheetPanel(null);
+  };
 }
+
+/**
+ * The pages of the open Sammlung, down the sidebar under its row.
+ *
+ * **Navigation and nothing else.** No ⋯, no menu, nothing that changes
+ * anything: a row is a mark, a name and a number. That is what makes the
+ * keyboard behaviour below unambiguous - one row, one stop, one target - and
+ * it is why everything that acts on a page sits over the board instead.
+ *
+ * ⌂ on the start page and ⚠ on a page nothing leads to, both at the left where
+ * a column of them can be read down. The number on the right is what the page
+ * costs to reach, by effort.ts; it is the only thing here that is not a name,
+ * and it is the same number the facts line over the board unfolds.
+ */
+function drawPageList(into: HTMLElement): void {
+  const layout = board();
+  const found = reachable(layout);
+  const cost = effortByPage(layout);
+  into.setAttribute("role", "listbox");
+  into.setAttribute("aria-label", t("ui.app_pages_list"));
+
+  layout.pages.forEach((one, at) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "pagelist__item";
+    row.setAttribute("role", "option");
+    const open = one.id === page().id;
+    row.setAttribute("aria-selected", String(open));
+    if (open) row.setAttribute("aria-current", "true");
+    row.dataset.page = one.id;
+
+    if (one.id === layout.home) {
+      const house = document.createElement("span");
+      house.className = "pagelist__home";
+      house.textContent = "\u2302";
+      house.title = t("ui.app_page_home");
+      row.appendChild(house);
+    }
+    if (!found.has(one.id)) {
+      const lost = document.createElement("span");
+      lost.className = "tab__lost";
+      lost.textContent = "\u26a0";
+      lost.title = t("ui.app_page_unreachable");
+      row.appendChild(lost);
+    }
+    const name = document.createElement("span");
+    name.className = "pagelist__name";
+    name.textContent = pageName(one);
+    row.appendChild(name);
+
+    const much = document.createElement("span");
+    much.className = "pagelist__cost";
+    const own = cost.get(one.id);
+    much.textContent = own === undefined ? "\u2014" : decimals.format(own);
+    row.appendChild(much);
+
+    row.onclick = () => { goToPage(one.id); };
+    /* Up and down walk the list, which is what replaces the "previous page"
+     * and "next page" a bar would have needed. Bound to the row rather than to
+     * the document on purpose: in the name field over the board, and in every
+     * other field on this page, those two keys belong to the field. */
+    row.onkeydown = (event) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      const next = layout.pages[at + step];
+      if (next) goToPage(next.id);
+    };
+    into.appendChild(row);
+  });
+
+  /* And the way to make one, under the list rather than over the board. It
+   * belongs to the set of pages, not to the page on screen, which is the same
+   * argument that puts "+ Neue Sammlung" under the list of Sammlungen. */
+  const make = document.createElement("button");
+  make.type = "button";
+  make.className = "pagelist__new";
+  make.textContent = t("ui.app_page_new");
+  make.onclick = () => {
+    const made = addPage(board());
+    /* Straight onto it, so the name field over the board is the next thing
+     * under the hand - the page was made in order to be filled in. */
+    here = made.id;
+    unfolded = null;
+    wantFocus = false;
+    commit();
+    $<HTMLInputElement>("appPageName").focus();
+  };
+  into.appendChild(make);
+
+  /* Keeps the keyboard where it was. goToPage() redraws this list, so the row
+   * that had focus is a different element by the time the press is over. */
+  if (into.contains(document.activeElement) || wantFocus) {
+    wantFocus = false;
+    (into.querySelector('.pagelist__item[aria-current="true"]') as HTMLElement | null)
+      ?.focus();
+  }
+}
+
+/** Set where a redraw should put the keyboard back into the list. */
+let wantFocus = false;
 
 /**
  * The key a new Sammlung starts with: bottom of the first column, and a way
@@ -2093,8 +1973,6 @@ export const app: Editor = {
    * everything the panel and the grid draw is built fresh by render(), which
    * reads the table as it goes. */
   labels(): void {
-    $<HTMLButtonElement>("appPageNew").textContent = t("ui.app_page_new");
-    $<HTMLButtonElement>("appExport").textContent = t("ui.package_export");
     status("");
   },
 };

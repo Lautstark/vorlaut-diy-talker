@@ -268,12 +268,18 @@ test("the Sammlung's sheet asks each target what only it can answer",
 /* What the ⋯ offers, by target, in the order it offers it.
  *
  * The order is the claim: the acts on a Sammlung first, then what it is set
- * to, then the delete which stays last wherever it appears. A tablet has no
- * .obz - obf.ts writes the five-key device - and no build, because the build
- * is a talker's file system; so it has no act in here at all, and its menu is
- * the settings and the delete. Its grid used to be an entry above them, which
- * was the one entry in this menu that was a setting rather than an act; it is
- * a panel of those settings now. */
+ * to, then the delete which stays last wherever it appears.
+ *
+ * A tablet has no .obz - obf.ts writes the five-key device - and no build,
+ * because the build is a talker's file system. What it does have is its
+ * package, and that is new here: it was a filled button in the work head, put
+ * there because the talker's transfer sits in that slot and the two are the
+ * same act at the same point in the same sentence. The symmetry is given up
+ * deliberately - see templates/board.ts - because a filled accent button is
+ * the loudest thing on the page for something pressed once a sitting.
+ *
+ * So a tablet's menu is one act, the settings and the delete. The order still
+ * holds, which is what this asserts. */
 test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
   async ({ page }) => {
     await openCollection(page);
@@ -292,7 +298,8 @@ test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
 
     await page.locator("#collectionMenu").click();
     await expect(entries).toHaveText([
-      label("ui.collection_settings"), label("ui.collection_delete"),
+      label("ui.collection_export_this"), label("ui.collection_settings"),
+      label("ui.collection_delete"),
     ]);
   });
 
@@ -375,24 +382,21 @@ test("the open Sammlung's row follows what is done inside it", async ({ page }) 
   const mine = row(page, "Kindergarten");
   /* One, and it is a number rather than a blank: the row leaves the count empty
    * only when it is not known, and a Sammlung that has just been made is known
-   * to hold exactly what it was made with. That is the way back to the start
-   * page standing in the corner of the first column - see app.blank() - and it
-   * is counted once however many pages it is drawn on, which is what makes the
-   * shared column safe to count at all.
+   * to hold exactly what it was made with - one page.
+   *
+   * **Pages on a tablet, not buttons.** The Editor port's count() still answers
+   * in buttons, and the delete question still asks with that number; what
+   * changed is the row, because the row now has the pages listed under it and a
+   * "63" over a list of four is two units in one column. shell/collections.ts's
+   * rowCount() carries the argument.
    *
    * What this line is for is unchanged: it is the number the next assertion has
    * to be a move away from. */
   await expect(mine.locator(".collections__count")).toHaveText("1");
 
-  // A button in the first cell, through the sheet a press on it opens - which
-  // is the ordinary way one is made, and the one that goes through commit().
-  await page.locator("#appGrid .cell").first().locator(".cell__open").click();
-  const box = page.locator("dialog[open]")
-    .filter({ has: page.getByRole("heading", { name: label("ui.app_button_title") }) });
-  await expect(box).toBeVisible();
-  await box.locator("#appLabel").fill("ich");
-  await box.locator("button", { hasText: label("ui.done") }).click();
-  await expect(box).toBeHidden();
+  // A page, made the ordinary way - from under the list it is about - which is
+  // the press that goes through commit().
+  await page.locator(".pagelist__new").click();
 
   await expect(mine.locator(".collections__count")).toHaveText("2");
 
