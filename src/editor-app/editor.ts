@@ -50,7 +50,8 @@ import { exportApp, paintOpenCollection, sizeChoices } from "../shell/collection
  * per package, so "the prescribed picture" is a different answer per
  * collection, and which collection is in force is something a browser knows
  * and an editor does not. */
-import { homeSymbol, homeSymbolSource, homeWord } from "../shell/homekey.js";
+import { HOME_TONES, homeSymbol, homeSymbolSource, homeWord }
+  from "../shell/homekey.js";
 import { collectionSheetPanel } from "../shell/voices.js";
 /* §7.3's rule about which presses put an entry in the bar, which the exporter
  * needs for the recordings and this file needs for the play buttons. One
@@ -696,6 +697,40 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
     box.style.setProperty("--cell-color", colour);
   } else if (colour && wordColor(board()) === "border") {
     box.style.setProperty("--cell-edge", colour);
+  }
+
+  /* The one cell whose look is the viewer's rather than the collection's.
+   *
+   * Everything else on this board is a word: paper under the picture because
+   * AAC symbols are drawn for white, a Fitzgerald tint saying which kind of
+   * word, the label spelling it. A start key is none of those, and the tablet
+   * draws it as what it is - the picture's luminance on a dark plate, the same
+   * two tones the bar controls wear. Until this class existed the editor drew
+   * it as a word anyway, so the one cell the editor could not preview was the
+   * one cell that does not look like its own picture.
+   *
+   * The condition is BoardScreen.kt's `chrome`, restated rather than
+   * approximated, because the two have to answer alike on the same button:
+   *
+   *   - a bare `home`. An appending one - a word that is also said on the way
+   *     back - really is a word, and keeps its paper and its tint there;
+   *   - no fill and no border. A key wearing a colour has been given one on
+   *     purpose, and neither renderer takes it away for the sake of a default.
+   *
+   * The plate comes from HOME_TONES for the reason sheet.ts gives at its own
+   * copy of this line: it is the tablet's colour, not a theme token, so it is
+   * read from the module that owns what a key looks like rather than written a
+   * second time in ui.css. */
+  const chrome = held.act.kind === "home" && held.act.alsoAppend !== true
+    && !box.style.getPropertyValue("--cell-color")
+    && !box.style.getPropertyValue("--cell-edge");
+  if (chrome) {
+    box.classList.add("cell--home");
+    box.style.setProperty("--home-plate", HOME_TONES.plate);
+    /* The strokes' tone, for the things on the plate that are not the picture
+     * - the act badge in the corner. The picture gets there through the filter
+     * instead, which is the same two numbers by the other route. */
+    box.style.setProperty("--home-ink", HOME_TONES.light);
   }
 
   if (held.symbol) {

@@ -772,6 +772,29 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
   await page.reload();
   await expect(ich).toBeVisible();
   await expect(ich).not.toHaveAttribute("style", /--cell-(color|edge)/);
+
+  /* A cell wearing no colour is where the picture's own ground shows, and
+   * that ground stays white. AAC line art is drawn for white and carries none
+   * of its own, so on a dark board a symbol without paper under it goes to
+   * nothing - which is what .cell__pic's rule is for and why "off" is the
+   * state that has to be checked for it.
+   *
+   * Here rather than beside the start key's own test, because this is the
+   * rule and that one is the exception: the two-tone plate is for the single
+   * cell whose look belongs to the viewer, and an ordinary symbol taking it
+   * would be every board going two-tone. */
+  await page.emulateMedia({ colorScheme: "dark" });
+  const apfel = cells(page).nth(2);
+  await expect(apfel).not.toHaveClass(/cell--home/);
+  const ordinary = await apfel.evaluate((el) => {
+    const picture = el.querySelector(".cell__pic")!;
+    return {
+      paper: getComputedStyle(picture).backgroundColor,
+      filter: getComputedStyle(picture).filter,
+    };
+  });
+  expect(ordinary.paper).toBe("rgb(255, 255, 255)");
+  expect(ordinary.filter).toBe("none");
 });
 
 test("a button moves to another cell, by keyboard and by drag", async ({ page }) => {
@@ -1452,6 +1475,81 @@ test("a crossed-out picture is its own picture in the package", async ({ page })
   expect(checkPackage(pkg)).toEqual([]);
 });
 
+test("the start key is drawn as the tablet draws it, not as the collection does",
+  async ({ page }) => {
+    /* The second test in this file that does not call build(), and for the
+     * same reason as the one below it: build() puts a word in the corner cell,
+     * and the start key is one of the things it sets aside.
+     *
+     * This cell is the one place on the board whose appearance belongs to the
+     * viewer rather than to the collection. Everything else here is a word -
+     * paper under the picture because AAC line art is drawn for white, a
+     * Fitzgerald tint saying which kind of word, the label spelling it - and
+     * BoardScreen.kt draws `:home` as none of those: a dark plate with the
+     * picture's luminance mapped onto two tones. The editor drew it as a word
+     * anyway, so the one cell it could not preview was the one cell that does
+     * not look like its own picture.
+     *
+     * Asserted through the computed style rather than by photographing it,
+     * because what regresses here is wiring: the filter losing the element,
+     * the grid's white rule reclaiming it, or the plate becoming a theme token
+     * and following the editor's scheme instead of the tablet's.
+     */
+    await standIn(page);
+    page.on("pageerror", (error) => { throw error; });
+    await page.goto("./");
+    await page.locator("#collectionNew").click();
+    const asked = sheet(page, "ui.collection_target");
+    await asked.locator("button.choice")
+      .filter({ has: page.locator("strong", { hasText: label("ui.collection_target_app") }) })
+      .click();
+    await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+    await expect(cells(page)).toHaveCount(15);
+
+    // The lower left of a 3x5, which is where a thumb is - and the only cell
+    // the board arrives with anything in.
+    const home = page.locator("#appGrid .cell--home");
+    await expect(home).toHaveCount(1);
+    await expect(cells(page).nth(10)).toHaveClass(/cell--home/);
+    // The picture arrives behind the making of the Sammlung, so the treatment
+    // has something to apply to.
+    await expect(home.locator(".cell__pic")).toBeVisible();
+
+    const drawn = await home.evaluate((el) => {
+      const picture = el.querySelector(".cell__pic")!;
+      const word = el.querySelector(".cell__word");
+      return {
+        plate: getComputedStyle(el).backgroundColor,
+        filter: getComputedStyle(picture).filter,
+        paper: getComputedStyle(picture).backgroundColor,
+        word: word ? getComputedStyle(word).display : "absent",
+      };
+    });
+    // HOME_TONES.plate. Deliberately not a theme token - see .cell--home in
+    // ui.css, and the same sentence at .pick__hit--home.
+    expect(drawn.plate).toBe("rgb(36, 36, 42)");
+    expect(drawn.filter).toContain("#homeTone");
+    // The white rule's one declared exception: paper is what makes a cell read
+    // as a word, and this cell is not one.
+    expect(drawn.paper).toBe("rgba(0, 0, 0, 0)");
+    // The tablet drops the word on this button, so this does too. It is still
+    // on the button and still exported - the test below is what says so - and
+    // it is still what a screen reader is given.
+    expect(drawn.word).toBe("none");
+    await expect(home.locator(".cell__open"))
+      .toHaveAttribute("aria-label", label("ui.app_home_key"));
+
+    /* Nothing follows the editor's scheme, because nothing on this cell is the
+     * editor's. The same three values in the other scheme, which is the whole
+     * of what "this is the tablet's tile" means. */
+    await page.emulateMedia({ colorScheme: "light" });
+    const light = await home.evaluate((el) => ({
+      plate: getComputedStyle(el).backgroundColor,
+      paper: getComputedStyle(el.querySelector(".cell__pic")!).backgroundColor,
+    }));
+    expect(light).toEqual({ plate: drawn.plate, paper: drawn.paper });
+  });
+
 test("a Sammlung nobody has touched exports as the board it was handed",
   async ({ page }) => {
     /* The one test in this file that does not call build(), and the reason
@@ -1491,6 +1589,10 @@ test("a Sammlung nobody has touched exports as the board it was handed",
     await expect(page.locator("#appGrid .cell--shared")).toHaveCount(3);
     await expect(page.locator("#appGrid.grid--gap")).toHaveCount(1);
     await expect(cells(page).locator(".cell__word")).toHaveCount(1);
+    /* The word is on the button, which is what this asserts - not that it is
+     * drawn. The tablet leaves it off the plate and so does the board; the
+     * test above is where that is held. It still exports, still opens in
+     * Aufschrift, and is still what a screen reader is given. */
     await expect(cells(page).nth(10).locator(".cell__word")).toHaveText(
       label("ui.app_home_key"));
     /* And its picture, which arrives after the board does - the download runs
