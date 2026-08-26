@@ -1,0 +1,14 @@
+{
+  "fixture": "sets-past-max",
+  "kind": "layout",
+  "file": "layout/sets-past-max.bin",
+  "summary": "A header claiming six sets on a device with room for five.",
+  "bytes": 1116,
+  "read": {
+    "result": "LAYOUT_BAD_LENGTH"
+  },
+  "write": null,
+  "notes": [
+    "Refused for its length rather than for its count, and those are the same enum value: MAX_SETS is how much room the reader has, and a file naming more of them has no answer that fits."
+  ]
+}

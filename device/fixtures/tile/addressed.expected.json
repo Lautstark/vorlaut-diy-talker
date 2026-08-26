@@ -1,0 +1,68 @@
+{
+  "fixture": "addressed",
+  "kind": "tile",
+  "file": "tile/addressed.bin",
+  "summary": "Every pixel spells out its own coordinates: the value at (x, y) is (y << 8) | x, so the bytes are [y, x].",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 32768,
+  "conforming": true,
+  "read": {
+    "accepts": true,
+    "probes": [
+      {
+        "x": 0,
+        "y": 0,
+        "byte": 0,
+        "value": "0000"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "byte": 2,
+        "value": "0001"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "byte": 256,
+        "value": "0100"
+      },
+      {
+        "x": 127,
+        "y": 0,
+        "byte": 254,
+        "value": "007f"
+      },
+      {
+        "x": 0,
+        "y": 127,
+        "byte": 32512,
+        "value": "7f00"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "7f7f"
+      },
+      {
+        "x": 63,
+        "y": 31,
+        "byte": 8062,
+        "value": "1f3f"
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "This is the fixture that says which way round the file is. A reader that transposes it reads (31, 63) where (63, 31) stands; one that swaps the two bytes reads 0x1f3f where 0x3f1f stands; one whose stride is a pixel out drifts by two bytes a row and is a whole row wrong by the bottom.",
+    "Nothing here is a picture. What the browser's renderer makes of a real symbol is tests/reference/tiles.lock.json's business, and that lock never crossed this boundary - it compares one implementation against pixels frozen from a Pillow that is gone."
+  ]
+}

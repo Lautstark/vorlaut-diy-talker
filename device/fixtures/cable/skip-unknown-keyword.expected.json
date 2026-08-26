@@ -1,0 +1,92 @@
+{
+  "fixture": "skip-unknown-keyword",
+  "kind": "cable",
+  "summary": "The device says two things the browser has never heard of. The browser steps over both and takes the ok.",
+  "ends": [
+    "browser"
+  ],
+  "protocol_version": 1,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< spleen 4"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> put t0123456789abcdef0123456789abcdef.bin 512 c59a7197"
+    },
+    {
+      "from": "device",
+      "line": "< go"
+    },
+    {
+      "from": "host",
+      "raw": "BSpPdJm+4wgtUnecweYLMFV6n8TpDjNYfaLH7BE2W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJHbJG22wAlSm+Uud4DKE1yl7zhBitQdZq/5AkuU3idwucMMVZ7oMXqDzRZfqPI7RI3XIGmy/AVOl+Eqc7zGD1ih6zR9htAZYqv1PkeQ2iNstf8IUZrkLXa/yRJbpO43QInTHGWu+A=",
+      "bytes": 512
+    },
+    {
+      "from": "device",
+      "line": "< gap 12"
+    },
+    {
+      "from": "device",
+      "line": "< quirk something entirely new"
+    },
+    {
+      "from": "device",
+      "line": "< ok t0123456789abcdef0123456789abcdef.bin 512"
+    }
+  ],
+  "device_ends_with": null,
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 1,
+        "total": 1441792,
+        "free": 1441792,
+        "files": 0
+      }
+    },
+    {
+      "call": "put",
+      "name": "t0123456789abcdef0123456789abcdef.bin",
+      "content": "BSpPdJm+4wgtUnecweYLMFV6n8TpDjNYfaLH7BE2W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJHbJG22wAlSm+Uud4DKE1yl7zhBitQdZq/5AkuU3idwucMMVZ7oMXqDzRZfqPI7RI3XIGmy/AVOl+Eqc7zGD1ih6zR9htAZYqv1PkeQ2iNstf8IUZrkLXa/yRJbpO43QInTHGWu+A=",
+      "returns": {
+        "name": "t0123456789abcdef0123456789abcdef.bin",
+        "size": 512
+      }
+    }
+  ],
+  "notes": [
+    "This is the cable's extension rule, and it is the opposite of the layout's. A reader skips keywords it does not know, in both directions and on purpose, so a browser can gain a field without a device in a drawer falling over - and a device can gain one without a browser that has not been reloaded falling over.",
+    "The browser half only, because the device's formatters cannot produce a keyword the device does not have. A firmware that gained one would have to gain a function to write it, and the fixture it would then be held to is this one with the line moved into the device half.",
+    "'gap 12' is not invented: the firmware reports its timings that way already, and until it started doing so this client waited for exactly one line and would have read the first extra keyword as a failed transfer."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "fixture": "extra-chunk",
+  "kind": "audio",
+  "file": "audio/extra-chunk.wav",
+  "summary": "A LIST chunk of odd length between fmt and data. The pad byte after it is what a reader has to step over.",
+  "bytes": 466,
+  "conforming": false,
+  "read": {
+    "accepts": true,
+    "data_offset": 66,
+    "data_bytes": 400
+  },
+  "write": null,
+  "notes": [
+    "Thirteen bytes of body, then one pad byte the size does not count. A reader that seeks by the size alone lands on the pad, reads the four bytes after it as a chunk id, and walks off the end of the file - and the key goes silent, with a line about it on a serial port nobody is watching.",
+    "No builder emits this. It is here because a reader's tolerance is part of the format, and the only way to state it is to hand a reader something to tolerate."
+  ]
+}

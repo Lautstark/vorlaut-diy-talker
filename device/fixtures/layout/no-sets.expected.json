@@ -1,0 +1,27 @@
+{
+  "fixture": "no-sets",
+  "kind": "layout",
+  "file": "layout/no-sets.bin",
+  "summary": "A header and nothing after it. Twelve bytes, zero sets, and it parses.",
+  "bytes": 12,
+  "read": {
+    "result": "ok",
+    "sets": 0,
+    "language": 0,
+    "sleep_seconds": 0,
+    "entries": []
+  },
+  "write": {
+    "layout": {
+      "language": "en",
+      "sleep_timeout_seconds": 0,
+      "sets": []
+    },
+    "label": [],
+    "images": [],
+    "sounds": []
+  },
+  "notes": [
+    "A layout with no sets is not an error. The device shows its 'no content' panel, which is a true sentence."
+  ]
+}

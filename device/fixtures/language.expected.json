@@ -1,0 +1,33 @@
+{
+  "fixture": "language",
+  "kind": "language",
+  "summary": "Which language rides in which byte, what an unknown index means, and how many tables the device has to have.",
+  "field": {
+    "file": "layout.bin",
+    "byte": 7,
+    "width": 1,
+    "meaning": "The index of the language the device labels its own menu in."
+  },
+  "languages": [
+    {
+      "index": 0,
+      "code": "en"
+    },
+    {
+      "index": 1,
+      "code": "de"
+    }
+  ],
+  "default_index": 0,
+  "default_code": "en",
+  "unknown_index_falls_back_to": 0,
+  "rules": [
+    "A writer given a language it has no index for writes the default index rather than refusing the layout. A Sammlung in a language the device cannot label its menu in is still a Sammlung, and its keys still speak.",
+    "A reader hands byte 7 back as it stands. An index with no table behind it falls back to the default at the point the words are chosen, not at the point the file is parsed - so a layout.bin from a newer builder is read normally and merely labelled in English.",
+    "Every index a builder can write must have a table behind it. That is the direction that matters: a builder with three languages and a device with two is a device reading past the end of an array.",
+    "Byte 7 is reserved space that was given a meaning, and it is the only place in this format where that can happen. Zero was what a writer put there before the byte meant anything, and zero was then made to mean English, so a file from before the language existed still reads correctly. Any further use of reserved space follows the same rule, and it is the only thing a MINOR version may do."
+  ],
+  "notes": [
+    "The panel texts themselves are not here and are not part of this interface. Ten characters a display, code page 437, the struct order against the initialiser order: none of that needs the browser, and tests/test_texts.py keeps all of it. Exactly one thing crosses, and it is this table."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "fixture": "stereo-44k",
+  "kind": "audio",
+  "file": "audio/stereo-44k.wav",
+  "summary": "44.1 kHz stereo. The device accepts it - it never reads fmt - and plays it out at 16 kHz mono.",
+  "bytes": 644,
+  "conforming": false,
+  "read": {
+    "accepts": true,
+    "data_offset": 44,
+    "data_bytes": 600
+  },
+  "write": null,
+  "notes": [
+    "The reader walks past fmt like any other chunk. Rate, channel count and sample width are never looked at, so this file is taken and then played at the one rate I2S was started with: a word about a third as long as it should be, at the wrong pitch, in a voice nobody chose.",
+    "A device that works and is wrong, which is the dangerous kind. The fixture records it as it stands rather than blessing it: a writer MUST emit 16 kHz mono 16-bit, and the reader as it is today does not check. Whether it should is a change to the firmware and a decision this fixture set does not make - it makes the decision visible."
+  ]
+}

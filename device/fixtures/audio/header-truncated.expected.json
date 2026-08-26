@@ -1,0 +1,15 @@
+{
+  "fixture": "header-truncated",
+  "kind": "audio",
+  "file": "audio/header-truncated.wav",
+  "summary": "Eight bytes. Not even the RIFF header is whole.",
+  "bytes": 8,
+  "conforming": false,
+  "read": {
+    "accepts": false
+  },
+  "write": null,
+  "notes": [
+    "The first read asks for twelve and gets eight, and a reader that took what it got would compare four bytes of nothing against WAVE."
+  ]
+}

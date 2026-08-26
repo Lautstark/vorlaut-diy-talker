@@ -1,0 +1,15 @@
+{
+  "fixture": "riff-not-wave",
+  "kind": "audio",
+  "file": "audio/riff-not-wave.wav",
+  "summary": "A RIFF whose form is AVI rather than WAVE.",
+  "bytes": 244,
+  "conforming": false,
+  "read": {
+    "accepts": false
+  },
+  "write": null,
+  "notes": [
+    "Both halves of the twelve-byte header are checked, four bytes apart, which is why they are one refusal and not two."
+  ]
+}

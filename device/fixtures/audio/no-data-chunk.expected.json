@@ -1,0 +1,15 @@
+{
+  "fixture": "no-data-chunk",
+  "kind": "audio",
+  "file": "audio/no-data-chunk.wav",
+  "summary": "A well-formed WAV with a fmt chunk and no data chunk.",
+  "bytes": 48,
+  "conforming": false,
+  "read": {
+    "accepts": false
+  },
+  "write": null,
+  "notes": [
+    "Walked to the end of the file without finding anything to play. Refused rather than played as silence: a key that says nothing and a key that is broken want telling apart."
+  ]
+}

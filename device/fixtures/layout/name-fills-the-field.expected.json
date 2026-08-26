@@ -1,0 +1,75 @@
+{
+  "fixture": "name-fills-the-field",
+  "kind": "layout",
+  "file": "layout/name-fills-the-field.bin",
+  "summary": "A name of exactly 32 bytes, so the field has no zero in it at all.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 60,
+    "entries": [
+      {
+        "name": "4772756e64776f727473636861747a20667565722064656e20416e66616e6721",
+        "name_text": "Grundwortschatz fuer den Anfang!",
+        "label": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+        "slots": [
+          {
+            "image": "c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+            "audio": "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+            "has_audio": true
+          },
+          {
+            "image": "c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "en",
+      "sleep_timeout_seconds": 60,
+      "sets": [
+        {
+          "name": "Grundwortschatz fuer den Anfang!"
+        }
+      ]
+    },
+    "label": [
+      "tc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1.bin"
+    ],
+    "images": [
+      [
+        "tc2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2.bin",
+        "tc4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4.bin",
+        "tc5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5.bin",
+        "tc6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+        "",
+        "",
+        ""
+      ]
+    ]
+  },
+  "notes": [
+    "The name a reader hands back is the bytes up to the first zero, or all 32 where there is none. A reader looking for a terminator inside the field finds none here and must not read past it."
+  ]
+}

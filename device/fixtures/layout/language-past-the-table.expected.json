@@ -1,0 +1,49 @@
+{
+  "fixture": "language-past-the-table",
+  "kind": "layout",
+  "file": "layout/language-past-the-table.bin",
+  "summary": "Byte 7 set to 7, an index no table stands behind. The layout still parses; the words fall back to English.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 7,
+    "sleep_seconds": 3600,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "label": "11111111111111111111111111111111",
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true
+          }
+        ]
+      }
+    ],
+    "renders_language_index": 0
+  },
+  "write": null,
+  "notes": [
+    "Two rules, separate on purpose. The layout reader takes byte 7 as it stands - what the number means is not its business. The text layer is where the fallback happens, and an index past the end of the table gives the default rather than a read past the end of it.",
+    "A layout.bin from a newer builder must not be able to crash a device. This is the only field in the format where a newer builder can say anything at all, and it is possible because the byte was reserved and written as zero long before it meant anything, and zero was then made to mean the old behaviour. That trick is the format's whole forward compatibility, and here it is a stated rule rather than a comment in a header.",
+    "No builder writes this file: LANGUAGE_CODES has two entries and an unknown language falls back to the default before the byte is ever written. So it has no write half - and it is a case a capture of the builder could never contain."
+  ]
+}

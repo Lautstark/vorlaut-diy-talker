@@ -1,0 +1,47 @@
+{
+  "fixture": "slot-reserved-byte-set",
+  "kind": "layout",
+  "file": "layout/slot-reserved-byte-set.bin",
+  "summary": "The reserved byte after each has-audio flag written as 0xff. A reader ignores it and reads the same fields.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 3600,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "label": "11111111111111111111111111111111",
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true
+          }
+        ]
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "This is the layout's second piece of reserved space, beside byte 7 of the header, and it works the same way: a reader ignores it, a writer writes zero, and a later MINOR version may give a meaning to a value whose zero is the old behaviour.",
+    "No writer produces this file, which is why it has no write half. That is the whole argument for authoring fixtures rather than freezing them - a capture of a correct writer can never contain a byte the writer does not emit."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "fixture": "too-short",
+  "kind": "layout",
+  "file": "layout/too-short.bin",
+  "summary": "Eleven bytes: one short of the header itself.",
+  "bytes": 11,
+  "read": {
+    "result": "LAYOUT_TOO_SHORT"
+  },
+  "write": null,
+  "notes": [
+    "Refused before the magic is looked at, because looking at it would read past the end of the file."
+  ]
+}

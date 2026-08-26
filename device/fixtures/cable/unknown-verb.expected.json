@@ -1,0 +1,97 @@
+{
+  "fixture": "unknown-verb",
+  "kind": "cable",
+  "summary": "A verb from a newer browser. Answered with an error, not ignored.",
+  "ends": [
+    "device"
+  ],
+  "protocol_version": 1,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> reboot"
+    },
+    {
+      "from": "device",
+      "line": "< err verb"
+    },
+    {
+      "from": "host",
+      "line": "> hello 2 please"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "menu opened"
+    },
+    {
+      "from": "host",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 0 0 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": null,
+  "notes": [
+    "The other half of the extension rule, and the reason it is not simply 'skip everything'. An unknown KEYWORD in an answer is stepped over; an unknown VERB in a command is refused out loud, because a browser waiting for a reply that never comes looks exactly like a broken cable and the two want telling apart.",
+    "'hello 2 please' is complete. A verb that takes no arguments ignores what follows rather than refusing it, so a later browser may start saying something there.",
+    "The two unmarked lines are the device's own serial log and the browser's own echo, on the same wire. Both are read as nothing at all. That is what the sigils are for, and it is why a device is deaf to a serial monitor somebody left open."
+  ]
+}
