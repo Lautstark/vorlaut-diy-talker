@@ -440,8 +440,8 @@ function drawTabs(): void {
 
     /* The second way into the set's own card, on the tab that is already open.
      *
-     * The same ⋯ editor-app puts on its current tab, and the same card behind
-     * it. Here it is genuinely a second door - the set key on the board opens
+     * The same ⋯ editor-app puts on the last crumb of its path, and the same
+     * card behind it. Here it is genuinely a second door - the set key opens
      * the same thing - and that is not what conventions.md §3.2 forbids: the
      * tab and the set key are the same set drawn twice, once as a card index
      * and once as what is on the device. Both lead to the thing itself.

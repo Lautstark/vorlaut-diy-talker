@@ -35,12 +35,13 @@ import { t } from "../core/texts.js";
 import { save } from "../core/save.js";
 import { speak } from "../shell/speech.js";
 import { confirmDialog } from "@lautstark/design/dialog";
+import { menuOn } from "@lautstark/design/menu";
 /* The sheet is the shell's now, and the whole of what this file hands it is a
  * title, a picture, some rows and three labelled things to do. It was written
  * here, and moving it is what let the talker have the same one: an editor may
  * not import out of another editor - tests/unit/layers.test.ts - so anything
  * genuinely shared between the two belongs in the shell. */
-import { dropdown, formRow, hint, missing, openSheet, textField }
+import { dropdown, fit, formRow, hint, missing, openSheet, textField }
   from "../shell/sheet.js";
 import type { Choice, Left } from "../shell/sheet.js";
 import { exportApp, paintOpenCollection, sizeChoices } from "../shell/collections.js";
@@ -56,9 +57,10 @@ import { collectionSheetPanel } from "../shell/voices.js";
  * definition, in the module that owns the format. */
 import { appends } from "../data/app_package.js";
 import {
-  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, isShared,
-  moveButton, moveShared, outside, pageById, reachable, resize,
-  shareFirstColumn, shared, sharedAt, spreadFirstColumn,
+  addPage, blankButton, blankPage, buttonAt, columnTargets, deletePage,
+  inboundTo, isShared, moveButton, moveShared, opens, outside, pageById,
+  reachable, resize, route, shareFirstColumn, shared, sharedAt,
+  spreadFirstColumn, unreachable,
 } from "./pages.js";
 
 /** Which page is being edited, by id. An id rather than an index because
@@ -125,20 +127,335 @@ function commit(): void {
   void save();
 }
 
-/* --- The page strip ------------------------------------------------------ */
+/* --- The page strip: a path, a row and a picker --------------------------
+ *
+ * Three parts, and between them they replace a tab per page.
+ *
+ *   drawPath()  a ⌂ anchor and the crumbs from the start page to this one.
+ *               The only thing here that says how far in somebody is.
+ *   drawRow()   the pages this page opens, in a height fixed at two rows'
+ *               worth so that the board below never moves.
+ *   drawPick()  every page in the Sammlung, reachable or not. The only way to
+ *               a page nothing leads to, and therefore not optional.
+ *
+ * The strip they replace was `flex-wrap: wrap` with no cap: twenty-one pages
+ * took three rows of it and forty would take six, growing downward into the
+ * board. Everything below follows from fixing that without losing the one
+ * thing the old strip was good at, which is that every page was on it.
+ */
 
-function drawPages(): void {
+/**
+ * Where the editor is standing, drawn as the way it got there: a ⌂ anchor, a
+ * divider, and then one crumb per page from the start page to this one.
+ *
+ * **This is where depth is stated, and it is the only place it is stated.**
+ * The strip under it is flat and stays flat - see templates/board.ts for the
+ * three shapes that tried to carry depth there and what each of them
+ * misreported. A path is the one drawing of a directed graph that is honest
+ * about being a single walk through it rather than a picture of the whole
+ * thing, which is what somebody editing one page actually needs: not the
+ * graph, but how far in they are and how to get back out.
+ *
+ * route() picks the shortest way, so the crumbs are not "the" path - there is
+ * no such thing in a graph where two pages can lead to the same third. They
+ * are *a* way, the shortest one, and every step in them is a step through the
+ * row below: both are walked over the same edges. See opens() for why the
+ * shared first column is not one of them.
+ *
+ * ⌂ is separated by a rule rather than being the first crumb. It is not a step
+ * in the walk - it is the way out of any walk - and a page that is its own
+ * start page would otherwise be drawn as a crumb repeating the anchor beside
+ * it.
+ */
+function drawPath(): void {
   const layout = board();
-  const strip = $("appPages");
-  strip.innerHTML = "";
-  const found = reachable(layout);
+  const line = $("appPath");
+  line.innerHTML = "";
+  line.setAttribute("role", "navigation");
+  line.setAttribute("aria-label", t("ui.app_path"));
 
-  layout.pages.forEach((one, index) => {
+  const home = document.createElement("button");
+  home.type = "button";
+  home.className = "crumb crumb--home";
+  home.textContent = "⌂";
+  home.setAttribute("aria-label", t("ui.app_page_home_go"));
+  home.title = t("ui.app_page_home_go");
+  home.onclick = () => { here = layout.home; render(); };
+  line.appendChild(home);
+
+  const bar = document.createElement("span");
+  bar.className = "crumb__bar";
+  bar.setAttribute("aria-hidden", "true");
+  bar.textContent = "|";
+  line.appendChild(bar);
+
+  /* What stands in for the pages dropped when the line runs out of room. In
+   * the document from the start and hidden, so that showing it is a width
+   * change of about ten pixels rather than an insertion that could re-wrap
+   * what has already been measured. */
+  const fade = document.createElement("span");
+  fade.className = "crumb__fade";
+  fade.hidden = true;
+  fade.setAttribute("aria-hidden", "true");
+  fade.textContent = "… ›";
+  line.appendChild(fade);
+
+  const walk = route(layout, page().id);
+  const passed: [HTMLElement, HTMLElement][] = [];
+  walk.forEach((one, index) => {
+    if (index === walk.length - 1) { line.appendChild(standing(one)); return; }
+    const step = crumb(one);
+    const sep = document.createElement("span");
+    sep.className = "crumb__sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = "›";
+    line.append(step, sep);
+    passed.push([step, sep]);
+  });
+  shorten(line, fade, passed);
+}
+
+/**
+ * The path, brought down to the width it has.
+ *
+ * **This is the answer to what gives when the bar runs out of room, and the
+ * order is deliberate.** The pages *passed through* go first, oldest first,
+ * each replaced by the one ellipsis that says some were dropped: what a walk
+ * went through matters less than where it ended, and the house at the head of
+ * the line is still the way out of any of it. Only after they have all gone
+ * does anything else on the bar give - and what gives then is the warning's
+ * words, not the picker, which is the one control here that cannot be spared
+ * because it is the only way to a page nothing leads to.
+ *
+ * The crumbs ellipsise before any of this happens, which the stylesheet does
+ * on its own; this is what is left when even that is not enough. Measured
+ * rather than counted for the same reason fold() is: a crumb is as wide as its
+ * page's name.
+ */
+function shorten(line: HTMLElement, fade: HTMLElement,
+                 passed: [HTMLElement, HTMLElement][]): void {
+  const over = () => line.scrollWidth > line.clientWidth;
+  if (!over()) return;
+  fade.hidden = false;
+  for (const [step, sep] of passed) {
+    if (!over()) return;
+    step.hidden = true;
+    sep.hidden = true;
+  }
+  // Past that there is nothing left to say a page was passed through, so the
+  // mark saying some were goes too rather than crowding out the name of the
+  // page somebody is actually on.
+  if (over()) fade.hidden = true;
+}
+
+/** One page along the way, pressable. */
+function crumb(one: AppPage): HTMLElement {
+  const step = document.createElement("button");
+  step.type = "button";
+  step.className = "crumb";
+  step.appendChild(named(one));
+  step.onclick = () => { here = one.id; render(); };
+  return step;
+}
+
+/** The name, in a box of its own. A crumb is a flex container, and
+ *  `text-overflow` has nothing to act on there - the text becomes an anonymous
+ *  item and is cut off square. A span is a box it can ellipsise. */
+function named(one: AppPage): HTMLElement {
+  const name = document.createElement("span");
+  name.className = "crumb__name";
+  name.textContent = pageName(one);
+  return name;
+}
+
+/**
+ * The last crumb: the page on screen, and the way into its own card.
+ *
+ * **This is where the ⋯ went.** It sat on the current tab, and there is no
+ * current tab any more - the row below holds the pages this one *opens*, none
+ * of which is this one. The last crumb is what is left that names the page
+ * somebody is standing on, so it is what a page's name, its start-page-ness
+ * and its deletion hang off, which is the same relation the ⋯ had to the tab.
+ *
+ * Not pressable as a crumb, because it leads where somebody already is - so
+ * unlike every crumb before it this one is a <span>, and the ⋯ beside it can
+ * be a real <button> rather than the span wearing role="button" that a control
+ * inside a control forced on the tab. Nothing is reserved on the other crumbs
+ * either: the path is anchored at its left edge and the ⋯ is at its right end,
+ * so nothing already drawn moves when it appears.
+ *
+ * **The ⋯ is not inside the crumb, and not inside the path at all.** It sits
+ * next to them in the bar, because the path is the box that gives its width up
+ * first and anything inside it goes down with it - at 375px the ⋯ was squeezed
+ * out of existence, which is a page's own card with no door left. Beside the
+ * path it cannot shrink and cannot be clipped, and it still reads as belonging
+ * to the crumb: the gap between them is smaller than the crumb's own padding.
+ */
+function standing(one: AppPage): HTMLElement {
+  const at = document.createElement("span");
+  at.className = "crumb crumb--here";
+  at.setAttribute("aria-current", "page");
+
+  at.appendChild(named(one));
+
+  /* No ⌂ on it, even standing on the start page. The anchor at the head of the
+   * line is that mark, and route() always begins at home - so a house on the
+   * first crumb would be the same house twice, and on any later crumb it would
+   * never appear. */
+
+  const more = $<HTMLButtonElement>("appPageMore");
+  more.textContent = "\u22ef";
+  more.setAttribute("aria-label", t("ui.app_page_more"));
+  more.onclick = () => { void openPageSheet(one); };
+  return at;
+}
+
+/** What a page is called in the strip. Its name, or its position where nobody
+ *  has named it - the same fallback the delete question uses. */
+const pageName = (one: AppPage): string =>
+  one.name || t("ui.app_page_n", { n: board().pages.indexOf(one) + 1 });
+
+/**
+ * Every page in the Sammlung, behind a control saying how many there are.
+ *
+ * **This is what keeps the editor complete, and it is not polish.** The row
+ * below shows the pages the page on screen opens, so a page nothing opens is
+ * in no row anywhere - and until this existed the strip listed every page,
+ * which is how an orphan was reached, fixed or deleted. Take the list away
+ * without putting this in its place and a page somebody built has no door at
+ * all. See unreachable(), whose comment used to say it served a mark in the
+ * strip and nothing else.
+ *
+ * So the list is every page, in the order they sit in the Sammlung, reachable
+ * or not - and the count on the trigger counts them all, orphans included,
+ * because the picker is where orphans live and a count that skipped them would
+ * disagree with its own list.
+ *
+ * Three marks, and each says something the name cannot:
+ *
+ *   ⌂  the start page, the one the tablet opens with.
+ *   ⚠  nothing leads here. The same mark the row puts on a tile.
+ *   ·  reached from the shared first column, which is an edge from every page
+ *      - so this page is one press from anywhere and is in nobody's row. This
+ *      is the one place that is said. opens() has the argument for why the
+ *      rows leave it out; leaving it out *silently* was the option not taken.
+ *
+ * A menu rather than a sheet. It is a list of alternatives, one of which is in
+ * force, which is what `checked` and role="menuitemradio" are for - and a
+ * modal to change page would be heavier than the tab it replaced.
+ */
+function drawPick(): void {
+  const layout = board();
+  const pick = $<HTMLButtonElement>("appPagePick");
+  const n = layout.pages.length;
+  pick.textContent = n === 1 ? t("ui.app_pages_n_one") : t("ui.app_pages_n", { n });
+  pick.setAttribute("aria-haspopup", "menu");
+  pick.setAttribute("aria-expanded", "false");
+  pick.onclick = () => openPick();
+
+  const lost = unreachable(layout);
+  const warn = $<HTMLButtonElement>("appPagesLost");
+  warn.hidden = lost.length === 0;
+  warn.innerHTML = "";
+  /* The mark and the words are two elements because the narrow window keeps
+   * one and drops the other - see the 620px block in ui.css. */
+  const mark = document.createElement("span");
+  mark.className = "tab__lost";
+  mark.textContent = "⚠";
+  const says = document.createElement("span");
+  says.className = "pagelost__text";
+  says.textContent = lost.length === 1
+    ? t("ui.app_pages_lost_one") : t("ui.app_pages_lost", { n: lost.length });
+  warn.append(mark, says);
+  warn.setAttribute("aria-label", says.textContent);
+  /* Pressable, and it opens the picker. A warning naming a problem with no way
+   * to the thing it is about would be a dead end, and the picker is the only
+   * place those pages can be reached from.
+   *
+   * The press is claimed, or it opens the list and closes it again in the same
+   * gesture: the menu dismisses itself on any click that did not land inside a
+   * `.menu-anchor`, and this control is outside the one the list hangs from.
+   * Wrapping both in the anchor would silence it too, and would tie where the
+   * list hangs to what else happens to be in the group. menuOn's own items
+   * claim their presses the same way. */
+  warn.onclick = (event) => { event.stopPropagation(); openPick(); };
+}
+
+/** The picker's list, opened from the trigger, from the warning beside it, or
+ *  from the row's fold. One function, because all three are asking the same
+ *  question: which page. */
+function openPick(): void {
+  const layout = board();
+  const anchor = $("appPagePickAt");
+  const pick = $<HTMLButtonElement>("appPagePick");
+  const found = reachable(layout);
+  const column = columnTargets(layout);
+  menuOn(pick, (add) => {
+    for (const one of layout.pages) {
+      let label = pageName(one);
+      if (column.has(one.id)) label = t("ui.app_page_pick_column", { name: label });
+      if (one.id === layout.home) label = `⌂ ${label}`;
+      if (!found.has(one.id)) label = `⚠ ${label}`;
+      add(label, () => { here = one.id; render(); },
+          { checked: one.id === page().id });
+    }
+  });
+  fit(anchor, pick);
+}
+
+/**
+ * One row: the pages the page on screen opens.
+ *
+ * **It replaces the row, it never adds one.** Pressing a tile makes that page
+ * current and the row is redrawn as what *it* opens - so there is one row at
+ * any moment, no indentation and no second level. Depth is the path's, and
+ * templates/board.ts has the three drawings that tried to carry it here.
+ *
+ * **Its height is fixed at two rows' worth, whatever is in it.** That is the
+ * whole point of the change: `.tabs` wrapped without a cap, so a MetaTalk
+ * board of twenty-one pages ate three rows and forty ate six, growing
+ * *downward* into the board - the thing being edited went off the bottom of
+ * the screen because of chrome describing it. A reserved height cannot do
+ * that, and it also means the board's top edge holds still while somebody
+ * navigates, which the wrapping strip could not promise from one page to the
+ * next either.
+ *
+ * Nothing caps the row from the page count, and nothing needs to: a page can
+ * only lead to as many pages as it has cells. The fold below exists for the
+ * two-row overflow and for nothing else.
+ *
+ * **A page that opens nothing gets a sentence, not an empty box.** An empty
+ * row and a row that has not been drawn look identical, and the reserved
+ * height would make it a blank band over the board with no account of itself.
+ */
+function drawRow(): void {
+  const layout = board();
+  const row = $("appPages");
+  row.innerHTML = "";
+  row.setAttribute("role", "group");
+  row.setAttribute("aria-label", t("ui.app_page_row"));
+  const found = reachable(layout);
+  const to = opens(layout, page().id);
+
+  if (!to.length) {
+    const says = document.createElement("p");
+    says.className = "pagerow__none";
+    /* Two sentences, because there are two ways to open nothing and only one
+     * of them means what the first one says. A Sammlung with a `goto` in its
+     * shared first column leads onward from every page including this one -
+     * opens() leaves the column out on purpose, and saying "nothing leads on
+     * from here" over a board with a column of navigation on it would be the
+     * strip contradicting what is on screen an inch below. */
+    says.textContent = columnTargets(layout).size
+      ? t("ui.app_page_opens_column") : t("ui.app_page_opens_none");
+    row.appendChild(says);
+    return;
+  }
+
+  const tiles = to.map((one) => {
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "tab";
-    tab.classList.toggle("current", one.id === page().id);
-    tab.setAttribute("aria-current", one.id === page().id ? "true" : "false");
     if (one.id === layout.home) {
       const home = document.createElement("span");
       home.className = "tab__home";
@@ -146,9 +463,10 @@ function drawPages(): void {
       home.title = t("ui.app_page_home");
       tab.appendChild(home);
     }
-    // A mark rather than a hiding. Nothing leads here yet is an ordinary state
-    // - it is what every page is between being made and being linked - and the
-    // page nobody can reach is the one somebody most needs to open.
+    /* A mark rather than a hiding, as it always was - and it still belongs
+     * here rather than only in the picker: being opened by the page on screen
+     * does not make a page reachable, because the page on screen may be an
+     * orphan itself. */
     if (!found.has(one.id)) {
       const lost = document.createElement("span");
       lost.className = "tab__lost";
@@ -156,58 +474,64 @@ function drawPages(): void {
       lost.title = t("ui.app_page_unreachable");
       tab.appendChild(lost);
     }
-
     const name = document.createElement("span");
-    name.textContent = one.name || t("ui.app_page_n", { n: index + 1 });
+    name.textContent = pageName(one);
     tab.appendChild(name);
-
-    /* The way into the page itself, on the tab that is already open.
-     *
-     * A page has no cell on a tablet - its name and its start-page-ness belong
-     * to nothing on the board - so the current tab is the thing they can be
-     * pressed on. The same `...` the work head uses for a Sammlung, one level
-     * down, on the thing it acts on.
-     *
-     * A <span> wearing role="button" rather than a <button>, for the reason
-     * opener() gives: its parent is a <button> already, and a control inside a
-     * control is invalid markup that no keyboard can reach the inner half of.
-     * So the two things the element would have brought - a place in the tab
-     * order and acting on Enter and Space - are written out here.
-     *
-     * Every tab gets the element and only the current one gets the control.
-     * The strip reflowed on every page change otherwise - one tab grew a `...`
-     * as another lost one, and every tab to the right of them slid - which is
-     * a moving target in the one row somebody is aiming at. The reserved
-     * copies are `visibility: hidden`, so they hold the width and are in
-     * neither the accessibility tree nor the tab order. */
-    const more = document.createElement("span");
-    more.className = "tab__more";
-    more.textContent = "\u22ef";
-    if (one.id === page().id) {
-      more.setAttribute("role", "button");
-      more.tabIndex = 0;
-      more.setAttribute("aria-label", t("ui.app_page_more"));
-      const open = (event: Event) => {
-        // Or the press falls through to the tab, which would redraw the strip
-        // out from under the sheet that is opening.
-        event.stopPropagation();
-        void openPageSheet(one);
-      };
-      more.onclick = open;
-      more.onkeydown = (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        open(event);
-      };
-    } else {
-      more.classList.add("tab__more--idle");
-      more.setAttribute("aria-hidden", "true");
-    }
-    tab.appendChild(more);
-
     tab.onclick = () => { here = one.id; render(); };
-    strip.appendChild(tab);
+    row.appendChild(tab);
+    return tab;
   });
+  fold(row, tiles);
+}
+
+/**
+ * What is past two rows, folded into one control.
+ *
+ * **It opens the picker rather than expanding in place.** Expanding would
+ * un-reserve the height the row was given - the board would drop by a row the
+ * moment somebody pressed it, which is the jump the fixed height exists to
+ * prevent, and it would do it on the one press whose purpose is to look at
+ * something. The picker is already the complete list, already the way to a
+ * page that is in no row, and already open at a keystroke; a second way of
+ * showing more pages would be a second answer to one question.
+ *
+ * Measured rather than counted. A tile is as wide as its page's name, so how
+ * many fit in two rows is not a number this file can know - it is read back
+ * off the layout, by asking which distinct tops the tiles came to rest at.
+ *
+ * The label is written at its widest *before* anything is measured: hiding
+ * tiles only ever makes the number smaller, tabular digits make a smaller
+ * number no wider, so the arrangement this settles on is one the real label
+ * also fits into. Setting it afterwards would be a width change nothing
+ * re-measured.
+ */
+function fold(row: HTMLElement, tiles: HTMLElement[]): void {
+  if (!pastTwoRows(tiles)) return;
+
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "pagerow__fold";
+  more.textContent = t("ui.app_page_fold", { n: tiles.length });
+  more.setAttribute("aria-label", t("ui.app_pages_all"));
+  // Claimed, for the reason the warning's press is - see drawPick().
+  more.onclick = (event) => { event.stopPropagation(); openPick(); };
+  row.appendChild(more);
+
+  let hidden = 0;
+  while (hidden < tiles.length && pastTwoRows([...tiles, more])) {
+    tiles[tiles.length - 1 - hidden]!.hidden = true;
+    hidden += 1;
+  }
+  more.textContent = t("ui.app_page_fold", { n: hidden });
+}
+
+/** Whether anything still showing came to rest below the second row. Distinct
+ *  tops rather than arithmetic over a line height: the tiles say where they
+ *  are, and a gap read out of the stylesheet would be a second copy of it. */
+function pastTwoRows(items: HTMLElement[]): boolean {
+  const tops = new Set(items.filter((one) => !one.hidden)
+                            .map((one) => one.offsetTop));
+  return tops.size > 2;
 }
 
 /* --- The grid ------------------------------------------------------------ */
@@ -571,9 +895,9 @@ const wordColor = (layout: AppLayout): WordColor => layout.wordColor ?? "fill";
 /**
  * The page itself: its name, whether it is the start page, and deleting it.
  *
- * Reached from the `...` on the current tab, because a page has no cell on a
- * tablet - its name belongs to nothing on the board - so the tab is the thing
- * it can be pressed on.
+ * Reached from the `...` on the last crumb of the path, because a page has no
+ * cell on a tablet - its name belongs to nothing on the board - so the crumb
+ * naming the page being edited is the thing it can be pressed on.
  *
  * Two variants rather than a control that would do nothing: on any other page
  * the sheet offers "make this the start page", and on the start page it says
@@ -1147,7 +1471,9 @@ export function render(): void {
   dragging = null;
   const layout = board();
   if (!pageById(layout, here)) here = layout.pages[0]!.id;
-  drawPages();
+  drawPath();
+  drawPick();
+  drawRow();
   drawGrid();
 }
 
@@ -1436,12 +1762,37 @@ export function wireEditor(): () => void {
 
   $<HTMLButtonElement>("appExport").onclick = () => { void exportApp(); };
 
+  /* The two halves of the bar that are measured rather than counted have to be
+   * measured again when the room they were measured in changes.
+   *
+   * Both fold() and shorten() read where things came to rest, so a window
+   * resized after a render leaves a fold naming a number that is no longer
+   * true, or tiles hidden that would now fit - and the row's `overflow:
+   * hidden` makes that silent rather than visibly wrong.
+   *
+   * A ResizeObserver on the row rather than a window listener, because the
+   * width here changes without the window doing anything: collapsing the
+   * sidebar widens the whole column. The row is the right thing to watch for
+   * both, since the bar above it is exactly as wide.
+   *
+   * It cannot feed itself. What these two redraws change is what is *inside*
+   * two boxes whose own size is fixed - the row's height is written down and
+   * its width is the column's - so nothing they do is a resize. */
+  const watch = new ResizeObserver(() => {
+    // The observer outlives a Sammlung being swapped for a talker's, and
+    // board() throws rather than handling that.
+    if (!isApp(state.layout)) return;
+    drawPath();
+    drawRow();
+  });
+  watch.observe($("appPages"));
+
   /* The grid is a panel in the sheet behind the ⋯ beside the Sammlung's name,
    * which is the shell's - so it is handed over rather than drawn here. Taken
    * back when this editor leaves the page: the shell outlives it, and a talker
    * Sammlung must not be offered a grid to resize. */
   collectionSheetPanel(gridPanel);
-  return () => collectionSheetPanel(null);
+  return () => { watch.disconnect(); collectionSheetPanel(null); };
 }
 
 /**

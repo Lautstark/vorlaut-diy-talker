@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   addPage, allButtons, blankButton, blankPage, buttonAt, deletePage, elsewhere,
-  inboundTo, isShared, moveButton, moveShared, outside, pageById, reachable,
-  resize, shareFirstColumn, shared, sharedAt, sharedColumn, spreadFirstColumn,
-  unreachable,
+  inboundTo, isShared, moveButton, moveShared, opens, outside, pageById,
+  reachable, resize, route, shareFirstColumn, shared, sharedAt, sharedColumn,
+  spreadFirstColumn, unreachable,
 } from "../../src/editor-app/pages.js";
 import type { AppButton, AppLayout } from "../../src/core/types.js";
 
@@ -76,6 +76,107 @@ describe("what leads where", () => {
     // still in the Sammlung, and pageById still finds it.
     expect(unreachable(layout).map((one) => one.id)).toEqual([made.id]);
     expect(pageById(layout, made.id)).toBe(made);
+  });
+});
+
+/* The two the strip is drawn from.
+ *
+ * They are one pair of edges seen twice - a row is one step of a path and a
+ * path is a run of rows - so they are asserted together, and the case that
+ * matters most is the one they must agree on: the shared first column is an
+ * edge for reachable() and is an edge for neither of these.
+ */
+describe("what the strip walks", () => {
+  it("lists what a page's own buttons open, once each, in cell order", () => {
+    const layout = twoPages();
+    const home = layout.pages[0]!;
+    const food = layout.pages[1]!;
+    const drinks = addPage(layout, "Trinken");
+
+    // Authored last, but sitting in an earlier cell: the row reads in the
+    // order the buttons sit on the board, which is the only order somebody
+    // looking at the page can predict.
+    home.buttons.push(
+      button({ id: "to-drinks", row: 0, col: 3,
+               act: { kind: "goto", page: drinks.id } }),
+      button({ id: "to-food-again", row: 0, col: 0,
+               act: { kind: "goto", page: food.id } }));
+
+    // "to-food-again" is at col 0 and "to-food" at col 1, so Essen comes
+    // first - and it comes once, though two buttons lead to it.
+    expect(opens(layout, home.id).map((one) => one.name))
+      .toEqual(["Essen", "Trinken"]);
+
+    // Neither a `:home` button nor a `goto` at the page it already sits on is
+    // a way anywhere else, so neither is in the row.
+    food.buttons.push(
+      button({ id: "back", act: { kind: "home" } }),
+      button({ id: "self", row: 2, col: 2,
+               act: { kind: "goto", page: food.id } }));
+    expect(opens(layout, food.id)).toEqual([]);
+  });
+
+  it("leaves the shared first column out, though it is an edge everywhere",
+     () => {
+       const layout = withColumns();
+       const attic = addPage(layout, "Dachboden");
+       shareFirstColumn(layout, layout.home);
+       sharedColumn(layout)[0]!.act = { kind: "goto", page: attic.id };
+
+       // reachable() counts it, and must: one `goto` in the column puts its
+       // target one press from anywhere.
+       expect(unreachable(layout)).toEqual([]);
+
+       // The row does not, and must not: it would be the same tile on every
+       // page forever, spending the row's fixed height on the one fact in it
+       // that never changes. It is said once in the picker instead.
+       for (const one of layout.pages) {
+         expect(opens(layout, one.id).map((two) => two.name))
+           .not.toContain("Dachboden");
+       }
+     });
+
+  it("walks the shortest way from the start page, ending on the page asked for",
+     () => {
+       const layout = twoPages();
+       const food = layout.pages[1]!;
+       const fruit = addPage(layout, "Obst");
+       food.buttons.push(button({ id: "to-fruit", row: 1, col: 0,
+                                  act: { kind: "goto", page: fruit.id } }));
+
+       expect(route(layout, fruit.id).map((one) => one.name))
+         .toEqual(["Start", "Essen", "Obst"]);
+       // The start page is its own whole path: it is where every walk begins.
+       expect(route(layout, layout.home).map((one) => one.name))
+         .toEqual(["Start"]);
+
+       // A second, shorter way in. The graph is not a tree, so there is no
+       // *the* path - and of the two truthful answers the shortest is the one
+       // worth drawing, because it is the one somebody would press.
+       layout.pages[0]!.buttons.push(
+         button({ id: "straight-to-fruit", row: 2, col: 0,
+                  act: { kind: "goto", page: fruit.id } }));
+       expect(route(layout, fruit.id).map((one) => one.name))
+         .toEqual(["Start", "Obst"]);
+     });
+
+  it("gives a page no run of buttons reaches a path of its own alone", () => {
+    const layout = twoPages();
+    const attic = addPage(layout, "Dachboden");
+    // An orphan: the anchor and one crumb is as much as is true about it.
+    expect(route(layout, attic.id).map((one) => one.name)).toEqual(["Dachboden"]);
+    // And so is a page only the shared first column leads to. It is reachable
+    // - the column is an edge from everywhere - but there is no way to it
+    // through the rows, so there are no crumbs to draw between.
+    layout.pages[0]!.buttons.push(button({ id: "col-attic", row: 0, col: 0 }));
+    shareFirstColumn(layout, layout.home);
+    sharedColumn(layout)[0]!.act = { kind: "goto", page: attic.id };
+    expect(unreachable(layout)).toEqual([]);
+    expect(route(layout, attic.id).map((one) => one.name)).toEqual(["Dachboden"]);
+
+    // A page that is not there has no path at all, which is not the same as a
+    // path of one: the strip has nothing to stand on.
+    expect(route(layout, "nowhere")).toEqual([]);
   });
 });
 

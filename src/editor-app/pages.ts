@@ -120,10 +120,123 @@ export function reachable(layout: AppLayout): Set<string> {
   return seen;
 }
 
-/** The pages nothing leads to. For a mark in the strip, and for nothing else. */
+/**
+ * The pages nothing leads to.
+ *
+ * For a mark in the strip - and, since the strip stopped listing every page,
+ * for two more things than that. The row shows what the page on screen opens,
+ * so a page nothing opens appears in no row at all: the count beside the
+ * picker is what says such pages exist, and the mark inside the picker is what
+ * finds them. That is the whole of why the picker is not polish. Without it
+ * this list would name pages that had become unopenable, which is worse than
+ * the wrapping strip it replaced.
+ */
 export function unreachable(layout: AppLayout): AppPage[] {
   const found = reachable(layout);
   return layout.pages.filter((one) => !found.has(one.id));
+}
+
+/**
+ * The pages the shared first column leads to, if there is one.
+ *
+ * The other half of opens()'s decision. Those pages are one press from
+ * anywhere, so they are in no page's row and no page's path - and something
+ * has to say so, or the column's targets are simply missing from the strip
+ * with nothing to explain it. The picker is where they are said, once, because
+ * the picker is the list that is already complete.
+ */
+export function columnTargets(layout: AppLayout): Set<string> {
+  const found = new Set<string>();
+  for (const button of sharedColumn(layout)) {
+    if (button.act.kind === "goto") found.add(button.act.page);
+  }
+  return found;
+}
+
+/* --- What the strip walks ------------------------------------------------ */
+
+/**
+ * The pages this page's own buttons open, each once, in cell order.
+ *
+ * The strip's row is drawn from this, and so is the path above it, and that is
+ * on purpose: every crumb in the path is a step somebody could have taken
+ * through a row, because both are the same set of edges.
+ *
+ * **The shared first column is left out, and it is the only thing left out.**
+ * reachable() above says why it would otherwise dominate: a `goto` in the
+ * column is an edge from *every* page, so its targets are what this page opens
+ * and also what all the others open, identically. Appended to each row they
+ * would be the same two or three tiles forever, spending the row's fixed
+ * height on the one fact in it that never changes; drawn in the path they
+ * would be a step nobody could retrace. So the row is what this page *adds*,
+ * and the column - which belongs to the Sammlung and not to any page - is said
+ * once, in the picker, where every page is listed anyway.
+ *
+ * Cell order rather than authoring order, so the row reads in the order the
+ * buttons sit on the board: reading order is the only order somebody looking
+ * at the page can predict.
+ */
+export function opens(layout: AppLayout, pageId: string): AppPage[] {
+  const from = pageById(layout, pageId);
+  if (!from) return [];
+  const out: AppPage[] = [];
+  const seen = new Set<string>();
+  const inOrder = [...from.buttons].sort(
+    (a, b) => (a.row - b.row) || (a.col - b.col));
+  for (const button of inOrder) {
+    if (button.act.kind !== "goto") continue;
+    const to = button.act.page;
+    if (to === pageId || seen.has(to)) continue;
+    const page = pageById(layout, to);
+    if (!page) continue;                  // an edge to a page that has gone
+    seen.add(to);
+    out.push(page);
+  }
+  return out;
+}
+
+/**
+ * The way from the start page to this one: every page passed through, ending
+ * on this one.
+ *
+ * The shortest one, breadth-first. The graph is not a tree - a Food page
+ * reached from both Meals and Morning is the ordinary case this file's head
+ * describes - so there is no such thing as *the* way here, and any of them
+ * would be truthful. Shortest is the one worth drawing: it is the fewest
+ * crumbs, it is stable under the order pages happen to sit in, and it is the
+ * route somebody would actually press.
+ *
+ * Empty for a page that is not there. A lone entry - the page and nothing
+ * before it - for a page no run of `goto` buttons reaches, which is both an
+ * orphan and a page only the shared first column leads to. The strip draws
+ * that as the anchor and one crumb, which is as much as is true.
+ */
+export function route(layout: AppLayout, pageId: string): AppPage[] {
+  const target = pageById(layout, pageId);
+  if (!target) return [];
+  if (!pageById(layout, layout.home)) return [target];
+
+  const back = new Map<string, string>();
+  const seen = new Set<string>([layout.home]);
+  const queue = [layout.home];
+  while (queue.length) {
+    const at = queue.shift()!;
+    if (at === pageId) {
+      const path: AppPage[] = [];
+      for (let step: string | undefined = pageId; step;
+           step = back.get(step)) {
+        path.unshift(pageById(layout, step)!);
+      }
+      return path;
+    }
+    for (const next of opens(layout, at)) {
+      if (seen.has(next.id)) continue;
+      seen.add(next.id);
+      back.set(next.id, at);
+      queue.push(next.id);
+    }
+  }
+  return [target];
 }
 
 /** A new page, appended, named for its position when nobody names it.
