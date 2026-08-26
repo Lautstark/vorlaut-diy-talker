@@ -1439,6 +1439,11 @@ dialog.sheet--page { max-width: 520px; }
    question answered two ways. They wrap rather than shrink: a button whose
    label is cut is a button nobody presses. */
 .pick__acts { display: flex; flex-wrap: wrap; gap: 8px; }
+/* The whole row goes while a square is being chosen, because nothing in it
+   applies then - see beginCrop() in shell/sheet.ts. [hidden] is the user
+   agent's rule and loses to the display above, the same way it loses to
+   .reveal and .scrim further up this file. */
+.pick__acts[hidden] { display: none; }
 
 /* Crossing the picture out. Below the two buttons rather than beside them,
    because it is not a third button: those two change *which* picture is on the

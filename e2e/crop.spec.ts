@@ -38,13 +38,12 @@ async function upload(page: Page, box: Locator, fixture: string): Promise<void> 
 }
 
 const crop = (box: Locator) => box.locator(".crop");
-const dropCrop = (box: Locator) =>
-  box.locator(".pick button", { hasText: label("ui.crop_off") });
 
-/* Keeping the square is the foot's Fertig and nothing else - the crop has no
- * confirming button of its own, because the sheet already had one. So the two
- * steps every test below used to take are one step now. */
+/* The crop adds no buttons of its own. Keeping the square is the foot's
+ * Fertig, dropping it is the corner ✕ - both of which the sheet already had,
+ * and both of which mean here exactly what they mean everywhere else in it. */
 const keepCrop = (box: Locator) => press(box, "ui.done");
+const dropCrop = (box: Locator) => box.locator(".head button").click();
 
 /** One pixel out of a picture that is on screen, as [r, g, b].
  *
@@ -95,16 +94,18 @@ test("a square picture is kept as it is, with nothing to answer", async ({ page 
   await expect(kept(page)).toHaveJSProperty("naturalWidth", 16);
 });
 
-test("a wide picture opens its square, and cancelling costs nothing",
+test("a wide picture takes the column over while its square is chosen",
      async ({ page }) => {
-  /* The half that must stay free. Nothing is written until the confirming
-   * press - the store has not been touched while the square is being chosen -
-   * so a cancel leaves the key exactly as it was found, which for a fresh key
-   * is without a picture at all.
+  /* The search, the results and what is owed for them go away for the
+   * duration, and so do this column's own two buttons. It is not decoration: a
+   * live grid of results under an open crop is a press that throws the crop
+   * away without saying so.
    *
-   * The search going away for the duration is asserted with it. It is not
-   * decoration: a live grid of results under an open crop is a press that
-   * throws the crop away without saying so. */
+   * The row of buttons being empty is asserted too, and that is the point
+   * rather than an accident of the markup. The crop had a confirming button
+   * and then a cancelling one, and both went the same way: the foot already
+   * says Fertig and the corner already says ✕, and a control repeating either
+   * of them a few inches higher is a question about which is real. */
   await openBoard(page);
   await key(page, 0).click();
   const box = keySheet(page);
@@ -113,19 +114,7 @@ test("a wide picture opens its square, and cancelling costs nothing",
   await expect(crop(box)).toBeVisible();
   await expect(query(box)).toBeHidden();
   await expect(pick(box).locator(".pick__credits")).toBeHidden();
-  await expect(box.locator(".pick button", { hasText: label("ui.symbol_own") }))
-    .toBeHidden();
-
-  await dropCrop(box).click();
-
-  await expect(crop(box)).toHaveCount(0);
-  await expect(query(box)).toBeVisible();
-  await expect(box.locator(".pick button", { hasText: label("ui.symbol_own") }))
-    .toBeVisible();
-  await expect(box.locator(".pick__preview--none")).toBeVisible();
-  await press(box, "ui.done");
-
-  await expect(kept(page)).toHaveCount(0);
+  await expect(pick(box).locator(".pick__acts")).toBeHidden();
 });
 
 test("the square it opens on is the middle of the picture", async ({ page }) => {
@@ -256,14 +245,19 @@ test("the foot's Fertig keeps the square, rather than closing over it", async ({
   expect(await pixelAt(image, 0, 6)).toEqual(GREEN);
 });
 
-test("the corner ✕ still drops it, because that is what ✕ means", async ({ page }) => {
+test("the corner ✕ drops it, because that is what ✕ means", async ({ page }) => {
+  /* The half that stays free, and the only way out that does not keep the
+   * square now that the crop has no button of its own. Nothing has been
+   * written by the time this runs - the store is not touched while a square is
+   * being chosen - so the key is left exactly as it was found, which for a
+   * fresh one is without a picture at all. */
   await openBoard(page);
   await key(page, 0).click();
   const box = keySheet(page);
   await upload(page, box, "wide.png");
   await expect(crop(box)).toBeVisible();
 
-  await box.locator(".head button").click();
+  await dropCrop(box);
   await expect(box).toBeHidden();
   await expect(kept(page)).toHaveCount(0);
 });
