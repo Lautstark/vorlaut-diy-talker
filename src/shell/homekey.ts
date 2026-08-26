@@ -31,6 +31,26 @@
 // a black-and-white file beside nearly every symbol - hence the `SW` suffix -
 // and ARASAAC renders one on demand, which is the half data/symbols.ts's
 // arasaacMonochromeUrl() exists for.
+//
+// ## One map, two collections, and why it is one map
+//
+// The two prescribed pictures are not drawn alike, and the map is right for
+// both anyway - by two different routes, which is worth knowing before anybody
+// tunes the numbers for one of them.
+//
+// METACOM's house is strokes over a filled white body. The matrix is what
+// carries it: white lands on the plate, so the body becomes the key, and the
+// strokes land on `light`. ARASAAC's has no white at all - it is outline on
+// transparency, nothing between the strokes - and there the *alpha* carries
+// it: the matrix leaves alpha alone, so the ground stays open and the plate
+// shows through the middle of the house exactly where METACOM's body would
+// have been mapped onto it.
+//
+// The two therefore arrive at the same key from opposite sides, and neither
+// wants its own numbers. It also explains why `invert(1)` is not merely worse
+// here but misleading: on ARASAAC's outline it would have looked fine, having
+// no interior to ruin, and the fault would have shown up only in the other
+// collection.
 import { pickSymbol } from "../backend/index.js";
 import { activeSource, arasaacFile, arasaacMonochromeUrl, metacomImageByName }
   from "../data/symbols.js";
@@ -46,8 +66,37 @@ import type { ProviderId } from "@lautstark/bildquelle";
  * data/symbols.ts's pickReference() stores. The `SW` is load-bearing and is not
  * a spelling of the name: `haus4` and `haus4SW` are two files, and only the
  * second one survives the two-tone mapping.
+ *
+ * ## Why the rendering folder is in the reference
+ *
+ * `SW` narrows the picture; it does not narrow the *rendering*. METACOM ships
+ * every symbol in parallel folders and a stem names all of them at once, so
+ * `Haus/haus4SW` matched four files in one licensed copy - two PNG, two JPEG,
+ * framed and unframed - and resolution answered with whichever the index
+ * happened to walk first. The framed rendering carries a border and the word
+ * printed into the picture, which is how a prescribed key came to show a
+ * caption nobody wrote. This is the fault pickReference() exists to prevent,
+ * arriving at the one reference that never went through it.
+ *
+ * So the constant is written as the full path under the collection root -
+ * exactly what pickReference() would have stored had somebody picked this file
+ * in the picker - and the unframed PNG is the one named: bare line art, no
+ * border, no word.
+ *
+ * ## What happens where that path is not there
+ *
+ * Nothing breaks, and the degradation is bildquelle's rather than ours.
+ * idForName() tries the whole name, then sheds its leftmost segment and tries
+ * again, down to the bare stem. A copy arranged differently therefore walks
+ * this reference back one segment at a time until something matches, and the
+ * stem - which every board written before folder-qualified references holds -
+ * is where the walk ends. The exact rendering is what such a copy loses; the
+ * house is not.
  */
-const HOUSE = { arasaac: "6964", metacom: "Haus/haus4SW" } as const;
+const HOUSE = {
+  arasaac: "6964",
+  metacom: "METACOM_Symbole/Symbole_PNG/PNG_ohne_Rahmen/Haus/haus4SW",
+} as const;
 
 /**
  * How the key is drawn: a plain linear map from the picture's luminance onto
