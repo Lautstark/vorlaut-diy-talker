@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "..", "fixtures");
 const ASSETS = join(HERE, "..", "assets");
-const SPEC_VERSION = "1.1.0";
+const SPEC_VERSION = "1.2.0";
 
 /** German fixture content, kept in fixtures/source/ so this file stays English
  *  like the rest of the code. See the note in that file. */
@@ -1287,6 +1287,110 @@ fixture({
         "The flag changes no button, no grid and no id. An importer that ignores it produces this same model with the same warnings, renders a correct board with the wrong emphasis, and is still conformant at 1.0.0 - which is what makes this a minor version (SPEC.md 12).",
         "Nothing here says a button is persistent, because the format has no such field. The first column repeats because the builder wrote it onto both boards, and that is all persistence ever is in a package. Reading the gap as an instruction to carry column 1 over from the previous board would render this package right by accident and the next one wrong.",
         "Rendering is not covered by any fixture and is not covered by this one either - see the README. What is asserted is that the flag arrives on the model, in a package that also gives an importer something to draw it around.",
+      ],
+    },
+  });
+}
+
+// =============================================================================
+// 12. navigate-and-append - the carrier phrase, on load_board and on :home.
+// =============================================================================
+
+{
+  fixture({
+    name: "navigate-and-append",
+    summary: "ext_lautstark_append_on_navigate on a load_board button and on a :home button, each beside a plain navigation to the same place.",
+    members: [
+      { name: "manifest.json", data: json(manifest({
+          id: "1f0a5c2e-0000-4000-8000-00000000000e",
+          modified: "2026-08-26T09:00:00Z",
+          packageName: de.starter_package_name,
+          root: "boards/start.obf",
+          boards: { start: "boards/start.obf", essen: "boards/food.obf" },
+          images: {}, sounds: {},
+          voice: de.voice,
+        })) },
+      { name: "boards/start.obf", data: json({
+          format: "open-board-0.1", id: "start", locale: "de",
+          name: de.starter_package_name,
+          buttons: [
+            // The carrier phrase. Both halves of one press: the entry, then
+            // the board its object is on.
+            { id: "c1", label: de.starter_label, vocalization: de.starter_spoken,
+              load_board: { id: "essen", name: de.food, path: "boards/food.obf" },
+              ext_lautstark_append_on_navigate: true },
+            // The same target, no flag. What the pair asserts is that the flag
+            // is what makes the difference and not the navigation.
+            { id: "c2", label: de.food,
+              load_board: { id: "essen", name: de.food, path: "boards/food.obf" } },
+            // The flag where nothing navigates: ignored, in silence.
+            { id: "c3", label: de.ouch, vocalization: de.ouch,
+              ext_lautstark_speak_immediately: true,
+              ext_lautstark_append_on_navigate: true },
+          ],
+          grid: { rows: 1, columns: 3, order: [["c1", "c2", "c3"]] },
+        }) },
+      { name: "boards/food.obf", data: json({
+          format: "open-board-0.1", id: "essen", locale: "de", name: de.food,
+          buttons: [
+            { id: "e1", label: de.apple_label, vocalization: de.apple_spoken },
+            // The flag on :home rather than on load_board - SPEC.md 7.3's one
+            // extension of an action, and an ordinary board convention: the
+            // polite word, and back to the core board.
+            { id: "e2", label: de.please, vocalization: de.please,
+              action: ":home", ext_lautstark_append_on_navigate: true },
+            { id: "e3", label: de.back, action: ":home" },
+          ],
+          grid: { rows: 1, columns: 3, order: [["e1", "e2", "e3"]] },
+        }) },
+    ],
+    expected: {
+      outcome: "accepted",
+      package: { id: "1f0a5c2e-0000-4000-8000-00000000000e",
+                 name: de.starter_package_name,
+                 modified: "2026-08-26T09:00:00Z", tts_voice: de.voice,
+                 root_board: "start", first_column_gap: false },
+      boards: [
+        { id: "start", name: de.starter_package_name, locale: "de", rows: 1, columns: 3 },
+        { id: "essen", name: de.food, locale: "de", rows: 1, columns: 3 },
+      ],
+      buttons: [
+        { board: "start", id: "c1", label: de.starter_label, vocalization: de.starter_spoken,
+          on_activate: "append+navigate:essen", audio: "tts", state: "normal" },
+        { board: "start", id: "c2", label: de.food, on_activate: "navigate:essen", state: "normal" },
+        { board: "start", id: "c3", label: de.ouch, vocalization: de.ouch,
+          on_activate: "speak_immediately", audio: "tts", state: "normal",
+          reason: "the flag rides on navigation, and this button does not navigate" },
+        { board: "essen", id: "e1", label: de.apple_label, vocalization: de.apple_spoken,
+          on_activate: "append", audio: "tts", state: "normal" },
+        { board: "essen", id: "e2", label: de.please, vocalization: de.please,
+          on_activate: "append+home", audio: "tts", state: "normal" },
+        { board: "essen", id: "e3", label: de.back, on_activate: "home", state: "normal" },
+      ],
+      warnings: [],
+      scenario: [
+        { step: "activate c1", board: "essen", bar: [de.starter_spoken],
+          note: "One press, both halves: the entry is in the bar and the board is the one c1 names. An importer that navigates first and appends into whatever board it lands on writes the entry just as well, and this fixture cannot tell the two apart - the order matters for what is on screen, which SPEC.md 7.3 states and no expectation here can assert." },
+        { step: "activate e1", board: "essen", bar: [de.starter_spoken, de.apple_spoken] },
+        { step: "activate e2", board: "start",
+          bar: [de.starter_spoken, de.apple_spoken, de.please],
+          note: ":home carrying the flag: the word joins the sentence and the board goes back to manifest.root." },
+        { step: "activate c2", board: "essen",
+          bar: [de.starter_spoken, de.apple_spoken, de.please],
+          note: "The same load_board target as c1 and no flag. Nothing is added." },
+        { step: "activate e3", board: "start",
+          bar: [de.starter_spoken, de.apple_spoken, de.please],
+          note: "The same :home as e2 and no flag. Nothing is added." },
+        { step: "activate c3", board: "start", spoken: de.ouch,
+          bar: [de.starter_spoken, de.apple_spoken, de.please],
+          note: "The flag on a button that does not navigate changes nothing, and warns about nothing." },
+      ],
+      notes: [
+        "The sentence this package builds is " + JSON.stringify(de.starter_sentence_spoken) + ", and it takes three presses across two boards. Without the flag it takes five, two of them spent getting back to a board somebody had already left.",
+        "c1 and c2 lead to the same board. The only difference between them is the flag, which is what makes this fixture an assertion about the flag rather than about navigation.",
+        "An importer written against 1.1.0 ignores the field under SPEC.md 10.3 and treats c1 as c2 and e2 as e3. That is the intended degradation and it is not conformant at 1.2.0 - it is what a viewer that has not been updated does, and what the minor bump promises it may do.",
+        "c3 is the shape SPEC.md 7.3 calls meaningless: the flag with nothing to navigate to. It must be ignored in silence. A warning here would put a line in front of a caregiver about a button that behaves exactly as its author would expect.",
+        "Nothing in this package needs an image or a sound file. The buttons that speak fall back to synthesis, which is what audio: tts means, and it keeps the fixture about the one field it is named after.",
       ],
     },
   });

@@ -1,7 +1,7 @@
 {
   "fixture": "malformed-zip",
   "file": "malformed-zip.obz",
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "summary": "A structurally valid package whose central directory signature has been overwritten.",
   "outcome": "rejected",
   "rejection": {

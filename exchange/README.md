@@ -5,7 +5,7 @@ viewer, plus the fixtures an importer is checked against.
 
 | | |
 |---|---|
-| [`SPEC.md`](SPEC.md) | The specification. Version 1.1.0, **draft**. |
+| [`SPEC.md`](SPEC.md) | The specification. Version 1.2.0, **draft**. |
 | [`fixtures/`](fixtures/) | The `.obz` packages, each with an `.expected.json`. |
 | [`fixtures/index.json`](fixtures/index.json) | Machine-readable list of them. |
 | [`fixtures/source/`](fixtures/source/) | German fixture content, kept out of the generator. |
@@ -29,7 +29,7 @@ than a branch.
 Tags are named `exchange-vMAJOR.MINOR.PATCH` and track `SPEC.md`'s version.
 
 > **No tag exists yet.** The spec is a draft and stays one until a real board
-> round-trips to a tablet, so `exchange-v1.1.0` is not cut. Pin a **commit
+> round-trips to a tablet, so `exchange-v1.2.0` is not cut. Pin a **commit
 > SHA** in the meantime, and expect the fixtures to move under you.
 
 ### As a submodule
@@ -39,7 +39,7 @@ git submodule add https://github.com/Lautstark/vorlaut-diy-talker.git third_part
 ```
 
 ```bash
-git -C third_party/vorlaut checkout exchange-v1.1.0
+git -C third_party/vorlaut checkout exchange-v1.2.0
 ```
 
 Only `exchange/` is of interest; the rest of the repository comes along and can
@@ -51,7 +51,7 @@ change with a test run attached — never as a routine bump.
 If a submodule is unwelcome, fetch the tag and verify what arrived:
 
 ```bash
-curl -sSL https://github.com/Lautstark/vorlaut-diy-talker/archive/refs/tags/exchange-v1.1.0.tar.gz -o exchange.tar.gz
+curl -sSL https://github.com/Lautstark/vorlaut-diy-talker/archive/refs/tags/exchange-v1.2.0.tar.gz -o exchange.tar.gz
 ```
 
 ```bash
@@ -93,7 +93,7 @@ states no count, because one restated here drifts from the directory.
 {
   "fixture": "minimal",
   "file": "minimal.obz",
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "summary": "…",
 
   "outcome": "accepted",        // or "rejected"
@@ -114,7 +114,9 @@ states no count, because one restated here drifts from the directory.
 ```
 
 `on_activate` is one of `append`, `speak_immediately`, `speak_bar`, `clear`,
-`backspace`, `home`, `navigate:<board id>`, `disabled`.
+`backspace`, `home`, `navigate:<board id>`, `disabled` — and the two compound
+ones SPEC.md §7.3's append-on-navigate produces, `append+navigate:<board id>`
+and `append+home`, which are one press doing both in that order.
 
 `state` is `normal`, `degraded` or `disabled`.
 
@@ -125,7 +127,7 @@ Four fields appear only where they apply:
 
 | Field | In | Meaning |
 |---|---|---|
-| `scenario` | `message-bar` | An ordered walk through button presses with the bar contents after each. |
+| `scenario` | `message-bar`, `navigate-and-append` | An ordered walk through button presses with the bar contents after each, and the board standing after it where the walk navigates. |
 | `ignored` | `unknown-ext` | Fields that must be parsed past with no effect and no warning. |
 | `after_importing` | `identity-*` | Which packages must be on the device after a stated import sequence. |
 | `reimport` | `identity-a-v2` | Which stored package this matches and how it must resolve. |
@@ -244,6 +246,7 @@ repository's code-language check for this reason; the generator is not.
 | `identity-b` | accepted | Same name, different id — must not overwrite |
 | `identity-a-v2` | accepted | Same id, newer timestamp — must replace |
 | `first-column-gap` | accepted | The §4.1 layout hint, and the repeated column it marks |
+| `navigate-and-append` | accepted | §7.3's append-on-navigate, on `load_board` and on `:home` |
 
 ## What they do not cover
 

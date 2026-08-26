@@ -1,7 +1,7 @@
 {
   "fixture": "identity-a",
   "file": "identity-a.obz",
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "summary": "Package A: name 'Nursery', id ...000a.",
   "outcome": "accepted",
   "package": {

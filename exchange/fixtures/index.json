@@ -1,5 +1,5 @@
 {
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "generated_by": "exchange/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -99,6 +99,13 @@
       "expected": "first-column-gap.expected.json",
       "outcome": "accepted",
       "summary": "ext_lautstark_first_column_gap on a package whose leftmost column repeats across both boards."
+    },
+    {
+      "fixture": "navigate-and-append",
+      "file": "navigate-and-append.obz",
+      "expected": "navigate-and-append.expected.json",
+      "outcome": "accepted",
+      "summary": "ext_lautstark_append_on_navigate on a load_board button and on a :home button, each beside a plain navigation to the same place."
     }
   ]
 }

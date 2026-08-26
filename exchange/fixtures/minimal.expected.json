@@ -1,7 +1,7 @@
 {
   "fixture": "minimal",
   "file": "minimal.obz",
-  "spec_version": "1.1.0",
+  "spec_version": "1.2.0",
   "summary": "One board, one button, one baked image, one baked Opus clip.",
   "outcome": "accepted",
   "package": {
