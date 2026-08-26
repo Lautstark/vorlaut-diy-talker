@@ -604,12 +604,29 @@ tileFixture({
 });
 
 {
-  const short = Buffer.from(addressTile().subarray(0, TILE_BYTES - 258));
+  // An ODD number of bytes missing, so the cut lands inside a pixel and not
+  // merely inside a row. That is the difference between a fixture that can
+  // see the fill and one that only sees where the file stopped.
+  const CUT = TILE_BYTES - 259;
+  const short = Buffer.from(addressTile().subarray(0, CUT));
   const rowBytes = TILE_W * 2;
-  const completeRows = Math.floor(short.length / rowBytes);
+  const completeRows = Math.floor(CUT / rowBytes);
+
+  /** What a pixel reads as once the fill has happened: the pattern where the
+   *  file reached, and zero past it. Worked out from the cut rather than read
+   *  back out of the bytes above - this file has no parser and must not grow
+   *  one. */
+  const filled = (x, y) => {
+    const at = (y * TILE_W + x) * 2;
+    return hex(Buffer.from([at < CUT ? y : 0, at + 1 < CUT ? x : 0]));
+  };
+  const probe = (x, y) => ({
+    x, y, byte: (y * TILE_W + x) * 2, value: filled(x, y),
+  });
+
   tileFixture({
     name: "short",
-    summary: "258 bytes missing, so the cut lands in the middle of a row. The reader zero-fills and says nothing.",
+    summary: "259 bytes missing, so the cut lands inside a pixel. The reader zero-fills and says nothing.",
     artefact: short,
     expected: {
       conforming: false,
@@ -617,8 +634,20 @@ tileFixture({
         accepts: true,
         complete_rows: completeRows,
         partial_row: completeRows,
-        bytes_in_partial_row: short.length - completeRows * rowBytes,
+        bytes_in_partial_row: CUT - completeRows * rowBytes,
         blank_rows_from: completeRows + 1,
+        // The counts above say WHERE the file ran out; these say what is
+        // there instead, and only they can see the fill. A reader that drew
+        // whatever happened to be in its row buffer would report exactly the
+        // same counts and put the previous row on the panel - which is the
+        // worst thing a truncated tile can look like, because it looks right.
+        probes: [
+          probe(125, completeRows),          // the last whole pixel
+          probe(126, completeRows),          // one byte of the file, one of fill
+          probe(127, completeRows),          // wholly fill, inside a row that arrived
+          probe(0, completeRows + 1),        // a row that never arrived at all
+          probe(127, TILE_H - 1),
+        ],
       },
       write: null,
       notes: [
@@ -1132,6 +1161,50 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       "This is the cable's extension rule, and it is the opposite of the layout's. A reader skips keywords it does not know, in both directions and on purpose, so a browser can gain a field without a device in a drawer falling over - and a device can gain one without a browser that has not been reloaded falling over.",
       "The browser half only, because the device's formatters cannot produce a keyword the device does not have. A firmware that gained one would have to gain a function to write it, and the fixture it would then be held to is this one with the line moved into the device half.",
       "'gap 12' is not invented: the firmware reports its timings that way already, and until it started doing so this client waited for exactly one line and would have read the first extra keyword as a failed transfer.",
+    ],
+  });
+}
+
+{
+  // A payload whose checksum begins with a zero byte, which is the only kind
+  // that can tell "%08lx" from "%lx". Every other value in this repository
+  // happens to have eight significant digits, and a format string that lost
+  // its padding agreed with all of them - which is a fault that was caught
+  // once already, by tools/cablemutate.py, and would be uncatchable here
+  // without this file.
+  const held = content(39, 64);
+  const sum = crc32(held);
+  if ((sum >>> 24) !== 0) {
+    throw new Error("this fixture is only worth anything if the checksum has "
+                    + "a leading zero byte");
+  }
+  cableFixture({
+    name: "checksum-with-a-leading-zero",
+    summary: "A checksum whose top byte is zero, asked for by name. Eight digits always, lower case always.",
+    ends: ["device", "browser"],
+    start: [{ name: TILE_FILE, bytes: held }],
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY - held.length}`),
+      device("< files 1"),
+      device("< end hello"),
+      host(`> crc ${TILE_FILE}`),
+      device(`< crc ${TILE_FILE} ${hex8(sum)}`),
+    ],
+    end: {
+      files: [{ name: TILE_FILE, size: held.length, crc: hex8(sum) }],
+      stored: 0, removed: 0, bytes: 0,
+    },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY - held.length, files: 1 } },
+      { call: "crc", name: TILE_FILE, returns: hex8(sum) },
+    ],
+    notes: [
+      "Always eight digits, always lower case, so the browser can compare the text rather than having to parse it first. A value that lost its padding would be four digits here and eight everywhere else, and the file would be sent again on every release for as long as nobody looked.",
+      "This is the one file on the device whose name does not say what is in it - every other name is a hash, so it answers the question by existing. layout.bin keeps its name when its content changes, which is the whole reason the crc verb is in the protocol.",
     ],
   });
 }

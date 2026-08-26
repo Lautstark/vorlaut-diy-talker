@@ -2,7 +2,7 @@
   "fixture": "short",
   "kind": "tile",
   "file": "tile/short.bin",
-  "summary": "258 bytes missing, so the cut lands in the middle of a row. The reader zero-fills and says nothing.",
+  "summary": "259 bytes missing, so the cut lands inside a pixel. The reader zero-fills and says nothing.",
   "geometry": {
     "width": 128,
     "height": 128,
@@ -11,14 +11,46 @@
     "row_bytes": 256,
     "conforming_bytes": 32768
   },
-  "bytes": 32510,
+  "bytes": 32509,
   "conforming": false,
   "read": {
     "accepts": true,
     "complete_rows": 126,
     "partial_row": 126,
-    "bytes_in_partial_row": 254,
-    "blank_rows_from": 127
+    "bytes_in_partial_row": 253,
+    "blank_rows_from": 127,
+    "probes": [
+      {
+        "x": 125,
+        "y": 126,
+        "byte": 32506,
+        "value": "7e7d"
+      },
+      {
+        "x": 126,
+        "y": 126,
+        "byte": 32508,
+        "value": "7e00"
+      },
+      {
+        "x": 127,
+        "y": 126,
+        "byte": 32510,
+        "value": "0000"
+      },
+      {
+        "x": 0,
+        "y": 127,
+        "byte": 32512,
+        "value": "0000"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "0000"
+      }
+    ]
   },
   "write": null,
   "notes": [

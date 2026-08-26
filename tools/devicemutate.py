@@ -171,9 +171,6 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      '  if (memcmp(header, "RIFF", 4) != 0 || memcmp(header + 8, "WAVE", 4) != 0) {',
      '  if (memcmp(header, "RIFF", 4) != 0) {',
      "the WAVE half of the header is no longer checked"),
-    (WAV_H, FIRMWARE, "  if (file.read((uint8_t *)header, 12) != 12) return false;",
-     "  if (file.read((uint8_t *)header, 12) < 0) return false;",
-     "a header that arrived short is read anyway"),
     (WAV_H, FIRMWARE, "#define WAV_SAMPLE_RATE 16000u",
      "#define WAV_SAMPLE_RATE 22050u",
      "the device plays at a rate the builder does not write"),
@@ -219,6 +216,26 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
     (CABLE_JS, BROWSER, 'await this.send(`put ${name} ${bytes.length} ${hex8(sum)}`);',
      'await this.send(`put ${name} ${hex8(sum)} ${bytes.length}`);',
      "the browser sends the size and the checksum the other way round"),
+]
+
+# Real faults that no fixture at this boundary can see, with the reason.
+#
+# A separate list rather than a shorter MUTANTS list, because the two say
+# different things: a fault in MUTANTS that survives is a fixture that wants
+# writing, and one of these is a fault that a fixture CANNOT reach. Deleting
+# them would make the run look complete and leave nobody knowing.
+#
+# Nothing runs these. They are here to be read.
+UNREACHABLE: list[tuple[pathlib.Path, str, str, str]] = [
+    (WAV_H, "  if (file.read((uint8_t *)header, 12) != 12) return false;",
+     "a WAV header that arrived short is read anyway",
+     "Every file this accepts and every file it refuses come out the same "
+     "either way: a short read leaves nothing available, so the chunk walk "
+     "does not run and the answer is still no. What changes is that the WAVE "
+     "check then compares four bytes of uninitialised stack. That is a "
+     "memory-safety fault rather than a format one, it needs a sanitiser and "
+     "not a fixture, and a fixture written to 'catch' it would be asserting "
+     "whatever happened to be on the stack that day."),
 ]
 
 # Changes that alter nothing the fixtures can see. These SHOULD survive: a run
@@ -326,6 +343,15 @@ def main() -> int:
 
     caught = len(MUTANTS) - len(missed) - len(moved)
     print(f"\n{caught} of {len(MUTANTS) - len(moved)} faults caught.")
+
+    if UNREACHABLE:
+        print(f"\n{len(UNREACHABLE)} fault(s) no fixture at this boundary can "
+              f"reach, and not run:\n")
+        for path, find, what, why in UNREACHABLE:
+            gone = "" if find in path.read_text(encoding="utf-8") else \
+                "  - and the code it names has MOVED, so this note wants "\
+                "checking\n"
+            print(f"  {what}\n    {why}\n{gone}")
     if moved:
         print(f"{len(moved)} could not be applied - this file has drifted from "
               f"the code and wants updating.")

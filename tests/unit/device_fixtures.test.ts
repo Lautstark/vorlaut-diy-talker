@@ -12,7 +12,7 @@ import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../src/data/tiles.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
 } from "../../src/data/audio_format.js";
-import { Cable, CABLE_VERSION, crc32, hex8 } from "../../../tools/cable.js";
+import { Cable, CABLE_VERSION, crc32, hex8 } from "../../tools/cable.js";
 
 /* The builder's half of device/fixtures/.
  *

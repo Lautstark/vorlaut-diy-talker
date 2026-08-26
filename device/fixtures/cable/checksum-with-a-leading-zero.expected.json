@@ -1,0 +1,85 @@
+{
+  "fixture": "checksum-with-a-leading-zero",
+  "kind": "cable",
+  "summary": "A checksum whose top byte is zero, asked for by name. Eight digits always, lower case always.",
+  "ends": [
+    "device",
+    "browser"
+  ],
+  "protocol_version": 1,
+  "device_starts_with": [
+    {
+      "name": "t0123456789abcdef0123456789abcdef.bin",
+      "size": 64,
+      "crc": "0035f8d8",
+      "content": "J0xxlrvgBSpPdJm+4wgtUnecweYLMFV6n8TpDjNYfaLH7BE2W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQg=="
+    }
+  ],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441728"
+    },
+    {
+      "from": "device",
+      "line": "< files 1"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> crc t0123456789abcdef0123456789abcdef.bin"
+    },
+    {
+      "from": "device",
+      "line": "< crc t0123456789abcdef0123456789abcdef.bin 0035f8d8"
+    }
+  ],
+  "device_ends_with": {
+    "files": [
+      {
+        "name": "t0123456789abcdef0123456789abcdef.bin",
+        "size": 64,
+        "crc": "0035f8d8"
+      }
+    ],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 1,
+        "total": 1441792,
+        "free": 1441728,
+        "files": 1
+      }
+    },
+    {
+      "call": "crc",
+      "name": "t0123456789abcdef0123456789abcdef.bin",
+      "returns": "0035f8d8"
+    }
+  ],
+  "notes": [
+    "Always eight digits, always lower case, so the browser can compare the text rather than having to parse it first. A value that lost its padding would be four digits here and eight everywhere else, and the file would be sent again on every release for as long as nobody looked.",
+    "This is the one file on the device whose name does not say what is in it - every other name is a hash, so it answers the question by existing. layout.bin keeps its name when its content changes, which is the whole reason the crc verb is in the protocol."
+  ]
+}

@@ -166,7 +166,7 @@
       "fixture": "short",
       "kind": "tile",
       "outcome": "accepted",
-      "summary": "258 bytes missing, so the cut lands in the middle of a row. The reader zero-fills and says nothing.",
+      "summary": "259 bytes missing, so the cut lands inside a pixel. The reader zero-fills and says nothing.",
       "file": "tile/short.bin",
       "expected": "tile/short.expected.json"
     },
@@ -276,6 +276,13 @@
       "outcome": "accepted",
       "summary": "The device says two things the browser has never heard of. The browser steps over both and takes the ok.",
       "expected": "cable/skip-unknown-keyword.expected.json"
+    },
+    {
+      "fixture": "checksum-with-a-leading-zero",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A checksum whose top byte is zero, asked for by name. Eight digits always, lower case always.",
+      "expected": "cable/checksum-with-a-leading-zero.expected.json"
     },
     {
       "fixture": "unknown-verb",
