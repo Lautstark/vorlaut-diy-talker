@@ -136,8 +136,32 @@ const subtitles = new Map<string, string>();
  * that lags the thing it is beside reads as a bug. */
 function readOpen(): void {
   if (!held.current) return;
-  counts.set(held.current, editorOf(state.layout).count(state.layout));
+  counts.set(held.current, rowCount(state.layout));
   subtitles.set(held.current, rowSubtitle(state.layout));
+}
+
+/**
+ * The number on a row in the sidebar.
+ *
+ * **Not the same number the delete question asks with, and that is deliberate.**
+ * The Editor port's count() answers "how much work is in here", which is
+ * buttons on a tablet and sets on a talker - conventions.md §1.8, and the
+ * argument for it is in editor-app's count(): sixty-three buttons is the
+ * sentence that could change somebody's mind about deleting. That stays exactly
+ * as it is, question and all.
+ *
+ * What sits in the sidebar is now a different question, because a different
+ * thing sits under it: the Sammlung's pages, listed. A row reading "63" over a
+ * list of four is two units in one column, and the one the eye needs is the one
+ * it can count. So a tablet row says pages.
+ *
+ * The talker is untouched, here as everywhere in this change: it has no page
+ * list under its row and keeps counting sets. Two rows can therefore show
+ * numbers that look alike and count different things, which is the price and is
+ * a decision rather than an oversight.
+ */
+function rowCount(layout: Layout): number {
+  return isApp(layout) ? layout.pages.length : editorOf(layout).count(layout);
 }
 
 /** The sidebar and the work head, from whatever the store last said. */
@@ -159,7 +183,7 @@ export async function paintCollections(): Promise<void> {
     // first tablet Sammlung in a list opened on a talker Sammlung would have
     // been counted in sets, found none, and drawn "0" beside sixty buttons.
     if (layout) {
-      counts.set(one.id, editorOf(layout).count(layout));
+      counts.set(one.id, rowCount(layout));
       subtitles.set(one.id, rowSubtitle(layout));
     }
   }));
@@ -239,6 +263,15 @@ function drawList(): void {
     open: held.current ? [held.current] : [],
     onPick: (id) => { closeOnPick(); void open(id); },
   });
+
+  if (!pages || !held.current) return;
+  const row = list.querySelector(".collections__item--active");
+  if (!row) return;
+  const into = document.createElement("div");
+  into.className = "pagelist";
+  into.id = "collectionPages";
+  row.after(into);
+  pages(into);
 }
 
 /** There is always one, and it has a name.
@@ -791,6 +824,43 @@ let extras: ((add: AddItem) => void) | null = null;
 
 export function collectionMenuExtras(build: ((add: AddItem) => void) | null): void {
   extras = build;
+}
+
+/**
+ * The list of pages an editor draws under the open Sammlung's row.
+ *
+ * The same hand-over as collectionMenuExtras above and collectionSheetPanel one
+ * floor along, and for the same reason: the sidebar is the shell's, an editor
+ * may import the shell and not the other way round, and what belongs in the
+ * list is entirely the editor's business - the talker passes nothing and gets
+ * no list at all.
+ *
+ * **Under the open row and nowhere else.** The list is sorted by what was
+ * edited last, so the open Sammlung is not always first; the container is
+ * inserted after whichever row is marked open, which is also what makes it
+ * disappear when a different one is opened without anything having to remove
+ * it.
+ */
+let pages: ((into: HTMLElement) => void) | null = null;
+
+export function collectionPages(draw: ((into: HTMLElement) => void) | null): void {
+  pages = draw;
+  if (held.current) drawList();
+}
+
+/**
+ * Redraw only the pages, leaving the rows above and below them alone.
+ *
+ * Called on every render of the tablet editor - which page is open, what each
+ * one is called and what each one costs all live here - so it may not go back
+ * to the store or repaint the whole list. Where the container is not in the
+ * page yet, the next drawList() puts it there.
+ */
+export function paintPages(): void {
+  const into = document.getElementById("collectionPages");
+  if (!into || !pages) return;
+  into.replaceChildren();
+  pages(into);
 }
 
 export function wireCollections(): void {
