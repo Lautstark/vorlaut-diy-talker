@@ -138,7 +138,7 @@ test("the tablet editor, four states", async ({ page }) => {
   }
 
   // The page's name is the page sheet's now, reached from the ... on the tab.
-  await page.locator("#appPages .tab[aria-current=true] .tab__more").click();
+  await page.locator("#appPath .crumb--here .crumb__more").click();
   await expect(open).toBeVisible();
   await open.locator("#appPageName").fill(SCREEN);
   await open.locator("button", { hasText: label("ui.done") }).click();
@@ -154,7 +154,7 @@ test("the tablet editor, four states", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(open).toBeHidden();
 
-  await page.locator("#appPages .tab[aria-current=true] .tab__more").click();
+  await page.locator("#appPath .crumb--here .crumb__more").click();
   await expect(open).toBeVisible();
   await open.locator("button", { hasText: label("ui.app_page_delete") }).click();
   await expect(page.locator("dialog[open]")).toHaveCount(2);

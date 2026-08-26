@@ -4,6 +4,7 @@
  * Two areas, and the split between them is the one thing in this file worth
  * defending.
  *
+ *   #appPath    where the editor is standing, as the way it got there
  *   #appPages   the page strip: every page in the Sammlung, always
  *   #appGrid    the page on screen, as the grid it will be on the tablet
  *
@@ -22,6 +23,14 @@
  * beside its name, and it is asked as pictures when the Sammlung is made. A
  * number field beside the tabs was also a place to mistype 1 for 11, and there
  * it costs buttons.
+ *
+ * **Depth is stated in the path and nowhere else.** The strip below it is one
+ * flat list, and it stays one: a tree, a graph and a nested list were each
+ * drawn and each rejected. A literal graph is dominated by the shared first
+ * column, which is an edge from every page to the same two or three; and a
+ * nested list reports MetaTalk's "Verben / Verben 2" overflow as a parent and
+ * a child, when both are plain `goto` edges and neither is under the other.
+ * The path carries how far in somebody is, and nothing else tries to.
  *
  * **The strip shows every page, including the ones nothing leads to.** It is
  * the editing-time way around, and it is not the graph: what leads where is
@@ -43,9 +52,11 @@ import { mount } from "../../shell/templates/mount.js";
 
 export const markup = `
 <div class="appbar">
-  <div class="tabs" id="appPages"></div>
+  <div class="pagepath" id="appPath"></div>
   <button id="appPageNew" class="btn quiet sm" type="button"></button>
 </div>
+
+<div class="tabs" id="appPages"></div>
 
 <div class="grid" id="appGrid"></div>
 `;

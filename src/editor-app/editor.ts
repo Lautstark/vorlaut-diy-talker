@@ -51,7 +51,7 @@ import { collectionSheetPanel } from "../shell/voices.js";
 import { appends } from "../data/app_package.js";
 import {
   addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, isShared,
-  moveButton, moveShared, outside, pageById, reachable, resize,
+  moveButton, moveShared, outside, pageById, reachable, resize, route,
   shareFirstColumn, shared, sharedAt, spreadFirstColumn,
 } from "./pages.js";
 
@@ -121,13 +121,127 @@ function commit(): void {
 
 /* --- The page strip ------------------------------------------------------ */
 
+/**
+ * Where the editor is standing, drawn as the way it got there: a ⌂ anchor, a
+ * divider, and then one crumb per page from the start page to this one.
+ *
+ * **This is where depth is stated, and it is the only place it is stated.**
+ * The strip under it is flat and stays flat - see templates/board.ts for the
+ * three shapes that tried to carry depth there and what each of them
+ * misreported. A path is the one drawing of a directed graph that is honest
+ * about being a single walk through it rather than a picture of the whole
+ * thing, which is what somebody editing one page actually needs: not the
+ * graph, but how far in they are and how to get back out.
+ *
+ * route() picks the shortest way, so the crumbs are not "the" path - there is
+ * no such thing in a graph where two pages can lead to the same third. They
+ * are *a* way, the shortest one, and every step in them is a step through the
+ * row below: both are walked over the same edges. See opens() for why the
+ * shared first column is not one of them.
+ *
+ * ⌂ is separated by a rule rather than being the first crumb. It is not a step
+ * in the walk - it is the way out of any walk - and a page that is its own
+ * start page would otherwise be drawn as a crumb repeating the anchor beside
+ * it.
+ */
+function drawPath(): void {
+  const layout = board();
+  const line = $("appPath");
+  line.innerHTML = "";
+  line.setAttribute("role", "navigation");
+  line.setAttribute("aria-label", t("ui.app_path"));
+
+  const home = document.createElement("button");
+  home.type = "button";
+  home.className = "crumb crumb--home";
+  home.textContent = "⌂";
+  home.setAttribute("aria-label", t("ui.app_page_home_go"));
+  home.title = t("ui.app_page_home_go");
+  home.onclick = () => { here = layout.home; render(); };
+  line.appendChild(home);
+
+  const bar = document.createElement("span");
+  bar.className = "crumb__bar";
+  bar.setAttribute("aria-hidden", "true");
+  bar.textContent = "|";
+  line.appendChild(bar);
+
+  const walk = route(layout, page().id);
+  walk.forEach((one, index) => {
+    if (index) {
+      const sep = document.createElement("span");
+      sep.className = "crumb__sep";
+      sep.setAttribute("aria-hidden", "true");
+      sep.textContent = "›";
+      line.appendChild(sep);
+    }
+    line.appendChild(index === walk.length - 1 ? standing(one) : crumb(one));
+  });
+}
+
+/** One page along the way, pressable. */
+function crumb(one: AppPage): HTMLElement {
+  const step = document.createElement("button");
+  step.type = "button";
+  step.className = "crumb";
+  step.textContent = pageName(one);
+  step.onclick = () => { here = one.id; render(); };
+  return step;
+}
+
+/**
+ * The last crumb: the page on screen, and the way into its own card.
+ *
+ * **This is where the ⋯ went.** It sat on the current tab, and there is no
+ * current tab any more - the row below holds the pages this one *opens*, none
+ * of which is this one. The last crumb is what is left that names the page
+ * somebody is standing on, so it is what a page's name, its start-page-ness
+ * and its deletion hang off, which is the same relation the ⋯ had to the tab.
+ *
+ * Not pressable as a crumb, because it leads where somebody already is - so
+ * unlike every crumb before it this one is a <span>, and the ⋯ inside it can
+ * be a real <button> rather than the span wearing role="button" that a control
+ * inside a control forced on the tab. Nothing is reserved on the other crumbs
+ * either: the path is anchored at its left edge and the ⋯ is at its right end,
+ * so nothing already drawn moves when it appears.
+ */
+function standing(one: AppPage): HTMLElement {
+  const at = document.createElement("span");
+  at.className = "crumb crumb--here";
+  at.setAttribute("aria-current", "page");
+
+  const name = document.createElement("span");
+  name.className = "crumb__name";
+  name.textContent = pageName(one);
+  at.appendChild(name);
+
+  /* No ⌂ on it, even standing on the start page. The anchor two elements to
+   * the left is that mark, and route() always begins at home - so a house on
+   * the first crumb would be the same house twice, and on any later crumb it
+   * would never appear. */
+
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "crumb__more";
+  more.textContent = "\u22ef";
+  more.setAttribute("aria-label", t("ui.app_page_more"));
+  more.onclick = () => { void openPageSheet(one); };
+  at.appendChild(more);
+  return at;
+}
+
+/** What a page is called in the strip. Its name, or its position where nobody
+ *  has named it - the same fallback the delete question uses. */
+const pageName = (one: AppPage): string =>
+  one.name || t("ui.app_page_n", { n: board().pages.indexOf(one) + 1 });
+
 function drawPages(): void {
   const layout = board();
   const strip = $("appPages");
   strip.innerHTML = "";
   const found = reachable(layout);
 
-  layout.pages.forEach((one, index) => {
+  for (const one of layout.pages) {
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "tab";
@@ -152,56 +266,17 @@ function drawPages(): void {
     }
 
     const name = document.createElement("span");
-    name.textContent = one.name || t("ui.app_page_n", { n: index + 1 });
+    name.textContent = pageName(one);
     tab.appendChild(name);
 
-    /* The way into the page itself, on the tab that is already open.
-     *
-     * A page has no cell on a tablet - its name and its start-page-ness belong
-     * to nothing on the board - so the current tab is the thing they can be
-     * pressed on. The same `...` the work head uses for a Sammlung, one level
-     * down, on the thing it acts on.
-     *
-     * A <span> wearing role="button" rather than a <button>, for the reason
-     * opener() gives: its parent is a <button> already, and a control inside a
-     * control is invalid markup that no keyboard can reach the inner half of.
-     * So the two things the element would have brought - a place in the tab
-     * order and acting on Enter and Space - are written out here.
-     *
-     * Every tab gets the element and only the current one gets the control.
-     * The strip reflowed on every page change otherwise - one tab grew a `...`
-     * as another lost one, and every tab to the right of them slid - which is
-     * a moving target in the one row somebody is aiming at. The reserved
-     * copies are `visibility: hidden`, so they hold the width and are in
-     * neither the accessibility tree nor the tab order. */
-    const more = document.createElement("span");
-    more.className = "tab__more";
-    more.textContent = "\u22ef";
-    if (one.id === page().id) {
-      more.setAttribute("role", "button");
-      more.tabIndex = 0;
-      more.setAttribute("aria-label", t("ui.app_page_more"));
-      const open = (event: Event) => {
-        // Or the press falls through to the tab, which would redraw the strip
-        // out from under the sheet that is opening.
-        event.stopPropagation();
-        void openPageSheet(one);
-      };
-      more.onclick = open;
-      more.onkeydown = (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        open(event);
-      };
-    } else {
-      more.classList.add("tab__more--idle");
-      more.setAttribute("aria-hidden", "true");
-    }
-    tab.appendChild(more);
+    /* No `...` here any more. The way into a page's own card - its name, its
+     * start-page-ness, its deletion - is the last crumb of the path above,
+     * which is the one thing on screen that names the page being edited. See
+     * standing(). */
 
     tab.onclick = () => { here = one.id; render(); };
     strip.appendChild(tab);
-  });
+  }
 }
 
 /* --- The grid ------------------------------------------------------------ */
@@ -565,9 +640,9 @@ const wordColor = (layout: AppLayout): WordColor => layout.wordColor ?? "fill";
 /**
  * The page itself: its name, whether it is the start page, and deleting it.
  *
- * Reached from the `...` on the current tab, because a page has no cell on a
- * tablet - its name belongs to nothing on the board - so the tab is the thing
- * it can be pressed on.
+ * Reached from the `...` on the last crumb of the path, because a page has no
+ * cell on a tablet - its name belongs to nothing on the board - so the crumb
+ * naming the page being edited is the thing it can be pressed on.
  *
  * Two variants rather than a control that would do nothing: on any other page
  * the sheet offers "make this the start page", and on the start page it says
@@ -1141,6 +1216,7 @@ export function render(): void {
   dragging = null;
   const layout = board();
   if (!pageById(layout, here)) here = layout.pages[0]!.id;
+  drawPath();
   drawPages();
   drawGrid();
 }

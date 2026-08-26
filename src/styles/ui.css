@@ -721,6 +721,44 @@ dl.transfer dd { margin: 0; font-size: 14px; }
 
 .appbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .appbar .tabs { margin-bottom: 0; }
+
+/* The path: a house, a rule, and one crumb per page from the start page to the
+   one on screen. It is where the strip says how far in somebody is, and it is
+   the only thing on this page that says so - templates/board.ts has the three
+   drawings that tried to say it below instead.
+
+   It takes the whole line and gives it back first. `flex: 1 1 auto` with
+   `min-width: 0` is what lets the crumbs in the middle ellipsise while the
+   house and the page on screen keep their width, so a path too long for the
+   window loses the pages passed through rather than either end of itself.
+   Which is the answer to what goes first when this line runs out of room, and
+   it is deliberate: the two ends are where somebody is and the way out, and
+   both survive down to a phone. */
+.pagepath {
+  display: flex; align-items: center; gap: 2px;
+  flex: 1 1 auto; min-width: 0; overflow: hidden;
+}
+.crumb {
+  display: flex; align-items: center; gap: 6px;
+  flex: 0 1 auto; min-width: 0;
+  padding: 5px 7px; border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--text-dim); font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+}
+button.crumb:hover { color: var(--text); background: var(--surface-2); }
+/* The two ends of the line hold their width; only what was passed through on
+   the way gives any of it up. */
+.crumb--home, .crumb--here { flex: none; }
+.crumb--home { font-size: 15px; padding: 4px 8px; }
+/* Where somebody is: not a control, because it leads where they already are.
+   That is what lets the ⋯ inside it be a real <button> rather than a <span>
+   wearing role="button" - see standing(), and opener() for the rule it is an
+   exception to. */
+.crumb--here { color: var(--text); font-weight: 600; cursor: default; }
+.crumb__name { overflow: hidden; text-overflow: ellipsis; }
+.crumb__bar { flex: none; color: var(--line); }
+.crumb__sep { flex: none; color: var(--text-faint); font-size: 13px; }
 /* The grid's size sits at the far end of the bar, away from the pages: it is a
    fact about the Sammlung rather than about the page on screen, and putting it
    next to the strip would read as belonging to whichever tab is current. */
@@ -1574,11 +1612,14 @@ dialog.sheet--page { max-width: 520px; }
 .sheet--button > .foot { justify-content: space-between; }
 .foot__right { display: flex; align-items: center; gap: 9px; }
 
-/* ------------------------------------------------------- the page's own way in
+/* ---------------------------------------- the page's and the set's own way in
 
-   A page has no cell on a tablet - its name belongs to nothing on the board -
-   so the current tab carries the way in. The same ... the work head uses for a
-   Sammlung, one level down, on the thing it acts on.
+   Neither has a cell on the board - a page's name belongs to nothing on a
+   tablet, a set's to nothing on the device - so something else carries the way
+   in. On the talker that is the tab that is already open; on the tablet it is
+   the last crumb of the path, which is what is left naming the page being
+   edited now that the strip below holds the pages it *opens* rather than a tab
+   per page.
 
    It stays a control of its own, and here is what it was weighed against. The
    tab is already a 100px target and a second press on the one you are standing
@@ -1593,25 +1634,37 @@ dialog.sheet--page { max-width: 520px; }
 
    So: a box rather than a glyph, at 26px, past the 24px WCAG 2.2 §2.5.8 floor,
    and a glyph inside it big enough to read as the same ... the work head has.
-   The negative margins take it back out of the tab's own padding, so a tab
-   carrying one is the height of a tab that is not.
+   The negative margins take it back out of the padding of whatever carries it,
+   so a tab or a crumb holding one is the height of one that is not.
 
-   And it is on every tab, not only the current one - see drawPages() and
-   drawTabs(). Hidden with `visibility`, which keeps the box: the strip used to
-   reflow on every page change, because the tab being left grew a control and
-   the tab being arrived at lost one, and every tab after them slid. Reserving
-   it is what makes the enlargement free, and it fixes the jump that was
-   already there. `visibility: hidden` is also what keeps the reserved copies
-   out of the accessibility tree and out of the tab order, so there is still
-   exactly one of these to find. */
-.tab__more {
-  flex: none; width: 26px; height: 26px; margin: -5px -7px -5px 0;
+   On the talker it is on every tab, not only the current one - see drawTabs().
+   Hidden with `visibility`, which keeps the box: that strip reflowed on every
+   switch, because the tab being left grew a control and the tab being arrived
+   at lost one, and every tab after them slid; those tabs are also dragged to
+   reorder, so the row was resizing mid-drag. `visibility: hidden` is also what
+   keeps the reserved copies out of the accessibility tree and out of the tab
+   order, so there is still exactly one of these to find.
+
+   The path needs no such reservation. There is exactly one of these on it, it
+   is at the right end of a line anchored at its left edge, and nothing already
+   drawn moves when it appears. */
+.tab__more, .crumb__more {
+  flex: none; width: 26px; height: 26px;
   display: grid; place-items: center;
   border: 0; background: transparent; color: var(--text-faint);
   cursor: pointer; font: inherit; font-size: 17px; line-height: 1;
   border-radius: var(--radius-sm);
 }
-.tab__more:hover { color: var(--text); background: var(--surface-3); }
-.tab__more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* The reserved copy on every other tab: it holds its box and does nothing. */
+/* The negative margins take the box back out of the padding of whatever
+   carries it, so a tab or a crumb holding one is the height of one that is
+   not. Two sets of them, because the two have different padding. */
+.tab__more { margin: -5px -7px -5px 0; }
+.crumb__more { margin: -4px -5px -4px 0; }
+.tab__more:hover, .crumb__more:hover { color: var(--text); background: var(--surface-3); }
+.tab__more:focus-visible, .crumb__more:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+/* The reserved copy on every other tab: it holds its box and does nothing.
+   The path needs none - it is anchored at its left edge and the ⋯ sits at its
+   right end, so nothing already drawn moves when it appears. */
 .tab__more--idle { visibility: hidden; pointer-events: none; }

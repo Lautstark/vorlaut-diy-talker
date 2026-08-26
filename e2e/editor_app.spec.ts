@@ -513,9 +513,10 @@ test("deleting a page keeps the buttons that led to it", async ({ page }) => {
   await build(page);
 
   // Standing on the Essen page, which one button on the start page leads to.
-  // The way in is the ... on the current tab: a page has no cell on a tablet,
-  // so the tab is the thing it can be pressed on.
-  await page.locator("#appPages .tab[aria-current=true] .tab__more").click();
+  // The way in is the ... on the last crumb of the path: a page has no cell on
+  // a tablet, and the crumb somebody is standing on is the one thing on screen
+  // that names the page being edited.
+  await page.locator("#appPath .crumb--here .crumb__more").click();
   const card = sheet(page, "ui.app_page_title");
   await expect(card).toBeVisible();
   // And it is the narrow sheet. Measured, because the two classes it carries
@@ -1095,7 +1096,7 @@ test("the page sheet offers the start page, or says the page already is it",
     await standIn(page);
     await build(page);
 
-    const more = page.locator("#appPages .tab[aria-current=true] .tab__more");
+    const more = page.locator("#appPath .crumb--here .crumb__more");
     const card = () => sheet(page, "ui.app_page_title");
 
     // Standing on Essen, which is not the start page: the sheet offers to make
