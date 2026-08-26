@@ -69,13 +69,17 @@ export const markup = `
       <span class="state" id="languageState"></span>
     </summary>
     <div class="setting">
-      <!-- A button and a menu, not a select. The open list of a select is drawn
-           by the operating system and so cannot follow the tokens - which was
-           survivable while this page committed to a dark ground and stopped
-           being when the scheme became a choice. -->
-      <span class="menu-anchor start"><button id="langPick" class="btn quiet sm dropdown"
-        type="button" aria-haspopup="menu" aria-expanded="false"
-        aria-label="Sprache / Language"></button></span>
+      <!-- The same segmented control as the scheme below it, and that pairing
+           is the point: two facts about this page, offered the same way. It was
+           a button and a menu, which put the choice behind a press - a menu is
+           for a list of things to do, and this is a list of what it already is.
+           Not a select either: the open list of one is drawn by the operating
+           system and so cannot follow the tokens.
+           The accessible name is bilingual and fixed. It is the one label on
+           this page that must not be translated, because somebody who cannot
+           read the page is who reaches for it. -->
+      <div class="segmented" id="langPick" role="group"
+        aria-label="Sprache / Language"></div>
       <p class="note" id="languageNote"></p>
     </div>
   </details>

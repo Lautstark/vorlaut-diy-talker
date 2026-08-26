@@ -330,12 +330,12 @@ test.describe("with the folder already connected at load", () => {
     await page.locator("#settingsLink").click();
 
     const table = TEXTS as Record<string, Record<string, string>>;
-    const trigger = page.locator("#langPick");
-    const was = (await trigger.textContent()) === "Deutsch" ? "de" : "en";
+    const inForce = page.locator('#langPick button[aria-pressed="true"]');
+    const was = (await inForce.textContent()) === "Deutsch" ? "de" : "en";
     const other = was === "de" ? "en" : "de";
     await openPanel(page, "#languagePanel");
-    await trigger.click();
-    await page.locator(".menu button", { hasText: other === "de" ? "Deutsch" : "English" }).click();
+    await page.locator("#langPick button",
+      { hasText: other === "de" ? "Deutsch" : "English" }).click();
     // The switch itself moves the sheet's own words, so the field is right
     // going in. Checking it means opening a key's sheet, which means leaving
     // the settings sheet - so the settings sheet is opened again after.
@@ -356,7 +356,7 @@ test.describe("with the folder already connected at load", () => {
     // The board carries its own language to the device and leaves this page
     // alone - and the field still has to name the collection, in the language
     // the page is in.
-    await expect(trigger).toHaveText(other === "de" ? "Deutsch" : "English");
+    await expect(inForce).toHaveText(other === "de" ? "Deutsch" : "English");
     await expectSource(page, table[other]["ui.search_metacom"]!);
   });
 });

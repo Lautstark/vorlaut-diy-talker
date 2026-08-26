@@ -37,16 +37,31 @@ test.use({ locale: `${ASKED}-DE` });
  *  see voices.ts - so these are the one pair of literals that belong here. */
 const OWN_NAME: Record<string, string> = { de: "Deutsch", en: "English" };
 
-/** The menu item for a language. menuitemradio rather than button - the items
- *  are a set of alternatives with one in force, which is what dom.ts builds. */
+/** One button of the page's segmented language control. */
 const option = (page: Page, code: string) =>
+  page.locator("#langPick button", { hasText: OWN_NAME[code] });
+
+/** One item of the Sammlung's language menu, which is a menu and stays one.
+ *
+ * The two controls are deliberately not the same shape, so they are not
+ * reached the same way either: this one is a set of alternatives behind a
+ * press, and menuitemradio is what dom.ts builds for that. Keeping a separate
+ * helper is the point rather than the cost - a single one would quietly make
+ * the two look interchangeable to whoever reads the spec next. */
+const menuOption = (page: Page, code: string) =>
   page.getByRole("menuitemradio", { name: OWN_NAME[code], exact: true });
 
-/** Opens Einstellungen and picks the language of this page. */
+/** The language the control says is in force, rather than the one it offers. */
+const inForce = (page: Page) => page.locator('#langPick button[aria-pressed="true"]');
+
+/** Opens Einstellungen and picks the language of this page.
+ *
+ * One press: the choices are all on screen, which is the difference between
+ * this and the Sammlung's picker below - that one is still a button and a menu
+ * and is opened before it can be answered. */
 async function choose(page: Page, code: string): Promise<void> {
   await openSettings(page);
   await openPanel(page, "#languagePanel");
-  await page.click("#langPick");
   await option(page, code).click();
 }
 
@@ -58,7 +73,7 @@ async function chooseForCollection(page: Page, code: string): Promise<void> {
   await openCollectionSettings(page);
   await openPanel(page, "#collectionLanguagePanel");
   await page.click("#collectionLangPick");
-  await option(page, code).click();
+  await menuOption(page, code).click();
 }
 
 /** A label the page can be recognised by, in the language given. Read out of
@@ -102,11 +117,11 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
 });
 
-test("a chosen language is in force, and the menu says which", async ({ page }) => {
+test("a chosen language is in force, and the control says which", async ({ page }) => {
   await choose(page, CHOSEN);
 
   await expect(page.locator("html")).toHaveAttribute("lang", CHOSEN);
-  await expect(page.locator("#langPick")).toHaveText(OWN_NAME[CHOSEN]);
+  await expect(inForce(page)).toHaveText(OWN_NAME[CHOSEN]);
   await expect(page.locator("#settingsHeading"))
     .toHaveText(says(CHOSEN, "ui.settings"));
 });
@@ -125,7 +140,7 @@ test("the choice survives a reload, over what the browser asks for",
     // And the sheet's own controls, which are painted from LANG rather than
     // carried by the markup and so are not covered by applyTexts().
     await openSettings(page);
-    await expect(page.locator("#langPick")).toHaveText(OWN_NAME[CHOSEN]);
+    await expect(inForce(page)).toHaveText(OWN_NAME[CHOSEN]);
     await expect(page.locator("#languageState")).toHaveText(OWN_NAME[CHOSEN]);
   });
 
@@ -247,7 +262,7 @@ test("a voice somebody chose does not move when the Sammlung's language does",
     // this Sammlung's, which is what put them on one sheet.
     await openPanel(page, "#collectionLanguagePanel");
     await page.click("#collectionLangPick");
-    await option(page, CHOSEN).click();
+    await menuOption(page, CHOSEN).click();
     await expect.poll(() => inTheLayout(page)).toBe(CHOSEN);
 
     await openVoices(page);
@@ -301,7 +316,6 @@ test("the folder's own line follows a switch, formatter and all", async ({ page 
   expect(before).toContain(says(ASKED, "ui.folder_off"));
 
   await openPanel(page, "#languagePanel");
-  await page.click("#langPick");
   await option(page, CHOSEN).click();
 
   await expect(line).toContainText(says(CHOSEN, "ui.folder_off"));

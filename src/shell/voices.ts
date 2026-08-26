@@ -578,7 +578,19 @@ export async function forgetAzureKey() {
 
 /** The button says which language is in force; the menu offers the others. */
 export function paintLanguage() {
-  $("langPick").textContent = LANGUAGE_NAMES[LANG] || LANG;
+  const box = $("langPick");
+  box.textContent = "";
+  for (const code of LANGUAGES) {
+    const button = document.createElement("button");
+    button.type = "button";
+    // Each language names itself, whatever the page is set to. The control is
+    // what somebody reaches for when they cannot read the interface around it,
+    // so it must not depend on being able to read the interface around it.
+    button.textContent = LANGUAGE_NAMES[code] || code;
+    button.setAttribute("aria-pressed", String(code === LANG));
+    button.onclick = () => void chooseLanguage(code);
+    box.appendChild(button);
+  }
 }
 
 /** The same pair for the Sammlung's own language: the button that names it and
@@ -597,21 +609,16 @@ export function paintCollectionLanguage() {
 }
 
 export function wireLanguage() {
-  const pick = $("langPick");
+  // Drawn rather than wired: paintLanguage() builds the buttons and hangs the
+  // handlers on them, and is called again on every switch so the pressed one
+  // moves. See paintTheme() in settings.ts, which is the same shape.
   paintLanguage();
-  // The accessible name is bilingual and fixed - see the aria-label in the
-  // template. It is the one label on this page that must not be translated,
-  // because somebody who cannot read the page is who reaches for it.
-  pick.onclick = () => menuOn(pick, (add) => {
-    for (const code of LANGUAGES)
-      add(LANGUAGE_NAMES[code] || code, () => void chooseLanguage(code),
-        { checked: code === LANG });
-  });
 
-  // The Sammlung's, offered the same way and out of the same table of
-  // self-naming words: this one is the language of a device somebody else will
-  // hold, so being readable to whoever is not reading this page matters here
-  // for a second reason.
+  // The Sammlung's stays a button and a menu, and the difference is not
+  // oversight. This one is not a preference of whoever is reading: it is a
+  // property of the Sammlung, it travels in an export and it ends up in the
+  // byte the firmware indexes its menu by. Two controls that look identical
+  // would invite the reading that they are the same kind of choice.
   const collection = $("collectionLangPick");
   collection.onclick = () => menuOn(collection, (add) => {
     const live = state.layout.language || DEFAULT_LANGUAGE;
