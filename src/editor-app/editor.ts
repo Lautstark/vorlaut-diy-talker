@@ -35,12 +35,13 @@ import { t } from "../core/texts.js";
 import { save } from "../core/save.js";
 import { speak } from "../shell/speech.js";
 import { confirmDialog } from "@lautstark/design/dialog";
+import { menuOn } from "@lautstark/design/menu";
 /* The sheet is the shell's now, and the whole of what this file hands it is a
  * title, a picture, some rows and three labelled things to do. It was written
  * here, and moving it is what let the talker have the same one: an editor may
  * not import out of another editor - tests/unit/layers.test.ts - so anything
  * genuinely shared between the two belongs in the shell. */
-import { dropdown, formRow, hint, missing, openSheet, textField }
+import { dropdown, fit, formRow, hint, missing, openSheet, textField }
   from "../shell/sheet.js";
 import type { Choice, Left } from "../shell/sheet.js";
 import { exportApp, paintOpenCollection, sizeChoices } from "../shell/collections.js";
@@ -50,9 +51,10 @@ import { collectionSheetPanel } from "../shell/voices.js";
  * definition, in the module that owns the format. */
 import { appends } from "../data/app_package.js";
 import {
-  addPage, blankButton, blankPage, buttonAt, deletePage, inboundTo, isShared,
-  moveButton, moveShared, outside, pageById, reachable, resize, route,
-  shareFirstColumn, shared, sharedAt, spreadFirstColumn,
+  addPage, blankButton, blankPage, buttonAt, columnTargets, deletePage,
+  inboundTo, isShared, moveButton, moveShared, outside, pageById, reachable,
+  resize, route, shareFirstColumn, shared, sharedAt, spreadFirstColumn,
+  unreachable,
 } from "./pages.js";
 
 /** Which page is being edited, by id. An id rather than an index because
@@ -234,6 +236,94 @@ function standing(one: AppPage): HTMLElement {
  *  has named it - the same fallback the delete question uses. */
 const pageName = (one: AppPage): string =>
   one.name || t("ui.app_page_n", { n: board().pages.indexOf(one) + 1 });
+
+/**
+ * Every page in the Sammlung, behind a control saying how many there are.
+ *
+ * **This is what keeps the editor complete, and it is not polish.** The row
+ * below shows the pages the page on screen opens, so a page nothing opens is
+ * in no row anywhere - and until this existed the strip listed every page,
+ * which is how an orphan was reached, fixed or deleted. Take the list away
+ * without putting this in its place and a page somebody built has no door at
+ * all. See unreachable(), whose comment used to say it served a mark in the
+ * strip and nothing else.
+ *
+ * So the list is every page, in the order they sit in the Sammlung, reachable
+ * or not - and the count on the trigger counts them all, orphans included,
+ * because the picker is where orphans live and a count that skipped them would
+ * disagree with its own list.
+ *
+ * Three marks, and each says something the name cannot:
+ *
+ *   ⌂  the start page, the one the tablet opens with.
+ *   ⚠  nothing leads here. The same mark the row puts on a tile.
+ *   ·  reached from the shared first column, which is an edge from every page
+ *      - so this page is one press from anywhere and is in nobody's row. This
+ *      is the one place that is said. opens() has the argument for why the
+ *      rows leave it out; leaving it out *silently* was the option not taken.
+ *
+ * A menu rather than a sheet. It is a list of alternatives, one of which is in
+ * force, which is what `checked` and role="menuitemradio" are for - and a
+ * modal to change page would be heavier than the tab it replaced.
+ */
+function drawPick(): void {
+  const layout = board();
+  const pick = $<HTMLButtonElement>("appPagePick");
+  const n = layout.pages.length;
+  pick.textContent = n === 1 ? t("ui.app_pages_n_one") : t("ui.app_pages_n", { n });
+  pick.setAttribute("aria-haspopup", "menu");
+  pick.setAttribute("aria-expanded", "false");
+  pick.onclick = () => openPick();
+
+  const lost = unreachable(layout);
+  const warn = $<HTMLButtonElement>("appPagesLost");
+  warn.hidden = lost.length === 0;
+  warn.innerHTML = "";
+  /* The mark and the words are two elements because the narrow window keeps
+   * one and drops the other - see the 620px block in ui.css. */
+  const mark = document.createElement("span");
+  mark.className = "tab__lost";
+  mark.textContent = "⚠";
+  const says = document.createElement("span");
+  says.className = "pagelost__text";
+  says.textContent = lost.length === 1
+    ? t("ui.app_pages_lost_one") : t("ui.app_pages_lost", { n: lost.length });
+  warn.append(mark, says);
+  warn.setAttribute("aria-label", says.textContent);
+  /* Pressable, and it opens the picker. A warning naming a problem with no way
+   * to the thing it is about would be a dead end, and the picker is the only
+   * place those pages can be reached from.
+   *
+   * The press is claimed, or it opens the list and closes it again in the same
+   * gesture: the menu dismisses itself on any click that did not land inside a
+   * `.menu-anchor`, and this control is outside the one the list hangs from.
+   * Wrapping both in the anchor would silence it too, and would tie where the
+   * list hangs to what else happens to be in the group. menuOn's own items
+   * claim their presses the same way. */
+  warn.onclick = (event) => { event.stopPropagation(); openPick(); };
+}
+
+/** The picker's list, opened from the trigger, from the warning beside it, or
+ *  from the row's fold. One function, because all three are asking the same
+ *  question: which page. */
+function openPick(): void {
+  const layout = board();
+  const anchor = $("appPagePickAt");
+  const pick = $<HTMLButtonElement>("appPagePick");
+  const found = reachable(layout);
+  const column = columnTargets(layout);
+  menuOn(pick, (add) => {
+    for (const one of layout.pages) {
+      let label = pageName(one);
+      if (column.has(one.id)) label = t("ui.app_page_pick_column", { name: label });
+      if (one.id === layout.home) label = `⌂ ${label}`;
+      if (!found.has(one.id)) label = `⚠ ${label}`;
+      add(label, () => { here = one.id; render(); },
+          { checked: one.id === page().id });
+    }
+  });
+  fit(anchor, pick);
+}
 
 function drawPages(): void {
   const layout = board();
@@ -1217,6 +1307,7 @@ export function render(): void {
   const layout = board();
   if (!pageById(layout, here)) here = layout.pages[0]!.id;
   drawPath();
+  drawPick();
   drawPages();
   drawGrid();
 }

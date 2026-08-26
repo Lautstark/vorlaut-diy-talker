@@ -183,13 +183,21 @@ export function dropdown(choices: Choice[], value: string,
 }
 
 /**
- * Keeps an open list inside the sheet it was opened in.
+ * Keeps an open list inside the sheet it was opened in, or inside the window
+ * where there is no sheet.
  *
  * A sheet's body is the one scrolling area (see `.sheet > .body`), and a list
  * that is positioned inside a scrolling box is clipped by it and adds to what
  * it scrolls. So a long menu near the foot of a sheet - Wortart is eleven
  * entries - pushed the sheet's own scrollbar out and hid its own last rows
  * behind the foot.
+ *
+ * Exported because the tablet editor's page picker has the same problem
+ * without being in a sheet at all: a Sammlung of forty pages is a list taller
+ * than the window, opened from a bar at the top of `main`, which is the one
+ * other scrolling area on this page. With no `.body` above it the box is the
+ * window, and the cap and the flip are the same two answers in the same
+ * order.
  *
  * Two answers, in this order. Open upward where there is more room above than
  * below, which is what a menu at the foot of a form needs and all a chooser of
@@ -201,7 +209,7 @@ export function dropdown(choices: Choice[], value: string,
  * product's - "the plumbing stays per product", components.css's own words for
  * the same seam.
  */
-function fit(anchor: HTMLElement, button: HTMLElement): void {
+export function fit(anchor: HTMLElement, button: HTMLElement): void {
   const menu = anchor.querySelector<HTMLElement>(".menu");
   // A second press on the trigger is a dismissal, and menuOn has already
   // closed the list rather than opened one.

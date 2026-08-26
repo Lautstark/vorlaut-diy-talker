@@ -4,9 +4,11 @@
  * Two areas, and the split between them is the one thing in this file worth
  * defending.
  *
- *   #appPath    where the editor is standing, as the way it got there
- *   #appPages   the page strip: every page in the Sammlung, always
- *   #appGrid    the page on screen, as the grid it will be on the tablet
+ *   #appPath        where the editor is standing, as the way it got there
+ *   #appPagesLost   how many pages nothing leads to, when any do
+ *   #appPagePick    every page in the Sammlung, reachable or not
+ *   #appPages       the page strip: every page in the Sammlung, always
+ *   #appGrid        the page on screen, as the grid it will be on the tablet
  *
  * There used to be a third. Everything about one button, and
  * everything about one page, is now a modal sheet opened by pressing the thing
@@ -32,11 +34,19 @@
  * a child, when both are plain `goto` edges and neither is under the other.
  * The path carries how far in somebody is, and nothing else tries to.
  *
- * **The strip shows every page, including the ones nothing leads to.** It is
- * the editing-time way around, and it is not the graph: what leads where is
- * the buttons. A page nothing points at is exactly the page somebody needs to
- * reach in order to give it a way in, so hiding it would hide the only thing
- * that can be done about it. It gets a mark instead.
+ * **Every page is reachable from this bar, including the ones nothing leads
+ * to.** It is the editing-time way around, and it is not the graph: what leads
+ * where is the buttons. A page nothing points at is exactly the page somebody
+ * needs to reach in order to give it a way in, so hiding it would hide the
+ * only thing that can be done about it. That promise is the picker's - it
+ * lists every page and marks the ones nothing reaches - and it is a promise
+ * rather than a convenience: nothing else on this bar can open an orphan.
+ *
+ * **The count is on the picker, and the warning sits immediately before it.**
+ * The picker is pinned to the right edge of the bar and the warning grows
+ * leftward out of it, so a Sammlung that gains or loses an orphan does not
+ * move the control somebody was about to press - the rule the page's own ...
+ * was given when it stopped reflowing the strip it sat in.
  *
  * **Selecting a navigation button does not follow it.** In editor-diy a set
  * tab both selects and switches, because there is one axis and no ambiguity.
@@ -53,7 +63,13 @@ import { mount } from "../../shell/templates/mount.js";
 export const markup = `
 <div class="appbar">
   <div class="pagepath" id="appPath"></div>
-  <button id="appPageNew" class="btn quiet sm" type="button"></button>
+  <div class="appbar__right">
+    <button class="pagelost" id="appPagesLost" type="button" hidden></button>
+    <span class="menu-anchor" id="appPagePickAt">
+      <button class="btn quiet sm dropdown" id="appPagePick" type="button"></button>
+    </span>
+    <button id="appPageNew" class="btn quiet sm" type="button"></button>
+  </div>
 </div>
 
 <div class="tabs" id="appPages"></div>

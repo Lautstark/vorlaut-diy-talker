@@ -1091,6 +1091,59 @@ test("what the first column costs is said across the sheet, not above one field"
     await page.keyboard.press("Escape");
   });
 
+/* The control that keeps the editor complete.
+ *
+ * The row over the board shows the pages the page on screen *opens*, so a page
+ * nothing opens is in no row at all. This is the only place such a page can be
+ * reached, which is why it is asserted on its own rather than in passing: land
+ * the row without it and a page somebody built has no door.
+ */
+test("the picker lists every page, orphans and all, and opens one",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+
+    const pick = page.locator("#appPagePick");
+    const lost = page.locator("#appPagesLost");
+    const items = page.locator("#appPagePickAt .menu button");
+
+    // Two pages so far, both reachable, so there is nothing to warn about -
+    // and the warning is hidden rather than saying zero.
+    await expect(pick).toHaveText(/2/);
+    await expect(lost).toBeHidden();
+
+    // "+ Neue Seite" makes a page and links it to nothing, which is the
+    // ordinary state for the five seconds before somebody makes the button
+    // that leads to it. pages.ts reports that and refuses nothing.
+    await page.locator("#appPageNew").click();
+    await expect(pick).toHaveText(/3/);
+    await expect(lost).toBeVisible();
+
+    /* The count includes it. The picker is where orphans live, so a count that
+     * skipped them would disagree with its own list. */
+    await pick.click();
+    await expect(items).toHaveCount(3);
+    // Three marks, each saying what a name cannot: the start page, and the
+    // page nothing leads to.
+    await expect(items.first()).toHaveText(/⌂/);
+    await expect(items.last()).toHaveText(/⚠/);
+    // Which page is in force, said to a reader and not only in the drawing.
+    await expect(items.last()).toHaveAttribute("aria-checked", "true");
+
+    // And it is a way there, not only a list. Standing on the new page, the
+    // path says it is reached from nowhere: the anchor, and one crumb.
+    await page.locator("#appPages .tab").first().click();
+    await expect(page.locator("#appPath .crumb--here")).toHaveText(/1/);
+    await pick.click();
+    await items.last().click();
+    await expect(page.locator("#appPath .crumb--here")).toHaveText(/3/);
+
+    // The warning is a way in too - a sentence naming a problem with no way to
+    // the thing it is about would be a dead end.
+    await lost.click();
+    await expect(items).toHaveCount(3);
+  });
+
 test("the page sheet offers the start page, or says the page already is it",
   async ({ page }) => {
     await standIn(page);

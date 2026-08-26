@@ -120,10 +120,37 @@ export function reachable(layout: AppLayout): Set<string> {
   return seen;
 }
 
-/** The pages nothing leads to. For a mark in the strip, and for nothing else. */
+/**
+ * The pages nothing leads to.
+ *
+ * For a mark in the strip - and, since the strip stopped listing every page,
+ * for two more things than that. The row shows what the page on screen opens,
+ * so a page nothing opens appears in no row at all: the count beside the
+ * picker is what says such pages exist, and the mark inside the picker is what
+ * finds them. That is the whole of why the picker is not polish. Without it
+ * this list would name pages that had become unopenable, which is worse than
+ * the wrapping strip it replaced.
+ */
 export function unreachable(layout: AppLayout): AppPage[] {
   const found = reachable(layout);
   return layout.pages.filter((one) => !found.has(one.id));
+}
+
+/**
+ * The pages the shared first column leads to, if there is one.
+ *
+ * The other half of opens()'s decision. Those pages are one press from
+ * anywhere, so they are in no page's row and no page's path - and something
+ * has to say so, or the column's targets are simply missing from the strip
+ * with nothing to explain it. The picker is where they are said, once, because
+ * the picker is the list that is already complete.
+ */
+export function columnTargets(layout: AppLayout): Set<string> {
+  const found = new Set<string>();
+  for (const button of sharedColumn(layout)) {
+    if (button.act.kind === "goto") found.add(button.act.page);
+  }
+  return found;
 }
 
 /* --- What the strip walks ------------------------------------------------ */

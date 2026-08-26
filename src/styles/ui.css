@@ -759,6 +759,38 @@ button.crumb:hover { color: var(--text); background: var(--surface-2); }
 .crumb__name { overflow: hidden; text-overflow: ellipsis; }
 .crumb__bar { flex: none; color: var(--line); }
 .crumb__sep { flex: none; color: var(--text-faint); font-size: 13px; }
+
+/* The right-hand end of the bar: the warning, the picker and the way to a new
+   page, pinned there by the auto margin.
+
+   The order is the point. The warning is immediately before the picker, and
+   the group grows leftward, so a Sammlung that gains or loses an orphan moves
+   the warning's own left edge and nothing else - the picker stays exactly
+   where it was, which is the rule the page's own ... was given when it stopped
+   reflowing the strip it sat in. "+ Neue Seite" is past the picker rather than
+   before it, because "immediately before" is a promise about those two and a
+   third control between them would break it. */
+.appbar__right { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.pagelost {
+  display: flex; align-items: center; gap: 6px; flex: none;
+  padding: 6px 9px; border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--warn, #c76a00); font-size: 13px;
+  white-space: nowrap; cursor: pointer;
+}
+.pagelost:hover { background: var(--surface-2); }
+/* An author rule beats the user agent's `[hidden] { display: none }` at the
+   same specificity, so `display: flex` above showed a warning saying nothing
+   was wrong. Restated here rather than dropped: the flex box is what puts the
+   mark beside the words. */
+.pagelost[hidden] { display: none; }
+/* Pressable, and it opens the picker: a warning that names a problem with no
+   way to the thing it is about is a dead end, and the picker is the only place
+   those pages can be reached from. */
+.pagelost__text { color: inherit; }
+/* A Sammlung of forty pages is a list taller than the window. fit() caps it
+   against whatever box it is in - here the window, since there is no sheet -
+   and this is what makes the cap scroll rather than clip. */
+#appPagePickAt .menu { overflow-y: auto; overscroll-behavior: contain; }
 /* The grid's size sits at the far end of the bar, away from the pages: it is a
    fact about the Sammlung rather than about the page on screen, and putting it
    next to the strip would read as belonging to whichever tab is current. */
