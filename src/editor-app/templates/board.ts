@@ -5,9 +5,10 @@
  * defending.
  *
  *   #appPath        where the editor is standing, as the way it got there
+ *   #appPageMore    the way into that page's own card - name, start, delete
  *   #appPagesLost   how many pages nothing leads to, when any do
  *   #appPagePick    every page in the Sammlung, reachable or not
- *   #appPages       the page strip: every page in the Sammlung, always
+ *   #appPages       one row: the pages the page on screen opens
  *   #appGrid        the page on screen, as the grid it will be on the tablet
  *
  * There used to be a third. Everything about one button, and
@@ -48,12 +49,20 @@
  * move the control somebody was about to press - the rule the page's own ...
  * was given when it stopped reflowing the strip it sat in.
  *
+ * **The row replaces itself; it never grows a second one.** It shows the pages
+ * the page on screen opens, and pressing one makes that page current, at which
+ * point the row is what *that* page opens. Its height is two rows' worth and
+ * reserved, so the board's top edge does not move as somebody walks the graph
+ * - which is what the wrapping strip could not promise, since it grew downward
+ * into the board by however many rows the page count needed.
+ *
  * **Selecting a navigation button does not follow it.** In editor-diy a set
  * tab both selects and switches, because there is one axis and no ambiguity.
  * Here there are two: a `goto` button is a thing you edit *and* a way to
  * somewhere else. If pressing it navigated, it would be the one button on the
  * board nobody could ever change. So the press opens the button's sheet, and
- * the way to the page it leads to is the strip, which holds every page.
+ * the way to the page it leads to is the row, which holds exactly the pages
+ * this page's buttons lead to.
  *
  * It mounts into #editor, which is the hole shell/templates/frame.ts leaves -
  * the shell lays out a page, an editor fills the middle of it.
@@ -63,6 +72,7 @@ import { mount } from "../../shell/templates/mount.js";
 export const markup = `
 <div class="appbar">
   <div class="pagepath" id="appPath"></div>
+  <button class="crumb__more" id="appPageMore" type="button"></button>
   <div class="appbar__right">
     <button class="pagelost" id="appPagesLost" type="button" hidden></button>
     <span class="menu-anchor" id="appPagePickAt">
@@ -72,7 +82,7 @@ export const markup = `
   </div>
 </div>
 
-<div class="tabs" id="appPages"></div>
+<div class="pagerow" id="appPages"></div>
 
 <div class="grid" id="appGrid"></div>
 `;

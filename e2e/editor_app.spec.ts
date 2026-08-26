@@ -43,6 +43,21 @@ const SAVED = label("ui.saved");
  * to open. The heading is the part that names it. */
 const sheet = (page: Page, key: string) => page.locator("dialog[open]")
   .filter({ has: page.getByRole("heading", { name: label(key) }) });
+/* The two ways across the page graph, now that the bar is a path and a row
+ * rather than a tab per page.
+ *
+ * The row holds the pages the page on screen *opens*, so "go to the start
+ * page" is no longer the first tab in a list - it is the ⌂ at the head of the
+ * path, which is the one destination reachable from anywhere. And reaching a
+ * page by name only works from a page that opens it, which is what these
+ * tests were always doing anyway: build() leaves Essen one press from home.
+ */
+const goHome = (page: Page) => page.locator("#appPath .crumb--home").click();
+const goPage = (page: Page, name: string) =>
+  page.locator("#appPages .tab", { hasText: name }).click();
+/** Which page the editor is standing on, as the path's last crumb says it. */
+const standingOn = (page: Page) => page.locator("#appPath .crumb--here");
+
 const VOICES_LIST = /tts\.speech\.microsoft\.com\/cognitiveservices\/voices\/list/;
 const SYNTHESIS = /tts\.speech\.microsoft\.com\/cognitiveservices\/v1/;
 /* The other network this file reaches, and it reaches it without being asked:
@@ -295,14 +310,17 @@ async function build(page: Page): Promise<void> {
   // one thought in three steps.
   await put(page, 3, { label: "Essen", wordClass: "category", act: "goto",
                        gotoPage: "ui.app_goto_new" });
-  await expect(page.locator("#appPages .tab")).toHaveCount(2);
+  // The button made a page and pointed at it, so the row over the board - what
+  // *this* page opens - has one tile on it, and the picker counts two pages.
+  await expect(page.locator("#appPages .tab")).toHaveCount(1);
+  await expect(page.locator("#appPagePick")).toHaveText(/2/);
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
-  // Onto the new page, by the strip. Pressing the navigation button itself
-  // opens its sheet rather than following it, or it would be the one button on
-  // the board nobody could ever edit - so the strip is the way across, and it
-  // holds every page including the ones nothing leads to yet.
-  await page.locator("#appPages .tab", { hasText: "Essen" }).click();
+  // Onto the new page, by the row. Pressing the navigation button itself opens
+  // its sheet rather than following it, or it would be the one button on the
+  // board nobody could ever edit - so the row is the way across, and it holds
+  // exactly the pages this page's buttons lead to.
+  await goPage(page, "Essen");
   await expect(cells(page).locator(".cell__word")).toHaveCount(0);
   await put(page, 0, { label: "Mehr", wordClass: "descriptor" });
   await put(page, 14, { label: "Start", wordClass: "other", act: "home" });
@@ -450,7 +468,7 @@ test("a button puts its word in the sentence and leads onward in one press",
   async ({ page }) => {
     await standIn(page);
     await build(page);
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
 
     /* The carrier phrase, which exchange/SPEC.md §7.3 had no way to say before
      * 1.2.0: "ich will" belongs in the sentence, and the page its object is on
@@ -513,10 +531,9 @@ test("deleting a page keeps the buttons that led to it", async ({ page }) => {
   await build(page);
 
   // Standing on the Essen page, which one button on the start page leads to.
-  // The way in is the ... on the last crumb of the path: a page has no cell on
-  // a tablet, and the crumb somebody is standing on is the one thing on screen
-  // that names the page being edited.
-  await page.locator("#appPath .crumb--here .crumb__more").click();
+  // The way in is the ... beside the path: a page has no cell on a tablet, and
+  // the last crumb is the one thing on screen naming the page being edited.
+  await page.locator("#appPageMore").click();
   const card = sheet(page, "ui.app_page_title");
   await expect(card).toBeVisible();
   // And it is the narrow sheet. Measured, because the two classes it carries
@@ -535,7 +552,11 @@ test("deleting a page keeps the buttons that led to it", async ({ page }) => {
    await expect(asked.locator(".body")).toContainText(/(hierher|leads? here)/);
   await asked.locator("button", { hasText: label("ui.app_page_delete_go") }).click();
 
-  await expect(page.locator("#appPages .tab")).toHaveCount(1);
+  // The page is gone, so the start page opens nothing and the row says so
+  // rather than collapsing - the height over the board is reserved either way.
+  await expect(page.locator("#appPages .tab")).toHaveCount(0);
+  await expect(page.locator(".pagerow__none")).toBeVisible();
+  await expect(page.locator("#appPagePick")).toHaveText(/1|[Ee]ine|One/);
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
   // The button that led there is still on the start page, with its label, its
@@ -658,7 +679,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
   /* Back to the start page, where the words are - build() finishes on the
    * page it made second. By its whole label rather than by a substring:
    * a cell that merely contains "ich" would match otherwise. */
-  await page.locator("#appPages .tab").first().click();
+  await goHome(page);
   const ich = page.locator("#appGrid .cell")
     .filter({ has: page.locator(".cell__word", { hasText: /^ich$/ }) });
 
@@ -673,7 +694,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
     .click();
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
   await closeSheet(page);
-  await page.locator("#appPages .tab").first().click();
+  await goHome(page);
   await expect(ich).toHaveAttribute("style", /--cell-edge:\s*#fdfd96/);
   await expect(ich).not.toHaveAttribute("style", /--cell-color/);
 
@@ -685,7 +706,7 @@ test("a word class is worn as a fill, as a border, or not at all", async ({ page
     .click();
   await card.locator("button", { hasText: label("ui.app_grid_apply") }).click();
   await closeSheet(page);
-  await page.locator("#appPages .tab").first().click();
+  await goHome(page);
   await expect(ich).not.toHaveAttribute("style", /--cell-(color|edge)/);
 
   // And it belongs to the Sammlung, so it is still true after a reload - which
@@ -701,7 +722,7 @@ test("a button moves to another cell, by keyboard and by drag", async ({ page })
   await build(page);
 
   // Back to the start page, where the words are.
-  await page.locator("#appPages .tab").first().click();
+  await goHome(page);
   const at = (n: number) => cells(page).nth(n).locator(".cell__word");
 
   // Alt and an arrow: the same key that reorders the talker's sets. "ich" is
@@ -752,7 +773,7 @@ test("a button can be heard from the board, and only where there is something to
   async ({ page }) => {
     await standIn(page);
     await build(page);
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
 
     // On a word, and it is the vocalization that goes to the synthesiser -
     // "Apfel" shows, "einen Apfel" is what the tablet will say.
@@ -780,7 +801,7 @@ test("a button can be heard from the board, and only where there is something to
 test("a cell says it opens a dialog, and carries no selected state", async ({ page }) => {
   await standIn(page);
   await build(page);
-  await page.locator("#appPages .tab").first().click();
+  await goHome(page);
 
   /* The mark that outlived its meaning. A button used to be selected and the
    * panel showed it, so the cell drew an accent border to say which one the
@@ -804,7 +825,7 @@ test("a move stops at the edge of the grid rather than walking off it",
   async ({ page }) => {
     await standIn(page);
     await build(page);
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
 
     // "ich" is in the top left. Up and left have nowhere to go, and Alt+Left
     // is history-back in some engines - so both are claimed and neither moves
@@ -846,7 +867,7 @@ test("a sheet somebody closes costs nothing, on an empty cell and on a full one"
   async ({ page }) => {
     await standIn(page);
     await build(page);
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
 
     /* The rule this whole draft model exists for. Pressing an empty cell used
      * to mint a button and move the panel to it, so an accidental press left a
@@ -867,7 +888,7 @@ test("a sheet somebody closes costs nothing, on an empty cell and on a full one"
 
     // The same for a button that already exists: the draft is thrown away and
     // the label on the board is the one it had.
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
     await hit(page, 0).click();
     await expect(buttonSheet(page)).toBeVisible();
     await buttonSheet(page).locator("#appLabel").fill("nicht ich");
@@ -880,7 +901,7 @@ test("the three kinds carry the acts they always did, and the start page is a ta
   async ({ page }) => {
     await standIn(page);
     await build(page);
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
 
     /* "Wort" and "Ausruf" are `append` and `speak`, and the reason they carry
      * those names is that the old pair described an axis that does not exist:
@@ -900,7 +921,7 @@ test("the three kinds carry the acts they always did, and the start page is a ta
      * own, because it is navigation - grouping it with the bar controls said
      * it did something to the sentence. The act underneath is still `home`,
      * which is what makes it follow a start page somebody moves. */
-    await page.locator("#appPages .tab", { hasText: "Essen" }).click();
+    await goPage(page, "Essen");
     await hit(page, 14).click();
     await showing(page, "#appDoes", "ui.app_does_goto");
     await showing(page, "#appGoto", HOME);
@@ -916,7 +937,7 @@ test("the three kinds carry the acts they always did, and the start page is a ta
 
     // And the default carries no mark on the board at all, which is what makes
     // the marks on the others worth reading.
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
     await expect(cells(page).nth(0).locator(".cell__act")).toHaveCount(0);
     await expect(cells(page).nth(6).locator(".cell__act")).toHaveCount(1);
   });
@@ -965,7 +986,7 @@ test("a button made before the bar controls went keeps saying what it is",
     await standIn(page);
     await build(page);
     await actInStore(page, "Hallo", "sayBar");
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
 
     /* It opens, and it opens saying `sayBar` - not re-read as "Wort", which is
      * the silent way for a board to change under somebody who only came to fix
@@ -1000,7 +1021,7 @@ test("the sheet's three questions are dropdowns, and the long one stays in the s
   async ({ page }) => {
     await standIn(page);
     await build(page);
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
 
     /* Not one select left in the product. The OS draws a select's open list,
      * so it is the one control on a page that cannot follow the tokens - the
@@ -1091,6 +1112,135 @@ test("what the first column costs is said across the sheet, not above one field"
     await page.keyboard.press("Escape");
   });
 
+/* The one edge that is on every page, and what the strip does about it.
+ *
+ * A `goto` in the shared first column puts its target one press from anywhere,
+ * which reachable() counts and must. The row must not: "the pages this page
+ * opens" would then end with the same two or three tiles on every page in the
+ * Sammlung, spending a fixed height on the one fact in it that never changes.
+ * So it is left out of the row and out of the path, and said once in the
+ * picker - which is the half of that decision this asserts, because leaving it
+ * out *silently* is what would have been wrong.
+ */
+test("the shared first column is said in the picker, not in every row",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await goHome(page);
+
+    const card = await openGrid(page);
+    await card.getByRole("checkbox").first().check();
+    await card.locator("button", { hasText: label("ui.app_first_column_take_go") }).click();
+    await closeSheet(page);
+
+    // A way onward in the column, which is now the Sammlung's: one button,
+    // authored once, drawn on every page.
+    await put(page, 0, { label: "Woerter", wordClass: "category", act: "goto",
+                         gotoPage: "ui.app_goto_new" });
+
+    const row = page.locator("#appPages");
+    // The start page's own button still leads to Essen, and that is all the
+    // row holds. Woerter is not on it, though it is one press away from here -
+    // and from everywhere, which is exactly why it is not.
+    await expect(row.locator(".tab")).toHaveCount(1);
+    await expect(row.locator(".tab")).toHaveText(/Essen/);
+
+    /* Onto Essen, which opens nothing of its own. The row does not say that
+     * nothing leads on from here, because something does: saying otherwise
+     * over a board with a column of navigation drawn an inch below would be
+     * the strip contradicting what is on screen. */
+    await goPage(page, "Essen");
+    await expect(row.locator(".tab")).toHaveCount(0);
+    await expect(row.locator(".pagerow__none"))
+      .toHaveText(label("ui.app_page_opens_column"));
+
+    // And this is where it is said. The mark is on the page the column leads
+    // to, in the one list that holds every page anyway.
+    await page.locator("#appPagePick").click();
+    const items = page.locator("#appPagePickAt .menu button");
+    await expect(items.filter({ hasText: "Woerter" })).toHaveCount(1);
+    await expect(items.filter({ hasText: "Woerter" }))
+      .toHaveText(/(erste Spalte|first column)/);
+    // And on nothing else: Essen is reached by a button on one page, which is
+    // an ordinary edge and belongs in that page's row rather than here.
+    await expect(items.filter({ hasText: "Essen" }))
+      .not.toHaveText(/(erste Spalte|first column)/);
+  });
+
+/* The row itself: what it holds, and the height it holds it in.
+ *
+ * The wrapping strip it replaces grew downward without a cap - twenty-one
+ * pages took three rows of it and forty took six - so the board being edited
+ * went off the bottom of the screen because of the chrome describing it. Two
+ * rows' worth, reserved, is the whole of the fix, and what this asserts is
+ * that the board's top edge really does hold still.
+ */
+test("the row holds what this page opens, in a height that does not move",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await goHome(page);
+
+    const row = page.locator("#appPages");
+    const top = async () => (await page.locator("#appGrid").boundingBox())!.y;
+    const height = async () => (await row.boundingBox())!.height;
+
+    // The start page opens Essen and nothing else, though the Sammlung has two
+    // pages: the row is what *this* page leads to, not a list of everything.
+    await expect(row.locator(".tab")).toHaveCount(1);
+    await expect(row.locator(".tab")).toHaveText(/Essen/);
+    const reserved = await height();
+    const board = await top();
+
+    // Onto Essen, which opens nothing. The row is replaced rather than added
+    // to - there is no second level and no indentation - and it says so in a
+    // sentence rather than collapsing.
+    await goPage(page, "Essen");
+    await expect(row.locator(".tab")).toHaveCount(0);
+    await expect(row.locator(".pagerow__none")).toBeVisible();
+    expect(await height()).toBe(reserved);
+    expect(await top()).toBe(board);
+
+    /* Now more than fits. Six buttons, each making a page and pointing at it,
+     * and a phone-width window, where seven tiles cannot sit in two rows - so
+     * what is past the second row folds into one control, and the height is
+     * still the height. The resize is also the check that this is measured
+     * again when the room changes: the fold is read off where the tiles came
+     * to rest, and a render's worth of measurements does not survive a window
+     * that moves under it. */
+    await goHome(page);
+    for (const [at, name] of [[5, "Fruehstueck"], [6, "Mittagessen"],
+                              [7, "Abendbrot"], [8, "Zwischendurch"],
+                              [9, "Nachtisch"], [11, "Getraenke"]] as const) {
+      await put(page, at, { label: name, wordClass: "category", act: "goto",
+                            gotoPage: "ui.app_goto_new" });
+    }
+    await expect(row.locator(".tab:visible")).toHaveCount(7);
+    await page.setViewportSize({ width: 360, height: 800 });
+
+    const folded = row.locator(".pagerow__fold");
+    await expect(folded).toBeVisible();
+    // The number on it is what it hid, and every tile it hid is really gone
+    // from the row rather than merely clipped by it.
+    await expect(folded).toHaveText(/^\+\d+ /);
+    const gone = 7 - await row.locator(".tab:visible").count();
+    await expect(folded).toHaveText(new RegExp(`\\+${gone}\\b`));
+    // Still the height it was on a wide screen: what changed is how many tiles
+    // fit in it, never how tall it is.
+    expect(await height()).toBe(reserved);
+
+    /* It opens the picker rather than expanding in place. Expanding would give
+     * back the height the reservation just bought, on the one press whose
+     * whole purpose is to look at something - so the board's top edge is the
+     * assertion, taken at this width because everything else about the page
+     * changes when the sidebar becomes a drawer. */
+    const narrow = await top();
+    await folded.click();
+    await expect(page.locator("#appPagePickAt .menu")).toBeVisible();
+    expect(await height()).toBe(reserved);
+    expect(await top()).toBe(narrow);
+  });
+
 /* The control that keeps the editor complete.
  *
  * The row over the board shows the pages the page on screen *opens*, so a page
@@ -1132,11 +1282,11 @@ test("the picker lists every page, orphans and all, and opens one",
 
     // And it is a way there, not only a list. Standing on the new page, the
     // path says it is reached from nowhere: the anchor, and one crumb.
-    await page.locator("#appPages .tab").first().click();
-    await expect(page.locator("#appPath .crumb--here")).toHaveText(/1/);
+    await goHome(page);
+    await expect(standingOn(page)).toHaveText(/1/);
     await pick.click();
     await items.last().click();
-    await expect(page.locator("#appPath .crumb--here")).toHaveText(/3/);
+    await expect(standingOn(page)).toHaveText(/3/);
 
     // The warning is a way in too - a sentence naming a problem with no way to
     // the thing it is about would be a dead end.
@@ -1149,12 +1299,14 @@ test("the page sheet offers the start page, or says the page already is it",
     await standIn(page);
     await build(page);
 
-    const more = page.locator("#appPath .crumb--here .crumb__more");
+    const more = page.locator("#appPageMore");
     const card = () => sheet(page, "ui.app_page_title");
 
     // Standing on Essen, which is not the start page: the sheet offers to make
-    // it one.
-    await page.locator("#appPages .tab", { hasText: "Essen" }).click();
+    // it one. Reached from home, because the row holds what the page on screen
+    // opens and Essen opens nothing.
+    await goHome(page);
+    await goPage(page, "Essen");
     await more.click();
     await expect(card()).toBeVisible();
     await expect(card().locator("button", { hasText: label("ui.app_page_home_set") }))
@@ -1164,13 +1316,15 @@ test("the page sheet offers the start page, or says the page already is it",
     await card().locator("#appPageName").fill("Mittags");
     await card().locator("button", { hasText: label("ui.done") }).click();
     await expect(card()).toBeHidden();
-    await expect(page.locator("#appPages .tab", { hasText: "Mittags" })).toHaveCount(1);
+    // The name shows in the path, which is where a page says what it is called
+    // now that there is no tab per page.
+    await expect(standingOn(page)).toHaveText("Mittags");
 
     /* On the start page the offer would be a button that does nothing, so the
      * sheet says it already is one instead - and delete still works, because
      * deletePage() moves home to the first page left. Three variants are drawn
      * in the mock and this is the fork between the two the tablet has. */
-    await page.locator("#appPages .tab").first().click();
+    await goHome(page);
     await more.click();
     await expect(card()).toBeVisible();
     await expect(card().locator(".notice")).toHaveCount(1);
@@ -1202,7 +1356,7 @@ test("a crossed-out picture is its own picture in the package", async ({ page })
    */
   await standIn(page);
   await build(page);
-  await page.locator("#appPages .tab").first().click();
+  await goHome(page);
 
   const picture = join(HERE, "fixtures", "symbol.png");
   await put(page, 1, { label: "Brot", upload: picture });
