@@ -28,21 +28,26 @@ sys.path.insert(0, str(ROOT))
 
 
 def language_codes() -> dict[str, int]:
-    """Which language rides in which byte, read out of the browser's writer.
+    """Which language rides in which byte.
 
-    This used to come from layout.py, which no longer exists: the app is the
-    static site now. src/data/layout_format.ts is the writer that puts the byte
-    into layout.bin, so it is the right thing for the firmware's own table to
-    be held against - and reading it as text rather than restating it here
-    keeps the two from agreeing only with this file.
+    This used to be a regular expression over src/data/layout_format.ts -
+    first over layout.py, and then over the TypeScript that replaced it when
+    the app became a static site. Reading the writer as text was better than
+    restating the table here, and it was still a paraphrase: a regex over
+    somebody else's file agrees with whatever that file says, which is not the
+    same as either of them agreeing with a third thing. docs/frozen-references.md
+    has the account of what happened the last time a paraphrase stood in for
+    an oracle.
+
+    device/fixtures/language.expected.json is that third thing. Both ends are
+    held to it - the browser by tests/unit/device_fixtures.test.ts and the
+    firmware by tests/test_device_host.py - and this file reads it as the
+    table it is rather than parsing anybody's source.
     """
-    source = (ROOT / "src" / "data" / "layout_format.ts").read_text(encoding="utf-8")
-    found = re.search(r"export const LANGUAGE_CODES = (\{[^}]*\});", source)
-    if not found:
-        raise SystemExit("src/data/layout_format.ts has no LANGUAGE_CODES - "
-                         "it is what says which byte a language is")
-    # `{ en: 0, de: 1 }` is not JSON until its keys are quoted.
-    return json.loads(re.sub(r"(\w+):", r'"\1":', found.group(1)))
+    fixture = json.loads(
+        (ROOT / "device" / "fixtures" / "language.expected.json")
+        .read_text(encoding="utf-8"))
+    return {one["code"]: one["index"] for one in fixture["languages"]}
 
 
 LANGUAGE_CODES = language_codes()
@@ -132,15 +137,16 @@ def main() -> int:
     failures += out_of_step()
 
     # The two tables have to agree on how many languages there are - the file
-    # carries an index into one of them and is written by the other.
+    # carries an index into one of them and is written by the other, and
+    # device/fixtures/language.expected.json is what both are held to.
     if languages != len(LANGUAGE_CODES):
-        print(f"  FAIL  texts.h knows {languages} languages, layout.py "
-              f"{len(LANGUAGE_CODES)}")
+        print(f"  FAIL  texts.h knows {languages} languages, the fixture "
+              f"names {len(LANGUAGE_CODES)}")
         failures += 1
     for name, code in LANGUAGE_CODES.items():
         if code >= languages:
-            print(f"  FAIL  layout.py maps {name!r} to {code}, and texts.h "
-                  f"has no table for it")
+            print(f"  FAIL  the fixture maps {name!r} to {code}, and "
+                  f"texts.h has no table for it")
             failures += 1
 
     if failures:

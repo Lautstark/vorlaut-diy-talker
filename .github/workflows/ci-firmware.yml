@@ -2,20 +2,63 @@ name: Firmware build
 
 # Only on changes to the firmware itself - the ESP32 core takes close to a
 # minute to install, and a documentation change should not have to pay for it.
+#
+# device/ is in the list although no sketch depends on it, and it is worth
+# being explicit about the cost: a change under device/ now pays for the ESP32
+# core as well as for the host job below. That is deliberate. device/ holds
+# the conformance fixtures the firmware's own readers are checked against, so
+# a change there is a change to what the device is required to accept - which
+# is exactly the kind of change that should compile the thing that has to
+# accept it.
 on:
   push:
     branches: [main]
-    paths:
+    paths: &paths
       - firmware/**
+      - device/**
+      - tests/device_host.cpp
+      - tests/test_device_host.py
       - .github/actions/firmware/**
       - .github/workflows/ci-firmware.yml
   pull_request:
-    paths:
-      - firmware/**
-      - .github/actions/firmware/**
-      - .github/workflows/ci-firmware.yml
+    paths: *paths
 
 jobs:
+  # A host job, which this workflow did not have. It is a new capability
+  # rather than a detail, and it is the honest cost of giving the device
+  # interface a specification of its own: until now this workflow only ever
+  # compiled FOR the target, and nothing here could ask the firmware's readers
+  # a question. docs/device-interface.md section 5 asks for exactly this.
+  #
+  # Deliberately first and deliberately cheap. It needs g++ and Python and
+  # nothing else - no ESP32 core, no node - so a format broken in a header
+  # fails in well under a minute rather than after the toolchain install.
+  #
+  # It does not replace anything. tests/test_layout_frozen.py and
+  # tests/test_cable_format.py still hold the two implementations against each
+  # other on the same run over in ci-tests.yml, which is a stronger statement
+  # than either end can make against a fixture. This is the check that would
+  # survive the two halves ever being separated, and the one that reaches the
+  # refusal branches no capture of a correct writer can contain.
+  readers:
+    name: The firmware's readers, on the host
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Against device/fixtures
+        run: python tests/test_device_host.py
+
+      - name: g++ really was there
+        # tests/test_device_host.py skips rather than fails where no compiler
+        # is found, so a runner image that quietly dropped it would leave this
+        # job green with nothing compiled at all. The same guard ci-tests.yml
+        # has, for the same reason.
+        run: g++ --version | head -1
+
   firmware:
     name: Firmware build
     runs-on: ubuntu-latest
