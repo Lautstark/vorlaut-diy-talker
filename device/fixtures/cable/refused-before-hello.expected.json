@@ -1,0 +1,71 @@
+{
+  "fixture": "refused-before-hello",
+  "kind": "cable",
+  "summary": "Nothing gets in before a hello has been answered - and the refusal is the way back in, not the end of the session.",
+  "ends": [
+    "device"
+  ],
+  "protocol_version": 1,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> list"
+    },
+    {
+      "from": "device",
+      "line": "< err session"
+    },
+    {
+      "from": "host",
+      "line": "> rm layout.bin"
+    },
+    {
+      "from": "device",
+      "line": "< err session"
+    },
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> list"
+    },
+    {
+      "from": "device",
+      "line": "< end list 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": null,
+  "notes": [
+    "One state, not two: a session starts ungreeted and a transfer given up on returns it to exactly that. Both stand-ins for the device had drifted off this in the same direction once, each guarding only the second half, so neither could catch the other."
+  ]
+}

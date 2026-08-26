@@ -115,3 +115,27 @@ would do it:
 
 Absent one of those, "this repository has three languages in it" is not a reason
 to split it. It is a description of the problem.
+
+## Examined
+
+**2026-08-26 — condition 1, not met.** `layout.bin` and the cable protocol are
+not frozen for good: `src/data/layout_format.ts` had a breaking change the day
+before, which permanently invalidated one of the seventeen frozen cases, and
+`cable_format.h`'s own comment names a pending change to *both halves* of the
+protocol. Condition 2 is untouched — the Android viewer consumes the package
+format, not the device format, and nothing else reads `layout.bin`. The
+measurement is in [`docs/device-interface.md`](../docs/device-interface.md).
+This decision stands unchanged.
+
+Two corrections to the Context paragraph above, from that examination. **The
+pairing codes no longer exist**: `pair_format.h` and everything around it went
+with the radio on 2026-08-23, so one of the four formats named as "existing
+twice" has no second implementation because it has no first one. And the list
+was short in the other direction — the tile payload, the audio payload and the
+name rule exist twice as well, and nothing held any of them together.
+
+That last part was acted on rather than only noted.
+[ADR 0009](0009-device-interface-fixtures.md) records the fixture set that
+closes it, in a directory belonging to neither half. It is not a split and not
+preparation for one; it is the expensive part of a split, which turned out to be
+worth paying for on its own.

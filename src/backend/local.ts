@@ -23,6 +23,7 @@ import type { Backup, StoredSymbol } from "../data/backup.js";
 import * as appPackage from "../data/app_package.js";
 import { bakeImage, bakeSound } from "../data/app_assets.js";
 import { ENCODER_RATE } from "../data/opus.js";
+import { DEVICE_SAMPLE_RATE } from "../data/audio_format.js";
 import * as store from "../data/store.js";
 import * as tiles from "../data/tiles.js";
 import * as symbols from "../data/symbols.js";
@@ -45,7 +46,7 @@ import { LANGUAGES } from "../core/boot_data.js";
 // and the tail pad are CONTRACT.md §2's permitted device extras, off unless
 // asked for, and asked for here because of the MAX98357A. tts.py applies the
 // same two - tests/test_browser_tts.py is what holds them together.
-const VORLAUT = { rate: 16000, fadeSec: 0.012, padSec: 0.06 };
+const VORLAUT = { rate: DEVICE_SAMPLE_RATE, fadeSec: 0.012, padSec: 0.06 };
 
 // The package does not drive piper by itself; the consumer says where the
 // pieces are. Driving it directly - rather than through vits-web's predict() -

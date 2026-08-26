@@ -1,0 +1,46 @@
+{
+  "fixture": "has-audio-not-one",
+  "kind": "layout",
+  "file": "layout/has-audio-not-one.bin",
+  "summary": "The has-audio flag written as 42. Any non-zero value means the slot has a sound.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 3600,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "label": "11111111111111111111111111111111",
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true
+          }
+        ]
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "A writer writes 1. A reader tests for non-zero, and a reader testing for equality with 1 would silence three keys out of four on a file it otherwise read perfectly."
+  ]
+}

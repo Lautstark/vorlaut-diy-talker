@@ -1,0 +1,61 @@
+{
+  "fixture": "short",
+  "kind": "tile",
+  "file": "tile/short.bin",
+  "summary": "259 bytes missing, so the cut lands inside a pixel. The reader zero-fills and says nothing.",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 32509,
+  "conforming": false,
+  "read": {
+    "accepts": true,
+    "complete_rows": 126,
+    "partial_row": 126,
+    "bytes_in_partial_row": 253,
+    "blank_rows_from": 127,
+    "probes": [
+      {
+        "x": 125,
+        "y": 126,
+        "byte": 32506,
+        "value": "7e7d"
+      },
+      {
+        "x": 126,
+        "y": 126,
+        "byte": 32508,
+        "value": "7e00"
+      },
+      {
+        "x": 127,
+        "y": 126,
+        "byte": 32510,
+        "value": "0000"
+      },
+      {
+        "x": 0,
+        "y": 127,
+        "byte": 32512,
+        "value": "0000"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "0000"
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "This is the format behaviour docs/device-interface.md section 1 says is written down nowhere. drawTile() reads a row at a time and zero-fills whatever did not arrive, so a truncated tile draws partly black and the device reports nothing at all.",
+    "Stated rather than changed. A reader MAY draw what it has; a writer MUST NOT emit a file of any length but 32768. The gap this closes is that neither half was said out loud, not that the reader is wrong to be forgiving - a key that draws half a symbol is still a key somebody can press.",
+    "Black is also what a missing file draws, so from across a room a truncated tile and an absent one look the same. That is the argument for the length rule living on the writer's side."
+  ]
+}

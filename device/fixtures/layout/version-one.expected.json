@@ -1,0 +1,15 @@
+{
+  "fixture": "version-one",
+  "kind": "layout",
+  "file": "layout/version-one.bin",
+  "summary": "Version 1, the layout from before the set colour went. Refused rather than read two bytes out of step.",
+  "bytes": 196,
+  "read": {
+    "result": "LAYOUT_BAD_VERSION"
+  },
+  "write": null,
+  "notes": [
+    "A version-1 set entry was 186 bytes, not 184, so a version-1 file is LONGER than the length rule asks for rather than shorter. Its length adds up, and without the version byte a reader would take it and hand back every name and hash two bytes late.",
+    "That is docs/device-interface.md section 6 exactly: the dangerous mistakes are the ones that parse. The version byte turns this one into a refusal, which is the silence section 6 calls the good outcome."
+  ]
+}

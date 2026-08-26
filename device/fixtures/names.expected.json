@@ -1,0 +1,177 @@
+{
+  "fixture": "names",
+  "kind": "names",
+  "summary": "Which names a builder may emit, which names the device will store, and the fact that the first set is inside the second.",
+  "rule": {
+    "emitted": "A slash, then t or a, then exactly 32 lower-case hex digits, then .bin or .wav - or the literal name layout.bin. The 32 digits are the first sixteen bytes of a hash OF THE INPUT that produced the file, not of the file's own bytes.",
+    "stored": "One to 63 bytes, no leading dot, and every byte strictly between space and 0x7f, slash excluded.",
+    "superset": "Every name a builder emits must be a name the device will store. The two rules are written in different files, in different languages, by different hands, and a name that satisfies the first and not the second is a file that silently never arrives - no error anywhere, one black key.",
+    "path": "The device opens a stored name with a leading slash in front of it. Everything it holds lies flat in the root, which is why the slash may not appear inside a name."
+  },
+  "hash_bytes": 16,
+  "cases": [
+    {
+      "what": "a tile",
+      "name": "t0123456789abcdef0123456789abcdef.bin",
+      "emitted": true,
+      "stored": true,
+      "hash": "0123456789abcdef0123456789abcdef",
+      "path": "/t0123456789abcdef0123456789abcdef.bin",
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "a recording",
+      "name": "afedcba9876543210fedcba9876543210.wav",
+      "emitted": true,
+      "stored": true,
+      "hash": "fedcba9876543210fedcba9876543210",
+      "path": "/afedcba9876543210fedcba9876543210.wav",
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "the layout, the one name that is not a hash",
+      "name": "layout.bin",
+      "emitted": true,
+      "stored": true,
+      "hash": null,
+      "path": "/layout.bin",
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "upper-case hex",
+      "name": "t0123456789ABCDEF0123456789ABCDEF.bin",
+      "emitted": false,
+      "stored": true,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": "The device stores it happily and then looks for the lower-case spelling, so the file is on the device and the key is black. hashBytes() reads it as the same sixteen bytes, which is laxer than the rule and the reason this case is here."
+    },
+    {
+      "what": "half a hash",
+      "name": "t0123456789abcdef.bin",
+      "emitted": false,
+      "stored": true,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": "Exactly 32 hex digits, never fewer. hashBytes() takes what there is and leaves the rest of the sixteen bytes zero, so a short name is a hash that is quietly half zeroes and a slot pointing at a file that cannot exist."
+    },
+    {
+      "what": "an odd number of hex digits",
+      "name": "t0123456789abcdef0123456789abcde.bin",
+      "emitted": false,
+      "stored": true,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": true,
+      "note": "hashBytes() refuses this one rather than writing half a byte. It is the only one of the three malformed spellings that is caught today."
+    },
+    {
+      "what": "nothing at all",
+      "name": "",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "a folder",
+      "name": "sets/t0123456789abcdef0123456789abcdef.bin",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "the way out of the folder",
+      "name": "../layout.bin",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "a bare walk up",
+      "name": "..",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "the half-written file",
+      "name": ".part",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "anything hidden",
+      "name": ".hidden",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "a space in it",
+      "name": "two words.bin",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "a byte above ASCII",
+      "name": "tileÿ.bin",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "63 characters, the longest the device takes",
+      "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "emitted": false,
+      "stored": true,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    },
+    {
+      "what": "64 characters",
+      "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "emitted": false,
+      "stored": false,
+      "hash": null,
+      "path": null,
+      "hash_read_refused": false,
+      "note": null
+    }
+  ],
+  "notes": [
+    "The three malformed spellings in the middle are the finding rather than the fixture. Two of them - upper case and a short hash - are accepted by hashBytes() and by cableNameOk(), so a builder emitting either would be caught by nothing at all until somebody looked at a black key. The rule is stated here; whether either end should enforce it is a change to the code and not to this file."
+  ]
+}

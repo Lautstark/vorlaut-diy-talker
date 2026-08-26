@@ -1,0 +1,75 @@
+{
+  "fixture": "language-german",
+  "kind": "layout",
+  "file": "layout/language-german.bin",
+  "summary": "Byte 7 set to 1, which is German. The same firmware image, a different set of words on the menu.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 1,
+    "sleep_seconds": 3600,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "label": "11111111111111111111111111111111",
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "de",
+      "sleep_timeout_seconds": 3600,
+      "sets": [
+        {
+          "name": "Frühstück"
+        }
+      ]
+    },
+    "label": [
+      "t11111111111111111111111111111111.bin"
+    ],
+    "images": [
+      [
+        "t21212121212121212121212121212121.bin",
+        "t22222222222222222222222222222222.bin",
+        "t23232323232323232323232323232323.bin",
+        "t24242424242424242424242424242424.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "a31313131313131313131313131313131.wav",
+        "a32323232323232323232323232323232.wav",
+        "",
+        "a34343434343434343434343434343434.wav"
+      ]
+    ]
+  },
+  "notes": [
+    "The language rides in the content and not in the program, which is why a translation needs no cable."
+  ]
+}

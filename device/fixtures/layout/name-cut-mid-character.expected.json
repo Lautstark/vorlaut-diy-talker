@@ -1,0 +1,76 @@
+{
+  "fixture": "name-cut-mid-character",
+  "kind": "layout",
+  "file": "layout/name-cut-mid-character.bin",
+  "summary": "A name whose UTF-8 crosses the 32-byte cut, so the field ends with a lead byte and no continuation.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 60,
+    "entries": [
+      {
+        "name": "42726f742c2042757474657220756e64204d61726d656c6164652c2073c3bcc3",
+        "name_text": null,
+        "label": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "slots": [
+          {
+            "image": "d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2",
+            "audio": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
+            "has_audio": true
+          },
+          {
+            "image": "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+            "audio": "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+            "has_audio": true
+          },
+          {
+            "image": "d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "en",
+      "sleep_timeout_seconds": 60,
+      "sets": [
+        {
+          "name": "Brot, Butter und Marmelade, süß"
+        }
+      ]
+    },
+    "label": [
+      "td1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1.bin"
+    ],
+    "images": [
+      [
+        "td2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2.bin",
+        "td4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4.bin",
+        "td6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6.bin",
+        "td7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "ad3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3.wav",
+        "ad5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5.wav",
+        "",
+        ""
+      ]
+    ]
+  },
+  "notes": [
+    "The cut is after the 32nd BYTE, not after the 32nd character. A writer that cuts the string first disagrees with one that cuts the bytes the moment a name has an umlaut in it, and both look right in the editor.",
+    "What is left is not text. A reader hands the bytes back as they stand rather than repairing them or refusing the file: the device draws them, and a panel showing one broken glyph is better than a set with no name."
+  ]
+}

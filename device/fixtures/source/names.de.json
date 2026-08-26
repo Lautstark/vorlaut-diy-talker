@@ -1,0 +1,10 @@
+{
+  "_": "German fixture content, kept out of the generator so that device/tools/make_fixtures.mjs stays English like the rest of the code. The same arrangement exchange/fixtures/source/labels.de.json has, for the same reason. Real set names are German, and a name rule about UTF-8 has to be exercised on text that actually ships rather than on an ASCII stand-in.",
+
+  "breakfast": "Frühstück",
+  "outside": "Draußen",
+  "feelings": "Gefühle",
+
+  "exactly_32_bytes": "Grundwortschatz fuer den Anfang!",
+  "cut_mid_character": "Brot, Butter und Marmelade, süß"
+}

@@ -1,0 +1,38 @@
+{
+  "fixture": "over-long",
+  "kind": "tile",
+  "file": "tile/over-long.bin",
+  "summary": "Sixteen bytes too many. The reader takes 32768 of them and never looks at the rest.",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 32784,
+  "conforming": false,
+  "read": {
+    "accepts": true,
+    "bytes_read": 32768,
+    "probes": [
+      {
+        "x": 0,
+        "y": 0,
+        "byte": 0,
+        "value": "0000"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "7f7f"
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "The reader stops after TILE_H rows, so the tail is never read and never drawn. Like the layout's trailing bytes, that is a floor and not an extension point: nothing would tell a reader what a longer file meant."
+  ]
+}

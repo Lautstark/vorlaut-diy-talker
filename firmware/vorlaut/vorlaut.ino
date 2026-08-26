@@ -26,8 +26,14 @@
 // display edge to edge. TILE_W and TILE_H are what is left of a tile that used
 // to be the square inside a border - the file is the whole panel now.
 #define MENU_BORDER 6
-#define TILE_W DISPLAY_W
-#define TILE_H DISPLAY_H
+
+// TILE_W and TILE_H were two more #defines here, which is the reason nothing
+// ever compared them with the browser's TILE_SIZE: a number in a .ino is a
+// number no test can include. They are in a header of their own now and the
+// two ends are held against device/fixtures/tile/ from either side.
+#include "tile_format.h"
+static_assert(TILE_W == DISPLAY_W && TILE_H == DISPLAY_H,
+              "a tile file is the whole panel - see tile_format.h");
 
 // --- Structure of the content ------------------------------------------------
 // How many sets there are, which colours and which file belongs to which key
@@ -40,12 +46,22 @@
 #include "layout_format.h"
 #define LAYOUT_FILE "/layout.bin"
 
+// hashPath(), which turns a slot's sixteen bytes into the file to open. It
+// was here as a static function, which is why the one rule stated in three
+// places had nothing holding the three together.
+#include "name_format.h"
+
 #include "pins.h"
 
 // Everything the device shows in words, and the way it gets onto a panel
 // that only knows code page 437.
 #include "texts.h"
 #include "panel_text.h"
+
+// What counts as a recording, and where its samples start. seekToWavData()
+// used to be further down this file, which meant the acceptor and the format
+// were the same thing and neither could be asked about on its own.
+#include "wav_format.h"
 
 // --- Fetching content over the cable ----------------------------------------
 //
@@ -84,7 +100,9 @@ static const uint8_t MENU_KEY_B = 1;            // key 2, diagonally opposite
 // Back to normal operation without input. A device stuck in the menu no
 // longer speaks - that must not happen.
 static const uint32_t MENU_IDLE_MS = 30000;
-static const uint32_t SAMPLE_RATE = 16000; // the rate build.py writes the WAVs at
+// The rate the build writes the WAVs at. In wav_format.h with the rest of
+// what a recording is, rather than as a literal here.
+static const uint32_t SAMPLE_RATE = WAV_SAMPLE_RATE;
 static const size_t AUDIO_CHUNK = 1024;
 // Chunks of silence pushed after a word, before the amplifier is switched
 // off. 1024 bytes is 512 samples, so at 16 kHz each of these is 32 ms.
@@ -145,16 +163,6 @@ class Panel : public Adafruit_ST7735 {
 };
 
 static Layout layout;
-
-// Builds the file name out of 16 hash bytes: /t<32 hex>.bin or /a....wav
-static void hashPath(char *out, char kind, const uint8_t *hash, const char *ext) {
-  out[0] = '/';
-  out[1] = kind;
-  for (uint8_t i = 0; i < HASH_BYTES; i++) {
-    sprintf(out + 2 + i * 2, "%02x", hash[i]);
-  }
-  strcpy(out + 2 + HASH_BYTES * 2, ext);
-}
 
 // Survives deep sleep: she should wake up in the same set.
 RTC_DATA_ATTR static uint8_t rtcCurrentSet = 0;
@@ -293,12 +301,11 @@ static void drawTile(Panel *tft, const char *path) {
   tft->startWrite();
   tft->setAddrWindow(0, 0, TILE_W, TILE_H);
   for (uint16_t y = 0; y < TILE_H; y++) {
-    size_t got = file.read((uint8_t *)line, sizeof(line));
-    if (got < sizeof(line)) {
-      memset((uint8_t *)line + got, 0, sizeof(line) - got);
-    }
+    // Short rows come back filled with black, and nothing is said about it -
+    // see tileReadRow() in tile_format.h and device/fixtures/tile/short.
+    tileReadRow(file, (uint8_t *)line);
     // bigEndian = true: the bytes go out exactly as they stand in the file.
-    // build.py already writes them in panel order.
+    // The build already writes them in panel order.
     tft->writePixels(line, TILE_W, true, true);
   }
   tft->endWrite();
@@ -514,27 +521,6 @@ static void setupAudio() {
                  I2S_SLOT_MODE_MONO)) {
     Serial.println("I2S would not start.");
   }
-}
-
-// Finds the data chunk in the WAV. Returns false if the file does not fit.
-static bool seekToWavData(File &file, uint32_t &dataBytes) {
-  char header[12];
-  if (file.read((uint8_t *)header, 12) != 12) return false;
-  if (memcmp(header, "RIFF", 4) != 0 || memcmp(header + 8, "WAVE", 4) != 0) {
-    return false;
-  }
-  while (file.available() >= 8) {
-    char id[4];
-    uint32_t size = 0;
-    if (file.read((uint8_t *)id, 4) != 4) return false;
-    if (file.read((uint8_t *)&size, 4) != 4) return false;  // WAV is little-endian
-    if (memcmp(id, "data", 4) == 0) {
-      dataBytes = size;
-      return true;
-    }
-    file.seek(file.position() + size + (size & 1));  // chunks have an even length
-  }
-  return false;
 }
 
 static void playWav(const char *path) {

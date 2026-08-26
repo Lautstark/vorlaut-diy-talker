@@ -1,0 +1,14 @@
+{
+  "fixture": "bad-magic",
+  "kind": "layout",
+  "file": "layout/bad-magic.bin",
+  "summary": "MTRE where MTRD belongs - one bit out in the last letter.",
+  "bytes": 196,
+  "read": {
+    "result": "LAYOUT_BAD_MAGIC"
+  },
+  "write": null,
+  "notes": [
+    "Everything after the magic is a perfectly good layout, which is the point: the magic is what stops some other file on the device being read as one."
+  ]
+}

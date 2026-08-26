@@ -1,0 +1,309 @@
+{
+  "device_interface_version": "0.1.0-draft",
+  "generated_by": "device/tools/make_fixtures.mjs",
+  "fixtures": [
+    {
+      "fixture": "no-sets",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A header and nothing after it. Twelve bytes, zero sets, and it parses.",
+      "file": "layout/no-sets.bin",
+      "expected": "layout/no-sets.expected.json"
+    },
+    {
+      "fixture": "one-set",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "One set, four slots, one of them without a sound. A sleep timeout that reads as nonsense if it is taken big-endian.",
+      "file": "layout/one-set.bin",
+      "expected": "layout/one-set.expected.json"
+    },
+    {
+      "fixture": "five-sets",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "Five sets, which is MAX_SETS. 932 bytes, the largest file that parses.",
+      "file": "layout/five-sets.bin",
+      "expected": "layout/five-sets.expected.json"
+    },
+    {
+      "fixture": "name-fills-the-field",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A name of exactly 32 bytes, so the field has no zero in it at all.",
+      "file": "layout/name-fills-the-field.bin",
+      "expected": "layout/name-fills-the-field.expected.json"
+    },
+    {
+      "fixture": "name-cut-mid-character",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A name whose UTF-8 crosses the 32-byte cut, so the field ends with a lead byte and no continuation.",
+      "file": "layout/name-cut-mid-character.bin",
+      "expected": "layout/name-cut-mid-character.expected.json"
+    },
+    {
+      "fixture": "sleep-timeout-max",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A sleep timeout of 0xffffffff, the largest a uint32 holds.",
+      "file": "layout/sleep-timeout-max.bin",
+      "expected": "layout/sleep-timeout-max.expected.json"
+    },
+    {
+      "fixture": "slot-reserved-byte-set",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "The reserved byte after each has-audio flag written as 0xff. A reader ignores it and reads the same fields.",
+      "file": "layout/slot-reserved-byte-set.bin",
+      "expected": "layout/slot-reserved-byte-set.expected.json"
+    },
+    {
+      "fixture": "has-audio-not-one",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "The has-audio flag written as 42. Any non-zero value means the slot has a sound.",
+      "file": "layout/has-audio-not-one.bin",
+      "expected": "layout/has-audio-not-one.expected.json"
+    },
+    {
+      "fixture": "trailing-bytes",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A valid one-set layout with four bytes stuck on the end. A reader ignores them.",
+      "file": "layout/trailing-bytes.bin",
+      "expected": "layout/trailing-bytes.expected.json"
+    },
+    {
+      "fixture": "too-short",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "Eleven bytes: one short of the header itself.",
+      "file": "layout/too-short.bin",
+      "expected": "layout/too-short.expected.json"
+    },
+    {
+      "fixture": "bad-magic",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "MTRE where MTRD belongs - one bit out in the last letter.",
+      "file": "layout/bad-magic.bin",
+      "expected": "layout/bad-magic.expected.json"
+    },
+    {
+      "fixture": "version-one",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "Version 1, the layout from before the set colour went. Refused rather than read two bytes out of step.",
+      "file": "layout/version-one.bin",
+      "expected": "layout/version-one.expected.json"
+    },
+    {
+      "fixture": "version-three",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "Version 3, from a builder newer than the device. Refused, because the reader cannot skip what it does not know.",
+      "file": "layout/version-three.bin",
+      "expected": "layout/version-three.expected.json"
+    },
+    {
+      "fixture": "slot-count-three",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "A header claiming three slots per set on a device that has four keys.",
+      "file": "layout/slot-count-three.bin",
+      "expected": "layout/slot-count-three.expected.json"
+    },
+    {
+      "fixture": "sets-past-max",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "A header claiming six sets on a device with room for five.",
+      "file": "layout/sets-past-max.bin",
+      "expected": "layout/sets-past-max.expected.json"
+    },
+    {
+      "fixture": "one-set-short",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "A header claiming two sets on a file holding one and a half.",
+      "file": "layout/one-set-short.bin",
+      "expected": "layout/one-set-short.expected.json"
+    },
+    {
+      "fixture": "language-german",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "Byte 7 set to 1, which is German. The same firmware image, a different set of words on the menu.",
+      "file": "layout/language-german.bin",
+      "expected": "layout/language-german.expected.json"
+    },
+    {
+      "fixture": "language-past-the-table",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "Byte 7 set to 7, an index no table stands behind. The layout still parses; the words fall back to English.",
+      "file": "layout/language-past-the-table.bin",
+      "expected": "layout/language-past-the-table.expected.json"
+    },
+    {
+      "fixture": "addressed",
+      "kind": "tile",
+      "outcome": "accepted",
+      "summary": "Every pixel spells out its own coordinates: the value at (x, y) is (y << 8) | x, so the bytes are [y, x].",
+      "file": "tile/addressed.bin",
+      "expected": "tile/addressed.expected.json"
+    },
+    {
+      "fixture": "solid-red",
+      "kind": "tile",
+      "outcome": "accepted",
+      "summary": "32768 bytes of 0xf800: pure red, and the value that says which way round the two bytes go.",
+      "file": "tile/solid-red.bin",
+      "expected": "tile/solid-red.expected.json"
+    },
+    {
+      "fixture": "short",
+      "kind": "tile",
+      "outcome": "accepted",
+      "summary": "259 bytes missing, so the cut lands inside a pixel. The reader zero-fills and says nothing.",
+      "file": "tile/short.bin",
+      "expected": "tile/short.expected.json"
+    },
+    {
+      "fixture": "over-long",
+      "kind": "tile",
+      "outcome": "accepted",
+      "summary": "Sixteen bytes too many. The reader takes 32768 of them and never looks at the rest.",
+      "file": "tile/over-long.bin",
+      "expected": "tile/over-long.expected.json"
+    },
+    {
+      "fixture": "spoken",
+      "kind": "audio",
+      "outcome": "accepted",
+      "summary": "What the build writes: 16 kHz mono 16-bit PCM, fmt then data, nothing else.",
+      "file": "audio/spoken.wav",
+      "expected": "audio/spoken.expected.json"
+    },
+    {
+      "fixture": "extra-chunk",
+      "kind": "audio",
+      "outcome": "accepted",
+      "summary": "A LIST chunk of odd length between fmt and data. The pad byte after it is what a reader has to step over.",
+      "file": "audio/extra-chunk.wav",
+      "expected": "audio/extra-chunk.expected.json"
+    },
+    {
+      "fixture": "data-longer-than-file",
+      "kind": "audio",
+      "outcome": "accepted",
+      "summary": "A data chunk claiming four times the samples the file actually holds.",
+      "file": "audio/data-longer-than-file.wav",
+      "expected": "audio/data-longer-than-file.expected.json"
+    },
+    {
+      "fixture": "stereo-44k",
+      "kind": "audio",
+      "outcome": "accepted",
+      "summary": "44.1 kHz stereo. The device accepts it - it never reads fmt - and plays it out at 16 kHz mono.",
+      "file": "audio/stereo-44k.wav",
+      "expected": "audio/stereo-44k.expected.json"
+    },
+    {
+      "fixture": "not-riff",
+      "kind": "audio",
+      "outcome": "refused",
+      "summary": "A file that is not a RIFF at all, under a .wav name.",
+      "file": "audio/not-riff.wav",
+      "expected": "audio/not-riff.expected.json"
+    },
+    {
+      "fixture": "riff-not-wave",
+      "kind": "audio",
+      "outcome": "refused",
+      "summary": "A RIFF whose form is AVI rather than WAVE.",
+      "file": "audio/riff-not-wave.wav",
+      "expected": "audio/riff-not-wave.expected.json"
+    },
+    {
+      "fixture": "no-data-chunk",
+      "kind": "audio",
+      "outcome": "refused",
+      "summary": "A well-formed WAV with a fmt chunk and no data chunk.",
+      "file": "audio/no-data-chunk.wav",
+      "expected": "audio/no-data-chunk.expected.json"
+    },
+    {
+      "fixture": "header-truncated",
+      "kind": "audio",
+      "outcome": "refused",
+      "summary": "Eight bytes. Not even the RIFF header is whole.",
+      "file": "audio/header-truncated.wav",
+      "expected": "audio/header-truncated.expected.json"
+    },
+    {
+      "fixture": "names",
+      "kind": "names",
+      "outcome": "accepted",
+      "summary": "Which names a builder may emit, which names the device will store, and the fact that the first set is inside the second.",
+      "expected": "names.expected.json"
+    },
+    {
+      "fixture": "language",
+      "kind": "language",
+      "outcome": "accepted",
+      "summary": "Which language rides in which byte, what an unknown index means, and how many tables the device has to have.",
+      "expected": "language.expected.json"
+    },
+    {
+      "fixture": "greet-and-list",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "Hello, list, done. The whole of what a browser learns before it decides anything.",
+      "expected": "cable/greet-and-list.expected.json"
+    },
+    {
+      "fixture": "put-one-file",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "One file across: the size and the checksum on the command line, the bytes between go and ok.",
+      "expected": "cable/put-one-file.expected.json"
+    },
+    {
+      "fixture": "skip-unknown-keyword",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "The device says two things the browser has never heard of. The browser steps over both and takes the ok.",
+      "expected": "cable/skip-unknown-keyword.expected.json"
+    },
+    {
+      "fixture": "checksum-with-a-leading-zero",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A checksum whose top byte is zero, asked for by name. Eight digits always, lower case always.",
+      "expected": "cable/checksum-with-a-leading-zero.expected.json"
+    },
+    {
+      "fixture": "unknown-verb",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A verb from a newer browser. Answered with an error, not ignored.",
+      "expected": "cable/unknown-verb.expected.json"
+    },
+    {
+      "fixture": "refused-before-hello",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "Nothing gets in before a hello has been answered - and the refusal is the way back in, not the end of the session.",
+      "expected": "cable/refused-before-hello.expected.json"
+    },
+    {
+      "fixture": "names-and-errors",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A name the device will not touch, a file that arrived wrong, and a file with no room for it.",
+      "expected": "cable/names-and-errors.expected.json"
+    }
+  ]
+}

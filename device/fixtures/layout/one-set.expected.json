@@ -1,0 +1,76 @@
+{
+  "fixture": "one-set",
+  "kind": "layout",
+  "file": "layout/one-set.bin",
+  "summary": "One set, four slots, one of them without a sound. A sleep timeout that reads as nonsense if it is taken big-endian.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 3600,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "label": "11111111111111111111111111111111",
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "en",
+      "sleep_timeout_seconds": 3600,
+      "sets": [
+        {
+          "name": "Frühstück"
+        }
+      ]
+    },
+    "label": [
+      "t11111111111111111111111111111111.bin"
+    ],
+    "images": [
+      [
+        "t21212121212121212121212121212121.bin",
+        "t22222222222222222222222222222222.bin",
+        "t23232323232323232323232323232323.bin",
+        "t24242424242424242424242424242424.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "a31313131313131313131313131313131.wav",
+        "a32323232323232323232323232323232.wav",
+        "",
+        "a34343434343434343434343434343434.wav"
+      ]
+    ]
+  },
+  "notes": [
+    "3600 is 0x00000E10. Read the wrong way round it is 269352960 - a device that sleeps in eighty years rather than in an hour, and a device that works and is wrong.",
+    "The third slot has no sound: its audio hash is sixteen zero bytes and its has-audio flag is 0. A hash of zeros is not a file name, it is the absence of one."
+  ]
+}

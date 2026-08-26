@@ -10,7 +10,8 @@
       "exclude-paths": [
         "firmware",
         "case",
-        "exchange"
+        "exchange",
+        "device"
       ],
       "changelog-sections": [
         { "type": "feat", "section": "Features" },

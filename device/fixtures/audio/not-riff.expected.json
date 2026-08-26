@@ -1,0 +1,15 @@
+{
+  "fixture": "not-riff",
+  "kind": "audio",
+  "file": "audio/not-riff.wav",
+  "summary": "A file that is not a RIFF at all, under a .wav name.",
+  "bytes": 204,
+  "conforming": false,
+  "read": {
+    "accepts": false
+  },
+  "write": null,
+  "notes": [
+    "The name says what a file is for and the first four bytes say what it is. Only one of those is checked, and it is the right one."
+  ]
+}

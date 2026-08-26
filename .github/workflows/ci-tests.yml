@@ -3,10 +3,17 @@ name: Tests
 # Runs only when this job actually has something to check.
 #
 # firmware/vorlaut/ is deliberately in the list although no sketch is compiled
-# here: tests/layout_dump.cpp, tests/cable_dump.cpp and tests/texts_dump.cpp
-# include headers from the sketch and hold what the device reads against what
-# the browser writes. If a format changes in the firmware, these have to run -
-# otherwise nobody notices until the device stays silent.
+# here: tests/layout_dump.cpp, tests/cable_dump.cpp, tests/texts_dump.cpp and
+# tests/device_host.cpp include headers from the sketch and hold what the
+# device reads against what the browser writes. If a format changes in the
+# firmware, these have to run - otherwise nobody notices until the device
+# stays silent.
+#
+# device/ is here for the other half of the same argument. It holds the
+# conformance fixtures both ends are checked against, and both checks run in
+# this job: the builder's in `npm test`, the firmware's in `tests/run.py`. A
+# fixture that moved without either being re-run would be a specification
+# nothing was held to.
 #
 # docs/ and README.md are in the list for the same kind of reason:
 # tests/test_links.py follows every relative link and anchor in them, and a
@@ -44,6 +51,7 @@ on:
       - firmware/vorlaut/**
       - docs/**
       - exchange/**
+      - device/**
       - adr/**
       - dns/**
       - case/**
@@ -124,6 +132,22 @@ jobs:
         # tests/run.py is only this now: compiling the firmware's own readers
         # and replaying the browser's bytes into them, plus the two checks on
         # the repository itself. Python is standard library only.
+        #
+        # docs/device-interface.md section 5 expects g++ to leave this job once
+        # device/fixtures/ exists, and it has not. The reason is that section 5
+        # describes CI after a repository split: it moves the C to the firmware
+        # side because the firmware side would be a different repository, with
+        # a path filter of its own. Inside one repository the same move costs
+        # something rather than nothing - ci-firmware.yml runs on firmware/**,
+        # so the format checks would stop running on a change to
+        # src/data/layout_format.ts, which is the change that broke a format
+        # most recently. Widening that filter instead makes every src/ change
+        # pay for the ESP32 core.
+        #
+        # What did move is the new capability: ci-firmware.yml now compiles the
+        # firmware's readers on the host and runs them against the fixture
+        # index, so a firmware-only change is checked against the fixtures
+        # without depending on this job's path list at all.
         run: python tests/run.py
 
       - name: g++ really was there

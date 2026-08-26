@@ -1,0 +1,114 @@
+{
+  "fixture": "names-and-errors",
+  "kind": "cable",
+  "summary": "A name the device will not touch, a file that arrived wrong, and a file with no room for it.",
+  "ends": [
+    "device"
+  ],
+  "protocol_version": 1,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> rm ../secrets"
+    },
+    {
+      "from": "device",
+      "line": "< err bad"
+    },
+    {
+      "from": "host",
+      "line": "> rm sets/layout.bin"
+    },
+    {
+      "from": "device",
+      "line": "< err bad"
+    },
+    {
+      "from": "host",
+      "line": "> rm .part"
+    },
+    {
+      "from": "device",
+      "line": "< err bad"
+    },
+    {
+      "from": "host",
+      "line": "> put t0123456789abcdef0123456789abcdef.bin 300 00000000"
+    },
+    {
+      "from": "device",
+      "line": "< go"
+    },
+    {
+      "from": "host",
+      "raw": "ByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+",
+      "bytes": 300
+    },
+    {
+      "from": "device",
+      "line": "< err crc t0123456789abcdef0123456789abcdef.bin"
+    },
+    {
+      "from": "host",
+      "line": "> put afedcba9876543210fedcba9876543210.wav 1441793 deadbeef"
+    },
+    {
+      "from": "device",
+      "line": "< err nospace afedcba9876543210fedcba9876543210.wav"
+    },
+    {
+      "from": "host",
+      "line": "> crc layout.bin"
+    },
+    {
+      "from": "device",
+      "line": "< err missing layout.bin"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 0 0 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": null,
+  "notes": [
+    "Nothing is left behind by any of these. A refused checksum throws the half-written file away and nothing appears under the real name, which is why the device ends holding nothing at all.",
+    "The no-space refusal comes BEFORE the go, so the browser never starts sending. That is the whole reason go exists as a step of its own.",
+    "One word for what went wrong and an optional second for whoever is reading. The first word is what a browser acts on; the second is for a person."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "fixture": "data-longer-than-file",
+  "kind": "audio",
+  "file": "audio/data-longer-than-file.wav",
+  "summary": "A data chunk claiming four times the samples the file actually holds.",
+  "bytes": 556,
+  "conforming": false,
+  "read": {
+    "accepts": true,
+    "data_offset": 44,
+    "data_bytes_declared": 2048,
+    "data_bytes_available": 512
+  },
+  "write": null,
+  "notes": [
+    "The reader believes the declared length and then runs out of file. What happens next is not in the acceptor at all - the player stops when a read comes back empty - so the word is short rather than wrong, and nothing says so.",
+    "This is the audio half of the truncated tile: a short word and a black key are the two failures somebody would have to notice from the outside."
+  ]
+}

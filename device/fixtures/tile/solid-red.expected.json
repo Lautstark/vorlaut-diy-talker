@@ -1,0 +1,113 @@
+{
+  "fixture": "solid-red",
+  "kind": "tile",
+  "file": "tile/solid-red.bin",
+  "summary": "32768 bytes of 0xf800: pure red, and the value that says which way round the two bytes go.",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 32768,
+  "conforming": true,
+  "read": {
+    "accepts": true,
+    "probes": [
+      {
+        "x": 0,
+        "y": 0,
+        "byte": 0,
+        "value": "f800"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "f800"
+      }
+    ],
+    "colour": {
+      "rgb565": "f800",
+      "rgb888": [
+        248,
+        0,
+        0
+      ]
+    }
+  },
+  "write": {
+    "rgb565_of": [
+      {
+        "rgb": [
+          255,
+          0,
+          0
+        ],
+        "value": "f800"
+      },
+      {
+        "rgb": [
+          0,
+          255,
+          0
+        ],
+        "value": "07e0"
+      },
+      {
+        "rgb": [
+          0,
+          0,
+          255
+        ],
+        "value": "001f"
+      },
+      {
+        "rgb": [
+          255,
+          255,
+          255
+        ],
+        "value": "ffff"
+      },
+      {
+        "rgb": [
+          0,
+          0,
+          0
+        ],
+        "value": "0000"
+      },
+      {
+        "rgb": [
+          7,
+          3,
+          7
+        ],
+        "value": "0000"
+      },
+      {
+        "rgb": [
+          8,
+          4,
+          8
+        ],
+        "value": "0821"
+      },
+      {
+        "rgb": [
+          173,
+          51,
+          44
+        ],
+        "value": "a985"
+      }
+    ]
+  },
+  "notes": [
+    "Big-endian is the panel's order, not the machine's. The same file read the other way round is 0x00f8, a dark blue, and every tile on the device would be the wrong colour without a single byte being out of place.",
+    "The last three are the truncation rather than the layout: 7, 3, 7 all round down to nothing and 8, 4, 8 are the first values of each channel that survive it."
+  ]
+}

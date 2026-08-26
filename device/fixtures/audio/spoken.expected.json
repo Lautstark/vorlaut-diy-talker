@@ -1,0 +1,22 @@
+{
+  "fixture": "spoken",
+  "kind": "audio",
+  "file": "audio/spoken.wav",
+  "summary": "What the build writes: 16 kHz mono 16-bit PCM, fmt then data, nothing else.",
+  "bytes": 844,
+  "conforming": true,
+  "read": {
+    "accepts": true,
+    "data_offset": 44,
+    "data_bytes": 800
+  },
+  "write": {
+    "sample_rate": 16000,
+    "channels": 1,
+    "bits_per_sample": 16,
+    "format": "pcm"
+  },
+  "notes": [
+    "44 is 12 for the RIFF header, 8 + 16 for fmt, 8 for the data header. Stated as a number because a reader that walks the chunks and a reader that assumes 44 agree here and nowhere else - see extra-chunk."
+  ]
+}

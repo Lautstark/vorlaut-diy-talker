@@ -1,0 +1,131 @@
+{
+  "fixture": "greet-and-list",
+  "kind": "cable",
+  "summary": "Hello, list, done. The whole of what a browser learns before it decides anything.",
+  "ends": [
+    "device",
+    "browser"
+  ],
+  "protocol_version": 1,
+  "device_starts_with": [
+    {
+      "name": "t0123456789abcdef0123456789abcdef.bin",
+      "size": 640,
+      "crc": "ab7dc00c",
+      "content": "AyhNcpe84QYrUHWav+QJLlN4ncLnDDFWe6DF6g80WX6jyO0SN1yBpsvwFTpfhKnO8xg9Yoes0fYbQGWKr9T5HkNojbLX/CFGa5C12v8kSW6TuN0CJ0xxlrvgBSpPdJm+4wgtUnecweYLMFV6n8TpDjNYfaLH7BE2W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJHbJG22wAlSm+Uud4DKE1yl7zhBitQdZq/5AkuU3idwucMMVZ7oMXqDzRZfqPI7RI3XIGmy/AVOl+Eqc7zGD1ih6zR9htAZYqv1PkeQ2iNstf8IUZrkLXa/yRJbpO43QInTHGWu+AFKk90mb7jCC1Sd5zB5gswVXqfxOkOM1h9osfsETZbgKXK7xQ5Xg=="
+    },
+    {
+      "name": "layout.bin",
+      "size": 196,
+      "crc": "e783125b",
+      "content": "CS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOA=="
+    }
+  ],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1440956"
+    },
+    {
+      "from": "device",
+      "line": "< files 2"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> list"
+    },
+    {
+      "from": "device",
+      "line": "< file t0123456789abcdef0123456789abcdef.bin 640",
+      "any_order": true
+    },
+    {
+      "from": "device",
+      "line": "< file layout.bin 196",
+      "any_order": true
+    },
+    {
+      "from": "device",
+      "line": "< end list 2"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 0 0 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [
+      {
+        "name": "t0123456789abcdef0123456789abcdef.bin",
+        "size": 640,
+        "crc": "ab7dc00c"
+      },
+      {
+        "name": "layout.bin",
+        "size": 196,
+        "crc": "e783125b"
+      }
+    ],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 1,
+        "total": 1441792,
+        "free": 1440956,
+        "files": 2
+      }
+    },
+    {
+      "call": "list",
+      "returns": [
+        {
+          "name": "t0123456789abcdef0123456789abcdef.bin",
+          "size": 640
+        },
+        {
+          "name": "layout.bin",
+          "size": 196
+        }
+      ]
+    },
+    {
+      "call": "done",
+      "returns": {
+        "stored": 0,
+        "removed": 0,
+        "bytes": 0
+      }
+    }
+  ],
+  "notes": [
+    "The device does no comparing. It says what it holds and the browser works out the difference, because the browser is the end with memory and a language to do it in.",
+    "The two file lines are marked any_order, and that is a rule rather than a convenience. The device walks its directory and says what it finds; a file system promises no order, so the format promises none either. A browser must not depend on one - it holds the names in a map the moment it has them.",
+    "This is the one place a fixture nearly froze an accident. The first draft listed them in the order they were written, the C harness holds its files in a sorted map and said them alphabetically, and the two disagreed - which is the fixture set doing its job on its first run, three fixtures in."
+  ]
+}

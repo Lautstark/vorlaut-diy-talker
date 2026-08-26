@@ -1,0 +1,75 @@
+{
+  "fixture": "sleep-timeout-max",
+  "kind": "layout",
+  "file": "layout/sleep-timeout-max.bin",
+  "summary": "A sleep timeout of 0xffffffff, the largest a uint32 holds.",
+  "bytes": 196,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 4294967295,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "label": "11111111111111111111111111111111",
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "en",
+      "sleep_timeout_seconds": 4294967295,
+      "sets": [
+        {
+          "name": "Frühstück"
+        }
+      ]
+    },
+    "label": [
+      "t11111111111111111111111111111111.bin"
+    ],
+    "images": [
+      [
+        "t21212121212121212121212121212121.bin",
+        "t22222222222222222222222222222222.bin",
+        "t23232323232323232323232323232323.bin",
+        "t24242424242424242424242424242424.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "a31313131313131313131313131313131.wav",
+        "a32323232323232323232323232323232.wav",
+        "",
+        "a34343434343434343434343434343434.wav"
+      ]
+    ]
+  },
+  "notes": [
+    "Four bytes wide and unsigned. Read as sixteen bits it is 65535 and read as signed it is -1, and neither of those is a length of time."
+  ]
+}
