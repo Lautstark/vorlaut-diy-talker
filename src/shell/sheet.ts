@@ -592,27 +592,9 @@ function drawPick(spec: PickColumn): Picked {
     status(t("ui.symbol_off_done"));
   };
 
-  /* The one button the crop puts in this row, in place of the two above.
-   *
-   * There were two, and the one that took the square has gone. The foot
-   * already carries a button that means yes - see settle() below - and two
-   * controls confirming the same thing a few inches apart is not a choice, it
-   * is a question about which of them is the real one. The sentence under the
-   * slider names the one that is, because it is no longer in this column.
-   *
-   * This one stays, and it is not symmetry: without it the only way out of an
-   * open crop that does not keep the square is the corner ✕, which takes the
-   * whole sheet and every other edit in it. A state you can only leave by
-   * throwing away more than you meant to is worth one button. */
-  const drop = document.createElement("button");
-  drop.type = "button";
-  drop.className = "btn quiet";
-  drop.textContent = t("ui.crop_off");
-  drop.hidden = true;
-
   const acts = document.createElement("div");
   acts.className = "pick__acts";
-  acts.append(own, off, drop);
+  acts.append(own, off);
   pick.append(acts, file);
 
   /* Going in and coming out of the crop.
@@ -620,9 +602,16 @@ function drawPick(spec: PickColumn): Picked {
    * The search, its two sentences and the results go away for the duration
    * rather than dimming: a live grid of pictures under an open crop invites a
    * press that throws the crop away without saying so, and hiding them is one
-   * property against a disabled look this stylesheet has nowhere else. It also
-   * leaves the row of buttons sitting directly under the box, which is where
-   * the two that matter now belong. */
+   * property against a disabled look this stylesheet has nowhere else.
+   *
+   * The crop adds no buttons of its own, and it had two once. Both went the
+   * same way and for the same reason: this sheet already has a foot, the foot
+   * already says what it does, and a control repeating that a few inches
+   * higher up is a question about which one is the real one rather than a
+   * choice. Fertig keeps the square - see settle() below - and the ✕ and
+   * Escape drop it, which is what they mean everywhere else here. The sentence
+   * under the slider says the first half; the second half is what a ✕ has
+   * always meant and does not need saying. */
   let cropping: Cropper | null = null;
   /* The square, waiting to be kept - see settle() at the foot of this function
    * for what asks. Held apart from the button that usually runs it because the
@@ -635,7 +624,7 @@ function drawPick(spec: PickColumn): Picked {
     cropping = null;
     cropBar.hidden = true;
     cropBar.replaceChildren();
-    drop.hidden = true;
+    acts.hidden = false;
     own.hidden = false;
     off.hidden = !symbol;
     if (spec.onNegate) negateLabel.hidden = !symbol;
@@ -659,10 +648,14 @@ function drawPick(spec: PickColumn): Picked {
     preview.appendChild(cutter.surface);
     cropBar.append(cutter.zoom, cropHint);
     cropBar.hidden = false;
+    /* The row itself, not only the two buttons in it. An empty flex box is a
+     * grid item all the same, and .pick's own 10px gap sits on both sides of
+     * it - so leaving it standing costs a gap under the crop for a control
+     * that is no longer there. */
+    acts.hidden = true;
     own.hidden = off.hidden = true;
     if (spec.onNegate) negateLabel.hidden = true;
     query.hidden = near.hidden = results.hidden = credits.hidden = true;
-    drop.hidden = false;
     keeping = () => cutter.cut()
       .then((square) => uploadOwn(square, pngName(name)))
       .then(
@@ -671,11 +664,6 @@ function drawPick(spec: PickColumn): Picked {
           endCrop();
           status(t("ui.upload_failed", { error: reason(error) }));
         });
-    drop.onclick = () => {
-      endCrop();
-      own.focus();
-      status(t("ui.crop_off_done"));
-    };
     // The sentence under the slider is the box's description as well as the
     // column's copy: somebody who cannot see it has just been handed a control
     // whose name says what it is and not what to do with it.
