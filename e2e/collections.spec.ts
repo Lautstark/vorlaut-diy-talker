@@ -373,10 +373,16 @@ test("the open Sammlung's row follows what is done inside it", async ({ page }) 
   await page.locator("#collectionName").blur();
 
   const mine = row(page, "Kindergarten");
-  // Zero rather than blank: the package leaves the count empty only when it is
-  // not known, and a Sammlung with nothing in it is known to hold nothing.
-  // This is the number the next assertion has to be a move away from.
-  await expect(mine.locator(".collections__count")).toHaveText("0");
+  /* One, and it is a number rather than a blank: the row leaves the count empty
+   * only when it is not known, and a Sammlung that has just been made is known
+   * to hold exactly what it was made with. That is the way back to the start
+   * page standing in the corner of the first column - see app.blank() - and it
+   * is counted once however many pages it is drawn on, which is what makes the
+   * shared column safe to count at all.
+   *
+   * What this line is for is unchanged: it is the number the next assertion has
+   * to be a move away from. */
+  await expect(mine.locator(".collections__count")).toHaveText("1");
 
   // A button in the first cell, through the sheet a press on it opens - which
   // is the ordinary way one is made, and the one that goes through commit().
@@ -388,7 +394,7 @@ test("the open Sammlung's row follows what is done inside it", async ({ page }) 
   await box.locator("button", { hasText: label("ui.done") }).click();
   await expect(box).toBeHidden();
 
-  await expect(mine.locator(".collections__count")).toHaveText("1");
+  await expect(mine.locator(".collections__count")).toHaveText("2");
 
   /* And the second line, which is the half that was visibly self-contradictory:
    * the panel's own heading said the new size while the row an inch to its left

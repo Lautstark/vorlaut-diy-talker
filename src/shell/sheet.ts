@@ -61,10 +61,11 @@ import { symbolInto } from "../backend/index.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import { cropSquare, pngName } from "./crop.js";
+import { HOME_TONES } from "./homekey.js";
 import type { Cropper } from "./crop.js";
-import { creditLine, findSymbols, searchPlaceholder, takeSymbol, uploadOwn }
+import { creditLine, findSymbols, searchPlaceholder, takeHome, takeSymbol, uploadOwn }
   from "./picker.js";
-import type { SymbolHit } from "./picker.js";
+import type { HomeSuggestion, SymbolHit } from "./picker.js";
 
 /** How a sheet was left. `null` is every way out that wrote nothing. */
 export type Left = "done" | "next" | null;
@@ -467,9 +468,71 @@ function drawPick(spec: PickColumn): Picked {
     negateLabel.hidden = !symbol;
   };
 
+  /* What the results box is showing, as the three things that can be in it at
+   * once: the prescribed start-key picture, the hits, and the sentence that
+   * stands in for hits there are none of.
+   *
+   * Held rather than drawn as each arrives, because two of the three outlive a
+   * press: taking a picture redraws the box to move the frame onto what was
+   * taken, and a box redrawn from the hits alone would lose the tile above them
+   * and the sentence below. say() is still what writes "searching", because
+   * that one really does replace everything. */
   let hits: SymbolHit[] = [];
+  let home: HomeSuggestion | null = null;
+  let nothing = "";
+
+  /** The one tile the collection did not answer with: the picture a start key
+   *  is prescribed, drawn the way that key is drawn rather than the way a
+   *  thumbnail is.
+   *
+   * Marked and captioned rather than quietly put in the grid as a fifth hit.
+   * The grid has one rendering rule - a picture on white, as the collection
+   * draws it - and a single tile that broke it would read as the picker having
+   * two, with nothing on screen saying which is which. So the light-on-dark is
+   * declared: the tile is set apart, it says what it is for, and the same
+   * house is still in the grid beside it as an ordinary hit for anybody who
+   * wants it as one. */
+  const homeTile = (one: HomeSuggestion): HTMLElement => {
+    const box = document.createElement("div");
+    box.className = "pick__home";
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "pick__hit pick__hit--home";
+    /* The key's own colour, from the module that owns what a key looks like
+     * rather than written a second time in ui.css. It is not a token and must
+     * not become one: this is the tablet's tile, the same in both schemes,
+     * because what the tile is a picture of does not change when the editor
+     * goes light. */
+    tile.style.setProperty("--home-plate", HOME_TONES.plate);
+    // The caption below is the same word and is hidden from a reader, so this
+    // is the only place it is said - a tile whose picture is a house and whose
+    // name is "start key" needs the name, not a description of the house.
+    tile.setAttribute("aria-label", one.caption);
+    tile.title = one.caption;
+    const image = document.createElement("img");
+    image.src = one.url;
+    image.loading = "lazy";
+    image.alt = "";
+    tile.appendChild(image);
+    tile.onclick = () => {
+      status(t("ui.loading_symbol"));
+      void takeHome().then(
+        (taken) => { took(taken.symbol, taken.label); status(""); },
+        (error: unknown) => status(t("ui.symbol_failed", { error: reason(error) })));
+    };
+    const caption = document.createElement("span");
+    caption.className = "pick__homecap";
+    caption.textContent = one.caption;
+    // A restatement of the tile's own name, for whoever can see it. Announcing
+    // it twice would be a reader hearing "start key, start key".
+    caption.setAttribute("aria-hidden", "true");
+    box.append(tile, caption);
+    return box;
+  };
+
   const drawResults = () => {
     results.innerHTML = "";
+    if (home) results.appendChild(homeTile(home));
     for (const hit of hits) {
       const one = document.createElement("button");
       one.type = "button";
@@ -490,6 +553,16 @@ function drawPick(spec: PickColumn): Picked {
           (error: unknown) => status(t("ui.symbol_failed", { error: reason(error) })));
       };
       results.appendChild(one);
+    }
+    /* Under whatever is above it rather than instead of it. say() replaces the
+     * box, which was right while hits were the only thing in it - a search
+     * that found nothing had nothing to stand beside the sentence. It has now:
+     * the prescribed tile is offered whatever the collection answered, and it
+     * is the empty answers where that offer is worth the most. */
+    if (nothing) {
+      const line = document.createElement("p");
+      line.textContent = nothing;
+      results.appendChild(line);
     }
   };
 
@@ -513,10 +586,12 @@ function drawPick(spec: PickColumn): Picked {
     void findSymbols(word).then((answer) => {
       if (mine !== token) return;
       hits = answer.hits;
-      drawResults();
+      home = answer.home;
       // Both silences - a word the collection does not have, and a browser that
-      // never managed to ask - come back as a sentence from the seam.
-      if (answer.empty) say(results, answer.empty);
+      // never managed to ask - come back as a sentence from the seam, and are
+      // written into the box under whatever else is in it.
+      nothing = answer.empty;
+      drawResults();
       // And the third answer, which is neither: hits that are the nearest the
       // collection holds rather than the word. They stay; this says so.
       tell(answer.near);

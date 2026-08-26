@@ -19,6 +19,7 @@
 // as the project had no node_modules, no lockfile and no CI to run them, and it
 // has all three now.
 import {
+  arasaac,
   attributionsFor,
   getProvider,
   metacom,
@@ -325,6 +326,45 @@ export const statusOf = (source: ProviderId) => getProvider(source).status();
  * Promise, which is truthy, and put "[object Promise]" where a URL belonged. */
 export const imageUrl = (source: ProviderId, id: string): Promise<string | null> =>
   getProvider(source).getImageUrl(id);
+
+/**
+ * What an ARASAAC pick is filed under in this browser's store.
+ *
+ * The reference a layout holds for an ARASAAC symbol is a file name rather
+ * than an id - see backend/local.ts's pickSymbol(), and the note in
+ * data/app_package.ts about why that naming is what tells the two collections
+ * apart. `arasaac-` is what drawnFrom() reads, so the prefix is a rule and not
+ * a convention.
+ *
+ * The `-sw` suffix is the greyscale rendering of the same pictogram, and it
+ * has to be a different file: it is a different picture, it is fetched from a
+ * different host, and a key drawn light-on-dark wants that one specifically.
+ * Sharing one name with the coloured pictogram would make whichever was picked
+ * first the one both keys got.
+ *
+ * Written here rather than at either of its two call sites, because those two
+ * have to agree: the editor names the file while it is deciding what a start
+ * key points at, and the download names it while putting the bytes there.
+ */
+export const arasaacFile = (id: string, monochrome = false): string =>
+  `arasaac-${id}${monochrome ? "-sw" : ""}.png`;
+
+/**
+ * ARASAAC's own greyscale rendering of a pictogram, as a URL for <img src>.
+ *
+ * Not `imageUrl(source, id)` with an option, and not a query parameter on the
+ * URL that one asks for: `?color=false` on static.arasaac.org is ignored - the
+ * bytes come back identical, measured - because that host serves pre-rendered
+ * files. The API host renders on demand and honours it. bildquelle owns which
+ * host is which; this is the adapter for the one method that is ARASAAC's
+ * alone, so it is asked of the provider rather than of getProvider().
+ *
+ * METACOM has no counterpart and needs none: it ships a black-and-white file
+ * beside nearly every symbol - `haus4SW` beside `haus4` - which is a different
+ * symbol to reference rather than a different way to fetch one.
+ */
+export const arasaacMonochromeUrl = (id: string): Promise<string | null> =>
+  arasaac.getMonochromeImageUrl(id);
 
 /** A metacom: reference's picture, from the name the reference is — a bare
  * stem ("ja") or a folder-qualified one ("PNG_ohne_Rahmen/ja").

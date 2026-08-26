@@ -53,7 +53,22 @@ const SYNTHESIS = /tts\.speech\.microsoft\.com\/cognitiveservices\/v1/;
  * stays open. Answered here rather than left to the network, for the reason
  * the two above are: what these tests are about is everything after an answer
  * arrives. */
-const SYMBOL_SEARCH = /api\.arasaac\.org\//;
+const SYMBOL_SEARCH = /api\.arasaac\.org\/v1\//;
+/* ARASAAC's *other* endpoint on the same host, and the reason this pattern is
+ * anchored on /v1/ rather than on the host alone.
+ *
+ * A pictogram rendered in greyscale comes from the API host rather than from
+ * static.arasaac.org - see bildquelle's MONO_IMAGE, and the measurement behind
+ * it. A stand-in matching the whole host therefore answered a request for a
+ * picture with the empty JSON array above, and what got stored as the start
+ * key's picture was the two bytes "[]". Nothing said so until an <img> failed
+ * to decode them, several tests downstream, as a console error with a blob URL
+ * in it and no hint of where the blob came from.
+ *
+ * So the two are told apart the way ARASAAC tells them apart, and this one
+ * answers with a real PNG - which is also what lets the export below assert
+ * that the start key carries an image_id at all. */
+const SYMBOL_PICTURE = /api\.arasaac\.org\/api\/pictograms\//;
 
 function wav(seconds = 0.8, hz = 220): Buffer {
   const rate = 16000;
@@ -87,6 +102,9 @@ async function standIn(page: Page): Promise<void> {
   }));
   await page.route(SYMBOL_SEARCH, (route) => route.fulfill({
     contentType: "application/json", body: "[]",
+  }));
+  await page.route(SYMBOL_PICTURE, (route) => route.fulfill({
+    contentType: "image/png", body: readFileSync(join(HERE, "fixtures", "symbol.png")),
   }));
   await page.route(SYNTHESIS, (route) => {
     const said = route.request().postData() ?? "";
@@ -270,6 +288,42 @@ async function build(page: Page): Promise<void> {
   await expect(cells(page)).toHaveCount(15);
   await expect(page.locator("#appRows")).toHaveCount(0);
   await expect(page.locator("#appCols")).toHaveCount(0);
+
+  /* And then the three things a new Sammlung is handed, deliberately set aside.
+   *
+   * A blank tablet Sammlung arrives with no colour by word class, with the
+   * first column already the Sammlung's, a gap drawn under it and a way back
+   * to the start page standing in the corner - see app.blank(). None of the
+   * tests below is about any of that, and every one of them is about something
+   * those four change the shape of: cell 10 is not an empty cell any more,
+   * cell 0 belongs to every page rather than to this one, the gap puts a
+   * spacer track between the first column and the second, and three tests read
+   * a Fitzgerald colour off a cell or out of the archive. Building the fixture
+   * board on top of that would be measuring two things at once.
+   *
+   * So the board is put back to a plain fifteen cells wearing their classes,
+   * through the controls somebody really does use for it - one press of Apply
+   * for all three settings, which is what the panel is for. What the defaults
+   * *are* is asserted on its own, at the foot of this file, against a Sammlung
+   * nothing has been done to.
+   */
+  await hit(page, 10).click();
+  await buttonSheet(page)
+    .locator("button", { hasText: label("ui.app_first_column_remove") }).click();
+  const plain = await openGrid(page);
+  // Fill, border, off - and the first of them is what every layout stored
+  // before the choice existed is drawn as, which is why these tests were
+  // written against it.
+  await plain.getByRole("radio").first().check();
+  // Then the share switch, then the gap under it. Each press redraws the panel
+  // - the gap's own sentence changes with the switch above it - so the second
+  // is found again rather than held from before the first.
+  await plain.getByRole("checkbox").first().uncheck();
+  await plain.getByRole("checkbox").nth(1).uncheck();
+  await plain.locator("button", { hasText: label("ui.app_grid_apply") }).click();
+  await closeSheet(page);
+  await expect(page.locator("#appGrid .cell--shared")).toHaveCount(0);
+  await expect(cells(page).locator(".cell__word")).toHaveCount(0);
 
   await put(page, 0, { label: "ich", wordClass: "pronoun" });
   await put(page, 1, { label: "will", wordClass: "verb" });
@@ -1186,3 +1240,93 @@ test("a crossed-out picture is its own picture in the package", async ({ page })
   // Still a package the format's own checks accept.
   expect(checkPackage(pkg)).toEqual([]);
 });
+
+test("a Sammlung nobody has touched exports as the board it was handed",
+  async ({ page }) => {
+    /* The one test in this file that does not call build(), and the reason
+     * build() may put the defaults aside: this is where they are held to.
+     *
+     * A new tablet Sammlung is handed four things nobody chose - no colour by
+     * word class, a first column that belongs to the Sammlung, a gap under it,
+     * and a way back to the start page in the corner of that column. Three of
+     * them are only worth anything if they survive the export, because the
+     * board somebody builds here is not the board a child uses: that one is
+     * read out of the archive by another program entirely. A start key that is
+     * right in the editor and absent from the package is a key that works for
+     * as long as somebody is looking at it.
+     *
+     * Nothing is done to the Sammlung between making it and exporting it. That
+     * is the whole design of the test - every other assertion in this file is
+     * about an act, and this one is about what arrives before any act.
+     */
+    await standIn(page);
+    page.on("pageerror", (error) => { throw error; });
+    page.on("console", (one) => {
+      if (one.type() === "error") throw new Error(`console: ${one.text()}`);
+    });
+    await page.goto("./");
+    await page.locator("#collectionNew").click();
+    const asked = sheet(page, "ui.collection_target");
+    await asked.locator("button.choice")
+      .filter({ has: page.locator("strong", { hasText: label("ui.collection_target_app") }) })
+      .click();
+    await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+
+    /* The board, as it arrives. The start key is the lower left of a 3x5, which
+     * is cell 10, and it is in the column the Sammlung owns rather than on the
+     * page - so it is one of three shared cells and it is the only one of them
+     * with anything in it. */
+    await expect(cells(page)).toHaveCount(15);
+    await expect(page.locator("#appGrid .cell--shared")).toHaveCount(3);
+    await expect(page.locator("#appGrid.grid--gap")).toHaveCount(1);
+    await expect(cells(page).locator(".cell__word")).toHaveCount(1);
+    await expect(cells(page).nth(10).locator(".cell__word")).toHaveText(
+      label("ui.app_home_key"));
+    /* And its picture, which arrives after the board does - the download runs
+     * behind the Sammlung being made rather than in front of it, so that a
+     * first board never waits on the network. This is the assertion that the
+     * repaint afterwards actually happens: without it the cell would hold a
+     * reference to a file that is in the store and was not there when the cell
+     * decided there was no picture. */
+    await expect(cells(page).nth(10).locator(".cell__pic")).toBeVisible();
+    /* No wait for "gespeichert" here, unlike everywhere else in this file, and
+     * that is the point rather than an omission: the status line says a save
+     * happened, and nothing has been edited. createCollection() wrote the
+     * Sammlung, and the export below reads what it wrote. */
+
+    await page.locator("#appExport").click();
+    const sending = sheet(page, "ui.package_title");
+    await expect(sending).toBeVisible();
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      sending.locator("button", { hasText: label("ui.package_go") }).click(),
+    ]);
+    const { pkg } = readPackage(
+      new Uint8Array(readFileSync((await download.path())!)));
+
+    // §4.1's hint, which is what makes the tablet draw the column the way the
+    // editor drew it. Written only where it is asked for, so its presence here
+    // is the whole of the assertion.
+    expect(pkg.manifest.ext_lautstark_first_column_gap).toBe(true);
+
+    // §7.4's action, on the lower-left cell of the one board there is, with the
+    // picture that was fetched behind the making of it.
+    const board = pkg.boards[0]!;
+    const start = board.buttons.find((one) => one.id === `${board.id}-r3c1`)!;
+    expect(start).toBeDefined();
+    expect(start.action).toBe(":home");
+    expect(start.image_id).toBeTruthy();
+    // The key navigates and says nothing on the way, which is what the sheet
+    // that describes it says it does.
+    expect(start.ext_lautstark_append_on_navigate).toBeUndefined();
+
+    // No colour by word class means neither field on any button, which is what
+    // "off" writes - not a colour, and not a default colour either.
+    for (const one of pkg.boards.flatMap((b) => b.buttons)) {
+      expect(one.background_color).toBeUndefined();
+      expect(one.border_color).toBeUndefined();
+    }
+
+    // And still a package the format's own checks accept.
+    expect(checkPackage(pkg)).toEqual([]);
+  });

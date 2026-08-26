@@ -191,11 +191,19 @@ export async function pickSymbol(choice) {
   // METACOM never gets here - picker.js keeps the reference and asks nobody,
   // which is the licence rule. This is the ARASAAC branch, and the download
   // that app.py used to do into symbols/ happens here into the store instead.
-  const url = await symbols.imageUrl(choice.source, choice.id);
+  //
+  // `monochrome` asks for ARASAAC's greyscale rendering of the same pictogram
+  // rather than the coloured one, and it is a different file for the reason
+  // arasaacFile() gives. Nothing in the picker sets it: it is the start key's,
+  // where a two-tone mapping is put over the picture and only holds on a
+  // greyscale source.
+  const mono = choice.monochrome === true;
+  const url = mono ? await symbols.arasaacMonochromeUrl(choice.id)
+                   : await symbols.imageUrl(choice.source, choice.id);
   if (!url) throw new Error(`${choice.source} has no picture for ${choice.id}`);
   const response = await fetch(url);
   if (!response.ok) throw new Error(`ARASAAC answered ${response.status}`);
-  const name = `${choice.source}-${choice.id}.png`;
+  const name = symbols.arasaacFile(choice.id, mono);
   await store.putFile("symbols", name, await response.arrayBuffer());
   return { symbol: name, label: choice.label || "" };
 }

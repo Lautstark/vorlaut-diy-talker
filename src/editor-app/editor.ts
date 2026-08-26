@@ -44,6 +44,12 @@ import { dropdown, formRow, hint, missing, openSheet, textField }
   from "../shell/sheet.js";
 import type { Choice, Left } from "../shell/sheet.js";
 import { exportApp, paintOpenCollection, sizeChoices } from "../shell/collections.js";
+/* Which house a start key opens with, and which collection it comes out of.
+ * The shell's, not this file's: exchange/SPEC.md §5.1 allows one symbol source
+ * per package, so "the prescribed picture" is a different answer per
+ * collection, and which collection is in force is something a browser knows
+ * and an editor does not. */
+import { homeSymbol, homeSymbolSource, homeWord } from "../shell/homekey.js";
 import { collectionSheetPanel } from "../shell/voices.js";
 /* §7.3's rule about which presses put an entry in the bar, which the exporter
  * needs for the recordings and this file needs for the play buttons. One
@@ -1438,6 +1444,38 @@ export function wireEditor(): () => void {
   return () => collectionSheetPanel(null);
 }
 
+/**
+ * The key a new Sammlung starts with: bottom of the first column, and a way
+ * back to the start page.
+ *
+ * The lower-left corner because that is where a thumb is on a tablet held in
+ * two hands, and the first column because that is the column that stays put -
+ * a way back that is only on the page you started from is not a way back.
+ *
+ * `home` rather than a `goto` at whichever page is home today, which is the
+ * distinction the target list in the button sheet is made around: the two
+ * behave differently the moment somebody makes another page the start page,
+ * and a `goto` would stay pointing at the page that *used* to be the start.
+ * On a shared button, which is on every page at once, that is the difference
+ * between a board with a way home and a board with fifteen ways to one
+ * particular page. It exports as §7.4's `action: ":home"`.
+ *
+ * No word class, and that is a value rather than an omission: the key is
+ * navigation, not a word, so there is no Fitzgerald class it could be right
+ * about. It carries no vocalization either - a `home` press puts nothing in
+ * the bar, so there is nothing for it to have said.
+ */
+function homeKey(row: number): AppButton {
+  const key = blankButton(row, 0);
+  // Read at the moment the Sammlung is made, out of the same LANG that
+  // blank() writes as the Sammlung's language, so the word on the key and the
+  // language of the Sammlung it is on are the one answer.
+  key.label = homeWord();
+  key.symbol = homeSymbol(homeSymbolSource());
+  key.act = { kind: "home" };
+  return key;
+}
+
 /* What the shell is handed, and the whole of what it may ask for.
  *
  * Seven members, and each one is a question the shell has that only this
@@ -1447,11 +1485,33 @@ export function wireEditor(): () => void {
  */
 export const app: Editor = {
   /* What a new tablet Sammlung starts as: one empty page, on the smallest
-   * grid worth having. 3x5 rather than 6x11
+   * grid worth having, with the first column already the Sammlung's and a way
+   * back to the start page standing in the corner of it. 3x5 rather than 6x11
    * because a first board is big cells and few of them - and because the size
-   * is a number now, so growing into the larger one costs nothing. */
+   * is a number now, so growing into the larger one costs nothing.
+   *
+   * Every value here is a *starting* value and none of them is a constraint.
+   * The colour, the shared column, the gap and the size are four presses away
+   * in the panel behind the Sammlung's ⋯; the key in the corner is an ordinary
+   * button and can be retyped, repointed or deleted like any other. What they
+   * are is the answer somebody would otherwise have had to find before their
+   * board did anything - a board with no way back from a subpage is the first
+   * thing a new Sammlung gets wrong, and it gets it wrong silently.
+   *
+   * The colour is deliberately not "fill" here, and this is not the same
+   * decision as the `?? "fill"` two readers make of a layout that has no such
+   * field - see wordColor() above and app_package.ts's. Those two are about a
+   * Sammlung drawn before the field existed, which has to keep looking the way
+   * it was drawn; this is about a Sammlung being drawn now, which has nothing
+   * to keep. So the value is written rather than left to a fallback, and
+   * neither fallback moves.
+   */
   blank(grid?: GridSize): Layout {
     const first = blankPage();
+    // What was chosen while it was being made, or the first of the offered
+    // sizes for the callers that make one without asking - the seed a
+    // browser with nothing in it gets, and an import.
+    const size = grid ? { ...grid } : { rows: GRID.rows, columns: GRID.columns };
     return {
       target: "app",
       // The Sammlung's own language, started off from the language the page is
@@ -1460,11 +1520,29 @@ export const app: Editor = {
       // level: LANG is a live binding and a language switch moves it. The same
       // reasoning as editor-diy's.
       language: LANG,
-      // What was chosen while it was being made, or the first of the offered
-      // sizes for the callers that make one without asking - the seed a
-      // browser with nothing in it gets, and an import.
-      grid: grid ? { ...grid } : { rows: GRID.rows, columns: GRID.columns },
+      grid: size,
       pages: [first],
+      // No colour by word class. A first board is a handful of keys somebody
+      // is still deciding the words for, and a Fitzgerald key that nobody has
+      // assigned yet paints every one of them the same - which teaches the
+      // colour means nothing. It is one press in the panel once the words are
+      // there and the classes are worth telling apart.
+      wordColor: "off",
+      /* The first column is the Sammlung's from the start, and empty but for
+       * the key below.
+       *
+       * An array rather than an absent field, which is the whole of what
+       * "shared" is - see AppLayout.firstColumn. Switching it on afterwards is
+       * the one act in that panel that throws buttons away, because by then
+       * every page has a first column of its own and only one of them can be
+       * kept; switching it on before there is anything to lose costs nothing
+       * and is what the offer would have led to anyway.
+       */
+      firstColumn: [homeKey(size.rows - 1)],
+      // Drawn set apart, because it is: those buttons stay put while the pages
+      // behind them change, and the gap is how a board says so. It promises
+      // nothing untrue here - the column above really is shared.
+      firstColumnGap: true,
       home: first.id,
     };
   },
