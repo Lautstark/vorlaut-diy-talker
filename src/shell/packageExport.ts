@@ -112,7 +112,16 @@ export function openPackageExport(name: string, stem: string): void {
         status(t("ui.package_stopped"));
         return;
       }
-      offer(made.blob, `${stem}-app.obz`);
+      // .zip rather than .obz, and only on this export. Chrome on Android goes
+      // by the blob's media type for an unregistered extension, so a file
+      // declared application/zip and named .obz is one the download manager
+      // will not take — the package never reaches the tablet it was made for.
+      // The bytes are unchanged and the viewer never looks at a filename, so
+      // the rename costs nothing it can see. exchange/SPEC.md 2 says which of
+      // the two an importer goes by. The board export beside this one keeps
+      // .obz: other AAC software looks for that extension, and this one is
+      // read by nothing but our own app.
+      offer(made.blob, `${stem}-app.zip`);
       sheet.close();
       // Missing pictures are worth a sentence rather than a refusal: the
       // package works, the viewer marks those buttons, and the usual cause is

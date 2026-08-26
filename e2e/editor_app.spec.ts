@@ -398,7 +398,10 @@ test("a tablet Sammlung leaves as a package, and it passes the spec's own checks
 
     const path = await download.path();
     expect(path).toBeTruthy();
-    expect(download.suggestedFilename()).toMatch(/-app\.obz$/);
+    // .zip, not .obz. Chrome on Android goes by the media type for an
+    // unregistered extension, so a blob declared application/zip and named
+    // .obz is one the download manager refuses — see exchange/SPEC.md 2.
+    expect(download.suggestedFilename()).toMatch(/-app\.zip$/);
 
     const bytes = new Uint8Array(readFileSync(path!));
     // Where the round-trip sample comes from. The check no test on this side

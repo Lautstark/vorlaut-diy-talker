@@ -166,7 +166,10 @@ test("a Sammlung leaves as a package, and it passes the spec's own checks",
     // Synthesis, encoding and zipping happen between the click and the file.
     const path = await download.path();
     expect(path).toBeTruthy();
-    expect(download.suggestedFilename()).toMatch(/-app\.obz$/);
+    // .zip, not .obz. Chrome on Android goes by the media type for an
+    // unregistered extension, so a blob declared application/zip and named
+    // .obz is one the download manager refuses — see exchange/SPEC.md 2.
+    expect(download.suggestedFilename()).toMatch(/-app\.zip$/);
 
     const bytes = new Uint8Array(readFileSync(path!));
     // A way out for the check no test here can make: dump the package and put
