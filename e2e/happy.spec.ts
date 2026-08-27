@@ -5,7 +5,7 @@ import {
   KEY_CELL, cells, expectSaid, key, keySheet, label, nameSet, openBoard, press, within,
   put, search, searchNote, setCard, setKey, word,
 } from "./diy.js";
-import { openSettings, openVoices } from "./sheets.js";
+import { openSettings, openVoices, pickExport } from "./sheets.js";
 
 /* The whole editing loop, end to end, in one browser.
  *
@@ -393,11 +393,11 @@ test("a Sammlung leaves as a .obz and comes back beside the others", async ({ pa
   await put(page, 0, "Das bleibt");
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 
-  // Exporting is in the work head's ⋯, beside the Sammlung it exports.
-  await page.locator("#collectionMenu").click();
+  // Exporting is in the work head's ⋯, beside the Sammlung it exports, and
+  // the entry asks what the file is for before it writes one.
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.locator(".menu button", { hasText: label("ui.collection_export") }).click(),
+    pickExport(page, "other"),
   ]);
   const file = await download.path();
   expect(file).toBeTruthy();

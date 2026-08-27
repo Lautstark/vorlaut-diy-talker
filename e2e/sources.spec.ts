@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { cells, hits, key, keySheet, press, query, search, searchNote } from "./diy.js";
-import { openCollectionSettings } from "./sheets.js";
+import { openCollectionSettings, pickExport } from "./sheets.js";
 
 /* Which collection the sheet offers, across a reload.
  *
@@ -365,11 +365,11 @@ test.describe("with the folder already connected at load", () => {
      * the language of the page it is opened on. So the second half below
      * asserts that the field is still naming the collection, in the language
      * the page was already in and stays in. */
-    // Exporting is in the work head's ⋯ now, beside the Sammlung it exports.
-    await page.locator("#collectionMenu").click();
+    // Exporting is in the work head's ⋯ now, beside the Sammlung it exports,
+    // and the entry asks what the file is for before it writes one.
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      page.locator(".menu button", { hasText: label("ui.collection_export") }).click(),
+      pickExport(page, "other"),
     ]);
     const file = await download.path();
     expect(file).toBeTruthy();

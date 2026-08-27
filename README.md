@@ -43,8 +43,8 @@ immediately. The boards, the symbols and the settings live in the browser's own
 storage — in that browser, on that machine, and nowhere else.
 
 Getting it onto the talker is two steps and two pages. The editor writes a file
-for the device — *Export as a device package*, in the `⋯` beside the
-collection's name — and [`loader/`](loader/README.md), a second page out of the
+for the device — *Export this collection* in the `⋯` beside the collection's
+name, then *For the talker* — and [`loader/`](loader/README.md), a second page out of the
 same build, checks that file, compiles it into what the talker reads and pushes
 it down the USB-C cable. Flash the firmware once first;
 [docs/cable.md](docs/cable.md) is the wire, and

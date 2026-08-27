@@ -1483,12 +1483,18 @@ a.factlinks__line:hover { text-decoration: underline; }
    14px, so that it reads as the outer rhythm against the 8px inside .sizeask:
    the size question, its choices and its own note have to go on reading as one
    group and not as three more items in the stack. */
-dialog.sheet--target > .body { display: grid; gap: 14px; }
+dialog.sheet--target > .body,
+/* And the sheet that asks where a finished Sammlung goes, which has the same
+   need arrived at from the other end: three cards this time, and `p + p`
+   reaches none of them either. A second name rather than a rename, because
+   `sheet--target` is written out in docs/packages.md as the fix it was. */
+dialog.sheet--choices > .body { display: grid; gap: 14px; }
 
-/* The two choices a new Sammlung is made from. Stacked and full width, because
-   each is a heading and a sentence rather than a word - the sentence is what
-   makes the choice, and it is the half somebody would otherwise have to guess
-   at from two labels four words long. */
+/* The cards a choice is made from - two for what a new Sammlung is, three for
+   what a finished one is exported as. Stacked and full width, because each is
+   a heading and a sentence rather than a word - the sentence is what makes the
+   choice, and it is the half somebody would otherwise have to guess at from
+   labels four words long. */
 .btn.choice {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   width: 100%; text-align: left; padding: 12px 14px; height: auto;
@@ -1498,11 +1504,14 @@ dialog.sheet--target > .body { display: grid; gap: 14px; }
   white-space: normal;
 }
 .btn.choice span { font-size: 13px; color: var(--text-dim); font-weight: normal; }
-/* A choice selects rather than fires: the target dialog has a second question
-   inside it - how big a page is - and a press that made the Sammlung on the
-   way past would ask that too late. So which one is in force has to be
-   visible, and it is marked the way the size pictures beside it are. The card
-   behind the menu draws its three colour states from the same class. */
+/* A choice in the target dialog selects rather than fires: that dialog has a
+   second question inside it - how big a page is - and a press that made the
+   Sammlung on the way past would ask that too late. So which one is in force
+   has to be visible, and it is marked the way the size pictures beside it are.
+   The card behind the menu draws its three colour states from the same class.
+
+   The export cards have no second question and so no selected state: they
+   fire, and they carry no aria-pressed for this rule to find. */
 .btn.choice[aria-pressed="true"] {
   border-color: var(--accent); background: var(--accent-soft);
 }

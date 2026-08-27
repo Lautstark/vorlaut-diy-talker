@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { GRID, LANGUAGES, TEXTS } from "../src/core/boot_data.js";
-import { expectSaid, put } from "./diy.js";
+import { expectSaid, put, within } from "./diy.js";
 import { openCollectionSettings, openPanel, pickFromMenu } from "./sheets.js";
 
 /* Several Sammlungen in one browser: making them, switching, copying, deleting.
@@ -286,13 +286,14 @@ test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
     await page.locator("#collectionMenu").click();
     const entries = page.locator('[role="menuitem"]');
     await expect(entries).toHaveText([
-      // Three exports of the Sammlung, and three functions all the way down -
-      // adr/0010 is why they stay three. There was a fourth entry, writing a
-      // build's loose files into a folder, and it went with the build
-      // (adr/0011): the loader page compiles and offers the same folder now,
-      // beside the cable, where the files exist.
-      label("ui.collection_export"), label("ui.collection_export_app"),
-      label("ui.collection_export_device"),
+      // One export of the Sammlung, which is adr/0011's "one action ...
+      // whatever kind of board it is". It was three - one per file - and the
+      // three writers behind it are still three, which is what the export
+      // below and app_package.spec.ts hold it to. There was a fourth entry
+      // besides, writing a build's loose files into a folder, and it went with
+      // the build (adr/0011): the loader page compiles and offers the same
+      // folder now, beside the cable, where the files exist.
+      label("ui.collection_export"),
       label("ui.collection_settings"),
       label("ui.collection_delete"),
     ]);
@@ -303,10 +304,56 @@ test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
     await expect(page.locator("#collectionName")).toBeFocused();
 
     await page.locator("#collectionMenu").click();
+    // The same label, out of the same key: a tablet Sammlung has one place to
+    // go and is not asked, but the act is the act either way.
     await expect(entries).toHaveText([
-      label("ui.collection_export_this"), label("ui.collection_settings"),
+      label("ui.collection_export"), label("ui.collection_settings"),
       label("ui.collection_delete"),
     ]);
+  });
+
+/* One entry, three cards, and a dismissal that costs nothing.
+ *
+ * The second half is the one worth a test. A dialog that has already done
+ * something by the time somebody declines it is the defect this product got
+ * wrong twice in one day, and the fix is never to take the dialog away - so
+ * what is asserted is that the ✕ leaves no file, no sheet and nothing in the
+ * status line. What the three cards actually write is asserted where the bytes
+ * are: app_package.spec.ts opens two of them and compares what comes out.
+ */
+test("the export entry asks what the file is for, and takes no for an answer",
+  async ({ page }) => {
+    await openCollection(page);
+    await pickFromMenu(page, "ui.collection_export");
+
+    const choice = page.locator("dialog.sheet--choices");
+    await expect(choice).toBeVisible();
+    await expect(choice.locator("button.choice strong")).toHaveText([
+      label("ui.collection_export_for_talker"),
+      label("ui.collection_export_for_app"),
+      label("ui.collection_export_for_other"),
+    ]);
+    /* And the sentence under each heading, which is asserted rather than left
+     * to the eye: three headings four words long are three guesses, and the
+     * sentence is the half that says what the file is actually for. */
+    await expect(choice.locator("button.choice span")).toHaveText([
+      label("ui.collection_export_for_talker_note"),
+      label("ui.collection_export_for_app_note"),
+      label("ui.collection_export_for_other_note"),
+    ]);
+
+    // Nothing has been written and nothing said: the presses are the cards,
+    // and this is only the question.
+    await expect(page.locator("#status")).not.toContainText(within("ui.collection_exported"));
+
+    let downloaded = false;
+    page.on("download", () => { downloaded = true; });
+    await choice.getByRole("button", { name: label("ui.close") }).click();
+    await expect(choice).toBeHidden();
+    // No second sheet came up behind it, which is what a card would have
+    // opened, and no file went anywhere.
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
+    expect(downloaded).toBe(false);
   });
 
 /* One scrolling area in the settings sheet, and only one.

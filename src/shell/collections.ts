@@ -700,10 +700,87 @@ const currentName = (): string => {
  *  named by the same rule. */
 const fileStem = (): string => safeName(currentName());
 
+/** The one entry, and the three doors behind it.
+ *
+ * **One button, three functions, and keeping those two facts apart is the
+ * whole of this.** What a person presses is one act - export this Sammlung -
+ * which is what adr/0011 meant by "one action ... whatever kind of board it
+ * is", and it says in the same breath that the writers stay three. They share
+ * no code path because exchange/SPEC.md §5.2 makes that a licensing guarantee
+ * rather than a tidiness preference: the talker's export never writes a
+ * METACOM symbol as pixels, and a refusal enforced by an argument is one call
+ * site away from being untrue.
+ *
+ * So the choice is spent here and never travels. Each card names one of the
+ * three functions below literally, and each of those names one door; nothing
+ * carries a kind, a flag or a target past this line for a writer to branch on.
+ * A dispatch that decided *inside* an export which package to write is the
+ * thing §5.2 forbids by name, and there is no such value to pass.
+ *
+ * The shape is askTarget()'s, a few hundred lines up: a stacked card per
+ * choice, a heading and under it the sentence that actually makes the choice.
+ * Somebody here has a Sammlung and something to put it on and has no reason to
+ * know what an .obz is, so each card says what it is *for* - a talker, a
+ * tablet, another program - rather than what is in it.
+ *
+ * A card fires rather than selects, which is where this differs from
+ * askTarget: that dialog has a second question inside it and this one has
+ * none. Nothing is written on the press either - the two exports that cost
+ * minutes open the sheet that names the Sammlung and asks again, and the
+ * document export is a file that is already there to write.
+ *
+ * **Dismissed, it does nothing at all** - not even the save each of the three
+ * begins with, because the save is inside them rather than in front of them. A
+ * cancelled dialog costs nothing, and the answer to one that costs something
+ * is never to take the dialog away.
+ */
+function chooseExport(): void {
+  if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
+
+  // Assigned below and read from the presses, which happen later. The cards
+  // have to exist before the sheet that holds them does.
+  let sheet: ReturnType<typeof openDialog> | undefined;
+  const card = (which: string, run: () => void): HTMLButtonElement => {
+    const choice = document.createElement("button");
+    choice.className = "btn choice";
+    choice.type = "button";
+    // No aria-pressed, unlike askTarget's cards: these fire rather than hold a
+    // selection, and a button claiming a pressed state it never keeps is worse
+    // for somebody reading it out than one that claims nothing.
+    const head = document.createElement("strong");
+    head.textContent = t(`ui.collection_export_for_${which}`);
+    const note = document.createElement("span");
+    note.textContent = t(`ui.collection_export_for_${which}_note`);
+    choice.append(head, note);
+    choice.onclick = () => { sheet?.close(); run(); };
+    return choice;
+  };
+
+  sheet = openDialog({
+    title: t("ui.collection_export_choice"),
+    closeLabel: t("ui.close"),
+    /* The talker first, because this menu is a talker Sammlung's and since
+     * adr/0011 this is the only way one reaches a device at all. The other
+     * program last: it is the one that answers a question nobody has most
+     * days. */
+    body: [
+      card("talker", () => { void exportDevice(); }),
+      card("app", () => { void exportApp(); }),
+      card("other", () => { void exportOne(); }),
+    ],
+    // No footer. There is nothing to confirm - the cards are the presses - and
+    // an Abbrechen beside a corner ✕ would be two buttons for one act.
+  });
+  // The gap between the cards, which components.css does not reach: its sheet
+  // body spaces `p + p`, and these are buttons. ui.css carries the rest.
+  sheet.dialog.classList.add("sheet--choices");
+}
+
 /** The Sammlung as a document other AAC software opens: symbols by reference.
  *
  *  The talker's, and only the talker's: obf.ts writes sets, the ring and the
- *  hole where the speaker is. The ⋯ does not offer it on a tablet Sammlung. */
+ *  hole where the speaker is. The ⋯ does not offer it on a tablet Sammlung,
+ *  and chooseExport() is the card that reaches it. */
 async function exportOne(): Promise<void> {
   if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
   try {
@@ -718,11 +795,11 @@ async function exportOne(): Promise<void> {
 /** The Sammlung as the talker's own .obz: the sources, the negation flags and
  * the 16 kHz WAVs a talker plays.
  *
- * The third entry, and a third door all the way down for the reason the other
- * two are two - exchange/SPEC.md §5.2 and adr/0010. It sits directly under the
- * first two because it is a Sammlung that comes out of it: a file somebody
- * keeps, diffs against last month's, or carries to whoever is at the bench
- * with the talker.
+ * The third door, all the way down, for the reason the other two are two -
+ * exchange/SPEC.md §5.2 and adr/0010. It is one card of three now rather than
+ * one entry of three, and that changed nothing here: what a person presses and
+ * what gets written are different questions, and only the first of them was
+ * ever three-by-accident.
  *
  * **It is also, since adr/0011, the only way a Sammlung reaches a device.**
  * The button that sent one is gone and so is the build behind it; this file is
@@ -742,15 +819,15 @@ async function exportDevice(): Promise<void> {
 /** The Sammlung as the package the Android viewer opens: pictures and
  * recordings baked in as files.
  *
- * A second entry rather than an option on the first, all the way down to the
- * backend - exchange/SPEC.md §5.2, and the note above exportAppPackage().
+ * A second function rather than an option on the first, all the way down to
+ * the backend - exchange/SPEC.md §5.2, and the note above exportAppPackage().
+ * The menu entry it used to have of its own is a card in chooseExport() now;
+ * the door is untouched, which is the only half that rule is about.
  *
  * Exported, because it is the one whole-Sammlung act a tablet Sammlung has and
- * editor-app puts it in the work head's slot beside the name (conventions.md
- * §3.3), exactly as the talker puts its transfer there. For a talker Sammlung
- * it stays in the ⋯ with the other export - getting one onto the *device* is
- * what that slot means there, and this is a second way out rather than the way
- * out.
+ * editor-app adds it to the ⋯ under the same label the shell's own entry
+ * carries. For a talker Sammlung it is reached through that entry instead, as
+ * one card of three.
  *
  * The wait, the count and the way to stop are in shell/packageExport.ts, and
  * they are there because a full tablet Sammlung is hundreds of syntheses.
@@ -928,30 +1005,34 @@ export function wireCollections(): void {
   $<HTMLButtonElement>("collectionMenu").onclick = (event) => {
     event.stopPropagation();
     menuOn($("collectionMenu"), (add) => {
-      /* Both exports for a talker Sammlung; for a tablet's, neither here.
+      /* One export for a talker Sammlung, which asks what for; for a tablet's,
+       * none here.
        *
-       * The document export is obf.ts's, and obf.ts writes the five-key
-       * device: sets, the ring, the hole where the speaker is. It has nothing
-       * to say about a page of a grid, and a menu entry that would produce a
-       * wrong file is worse than no entry - exchange/SPEC.md §7.4's argument
-       * about a button that looks live and does the wrong thing, one floor up.
+       * This was three entries until adr/0011's last open point was done -
+       * one per file - and they read as three acts when they are three shapes
+       * of one. What a person has is a Sammlung and something to put it on, so
+       * the menu says the act and chooseExport() asks the question. The three
+       * writers behind it are untouched and stay untouched: exchange/SPEC.md
+       * §5.2 is a licence rather than a preference, and adr/0010 says what
+       * merging them would cost.
        *
-       * The package export is not missing on a tablet Sammlung either: it
-       * comes back a few lines down through extras?.(), because it is that
-       * Sammlung's one whole-Sammlung act and editor-app is what knows how to
-       * do it. It spent a while as a filled button in the work head beside the
-       * name; templates/board.ts has why that was given up. Wherever it sits,
-       * it sits in one place - two doors to one act is two things to keep in
-       * step for no gain, the same argument that took the gear out of the page
-       * header. */
+       * Not on a tablet Sammlung, and one of the three is why. The document
+       * export is obf.ts's, and obf.ts writes the five-key device: sets, the
+       * ring, the hole where the speaker is. It has nothing to say about a
+       * page of a grid, and an entry that would produce a wrong file is worse
+       * than no entry - exchange/SPEC.md §7.4's argument about a button that
+       * looks live and does the wrong thing, one floor up.
+       *
+       * The package export is not missing there either: it comes back a few
+       * lines down through extras?.(), under the same label, because it is
+       * that Sammlung's one whole-Sammlung act and editor-app is what knows
+       * how to do it. It spent a while as a filled button in the work head
+       * beside the name; templates/board.ts has why that was given up.
+       * Wherever it sits, it sits in one place - two doors to one act is two
+       * things to keep in step for no gain, the same argument that took the
+       * gear out of the page header. */
       if (!isApp(state.layout)) {
-        add(t("ui.collection_export"), () => { void exportOne(); });
-        add(t("ui.collection_export_app"), () => { void exportApp(); });
-        /* And the device build's own .obz, which is the third of them. Under
-         * the other two because it is the same act - this Sammlung, out as a
-         * file - and above the folder export below, which writes a build's
-         * loose files rather than a Sammlung. */
-        add(t("ui.collection_export_device"), () => { void exportDevice(); });
+        add(t("ui.collection_export"), () => { chooseExport(); });
       }
       /* Whatever act the editor on screen has to add, which is exactly one
        * either way and an export both times.
