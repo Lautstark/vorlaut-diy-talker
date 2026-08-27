@@ -662,7 +662,8 @@ somebody can check rather than judge. Adding what this survey found, in order:
    places — the generated `index.json` and `device/tools/make_fixtures.mjs`,
    which writes it — and they have to move together. *Checkable: the version in
    `index.json` has no `-draft` on it, and `make_fixtures.mjs` agrees.*
-   ✅ **Done, 2026-08-27**, and the version is **`1.0.0`**. Reaching 1.0.0 from
+   ✅ **Done, 2026-08-27**, and the version is **`1.0.0`** — `1.1.0` by the end
+   of the same day, for the reason two paragraphs down. Reaching 1.0.0 from
    a 0.x is not a breaking change but the statement that the thing is now
    stable, which is what a freeze is; ADR 0009's MAJOR rule — a flashed device
    *misreading* what a conforming builder writes — governs the increments after
@@ -671,6 +672,23 @@ somebody can check rather than judge. Adding what this survey found, in order:
    statement rather than the string's: `exchange/`'s `spec_version` is a plain
    `1.2.0` while “draft, not ratified” is a sentence in `SPEC.md`, and `device/`
    having no prose by design is exactly how the word got inside the number.
+
+   **And the number moved again the same day, to `1.1.0`.** This item froze a
+   string that describes a directory, and
+   [`adr/0013`](../adr/0013-device-fixtures-cover-the-package-too.md) then
+   widened the directory: `device/fixtures/` gained a `package` kind, covering
+   the `.obz` between the editor and the loader page as well as the bytes
+   between a browser and the talker. Landing that without moving the number
+   would have left `1.0.0` describing a set it had stopped describing, which is
+   the failure this item exists to prevent, one turn later — so the two changes
+   were made in that order on purpose and the second paid for the first.
+   **MINOR and not MAJOR**, because ADR 0009's MAJOR rule is a flashed device
+   *misreading* a payload a conforming builder writes, and nothing the talker
+   reads moved; MINOR and not PATCH, because a consumer pinning `1.0.0` is
+   pinning a set that is silent about the package. The assertion below is
+   unaffected — it refuses a pre-release suffix and has no opinion about which
+   MAJOR.MINOR.PATCH the string is — and so is everything this item says about
+   why the suffix went, which is the half that was about the *tag*.
 
    **The assertion landed somewhere neither runner is**, which was the part
    worth deciding rather than typing.

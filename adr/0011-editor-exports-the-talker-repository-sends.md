@@ -17,7 +17,12 @@ talker on the other end of a USB-C cable has new contents.
 function call. `exportDevicePackage()` writes a device-shaped `.obz` — the
 sources unresampled, negation as a flag, the device's own 16 kHz WAVs — and
 `compileDevice()` reads it back into exactly the files the `data` store holds,
-which is what `tests/unit/device_roundtrip.test.ts` holds it to. For the first
+which is what `tests/unit/device_roundtrip.test.ts` held it to — a file
+[ADR 0013](0013-device-fixtures-cover-the-package-too.md) replaced on
+2026-08-27 with the `package` kind under
+[`device/fixtures/`](../device/README.md), because the split
+[ADR 0012](0012-the-repository-splits-editor-leaves.md) decided leaves no
+repository holding both halves of that round trip. For the first
 time the boundary between *what the editor knows* and *what the device needs*
 is expressible as bytes on a disk rather than as an import.
 
