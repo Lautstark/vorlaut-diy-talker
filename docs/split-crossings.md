@@ -202,21 +202,16 @@ test does not prove* section.
 **The handoff link.** [`src/shell/packageExport.ts`](../src/shell/packageExport.ts)
 builds `new URL("loader/", BASE_URL)` and offers it after a device export. It is
 a relative link within one Pages deployment today and an absolute cross-site link
-afterwards — `https://lautstark.github.io/vorlaut-diy-talker/loader/`, an address
-[`repository-map.md`](repository-map.md#the-three-names) already
-establishes does **not** move, which is what makes hard-coding it safe. This is
+afterwards. **The address to write out is
+`https://lautstark.github.io/vorlaut-diy-talker/`, not the `loader/` under it**:
+the loader takes the root when the editor leaves
+([`repository-map.md`](repository-map.md#what-the-move-costs)), and the
+repository name in front of it is what does not move, which is what makes
+hard-coding it safe. This is
 the only crossing on this page whose breakage a carer sees rather than a test,
 and the only one that is a runtime dependency rather than a build one. It needs
 the same treatment as the three literal base paths that page lists, and there is
 no gate for any of them.
-
-That the address does not move was a consequence of the direction until
-2026-08-27, when it became a decision in its own right: the loader is **not**
-promoted to the Pages root when the editor leaves, and a short static page takes
-the root instead — [`repository-map.md`](repository-map.md#what-the-move-costs),
-under *what answers at the Pages root*. This paragraph is half of why. Whoever
-writes the literal above into `vorlaut-editor` is writing it against that
-decision, so the two are worth reading together.
 
 **The shared language choice, which survives by accident.** Both pages read
 `vorlaut.language` out of `localStorage` ([`src/core/boot.ts`](../src/core/boot.ts)
