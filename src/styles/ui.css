@@ -1078,7 +1078,7 @@ a.factlinks__line:hover { text-decoration: underline; }
    word: it is a flex item at the foot of the cell and this is absolutely
    positioned above it. */
 .cell__play {
-  position: absolute; top: 4px; right: 4px; z-index: 2;
+  position: absolute; top: 4px; left: 4px; z-index: 2;
   width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
   padding: 0; line-height: 1;
   display: grid; place-items: center;
@@ -1093,27 +1093,35 @@ a.factlinks__line:hover { text-decoration: underline; }
 .cell__play:hover { color: var(--text); }
 .cell__play:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* The corner that follows a navigation button. Top left, always, and the play
-   control is top right, always.
+/* The corner that follows a navigation button. Top right, always.
+
+   ## The seating, and why it is the only one that works
+
+   Three things can appear in a cell's top corners, and which of them can meet
+   is what decides where each sits:
+
+     the play control   with a `speak` badge, and with this corner
+     this corner        with the play control, never with a badge
+     the act badge      with the play control, never with this corner
+
+   So the play control needs a seat of its own - it is the one that meets both
+   others - and these two can share the remaining one, because a `goto` has
+   carried no badge since this corner took over from its arrow. Play on the
+   left, everything else on the right.
 
    **Fixed seats rather than one of them stepping aside.** These two did share
-   the top right for a while, with the follow shifting a button's width to the
-   left where both were drawn - a `goto` that carries its word into the
-   sentence has something to audition as well as a page to follow. It worked,
-   and it was still the wrong shape: a rule that holds only while a class is
-   applied and an arithmetic offset stays in step with a clamp is a rule that
-   comes apart quietly. Two seats that never move cannot.
-
-   The left seat is free exactly when this control exists: it is where the act
-   badge sits, and a `goto` has carried no badge since the corner took over
-   from it. Nothing else can be there at the same time.
+   the top right for a while, with the follow shifting a button's width where
+   both were drawn. It worked, and it was still the wrong shape: a rule that
+   holds only while a class is applied and an arithmetic offset stays in step
+   with a clamp is a rule that comes apart quietly. Seats that never move
+   cannot.
 
    Always drawn rather than appearing under the pointer, which is the one place
    it differs from the play control. This is the only way from a page to the
    page it opens - the row of tiles that used to repeat them is gone - and a
    tablet has no pointer to hover with. */
 .cell__follow {
-  position: absolute; top: 4px; left: 4px; z-index: 2;
+  position: absolute; top: 4px; right: 4px; z-index: 2;
   width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
   padding: 0; line-height: 1;
   display: grid; place-items: center;
@@ -1319,8 +1327,12 @@ a.factlinks__line:hover { text-decoration: underline; }
 /* What a button does, where it is not the default and has no better mark of
    its own. Four of the seven acts land here now: a `goto` has the corner that
    follows it and a `home` has the heavier edge, and both of those say it
-   better than a glyph in a corner. */
-.cell__act { position: absolute; top: 3px; left: 5px; font-size: 11px; opacity: .75; }
+   better than a glyph in a corner.
+
+   Top right, sharing the seat with that corner - see .cell__follow for why the
+   two can. The left is the play control's alone, because the play control is
+   the one thing here that turns up beside either of them. */
+.cell__act { position: absolute; top: 3px; right: 5px; font-size: 11px; opacity: .75; }
 .cell--empty {
   background: transparent; border-style: dashed; color: var(--text-faint);
 }
