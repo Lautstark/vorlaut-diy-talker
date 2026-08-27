@@ -531,19 +531,18 @@ export function sourcePixels(source) {
  * this existed still renders byte for byte what it did.
  */
 export function renderSymbol(source, { resample = "lanczos", negated = false } = {}) {
-  const crossed = (pixels) => toRgb565Be(negated ? negateInto(pixels) : pixels);
-
-  if (!source) return crossed(placeholder());
+  if (!source) return renderPixels(null, { negated });
 
   const pixels = sourcePixels(source);
-  const ground = fillColour(pixels);
-  const [width, height] = thumbnailSize(pixels.width, pixels.height);
-  const offset = [
-    Math.floor((TILE_SIZE - width) / 2),
-    Math.floor((TILE_SIZE - height) / 2),
-  ];
 
   if (resample === "canvas") {
+    const crossed = (done) => toRgb565Be(negated ? negateInto(done) : done);
+    const ground = fillColour(pixels);
+    const [width, height] = thumbnailSize(pixels.width, pixels.height);
+    const offset = [
+      Math.floor((TILE_SIZE - width) / 2),
+      Math.floor((TILE_SIZE - height) / 2),
+    ];
     const context = scratch(TILE_SIZE, TILE_SIZE);
     context.fillStyle = `rgb(${ground[0]},${ground[1]},${ground[2]})`;
     context.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
@@ -553,5 +552,37 @@ export function renderSymbol(source, { resample = "lanczos", negated = false } =
     return crossed(context.getImageData(0, 0, TILE_SIZE, TILE_SIZE));
   }
 
+  return renderPixels(pixels, { negated });
+}
+
+/** renderSymbol(), from the point where the picture has already been decoded.
+ *
+ * The same bytes as renderSymbol() for the same input - it is the second half
+ * of that function, called by it - and the reason it is reachable on its own
+ * is where the browser stops being needed. Everything above this line wants a
+ * canvas: sourcePixels() draws the source to get at its pixels, and the
+ * "canvas" resample hands the whole shrink to drawImage. Everything below it
+ * is arithmetic over a Uint8ClampedArray, which is why
+ * tests/unit/device_roundtrip.test.ts can compile a device build under node
+ * and why data/device_package.ts asks its host to decode rather than decoding.
+ *
+ * `pixels` is anything with `data`, `width` and `height` - an ImageData, or
+ * the same three fields out of a fixture. null is a symbol that did not
+ * resolve, which is not an error but the grey cross.
+ *
+ * Only the Lanczos path. "canvas" needs the source itself rather than its
+ * pixels, so it stays where the source is; it exists for tools/tilecheck.py
+ * and has never been what a build uses.
+ */
+export function renderPixels(pixels, { negated = false } = {}) {
+  const crossed = (done) => toRgb565Be(negated ? negateInto(done) : done);
+  if (!pixels) return crossed(placeholder());
+
+  const ground = fillColour(pixels);
+  const [width, height] = thumbnailSize(pixels.width, pixels.height);
+  const offset = [
+    Math.floor((TILE_SIZE - width) / 2),
+    Math.floor((TILE_SIZE - height) / 2),
+  ];
   return crossed(compose(thumbnail(pixels, width, height), ground, offset));
 }

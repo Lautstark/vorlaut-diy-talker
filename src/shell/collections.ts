@@ -39,7 +39,7 @@ import { renameField, type RenameField } from "@lautstark/design/rename";
 import { drawCollections } from "@lautstark/design/collections";
 import { reason } from "../core/errors.js";
 import {
-  createCollection, deleteCollection, exportBoard,
+  createCollection, deleteCollection, exportBoard, exportDevicePackage,
   layoutOf, listCollections, readSettings, renameCollection, useCollection,
   writeSettings,
 } from "../backend/index.js";
@@ -700,6 +700,38 @@ async function exportOne(): Promise<void> {
   }
 }
 
+/** The Sammlung as the device build's own .obz: the sources, the negation
+ * flags and the 16 kHz WAVs the last Release wrote.
+ *
+ * The third entry, and a third door all the way down for the reason the other
+ * two are two - exchange/SPEC.md §5.2 and adr/0010. It sits directly under the
+ * first two rather than beside the folder export, because it is a Sammlung
+ * that comes out of it and not a build: a file somebody keeps, diffs against
+ * last month's, or sends to whoever is at the bench with the talker.
+ *
+ * No progress dialog, unlike the app package. It writes down a build rather
+ * than synthesising one, so there is nothing slow in it - see
+ * exportDevicePackage(). What it can say instead is that there is no current
+ * build to write down, and that sentence comes back as the error.
+ */
+async function exportDevice(): Promise<void> {
+  if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
+  try {
+    await saveNow();
+    const made = await exportDevicePackage();
+    offer(made.blob, `${fileStem()}-device.obz`);
+    // The gap is named rather than swallowed: a picture that resolved to
+    // nothing is a grey cross on the device too, so the file is honest - but
+    // somebody looking at it later has no way to tell a symbol that was never
+    // there from a METACOM folder this browser had forgotten.
+    status(made.missing
+      ? t("ui.collection_exported_device_gaps", { n: made.missing })
+      : t("ui.collection_exported_device"));
+  } catch (error) {
+    status(t("ui.collection_export_failed", { error: reason(error) }));
+  }
+}
+
 /** The Sammlung as the package the Android viewer opens: pictures and
  * recordings baked in as files.
  *
@@ -905,6 +937,11 @@ export function wireCollections(): void {
       if (!isApp(state.layout)) {
         add(t("ui.collection_export"), () => { void exportOne(); });
         add(t("ui.collection_export_app"), () => { void exportApp(); });
+        /* And the device build's own .obz, which is the third of them. Under
+         * the other two because it is the same act - this Sammlung, out as a
+         * file - and above the folder export below, which writes a build's
+         * loose files rather than a Sammlung. */
+        add(t("ui.collection_export_device"), () => { void exportDevice(); });
       }
       /* Whatever act the editor on screen has to add - for the talker, the
        * build written into a folder, which is a third kind of export and so
