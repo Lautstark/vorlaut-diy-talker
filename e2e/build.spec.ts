@@ -118,10 +118,20 @@ const IDB = `
 `;
 
 /* Chosen so that every count below has something to be wrong about: four
- * pictures used nine times between them, three references that resolve to
- * nothing - two blank ones and a name no symbol answers to - which must share
- * one placeholder tile, and five distinct sentences across seven slots with
- * text. */
+ * pictures used nine times between them, five distinct sentences across seven
+ * slots with text, and - the part this board is really built for - both ways a
+ * key can end up without a picture, which are two different things and were
+ * one tile until 2026-08-27.
+ *
+ * A key that wanted a picture and has none draws the placeholder: "weg.png",
+ * which no symbol answers to, and the third key of the second set, which has
+ * the word "Bitte" and no symbol. They share one tile, because they are the
+ * same sentence about two keys.
+ *
+ * A key holding neither a word nor a picture draws tiles.blank() instead -
+ * the last key of the first set and the last three of the third. Nothing was
+ * asked for there, so nothing is missing, and the grey cross those keys used
+ * to get made an untouched board look like a broken one. */
 const BOARD = {
   sleep_timeout_seconds: 600,
   language: "de",
@@ -346,12 +356,51 @@ test("it builds a board into the store, one file per distinct thing", async ({ p
   expect(built.log.split("\n").filter((l) => /^(build|ui|err)\.[a-z_.]+$/.test(l)))
     .toEqual([]);
 
-  expect(tilesOf(built.names)).toHaveLength(5);   // four pictures, one placeholder
+  /* Six, and BOARD is built so that the last two are the pair that used to be
+     one file. Four pictures - red, blue, green, yellow. Then the placeholder,
+     for the two keys that wanted a picture and did not get one: "weg.png",
+     which resolves to nothing, and the third key of the second set, which has
+     the word "Bitte" and no symbol. Then the blank, for the four keys holding
+     neither a word nor a picture. Before 2026-08-27 those last two were the
+     same grey cross and therefore the same hash and therefore one file, so a
+     key nobody had touched looked like a key whose symbol had failed to
+     arrive. See slotIsEmpty() and tiles.blank(). */
+  expect(tilesOf(built.names)).toHaveLength(6);
   expect(wavsOf(built.names)).toHaveLength(5);    // Hallo, Danke, Tschuess, Bitte, Niemals
   expect(built.spoken).toHaveLength(5);           // and each spoken exactly once
   expect(built.names).toContain("layout.bin");
-  /* Every set the Sammlung holds went in: 5 + 5 + the table. */
-  expect(built.names).toHaveLength(11);
+  /* Every set the Sammlung holds went in: 6 + 5 + the table. */
+  expect(built.names).toHaveLength(12);
+
+  /* Exactly one of those six is the blank, and this is the only place that can
+     say so. The unit tests hold tiles.blank() against tiles.placeholder() and
+     hold the export's grid against slotIsEmpty(); what neither can reach is
+     runBuild() choosing between them, because that wants a canvas, a store and
+     a synthesiser. So the bytes are read back out of the store here: a tile is
+     the blank exactly when every pixel in it is white, and a placeholder is
+     not, because its cross is grey. */
+  const white = await page.evaluate(`(async () => {
+    ${IDB}
+    const db = await open();
+    /* all() hands back names and sizes; this one wants the bytes, so it reads
+       the store directly rather than widening a helper four other tests use. */
+    return await new Promise((keep, drop) => {
+      const tx = db.transaction(["data"], "readonly");
+      const box = tx.objectStore("data");
+      const keys = box.getAllKeys();
+      const values = box.getAll();
+      tx.oncomplete = () => keep(keys.result
+        .map((name, i) => [name, values.result[i]])
+        .filter(([name, bytes]) => /^t[0-9a-f]{32}\.bin$/.test(name)
+          && new Uint8Array(bytes).every((b) => b === 0xff))
+        .map(([name]) => name));
+      tx.onerror = () => drop(tx.error);
+    });
+  })()`) as string[];
+  /* White is 0xffff in RGB565 either way round, so every byte is 0xff. No
+     other tile here can be: the placeholder's cross is grey, and the four
+     pictures are solid colours on a white ground. */
+  expect(white).toHaveLength(1);
 
   /* The table is all three sets, and every tile is a whole frame. */
   expect(built.sizes["layout.bin"]).toBe(HEADER_BYTES + 3 * SET_BYTES);
@@ -383,7 +432,7 @@ test("a second build replaces what changed and leaves nothing behind", async ({ 
   const gone = first.names.filter((n) => !second.names.includes(n));
   const fresh = second.names.filter((n) => !first.names.includes(n));
 
-  expect(second.names).toHaveLength(11);
+  expect(second.names).toHaveLength(12);
   expect(gone).toHaveLength(1);          // the WAV for "Bitte"
   expect(fresh).toHaveLength(1);         // the WAV for "Guten Tag"
   expect(gone[0]).toMatch(/^a[0-9a-f]{32}\.wav$/);

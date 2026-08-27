@@ -935,6 +935,26 @@ export async function runBuild(): Promise<{ log: string[] }> {
     return tile;
   }
 
+  // The tile for a key holding nothing, rendered once for the whole build.
+  //
+  // Kept out of `drawn` rather than given a reserved key in it: that map is
+  // indexed by pictureKey(), which is a symbol reference and whether it is
+  // crossed out, and an empty key is neither of those things. A sentinel in
+  // there would be a value the key scheme has no room for, sitting next to
+  // "" - which is a different tile now and is what an unresolved reference
+  // still draws.
+  let blankName = "";
+  async function storeBlank(): Promise<{ name: string; missing: boolean }> {
+    if (!blankName) {
+      const bytes = tiles.toRgb565Be(tiles.blank());
+      blankName = `t${await fingerprint(bytes)}.bin`;
+      await store.putFile("data", blankName, owned(bytes));
+    }
+    expected.add(blankName);
+    // Never missing: nothing was asked for, so nothing failed to arrive.
+    return { name: blankName, missing: false };
+  }
+
   // The WAV is named for what goes into it rather than for what comes out,
   // and that is the one place this differs from the tiles. Synthesis is the
   // expensive step - a model off a CDN, then a sentence at a time - so the
@@ -996,7 +1016,13 @@ export async function runBuild(): Promise<{ log: string[] }> {
     for (const [at, slot] of slots.entries()) {
       const nth = at + 1;
       const symbol = String(slot.symbol || "");
-      const tile = await storeTile(symbol, Boolean(slot.negated));
+      // An empty key and a key whose picture would not resolve are two
+      // different sentences, and until 2026-08-27 the device said the second
+      // one for both - see slotIsEmpty() and tiles.blank(). The predicate is
+      // the export's, so that the two halves cannot drift apart again.
+      const tile = appPackage.slotIsEmpty(slot)
+        ? await storeBlank()
+        : await storeTile(symbol, Boolean(slot.negated));
       tileNames.push(tile.name);
       if (tile.missing) {
         note("build.missing_in_slot", {

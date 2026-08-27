@@ -247,6 +247,25 @@ export interface PackageInput {
 export const pictureKey = (reference: string, negated = false): string =>
   (negated ? "!" : "") + String(reference ?? "");
 
+/**
+ * Whether a talker key holds nothing at all - no word, no picture.
+ *
+ * The one predicate both halves ask, and it is exported because they used to
+ * ask it separately and answer differently. diyBoards() writes no button where
+ * this holds, so the tablet renders an empty cell; the build in
+ * backend/local.ts drew tiles.placeholder() there, which is the grey cross
+ * meaning "no picture yet". So the same untouched key was blank on a tablet
+ * and looked broken on the device, and no test could catch it because the two
+ * paths never meet - the build reads a Layout and the export reads a Layout,
+ * and neither one ever reads the other.
+ *
+ * The text is trimmed and the reference is not, which is what each of them is
+ * worth: whitespace is not a word, and a file name is a key into a store that
+ * either has it or does not.
+ */
+export const slotIsEmpty = (slot: { text?: string; symbol?: string } | undefined | null): boolean =>
+  !String(slot?.text ?? "").trim() && !String(slot?.symbol ?? "");
+
 export const boardPath = (id: string) => `boards/${id}.obf`;
 const imagePath = (key: string) => `images/${key}.png`;
 const soundPath = (key: string) => `sounds/${key}.opus`;
@@ -709,7 +728,10 @@ function diyBoards(
       // A key with nothing on it is a cell rather than a button. §7.2 would
       // render an empty button as an empty cell anyway; leaving the button out
       // says the same thing without asking the viewer to draw nothing.
-      if (!text && !reference) { present[at] = false; continue; }
+      //
+      // Through slotIsEmpty() rather than written out here, because the build
+      // has to reach the same answer - see the note on that function.
+      if (slotIsEmpty(slot)) { present[at] = false; continue; }
       present[at] = true;
       const button: PackageButton = {
         id: `${boardId}-key-${at + 1}`,
