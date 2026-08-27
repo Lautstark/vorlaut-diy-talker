@@ -1585,7 +1585,7 @@ for (const [name, spoken, verdict, summary, remedy] of [
 //
 // Everything above this line is bytes between a browser and the talker. This
 // kind is not: it is the file the editor writes and the loader page reads, and
-// neither end of it is the device. adr/0013 is where that widening of this
+// neither end of it is the device. adr/0014 is where that widening of this
 // directory is argued, and the short version is that the faults it catches
 // arrive at the party that cannot move, one step further upstream - a reader
 // that misunderstands a package does not fail on the page, it compiles

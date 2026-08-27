@@ -610,7 +610,7 @@ somebody can check rather than judge. Adding what this survey found, in order:
    missed, nothing moved, one fault recorded as unreachable and not run.
 
    **Run again the same day at 83 of 83**, after
-   [`adr/0013`](../adr/0013-device-fixtures-cover-the-package-too.md) added the
+   [`adr/0014`](../adr/0014-device-fixtures-cover-the-package-too.md) added the
    `package` kind: 40 firmware, 23 browser, 8 writer, 10 reader, and two caught
    by more than one end. Those two are worth the sentence, because they are the
    reason every fault now goes to all four runners rather than to the two of its
@@ -686,7 +686,7 @@ somebody can check rather than judge. Adding what this survey found, in order:
 
    **And the number moved again the same day, to `1.1.0`.** This item froze a
    string that describes a directory, and
-   [`adr/0013`](../adr/0013-device-fixtures-cover-the-package-too.md) then
+   [`adr/0014`](../adr/0014-device-fixtures-cover-the-package-too.md) then
    widened the directory: `device/fixtures/` gained a `package` kind, covering
    the `.obz` between the editor and the loader page as well as the bytes
    between a browser and the talker. Landing that without moving the number

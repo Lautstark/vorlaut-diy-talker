@@ -22,7 +22,7 @@ applied to ONE end, and the run records which end noticed:
     writer    npx vitest run tests/unit/device_package_writer.test.ts
     reader    npx vitest run tests/unit/device_package_reader.test.ts
 
-Four ends and TWO boundaries, which adr/0013 is the decision behind. The first
+Four ends and TWO boundaries, which adr/0014 is the decision behind. The first
 pair is the device interface: the bytes between a browser and the talker. The
 second is the device package - the .obz between the editor and the loader page,
 one step upstream, where neither end is the device and both are browsers. The
@@ -296,7 +296,7 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
 
     # --- the device package: what a writer must put in the file --------------
     #
-    # The other boundary, and the one adr/0013 added this directory a kind for.
+    # The other boundary, and the one adr/0014 added this directory a kind for.
     # Everything below is aimed at a package that PARSES: a talker that says
     # the wrong sentence rather than one that says nothing, which
     # docs/device-interface.md section 6 is a whole section about.

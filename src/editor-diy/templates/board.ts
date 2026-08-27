@@ -31,29 +31,22 @@ export const markup = `
 <div class="grid" id="device" style="--cols:3; --rows:2"></div>
 `;
 
-/* The one action that applies to the whole Sammlung, in the work head's slot
- * beside its name. It was in the page header, where the object it acts on had
- * to be inferred - which is exactly the inference that goes wrong on a page
- * that can switch Sammlung. conventions.md §3.3. */
-export const action = `
-<!-- The device preview, and it is on its own here now.
-     
-     It used to have the button that sent beside it, and the pair of them was
-     the argument for this slot: both were about this device and both were
-     reached from the same row. The sending went with the device path -
-     adr/0011 - and what is left is the one control that is genuinely about
-     the Sammlung on the screen rather than about a talker: whether to draw
-     the keys as the hardware will show them.
-     
-     The slot stays rather than the label moving into the board, because
-     conventions.md 3.3 is about where an act on the open Sammlung belongs and
-     this is one. What goes in it on a tablet Sammlung is editor-app's own. -->
-<label class="toggle" id="previewLabel">
-  <input type="checkbox" id="previewToggle">
-  <span class="pill"></span>
-  <span id="previewText"></span>
-</label>
-`;
+/* Nothing in the work head's action slot, and this is the second half of a
+ * note editor-app's board.ts already carries.
+ *
+ * It held two things and then one. The button that sent to the talker went
+ * with the device path (adr/0011); the preview toggle - draw the keys the way
+ * the hardware will show them - went to the loader page with the picture it
+ * drew (adr/0013), where it is not a toggle at all but the compiled tiles,
+ * shown after a compile. What is left is a slot with nothing in it on either
+ * editor, which is worth saying out loud rather than leaving as an absence:
+ * conventions.md §3.3 is about where an act on the open Sammlung belongs, and
+ * both editors' whole-Sammlung acts are in the ⋯ beside the name now.
+ *
+ * An empty string rather than removing the slot, for editor-app's reason: the
+ * shell mounts something into the head for whichever editor is installed, and
+ * the next control this device grows has a place to go. */
+export const action = "";
 
 export function render(where: HTMLElement, head: HTMLElement): void {
   mount(where, markup);

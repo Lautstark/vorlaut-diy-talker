@@ -113,3 +113,85 @@ input[type="file"] {
   opacity: 0;
   pointer-events: none;
 }
+
+/* ------------------------------------------------------- the board picture
+
+   The compiled tiles, laid out the way the hardware lays them out: three
+   columns and two rows, the speaker top left, the set key under it and the
+   four speech keys around them. Not a row of five, because the device is not
+   one - and what somebody is judging here is a board, not a tile.
+
+   adr/0013 is why this picture is on this page at all. It was the editor's,
+   drawn one symbol at a time while a pictogram was being chosen; here it is
+   every set at once, after a compile, and the pixels in it are the bytes about
+   to go down the cable. */
+.preview { margin: 1rem 0 0.25rem; }
+
+.preview h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+
+.preview__lead {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Across and wrapping rather than down: at 15.21 mm a key, a whole set is
+   about a fifth of this column, so five of them fit in two rows and the
+   Sammlung is one glance instead of a scroll. */
+.preview__sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.75rem 0 0;
+}
+
+.preview__set { margin: 0; }
+
+.preview__set figcaption {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+}
+
+/* The hardware's own arrangement, and the millimetres are the whole point of
+   the block: 15.21 mm is the visible area of a ScreenKey - docs/hardware.md -
+   so this is life-size on screen and a pictogram that does not survive the
+   trip can be seen not to. A share of the column would be a picture of
+   nothing. */
+.device {
+  display: grid;
+  grid-template-columns: repeat(3, 15.21mm);
+  gap: 1.5mm;
+  width: max-content;
+  padding: 2mm;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* Pixelated, which is the rule the editor's preview carried and is kept rather
+   than reconsidered: the tile really is a grid of 128 hard pixels and a
+   smoothing rule here would be this page having its own opinion about how the
+   panel looks, in the same change that moved the picture. */
+.device__key {
+  display: block;
+  width: 15.21mm;
+  height: 15.21mm;
+  image-rendering: pixelated;
+  border-radius: 2px;
+}
+
+/* The speaker: a hole in the board rather than a sixth screen. It is drawn
+   because without it the arrangement is six pictures in a grid, and with it
+   the block is recognisably this device. */
+.device__hole {
+  align-self: center;
+  justify-self: center;
+  width: 7mm;
+  height: 7mm;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}

@@ -1,12 +1,21 @@
 # The bill for the split: what crosses `src/` ↔ `loader/`, name by name
 
-**Status: a proposal. Nothing is moved and no migration is written here.**
-**One line of it has since been built** — hard case one's `package` kind under
-`device/fixtures/`, on 2026-08-27, by
-[ADR 0013](../adr/0013-device-fixtures-cover-the-package-too.md). The
-recommendation below is unchanged and the paragraphs it was argued in are
-untouched; what has moved is that the answer exists, and the places that said
-it *would have to* say where it is.
+**Status: a proposal, with two items of it built**, both hard cases and both on
+2026-08-27.
+[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) took the
+recommendation in *"The preview: not dropped, relocated"* below and landed it:
+the device preview is on the loader page, and `renderSymbol()` and `TILE_SIZE`
+no longer cross.
+[ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md) took hard case
+one's answer and landed that: there is a `package` kind under
+`device/fixtures/`, and `device_roundtrip.test.ts` is gone. **The counts in this
+document are the ones that were measured when it was written and are not
+restated;** where a number here says ten, the enforced list says eight and
+[`layers.test.ts`](../tests/unit/layers.test.ts) is the one that is checked.
+The recommendation and the paragraphs it was argued in are untouched — what has
+moved is that two of the answers exist, and the places that said they *would
+have to* say where they are. Nothing else is moved and no migration is written
+here.
 [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) landed the same
 day this page did and decided the split; the anchors and the two sentences that
 assumed it undecided are corrected below, and the measurement is untouched.
@@ -152,8 +161,8 @@ duplicate; it is why this particular duplicate is not the class of fault
 
 | name | who takes it | disposition |
 |---|---|---|
-| `renderSymbol` | `src/backend/local.ts` (`previewInto()`) | **stops crossing** — the preview moves to the loader page |
-| `TILE_SIZE` | `src/backend/local.ts` (`previewInto()`) | **stops crossing** — same |
+| `renderSymbol` | ~~`src/backend/local.ts` (`previewInto()`)~~ nobody | **stopped crossing 2026-08-27** — the preview is on the loader page ([ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md)) |
+| `TILE_SIZE` | ~~`src/backend/local.ts` (`previewInto()`)~~ nobody | **stopped crossing 2026-08-27** — same |
 | `thumbnailSize` | `src/data/app_assets.ts` | **duplicated**, held against a freeze taken on the day |
 
 The argument is [hard case two](#hard-case-two--tilests-does-not-divide-and-does-not-have-to) below.
@@ -208,21 +217,16 @@ test does not prove* section.
 **The handoff link.** [`src/shell/packageExport.ts`](../src/shell/packageExport.ts)
 builds `new URL("loader/", BASE_URL)` and offers it after a device export. It is
 a relative link within one Pages deployment today and an absolute cross-site link
-afterwards — `https://lautstark.github.io/vorlaut-diy-talker/loader/`, an address
-[`repository-map.md`](repository-map.md#the-three-names) already
-establishes does **not** move, which is what makes hard-coding it safe. This is
+afterwards. **The address to write out is
+`https://lautstark.github.io/vorlaut-diy-talker/`, not the `loader/` under it**:
+the loader takes the root when the editor leaves
+([`repository-map.md`](repository-map.md#what-the-move-costs)), and the
+repository name in front of it is what does not move, which is what makes
+hard-coding it safe. This is
 the only crossing on this page whose breakage a carer sees rather than a test,
 and the only one that is a runtime dependency rather than a build one. It needs
 the same treatment as the three literal base paths that page lists, and there is
 no gate for any of them.
-
-That the address does not move was a consequence of the direction until
-2026-08-27, when it became a decision in its own right: the loader is **not**
-promoted to the Pages root when the editor leaves, and a short static page takes
-the root instead — [`repository-map.md`](repository-map.md#what-the-move-costs),
-under *what answers at the Pages root*. This paragraph is half of why. Whoever
-writes the literal above into `vorlaut-editor` is writing it against that
-decision, so the two are worth reading together.
 
 **The shared language choice, which survives by accident.** Both pages read
 `vorlaut.language` out of `localStorage` ([`src/core/boot.ts`](../src/core/boot.ts)
@@ -322,7 +326,7 @@ does not govern it."*
 ### The answer: a `package` kind under `device/fixtures/`
 
 **Built on 2026-08-27**, by
-[ADR 0013](../adr/0013-device-fixtures-cover-the-package-too.md), which is the
+[ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md), which is the
 line in an ADR the scope paragraph below asks for. Seventeen fixtures, eleven
 of them refusals, two divergences recorded rather than blessed, two runners
 that never meet, eighteen new faults in `tools/devicemutate.py`, and
@@ -339,7 +343,7 @@ top-level directory and no fifth tag prefix: `device-v*` is reserved and uncut.
 
 Three arguments for it, in order of weight.
 
-**It is what `device_roundtrip.test.ts` has to become.** *(It has: ADR 0013,
+**It is what `device_roundtrip.test.ts` has to become.** *(It has: ADR 0014,
 2026-08-27.)* That test holds
 `buildDevicePackage()` against `compileDevice()` in one process, and after the
 split neither repository has both. It is the most valuable check on this page and
@@ -368,7 +372,7 @@ change of meaning and it needs a line in an ADR, not a commit message. It is als
 directly adjacent to what **ADR 0012** is being written to answer. See
 [what is left open](#what-this-does-not-decide) below.
 *Answered:*
-[ADR 0013](../adr/0013-device-fixtures-cover-the-package-too.md) draws the line
+[ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md) draws the line
 and states it as a conjunction rather than as a place — two implementations,
 that have to agree, that cannot be released together — so that the next
 proposal to add a kind has a test to meet rather than a precedent to cite.
@@ -400,6 +404,16 @@ two products. One product wants the whole pipeline, and the other wants a pictur
 of what the pipeline will do.
 
 ### The preview: not dropped, relocated
+
+**Built 2026-08-27 —
+[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md).** What
+follows is the argument as it was made; the decision took it, and the ADR is
+where the cost is recorded as accepted rather than proposed. Two details of the
+built thing that this section did not predict: the preview is under step 3
+rather than beside `validate.ts`, because the pixels it needs do not exist until
+the compile has run; and `compileDevice()` now answers with the table of which
+tile lands on which panel, which it already computed and used to throw away, so
+nothing renders twice.
 
 The brief for this page named the preview as the drop candidate. It should not be
 dropped, and it should not be duplicated either. It should **move to the loader
@@ -643,11 +657,11 @@ over it, and it answered one of them and declined the other:
   page's proposal to argue on its own merits, and nothing in 0012 blocks or
   blesses it — the address is settled either way.
   ***Drawn, 2026-08-27, by
-  [ADR 0013](../adr/0013-device-fixtures-cover-the-package-too.md)***, which
+  [ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md)***, which
   argued it on its own merits and kept the address. The scope is now a rule
   rather than a place: every format in this toolchain with two implementations
   that have to agree and cannot be released together, which is two boundaries
-  and one directory, and 0013 says what does not qualify before somebody tries
+  and one directory, and 0014 says what does not qualify before somebody tries
   it.
 
 **The three stale counts.** Recorded [above](#first-the-count--because-four-documents-disagree),

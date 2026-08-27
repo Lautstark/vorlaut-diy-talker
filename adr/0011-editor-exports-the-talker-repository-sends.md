@@ -18,7 +18,7 @@ function call. `exportDevicePackage()` writes a device-shaped `.obz` — the
 sources unresampled, negation as a flag, the device's own 16 kHz WAVs — and
 `compileDevice()` reads it back into exactly the files the `data` store holds,
 which is what `tests/unit/device_roundtrip.test.ts` held it to — a file
-[ADR 0013](0013-device-fixtures-cover-the-package-too.md) replaced on
+[ADR 0014](0014-device-fixtures-cover-the-package-too.md) replaced on
 2026-08-27 with the `package` kind under
 [`device/fixtures/`](../device/README.md), because the split
 [ADR 0012](0012-the-repository-splits-editor-leaves.md) decided leaves no
@@ -216,8 +216,10 @@ branch on — which is what keeps §5.2 true at every call site rather than
 nearly. A dismissed sheet writes nothing and saves nothing.
 
 **Two directories import each other, and the list is short on purpose.** `src/`
-takes seven format constants out of `loader/`, plus `renderSymbol()`,
-`TILE_SIZE` and `thumbnailSize()` — ten names; `loader/` takes the label table
+takes seven format constants out of `loader/`, plus ~~`renderSymbol()`,
+`TILE_SIZE` and~~ `thumbnailSize()` — ~~ten~~ **eight** names
+([ADR 0013](0013-the-device-preview-moves-to-the-loader-page.md) struck the two
+that were the preview); `loader/` takes the label table
 and `src/data/device_package.ts` out of `src/`. `tests/unit/layers.test.ts`
 holds the first list to exactly those names and is where an eleventh has to be
 argued for. (*Counted 2026-08-27:* this sentence said "seven constants and
@@ -233,3 +235,18 @@ and shows nothing at all — so `tests/unit/device_fixtures.test.ts` derives it
 from the fixtures and `tools/devicemutate.py` has a mutant for it. ADR 0009's
 bar is that a change leaving the mutation run quiet has removed a check rather
 than passed one; this one made it louder.
+
+## Examined
+
+**2026-08-27 — the crossing list is eight names, and the preview is not one of
+them.** [ADR 0013](0013-the-device-preview-moves-to-the-loader-page.md) moved
+the editor's device preview to the loader page, so `renderSymbol()` and
+`TILE_SIZE` are no longer imported out of `loader/` by anything under `src/`.
+The Built section below said *"ten names"* and is corrected to eight — seven
+format constants and `thumbnailSize()`. This decision is unchanged and is what
+0013 is built on: *"the editor exports a file and stops"* got one item closer to
+being literally true, and the item was the largest one on the bill.
+
+The cost 0013 records is the same shape as the one this file records in its own
+Why, and was accepted on the same two grounds: the loop lengthens for the person
+doing it, and there are no users yet.

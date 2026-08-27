@@ -52,9 +52,10 @@ import {
 } from "../../src/data/device_package.js";
 import { browserHost } from "./browser_host.js";
 import { type Build, cableSupported, sendToDevice, type Plan } from "./cable.js";
-import { compileDevice } from "./compile.js";
+import { compileDevice, type DeviceBuild } from "./compile.js";
 import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js";
 import { chooseBuildFolder, folderExportSupported, writeBuildTo } from "./folder.js";
+import { previewBoards } from "./preview.js";
 import { readPackageFile } from "./read.js";
 import { NotAPackage } from "./unzip.js";
 import { check, summarise, type Finding } from "./validate.js";
@@ -135,6 +136,12 @@ class Step {
     button.textContent = label;
     button.onclick = run;
     return button;
+  }
+
+  /** Anything that is not a sentence, a list or a control. One caller: the
+   *  board picture, which is a block of its own and brings its own layout. */
+  show(element: HTMLElement): void {
+    this.body.append(element);
   }
 
   row(...items: HTMLElement[]): HTMLDivElement {
@@ -307,7 +314,7 @@ async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<vo
   steps.compile.say(t("load.compiling"));
 
   const host = browserHost(read.sources);
-  let made: Build;
+  let made: DeviceBuild;
   try {
     made = await compileDevice(read, host);
   } catch (error) {
@@ -317,10 +324,10 @@ async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<vo
     return;
   }
 
-  build = made;
-  const bytes = [...made.values()].reduce((total, one) => total + one.length, 0);
+  build = made.files;
+  const bytes = [...made.files.values()].reduce((total, one) => total + one.length, 0);
   steps.compile.begin();
-  steps.compile.say(t("load.compiled", { files: made.size, size: KIB(bytes) }));
+  steps.compile.say(t("load.compiled", { files: made.files.size, size: KIB(bytes) }));
   /* The one finding that cannot be made before this point. Everything
    * validate.ts asks is a question about the plan; whether a picture actually
    * decodes is a question only a browser answers, and the compiler's answer to
@@ -331,6 +338,13 @@ async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<vo
     refuses: false, says: t("load.wont_decode", { symbol }),
   }));
   steps.compile.findings([...undecodable, ...findings.filter((one) => !one.refuses)]);
+  /* And the picture, under the words about it. Here rather than in a step of
+   * its own, because it is not something to do: the five steps are five acts
+   * and a sixth that said "look at this" would renumber the two everybody
+   * presses for something nobody has to press. It belongs to this step because
+   * this is where the pixels are - the tiles it draws are the ones the compile
+   * just made, and nothing here renders any of its own. adr/0013. */
+  steps.compile.show(previewBoards(read, made));
   steps.compile.done();
 
   offerFolder();

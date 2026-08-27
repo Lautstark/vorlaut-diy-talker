@@ -18,7 +18,7 @@ import { unzip } from "./obz.js";
  * This file used to be half of tests/unit/device_roundtrip.test.ts, which held
  * buildDevicePackage() against compileDevice() in one process. That was the
  * most valuable check on the boundary adr/0011 drew and it was also the one
- * the split deletes: after it, no repository has both halves. adr/0013 is the
+ * the split deletes: after it, no repository has both halves. adr/0014 is the
  * decision that replaced it with a fixture kind, and this is the writing half
  * of that replacement.
  *

@@ -470,7 +470,7 @@ def main() -> int:
                 # The other boundary, and neither of its ends is the device:
                 # a device package is the .obz the editor writes and the
                 # loader page reads, and what reaches a talker is what comes
-                # out of compiling one. adr/0013 is why it is in this index at
+                # out of compiling one. adr/0014 is why it is in this index at
                 # all, and tests/unit/device_package_{writer,reader}.test.ts
                 # are its two halves. There is nothing here for a C++ reader
                 # to be pointed at, and saying so out loud is the difference

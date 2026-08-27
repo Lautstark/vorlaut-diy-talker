@@ -78,7 +78,7 @@ Three further things this decides:
   only thing standing between an editor and a talker that have stopped
   agreeing, which is why that test walks the whole way through the actual bytes
   of the archive. — Since
-  [ADR 0013](0013-device-fixtures-cover-the-package-too.md) that test is gone
+  [ADR 0014](0014-device-fixtures-cover-the-package-too.md) that test is gone
   and the claim is made twice instead of once: the writer against
   `device/fixtures/package/` and the reader against the same fixtures, in two
   runners that never meet, because after the split no repository has both.

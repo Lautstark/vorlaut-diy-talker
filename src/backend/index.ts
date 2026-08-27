@@ -48,12 +48,13 @@ export {
   loadLayout,
   saveLayout,
 
-  // Keeping a symbol, and showing what it will look like at the 15.21 mm the
-  // ScreenKey actually has. Finding one no longer comes through here - see
-  // symbols.js.
+  // Keeping a symbol, and putting one on screen. Finding one no longer comes
+  // through here - see symbols.js - and neither does showing what it will look
+  // like at the 15.21 mm a ScreenKey has: previewInto() was that, and that
+  // picture is drawn on the loader page now, out of the tiles a compile has
+  // already made (adr/0013).
   pickSymbol,
   uploadSymbol,
-  previewInto,
   symbolInto,
 
   // Which voices can be spoken with here - a question the server answers

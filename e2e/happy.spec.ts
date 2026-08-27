@@ -343,50 +343,11 @@ test("a picture can be crossed out, which is how a key says \"not\"", async ({ p
   await expect(cell.locator(".cell__pic")).toBeVisible();
 });
 
-test("the preview draws the keys the way the display will", async ({ page }) => {
-  /* The one thing on this board that the mock does not cover, because a tablet
-   * has no display to preview. It replaces the cell's picture rather than
-   * adding a strip under it - editor-diy's deviceImage() is where that is
-   * argued - so what is asserted is that the picture on the cell becomes the
-   * device's rendering, at the millimetres the device really shows.
-   *
-   * Nothing here checks the pixels. What previewInto() produces is
-   * data/tiles.ts's business and tests/reference/tiles.lock.json is the
-   * outside opinion on it; this is the wiring. */
-  await openBoard(page);
-  await key(page, 0).click();
-  const box = keySheet(page);
-  const [chooser] = await Promise.all([
-    page.waitForEvent("filechooser"),
-    box.locator(".pick button", { hasText: label("ui.symbol_own") }).click(),
-  ]);
-  await chooser.setFiles(join(HERE, "fixtures", "symbol.png"));
-  await expect(box.locator(".pick__preview img")).toBeVisible();
-  await press(box, "ui.done");
-
-  const image = cells(page).nth(KEY_CELL[0]).locator(".cell__pic");
-  await expect(image).not.toHaveClass(/cell__pic--device/);
-
-  // The label, not the box: .toggle hides the checkbox at 0x0 and draws the
-  // pill, which is what a person presses and what carries the focus ring.
-  await page.locator("#previewLabel").click();
-  await expect(image).toHaveClass(/cell__pic--device/);
-  /* 15.21 mm, which is the whole visible area of a ScreenKey -
-     docs/hardware.md. Life-size on screen, so a pictogram that does not
-     survive the trip can be seen not to.
-
-     Within a tenth of a pixel rather than exactly: the browser resolves a
-     millimetre length in its own precision, and pinning the rounding would be
-     asserting Chromium's arithmetic rather than that the rule is in
-     millimetres at all. A percentage of the cell - which is what every other
-     picture on the board takes - would be off by tens of pixels, not by a
-     hundredth of one. */
-  const width = parseFloat(await image.evaluate((el) => getComputedStyle(el).width));
-  expect(Math.abs(width - (15.21 / 25.4 * 96))).toBeLessThan(0.1);
-
-  await page.locator("#previewLabel").click();
-  await expect(image).not.toHaveClass(/cell__pic--device/);
-});
+/* A test stood here that turned the board into the device's own rendering and
+ * measured it at 15.21 mm. The toggle it drove is on the loader page now, as
+ * the compiled tiles rather than a prediction of them - adr/0013 - and
+ * e2e/loader.spec.ts is where the picture is asserted. Nothing in the editor
+ * draws a tile any more, so there is nothing here to replace it with. */
 
 test("a Sammlung leaves as a .obz and comes back beside the others", async ({ page }) => {
   await openBoard(page);

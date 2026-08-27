@@ -38,7 +38,7 @@
 // device/fixtures/package/ is where the two halves are held to it, and they
 // are held to it SEPARATELY: the writer must produce a package the fixtures
 // state, the reader must read the fixtures' packages into the fixtures'
-// answers, and neither runner ever sees the other's output. adr/0013 is why.
+// answers, and neither runner ever sees the other's output. adr/0014 is why.
 // Until 2026-08-27 the two were compared against each other in one process by
 // tests/unit/device_roundtrip.test.ts, which was a better check and is one no
 // repository will have after the split adr/0012 decided - the fixtures are

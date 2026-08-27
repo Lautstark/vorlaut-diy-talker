@@ -59,6 +59,32 @@ export interface DeviceHost {
 }
 
 /**
+ * Which file every panel of one set will be showing.
+ *
+ * The device draws five screens at a time - the set key and its four speech
+ * keys - and this says which tile lands on each of them, by the name it has in
+ * `files`. One entry per set, in the file's own order, so the nth entry is the
+ * nth member of `plan.sets` and needs no key of its own.
+ *
+ * It is the table renderLayoutBin() is handed, before it becomes bytes: this
+ * function already works it out and used to throw it away. Saying it costs
+ * nothing and is what lets loader/src/preview.ts draw the compiled tiles
+ * without rendering a single pixel of its own - adr/0013.
+ */
+export interface Screens {
+  /** The set key's tile. */
+  label: string;
+  /** The four speech keys' tiles, in the order the set holds them. */
+  slots: string[];
+}
+
+/** What a compile answers with: the files, and where the tiles land. */
+export interface DeviceBuild {
+  files: Map<string, Uint8Array<ArrayBuffer>>;
+  screens: Screens[];
+}
+
+/**
  * A device export, compiled into exactly the files a build puts in the store.
  *
  * layout.bin, one t<hash>.bin per distinct picture, one a<hash>.wav per
@@ -73,7 +99,7 @@ export interface DeviceHost {
  */
 export async function compileDevice(
   read: ReadDevicePackage, host: DeviceHost,
-): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+): Promise<DeviceBuild> {
   const files = new Map<string, Uint8Array<ArrayBuffer>>();
   const { plan } = read;
 
@@ -137,5 +163,8 @@ export async function compileDevice(
 
   files.set(LAYOUT_BIN,
     renderLayoutBin(planLayout(plan), labelFiles, tileFiles, audioFiles));
-  return files;
+  return {
+    files,
+    screens: labelFiles.map((label, at) => ({ label, slots: tileFiles[at]! })),
+  };
 }

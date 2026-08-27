@@ -146,7 +146,8 @@ check("no editor reaches into another editor", strays.length === 0,
  * comes back one import at a time - `import { renderSymbol } from
  * "../../loader/src/tiles.js"` in a preview would compile, run, and pass every
  * other test here, exactly as the three shell modules that reached for the
- * board renderer did before the rule above existed.
+ * board renderer did before the rule above existed. That import was real until
+ * 2026-08-27, and this is the list it was on.
  *
  * So the crossings are counted rather than forbidden, because the ones that
  * are left are real. They come in two kinds and the difference is the whole
@@ -162,19 +163,24 @@ check("no editor reaches into another editor", strays.length === 0,
  * neither half (adr/0009), which is what makes them safe to duplicate across a
  * repository boundary when the day comes.
  *
- * **The pixels, twice, and both are read-only.** thumbnailSize() is the app
- * package's fit, and docs/repository-map.md gives the argument at length:
- * renderSymbol() is the device's and thumbnailSize() is the tablet's, they are
- * one module because they are one rounding rule that follows Pillow step for
- * step, and splitting them would put that arithmetic in two places with
- * nothing holding the copies together. renderSymbol() and TILE_SIZE are the
- * editor's device preview - a symbol drawn the way a ScreenKey draws it, so
- * that a pictogram can be judged at 15.21 mm before a child has to recognise
- * it there. Neither of them writes a file and neither can reach a device; what
- * adr/0011 took away is the build and the cable, not the ability to draw a
- * picture of one.
+ * **The pixels, once, and read-only.** thumbnailSize() is the app package's
+ * fit - what Pillow's thumbnail() would make of a picture this size - and
+ * src/data/app_assets.ts borrows it so that a symbol lands in the same
+ * proportions on the tablet as on the device. docs/repository-map.md gives the
+ * argument for it living in tiles.ts: it is one rounding rule that follows
+ * Pillow step for step, and splitting the module would put that arithmetic in
+ * two places with nothing holding the copies together.
  *
- * **This list is the bill for the split.** When the editor leaves, these ten
+ * **There were three here until 2026-08-27.** renderSymbol() and TILE_SIZE
+ * were the editor's device preview - a symbol drawn the way a ScreenKey draws
+ * it, so that a pictogram could be judged at 15.21 mm - and they are gone
+ * because the preview is, to the loader page, where it draws the tiles a
+ * compile has already made (adr/0013). They are struck from this list rather
+ * than kept against a return: this file's own rule is that a name left here
+ * without a live argument is the boundary quietly closing again, and "the
+ * editor might want to draw a tile again" is not one.
+ *
+ * **This list is the bill for the split.** When the editor leaves, these eight
  * names are what has to be answered for - written down on the editor's side
  * against device/fixtures/, or moved into a package both can pin. Anything
  * added here without that argument is the boundary quietly closing again.
@@ -183,7 +189,7 @@ const ALLOWED_FROM_SRC = new Map<string, string[]>([
   ["loader/src/layout_format.ts",
    ["SLOTS_PER_SET", "HASH_BYTES", "LANGUAGE_CODES", "DEFAULT_LANGUAGE",
     "SLEEP_MIN", "SLEEP_MAX", "SLEEP_DEFAULT"]],
-  ["loader/src/tiles.ts", ["thumbnailSize", "renderSymbol", "TILE_SIZE"]],
+  ["loader/src/tiles.ts", ["thumbnailSize"]],
 ]);
 
 /** Every name one module takes out of another, as `spec -> name` pairs.

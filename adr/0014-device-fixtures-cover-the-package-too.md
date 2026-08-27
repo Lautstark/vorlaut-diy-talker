@@ -1,4 +1,4 @@
-# ADR 0013 — `device/fixtures/` covers the file between the two browsers as well as the bytes between the browser and the talker
+# ADR 0014 — `device/fixtures/` covers the file between the two browsers as well as the bytes between the browser and the talker
 
 **Status:** accepted · **Date:** 2026-08-27 · **Applies to:** `device/`,
 `src/data/device_package.ts`, `loader/`, and the `device-v*` tag prefix

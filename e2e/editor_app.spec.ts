@@ -890,7 +890,7 @@ test("a button moves to another cell, by keyboard and by drag", async ({ page })
    * before it reads anything back, so the round trip is the product's own. */
   const rows = page.locator("#collectionList > *");
   await rows.filter({ hasText: /^(Sammlung vom|Collection of)/ }).first().click();
-  await expect(page.locator("#previewLabel")).toBeVisible();
+  await expect(page.locator("#device")).toBeVisible();
   await rows.filter({ hasText: "Tablet" }).click();
   await expect(at(1)).toHaveText("ich");
   await expect(at(6)).toHaveText("will");
@@ -1007,17 +1007,20 @@ test("a talker Sammlung and a tablet Sammlung swap cleanly", async ({ page }) =>
   // mark stayed subscribed after its own markup had gone. Both are gone with
   // the device path (adr/0011); the rule they taught is not, and the element
   // asked about here is the one the talker's editor still mounts alone.
+  // #device rather than #previewLabel, which used to stand for it: that toggle
+  // went to the loader page with the picture it drew (adr/0013), and the board
+  // grid is what is left that only this editor puts in the page.
   // By name, not by position: the sidebar is ordered last-edited-first
   // (conventions.md §1.4), so switching is exactly the act that moves the rows.
   const talker = page.locator("#collectionList > *")
     .filter({ hasText: /^(Sammlung vom|Collection of)/ });
   await talker.first().click();
-  await expect(page.locator("#previewLabel")).toBeVisible();
+  await expect(page.locator("#device")).toBeVisible();
   await expect(page.locator("#appGrid")).toHaveCount(0);
 
   await page.locator("#collectionList > *", { hasText: "Tablet" }).click();
   await expect(page.locator("#appGrid")).toBeVisible();
-  await expect(page.locator("#previewLabel")).toHaveCount(0);
+  await expect(page.locator("#device")).toHaveCount(0);
 
   // And a write on the tablet side still lands, which is what the stale
   // subscription broke: the save reported "the page has no #releaseBtn".

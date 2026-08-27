@@ -8,7 +8,7 @@ and the language enumeration.
 **The device package**: the `.obz` the editor writes and
 [`loader/`](../loader/README.md) reads, one step upstream, where neither end is
 the device and both are browsers. Added on 2026-08-27 by
-[`adr/0013`](../adr/0013-device-fixtures-cover-the-package-too.md), which is
+[`adr/0014`](../adr/0014-device-fixtures-cover-the-package-too.md), which is
 where the widening is argued — the short version is that a reader which
 misunderstands a package does not fail on the page, it compiles confidently and
 hands a talker bytes.

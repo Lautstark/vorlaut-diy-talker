@@ -17,7 +17,7 @@ import { blank, renderPixels, toRgb565Be } from "../../loader/src/tiles.js";
  *
  * This was the second half of tests/unit/device_roundtrip.test.ts, which held
  * buildDevicePackage() against compileDevice() in one process and which
- * adr/0013 replaced with a fixture kind. What is left here is the step the
+ * adr/0014 replaced with a fixture kind. What is left here is the step the
  * fixtures stop short of: device/fixtures/package/ says what a package holds
  * and what a reader makes of it, and device/fixtures/layout/, tile/ and audio/
  * say what the device is handed - and between those two there is a compile
@@ -172,7 +172,7 @@ async function expected(read: ReadDevicePackage) {
 describe("a fixture package, compiled into what a talker reads", () => {
   it("is the same files, name for name and byte for byte", async () => {
     const read = await opened();
-    const compiled = await compileDevice(read, host);
+    const { files: compiled } = await compileDevice(read, host);
     const wanted = await expected(read);
 
     // The names first, because a difference here says which file went missing
@@ -185,7 +185,7 @@ describe("a fixture package, compiled into what a talker reads", () => {
 
   it("writes the three shapes of file the device reads, and nothing else",
      async () => {
-    const compiled = await compileDevice(await opened(), host);
+    const { files: compiled } = await compileDevice(await opened(), host);
     for (const name of compiled.keys()) {
       expect(name === LAYOUT_BIN
              || /^t[0-9a-f]{32}\.bin$/.test(name)
@@ -207,7 +207,7 @@ describe("a fixture package, compiled into what a talker reads", () => {
     const crossed = first.slots.find((one) => one.negated)!;
     expect(crossed.symbol).toBe(plain.symbol);
 
-    const compiled = await compileDevice(read, host);
+    const { files: compiled } = await compileDevice(read, host);
     const source = read.sources.get(plain.symbol)!;
     const plainTile = `t${hashOf(renderPixels(decodeBmp(source.bytes), { negated: false }))}.bin`;
     const crossedTile = `t${hashOf(renderPixels(decodeBmp(source.bytes), { negated: true }))}.bin`;
@@ -223,7 +223,7 @@ describe("a fixture package, compiled into what a talker reads", () => {
     // device - the grey cross that means "no picture yet", said about a key
     // nobody had asked anything of.
     const read = await opened();
-    const compiled = await compileDevice(read, host);
+    const { files: compiled } = await compileDevice(read, host);
     const blankTile = `t${hashOf(toRgb565Be(blank()))}.bin`;
     const cross = `t${hashOf(renderPixels(null, { negated: false }))}.bin`;
 
@@ -240,7 +240,7 @@ describe("a fixture package, compiled into what a talker reads", () => {
     // is being told "there is no picture here" either way. What must not
     // happen is either of them coming out as a blank, which says the opposite.
     const read = await opened();
-    const compiled = await compileDevice(read, host);
+    const { files: compiled } = await compileDevice(read, host);
     const cross = `t${hashOf(renderPixels(null, { negated: false }))}.bin`;
 
     const unresolved = read.plan.sets.flatMap((set) => set.slots)
@@ -254,12 +254,30 @@ describe("a fixture package, compiled into what a talker reads", () => {
     expect(compiled.has(cross)).toBe(true);
   });
 
+  it("says where every tile lands, and names only tiles it wrote", async () => {
+    // `screens` is what the loader page draws its preview from - one label
+    // tile and four key tiles per set, in the order the set holds them. It is
+    // a second answer about the same compile, so the failure it has is a quiet
+    // one: a preview that shows the right pictures in the wrong places, or a
+    // name that is in the preview and not in the build.
+    const read = await opened();
+    const { files: compiled, screens } = await compileDevice(read, host);
+    expect(screens).toHaveLength(read.plan.sets.length);
+    for (const [at, screen] of screens.entries()) {
+      expect(screen.slots, `set ${at + 1}`)
+        .toHaveLength(read.plan.sets[at]!.slots.length);
+      for (const name of [screen.label, ...screen.slots]) {
+        expect(compiled.has(name), name).toBe(true);
+      }
+    }
+  });
+
   it("carries the package's own WAVs, under the package's own names",
      async () => {
     // adr/0008 satisfied by construction: the bytes that reach the device are
     // the ones that were in the file, not something derived from them.
     const read = await opened();
-    const compiled = await compileDevice(read, host);
+    const { files: compiled } = await compileDevice(read, host);
     expect(read.sounds.size).toBeGreaterThan(0);
     for (const sound of read.sounds.values()) {
       expect(Buffer.from(compiled.get(sound.name)!), sound.name)
