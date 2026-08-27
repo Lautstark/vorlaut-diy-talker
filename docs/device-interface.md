@@ -373,10 +373,13 @@ convention, and sorts nowhere near the others.
 
 Two things follow that are easy to miss:
 
-- **`device/` has to join `exclude-paths` in
-  [`release-please-config.json`](../release-please-config.json)**, beside
-  `firmware`, `case` and `exchange`. Otherwise every commit to the specification
-  mints a version of the builder. Paths decide this, not scopes.
+- **`device/` no longer has to be kept out of anything's `exclude-paths`.** It
+  did: a commit here would otherwise have minted a version of the builder, and
+  `release-please-config.json` was where that was arranged, by path rather than
+  by scope. That file went with the release train
+  ([ADR 0016](../adr/0016-the-browser-half-stops-being-released.md)), and the
+  only version a commit here can move now is `device-v*`, by hand, which is the
+  point.
 - **The specification's version is not `LAYOUT_VERSION` and not
   `CABLE_VERSION`.** Those are a byte in a file and a number on a wire, both
   currently 1. The document version is `MAJOR.MINOR.PATCH` over the whole device

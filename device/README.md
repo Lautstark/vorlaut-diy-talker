@@ -65,10 +65,12 @@ neither half is a statement about a directory, not about a repository.
 held to: no tag until the fixtures have run against both implementations *and*
 a mutation run says they bite. Pin a commit SHA in the meantime.
 
-`device/` is in `exclude-paths` in
-[`release-please-config.json`](../release-please-config.json) beside `firmware`,
-`case` and `exchange`, so a commit here does not mint a version of the builder.
-Paths decide that, not scopes.
+A commit here mints no version of anything. It used to need arranging —
+`device/` sat in `exclude-paths` in `release-please-config.json`, so that a
+change to the specification did not release the builder — and that file went
+with the release train
+([ADR 0016](../adr/0016-the-browser-half-stops-being-released.md)). `device-v*`
+is cut by hand, when the bar above is met.
 
 The version in `index.json` is not `LAYOUT_VERSION` and not `CABLE_VERSION`.
 Those are a byte in a file and a number on a wire, both currently 2; this is

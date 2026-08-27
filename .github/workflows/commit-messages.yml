@@ -4,10 +4,23 @@ name: Commit messages
 #
 # It used to be .githooks/commit-msg alone, and a hook is the wrong shape for
 # this repository: it is opt-in per clone, and a clone that never ran
-# `git config core.hooksPath` has no check at all. The failure it was guarding
-# is silent - release-please reads the prefix and nothing else, so a commit
-# without one lands with no changelog entry and no version bump and says
-# nothing. A silent failure guarded by an opt-in check is not guarded.
+# `git config core.hooksPath` has no check at all.
+#
+# WHY THE CONVENTION IS STILL HERE, now that nothing generates a changelog from
+# it. It was adopted because release-please read the prefix and nothing else, so
+# a commit without one landed with no changelog entry and no version bump and
+# said nothing - a silent failure, guarded by an opt-in check, which is not
+# guarded. adr/0016 retired release-please, and that justification went with it.
+#
+# The prefixes are worth keeping on their own: they say what a commit *is*
+# before its sentence says what it does, they make `git log --oneline` skimmable
+# across a repository that holds TypeScript, C++ and Python, and `feat!:` is how
+# a breaking change announces itself to a person rather than to a bot. What is
+# gone is the silent failure - a missing prefix now costs nothing but a reader's
+# time - so this gate is a convention held to rather than a trap avoided. That
+# is a weaker reason and it is still a sufficient one; it is written out here
+# because a rule whose stated reason has expired is the kind that gets deleted
+# by somebody who checked.
 #
 # So the hook stays as a convenience - it tells you while the message is still
 # in the editor - and this is what actually has to pass.
