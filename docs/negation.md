@@ -36,14 +36,14 @@ vorlaut draws a symbol in four places, and they are not one problem.
 
 | | what it is | what a cross costs there |
 |---|---|---|
-| `symbolInto()` — [`backend/local.ts`](../src/backend/local.ts) | an `<img>` on screen: the sheet's preview, a tablet cell, a talker key | an overlay, exactly as bildhaft does it |
+| `symbolInto()` — [`backend/local.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/backend/local.ts) | an `<img>` on screen: the sheet's preview, a tablet cell, a talker key | an overlay, exactly as bildhaft does it |
 | `previewBoards()` — [`loader/src/preview.ts`](../loader/src/preview.ts) | the talker's life-size 128x128 preview, which is the compiled tile itself | free, and correct — it *is* the tile. It was `previewInto()` beside `symbolInto()` until [ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) moved it, which changed where the picture is drawn and not what the cross costs there |
 | `renderSymbol()` — [`data/tiles.ts`](../loader/src/tiles.ts) | 128x128 RGB565 written to the device | composited into a bitmap |
-| `bakeImage()` — [`data/app_assets.ts`](../src/data/app_assets.ts) | a PNG member of an app package | composited into a bitmap |
+| `bakeImage()` — [`data/app_assets.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_assets.ts) | a PNG member of an app package | composited into a bitmap |
 
 And there is a fifth surface that has no pixels at all, which turns out to
 decide most of this document. **The talker's own `.obz` export bakes nothing.**
-`layoutToDocument()` in [`data/obf.ts`](../src/data/obf.ts) builds
+`layoutToDocument()` in [`data/obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts) builds
 `files: {}` and every image is a `symbol: {set, filename}` pair;
 `checkLicensing()` stands at the one door to `writeObz()` to keep it that way.
 So on that path there are no pixels to draw a cross into, and there never will
@@ -56,7 +56,7 @@ and a path that can only declare, and they are the same product.**
 ## 1. Where the flag lives
 
 **Recommended: `negated?: boolean`, on `Slot` and on `AppButton` in
-[`core/types.ts`](../src/core/types.ts), with the symbol reference left
+[`core/types.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/core/types.ts), with the symbol reference left
 untouched.**
 
 The same name and the same shape bildhaft chose, and the same reasoning applies
@@ -110,7 +110,7 @@ not in.
 
 An app package bakes pixels — [ADR
 0003](../adr/0003-packages-bake-pixels.md), and
-[SPEC.md §5](../exchange/SPEC.md#5-images-and-symbols) is unconditional about
+[SPEC.md §5](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md#5-images-and-symbols) is unconditional about
 it. A crossed button whose PNG is not crossed is a button the child sees
 uncrossed, in the one room where nobody can correct it. So the pixels have to
 carry the cross regardless of what else is decided. That is not a choice
@@ -244,7 +244,7 @@ beside the tokens.
 **Recommended: in the picture column of the sheet, in `pick__acts`, beside
 "own picture" and "remove picture".**
 
-[`shell/sheet.ts`](../src/shell/sheet.ts) already draws that row and its own
+[`shell/sheet.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/sheet.ts) already draws that row and its own
 comment names the slot exactly — the remove button sits "next to the other
 thing that is done to the picture as a whole". A negation is a third such
 thing, and it is the only one of the three that is a state rather than an act,
@@ -345,7 +345,7 @@ join every key.**
 * The bake loop for app packages has the same shape and the same bug, keyed on
   `references(layout)`.
 * `references()` and `symbolPlaces()` in
-  [`data/app_package.ts`](../src/data/app_package.ts) return bare strings. They
+  [`data/app_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts) return bare strings. They
   have to carry the flag, or the two loops above have nothing to key on.
 
 The file names are safe and pleasantly so: a tile is `t<hash of its own
@@ -431,7 +431,7 @@ Four, in the order they block anything.
 2. **The specification bump.** §2 proposes `ext_lautstark_negated` as a button
    extension at 1.3.0, with wording that forbids an importer drawing anything.
    Proposing a version bump is not making one, and
-   [`exchange/SPEC.md`](../exchange/SPEC.md) is unchanged by this document. §13
+   [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) is unchanged by this document. §13
    makes fixtures normative over prose, so the bump owes a fixture and an
    `.expected.json` before it means anything, and §12 makes it a minor because a
    1.2.0 importer ignoring the field renders a correctly crossed board.

@@ -6,10 +6,10 @@ same move `tiles.py` already made into [`loader/src/tiles.ts`](../loader/src/til
 
 This one is not a port. bildhaft had already written it, so the code was lifted
 out into [bildquelle](https://github.com/Lautstark/bildquelle), a package the
-two projects share, and [`src/data/symbols.ts`](../src/data/symbols.ts) is only the
+two projects share, and [`src/data/symbols.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/symbols.ts) is only the
 adapter between that package and the shapes vorlaut speaks.
 
-The bench is [`tools/symbolcheck.html`](../tools/symbolcheck.html), the way
+The bench is [`tools/symbolcheck.html`](https://github.com/Lautstark/vorlaut-editor/blob/main/tools/symbolcheck.html), the way
 `ttscheck.html` is the bench for speech. Everything measured below came from it.
 
 ## Why a package rather than a port

@@ -7,7 +7,7 @@ import { readPackageFile } from "../../loader/src/read.js";
 import { compileDevice, type DeviceHost } from "../../loader/src/compile.js";
 import {
   planLayout, readDevicePackage, type ReadDevicePackage,
-} from "../../src/data/device_package.js";
+} from "../../loader/src/device_package.js";
 import {
   HASH_BYTES, LAYOUT_BIN, renderLayoutBin,
 } from "../../loader/src/layout_format.js";

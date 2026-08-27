@@ -1,6 +1,6 @@
 # What a schema change does to somebody's boards
 
-`DB_VERSION` in [`src/data/store.ts`](../src/data/store.ts) went to 4 on
+`DB_VERSION` in [`src/data/store.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/store.ts) went to 4 on
 2026-08-27, and every board in every browser that had been here before went
 with it. Nothing warned, nothing asked, nothing was written out first. It
 happened on page load, before anybody had touched anything.

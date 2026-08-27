@@ -10,7 +10,7 @@
 #
 # **Anchored, and that is not tidiness.** These were written as bare `content`
 # and `data`, which match a file or directory of that name *at any depth* - so
-# the moment the front end grew a src/data/ holding the format modules, five
+# the moment the front end grew a data/ directory holding the format modules, five
 # files stopped being offered up for committing and nobody was told. They were
 # on disk, every local check passed, and CI failed on a tree that did not have
 # them. The leading slash pins each to the root, where the thing being ignored
@@ -57,7 +57,7 @@ node_modules/
 
 # What Vite builds. Uploaded by the Pages workflow and never committed: a
 # checked-in build output is a second copy of the front end that goes stale
-# quietly, and every check here runs against src/ rather than against it.
+# quietly, and every check here runs against loader/ rather than against it.
 dist/
 
 # Playwright's own leavings.

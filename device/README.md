@@ -1,7 +1,7 @@
 # Conformance fixtures for the two formats between a Sammlung and a talker
 
 **The device interface**: what passes between the builder in
-[`src/`](../src/) and the firmware in [`firmware/`](../firmware/) —
+[`src/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/) and the firmware in [`firmware/`](../firmware/) —
 `layout.bin`, the cable protocol, the tile and audio payloads, the name rule
 and the language enumeration.
 
@@ -34,7 +34,7 @@ one of them and a comment in a header disagree, **the fixture wins**.
 
 Not `src/`, and not `firmware/`. `device/` sits beside both and belongs to
 neither, which is the one thing this directory does differently from
-[`exchange/`](../exchange/).
+[`exchange/`](https://github.com/Lautstark/vorlaut-editor/tree/main/exchange/).
 
 The mechanism there carries over unchanged and is the right shape: a tag prefix
 of its own, consumers pinning the tag rather than a branch, **no test runner

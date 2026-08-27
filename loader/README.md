@@ -1,30 +1,36 @@
 # `loader/` — the page that puts a file on the talker
 
 The editor writes an `.obz` and stops. This is what happens next: choose the
-file, check it, compile it into what the device reads, connect, send. It is a
-second page out of the same build, published at `<base>loader/`, and
-[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) is the decision behind
-it.
+file, check it, compile it into what the device reads, connect, send.
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) is the
+decision behind it.
 
-## Why the directory is here and not under `src/`
+It is now the **only** page this repository publishes, and it is served from the
+root: `https://lautstark.github.io/vorlaut-diy-talker/`. It was a second page
+beside the editor, at `<base>loader/`, until
+[`adr/0012`](../adr/0012-the-repository-splits-editor-leaves.md) took the editor
+to [`vorlaut-editor`](https://github.com/Lautstark/vorlaut-editor) on 2026-08-27 and this page moved up. The address
+in front of the path did not change, which is the half of the split that
+mattered: it is the address somebody opens with a cable in their hand.
 
-Because it is going to move again, and this is the shape that makes that a move
-rather than an excavation.
+## Why the directory keeps its name
 
-[`docs/repository-map.md`](../docs/repository-map.md) had already settled which
-half leaves if this repository is ever split, and it is the **editor**: the
-talker keeps the repository, the name and the history, and `vorlaut-editor` is
-new. It is no longer an *if* —
-[`adr/0012`](../adr/0012-the-repository-splits-editor-leaves.md) decided the
-split on 2026-08-27, and nothing about the direction changed. So the question for anything device-shaped is not "where does it go", it is
-"what does it sit beside when the editor is gone". The answer is `firmware/`,
-`case/` and `device/` — and now this, a fourth sibling holding the browser half
-of the same product.
+The page is at the root; the modules are still under `loader/`. That is
+deliberate, and it is the same reason the directory existed in the first place.
 
-That was not true a commit ago. The tile renderer was in `src/data/`, the cable
-was in `src/backend/`, the transfer sheet was in `src/editor-diy/` and the wire
-protocol was in `tools/`, so "the talker's browser code" was a list somebody
-would have had to reconstruct. It is a directory now.
+[`docs/repository-map.md`](../docs/repository-map.md) had settled which half
+leaves — the **editor** — and the question for anything device-shaped was never
+"where does it go" but "what does it sit beside when the editor is gone". The
+answer is `firmware/`, `case/` and `device/`, and this is the fourth sibling,
+holding the browser half of the same product. Flattening it into the repository
+root now would put `main.ts` beside `wokwi.toml` and rewrite every import in the
+repository to say nothing new.
+
+That grouping was not true a commit before the directory existed. The tile
+renderer was in `src/data/`, the cable was in `src/backend/`, the transfer sheet
+was in `src/editor-diy/` and the wire protocol was in `tools/`, so "the talker's
+browser code" was a list somebody would have had to reconstruct. It is a
+directory, and the move it was shaped for has happened.
 
 The name is the job rather than the transport. A cable is one way in and a
 folder for `mklittlefs` is another — both are in here — and `flasher/` would
@@ -34,7 +40,7 @@ have named the firmware's business rather than this one's.
 
 | | |
 |---|---|
-| `index.html`, `src/main.ts`, `src/style.css` | the page: five steps, and the log at the end |
+| `../index.html`, `src/main.ts`, `src/style.css` | the page: five steps, and the log at the end. The HTML is at the repository root because Vite emits an entry point at its own path |
 | `src/validate.ts` | the checks — the job that did not exist while one program wrote the file and read it back |
 | `src/preview.ts` | the compiled tiles, at the size a key really is — [ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) |
 | `src/read.ts`, `src/unzip.ts` | the archive, opened |
@@ -42,6 +48,9 @@ have named the firmware's business rather than this one's.
 | `src/tiles.ts`, `src/layout_format.ts` | the device's own formats: a tile, and the table the firmware reads |
 | `src/cable.ts`, `src/device.ts`, `src/serial.d.ts` | WebSerial: which port, and the transfer |
 | `src/folder.ts` | the same files on a disk, for the bench and for `mklittlefs` |
+| `src/device_package.ts` | the reader half of the exported format: the shapes, the WAV rules and `readDevicePackage()` — [`docs/split-crossings.md`](../docs/split-crossings.md) hard case one is where this cut was costed |
+| `src/boot.ts`, `src/boot_data.ts` | the label table and `t()`, in both languages |
+| `src/errors.ts` | `Trouble`, which carries a word rather than a sentence |
 | `tools/cable.js`, `tools/cable_mock.js` | the wire protocol, and a device made of a Map |
 
 `tools/` stays a directory of its own inside this one for the reason it always
@@ -54,7 +63,7 @@ implementation is checked against the firmware's C reader.
 
 **It never sends the file anywhere.** The archive is read with the File API and
 compiled in the browser. There is no `fetch` on this page, no form and nothing
-to configure. `exchange/SPEC.md` §5.2 permits a METACOM licensee to bake their
+to configure. [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) §5.2 permits a METACOM licensee to bake their
 own symbols into a package *for the person they support* and sideload it, which
 is exactly what this file is; a page that uploaded one would turn the one
 blessed case into the travelling file the rule exists to prevent.
@@ -68,57 +77,54 @@ loop is: change it there, export again, choose the new file.
 
 ## The words on it
 
-There is no second label table. `src/core/boot_data.ts` is the product's, in
-both languages, and this page reads it through the same `t()` the editor uses —
-which is why that function lives in `core/boot.ts` beside the table rather than
-in the editor's `core/texts.ts`. What this page owns is a prefix: everything it
-says is `load.*`, plus the `cable.*` and `err.cable_*` entries that were already
-there for the transfer and came across unchanged.
+`src/boot_data.ts` is this page's table, in both languages, read through the
+`t()` beside it in `src/boot.ts`.
 
-A prefix rather than a file is what keeps the eventual split cheap. The table
-divides along a line that is already drawn, and nobody has to decide, three
-months from now, which of two tables a sentence was supposed to be in. A second
-table would have drifted from the first within a week — one language gains a
-label, the other does not, and `tests/unit/boot_data.test.ts` is watching only
-one of them.
+There was one table for two pages until the split, in the editor's
+`src/core/boot_data.ts`, and this page owned a prefix of it: everything it says
+is `load.*`, plus the `cable.*` and `err.cable_*` entries that were already there
+for the transfer. **That prefix is exactly what came across** — 71 keys, both
+languages, in the order they were in — which is what the prefix was for. The
+table divided along a line that was already drawn, and nobody had to decide, on
+the day, which of two tables a sentence was supposed to be in.
+
+Two tables can now drift, and the drift that matters is a key present in one
+language and not the other. `tests/test_language.py` is what notices, and it
+reads this file the same way it read the last one.
 
 There is no language picker here. The choice is the editor's, kept in
 `localStorage` under `vorlaut.language`, and both pages read it; somebody who
 only ever opens this page gets their browser's own preference, which is the
 right answer for them.
 
-## What crosses into `src/`, and what comes back
+## What used to cross, and where it went
 
-Eight names in one direction and two modules in the other, and they are counted
-rather than forbidden.
+Nothing crosses now. The two directories are two repositories, and the boundary
+between them is a file. `docs/split-crossings.md` is the bill as it was counted
+before the day, and it is worth reading for what each crossing cost rather than
+for what is left of it, which is nothing.
 
-`src/` takes out of here `SLOTS_PER_SET`, `HASH_BYTES`, `LANGUAGE_CODES`,
-`DEFAULT_LANGUAGE`, `SLEEP_MIN`, `SLEEP_MAX` and `SLEEP_DEFAULT` — facts about
-the format, because the editor writes a file a talker has to be able to read —
-plus `thumbnailSize()`, which is the app package's fit.
-`tests/unit/layers.test.ts` holds that list to exactly those eight and is where a
-ninth has to be argued for.
+The editor took out of here `SLOTS_PER_SET`, `HASH_BYTES`, `LANGUAGE_CODES`,
+`DEFAULT_LANGUAGE`, `SLEEP_MIN`, `SLEEP_MAX`, `SLEEP_DEFAULT` and
+`thumbnailSize()` — eight names, facts about the format, because the editor
+writes a file a talker has to be able to read. They are editor-local modules
+over there now, and `layers.test.ts`, which held that list to exactly eight,
+went with them: a rule about imports has nothing to read once the two
+directories are in two repositories.
 
-It was ten until 2026-08-27. `renderSymbol()` and `TILE_SIZE` were the editor's
-device preview — a symbol drawn the way a ScreenKey draws it, so a pictogram
-could be judged at 15.21 mm — and that picture is `src/preview.ts` on this page
-now, drawn from the tiles the compile has already made rather than rendered a
-second time.
-[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) is the
-decision, and it states what the move costs: the loop is longer for whoever is
-choosing the pictogram.
-
-This page takes out of `src/` the label table above, and
-`src/data/device_package.ts`, which is the format itself — the writer, the
-reader, and the four form rules. That module stays with the writer for the
-reason [`exchange/README.md`](../exchange/README.md) gives about fixtures living
-with the writer, and when this repository is split it is the one file that has
-to answer for itself the way [ADR 0009](../adr/0009-device-interface-fixtures.md)
-says a format with two implementations has to.
+This page took out of the editor the label table above, `Trouble`, and the
+**reader half** of `src/data/device_package.ts` — `readDevicePackage()`,
+`planLayout()`, the WAV rules and the shapes, which are `src/device_package.ts`
+here now. The writer stayed with the editor and was deliberately not copied: a
+vendored writer in the repository that reads the format is the one edit
+`docs/split-crossings.md` names as the edit that must not happen. What holds
+this half honest instead is `device/fixtures/package/` —
+[ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md) — which is the
+arrangement [ADR 0009](../adr/0009-device-interface-fixtures.md) asks for.
 
 ## Running it
 
-`npm run dev` serves both pages; this one is at `/loader/`. The e2e suite drives
-it in `e2e/loader.spec.ts`, against `tools/cable_mock.js` and a package built
-through the editor's own writer in `e2e/package.ts` — no fixture binary, and
-nothing synthesised.
+`npm run dev` serves this page at `/`. The e2e suite drives it in
+`e2e/loader.spec.ts`, against `tools/cable_mock.js` and four committed packages
+in `e2e/fixtures/packages/` — the editor's writer's own output, taken on the day
+of the split, with the provenance and the recipe in the README beside them.

@@ -1,10 +1,17 @@
-name: Deploy the board designer to GitHub Pages
+name: Deploy the loader page to GitHub Pages
 
 # The shape is bildhaft's deploy.yml, which solved the same problem first: test,
 # then build, then deploy, with pull requests tested and never published. The
 # toolchain is now the same shape too - Vite and TypeScript - though without
-# React, because vorlaut's interface is plain DOM and there is nothing here
-# asking to be a component tree.
+# React, because this interface is plain DOM and there is nothing here asking
+# to be a component tree.
+#
+# What is published is one page: loader/, which takes a board exported from
+# vorlaut-editor and sends it to a talker down a USB-C cable. It was published
+# at <base>loader/ beside the editor until adr/0012, and took the root when the
+# editor left. BASE_PATH below follows the repository name, and the repository
+# name did not change - which is why the address somebody opens with a cable in
+# their hand is the one thing the split did not move.
 
 on:
   push:
@@ -26,9 +33,9 @@ concurrency:
 
 jobs:
   # Nothing reaches Pages unless this passes. Three toolchains, because the
-  # checks genuinely need three: vitest imports src/ directly, Playwright opens
-  # the built page in a browser, and tests/run.py compiles the firmware's own
-  # C++ readers to replay the browser's bytes into them.
+  # checks genuinely need three: vitest imports loader/ directly, Playwright
+  # opens the built page in a browser, and tests/run.py compiles the firmware's
+  # own C++ readers to replay the browser's bytes into them.
   test:
     runs-on: ubuntu-latest
     steps:

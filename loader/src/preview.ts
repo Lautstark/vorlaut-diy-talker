@@ -29,8 +29,8 @@
 // picture very slightly darker than the device - the kind of difference nobody
 // can see and everybody argues about. previewInto() reproduced it and so does
 // this; the arithmetic below is that function's, unchanged.
-import { t } from "../../src/core/boot.js";
-import type { ReadDevicePackage } from "../../src/data/device_package.js";
+import { t } from "./boot.js";
+import type { ReadDevicePackage } from "./device_package.js";
 import type { DeviceBuild } from "./compile.js";
 import { SLOTS_PER_SET } from "./layout_format.js";
 import { TILE_SIZE } from "./tiles.js";

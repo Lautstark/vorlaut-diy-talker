@@ -3,7 +3,7 @@
 vorlaut writes two `.obz` files, and they are not the same file with a flag
 between them. This page is about the second one: the **Lautstark Board
 Package** the Android viewer opens, specified in
-[`exchange/SPEC.md`](../exchange/SPEC.md).
+[`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md).
 
 | | Talker export | App package |
 |---|---|---|
@@ -12,7 +12,7 @@ Package** the Android viewer opens, specified in
 | Audio | none | Ogg Opus files in the archive |
 | METACOM | refused outright | permitted, `redistributable: false` |
 | Extension namespace | `ext_vorlaut_*` | `ext_lautstark_*` |
-| Code | [`src/data/obf.ts`](../src/data/obf.ts) | [`src/data/app_package.ts`](../src/data/app_package.ts) |
+| Code | [`src/data/obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts) | [`src/data/app_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts) |
 | Reader | vorlaut itself, and other AAC software | the Android viewer |
 
 ## Why two doors rather than one function
@@ -88,7 +88,7 @@ the one thing no editor shows.
 
 Reaching that refusal at all is now the exception. The picture column offers
 the collection the **open Sammlung** is drawn in — `offeredSource()` in
-[`src/shell/picker.ts`](../src/shell/picker.ts) — falling back to the machine's
+[`src/shell/picker.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/picker.ts) — falling back to the machine's
 setting only for a Sammlung that has said nothing yet. A mixed one can still
 arrive from elsewhere; it can no longer be built here.
 
@@ -98,7 +98,7 @@ Ogg Opus, mono, 24 kHz into the encoder, from the synthesiser's master — not
 from the device's 16 kHz WAVs, which are a downsample of the same master.
 Encoding those would stack a downsample and a lossy codec for nothing (§6.1).
 
-There is no Opus dependency. [`src/data/opus.ts`](../src/data/opus.ts) uses
+There is no Opus dependency. [`src/data/opus.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/opus.ts) uses
 WebCodecs' `AudioEncoder`, which is Chromium's own libopus, and writes the Ogg
 container itself — some 150 lines of pages, segment tables and granule
 positions. Two things in there are worth knowing before touching it:

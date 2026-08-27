@@ -33,8 +33,12 @@ import german  # noqa: E402
 # there is deliberately no README.de.md to drift out of step.
 GERMAN_BY_DESIGN = {
     "texts.py",                       # holds the German interface texts
-    "src/core/boot_data.ts",          # the same table, written out for the
-                                      # page that has no server to inject it
+    "loader/src/boot_data.ts",        # the same table, written out for the
+                                      # page that has no server to inject it.
+                                      # It was src/core/boot_data.ts and held
+                                      # both pages' labels; adr/0012 took the
+                                      # editor's half to vorlaut-editor, which
+                                      # allowlists its own copy
     "firmware/vorlaut/texts.h",       # holds the German device labels
     "tests/german.py",                # the word lists themselves
     "tests/test_language.py",         # this file - it quotes them
@@ -58,18 +62,10 @@ SKIP_SUFFIX = {".png", ".svg", ".json", ".bin", ".stl", ".ico"}
 # what we write; a vendored package agreed to none of our rules, and the German
 # in it is a default the host is meant to translate rather than a string that
 # escaped review. Editing it would be edited over on the next refresh anyway.
-# exchange/fixtures/ is conformance data for the board package format, not code.
-# Its boards carry the labels real boards carry - "Zurueck", "Loeschen", umlauts
-# and an eszett - because an importer that mangles UTF-8 has to fail on the text
-# that actually ships rather than pass on an ASCII stand-in. The rule this file
-# enforces is that *we* write English; a fixture board is content, the same way
-# content/ is, and docs/languages.md draws that line already.
-#
-# The generator itself, exchange/tools/make_fixtures.mjs, is code and is NOT
-# exempt: the German lives in exchange/fixtures/source/labels.de.json and the
-# generator refers to it by key.
-SKIP_PREFIX = ("content/", "example/symbols/", "static/vendor/",
-               "exchange/fixtures/")
+# exchange/fixtures/ was here too, and went to vorlaut-editor with the format
+# it is conformance data for - adr/0012. Nothing under device/fixtures/ needs an
+# entry: its board documents are JSON, which SKIP_SUFFIX already passes over.
+SKIP_PREFIX = ("content/", "example/symbols/", "static/vendor/")
 
 
 def tracked_files() -> list[str]:

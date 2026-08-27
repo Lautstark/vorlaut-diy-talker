@@ -21,7 +21,7 @@ Two questions that sound like one and are not. *Used by more than one product*
 is about **deployment**: it is why `design`, `bildquelle`, `sicherung` and
 `stimmquelle` are four repositories of their own — another product needed them,
 and it existed. *Has a second implementation that must agree* is about
-**specification**: it is why [`exchange/SPEC.md`](../exchange/SPEC.md) and
+**specification**: it is why [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) and
 [`device/`](../device/README.md) exist — two programs write and read the same
 bytes, and neither of the two programs is the format.
 
@@ -43,13 +43,17 @@ Every boundary below is one of those two answers.
 flowchart LR
   PKGS["design · bildquelle<br/>sicherung · stimmquelle<br/>four repositories, pinned by tag"]
 
-  subgraph V["vorlaut — this repository"]
+  subgraph E["vorlaut-editor"]
     SH["src/shell/<br/>boards, symbols, voices, settings"]
     DIY["src/editor-diy/<br/>four keys, five sets"]
-    DEV["device/fixtures/<br/>owned by neither half"]
-    FW["firmware/<br/>Arduino sketch, C++"]
     APP["src/editor-app/<br/>tablet boards"]
     EX["exchange/SPEC.md<br/>+ conformance fixtures"]
+  end
+
+  subgraph V["vorlaut-diy-talker — this repository"]
+    LOAD["loader/<br/>check, compile, send"]
+    DEV["device/fixtures/<br/>owned by neither implementation"]
+    FW["firmware/<br/>Arduino sketch, C++"]
   end
 
   TALKER["the talker<br/>ESP32-S3, five ScreenKeys"]
@@ -60,21 +64,24 @@ flowchart LR
   SH --- DIY
   SH --- APP
 
-  DIY -->|"layout.bin, tiles, WAVs<br/>down the USB-C cable"| TALKER
+  DIY -->|".obz device package<br/>a file, not a dependency"| LOAD
+  LOAD -->|"layout.bin, tiles, WAVs<br/>down the USB-C cable"| TALKER
   DIY -->|".obz — symbols by reference, no pixels"| AAC
   APP -->|".obz app package — PNG and Opus baked in"| VA
   FW -->|"flashed once"| TALKER
 
-  DEV -.-|held against it| DIY
+  DEV -.-|held against it| LOAD
   DEV -.-|held against it| FW
+  DEV -.-|pinned as a submodule| E
   EX -.-|normative for the writer| APP
   EX -.-|pinned by commit SHA| VA
 ```
 
-**Nothing unbuilt is drawn.** The diagram is what exists and runs today. The
-split is decided and not built, and it is prose under
-[its own heading](#the-split-and-the-route-it-replaced), so that a reader skimming the picture
-cannot come away with a shape nothing has yet.
+**Nothing unbuilt is drawn.** The diagram is what exists and runs today, and
+since 2026-08-27 that includes the split: the editor is its own repository, and
+the two boxes are two repositories rather than two halves of one. What is still
+prose under [its own heading](#the-split-and-the-route-it-replaced) is the third
+name — the explainer site, which nobody has stood up.
 
 **Why mermaid, and not a picture or a table.** These files are read on
 github.com — that is where `README.md`'s relative links land — and GitHub
@@ -96,44 +103,65 @@ carried out, and two routes nobody is taking.
 
 | | |
 |---|---|
-| **Decided** | The Android app is a separate repository and a viewer only ([ADR 0004](../adr/0004-android-app-is-a-viewer.md)). The four shared packages are separate repositories ([`packages.md`](packages.md)). The package format is the app's boundary, specified and fixtured ([ADR 0005](../adr/0005-obf-obz-exchange-format.md), [`exchange/SPEC.md`](../exchange/SPEC.md)). The builder and the firmware share this repository ([ADR 0006](../adr/0006-builder-and-hardware-one-repo.md)). The device interface has fixtures owned by neither half ([ADR 0009](../adr/0009-device-interface-fixtures.md)). The device build has an `.obz` export of its own ([ADR 0010](../adr/0010-device-shaped-obz-export.md)). The editor exports a file and stops, and the talker's own repository compiles it and sends it ([ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md)). This repository splits into three, and the **editor** is the half that leaves ([ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)); [what the pieces are called](#the-three-names) was settled ahead of it. |
-| **Decided, nothing built** | The split. [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) decided it on 2026-08-27; no file has moved, and [what it costs](#what-the-move-costs) is the checklist rather than a prediction. |
+| **Decided** | The Android app is a separate repository and a viewer only ([ADR 0004](../adr/0004-android-app-is-a-viewer.md)). The four shared packages are separate repositories ([`packages.md`](packages.md)). The package format is the app's boundary, specified and fixtured ([ADR 0005](../adr/0005-obf-obz-exchange-format.md), [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md)). The builder and the firmware share this repository ([ADR 0006](../adr/0006-builder-and-hardware-one-repo.md)). The device interface has fixtures owned by neither half ([ADR 0009](../adr/0009-device-interface-fixtures.md)). The device build has an `.obz` export of its own ([ADR 0010](../adr/0010-device-shaped-obz-export.md)). The editor exports a file and stops, and the talker's own repository compiles it and sends it ([ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md)). This repository splits into three, and the **editor** is the half that leaves ([ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)); [what the pieces are called](#the-three-names) was settled ahead of it. |
+| **Decided, nothing built** | The explainer site, `vorlaut`. It has been unblocked since the names were settled and is waiting on nobody. |
+| **Decided and done** | The split. [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) decided it on 2026-08-27 and it was carried out the same day: `vorlaut-editor` stands with a filtered history, and `src/` and `exchange/` are gone from here. [What it cost](#what-the-move-costs) was the checklist, and it is now the record. |
 | **Not proposed by anybody** | ~~A device compiler shipped as a pinned package.~~ See [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md), and [`obz-as-device-input.md`](obz-as-device-input.md) for the route it replaced. ~~Splitting the **firmware** out~~ — the direction is the other one, and has been since the names were settled. |
 
 ---
 
 ## This repository
 
-The board builder, the firmware, the enclosure, and the two formats that leave.
-`README.md`'s *Working on it* has the module layout and the commands; what
-matters for the map is that the browser side has **one shell and two authoring
-halves**, and that they write to three different readers.
+The firmware, the enclosure, the fixtures both ends are held against, and the
+page that loads a board onto a talker. `README.md`'s *Working on it* has the
+module layout and the commands; what matters for the map is that everything
+here is on the **device** side of the file boundary — this repository reads the
+format and writes what a talker holds, and authors nothing.
 
 | | |
 |---|---|
-| [`src/shell/`](../src/shell/) | What any board builder needs, and neither editor owns: the list of boards, the symbol picker, the voices, the settings, import and export. |
-| [`src/editor-diy/`](../src/editor-diy/) | The five-key talker, and only it — four slots to a set, five sets on the device, and the cable. |
-| [`src/editor-app/`](../src/editor-app/) | The tablet boards the Android viewer renders — a grid, pages, a first column. |
+| [`loader/`](../loader/README.md) | The page: the checks, the compiler, the tile renderer, the `layout.bin` writer, the cable, and the reader half of the device package. Published at the root since the editor left. |
 | [`firmware/`](../firmware/) | The talker itself. C++, Arduino, ESP32-S3. |
+| [`device/`](../device/README.md) | The conformance fixtures, owned by neither implementation — [ADR 0009](../adr/0009-device-interface-fixtures.md). |
+| [`case/`](../case/) | The enclosure, in OpenSCAD. |
+
+## `vorlaut-editor`
+
+[`Lautstark/vorlaut-editor`](https://github.com/Lautstark/vorlaut-editor) — the half that left on 2026-08-27, with a
+filtered history in which `git blame` still reaches the commit that wrote each
+line. It is the board builder: **one shell and two authoring halves**, writing
+to three different readers.
+
+| | |
+|---|---|
+| [`src/shell/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/shell/) | What any board builder needs, and neither editor owns: the list of boards, the symbol picker, the voices, the settings, import and export. |
+| [`src/editor-diy/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/editor-diy/) | The five-key talker, and only it — four slots to a set, five sets on the device. |
+| [`src/editor-app/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/editor-app/) | The tablet boards the Android viewer renders — a grid, pages, a first column. |
 
 What it writes, and who reads it:
 
 | Artefact | Written by | Read by |
 |---|---|---|
-| `layout.bin`, the tiles and the 16 kHz WAVs | the build, pushed down the cable or into a folder | the firmware, on the device |
-| An `.obz` board document, symbols **by reference** | [`src/data/obf.ts`](../src/data/obf.ts) | vorlaut itself, and other AAC software |
-| An `.obz` app package, symbols and audio **baked in** | [`src/data/app_package.ts`](../src/data/app_package.ts) | `vorlaut-app` |
-| An `.obz` device package, sources unresampled and the device's own WAVs | [`src/data/device_package.ts`](../src/data/device_package.ts) | the page that compiles it and sends it ([ADR 0010](../adr/0010-device-shaped-obz-export.md), [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md)) |
-| A backup of everything, credentials and paths dropped | [`src/data/backup.ts`](../src/data/backup.ts), through `sicherung` | a folder the user picked, and whatever syncs it |
+| An `.obz` board document, symbols **by reference** | [`src/data/obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts) | the editor itself, and other AAC software |
+| An `.obz` app package, symbols and audio **baked in** | [`src/data/app_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts) | `vorlaut-app` |
+| An `.obz` device package, sources unresampled and the device's own WAVs | [`src/data/device_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/device_package.ts) | [`loader/`](../loader/README.md) in this repository, which compiles it and sends it ([ADR 0010](../adr/0010-device-shaped-obz-export.md), [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md)) |
+| A backup of everything, credentials and paths dropped | [`src/data/backup.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/backup.ts), through `sicherung` | a folder the user picked, and whatever syncs it |
+| `layout.bin`, the tiles and the 16 kHz WAVs | **not the editor** — [`loader/`](../loader/README.md), out of the device package | the firmware, on the device |
 
 The three `.obz` doors are three functions that share no code path, and
 [`exchange.md`](exchange.md) is why that is structural rather than tidy: the
 first refuses to write a METACOM symbol as pixels at all, the other two each
-take one narrow step past that under [`SPEC.md`](../exchange/SPEC.md) §5.2, and
+take one narrow step past that under [`SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) §5.2, and
 one function behind an argument would put the licence guarantee one call site
 away from being untrue.
 [ADR 0010](../adr/0010-device-shaped-obz-export.md) is why the third one is a
 door of its own rather than a flag on either of the first two.
+
+**It pins this repository as a submodule**, at `third_party/vorlaut-diy-talker`,
+for `device/fixtures/`. That is consumption and not ownership —
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)'s Why has the
+argument — and the pin resolves across the split because this history was not
+rewritten.
 
 ## `vorlaut-app`
 
@@ -183,8 +211,8 @@ measurement behind `npm ci`, and what installcheck can and cannot see.
 
 ### Between the editor and the app: a specification
 
-[`exchange/SPEC.md`](../exchange/SPEC.md) plus the conformance fixtures beside
-it, in [`exchange/`](../exchange/README.md). Two programs implement a written
+[`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) plus the conformance fixtures beside
+it, in [`exchange/`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/README.md). Two programs implement a written
 document and neither one is the document. The fixtures live with the **writer**
 and the reader pins them, which works because one party can always be made to
 move: the viewer gets an update. It is pinned by commit SHA rather than a tag,
@@ -192,6 +220,22 @@ because `exchange-v1.2.0` is not cut and will not be until a real board reaches
 a tablet — [`format-freeze.md` §5](format-freeze.md#5-the-android-viewers-pin-and-which-half-a-device-freeze-solves)
 is where that pin is examined, including the one normative rule that landed
 after it with no version to show for it.
+
+**Both of them are in `vorlaut-editor` now, and the viewer's pin points here.**
+That is the one loose end the split left, and it is loose rather than broken.
+`vorlaut-app` pins `exchange/` as a submodule of **this** repository, by commit
+SHA; this history was not rewritten, so that SHA goes on resolving and the
+existing pin is exactly as good as it was. What it cannot do is move: `exchange/`
+is not in this repository's future commits, so a bump has nowhere to go, and
+against the editor's filtered history the new ids are not translations of the old
+— so re-pointing at `vorlaut-editor` is a **fresh pin**, not a bump.
+
+Nothing has to happen today. The cheapest moment is when `exchange-v1.2.0` is
+cut, which is what ends SHA-pinning anyway, and cutting it is `vorlaut-editor`'s
+to do. Until then the sentence in that repository's `exchange/README.md` naming
+`Lautstark/vorlaut-diy-talker` as the submodule URL is the stale one, and this
+paragraph is where somebody arriving from `vorlaut-app` is meant to find that
+out.
 
 ### Between the editor and the firmware: a folder, and a third thing
 
@@ -225,9 +269,10 @@ still moving.
 
 ### The split, and the route it replaced
 
-**Nothing in this section is proposed any more.** What is left is one decision
-nobody has carried out yet, and beside it the route that was not taken — struck
-through rather than deleted, because it is what the taken one had to beat.
+**Nothing in this section is proposed any more, and nothing in it is pending.**
+The split was carried out on 2026-08-27. What is left beside it is the route
+that was not taken — struck through rather than deleted, because it is what the
+taken one had to beat.
 
 ~~[`obz-as-device-input.md`](obz-as-device-input.md) weighs making the editor's
 only output an `.obz`, with a device-side compiler that turns it into
@@ -278,7 +323,7 @@ adopts them as written.
 | | |
 |---|---|
 | `vorlaut-diy-talker` | **This repository**, keeping its name, its history, its address and its `v*` tags. It becomes the device: [`firmware/`](../firmware/), [`case/`](../case/), [`device/`](../device/README.md), [`loader/`](../loader/README.md) — the page that compiles an exported file into what the talker reads and sends it down the cable — and `tests/run.py` with the Python beside it. |
-| `vorlaut-editor` | New. The editor leaves — [`src/shell/`](../src/shell/), [`src/editor-diy/`](../src/editor-diy/), [`src/editor-app/`](../src/editor-app/), the three `.obz` doors, [`exchange/`](../exchange/README.md) and `tests/reference/`. |
+| `vorlaut-editor` | New. The editor leaves — [`src/shell/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/shell/), [`src/editor-diy/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/editor-diy/), [`src/editor-app/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/editor-app/), the three `.obz` doors, [`exchange/`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/README.md) and `tests/reference/`. |
 | `vorlaut` | New. A GitHub Pages site explaining the three products — the Android app, the editor, the DIY talker — to a reader who is not a developer. |
 
 **The three names are unchanged by
@@ -308,13 +353,46 @@ three names are one decision and not one event, and reading them as one event
 defers the only piece that is unblocked. ADR 0012 decides the other two and says
 so again: `vorlaut` is not waiting for them either.
 
+##### What `docs/` still says about the editor
+
+**Several documents here describe code that is now in `vorlaut-editor`, and
+they were left as they were.** Naming them is more useful than rewriting them,
+because most are dated analyses whose value is what was true when they were
+written — a rewrite would make them agree with today and stop being evidence of
+anything.
+
+| | |
+|---|---|
+| [`exchange.md`](exchange.md), [`negation.md`](negation.md), [`symbol-search.md`](symbol-search.md), [`sammlung-settings.md`](sammlung-settings.md), [`schema-upgrades.md`](schema-upgrades.md), [`browser-tts.md`](browser-tts.md) | About the editor's features, and the editor's alone. They belong in that repository and have not been moved there; nothing in this one implements what they describe. |
+| [`split-crossings.md`](split-crossings.md), [`split-rehearsal.md`](split-rehearsal.md), [`obz-as-device-input.md`](obz-as-device-input.md), [`format-freeze.md`](format-freeze.md) | Measurements taken before the move, and correct as of their dates. They describe `src/` in the present tense because it was present when they were written. |
+| [`frozen-references.md`](frozen-references.md), [`packages.md`](packages.md), [`languages.md`](languages.md), [`device-interface.md`](device-interface.md) | Half each. The parts about the locks, the pins and the formats this repository still holds are live; the parts about `obf.lock.json`, `tts.lock.json`, `symbols.lock.json` and the three packages that left are not. |
+
+Every **link** in all of them resolves — the ones into the editor were rewritten
+to point across on the day, and `tests/test_links.py` is what holds that. What
+was not rewritten is the prose around the links, and
+[`format-freeze.md` §9](format-freeze.md#9-prose-that-has-drifted-from-the-code)
+is the standing lesson about exactly this: reading catches the citation at the
+top of a file and misses the one two hundred lines down.
+
+One file is deliberately untouched and must stay that way:
+[`device/tools/make_fixtures.mjs`](../device/tools/make_fixtures.mjs) names
+`src/data/obf.ts`, `src/data/zip.ts` and `src/backend/cable.ts` inside strings
+that are **written into the committed fixtures**. Editing them would make the
+generator disagree with its own frozen output, which
+[`frozen-references.md`](frozen-references.md) is the document about.
+
 ##### What the move costs
 
 Worked out while it was cheap, and it stopped being hypothetical on 2026-08-27.
-None of it is built. This is the checklist for the day, and each paragraph is a
-thing to be answered rather than discovered —
+**It was then worked through, the same day, and every paragraph below held.**
+This was the checklist; it is now the record, and each paragraph is a thing that
+was answered rather than discovered —
 [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) points here for
-exactly that.
+exactly that. Two things the reading did not catch are noted where they belong:
+the loader page's e2e was built on the editor's writer and now reads committed
+fixtures ([`e2e/fixtures/packages/README.md`](../e2e/fixtures/packages/README.md)),
+and `device_fixtures.test.ts`'s one claim about `normalizeLayout()` was the
+editor's to make and went with it.
 
 **The history goes with the device, and the editor should get a rewritten copy
 rather than an empty one.** The reasoning in this project is largely in its
@@ -340,7 +418,7 @@ rename for free — it is not where this bites. The base is also written out
 **literally** in three tracked places, and those do not follow anything:
 [`package.json`](../package.json)'s `test:e2e` and `build:pages`, and
 [`playwright.config.ts`](../playwright.config.ts)'s `BASE`. Beside them,
-[`src/backend/local.ts`](../src/backend/local.ts) passes `piperRuntime()`'s
+[`src/backend/local.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/backend/local.ts) passes `piperRuntime()`'s
 `base` explicitly because the package cannot default it —
 [`packages.md`](packages.md) has that whole edge, and both of its failure modes
 are silent: a build with no base renders an empty body with no error at all,
@@ -385,10 +463,10 @@ direction would have moved the release scheme out of the repository that
 published the tags, which is the expensive half of that trade.
 
 **`exchange/` goes with the editor, and its rule still reads correctly.**
-[`exchange/README.md`](../exchange/README.md) puts the fixtures with the
+[`exchange/README.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/README.md) puts the fixtures with the
 **writer** and has the reader pin them, and says why it works: one party can
 always be made to move, because the viewer gets an update. The writer is
-[`src/data/app_package.ts`](../src/data/app_package.ts), which is the editor's,
+[`src/data/app_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts), which is the editor's,
 and the reader is the Android app, which is nobody's here. Both halves of that
 sentence survive the move unchanged, and the fixtures end up in the repository
 whose code they describe — a small improvement on today. Two things to do on
@@ -445,7 +523,7 @@ chain to the editor, `layout.lock.json` follows the writer it protects to the
 device, and `tiles.lock.json` is awkward because the module under it is.
 [`loader/src/tiles.ts`](../loader/src/tiles.ts) is not on one side — `renderSymbol()`
 belongs to the device build, while `thumbnailSize()` is imported by
-[`src/data/app_assets.ts`](../src/data/app_assets.ts) for the app package's
+[`src/data/app_assets.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_assets.ts) for the app package's
 images, and the only reason that function is worth having is that it follows
 Pillow's rounding step for step. Split the module and that rounding rule exists
 twice with nothing holding the copies together, which is the failure
@@ -483,7 +561,7 @@ consequence unwinds for the editor and stands for the device.
 **The seam the names describe is ~~not a directory yet~~ being made one, and
 that is the whole of what changed.** "Whatever compiles a package into what the
 talker reads" was `runBuild()`, at the foot of
-[`src/backend/local.ts`](../src/backend/local.ts) — the same file that answers
+[`src/backend/local.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/backend/local.ts) — the same file that answers
 the editor's questions, as its own opening comment says. The move is cheap
 exactly when that boundary is a file format rather than a function call, and
 the device-shaped `.obz` in the first bullet above is what makes it one: the

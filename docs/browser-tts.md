@@ -27,7 +27,7 @@ That finding is why the chain is written out by hand at all.
 | | |
 |---|---|
 | [`node_modules/@lautstark/stimmquelle/`](packages.md) | The chain and the catalogue, vendored from [Lautstark/stimmquelle](https://github.com/Lautstark/stimmquelle) and shared with mitreden |
-| [`tests/unit/level.test.ts`](../tests/unit/level.test.ts) | Holds the vendored chain to what real `ffmpeg` said, frozen in `tests/reference/tts.lock.json` |
+| [`tests/unit/level.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/level.test.ts) | Holds the vendored chain to what real `ffmpeg` said, frozen in `tests/reference/tts.lock.json` |
 
 **This started as two files written here**, `static/tts/level.js` and
 `speak.js`, and they are gone from this repository — extracted into the shared
@@ -328,10 +328,10 @@ be.
 
 The table above is still produced by hand, and still needs a `piper` and an
 `ffmpeg` to produce. What does not is
-[`tests/unit/level.test.ts`](../tests/unit/level.test.ts): the loudness
+[`tests/unit/level.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/level.test.ts): the loudness
 measurement, the peak meter, the resampling and the whole chain are checked
 against numbers real `ffmpeg` gave for the same inputs, frozen in
-[`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) while there
+[`tests/reference/tts.lock.json`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/reference/tts.lock.json) while there
 was still an `ffmpeg` half to freeze them from. It runs under plain node, from
 `python3 tests/run.py`, with no synthesiser and no browser.
 

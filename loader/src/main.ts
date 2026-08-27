@@ -45,11 +45,11 @@ import "@lautstark/design/components.css";
 import "./style.css";
 
 import { initTheme } from "@lautstark/design/theme";
-import { LANG, t } from "../../src/core/boot.js";
-import { Trouble, reason } from "../../src/core/errors.js";
+import { LANG, t } from "./boot.js";
+import { Trouble, reason } from "./errors.js";
 import {
   readDevicePackage, type ReadDevicePackage,
-} from "../../src/data/device_package.js";
+} from "./device_package.js";
 import { browserHost } from "./browser_host.js";
 import { type Build, cableSupported, sendToDevice, type Plan } from "./cable.js";
 import { compileDevice, type DeviceBuild } from "./compile.js";

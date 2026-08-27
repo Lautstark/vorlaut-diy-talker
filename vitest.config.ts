@@ -2,8 +2,8 @@ import { defineConfig } from "vitest/config";
 
 /* The checks that are only JavaScript live here.
  *
- * They import the modules under src/ directly, which is the reason vitest owns
- * them rather than plain node: the modules are TypeScript now and node cannot
+ * They import the modules under loader/ directly, which is the reason vitest
+ * owns them rather than plain node: the modules are TypeScript and node cannot
  * run them without a build in between. Putting a build between a test and the
  * thing it tests is how a frozen reference stops measuring the source.
  *
@@ -15,9 +15,9 @@ export default defineConfig({
   test: {
     include: ["tests/unit/**/*.test.ts"],
     environment: "node",
-    // data/store.ts and data/backup.ts talk to a real IndexedDB. An in-memory
-    // one lets the licensing checks read what actually landed in it rather
-    // than what a mock was told to say.
-    setupFiles: ["./tests/unit/setup.ts"],
+    /* No setupFiles. There was one - fake-indexeddb, so that the editor's
+     * data/store.ts ran against a real database rather than a mock - and it
+     * went with the editor. Nothing left here touches IndexedDB: these five
+     * files read device/fixtures/ off the disk and call into loader/. */
   },
 });

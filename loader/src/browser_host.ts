@@ -12,7 +12,7 @@
 // Which is also why they are forty lines and not four hundred. Anything that
 // grows here is something no test under node can see.
 import type { DeviceHost } from "./compile.js";
-import type { ReadDevicePackage } from "../../src/data/device_package.js";
+import type { ReadDevicePackage } from "./device_package.js";
 import { HASH_BYTES } from "./layout_format.js";
 import { sourcePixels } from "./tiles.js";
 

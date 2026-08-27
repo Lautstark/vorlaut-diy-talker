@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { readPackageFile } from "../../loader/src/read.js";
 import {
   isDeviceWav, planLayout, readDevicePackage, wavFormat, wavSeconds,
-} from "../../src/data/device_package.js";
+} from "../../loader/src/device_package.js";
 
 /* The talker page's half of device/fixtures/package/.
  *

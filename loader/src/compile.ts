@@ -25,7 +25,7 @@
 // it here would only mean the cut happened twice.
 
 import { planLayout, type ReadDevicePackage }
-  from "../../src/data/device_package.js";
+  from "./device_package.js";
 import { LAYOUT_BIN, renderLayoutBin } from "./layout_format.js";
 import * as tiles from "./tiles.js";
 

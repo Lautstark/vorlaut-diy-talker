@@ -120,7 +120,7 @@ place on that page where *"if you extend this to anything else, extend the
 fixtures too"* actually bites.
 
 **Every other home is worse, and two of them are forbidden.**
-[`exchange/SPEC.md`](../exchange/SPEC.md) §1 rules the talker out **by name**,
+[`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) §1 rules the talker out **by name**,
 on [ADR 0001](0001-two-ext-namespaces.md)'s grounds: the device package is a
 different profile with a different extension namespace and *"this specification
 does not govern it"*. `tests/reference/` is governed by

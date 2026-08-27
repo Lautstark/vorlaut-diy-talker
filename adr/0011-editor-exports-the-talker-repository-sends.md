@@ -6,7 +6,7 @@ between the editor and the device
 ## Context
 
 The editor owns the whole device path today. `runBuild()` at the foot of
-[`src/backend/local.ts`](../src/backend/local.ts) synthesises the audio, renders
+[`src/backend/local.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/backend/local.ts) synthesises the audio, renders
 every tile, writes `layout.bin` and puts the result in IndexedDB;
 [`loader/src/cable.ts`](../loader/src/cable.ts) opens a Web Serial port;
 [`loader/tools/cable.js`](../loader/tools/cable.js) speaks the wire; the release dialog
@@ -61,7 +61,7 @@ Three things this settles by construction:
   writer functions stay three functions sharing no code path —
   `exportBoard()` for a document other AAC software can open,
   `exportAppPackage()` for a tablet, `exportDevicePackage()` for a talker — and
-  [`exchange/SPEC.md`](../exchange/SPEC.md) §5.2's structural separation is
+  [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) §5.2's structural separation is
   untouched. What collapses to one entry is what a person presses: *export this
   Sammlung*, which writes the package for whichever kind of board it is.
 
@@ -206,7 +206,7 @@ requires that, and it is a licensing decision rather than a technical one.
 
 That change landed later the same day. The ⋯ carries one entry, *Sammlung
 exportieren*, and `chooseExport()` in
-[`src/shell/collections.ts`](../src/shell/collections.ts) asks what the file is
+[`src/shell/collections.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/collections.ts) asks what the file is
 for — a talker, a tablet, another program — in the card shape `askTarget()`
 beside it already uses, each card saying what it is *for* rather than what is
 in it. The three writers are three: each card names `exportBoard()`,
