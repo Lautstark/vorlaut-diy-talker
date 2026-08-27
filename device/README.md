@@ -39,12 +39,16 @@ neither party can. A talker on a shelf in a house nobody in this repository
 knows about is not going to be updated, and a specification the writer owns and
 the reader merely pins puts the authority on the side with nothing at stake.
 
-So both halves are held against a third thing that is neither of them. If the
-firmware ever does leave — [`adr/0006`](../adr/0006-builder-and-hardware-one-repo.md)
-says not yet, and
-[`docs/device-interface.md`](../docs/device-interface.md#what-the-evidence-actually-says)
-measures why — `device/` is what becomes the third repository, and both halves
-pin it. It does not go with either.
+So both halves are held against a third thing that is neither of them.
+
+**The firmware is not going anywhere, and this directory is not either.**
+[`adr/0012`](../adr/0012-the-repository-splits-editor-leaves.md) decided the
+split of this repository on 2026-08-27, and the half that leaves is the
+**editor**. Both implementations of every device format stay here — the C++
+reader in [`../firmware/`](../firmware/) and the TypeScript writer in
+[`../loader/`](../loader/README.md) — so `device/` stays beside both of them,
+owned by neither and pinned by nobody, exactly as it is today. Belonging to
+neither half is a statement about a directory, not about a repository.
 
 ### The tag
 

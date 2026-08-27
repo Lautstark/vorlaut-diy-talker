@@ -11,10 +11,12 @@ it.
 Because it is going to move again, and this is the shape that makes that a move
 rather than an excavation.
 
-[`docs/repository-map.md`](../docs/repository-map.md) has already settled which
+[`docs/repository-map.md`](../docs/repository-map.md) had already settled which
 half leaves if this repository is ever split, and it is the **editor**: the
 talker keeps the repository, the name and the history, and `vorlaut-editor` is
-new. So the question for anything device-shaped is not "where does it go", it is
+new. It is no longer an *if* —
+[`adr/0012`](../adr/0012-the-repository-splits-editor-leaves.md) decided the
+split on 2026-08-27, and nothing about the direction changed. So the question for anything device-shaped is not "where does it go", it is
 "what does it sit beside when the editor is gone". The answer is `firmware/`,
 `case/` and `device/` — and now this, a fourth sibling holding the browser half
 of the same product.

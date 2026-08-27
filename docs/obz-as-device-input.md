@@ -1,8 +1,13 @@
 # The `.obz` as the device build's input, and ~~the compiler as a package~~
 
-**Status: the measurement stands, the package half is superseded. Written
-2026-08-27 as a proposal; half of it was answered the same day.** The reasoning
-is kept where it still holds and struck through in words where it does not — a
+**Status: the measurement stands, the package half is superseded, and the "not
+yet" is spent. Written 2026-08-27 as a proposal; all of it was answered the same
+day** — the package half by
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md), and
+recommendation 4's *"do not split yet"* by
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md), which decided the
+split. The reasoning is
+kept where it still holds and struck through in words where it does not — a
 document that goes on describing a design nobody built is worse than no
 document.
 
@@ -456,6 +461,14 @@ Two things about them *would* change, and one is a trap:
   becomes the third repository, or the format has been handed back to one
   implementation.
 
+  *Neither happened, 2026-08-27.* This bullet is conditional on the package,
+  and there is no package. Under
+  [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) the
+  writer and the reader are both in the talker's repository, so under
+  [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)'s split the
+  fixtures stay there beside both of them and no third repository is needed for
+  them. The sharpening this bullet predicted is the one that did not arrive.
+
 Nothing is deleted. `test_layout_frozen.py` and `test_cable_format.py` hold the
 two implementations against each other on the same run, and under this proposal
 they still can, because the compiler's source would sit beside the firmware. The
@@ -624,15 +637,28 @@ and the route did not.
    move cheap, which is what 0006 predicted a met condition would look like.~~
 
    **Superseded on 2026-08-27 by
-   [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md).** Not
-   reversed — overtaken. "Not yet" was the right answer to *should the compiler
+   [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) and
+   then by [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md).** Not
+   reversed — overtaken, in two steps, both on the day this was written.
+
+   *The packaging half:* "not yet" was the right answer to *should the compiler
    be a package*, and that question stopped being asked. The editor exports a
    file and stops; the talker's repository gains a page that compiles the file
-   and sends it. There is no package to release, so the cost this
-   recommendation was waiting out never arrives, and nothing waits on ADR 0006's
-   condition 2 any more. The split is still unproposed and still needs evidence;
-   what changed is that the seam it would cut along is now a file format rather
-   than a function call.
+   and sends it. There is no package to release, so the cost this recommendation
+   was waiting out never arrives.
+
+   *The split half, later the same day:* **ADR 0012 decided it.** Both of the
+   two reasons given above for waiting had dissolved by then, and it is worth
+   being exact about how, because they dissolved differently. Condition 2 of ADR
+   0006 was never met — it gates extracting a *pinned package*, and ADR 0011
+   chose a design with no shared package at all, so the condition lost its
+   premise rather than being satisfied. The moving format did stop moving in the
+   way this sentence meant: the breaking cable change that was landing *"today"*
+   is C1, and [`format-freeze.md`](format-freeze.md#the-short-answer) records it
+   landed along with C2 and L1, leaving three items none of which is blocking.
+   What is left of the sentence above is the observation that the seam is now a
+   file format rather than a function call — which is what made the move cheap
+   enough to decide.
 
 5. **Amend ADR 0006's Why** (§12) with the distinction its own sentence misses:
    a second *consumer* is the test for extraction; a second *implementation* is
