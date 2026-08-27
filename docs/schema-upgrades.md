@@ -91,31 +91,50 @@ It turns out nothing on this path needs to leave: a stored layout carries its
 own `text` and `version`, so nothing has to be re-hashed; pictures move as
 `ArrayBuffer`s, so nothing has to be base64-ed; `updatedAt` is a number.
 
-**Chosen.**
+**Chosen**, in the steps-per-version form. See §1a.
 
-### 1a. Chained steps, or one reader per shape?
+### 1a. Steps per version, or readers per shape?
 
-Within option 1 there is a second choice, and it is the one that decides how
-much a bump costs in two years.
+Within option 1 there is a second choice, and getting it wrong is the mistake
+this document has already made once.
 
-**Chained** is the classic: `if (old < 2) {…} if (old < 3) {…}`, each step
-turning the previous shape into the next. Its cost compounds — step 2 has to
-keep working forever, it is written against a shape that no longer exists
-anywhere in the code, so nothing type-checks it, and it only ever runs for a
-browser that is exactly that far behind.
+**Steps per version** is the ordinary arrangement: an ordered list keyed on the
+version each one produces, run from wherever a database happens to be. It is
+what `idb`'s README describes, what MDN describes, and the same shape as Rails,
+Django, Flyway and Alembic. Its cost is that the list only grows, that each step
+is written against a shape no longer in the code so nothing type-checks it, and
+that a given step only ever runs for a browser exactly that far behind.
 
-**One reader per shape** reads whatever it finds into one in-memory value and
-writes that through the *current* schema. The write side is always the live
-one, so the compiler checks it; the read side is a pure function over dumped
-records, testable from a seeded database with no chain to replay.
+**Readers per shape** was tried first: dump every store, recognise the shape of
+what came out, write the whole thing back through the current schema. It looked
+cheaper by count — versions 1 and 2 share the `content` store, 3 and 4 share the
+store-per-kind schema, so two readers covered four versions.
 
-It is also cheaper by count. Readers are per *shape*, not per version: versions
-1 and 2 share the `content` store, versions 3 and 4 share the store-per-kind
-schema, so **two readers cover four versions.** `DB_VERSION = 4` — which
-removed a store and changed nothing about what the others hold — needed no new
-reader at all.
+**Steps per version, and the reasons are not aesthetic.**
 
-**One reader per shape.**
+`upgradeneeded` hands over `oldVersion`. Sniffing the contents to work out what
+a database is, when it has just been stated, is reinventing a fact you were
+given — and the readers needed a whole validation mechanism whose only job was
+to notice the guess had been wrong.
+
+The heavier reason is how much work each does. `DB_VERSION = 4` removed one
+store. As a step that is:
+
+```js
+db.deleteObjectStore("data")
+```
+
+one statement, reading no layout, incapable of losing a board. As a reader pass
+it was: dump six stores into memory, drop six, create five, write every record
+back — the largest possible operation for the smallest possible change. The
+number of ways a migration can lose something is roughly the number of records
+it writes, and this is the change that had just cost somebody everything.
+
+The type-checking argument for readers turns out to be worth less than it looks,
+too. Mature migration systems face the same problem and answer it the same way:
+Rails tells you not to use your live models in a migration, precisely because
+they drift. Historical knowledge belongs in code written against raw records,
+which is what a step is.
 
 ### 2. Export before the upgrade, import after it
 
@@ -181,49 +200,51 @@ writing them into a rescue store, and it ends with a working editor.
 
 ## What is chosen
 
-**1, with 1a's reader table, and 4 as the fallback.**
+**1, in 1a's steps-per-version form, with 4 as the fallback.**
 
-1. `upgrade()` reads every store it finds — keys and values — through the
-   upgrade transaction, before it deletes anything.
-2. A reader chosen by the shape of what was found turns that into one
-   in-memory value: every Sammlung with its name, its stored bytes, its
-   version stamp and its `updatedAt`, which one was open, the whole settings
-   record, and the pictures in `symbols/`.
-3. The schema is dropped and recreated exactly as it is today. Half-old is
-   still the state this repository will not have.
-4. What was read is written back through the new schema — in the same
-   transaction, so steps 1 to 4 are one atomic act.
-5. The page says how many Sammlungen came across, because an upgrade that
-   moved somebody's data silently is indistinguishable from outside from one
-   that lost it.
-6. **If no reader recognises what was found, the transaction is aborted.** The
-   database stays at its old version with everything in it. The page says so,
-   offers the raw contents as a file, and will not go any further until
-   somebody has taken that file and then explicitly said to discard.
+1. `src/data/migrations.ts` holds one step per version, in order. `plan()`
+   returns the ones between where this database is and `DB_VERSION`.
+2. Each step asserts the stores it expects to find, then does only what that
+   version changed — through the upgrade transaction, with no `await` in it on
+   anything that is not a request on that transaction.
+3. All of them commit together or none does.
+4. The page says what happened and counts the Sammlungen, which is the one
+   number a person can check the claim against.
+5. **If there is no step for a version, or a database is not the shape its
+   version claims, the transaction is aborted.** The database stays at its old
+   version with everything in it. The page says so, offers the raw contents as
+   a file, and will not go further until somebody has taken that file and then
+   explicitly said to discard.
 
-Point 6 is the one that matters in two years. The failure mode of forgetting is
+Nothing is dropped anywhere except in `createSchema()`, which is reached for a
+database that has never existed and for a person who has chosen the discard in
+point 5. Every other path only ever adds, moves, or removes what a specific
+version removed.
+
+Point 5 is the one that matters in two years. The failure mode of forgetting is
 a page that will not start — noticed in the minute after the mistake is made —
 rather than a wipe, which nobody notices until a carer writes in.
 
 ## What this costs
 
-- **`DB_VERSION` is no longer free to bump.** It costs a look at
-  `src/data/rescue.ts`: does a reader still recognise the shape you are
-  leaving? If not, write one in the same change.
-- **Peak memory is the whole database as objects**, briefly, inside a
-  transaction — every board and every picture. That is the same peak
-  `exportEverything()` already reaches whenever the standing backup fires.
-- **Nothing on the upgrade path may `await` a non-request.** No hashing, no
-  base64, no folder write, no question put to a person. This is a real
-  constraint on what a future migration may do, and it is written into
-  `rescue.ts` where the next person will be standing.
-- **`built` does not come across.** It is a derived mark and ADR 0011 removed
-  what wrote it.
-- **A layout's `version` travels verbatim** rather than being recomputed,
-  because it is the hash of bytes that did not change. A future reader that
-  *reshapes* a layout would break that pairing and cannot re-hash where it
-  stands; it would have to leave the stamp for the page to settle on the first
-  save.
+- **`DB_VERSION` is no longer free to bump.** It costs a step in
+  `src/data/migrations.ts` whose `to` is the new number.
+- **Nothing in a step may `await` a non-request.** No hashing, no base64, no
+  folder write, no question put to a person. It is written into
+  `migrations.ts` where the next person will be standing.
+- **A step may move a layout and may not rewrite one.** The stored `text` and
+  the `version` hash over it are a matched pair, and re-deriving the hash is a
+  `crypto.subtle` call, which is exactly what the rule above forbids. **So a
+  change to what is inside a layout cannot be done as a step at all.** That is
+  an open gap rather than a solved problem, and it is more likely to come up
+  than a store change is.
+- **A downgrade is safe and says the wrong thing.** An older build meeting a
+  newer database gets `VersionError`; the database is untouched, and the page
+  reports it as an ordinary load failure rather than "this browser has a newer
+  vorlaut". Verified rather than assumed.
+- **The steps are typeless**, because they work on shapes no longer in the
+  schema. The compiler cannot check them, which is why each is covered by a
+  test that seeds the version it starts from.
 
 ## The rule this qualifies
 

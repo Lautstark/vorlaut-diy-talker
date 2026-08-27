@@ -1,21 +1,29 @@
 /* The half of adr/0015 that has to work when the other half does not.
  *
- * A reader in data/rescue.ts recognises the shape a database is in, and there
- * is exactly one thing to do when none of them does: nothing. Abort the
- * upgrade, leave the browser at the version and the records it had, and say so
- * - because the alternative is carrying records across that nobody has
- * understood, which is a silent corruption rather than a loud stop.
+ * data/migrations.ts has one step per version. There are exactly two ways for
+ * that list to fail a database, and both have the same answer: do nothing.
+ * Abort the upgrade, leave the browser at the version and the records it had,
+ * and say so.
  *
- * This is the failure the arrangement is *designed* to have. Somebody bumps
- * DB_VERSION, changes what a store holds, and does not write a reader; what
- * they get is a page that will not start, in the minute after they do it,
- * instead of a wipe that nobody sees until a carer writes in. So it is worth
- * more than the happy path, and it is tested the same way: a database on disk
- * in a shape this code has never seen, and then ordinary questions.
+ *   * **No step for a version** it has to cross. Somebody bumped DB_VERSION
+ *     and did not write the migration. This is the one that will actually
+ *     happen, and it is why plan() refuses rather than skipping: skipping
+ *     would leave records in a shape the new code does not expect, silently,
+ *     which is worse than a stop.
+ *   * **A database that is not the shape its version claims.** The step's
+ *     precondition. Not a second dispatch - the version still decides which
+ *     steps run - but a step asked to reorganise stores that are not there
+ *     would write into something nobody has described.
+ *
+ * This is a failure the arrangement is *designed* to have, which is why it is
+ * tested harder than the happy path: what somebody gets for forgetting is a
+ * page that will not start, in the minute after they do it, instead of a wipe
+ * nobody sees until a carer writes in.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { asFile, isUnreadable, RESCUE_FORMAT } from "../../src/data/rescue.js";
+import { isRefusal, MISSING_STEP, plan, STEPS } from "../../src/data/migrations.js";
+import { asFile, RESCUE_FORMAT } from "../../src/data/rescue.js";
 
 const DB_NAME = "vorlaut";
 
@@ -73,7 +81,7 @@ async function restart(version: number,
   store = await import("../../src/data/store.js");
 }
 
-describe("a database in a shape no reader recognises", () => {
+describe("a database that is not the shape its version claims", () => {
   beforeEach(async () => {
     await restart(3,
       (db) => { db.createObjectStore("boards", { keyPath: "id" }); },
@@ -84,7 +92,9 @@ describe("a database in a shape no reader recognises", () => {
   });
 
   it("refuses to open, saying which failure it is", async () => {
-    await expect(store.readCollections()).rejects.toSatisfy(isUnreadable);
+    // Version 3 means the step to 4 runs, and that step expects the stores
+    // version 3 defines. They are not there.
+    await expect(store.readCollections()).rejects.toSatisfy(isRefusal);
   });
 
   it("changes nothing - the version and the records are still there", async () => {
@@ -120,30 +130,22 @@ describe("a database in a shape no reader recognises", () => {
   });
 });
 
-describe("a database whose store names are familiar and whose records are not", () => {
-  /* The case store names alone cannot catch, and the reason a reader
-   * validates. A later version that keeps `collections` and `layouts` and
-   * changes what goes in them would sail past a match on names and carry
-   * something nobody has understood into the live schema. */
-  beforeEach(async () => {
-    await restart(3,
-      (db) => {
-        db.createObjectStore("collections", { keyPath: "id" })
-          .createIndex("updatedAt", "updatedAt");
-        db.createObjectStore("layouts", { keyPath: "id" });
-        db.createObjectStore("marks");
-      },
-      (db) => {
-        const tx = db.transaction(["collections", "layouts"], "readwrite");
-        tx.objectStore("collections").put({ id: "one", name: "Kitchen", updatedAt: 1 });
-        // No `text`, no `version`: a layout as some later version might hold
-        // one, and not as this one can read it.
-        tx.objectStore("layouts").put({ id: "one", grid: [[1, 2], [3, 4]] });
-      });
+describe("a version with no step for it", () => {
+  /* The case that will actually happen: DB_VERSION goes up and the migration
+   * does not get written. It cannot be seeded today - versions 1 to 4 all have
+   * their steps - so plan() takes the list as a parameter and this hands it one
+   * with a hole in it. Testing the guard against a gap this repository happens
+   * not to have would be testing nothing.
+   *
+   * A test that only asserted `plan(3, 4)` works would pass with the refusal
+   * deleted. */
+  it("refuses rather than skipping it", () => {
+    const holed = STEPS.filter((step) => step.to !== 3);
+    expect(() => plan(1, 4, holed)).toThrow(MISSING_STEP);
+    expect(plan(1, 4).map((step) => step.to)).toEqual([2, 3, 4]);
   });
 
-  it("refuses rather than carrying records it has not understood", async () => {
-    await expect(store.readCollections()).rejects.toSatisfy(isUnreadable);
-    expect((await inspect()).version).toBe(3);
+  it("asks for nothing when a database is already here", () => {
+    expect(plan(4, 4)).toEqual([]);
   });
 });

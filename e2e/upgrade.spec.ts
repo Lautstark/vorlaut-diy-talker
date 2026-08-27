@@ -3,11 +3,11 @@ import { label } from "./diy.js";
 
 /* A browser that has been here before, opening a page that has moved on.
  *
- * The unit suite proves the carry against a database at version 3 in node.
+ * The unit suite proves the migration against a database at version 3 in node.
  * This is the same event in a real Chromium, through the whole page: the
  * sidebar, the board on screen, and the sentence a person actually reads. It
  * is here because the failure it guards is invisible from inside store.ts -
- * an upgrade that carried everything correctly and said nothing would pass
+ * an upgrade that migrated everything correctly and said nothing would pass
  * every unit test in the repository, and adr/0015 is as much about the
  * sentence as about the records.
  *
@@ -77,8 +77,9 @@ test("a browser holding version 3 keeps its Sammlungen, and is told so", async (
   await seedVersionThree(page);
   await page.goto("./");
 
-  // The sidebar, last written first: Bedroom was stamped later than Kitchen,
-  // and the carry has to keep that rather than reorder it.
+  // The sidebar, last written first: Bedroom was stamped later than Kitchen.
+  // The step to 4 never touches a collection record, so these stamps are the
+  // ones version 3 wrote - which is the strongest form this assertion has.
   const rows = page.locator("#collectionList .collections__item");
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toContainText("Bedroom");
@@ -92,11 +93,12 @@ test("a browser holding version 3 keeps its Sammlungen, and is told so", async (
   await expect(page.locator("#status")).toHaveText(label("ui.db_carried", { n: 2, from: 3 }));
 });
 
-/** A database at a version below the current one, in a shape no reader knows.
+/** A database calling itself version 3 that is not the shape version 3 has.
  *
- * Seeded the same way and for the same reason as version 3 above. What makes
- * it unreadable is the store names: nothing in data/rescue.ts recognises
- * `boards`, so the upgrade aborts and this database is still here afterwards.
+ * Seeded the same way and for the same reason as version 3 above. The step to
+ * 4 in data/migrations.ts expects to find `collections` and `layouts`; a
+ * database holding `boards` fails that precondition, so the upgrade aborts and
+ * every record is still here afterwards.
  */
 async function seedSomethingUnreadable(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -113,7 +115,7 @@ async function seedSomethingUnreadable(page: Page): Promise<void> {
   });
 }
 
-test("a database nothing can read stops the page, and hands the data over first",
+test("a database no step can migrate stops the page, and hands the data over first",
      async ({ page }) => {
        await seedSomethingUnreadable(page);
        await page.goto("./");
