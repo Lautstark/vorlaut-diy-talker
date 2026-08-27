@@ -467,11 +467,18 @@ beside the thing they compile. This was the reason the direction was chosen and
 it is now the reason the split is safe:
 [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) claims no
 evidence under ADR 0006's four conditions and does not need any, because the cut
-does not run through what 0006 protects. The editor keeps `test_links.py` and
-`test_language.py`, which are about a repository rather than about a format,
-plus `test_exchange_fixtures.py`, which travels with `exchange/`. That is all
-the Python it needs, and none of it needs a compiler: ADR 0006's
-three-toolchain consequence unwinds for the editor and stands for the device.
+does not run through what 0006 protects. The editor takes
+`test_exchange_fixtures.py`, which travels with `exchange/`, and **a copy** of
+`test_links.py` and `test_language.py` — ~~keeps~~, because a rehearsal found
+both are needed by *both* halves rather than kept by one.
+[`split-rehearsal.md` §5](split-rehearsal.md#5-the-python-division-as-written-is-wrong)
+has the finding: `test_language.py` allowlists `firmware/vorlaut/texts.h` as a
+file permitted to hold German, so a talker keeping `firmware/` with no copy
+loses the rule over the files it was written for, and `test_links.py` checks
+prose the talker keeps most of, since `adr/` and `docs/` go there.
+`test_texts.py` is the talker's outright, not the editor's, for the same kind of
+reason. None of the editor's needs a compiler: ADR 0006's three-toolchain
+consequence unwinds for the editor and stands for the device.
 
 **The seam the names describe is ~~not a directory yet~~ being made one, and
 that is the whole of what changed.** "Whatever compiles a package into what the
