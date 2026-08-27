@@ -577,6 +577,16 @@ test("a button puts its word in the sentence and leads onward in one press",
      * follow. Play on the left, follow on the right, and far enough apart that
      * neither can take the other's press - which is exactly what happened
      * while the two shared a seat and one of them stepped aside. */
+    /* Both corners are the same button now: same box, same chrome, and only
+     * the glyph and its colour differ. */
+    const shapeOf = (sel: string) => cells(page).nth(4).locator(sel)
+      .evaluate((one) => {
+        const seen = getComputedStyle(one);
+        return [seen.width, seen.height, seen.borderRadius, seen.backgroundColor,
+                seen.boxShadow].join("|");
+      });
+    expect(await shapeOf(".cell__play")).toBe(await shapeOf(".cell__follow"));
+
     const cellBox = (await cells(page).nth(4).boundingBox())!;
     const playBox = (await cells(page).nth(4).locator(".cell__play").boundingBox())!;
     const followBox = (await cells(page).nth(4).locator(".cell__follow").boundingBox())!;
@@ -890,6 +900,25 @@ test("a button can be heard from the board, and only where there is something to
     // Append and on SpeakImmediately alike, and only what a press really says
     // is worth auditioning.
     await expect(cells(page).nth(10).locator(".cell__play")).toHaveCount(1);
+    /* And the ring, which is the whole of what says where the word goes. Cell
+     * 10 is the exclamation build() places - it speaks at once and leaves the
+     * bar alone - so it is ringed; the word buttons beside it are not.
+     *
+     * Measured as a border colour rather than by class, because the class name
+     * would pass whatever the rule under it said, including nothing. */
+    const ringed = async (at: number) => cells(page).nth(at).locator(".cell__play")
+      .evaluate((one) => getComputedStyle(one).borderTopColor);
+    const bare = await ringed(0);
+    expect(await ringed(10)).not.toBe(bare);
+    // Transparent on an ordinary button, so the two are the same size.
+    expect(bare).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+    // The words go with the ring: a mark alone says nothing to a reader.
+    await expect(cells(page).nth(10).locator(".cell__play"))
+      .toHaveAttribute("aria-label", label("ui.play_at_once"));
+    await expect(cells(page).nth(0).locator(".cell__play"))
+      .toHaveAttribute("aria-label", label("ui.play_title"));
+    // And the badge that used to say it in the far corner is gone with it.
+    await expect(cells(page).nth(10).locator(".cell__act")).toHaveCount(0);
     /* And it is there without being reached for. It used to be drawn only
      * under the pointer, which on a tablet - where a tap opens the card rather
      * than focusing the cell - meant it could not be reached at all. */
@@ -1045,11 +1074,20 @@ test("the three kinds carry the acts they always did, and the start page is a ta
     await expect(buttonSheet(page).locator("#appClass")).toBeVisible();
     await page.keyboard.press("Escape");
 
-    // And the default carries no mark on the board at all, which is what makes
-    // the marks on the others worth reading.
+    /* And the default carries no mark on the board at all, which is what makes
+     * the marks on the others worth reading.
+     *
+     * The exclamation's mark is the ring on its play control, not a badge in
+     * the corner: what a press does with the sound belongs where the sound is,
+     * and a badge as well would be two marks for one fact. Measured as a
+     * border colour, because the class name would pass whatever the rule under
+     * it said. */
     await goHome(page);
     await expect(cells(page).nth(0).locator(".cell__act")).toHaveCount(0);
-    await expect(cells(page).nth(6).locator(".cell__act")).toHaveCount(1);
+    await expect(cells(page).nth(6).locator(".cell__act")).toHaveCount(0);
+    const edge = (at: number) => cells(page).nth(at).locator(".cell__play")
+      .evaluate((one) => getComputedStyle(one).borderTopColor);
+    expect(await edge(6)).not.toBe(await edge(0));
   });
 
 /** Puts an act the sheet can no longer make onto a button, in the database.

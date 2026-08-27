@@ -1077,81 +1077,69 @@ a.factlinks__line:hover { text-decoration: underline; }
    what a 120px cell and everything above it gets. Nothing here can reach the
    word: it is a flex item at the foot of the cell and this is absolutely
    positioned above it. */
-/* Hearing a button without opening it.
+/* The two corners of a cell: hear it, and follow it.
  *
- * **It is there whenever there is something to hear, rather than appearing
- * under the pointer.** It used to be drawn only on hover or focus, and that was
- * two things at once: quiet, and unreachable. A tablet has no pointer, and a
- * tap on a cell opens its card rather than focusing it, so on the device this
- * editor is used on there was no way to reach this control at all.
+ * **One shape, two icons.** They sit in the same seats, are the same size and
+ * carry the same chrome; what differs is the glyph and its colour. Two controls
+ * in the same position behaving differently is arbitrary, and it was: one stood
+ * there and the other appeared under the pointer.
  *
- * The cost is real and is the reason it was hidden: nearly every button says
- * something, so nearly every cell carries one - where the corner opposite,
- * which only a `goto` has, is a handful per page. So at rest it is drawn as the
- * act badge is, a bare glyph in the cell's own ink, and it becomes a button
- * under the pointer or on focus. The box never changes size, only what is
- * painted in it: the target stays past the 24px WCAG 2.2 §2.5.8 floor whether
- * anybody is looking at it or not. */
-.cell__play {
-  position: absolute; top: 4px; left: 4px; z-index: 2;
-  width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
-  padding: 0; line-height: 1;
-  display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-pill);
-  /* The cell's own ink, like .cell__act - which is what makes it legible over
-     a Fitzgerald fill without this rule having to know what colour that is. */
-  background: none; color: inherit; box-shadow: none; cursor: pointer;
-  font: inherit; font-size: clamp(12px, 14cqw, 16px);
-  opacity: .55; transition: opacity .12s ease, background-color .12s ease;
-}
-.cell:hover .cell__play,
-.cell:focus-within .cell__play,
-.cell__play:focus-visible {
-  opacity: 1; background: var(--surface); color: var(--text-dim);
-  box-shadow: var(--shadow-sm);
-}
-.cell__play:hover { color: var(--text); }
-.cell__play:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-/* The corner that follows a navigation button. Top right, always.
-
-   ## The seating, and why it is the only one that works
-
-   Three things can appear in a cell's top corners, and which of them can meet
-   is what decides where each sits:
-
-     the play control   with a `speak` badge, and with this corner
-     this corner        with the play control, never with a badge
-     the act badge      with the play control, never with this corner
-
-   So the play control needs a seat of its own - it is the one that meets both
-   others - and these two can share the remaining one, because a `goto` has
-   carried no badge since this corner took over from its arrow. Play on the
-   left, everything else on the right.
-
-   **Fixed seats rather than one of them stepping aside.** These two did share
-   the top right for a while, with the follow shifting a button's width where
-   both were drawn. It worked, and it was still the wrong shape: a rule that
-   holds only while a class is applied and an arithmetic offset stays in step
-   with a clamp is a rule that comes apart quietly. Seats that never move
-   cannot.
-
-   Always drawn rather than appearing under the pointer, which is the one place
-   it differs from the play control. This is the only way from a page to the
-   page it opens - the row of tiles that used to repeat them is gone - and a
-   tablet has no pointer to hover with. */
+ * **Both are drawn at rest, and that is forced rather than chosen.** The quiet
+ * arrangement - a bare glyph on the cell, filling in when reached for - was
+ * measured against the Fitzgerald fills a cell can wear, and the accent fails
+ * on five of the ten: #7652d3 on `place` is 2.28:1 against the 3:1 a non-text
+ * graphic needs. The play control could do it, because it borrows the cell's
+ * own ink at 7:1; the follow could not, and one of them quiet while the other
+ * is solid is the inconsistency this rule exists to remove. So both carry a
+ * surface, and the accent sits on that instead.
+ *
+ * It also fixes what hiding cost: a tablet has no pointer, and a tap opens a
+ * cell's card rather than focusing it, so a control drawn only on hover was one
+ * that could not be reached at all on the device this editor is for.
+ *
+ * The font sizes differ on purpose. U+25B6 and U+203A are not drawn to the same
+ * scale, and matching their boxes leaves one a speck beside the other - the
+ * same argument .tab__home and .tab__lost carry. */
+.cell__play,
 .cell__follow {
-  position: absolute; top: 4px; right: 4px; z-index: 2;
+  position: absolute; top: 4px; z-index: 2;
   width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
   padding: 0; line-height: 1;
   display: grid; place-items: center;
-  border: 0; border-radius: var(--radius-pill);
-  background: var(--surface); color: var(--accent-strong);
-  box-shadow: var(--shadow-sm); cursor: pointer;
-  font: inherit; font-size: clamp(14px, 16cqw, 18px);
+  /* Transparent rather than none, so that the ring below can colour it without
+     moving the glyph by its own width. */
+  border: 1.5px solid transparent; border-radius: var(--radius-pill);
+  background: var(--surface); box-shadow: var(--shadow-sm); cursor: pointer;
+  font: inherit;
 }
+.cell__play { left: 4px; color: var(--text-dim); font-size: clamp(12px, 14cqw, 16px); }
+.cell__follow { right: 4px; color: var(--accent-strong); font-size: clamp(14px, 16cqw, 18px); }
+.cell__play:hover,
 .cell__follow:hover { background: var(--surface-2); }
+.cell__play:hover { color: var(--text); }
+.cell__play:focus-visible,
 .cell__follow:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The ring: this button says its word at once and leaves the sentence bar
+   alone. exchange/SPEC.md §7.3's `speak`.
+ *
+ * **It marks the exception, and that is the whole of why it works.** Almost
+ * every button on a board puts its word in the bar - that is what a board is
+ * for - so marking *that* would be marking everything, and a mark on everything
+ * is none. What is rare is the interjection: "Aua", a greeting, a word that
+ * composing into a sentence first would ruin.
+ *
+ * On the play control rather than anywhere else on the cell, because it is the
+ * one place already about sound: what a press does with the sound is the same
+ * question as what the sound is. The badge that used to say this in the far
+ * corner is gone with it - two marks for one fact is what the duplicated arrow
+ * was.
+ *
+ * `currentColor` and not a colour of its own. A cell may be wearing a
+ * Fitzgerald fill, which is a fact about the word, and a second colour on top
+ * of it would either fight that or quietly outrank it. */
+.cell__play--now { border-color: currentColor; }
+
 /* Where a dragged button would land. The same mark the five-key board uses for
    the same gesture, so one dashed outline means one thing in both editors. */
 .cell.dragover { outline: 2px dashed var(--text-dim); outline-offset: 2px; }
