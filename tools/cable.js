@@ -22,6 +22,46 @@
  *  firmware/vorlaut/cable_format.h. */
 export const CABLE_VERSION = 2;
 
+/**
+ * What the number in "< vorlaut N" means for this client.
+ *
+ * The number existed for a year before anything read it. `findTalker()` tested
+ * it for truthiness - any non-zero version was accepted and then driven as
+ * whatever this file happened to speak - and the only other reader was a test
+ * grepping this source for the digit. Then the first real bump happened, on
+ * 2026-08-27, when the acknowledged transfer landed and made version 1 and
+ * version 2 two protocols that really exist and really cannot drive each other.
+ *
+ * **Any mismatch is refused, in both directions.** That is not caution, it is
+ * what the number means: cable_format.h defines a bump as the case where "a
+ * device that speaks the old protocol could no longer be driven correctly by a
+ * browser that speaks the new one", and says outright that adding a keyword is
+ * not one - unknown keywords are skipped on both sides and cost no version at
+ * all. So a version that is not this one is a statement by whoever bumped it
+ * that these two ends do not work together, and there is no field saying a
+ * particular bump was safe in one direction. Sending anyway would mean starting
+ * a transfer the protocol says cannot finish, and finding out halfway - which
+ * for version 2 in particular means a browser waiting forever for an ack, or a
+ * device overrun and failing on a checksum. A talker left with silent keys is
+ * a worse answer than a sentence before anything is sent.
+ *
+ * The two directions are told apart because the remedies are opposite and
+ * neither is "the device is broken": an older device needs newer firmware, and
+ * a newer device means this page is the stale half.
+ *
+ * @param {number} theirs  the version out of hello()
+ * @returns {"ok" | "silent" | "device_older" | "device_newer"}
+ */
+export function versionVerdict(theirs) {
+  // Zero is not a mismatch. It is what hello() starts at and never overwrote,
+  // which means whatever is on that port never said "vorlaut" at all - a
+  // dongle, a printer, somebody else's dev board. Not a talker rather than a
+  // talker of the wrong age, and the caller keeps looking.
+  if (!theirs) return "silent";
+  if (theirs === CABLE_VERSION) return "ok";
+  return theirs < CABLE_VERSION ? "device_older" : "device_newer";
+}
+
 /* The shapes of the answers, so that this file says what it hands back rather
  * than leaving each of its three consumers - the bench, the node harness and
  * src/backend/cable.ts - to find out. They are comments: nothing here is

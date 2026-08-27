@@ -14,7 +14,9 @@ import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../src/data/tiles.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
 } from "../../src/data/audio_format.js";
-import { Cable, CABLE_VERSION, crc32, hex8 } from "../../tools/cable.js";
+import {
+  Cable, CABLE_VERSION, crc32, hex8, versionVerdict,
+} from "../../tools/cable.js";
 
 /* The builder's half of device/fixtures/.
  *
@@ -516,6 +518,30 @@ for (const { listed: one, want } of ofKind("cable")) {
 check("the browser client speaks the fixtures' protocol version",
       CABLE_VERSION === expectations.get("greet-and-list").protocol_version,
       `${CABLE_VERSION}`);
+
+/* And what it makes of the version the device announced - which for a year was
+ * nothing at all. Every transcript states the pair and the conclusion, so the
+ * two that carry a mismatch are checked by the same line as the eight that do
+ * not, and a client that went back to testing for truthiness fails on both. */
+for (const { listed: one, want } of ofKind("cable")) {
+  const got = versionVerdict(want.device_speaks);
+  check(`${one.fixture}: a device speaking ${want.device_speaks} is `
+        + `"${want.version_verdict}" to a browser speaking ${CABLE_VERSION}`,
+        got === want.version_verdict, got);
+}
+
+/* The verdict is only worth something if it is not constant. A client that
+ * answered "ok" to everything would satisfy the eight transcripts that expect
+ * it, so the fixture set has to contain both mismatches - and this says so out
+ * loud rather than leaving it to whoever next adds a transcript. */
+{
+  const verdicts = new Set(
+    ofKind("cable").map(({ want }) => want.version_verdict));
+  check("the transcripts cover a mismatch in each direction, not only agreement",
+        verdicts.has("ok") && verdicts.has("device_older")
+        && verdicts.has("device_newer"),
+        [...verdicts].join(", "));
+}
 
 /* The transcripts' checksums came from node's zlib and the client computes
  * its own from a table it builds at load. Two implementations of CRC-32 that

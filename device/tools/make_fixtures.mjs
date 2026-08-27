@@ -1170,13 +1170,22 @@ function windows(bytes, window) {
 const anyOrder = (line) => ({ from: "device", line, any_order: true });
 
 function cableFixture({ name, summary, ends, start = [], steps, end = null,
-                        script = null, notes = [], window = WINDOW }) {
+                        script = null, notes = [], window = WINDOW,
+                        spoken = CABLE_VERSION, verdict = "ok" }) {
   fixture({
     kind: "cable", name, dir: "cable", outcome: "accepted", summary,
     expected: {
       fixture: name, kind: "cable", summary,
       ends,
+      // What this client speaks, and what the device in THIS transcript says
+      // it speaks. Two fields because they are two facts, and the whole of C2
+      // is that they were never compared: the browser read the second, tested
+      // it for truthiness, and drove the device as though it were the first.
       protocol_version: CABLE_VERSION,
+      device_speaks: spoken,
+      // What the client must conclude from that pair before it sends anything
+      // else. "ok" on every transcript that gets past hello, by construction.
+      version_verdict: verdict,
       window,
       device_starts_with: start.map((f) => ({
         name: f.name, size: f.bytes.length, crc: hex8(crc32(f.bytes)),
@@ -1310,6 +1319,62 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       "The browser half only, because the device's formatters cannot produce a keyword the device does not have. A firmware that gained one would have to gain a function to write it, and the fixture it would then be held to is this one with the line moved into the device half.",
       "'gap 12' is not invented: the firmware reports its timings that way already, and until it started doing so this client waited for exactly one line and would have read the first extra keyword as a failed transfer.",
       "'blether 7' sits where the browser is waiting for an ack, which is the one place the extension rule was newly at risk. A client that read the very next line as its acknowledgement would take 7 for a byte count, disagree with what it had sent, and fail a transfer that was going perfectly well.",
+    ],
+  });
+}
+
+// --- The version, told apart in both directions ------------------------------
+//
+// The two transcripts C2 was waiting for. Until 2026-08-27 the version was a
+// field nothing read: `findTalker()` tested it for truthiness, so any non-zero
+// number was accepted and the device was then driven as whatever the browser
+// spoke. All eight cable fixtures said "< vorlaut 2" and none exercised a
+// mismatch, so nothing that runs could tell a version 1 device from a version 2
+// one - at a moment when both really existed, the acknowledged transfer having
+// landed the same day.
+//
+// The browser half only, both of them, and that is a property of the protocol
+// rather than a gap. The device announces CABLE_VERSION out of the header it
+// was compiled from; it has no way to say a number that is not its own, so a
+// firmware harness cannot produce either of these transcripts. What holds the
+// device's end is the mutation "the protocol version moves", which every one of
+// the transcripts below catches.
+//
+// Both stop after the greeting, which is the point. A refusal that arrives
+// before anything is sent leaves the device exactly as it was.
+
+for (const [name, spoken, verdict, summary, remedy] of [
+  ["version-older-device", CABLE_VERSION - 1, "device_older",
+   "A device one version behind this browser. It answers, and it cannot be driven.",
+   "An older device needs newer firmware, and nothing else will do: the browser cannot fall back to a protocol it no longer implements, and a device on a shelf cannot be updated by a deploy."],
+  ["version-newer-device", CABLE_VERSION + 1, "device_newer",
+   "A device one version ahead of this browser. It answers, and it cannot be driven.",
+   "A newer device means this page is the stale half - a tab open since before the last deploy, or a service worker holding an old bundle. Reloading is the remedy, and it is the opposite of the one above, which is why the two are told apart rather than sharing a sentence."],
+]) {
+  cableFixture({
+    name,
+    summary,
+    ends: ["browser"],
+    spoken,
+    verdict,
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${spoken}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device("< end hello"),
+    ],
+    script: [
+      { call: "hello", returns: { version: spoken, total: CAPACITY,
+                                  free: CAPACITY, files: 0 } },
+    ],
+    notes: [
+      "hello() reads the greeting and does not refuse it. That is deliberate: the same call is how the browser tells a talker from a dongle, and a throw here would put a device that answered into the same bucket as a port that said nothing - which reads to whoever is holding the cable as 'nothing answered', and sends them to check the cable rather than the firmware.",
+      "So the greeting is returned whole and the verdict is a separate answer, stated by this fixture as version_verdict and computed by versionVerdict() in tools/cable.js. What acts on it is findTalker() in src/backend/cable.ts, which keeps walking the remaining ports - somebody with two boards plugged in should still reach the one that works - and reports the mismatch only if no port is drivable.",
+      remedy,
+      "Refused rather than warned, in both directions. cable_format.h defines a bump as the case where the two ends can no longer drive each other, and says that adding a keyword is not one - unknown keywords cost no version at all. So a number that is not ours is a statement that these ends do not work together, and sending anyway means finding out mid-transfer: for version 2 that is a browser waiting forever for an ack, or a device overrun and failing on a checksum, either of which can leave a talker with silent keys.",
+      "The transcript ends after 'end hello' because the browser sends nothing more. The other end of that rule is the runner's: a client that ran ahead has written bytes nobody asked for, and that is visible at the moment the device speaks.",
     ],
   });
 }

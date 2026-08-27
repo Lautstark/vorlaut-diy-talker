@@ -250,6 +250,18 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
     (CABLE_JS, BROWSER, "if (want.includes(answer.key)) return answer;",
      "return answer;",
      "the browser stops skipping keywords it does not know"),
+    # The version, which for a year was compared by a test and by nothing that
+    # runs. Each of these is a way of having the field back without a reader.
+    (CABLE_JS, BROWSER, "  if (theirs === CABLE_VERSION) return \"ok\";",
+     "  return \"ok\";",
+     "any version the device announces is accepted again"),
+    (CABLE_JS, BROWSER,
+     "  return theirs < CABLE_VERSION ? \"device_older\" : \"device_newer\";",
+     "  return theirs < CABLE_VERSION ? \"device_newer\" : \"device_older\";",
+     "the two directions of a version mismatch are swapped"),
+    (CABLE_JS, BROWSER, "  if (theirs === CABLE_VERSION) return \"ok\";",
+     "  if (theirs >= CABLE_VERSION) return \"ok\";",
+     "a device newer than the browser is driven as though it were not"),
     (CABLE_JS, BROWSER, 'await this.send(`put ${name} ${bytes.length} ${hex8(sum)}`);',
      'await this.send(`put ${name} ${hex8(sum)} ${bytes.length}`);',
      "the browser sends the size and the checksum the other way round"),

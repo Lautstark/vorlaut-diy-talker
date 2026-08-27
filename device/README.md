@@ -146,7 +146,7 @@ browser waiting for a reply that never comes looks exactly like a broken cable
 | `layout/` | Every field, every stride, and **every one of the five refusal codes**. |
 | `tile/` | 128 by 128 RGB565 big-endian, and what a reader does with a file of the wrong length. |
 | `audio/` | 16 kHz mono 16-bit, chunk walking with its pad byte, and four refusals. |
-| `cable/` | Whole transcripts, both extension rules, every error word, and the window a file crosses in. |
+| `cable/` | Whole transcripts, both extension rules, every error word, the window a file crosses in, and a protocol-version mismatch in each direction. |
 | `names.expected.json` | Which names a builder emits, which the device stores, and that the first is inside the second. |
 | `language.expected.json` | Byte 7's table, its default, and what an index past it means. |
 | `sleep.expected.json` | The timeout range a builder may write, what the device waits for everything else, and that the first is inside the second. |

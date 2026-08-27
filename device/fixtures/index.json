@@ -301,6 +301,20 @@
       "expected": "cable/skip-unknown-keyword.expected.json"
     },
     {
+      "fixture": "version-older-device",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A device one version behind this browser. It answers, and it cannot be driven.",
+      "expected": "cable/version-older-device.expected.json"
+    },
+    {
+      "fixture": "version-newer-device",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A device one version ahead of this browser. It answers, and it cannot be driven.",
+      "expected": "cable/version-newer-device.expected.json"
+    },
+    {
       "fixture": "several-windows",
       "kind": "cable",
       "outcome": "accepted",

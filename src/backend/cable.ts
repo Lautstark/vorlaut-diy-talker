@@ -18,7 +18,9 @@
 // What is left for here, then, is three things the wire format has no opinion
 // about: which port out of the several a laptop has, where the files come
 // from, and what the page is told while it happens.
-import { Cable, LAYOUT_FILE, plan, push } from "../../tools/cable.js";
+import {
+  Cable, CABLE_VERSION, LAYOUT_FILE, plan, push, versionVerdict,
+} from "../../tools/cable.js";
 import { builtFiles } from "../data/built.js";
 import { Trouble } from "../core/errors.js";
 
@@ -112,8 +114,25 @@ export type Sent = {
  * nothing about a port says which is which until it has been asked. `hello` is
  * the question, and a port that does not answer it within a moment is not the
  * talker. Saying so is nicer than timing out later, mid-transfer.
+ *
+ * Answering with the wrong version is a third thing, and it used to be
+ * indistinguishable from the second: the test here was `if (hello.version)`,
+ * so any non-zero number was taken and then driven as whatever this browser
+ * speaks. versionVerdict() is the comparison now. A port that answers with a
+ * version this client cannot drive is remembered rather than returned, and the
+ * walk goes on - somebody with two boards plugged in should still reach the one
+ * that works. Only when no port is drivable does the mismatch become the
+ * failure, and then it is the one reported: a device that answered is not a
+ * device that did not, and telling somebody "nothing answered" when something
+ * did would send them looking at the cable.
+ *
+ * Exported for tests/unit/cable_version.test.ts. The routing below is where a
+ * mismatch turns into the words somebody reads, and that is worth holding.
  */
-async function findTalker(ports: SerialPort[], onLog: (line: string) => void) {
+export async function findTalker(
+  ports: SerialPort[], onLog: (line: string) => void,
+) {
+  let mismatch: Trouble | null = null;
   for (const port of ports) {
     let cable: InstanceType<typeof Cable> | null = null;
     try {
@@ -129,7 +148,15 @@ async function findTalker(ports: SerialPort[], onLog: (line: string) => void) {
       }
       cable = new Cable(port, { onLog });
       const hello = await cable.hello({ tries: GREETINGS });
-      if (hello.version) return { port, cable, hello };
+      const verdict = versionVerdict(hello.version);
+      if (verdict === "ok") return { port, cable, hello };
+      if (verdict !== "silent") {
+        // Both numbers, because the sentence names them and because which way
+        // round they are is the difference between "flash the device" and
+        // "reload this page". The first one found is the one reported.
+        mismatch ??= new Trouble(`cable_${verdict}`,
+                                 { device: hello.version, browser: CABLE_VERSION });
+      }
       await cable.close();
       await port.close();
     } catch {
@@ -139,7 +166,7 @@ async function findTalker(ports: SerialPort[], onLog: (line: string) => void) {
       await port.close().catch(() => {});
     }
   }
-  throw new Trouble("cable_no_device");
+  throw mismatch ?? new Trouble("cable_no_device");
 }
 
 /**
