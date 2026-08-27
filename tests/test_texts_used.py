@@ -29,13 +29,23 @@ reachable. That is why this check and that call site changed together.
     speaks for every `ui.wordclass_*` entry there is.
   * `new Trouble("folder_stale")`, which is a lookup of `err.folder_stale` by
     another name: `Trouble` carries a word, `t(`err.${error.word}`)` turns it
-    back into a key, and the word is a literal at every throw site.
+    back into a key. A throw site may build that word the same two ways a `t()`
+    call may build a key - ``new Trouble(`cable_${verdict}`)`` names the
+    `err.cable_*` family, because `versionVerdict()` answers with the rest of
+    the name.
 
 A family prefix vouching for its whole family is deliberately generous. It
 cannot tell that one member has gone unused, so a dead `ui.theme_*` slips
 through. That is the price of having no hand-kept exception list, and it is
 worth paying: the families are small and hand-written, the flat keys are five
 hundred, and all twenty-nine of the dead ones were flat.
+
+The throw site was the half this file forgot on the day it was written, and it
+cost `main` a red build within the hour. A branch landing beside this one threw
+``new Trouble(`cable_${verdict}`)``; two keys arrived reachable only that way,
+and a check that knew about literal words alone called them dead. A rule about
+how a key may be built has to say the same thing everywhere a key is built, or
+it is two rules and one of them is wrong.
 
 ## Why a bare namespace is not automatically an error
 
@@ -76,6 +86,9 @@ QUOTED = re.compile(rf'"({KEY})"')
 # `,` before it. A backtick string in prose or in a class name is not a lookup.
 TEMPLATE = re.compile(r"[(,]\s*`([a-z0-9_]+\.[a-z0-9_]*?)\$\{")
 TROUBLE = re.compile(r'new Trouble\(\s*"([a-z0-9_]+)"')
+# The same word, built rather than written: `cable_${verdict}` names a family
+# the way a template passed to t() does, and is read as one.
+TROUBLE_FAMILY = re.compile(r"new Trouble\(\s*`([a-z0-9_]*?)\$\{")
 # A prefix with nothing after the dot names a whole table rather than a family.
 WHOLE_TABLE = re.compile(r"^[a-z0-9_]+\.$")
 
@@ -104,9 +117,15 @@ def main() -> int:
         body = path.read_text(encoding="utf-8", errors="replace")
         named.update(m.group(1) for m in QUOTED.finditer(body))
         named.update("err." + m.group(1) for m in TROUBLE.finditer(body))
+
+        def note(prefix: str, at: int) -> None:
+            line = body.count("\n", 0, at) + 1
+            prefixes.setdefault(prefix, f"{path.relative_to(ROOT)}:{line}")
+
         for m in TEMPLATE.finditer(body):
-            line = body.count("\n", 0, m.start()) + 1
-            prefixes.setdefault(m.group(1), f"{path.relative_to(ROOT)}:{line}")
+            note(m.group(1), m.start())
+        for m in TROUBLE_FAMILY.finditer(body):
+            note("err." + m.group(1), m.start())
 
     families = [p for p in prefixes if not WHOLE_TABLE.match(p)]
 
