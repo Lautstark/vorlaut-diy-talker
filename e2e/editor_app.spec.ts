@@ -35,6 +35,18 @@ const label = (key: string) => new RegExp(
 
 const SAVED = label("ui.saved");
 
+/** The same table label() reads, without the anchors, and followed by whatever
+ *  comes after it on the line.
+ *
+ *  label() builds `^(...)$`, which is right for a sheet heading and exactly
+ *  wrong for a line holding several labels at once. Read out of TEXTS rather
+ *  than written here for the reason label() is: a German word in this file is
+ *  a German word in an English file, and tests/test_language.py says so. */
+const says = (key: string, after: string) => new RegExp(
+  `(${LANGUAGES.map((l) =>
+    (TEXTS as Record<string, Record<string, string>>)[l][key]
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})${after}`);
+
 /** The one open sheet, named by its heading rather than by its whole text.
  *
  * `hasText` matches against everything inside the element, so an anchored
@@ -878,6 +890,12 @@ test("a button can be heard from the board, and only where there is something to
     // Append and on SpeakImmediately alike, and only what a press really says
     // is worth auditioning.
     await expect(cells(page).nth(10).locator(".cell__play")).toHaveCount(1);
+    /* And it is there without being reached for. It used to be drawn only
+     * under the pointer, which on a tablet - where a tap opens the card rather
+     * than focusing the cell - meant it could not be reached at all. */
+    await expect(cells(page).nth(10).locator(".cell__play")).toBeVisible();
+    expect(await cells(page).nth(10).locator(".cell__play")
+      .evaluate((one) => Number(getComputedStyle(one).opacity))).toBeGreaterThan(0);
 
     // Not on the navigation button: pressing that on the tablet says nothing,
     // so offering to audition it would offer silence.
@@ -1465,8 +1483,18 @@ test("the button count unfolds into how full the page is", async ({ page }) => {
 
   const facts = page.locator("#appFacts");
   await facts.locator("button").last().click();
+  const said = page.locator("#appFactLinks");
   // 3x5 is what build() leaves the Sammlung on.
-  await expect(page.locator("#appFactLinks")).toContainText("15");
+  await expect(said).toContainText("15");
+  /* And what the page is full of, by act. build() leaves the start page with
+   * three words, one exclamation and one way onward, so the line has to tell
+   * vocabulary from navigation rather than just counting. */
+  await expect(said).toContainText(says("ui.app_page_kind_word", " 3"));
+  await expect(said).toContainText(says("ui.app_page_kind_speak", " 1"));
+  await expect(said).toContainText(says("ui.app_page_kind_goto", " 1"));
+  // Nothing on this page goes back to the start page, so that entry is absent
+  // rather than drawn as a zero.
+  await expect(said).not.toContainText(says("ui.app_page_kind_home", ""));
 });
 
 /* Everything about a page, now that it has no card.

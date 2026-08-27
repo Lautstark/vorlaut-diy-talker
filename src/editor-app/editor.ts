@@ -322,19 +322,15 @@ function drawUnfolded(found: Set<string>, into: AppPage[], outOf: AppPage[],
    * deserves the answer. */
   if (unfolded === "full") {
     const { rows, columns } = layout.grid;
-    const own = page().buttons.length;
-    const column = sharedColumn(layout).length;
+    const column = sharedColumn(layout);
+    const drawn = [...page().buttons, ...column];
     const fill = document.createElement("span");
     fill.className = "factlinks__line";
     fill.textContent = t("ui.app_page_buttons_fill",
-                         { n: own + column, all: rows * columns });
+                         { n: drawn.length, all: rows * columns });
     box.appendChild(fill);
-    if (column) {
-      const shared = document.createElement("span");
-      shared.className = "factlinks__line";
-      shared.textContent = t("ui.app_page_buttons_shared", { n: column });
-      box.appendChild(shared);
-    }
+    const split = kinds(drawn, column.length);
+    if (split.length) box.appendChild(counted(split));
     return;
   }
 
@@ -389,6 +385,60 @@ function drawUnfolded(found: Set<string>, into: AppPage[], outOf: AppPage[],
     link.onclick = (event) => { event.stopPropagation(); goToPage(one.id); };
     box.appendChild(link);
   });
+}
+
+/**
+ * What the buttons on this page do, counted, and only where there are any.
+ *
+ * The count on its own says how full a page is; this says what it is full of,
+ * which is the difference between a page of words and a page of ways onward. A
+ * page that is eight ways onward and two words is a menu, and that is a thing
+ * worth being able to see without counting by eye.
+ *
+ * By act rather than by word class. The classes are already on the board, in
+ * the colours - that is what the Fitzgerald key is for - so counting them here
+ * would be the same fact twice. What a button *does* is nowhere on the board
+ * except as a small badge in a corner, and it is the half that decides whether
+ * a page is vocabulary or navigation.
+ *
+ * A `goto` that carries its word into the sentence is its own entry rather than
+ * being counted twice. It is one button and one press, and a page with four of
+ * them has four buttons, not eight.
+ *
+ * The shared first column comes last, because it is the answer to the question
+ * the fill line provokes: why does this page hold more than somebody put on it.
+ */
+function kinds(drawn: AppButton[], shared: number): Array<[string, number]> {
+  const tally = new Map<string, number>();
+  const add = (key: string) => tally.set(key, (tally.get(key) ?? 0) + 1);
+  for (const one of drawn) {
+    switch (one.act.kind) {
+      case "append": add("word"); break;
+      case "speak": add("speak"); break;
+      case "home": add("home"); break;
+      case "goto":
+        add(one.act.alsoAppend === true ? "goto_word" : "goto");
+        break;
+      default: add("bar"); break;
+    }
+  }
+  if (shared) tally.set("shared", shared);
+  /* A fixed order rather than the order they were met in, so that the line
+   * does not rearrange itself as somebody fills a page - and vocabulary first,
+   * because that is what a board is for. */
+  const order = ["word", "speak", "goto_word", "goto", "home", "bar", "shared"];
+  return order
+    .filter((key) => tally.get(key))
+    .map((key) => [t(`ui.app_page_kind_${key}`), tally.get(key)!]);
+}
+
+/** A label and a number, then the next: the same shape as the facts line over
+ *  it, which is what lets both avoid a plural of every word in them. */
+function counted(pairs: Array<[string, number]>): HTMLElement {
+  const line = document.createElement("span");
+  line.className = "factlinks__line factlinks__sum";
+  line.textContent = pairs.map(([label, n]) => `${label} ${n}`).join("  \u00b7  ");
+  return line;
 }
 
 /** The arithmetic, page by page along the cheapest way here. Shown rather than
@@ -734,9 +784,10 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
    *
    * The five-key editor has had a play button on every key since it was
    * written, and it is what somebody uses while looking at the board to check
-   * it reads right. It appears under the pointer or on focus rather than
-   * standing there: a control nobody is reaching for should not be taking room
-   * from the word. A real <button>, because nothing drags it.
+   * it reads right. It stands there whenever there is something to hear rather
+   * than appearing under the pointer - see .cell__play for why the quieter
+   * arrangement was also an unreachable one. A real <button>, because nothing
+   * drags it.
    *
    * Only where there is something to say. The four bar controls speak nothing
    * when pressed on the tablet, and nor does a navigation button - unless it
