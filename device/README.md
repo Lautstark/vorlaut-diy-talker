@@ -58,9 +58,9 @@ a mutation run says they bite. Pin a commit SHA in the meantime.
 Paths decide that, not scopes.
 
 The version in `index.json` is not `LAYOUT_VERSION` and not `CABLE_VERSION`.
-Those are a byte in a file and a number on a wire, both currently 1 and 2
-respectively; this is `MAJOR.MINOR.PATCH` over the whole interface, and the
-three of them will drift apart on purpose.
+Those are a byte in a file and a number on a wire, both currently 2; this is
+`MAJOR.MINOR.PATCH` over the whole interface, and the three of them will drift
+apart on purpose.
 
 ---
 
@@ -75,6 +75,12 @@ npx vitest run tests/unit/device_fixtures.test.ts
 ```bash
 python3 tests/test_device_host.py
 ```
+
+`cable` mode takes the window from the fixture rather than from `CABLE_WINDOW`,
+which is why a transcript may announce 256 where the firmware announces 4096
+and both are conformant. A harness that read the header would have followed it
+wherever it went, and could never have held a browser to reading a number
+instead of assuming one.
 
 The first is the builder's half: `renderLayoutBin()` must write these bytes,
 `TILE_SIZE` must be this number, `hashBytes()` must read this hash out of this
@@ -140,7 +146,7 @@ browser waiting for a reply that never comes looks exactly like a broken cable
 | `layout/` | Every field, every stride, and **every one of the five refusal codes**. |
 | `tile/` | 128 by 128 RGB565 big-endian, and what a reader does with a file of the wrong length. |
 | `audio/` | 16 kHz mono 16-bit, chunk walking with its pad byte, and four refusals. |
-| `cable/` | Whole transcripts, both extension rules, and every error word. |
+| `cable/` | Whole transcripts, both extension rules, every error word, and the window a file crosses in. |
 | `names.expected.json` | Which names a builder emits, which the device stores, and that the first is inside the second. |
 | `language.expected.json` | Byte 7's table, its default, and what an index past it means. |
 
@@ -159,11 +165,26 @@ fixture set that overstates itself is worse than a small one.
    computer, not a board. Everything in `cable.h` — the `.part` file, the
    timeouts, the drain back into line mode — is out of reach here, and so is
    `drawTile()`'s other half, which needs a display.
-2. **Nothing here reaches timing**, and timing is the class of fault this
+2. **Nothing here reaches a clock**, and timing is the class of fault this
    project has actually had: a 256-byte serial receive buffer losing bytes
    while the loop sat in a flash write ([`bring-up.md`](../docs/bring-up.md),
    stage 6). No fixture set touches that, and one that implied otherwise would
    be doing harm.
+
+   What has changed is that the fault class is no longer *only* a matter of
+   timing. The device announces a window and acknowledges each one before the
+   browser sends the next, and that is an **order**, which a transcript can
+   state exactly — `cable/several-windows` does, with a window of its own so
+   that a browser using a size it chose for itself fails there and passes
+   everywhere else. The runner refuses a client that has written more than it
+   was asked for at the moment the device speaks, which is the only way the
+   waiting is visible: the bytes of a file are the same bytes whether they went
+   a window at a time or all at once.
+
+   So the shape of the flow control is covered here and the clock still is not.
+   Whether a real flash write is what the browser waits out between two windows
+   is a bench number, and it lives in
+   [`cable.md`](../docs/cable.md#the-four-seconds-and-what-they-are-now-for).
 3. **The tile fixtures are not pictures.** They are addresses and flat
    colours, which say which way round a file is and nothing about whether a
    symbol renders. That is `tests/reference/tiles.lock.json`'s business, and

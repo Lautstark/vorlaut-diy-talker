@@ -261,7 +261,17 @@ short, and four seconds later it blames the browser.
 The size is arithmetic, not taste: 490 KB/s against a 60 ms stall is 30 KB
 that has to sit somewhere. 16 KB was tried on the way and lost 214 bytes of
 26912 — small enough to look like noise, fatal all the same, because a file is
-whole or it is not. `CABLE_RX_BUFFER` is 64 KB.
+whole or it is not. `CABLE_RX_BUFFER` was set to 64 KB.
+
+**That constant has since gone, and this is the finding that removed it.** A
+buffer big enough for the worst burst anybody had measured is a bound and not a
+guarantee: a longer stall on a fuller partition overruns it in exactly the
+silence described above. The device now sends a window with its `go` and
+acknowledges each one before the browser sends the next, so the bytes in flight
+are bounded by a number the device chose rather than by how fast the browser
+can write — and the receive buffer is sized *from* that window rather than
+against a guess. See [cable.md](cable.md#the-window-is-the-flow-control). The
+sums above are why it was worth doing; they are not why 64 KB was right.
 
 **Three things this stage should be trusted to catch, and did not:**
 
