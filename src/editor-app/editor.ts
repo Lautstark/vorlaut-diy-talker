@@ -1715,6 +1715,14 @@ function gridPanel(into: HTMLElement,
     switches.className = "opts";
     switches.setAttribute("role", "group");
     switches.setAttribute("aria-label", t("ui.app_first_column"));
+    /* The whole key, not the half after `ui.`. Building it here saved four
+     * characters at each call and cost the file its greppability: a text key
+     * that is never written out anywhere is a text key nothing can find, and
+     * for as long as this line said `ui.${key}` every one of the 500-odd
+     * entries in boot_data.ts looked reachable to anything reading the source.
+     * tests/test_texts_used.py is what reads it now, and this is the shape it
+     * needs - a key is either written out or it is built from a prefix long
+     * enough to name a family. */
     const flag = (key: string, on: boolean, set: (on: boolean) => void,
                   note: string): void => {
       const opt = document.createElement("label");
@@ -1723,16 +1731,16 @@ function gridPanel(into: HTMLElement,
       box.type = "checkbox";
       box.checked = on;
       const head = document.createElement("b");
-      head.textContent = t(`ui.${key}`);
+      head.textContent = t(key);
       const hint = document.createElement("small");
       hint.textContent = note;
       opt.append(box, head, hint);
       box.onchange = () => { set(box.checked); draw(); };
       switches.appendChild(opt);
     };
-    flag("app_first_column_share", column, (on) => { column = on; },
+    flag("ui.app_first_column_share", column, (on) => { column = on; },
          t("ui.app_first_column_share_note"));
-    flag("app_first_column_gap", gap, (on) => { gap = on; },
+    flag("ui.app_first_column_gap", gap, (on) => { gap = on; },
          t(column ? "ui.app_first_column_gap_note"
                   : "ui.app_first_column_gap_note_alone"));
     body.push(switches);
