@@ -52,8 +52,9 @@ jobs:
             vorlaut.ino.bin)
 
           cat > notes.md <<NOTES
-          > **This firmware has never run on real hardware.**
-          > It compiles cleanly, and nothing beyond that has been checked.
+          > **This firmware has run on real hardware** - flashed, fed a board
+          > over the cable and heard, first on 2026-08-27 - but on one talker,
+          > built by the person who wrote it.
           > Before the first flash, hold the pin assignment against your own
           > boards and work through the
           > [bring-up in stages](${docs}/docs/bring-up.md) - it finds wiring
@@ -109,7 +110,7 @@ jobs:
           NOTES
 
           gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME - firmware, untested on hardware" \
+            --title "$GITHUB_REF_NAME - firmware, run on one talker" \
             --notes-file notes.md \
             --prerelease \
             build/vorlaut/vorlaut.ino.merged.bin \

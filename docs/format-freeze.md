@@ -645,17 +645,19 @@ somebody can check rather than judge. Adding what this survey found, in order:
    cannot reach a flashed device and a clamp in the parse would have left
    `layout.lock.json` describing a reader that no longer existed.
 
-5. **A first run on real hardware.** ⚠️ **Four of six ticked, 2026-08-27.** A
+5. **A first run on real hardware.** ⚠️ **Five of six ticked, 2026-08-27.** A
    full payload reached a talker and it spoke: 25 tiles at exactly 32768 bytes,
    `free` down to 131072 of 1572864, and a device that had held stale content
-   updated rather than confused. What is left needs a *deliberate* act rather
-   than another good run — a cable pulled mid-send, and a reconnect. **Row five is the one still blocking**, because it settles an
-   interface question rather than measuring a nicety. `cable.md`'s six-row table
-   is where the results are. It is the same bar `exchange-v*` is held to for the
-   same reason: a fixture set that no implementation in its intended environment
-   has ever met is a claim — and two rows of this one still are. Row five
-   decides whether a granted port survives the device re-enumerating, and so
-   whether the editor's one-press promise holds.
+   updated rather than confused. **Row five is answered too, and it was the one
+   that could have cost something** — a granted port survived the device
+   re-enumerating, so `getPorts()` finds it again without a gesture and
+   *Connect* on the loader page does not have to ask. `cable.md`'s six-row table is where the
+   results are. It is the same bar `exchange-v*` is held to for the same reason:
+   a fixture set that no implementation in its intended environment has ever met
+   is a claim — and one row of this one still is. **What is left is row three**,
+   a cable pulled mid-send, which needs a *deliberate* act rather than another
+   good run: it is the only row the bench cannot produce and the only one whose
+   device-side behaviour has no test at all.
    *Checkable: six ticks, in that document.*
 
 6. **`device-v*` is registered where somebody would look for it.**
@@ -737,8 +739,13 @@ a mutation run, a first run on real hardware, and a row in a table — the
 mutation run and the row were done on 2026-08-27, and working the list turned
 up a seventh item that had been nobody's. That seventh item was then done the same day.
 **One remaining item, and it is not one anybody here can type**: a first run on
-real hardware. Everything else on this list is closed, so `device-v1` waits on
-`cable.md`'s six rows and on nothing else. That is a good deal closer to
+real hardware, which has now largely happened — five of the six rows on
+2026-08-27, including the one that settled an interface question. Everything
+else on this list is closed, so `device-v1` waits on `cable.md`'s row three and
+on nothing else. Whether a fragment left by a pulled cable is a thing a *format*
+tag has to wait for is a judgement rather than a fact, and this item states the
+bar as six ticks; moving it is a decision to make in writing rather than by
+reading the count as close enough. That is a good deal closer to
 holding still — though L2, N1 and P1
 are still changes to a format that has not been frozen, and the measurement
 that matters is how long they stay unmade.

@@ -369,11 +369,15 @@ sentence renders again.
 **Both routes onto a device went, not one.** `flashing.py` made the LittleFS
 image and drove `esptool`, so the cable is not merely the only *new* path — it
 is the only path, and it had never touched hardware when the Python was
-deleted. It still has not. What has changed is that the browser can now drive it
-end to end: the editor exports a file, `/loader/` compiles and pushes it, and
-`e2e/loader.spec.ts` holds that against the mock. The wire format was never the
-doubtful part — `tests/test_cable_format.py` feeds the client's own bytes to
-the firmware's reader — and a talker is still the thing none of it has met.
+deleted. **That is closed as of 2026-08-27**: the browser drives it end to end —
+the editor exports a file, the loader page compiles and pushes it, and
+`e2e/loader.spec.ts` holds that against the mock — and a talker has now been on
+the far end of it, flashed, filled and speaking. The wire format was never the
+doubtful part; `tests/test_cable_format.py` feeds the client's own bytes to the
+firmware's reader. What the deletion actually bet on was that the *only* path
+would work, and the bet has been settled the right way. [`cable.md`](cable.md)'s
+six-row table is where it is settled, one row at a time, and one row is still
+open.
 
 The Wi-Fi stack went too, on 2026-08-23, with the six-row table still unticked.
 [`cable.md`](cable.md#the-wi-fi-path-is-gone) has the reasoning. For a day it

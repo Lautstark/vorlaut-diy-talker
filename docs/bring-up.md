@@ -288,6 +288,23 @@ sums above are why it was worth doing; they are not why 64 KB was right.
   no content. That is correct, and it looks exactly like failure. Prove the
   transport with the bench; prove the device with real content from the editor.
 
+### And on 2026-08-27 it worked, with real content
+
+The second half of that last sentence, done. A board exported from the editor
+was compiled by the loader page and pushed down the cable to a flashed talker:
+25 tiles at exactly 32768 bytes each — five keys by five sets, none short — 20
+WAVs and a `layout.bin` of 932 bytes that parses. The device had answered *"No
+content on the device"* before it and named its own set afterwards, and it
+**spoke**. A second export moved nothing and left the device byte-identical,
+which with content-addressed names is what proves nothing moved rather than
+that nothing was checked; a later session found the device again with no port
+picker.
+
+What is still owed from this stage is one deliberate act — pull the cable
+mid-send and look for a fragment rather than a half-file — and the numbers the
+page reports while it sends, which nobody has yet written down.
+[cable.md](cable.md) carries both, row by row.
+
 ## Stage 7 — The real firmware
 
 
@@ -300,11 +317,17 @@ four example sentences, which made this stage a check of everything at once;
 they went with the Python build. So the sound and the keys are checked here by
 sending a board of your own — which is stage 6, and is why it comes first.
 
-Your own content comes afterwards, and it is one press: the editor's *Send to the
-device*, which builds the board and pushes it down the cable. There
-is nothing to set up first — no network, no portal, no five digits — because
-there is nothing to prove to a device you are holding. Stage 6 is that press;
-this stage is everything else working at the same time as it.
+Your own content comes afterwards, and it is two steps across two pages: in the
+editor, *Export this collection* → *For the talker*; then the loader page, which
+checks that file, compiles it, connects and sends. There is nothing to set up
+first — no network, no portal, no five digits — because there is nothing to
+prove to a device you are holding. Stage 6 is that transfer; this stage is
+everything else working at the same time as it.
+
+That used to be one press in the editor, and
+[`adr/0011`](../adr/0011-editor-exports-the-talker-repository-sends.md) is why
+it is not: the editor exports a file and stops, and the page that speaks to a
+talker lives in the talker's own repository.
 
 **"keine Inhalte" on all five displays** means the file area is empty, and
 after any flash that is correct rather than a fault — a release, the artifact
@@ -333,5 +356,5 @@ belongs back in the repo:
 | Panel profile and offset | `firmware/vorlaut/pins.h` — `PANEL_INVERT` is 1 |
 | Order of the CS and KEY lines | `firmware/vorlaut/pins.h` — both correct as written |
 | Which way up each panel is | `firmware/vorlaut/pins.h` — `PANEL_TURN`, all alike |
-| Actual component dimensions | `docs/hardware.md`, `tools/wiring.py` |
+| Actual component dimensions | `docs/hardware.md` — the wiring picture beside it no longer regenerates, see the note there |
 | Where the sweep goes thin — the speaker's lower limit | `docs/hardware.md` |

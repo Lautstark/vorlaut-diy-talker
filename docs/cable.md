@@ -372,8 +372,11 @@ burst, so the device never had to wait. And the 4001 ms before that buffer
 existed was not lateness — the device was waiting for bytes that had been
 **thrown away**, which no value of `CABLE_QUIET_MS` could have rescued.
 
-**What version 2 has to show is different, and none of it has run on hardware
-yet.** Written down before the run rather than remembered after it:
+**What version 2 has to show is different, and it is still a prediction.**
+Version 2 *has* run on hardware since — that is the six-row table at the end of
+this document — but every run so far was driven by hand, and none of these three
+numbers was read off the page while it was sending. So this stays written down
+before the measurement rather than remembered after it:
 
 | what a bench run has to report | what it should say, and why |
 |---|---|
@@ -530,15 +533,16 @@ report a connection — but nothing should ever drive the pair in sequence.
   The one thing the two used to share is handled: a device that was synced
   before still has `/version` on it, and because the name is now an ordinary one
   the first cable session sweeps it off.
-- **No board has spoken version 2.** A board ran version 1 on 2026-08-23 and
-  produced the two numbers in [the four
-  seconds](#the-four-seconds-and-what-they-are-now-for) above — that is the
-  whole of the hardware this protocol has ever seen, and none of the six rows
-  below was ticked even then. Everything else has been checked on a computer;
-  see [Where it lives](#where-it-lives-and-what-is-checked). The parts that most
-  want a real device are the three timing rules above, none of which a test
-  without a clock can exercise. What a first run has to show is set out in
-  [The Wi-Fi path is gone](#the-wi-fi-path-is-gone).
+- **The timing rules are the part a board has proved least.** A board ran
+  version 1 on 2026-08-23 and produced the two numbers in [the four
+  seconds](#the-four-seconds-and-what-they-are-now-for) above; version 2 has
+  since run on real hardware too, and five of the six rows below are ticked —
+  see [The Wi-Fi path is gone](#the-wi-fi-path-is-gone). What those runs did
+  *not* produce is a number: `gap`, `stall` and the rate are reported by the
+  page while it sends and nobody has written them down. So the three timing
+  rules above, which are exactly the part no test without a clock can exercise,
+  rest on a talker that visibly worked rather than on a measurement. Everything
+  else has been checked on a computer; see [Where it lives](#where-it-lives-and-what-is-checked).
 
 ## Running it on a device
 
@@ -674,9 +678,10 @@ different problem from a transfer that failed.
 It was deleted on 2026-08-23, and none of the six rows below had been ticked.
 This section used to say that must not happen, so it says what changed instead.
 
-**The bar was one real end-to-end success**, and the reasoning behind it was
-sound: `tiles.py`, `tts.py` and `layout_format.py` had been *oracles* — the only
-reason anybody knew the browser ports were right — but the firmware Wi-Fi stack
+**The bar was one real end-to-end success**, and it was met on 2026-08-27 —
+five of the six rows at the end of this section, recorded one at a time. The
+reasoning behind it was sound: `tiles.py`, `tts.py` and `layout_format.py` had
+been *oracles* — the only reason anybody knew the browser ports were right — but the firmware Wi-Fi stack
 was an oracle for nothing. It was just the old transport, kept because a working
 way to get content onto a device is worth having while the new one is unproven.
 
@@ -731,12 +736,13 @@ once and remembered is a row nobody can audit later:
 | an incremental transfer moves only what changed | the whole point of the content-addressed names | ✅ **yes, in its strictest form.** A second export was sent and the device came back **byte-identical** — same 46 files, same `free`. Content-addressed names mean a changed file arrives under a *new* hash, so an unchanged listing is proof that **nothing** moved rather than proof that nothing was checked. A naive sender would have pushed 1.4 MB again. Still worth doing once more with one symbol altered, to watch exactly one file move. |
 | an interrupted transfer leaves a fragment | pull the cable mid-transfer: `.part` and no half-file under a real name | ⬜ not tested. No `.part` appears in `list`, which is consistent with a clean run and is **not** evidence for this row. |
 | the device *speaks* the new content | not merely reports success | ✅ **yes**, reported by the person at the bench. The device also names its own set — `set 1: Sprechen` — where before the transfer it said *"No content on the device."* |
-| a second transfer needs no port picker | `getPorts()` finds the device again — **this one decides an interface question, see below** | ⬜ not tested, and it is the one that matters most. |
+| a second transfer needs no port picker | `getPorts()` finds the device again — **this one decides an interface question, see below** | ✅ **yes.** A later session found the device again with no picker: `getPorts()` returned the previously-granted port after the board had re-enumerated. This is the row that could have put a picker on every transfer, and it did not — see below for why it was never a nicety. |
 | a device that already holds content is updated | rather than confused by what is already there | ✅ **yes.** The device held 46 files from an earlier build and answered *"No content on the device"*; after the transfer it holds a valid layout and speaks. |
 
-**Four of six.** The two that are left need a deliberate act — a cable pulled
-mid-send, and a reconnect. Neither happens by accident during a run that goes
-well, which is why they are blank rather than inferred from one that did.
+**Five of six.** Row five was ticked after this table was first filled in, and
+what is left is the one row that needs a *deliberate* act: a cable pulled
+mid-send. That does not happen by accident during a run that goes well, which is
+why it is still blank rather than inferred from one that did.
 
 **Row two was nearly recorded as the wrong row.** It was reported as "a partial
 transfer" and that phrase fits row three just as well; the device could not
@@ -745,21 +751,25 @@ one that was cleaned up leave the same listing. It took asking. Worth
 remembering, because the six rows are close enough in ordinary language that a
 run described afterwards can tick the wrong one.
 
-**The version 2 numbers were not captured.** `gap`, `stall` and the rate are
-what the page reports while it is sending, and this run was driven by hand
-without them being written down. They are not derivable afterwards: the device
-answers what it *holds*, not how it came to hold it. Next run, read them off the
-page as it goes.
+**The version 2 numbers were not captured, and still have not been.** `gap`,
+`stall` and the rate are what the page reports while it is sending, and every
+run so far was driven by hand without them being written down. They are not
+derivable afterwards: the device answers what it *holds*, not how it came to
+hold it. Next run, read them off the page as it goes — this is the one thing
+above that a run which goes well will keep failing to produce, because nothing
+about a good run makes anybody look.
 
 **What the file listing does settle**, because it needed no instrumentation:
 every tile is exactly 32768 bytes, which is 128 × 128 × 2 — a short file would
 show here and none does. That is the *bytes lost* row of the version 2 table,
 and it is the one that is not a matter of degree.
 
-None of the six has been run. The bench can produce every one of them except
-the third — pulling the cable out mid-transfer is a thing only hands can do —
-and the third is the one whose device-side behaviour has no test at all, since
-it is the timeout, the drain and the refusal that only `hello` clears.
+**The third is the one still open**, and the two facts about it are the same
+fact: it is the only row the bench cannot produce — pulling the cable out
+mid-transfer is a thing only hands can do — and the only one whose device-side
+behaviour has no test at all, since it is the timeout, the drain and the refusal
+that only `hello` clears. It outlasted the other five for that reason rather
+than because anybody doubts it.
 
 Two of them now have a version that runs in a browser: `e2e/loader.spec.ts`
 feeds the loader page a real package, presses Send against `cable_mock.js` and
@@ -768,19 +778,31 @@ second press sends nothing. That
 is the second and sixth rows in everything except the part that matters here —
 there is no flash, no re-enumeration and no clock in it. It is what says the
 wiring is right, so that a failure on the bench is about the hardware rather
-than about which file the page read. The rows stay unticked until a board has
-done it.
+than about which file the page read. A board has since done both for real, and
+that is what the two ticks record — the browser version is what makes a red run
+mean something, not what earns the tick.
 
-**Row five is not a convenience.** The editor's one button *is* the way content
-reaches the talker now — it builds and it sends, with no browser chooser after
-the first press. That rests entirely on `getPorts()` returning a
-previously-granted port without a gesture, because the press that would open
-the picker is the same press that starts the build, and by the time a build is
-over the transient activation `requestPort()` needs has long expired. If a
-granted port does not survive the device re-enumerating, there is a picker on
-*every* transfer and that promise has to be withdrawn — so this row settles an
-interface question rather than measuring a nicety, and it should be reported as
-such.
+**Row five is not a convenience.** *Connect* on the loader page is meant to
+find the talker without asking, on every session after the first. That rests
+entirely on `getPorts()` returning a previously-granted port without a gesture.
+If a granted port does not survive the device re-enumerating, there is a picker
+on *every* transfer — so this row settles an interface question rather than
+measuring a nicety, and it should be reported as such.
+
+**The shape of that promise changed with [adr/0011](../adr/0011-editor-exports-the-talker-repository-sends.md), and the row did not.**
+It used to be the editor's single button that built *and* sent, and then the
+argument was sharper still: the press that would open the picker was the same
+press that started the build, and by the time a build was over the transient
+activation `requestPort()` needs had long expired. The loader page pulled those
+apart — connecting is a step with a button of its own, for exactly that reason,
+and `loader/src/main.ts` says so at the top. What survives is that a picker
+appearing on every transfer is a worse page, not a broken one.
+
+**It survived.** A later session reached the device with no picker, so the
+promise holds and nothing has to be withdrawn. Worth keeping the paragraph
+above rather than deleting it: what it describes is the shape of a failure that
+would have arrived looking like an unreliable protocol, and the next section is
+the list of things to check if it ever does.
 
 **Before blaming the wire format, check whether opening the port resets the
 board.** On classic ESP32 boards the USB-UART bridge has DTR and RTS wired to
