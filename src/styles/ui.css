@@ -559,6 +559,19 @@ dialog.sheet > .head, dialog.sheet > .foot { flex: none; }
    control itself - two different things under one name in one stylesheet is
    how a rule stops meaning anything. */
 .setting { padding: 10px 16px 4px; display: flex; flex-direction: column; gap: 6px; }
+/* The press that applies the whole panel, drawn as the panel's foot.
+ *
+ * It sat directly under the last control above it - the first column's second
+ * checkbox - and so read as belonging to that one thing, when what it applies
+ * is everything in the panel: the size, the colour and the column, in one
+ * press. A rule across the panel and the button at the far end is the same
+ * shape `.sheet > .foot` uses for the same claim one level up, which is where
+ * a reader has already met it. */
+.setting > .row--apply {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+  margin: 12px -16px 0; padding: 14px 16px 10px;
+}
 .setting label { font-size: 13px; color: var(--text-dim); }
 .setting .lead { margin: 0 0 6px; font-size: 13px; color: var(--text-dim); }
 .setting .lead a { color: var(--accent); }
@@ -624,13 +637,24 @@ dl.transfer dd { margin: 0; font-size: 14px; }
   display: flex; flex-direction: column; gap: 6px; padding: 6px 16px 16px;
 }
 .voiceList .note { padding: 6px 11px; color: var(--text-dim); font-size: 13px; }
-/* The list scrolls in a box of its own rather than growing the sheet. With a
-   key of your own this is hundreds of rows, and the panel holding that key is
-   underneath it. */
-.voices {
-  display: flex; flex-direction: column; gap: 2px;
-  max-height: min(46vh, 340px); overflow: auto; padding: 2px;
-}
+/* One scrolling area for the sheet, and this is not a second one.
+ *
+ * It used to be: `max-height: min(46vh, 340px); overflow: auto`, on the
+ * argument that a personal key brings hundreds of voices and the panel holding
+ * that key sits underneath them. The argument is true and the box was still
+ * wrong, for the reason components.css states one floor up - "two of them
+ * nested is a way to lose the Save button without noticing it is there".
+ *
+ * That is exactly what happened. A 340px list inside a 460px body is most of
+ * what the pointer is over, and a wheel gesture latches to the element under
+ * the pointer for its whole run: the sheet did not move at all, and the button
+ * at the foot of the panel below could not be reached. "Sometimes" is where the
+ * pointer happened to be.
+ *
+ * So the list grows and the sheet scrolls. Hundreds of voices are then a long
+ * scroll - but it is one scroll, with the filters directly above it, and a long
+ * scroll that works beats a short one that swallows the gesture. */
+.voices { display: flex; flex-direction: column; gap: 2px; padding: 2px; }
 .voicefilters { display: flex; gap: 4px; flex-wrap: wrap; padding: 4px 16px 0; }
 
 .voiceRow { display: flex; align-items: center; gap: 8px; }

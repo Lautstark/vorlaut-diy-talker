@@ -1616,10 +1616,16 @@ function gridPanel(into: HTMLElement,
     draw();
   };
 
-  // At the foot of the panel, in the row shape every other button on either
-  // sheet is in.
+  /* The foot of the panel, and drawn as one.
+   *
+   * One press applies everything above it - the size, how a word class is
+   * worn, and whether the first column belongs to the Sammlung - so it may not
+   * look like it belongs to whichever control happens to sit directly over it.
+   * A rule across the panel and the button at the far end says "this is the
+   * end of the panel", which is the same shape the sheet's own foot uses one
+   * level up. */
   const row = document.createElement("div");
-  row.className = "row";
+  row.className = "row row--apply";
   row.appendChild(go);
 
   /* Redrawn whole on each choice, because the two things that follow from one
