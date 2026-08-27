@@ -111,10 +111,11 @@ It named a format still moving, with a breaking cable change landing that day.
 that was asked for, and it now records C1, C2 and L1 all landed on 2026-08-27 —
 chunk acknowledgement with `CABLE_RX_BUFFER`'s bound taken out with it, a
 runtime `CABLE_VERSION` comparison, and the sleep timeout decided in writing
-with a clamp beside `parseLayout`. Its §8 sequencing puts the remainder at
-**three items, none of them blocking**: L2, N1 and P1, each a change to a format
-that has not been frozen but none of them a thing that has to happen before a
-device freeze. The change that was in flight when recommendation 4 was written
+with a clamp beside `parseLayout`. Its own summary table puts the remainder at
+**three items, none of them blocking** — L2, N1 and P1, each a change to a
+format that has not been frozen but none of them a thing that has to happen
+before a device freeze — and §8's sequencing towards `device-v1` is down to a
+first run on real hardware and a version string that still says draft. The change that was in flight when recommendation 4 was written
 is the change that landed. Waiting it out is what was asked for, and it is done.
 
 **The seam is a directory now, so the move is a move rather than an
