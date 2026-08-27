@@ -5,7 +5,11 @@
 // sleep and wakes on any of the five keys - that first press deliberately
 // triggers nothing.
 //
-// layout.h and the contents of data/ are produced by build.py.
+// /layout.bin and the content files beside it are produced in the browser -
+// renderLayoutBin() in src/data/layout_format.ts writes the table, and either
+// the cable or the folder export puts the lot on the file system. They were
+// layout.h and data/, written by build.py, until the Python half went on
+// 2026-08-22.
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -41,8 +45,10 @@ static_assert(TILE_W == DISPLAY_W && TILE_H == DISPLAY_H,
 // new set would have to be flashed over a cable.
 //
 // Structure and read logic live in layout_format.h - the same file gets
-// compiled on the computer by tests/test_layout_format.py and checked against
-// a real layout.bin.
+// compiled on the computer by tests/test_layout_frozen.py and checked against
+// a real layout.bin. That was tests/test_layout_format.py's job until
+// 2026-08-22; what changed with it is what the bytes are compared against, not
+// that this reader parses them.
 #include "layout_format.h"
 #define LAYOUT_FILE "/layout.bin"
 

@@ -22,7 +22,7 @@
 
 #include "../../vorlaut/pins.h"
 
-static const uint32_t ABTASTRATE = 16000;   // the rate build.py writes the WAVs at
+static const uint32_t ABTASTRATE = 16000;   // WAV_SAMPLE_RATE, and DEVICE_SAMPLE_RATE in src/data/audio_format.ts
 static const size_t BLOCK = 512;
 
 // How hard the tone is driven, 0..1. Not a taste setting: it is here so that

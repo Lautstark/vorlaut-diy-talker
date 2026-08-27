@@ -1,13 +1,16 @@
 // Structure of layout.bin - shared by the firmware and the test.
 //
 // Deliberately without any Arduino dependency: that way the same code can be
-// compiled on the computer and checked against a file produced by build.py.
-// Strides and byte order are exactly the places one gets wrong, and on the
-// device it only shows once it has been flashed.
+// compiled on the computer and checked against a file the builder really
+// produced. Strides and byte order are exactly the places one gets wrong, and
+// on the device it only shows once it has been flashed.
 //
-// The file is produced by build.py - the same structure is written down in
-// layout_format.py, and in static/layout_format.js, which writes it in the
-// browser.
+// The file is produced by renderLayoutBin() in src/data/layout_format.ts,
+// which is where the same structure is written down a second time. That was
+// build.py's job until 2026-08-22, alongside layout_format.py and
+// static/layout_format.js; all three went when the Python half did, and the
+// browser is the only writer now. tests/test_layout_frozen.py compiles this
+// header and reads what that writer produced.
 
 #pragma once
 #include <stdint.h>
@@ -26,7 +29,7 @@
 // serial port saying which reason.
 #define LAYOUT_VERSION 2
 
-// Fixed strides. Have to agree with layout_format.py.
+// Fixed strides. Have to agree with src/data/layout_format.ts.
 #define LAYOUT_HEADER_BYTES 12
 #define LAYOUT_SLOT_BYTES (HASH_BYTES + HASH_BYTES + 1 + 1)          // 34
 #define LAYOUT_SET_BYTES (NAME_BYTES + HASH_BYTES + SLOT_COUNT * LAYOUT_SLOT_BYTES)  // 184
