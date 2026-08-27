@@ -1829,9 +1829,14 @@ export function wireEditor(): () => void {
 
   /* The package, as an entry in the ⋯ beside the Sammlung's name. It was a
    * filled button in the work head - see templates/board.ts for what that
-   * symmetry was and why it is given up. */
+   * symmetry was and why it is given up.
+   *
+   * Under the same label the shell's own export entry carries, and out of the
+   * same key: a tablet Sammlung has one place to go and is not asked, a talker
+   * Sammlung has three and is - but the act is one act either way, and two
+   * words for it would be two words to keep in step. */
   collectionMenuExtras((add) => {
-    add(t("ui.collection_export_this"), () => { void exportApp(); });
+    add(t("ui.collection_export"), () => { void exportApp(); });
   });
 
   /* The grid is a panel in the sheet behind that same ⋯, and unchanged by any

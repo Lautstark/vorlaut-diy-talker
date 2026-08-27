@@ -7,7 +7,7 @@ Package** the Android viewer opens, specified in
 
 | | Talker export | App package |
 |---|---|---|
-| Menu entry | *Export as an OBF file* | *Export as an app package* |
+| Menu entry | *Export this collection* → *For another program* | *Export this collection* → *For the vorlaut app* |
 | Symbols | references (`symbol.set` / `filename`) | PNG files in the archive |
 | Audio | none | Ogg Opus files in the archive |
 | METACOM | refused outright | permitted, `redistributable: false` |

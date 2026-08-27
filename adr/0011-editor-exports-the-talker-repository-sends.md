@@ -191,13 +191,24 @@ relationship: the file is not a record of a device, it is what a device is
 given. So it speaks for itself, with the progress-and-stop sheet the app package
 already had, and the consequence above is corrected to match.
 
-**The menu is still three entries, and that is the one part of the Decision
+**The menu was still three entries, and that was the one part of the Decision
 above not yet done.** *"One action, Sammlung exportieren, whatever kind of board
 it is"* is a statement about what a person presses, and this ADR already says so
 — it is separable from everything else here, and it was deliberately left for a
 change of its own rather than folded into one large enough to hide it. The three
 writer functions are untouched and stay untouched: `exchange/SPEC.md` §5.2
 requires that, and it is a licensing decision rather than a technical one.
+
+That change landed later the same day. The ⋯ carries one entry, *Sammlung
+exportieren*, and `chooseExport()` in
+[`src/shell/collections.ts`](../src/shell/collections.ts) asks what the file is
+for — a talker, a tablet, another program — in the card shape `askTarget()`
+beside it already uses, each card saying what it is *for* rather than what is
+in it. The three writers are three: each card names `exportBoard()`,
+`exportAppPackage()` or `exportDevicePackage()` literally, the choice is spent
+at the press, and nothing carrying a kind is passed to a writer for it to
+branch on — which is what keeps §5.2 true at every call site rather than
+nearly. A dismissed sheet writes nothing and saves nothing.
 
 **Two directories import each other, and the list is short on purpose.** `src/`
 takes seven format constants and `renderSymbol()` out of `loader/`; `loader/`

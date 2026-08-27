@@ -6,7 +6,7 @@ import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { checkPackage } from "../src/data/app_package.js";
 import { readPackage, unzip } from "./obz.js";
 import { KEY_CELL, cells, key, keySheet, nameSet, press, put } from "./diy.js";
-import { openPanel, openSettings, openVoices } from "./sheets.js";
+import { openPanel, openSettings, openVoices, pickExport } from "./sheets.js";
 
 /* The app package, made by the real page and read back off disk.
  *
@@ -151,8 +151,7 @@ test("a Sammlung leaves as a package, and it passes the spec's own checks",
     await standIn(page);
     await fill(page);
 
-    await page.locator("#collectionMenu").click();
-    await page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click();
+    await pickExport(page, "app");
     // The export is behind a sheet now: it names the Sammlung, counts the
     // sentences as it speaks them and offers a way to stop, because a full
     // tablet Sammlung is hundreds of syntheses and a status line that says one
@@ -261,12 +260,12 @@ test("the two exports are two different files, not one behind a flag",
 
     // exchange/SPEC.md §5.2: the talker's export writes symbols as references
     // and never as pixels, and that guarantee is structural rather than an
-    // argument. Both entries are in the same menu, and what comes out of them
-    // is different in exactly that way.
-    await page.locator("#collectionMenu").click();
+    // argument. Both are cards of one entry now, and what comes out of them is
+    // different in exactly that way - which is the point of asserting it here
+    // rather than trusting that one menu means one writer.
     const [plain] = await Promise.all([
       page.waitForEvent("download"),
-      page.locator(".menu button", { hasText: label("ui.collection_export") }).click(),
+      pickExport(page, "other"),
     ]);
     const talker = unzip(new Uint8Array(readFileSync((await plain.path())!)));
     expect([...talker.keys()].some((name) => name.startsWith("images/"))).toBe(false);
@@ -276,8 +275,7 @@ test("the two exports are two different files, not one behind a flag",
     expect(board.images[0].symbol).toBeTruthy();
     expect(board.images[0].path).toBeUndefined();
 
-    await page.locator("#collectionMenu").click();
-    await page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click();
+    await pickExport(page, "app");
     const asked = sheet(page, "ui.package_title");
     const [app] = await Promise.all([
       page.waitForEvent("download"),
@@ -364,8 +362,7 @@ test("a mixed Sammlung is refused before a syllable of it is synthesised",
     await fill(page);
     await seedMixed(page);
 
-    await page.locator("#collectionMenu").click();
-    await page.locator(".menu button", { hasText: label("ui.collection_export_app") }).click();
+    await pickExport(page, "app");
     const asked = sheet(page, "ui.package_title");
     await asked.locator("button", { hasText: label("ui.package_go") }).click();
 

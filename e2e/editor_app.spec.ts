@@ -74,7 +74,7 @@ const standingOn = (page: Page) => page.locator("#appPageName");
 /** The whole-Sammlung act, which is an entry in the ⋯ beside its name now. */
 async function exportPackage(page: Page): Promise<void> {
   await page.locator("#collectionMenu").click();
-  await page.getByRole("menuitem", { name: label("ui.collection_export_this") }).click();
+  await page.getByRole("menuitem", { name: label("ui.collection_export") }).click();
 }
 
 const VOICES_LIST = /tts\.speech\.microsoft\.com\/cognitiveservices\/voices\/list/;

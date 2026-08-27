@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 /* The labels are asserted out of the table the page reads them from, rather
  * than written out here in one language. */
 import { TEXTS } from "../src/core/boot_data.js";
-import { pickFromMenu } from "./sheets.js";
+import { pickExport } from "./sheets.js";
 /* Out of the modules that decide them rather than written here: a rule this
  * test spelled out for itself would agree with nothing. */
 import { isDeviceWav, wavFormat } from "../src/data/device_package.js";
@@ -291,7 +291,7 @@ const footBtn = (page: import("@playwright/test").Page, key: string) =>
  * bytes rather than out of anything the page kept.
  */
 async function exportDevice(page: import("@playwright/test").Page) {
-  await pickFromMenu(page, "ui.collection_export_device");
+  await pickExport(page, "talker");
   await expect(sheetOf(page)).toBeVisible();
 
   const coming = page.waitForEvent("download");
