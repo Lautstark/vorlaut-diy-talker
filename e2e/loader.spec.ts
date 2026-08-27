@@ -5,6 +5,12 @@ import { expect, test, type Page } from "@playwright/test";
 /* The labels are asserted out of the table the page reads them from, rather
  * than written out here in one language. */
 import { TEXTS } from "../loader/src/boot_data.js";
+/* And the substitution itself, rather than a second copy of it here. It is a
+ * module of its own precisely so that this file can have it: boot.ts reads
+ * navigator.languages while it loads and there is no browser in this process,
+ * and a label with a plural in it cannot be asserted by a helper that does not
+ * know how one is chosen. */
+import { fill } from "../loader/src/fill.js";
 /* Out of the modules that decide them rather than written here: a stride this
  * test spelled out for itself would agree with nothing. */
 import { HEADER_BYTES, MAX_SETS, SET_BYTES } from "../loader/src/layout_format.js";
@@ -56,9 +62,7 @@ const SPEAKS = (TEXTS as Record<string, Record<string, string>>)[PAGE_LANG];
  *  substitution t() does, so that a count is asserted against the sentence
  *  somebody actually reads rather than against a fragment of it. */
 const filled = (key: string, params: Record<string, string | number>) =>
-  Object.entries(params).reduce(
-    (line, [name, value]) => line.split(`{${name}}`).join(String(value)),
-    SPEAKS[key]);
+  fill(SPEAKS[key]!, params, PAGE_LANG);
 
 /** The longest run of a line that carries no blank, for the ones whose numbers
  *  this test does not want to predict.
@@ -69,7 +73,7 @@ const filled = (key: string, params: Record<string, string | number>) =>
  * nothing at all. One of them did, and the test it made green was the one
  * asserting that a folder had been written. */
 const opening = (key: string) =>
-  SPEAKS[key].split(/\{[a-z]+\}/).map((one) => one.trim())
+  SPEAKS[key].split(/\{[a-z_]+(?:\|[^{}]*)?\}/).map((one) => one.trim())
     .reduce((longest, one) => (one.length > longest.length ? one : longest), "");
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -190,7 +194,7 @@ test("it says what is in the file before it does anything with it",
     sets: 2, filled: 7, keys: 8, pictures: 2, sounds: SPOKEN.length,
   }));
   await expect(step(page, "load.step_check"))
-    .toContainText(filled("load.holds_language", { code: "de" }));
+    .toContainText(filled("load.holds_language", { name: SPEAKS["lang.de"]! }));
 });
 
 test("it names every key that will not be what the Sammlung says it is",

@@ -45,7 +45,7 @@ import "@lautstark/design/components.css";
 import "./style.css";
 
 import { initTheme } from "@lautstark/design/theme";
-import { LANG, t } from "./boot.js";
+import { LANG, says, t } from "./boot.js";
 import { Trouble, reason } from "./errors.js";
 import {
   readDevicePackage, type ReadDevicePackage,
@@ -54,6 +54,7 @@ import { browserHost } from "./browser_host.js";
 import { type Build, cableSupported, sendToDevice, type Plan } from "./cable.js";
 import { compileDevice, type DeviceBuild } from "./compile.js";
 import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js";
+import { LANGUAGE_CODES } from "./layout_format.js";
 import { chooseBuildFolder, folderExportSupported, writeBuildTo } from "./folder.js";
 import { previewBoards } from "./preview.js";
 import { readPackageFile } from "./read.js";
@@ -78,14 +79,47 @@ const KIB = (bytes: number) => Math.round(bytes / 1024);
 class Step {
   readonly root = document.createElement("section");
   private readonly body = document.createElement("div");
+  private readonly mark = document.createElement("span");
+  private readonly badge = document.createElement("span");
 
-  constructor(titleKey: string) {
+  constructor(private readonly n: number, titleKey: string) {
     this.root.className = "step";
     this.root.dataset.state = "waiting";
+
+    const head = document.createElement("div");
+    head.className = "step__head";
+
+    /* The number, in a marker of its own, so that the heading can be prose and
+       so that a finished step can carry a check instead. aria-hidden on
+       purpose: the sections are named by their headings and read in their own
+       order, and an ordinal announced in front of each of five is noise. */
+    this.mark.className = "step__mark";
+    this.mark.textContent = String(n);
+    this.mark.setAttribute("aria-hidden", "true");
+
     const heading = document.createElement("h2");
+    heading.id = `step-${n}`;
     heading.textContent = t(titleKey);
+    /* Which turns five unnamed regions into five named ones. A <section> is a
+       landmark only when it has a name, and landmark navigation is exactly how
+       somebody gets back up to "Verbinden" from the bottom of a log. */
+    this.root.setAttribute("aria-labelledby", heading.id);
+
+    this.badge.className = "chip";
+    this.badge.hidden = true;
+
+    head.append(this.mark, heading, this.badge);
     this.body.className = "body";
-    this.root.append(heading, this.body);
+    this.root.append(head, this.body);
+  }
+
+  /** What this step came to, beside its heading: a count of notes, a size, a
+   *  refusal. The outcome of a step is what somebody scrolling past is looking
+   *  for, and it was four sentences into the body. */
+  chip(text: string | null, kind = ""): void {
+    this.badge.hidden = !text;
+    this.badge.textContent = text ?? "";
+    this.badge.className = kind ? `chip chip--${kind}` : "chip";
   }
 
   /** Wipes whatever this step was saying and marks it live. Every step redraws
@@ -93,15 +127,30 @@ class Step {
    *  page cannot leave a line from the first one standing. */
   begin(): void {
     this.root.dataset.state = "doing";
+    this.mark.textContent = String(this.n);
+    this.chip(null);
     this.body.replaceChildren();
   }
 
   waiting(): void {
     this.root.dataset.state = "waiting";
+    this.mark.textContent = String(this.n);
+    this.chip(null);
     this.body.replaceChildren();
   }
 
-  done(): void { this.root.dataset.state = "done"; }
+  /** Nothing to press, and nothing coming - which is not what waiting means
+   *  and must not look like it. The state a step is left in when this browser
+   *  cannot do it at all. */
+  blocked(): void {
+    this.root.dataset.state = "blocked";
+    this.mark.textContent = String(this.n);
+  }
+
+  done(): void {
+    this.root.dataset.state = "done";
+    this.mark.textContent = "✓";
+  }
 
   say(text: string, className = ""): HTMLParagraphElement {
     const line = document.createElement("p");
@@ -120,10 +169,20 @@ class Step {
   findings(all: Finding[]): void {
     if (!all.length) return;
     const list = document.createElement("ul");
+    list.className = "findings";
     for (const one of all) {
       const item = document.createElement("li");
-      item.className = one.refuses ? "refuses" : "notes";
-      item.textContent = `${one.refuses ? "✖" : "•"} ${one.says}`;
+      item.className = one.refuses ? "finding--refuses" : "finding--note";
+      /* The marker in an element of its own rather than in the same text run.
+         It stays text, which is the half of the original decision that was
+         right - what was wrong is that the browser drew its own disc in front
+         of it, so every line on the page began with two bullets. */
+      const mark = document.createElement("span");
+      mark.className = "mark";
+      mark.textContent = one.refuses ? "✖" : "•";
+      const words = document.createElement("span");
+      words.textContent = one.says;
+      item.append(mark, words);
       list.append(item);
     }
     this.body.append(list);
@@ -138,8 +197,22 @@ class Step {
     return button;
   }
 
-  /** Anything that is not a sentence, a list or a control. One caller: the
-   *  board picture, which is a block of its own and brings its own layout. */
+  /** A control that has to read as a link rather than as a button, which is
+   *  what components.css keeps .linklike for: "a button that has to read as a
+   *  link, because it opens a dialog rather than navigating". Which is
+   *  literally what its one caller does - showDirectoryPicker(). */
+  link(label: string, run: () => void): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "linklike";
+    button.textContent = label;
+    button.onclick = run;
+    return button;
+  }
+
+  /** Anything that is not a sentence, a list or a control. Two callers: the
+   *  board picture, which is a block of its own and brings its own layout,
+   *  and the line naming the file. */
   show(element: HTMLElement): void {
     this.body.append(element);
   }
@@ -158,16 +231,32 @@ class Step {
    * read out as it grows, while the one line above it is the thing somebody
    * standing back from the screen needs announced. Same division the editor's
    * transfer sheet arrived at. */
-  logging(): { now: (line: string) => void; add: (line: string) => void } {
+  logging(): {
+    now: (line: string) => void;
+    add: (line: string) => void;
+    far: (done: number, total: number) => void;
+  } {
     const doing = document.createElement("p");
     doing.className = "doing";
     doing.setAttribute("role", "status");
+    /* How far along, under the line that says it in words. onStep is already
+       handed done and total; what the bar adds is that they can be read from
+       where somebody actually is, which is over the talker with a cable in
+       their hand rather than in front of the screen. */
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    const far = document.createElement("span");
+    far.style.width = "0%";
+    bar.append(far);
     const log = document.createElement("pre");
     log.className = "log";
-    this.body.append(doing, log);
+    this.body.append(doing, bar, log);
     const lines: string[] = [];
     return {
       now: (line) => { doing.textContent = line; },
+      far: (done, total) => {
+        far.style.width = `${total ? Math.round((done / total) * 100) : 0}%`;
+      },
       add: (line) => {
         lines.push(line);
         log.textContent = lines.join("\n");
@@ -181,12 +270,56 @@ class Step {
 /* ---------------------------------------------------------------- page --- */
 
 const steps = {
-  file: new Step("load.step_file"),
-  check: new Step("load.step_check"),
-  compile: new Step("load.step_compile"),
-  connect: new Step("load.step_connect"),
-  send: new Step("load.step_send"),
+  file: new Step(1, "load.step_file"),
+  check: new Step(2, "load.step_check"),
+  compile: new Step(3, "load.step_compile"),
+  connect: new Step(4, "load.step_connect"),
+  send: new Step(5, "load.step_send"),
 };
+
+/** Whether this browser can reach the device at all, said above the first step
+ *  rather than found out at the fourth.
+ *
+ * It was a note inside the connect step, which meant somebody on Firefox chose
+ * a file, waited through a compile and only then read that the cable needs
+ * Chrome - having spent the whole page to learn the one fact that decided
+ * whether the page was any use to them. And the sentence it read was not true:
+ * it offered the folder as what still works here, and the folder is
+ * showDirectoryPicker(), which those browsers have not got either, so no
+ * button was ever drawn under it.
+ *
+ * Not a refusal, and not styled as one. Checking a file and seeing the boards
+ * is worth opening this page for on any browser, which is what it says. */
+function gate(): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "gate";
+  const mark = document.createElement("span");
+  mark.className = "gate__mark";
+  mark.textContent = "!";
+  mark.setAttribute("aria-hidden", "true");
+  const words = document.createElement("div");
+  for (const key of ["load.gate", "load.gate_more"]) {
+    const line = document.createElement("p");
+    line.textContent = t(key);
+    words.append(line);
+  }
+  box.append(mark, words);
+  return box;
+}
+
+/* What just happened, once, for somebody who is not looking at the screen.
+ *
+ * Every step redraws itself whole and says a great deal, and none of it was
+ * announced: a reader who pressed the load.pick button heard nothing back
+ * about a check that had just found three things and a compile that had run.
+ * One polite line, set when a step settles. The transfer keeps its own live
+ * region - that one is a running commentary and this one is an outcome, which
+ * is the same division the send step already makes internally. */
+const announcer = document.createElement("p");
+announcer.className = "sr";
+announcer.setAttribute("role", "status");
+
+const announce = (line: string) => { announcer.textContent = line; };
 
 const page = document.createElement("main");
 const heading = document.createElement("h1");
@@ -197,8 +330,23 @@ lead.textContent = t("load.lead");
 const here = document.createElement("p");
 here.className = "here";
 here.textContent = t("load.here");
-page.append(heading, lead, here, ...Object.values(steps).map((one) => one.root));
+page.append(heading, lead, here);
+if (!cableSupported()) page.append(gate());
+page.append(announcer, ...Object.values(steps).map((one) => one.root));
 document.body.append(page);
+
+/** The step somebody is now meant to be standing on, brought to where they can
+ *  see it.
+ *
+ * Choosing a file draws three steps and opens a fourth, all of them below the
+ * fold on a laptop, and nothing moved: the next thing to press was off the
+ * screen and unannounced. Not focus - taking that from under somebody's hands
+ * is worse than a scroll - and `nearest`, so a step already in view stays
+ * where it is. */
+function bringIntoView(step: Step): void {
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  step.root.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" });
+}
 
 /* What the file turned out to be, kept because the steps after the compile
  * need it and because pressing Send twice must not re-read the file. Null
@@ -215,19 +363,116 @@ picker.type = "file";
 // Chrome on Android goes by the media type for an unregistered extension, and
 // somebody who has re-saved the file may well have it under the other name.
 picker.accept = ".obz,.zip,application/zip";
-picker.setAttribute("aria-label", t("load.pick"));
+/* Out of the tab order and out of the accessibility tree. It is a square of
+ * one pixel behind a button that clicks it, and it carried an accessible name
+ * of its own - so a keyboard reader's first Tab landed on something invisible,
+ * and a screen reader announced load.pick twice, once for each. The button
+ * beside it is the control; this is the mechanism. */
+picker.tabIndex = -1;
+picker.setAttribute("aria-hidden", "true");
 
-steps.file.begin();
-steps.file.say(t("load.pick_hint"));
-steps.file.row(
-  picker,
-  steps.file.button(t("load.pick"), () => picker.click(), "btn primary"),
-);
+/** Step one, before a file: the hint, and the two ways to hand one over. */
+function offerPicker(): void {
+  steps.file.begin();
+  steps.file.say(t("load.pick_hint"));
+
+  /* A target as well as a button. The .obz has just been written by the editor
+     and is sitting in a folder somebody has open in front of them; dragging it
+     here is the gesture they already have in their hand. The picker stays for
+     everybody who would rather not, and for every browser that would rather
+     not either. */
+  const zone = document.createElement("div");
+  zone.className = "drop";
+  const words = document.createElement("span");
+  words.className = "drop__text";
+  words.textContent = t("load.drop");
+  zone.append(words,
+              steps.file.button(t("load.pick"), () => picker.click(), "btn primary"),
+              picker);
+  steps.file.show(zone);
+}
+
+/** The file, dropped anywhere on the page.
+ *
+ * On the document rather than on the drop zone, for the reason every page that
+ * does this ends up there: a drop the page does not take is a drop the browser
+ * takes, and what the browser does with a .obz is navigate away from the page
+ * somebody was halfway through. So the whole window refuses it, and the zone -
+ * when there is one - lights up to say where it is going. */
+function acceptDrops(): void {
+  const zone = () => page.querySelector(".drop");
+  const over = (on: boolean) => zone()?.classList.toggle("drop--over", on);
+  document.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    over(true);
+  });
+  document.addEventListener("dragleave", () => over(false));
+  document.addEventListener("drop", (event) => {
+    event.preventDefault();
+    over(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) void chose(file);
+  });
+}
+
+offerPicker();
+acceptDrops();
 
 picker.onchange = () => {
   const file = picker.files?.[0];
   if (file) void chose(file);
 };
+
+/** The line naming the file, and the way back to the picker.
+ *
+ * `primary` is the way back promoted. A refusal leaves five steps on the
+ * screen with exactly one thing left to do on them, and that one thing is four
+ * steps above where the eye has got to - so the button that does it stops
+ * being the quiet one. */
+function chosenFile(name: string, size: number, { primary = false } = {}): void {
+  steps.file.begin();
+
+  const line = document.createElement("p");
+  line.className = "file";
+  const named = document.createElement("span");
+  named.className = "file__name";
+  named.textContent = name;
+  const sized = document.createElement("span");
+  sized.className = "file__size";
+  sized.textContent = t("load.chip_size", { size });
+  line.append(named, sized);
+  steps.file.show(line);
+
+  steps.file.say(t("load.pick_hint"), "aside");
+  steps.file.row(picker, steps.file.button(t("load.again"), () => picker.click(),
+                                           primary ? "btn primary" : "btn"));
+  steps.file.done();
+}
+
+/** The device's own two languages, by name. LANGUAGE_CODES is the table that
+ *  decides which ones the device can be labelled in at all, so it is also the
+ *  one that decides which have a name to give - anything else is a code, and
+ *  a code is what validate.ts is already complaining about on the next line. */
+function languageName(code: string): string {
+  return Object.hasOwn(LANGUAGE_CODES, code) && says(`lang.${code}`)
+    ? t(`lang.${code}`)
+    : code;
+}
+
+/** The voice, in the half of its name a person recognises.
+ *
+ * plan.voice is a model id - `piper:de_DE-thorsten-medium` - and printing it
+ * whole put a line of machinery in the middle of four sentences a carer is
+ * reading to decide whether this is the right file. The name is the second
+ * field, and anything that is not shaped like one is left exactly as it came:
+ * a voice from somewhere other than piper is still true, and a wrong guess at
+ * a name would not be. */
+function voiceName(voice: string): string {
+  const model = voice.slice(voice.indexOf(":") + 1);
+  const name = model.split("-")[1] ?? "";
+  if (!/^[a-z]+$/i.test(name)) return voice;
+  return name[0]!.toUpperCase() + name.slice(1);
+}
 
 /** A file, from the moment it is chosen to the moment it is compiled.
  *
@@ -251,13 +496,14 @@ async function chose(file: File): Promise<void> {
     steps.file.button(t("load.again"), () => picker.click()),
   );
 
+  /* Kept for the refusal path below, which redraws this step to promote the
+   * way out and has to name the same file at the same size. */
+  let size = 0;
   let read: ReadDevicePackage;
   try {
     const bytes = new Uint8Array(await file.arrayBuffer()) as Uint8Array<ArrayBuffer>;
-    steps.file.begin();
-    steps.file.say(t("load.file_is", { name: file.name, size: KIB(bytes.length) }));
-    steps.file.row(picker, steps.file.button(t("load.again"), () => picker.click()));
-    steps.file.done();
+    size = KIB(bytes.length);
+    chosenFile(file.name, size);
 
     // Two readers, two kinds of complaint, and both are shown as the check
     // rather than as a crash. readPackageFile() answers for the archive - is
@@ -274,13 +520,27 @@ async function chose(file: File): Promise<void> {
         ? t("load.not_a_package", { name: file.name, why: error.message })
         : reason(error),
     }]);
-    steps.check.say(t("load.refused"));
+    refused();
+    chosenFile(file.name, size, { primary: true });
     return;
   }
 
   const findings = checked(read);
-  if (findings.some((one) => one.refuses)) return;
+  if (findings.some((one) => one.refuses)) {
+    chosenFile(file.name, size, { primary: true });
+    return;
+  }
   await compile(read, findings);
+}
+
+/** The sentence that decides whether there is anything else to do, and the
+ *  step marked so that it can be seen from the top of the page. */
+function refused(): void {
+  steps.check.say(t("load.refused"), "refusal");
+  steps.check.chip(t("load.chip_refuses", { n: 1 }), "refuses");
+  steps.check.done();
+  announce(t("load.refused"));
+  bringIntoView(steps.check);
 }
 
 /** Step two: what is in the file, and what the device will make of it. */
@@ -293,15 +553,26 @@ function checked(read: ReadDevicePackage): Finding[] {
     sets: held.sets, filled: held.filled, keys: held.keys,
     pictures: held.pictures, sounds: held.sounds,
   }));
-  if (held.language) steps.check.say(t("load.holds_language", { code: held.language }));
+  if (held.language) {
+    steps.check.say(t("load.holds_language", { name: languageName(held.language) }));
+  }
   steps.check.say(held.voice
-    ? t("load.holds_voice", { voice: held.voice })
+    ? t("load.holds_voice", { voice: voiceName(held.voice) })
     : t("load.holds_no_voice"));
   steps.check.findings(findings);
-  if (findings.some((one) => one.refuses)) {
-    steps.check.say(t("load.refused"));
+
+  const refusals = findings.filter((one) => one.refuses).length;
+  if (refusals) {
+    steps.check.say(t("load.refused"), "refusal");
+    steps.check.chip(t("load.chip_refuses", { n: refusals }), "refuses");
+    announce(t("load.refused"));
+    bringIntoView(steps.check);
   } else if (!findings.length) {
     steps.check.say(t("load.nothing_wrong"));
+    announce(t("load.nothing_wrong"));
+  } else {
+    steps.check.chip(t("load.chip_notes", { n: findings.length }));
+    announce(t("load.chip_notes", { n: findings.length }));
   }
   steps.check.done();
   return findings;
@@ -337,7 +608,12 @@ async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<vo
   const undecodable = host.undecodable.map((symbol) => ({
     refuses: false, says: t("load.wont_decode", { symbol }),
   }));
-  steps.compile.findings([...undecodable, ...findings.filter((one) => !one.refuses)]);
+  steps.compile.findings(undecodable);
+  /* And the earlier notes are *not* repeated. They were, in full, two inches
+   * under the identical list in the step above - which reads as a second thing
+   * having gone wrong rather than as the same three things still being true.
+   * One line says they still are, and it is only said when there are any. */
+  if (findings.some((one) => !one.refuses)) steps.compile.say(t("load.notes_stand"), "aside");
   /* And the picture, under the words about it. Here rather than in a step of
    * its own, because it is not something to do: the five steps are five acts
    * and a sixth that said "look at this" would renumber the two everybody
@@ -345,7 +621,9 @@ async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<vo
    * this is where the pixels are - the tiles it draws are the ones the compile
    * just made, and nothing here renders any of its own. adr/0013. */
   steps.compile.show(previewBoards(read, made));
+  steps.compile.chip(t("load.chip_size", { size: KIB(bytes) }), "size");
   steps.compile.done();
+  announce(t("load.compiled", { files: made.files.size, size: KIB(bytes) }));
 
   offerFolder();
   connectStep();
@@ -369,9 +647,28 @@ async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<vo
  */
 function offerFolder(): void {
   if (!folderExportSupported()) return;
-  steps.compile.say(t("load.folder_lead"));
-  const button = steps.compile.button(t("load.folder"), () => void intoFolder(button));
-  steps.compile.row(button);
+
+  /* One sentence with the control inside it, at .linklike rather than as a
+   * button of its own. It was a full-tier button under two lines of lead,
+   * directly above the load.connect button and pulling against it - two calls
+   * to action on a page whose whole argument is that the steps happen in an
+   * order. What this is is a footnote to the compile.
+   *
+   * It stays on the page rather than going behind a disclosure, because the
+   * paragraph above is right: this is what works when the cable protocol
+   * itself is wrong, and a way in you have to know to look for is no use on
+   * the day you need it.
+   *
+   * The sentence is one line in the table with an {action} in it, and it is
+   * split here rather than being written as two labels. Where the words go
+   * around a control is a question about a language, and boot_data.ts is where
+   * the answers to those are. */
+  const line = document.createElement("p");
+  line.className = "footnote";
+  const button = steps.compile.link(t("load.folder"), () => void intoFolder(button));
+  const [before = "", after = ""] = t("load.folder_lead").split("{action}");
+  line.append(before, button, after);
+  steps.compile.show(line);
 }
 
 async function intoFolder(button: HTMLButtonElement): Promise<void> {
@@ -432,11 +729,15 @@ function portName(port: SerialPort): string {
 function connectStep({ andSend = true } = {}): void {
   steps.connect.begin();
   if (!cableSupported()) {
-    // Not a refusal of the file: everything up to here worked, and the folder
-    // above is a real way in. So it is said as a note and the send step simply
-    // never opens.
-    steps.connect.findings([{ refuses: false, says: t("cable.no_serial") }]);
-    steps.connect.done();
+    /* Not a refusal of the file: everything up to here worked. But it is not
+     * a step that is waiting either - nothing is coming and there is nothing
+     * to press - so both this and the one below it are marked blocked, which
+     * is a dashed marker and no body. The gate at the top of the page has
+     * already said why, before a file was ever chosen. */
+    steps.connect.say(t("cable.no_serial"), "aside");
+    steps.connect.chip(t("load.chip_blocked"));
+    steps.connect.blocked();
+    steps.send.blocked();
     return;
   }
 
@@ -446,6 +747,7 @@ function connectStep({ andSend = true } = {}): void {
     const button = steps.connect.button(t("load.connect"), () => void grant(button),
                                         "btn primary");
     steps.connect.row(button);
+    bringIntoView(steps.connect);
     return;
   }
 
@@ -456,7 +758,10 @@ function connectStep({ andSend = true } = {}): void {
     steps.connect.button(t("load.connect"), () => void grant()),
   );
   steps.connect.done();
-  if (andSend) sendStep();
+  if (andSend) {
+    sendStep();
+    bringIntoView(steps.send);
+  }
 }
 
 /** Chrome's chooser, from a click of ours, with our words already read.
@@ -488,7 +793,7 @@ async function send(go: HTMLButtonElement): Promise<void> {
   if (!build) return;
   go.disabled = true;
   steps.send.begin();
-  const { now, add } = steps.send.logging();
+  const { now, add, far } = steps.send.logging();
 
   const stopper = new AbortController();
   const stop = steps.send.button(t("load.stop"), () => stopper.abort(), "btn quiet");
@@ -520,6 +825,7 @@ async function send(go: HTMLButtonElement): Promise<void> {
       onStep: (what, name, done, total) => {
         now(t(what === "put" ? "cable.sending" : "cable.removing",
               { done, total, name }));
+        far(done, total);
       },
     });
     add(t("cable.sent", {
@@ -531,6 +837,7 @@ async function send(go: HTMLButtonElement): Promise<void> {
     // and this is where the run says them.
     add(t("cable.timings", { gap: sent.worstGap, stall: sent.worstStall }));
     now(t("cable.sent_short"));
+    far(1, 1);
     steps.send.done();
   } catch (error) {
     now(t("cable.failed_short"));
