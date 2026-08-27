@@ -1374,6 +1374,53 @@ test("the arrow keys walk the page list, and leave the name field alone",
     await expect(standingOn(page)).toHaveValue("Morgens");
   });
 
+/* The two marks a cell carries, and the two it no longer needs.
+ *
+ * A `goto` had an arrow in one corner and now has the corner that follows it in
+ * the other; one of them said nothing the other did not. A `home` had a house
+ * at 11px and now has a heavier edge, which marks the whole cell - on a board
+ * the way back is the one button somebody reaches for without reading it.
+ *
+ * The edge is asserted in pixels because that is what it is. A class name would
+ * pass whatever the rule under it said, including nothing.
+ */
+test("a way onward is marked by its corner and a way back by its edge",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await goHome(page);
+
+    // The Essen button leads onward: one corner, and no arrow badge.
+    const essen = cells(page).nth(3);
+    await expect(essen.locator(".cell__follow")).toHaveCount(1);
+    await expect(essen.locator(".cell__act")).toHaveCount(0);
+
+    /* And the way back, which build() puts in cell 14. A plain cell for the
+     * comparison, so the assertion is a difference rather than a number
+     * somebody has to look up. */
+    await goPage(page, "Essen");
+    const back = cells(page).nth(14);
+    await expect(back.locator(".cell__act")).toHaveCount(0);
+    const edge = async (at: number) => (await cells(page).nth(at)
+      .evaluate((one) => getComputedStyle(one).borderTopWidth));
+    expect(await edge(14)).toBe("5px");
+    expect(await edge(0)).toBe("2px");
+  });
+
+/* The button count says how full the page is, which is the half the bare
+ * number was missing: twelve buttons mean different things on a 3x5 and a
+ * 6x11, and the difference is in the effort number beside it. */
+test("the button count unfolds into how full the page is", async ({ page }) => {
+  await standIn(page);
+  await build(page);
+  await goHome(page);
+
+  const facts = page.locator("#appFacts");
+  await facts.locator("button").last().click();
+  // 3x5 is what build() leaves the Sammlung on.
+  await expect(page.locator("#appFactLinks")).toContainText("15");
+});
+
 /* Everything about a page, now that it has no card.
  *
  * The ⋯ beside the path held three things and the path is gone, so each of them

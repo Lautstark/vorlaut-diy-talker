@@ -253,12 +253,8 @@ function drawFacts(found: Set<string>): void {
     row.appendChild(fact("cost", t("ui.app_page_effort"), cost, false));
   }
   row.appendChild(dot());
-  const many = document.createElement("span");
-  many.className = "facts__plain";
   const n = one.buttons.length + sharedColumn(layout).length;
-  many.textContent = t(n === 1 ? "ui.app_pages_buttons_one" : "ui.app_pages_buttons",
-                       { n });
-  row.appendChild(many);
+  row.appendChild(fact("full", "", n, false));
 
   drawUnfolded(found, into, outOf, cost);
 }
@@ -273,13 +269,20 @@ function dot(): HTMLElement {
   return mark;
 }
 
-/** One number, pressable, with what it says beside it. */
+/** One number, pressable, with what it says beside it.
+ *
+ * The button count is the one that reads the other way round - "12 Tasten"
+ * rather than "Tasten 12" - because it is a quantity of things and the two
+ * before it are directions with a count. So it composes its own words and this
+ * takes them whole. */
 function fact(key: string, label: string, value: number, bad: boolean): HTMLElement {
   const shown = key === "cost" ? decimals.format(value) : String(value);
   const one = document.createElement("button");
   one.type = "button";
   one.className = "facts__one" + (bad ? " facts__zero" : "");
-  one.textContent = `${label} ${shown}`;
+  one.textContent = key === "full"
+    ? t(value === 1 ? "ui.app_pages_buttons_one" : "ui.app_pages_buttons", { n: value })
+    : `${label} ${shown}`;
   one.setAttribute("aria-expanded", String(unfolded === key));
   one.onclick = (event) => {
     event.stopPropagation();
@@ -307,6 +310,33 @@ function drawUnfolded(found: Set<string>, into: AppPage[], outOf: AppPage[],
   box.innerHTML = "";
   box.hidden = unfolded === null;
   if (unfolded === null) return;
+
+  /* How full the page is, which is the fact the bare count was missing.
+   *
+   * Twelve buttons means something different on a 3x5 than on a 6x11, and the
+   * difference is not cosmetic: `field_size` in the effort number grows with
+   * every button on screen, so how full a page is *is* part of what it costs.
+   * The second line is the shared first column, which is on this page and on
+   * every other one - it is counted here because it is drawn here, and said
+   * because somebody wondering why a page has more buttons than they put on it
+   * deserves the answer. */
+  if (unfolded === "full") {
+    const { rows, columns } = layout.grid;
+    const own = page().buttons.length;
+    const column = sharedColumn(layout).length;
+    const fill = document.createElement("span");
+    fill.className = "factlinks__line";
+    fill.textContent = t("ui.app_page_buttons_fill",
+                         { n: own + column, all: rows * columns });
+    box.appendChild(fill);
+    if (column) {
+      const shared = document.createElement("span");
+      shared.className = "factlinks__line";
+      shared.textContent = t("ui.app_page_buttons_shared", { n: column });
+      box.appendChild(shared);
+    }
+    return;
+  }
 
   if (unfolded === "cost") {
     if (cost === undefined) { box.hidden = true; return; }
@@ -634,6 +664,18 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
    * copy of this line: it is the tablet's colour, not a theme token, so it is
    * read from the module that owns what a key looks like rather than written a
    * second time in ui.css. */
+  /* Every way back to the start page wears a heavier edge, coloured or not.
+   *
+   * `.cell--home` below is narrower than this on purpose: it is the plate a
+   * key gets when it carries no colour of its own, so a home key somebody has
+   * given a Fitzgerald colour keeps that colour and would have had no mark at
+   * all. The edge is the mark; the plate is a default.
+   *
+   * The `home` act rather than a `goto` that happens to point at today's start
+   * page. They are different things - see the start key's own comment - and
+   * only one of them follows the start page when it moves. */
+  if (held.act.kind === "home") box.classList.add("cell--tohome");
+
   const chrome = held.act.kind === "home" && held.act.alsoAppend !== true
     && !box.style.getPropertyValue("--cell-color")
     && !box.style.getPropertyValue("--cell-edge");
@@ -822,12 +864,21 @@ function wordSpan(text: string): HTMLElement {
  *  spells it out for whichever button is selected. */
 function actBadge(act: Act): string {
   switch (act.kind) {
-    case "goto": return "→";
+    /* Two of the seven carry no badge, because each has something better on
+     * the same cell.
+     *
+     * A `goto` has the corner that follows it - a second arrow in the opposite
+     * corner said the same thing twice, and the one that does something is the
+     * one worth keeping. A `home` has a heavier edge, which marks the whole
+     * cell rather than a corner of it: on a board the way back is the one
+     * button somebody looks for without reading, and an edge is visible from
+     * further away than an 11px glyph. */
+    case "goto": return "";
+    case "home": return "";
     case "speak": return "🔊";
     case "clear": return "✕";
     case "backspace": return "⌫";
     case "sayBar": return "▶";
-    case "home": return "⌂";
     case "append": return "";
   }
 }

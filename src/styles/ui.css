@@ -1204,6 +1204,18 @@ a.factlinks__line:hover { text-decoration: underline; }
  * filter those same numbers are - mounted once with the frame, which is what
  * templates/frame.ts means by a filter being reachable by id from anywhere in
  * the document. invert(1) is not this map; the note there says why. */
+/* Every way back to the start page, coloured or not.
+ *
+ * It replaces the ⌂ that sat in the corner at 11px. An edge marks the whole
+ * cell rather than a corner of it, and the way back is the one button on a
+ * board somebody reaches for without reading the word on it - so it wants to
+ * be findable from further away than a glyph can manage.
+ *
+ * The width, not a colour: a colour here would either fight the Fitzgerald
+ * class the button may be wearing or quietly override it, and the class is a
+ * fact about the word rather than a decoration. Box-sizing keeps the cell the
+ * size it was, so a board does not reflow around it. */
+.cell--tohome { border-width: 5px; }
 .cell--home { background: var(--home-plate); }
 .cell--home .cell__pic { filter: url(#homeTone); }
 /* Doubled to out-weigh `.cell:not([style*="--cell-color"])` above, which is
@@ -1300,6 +1312,10 @@ a.factlinks__line:hover { text-decoration: underline; }
 /* Moved to the leading corner: the trailing one is the play button's, and a
    badge under a control nobody can see until they hover is a badge nobody
    reads. */
+/* What a button does, where it is not the default and has no better mark of
+   its own. Four of the seven acts land here now: a `goto` has the corner that
+   follows it and a `home` has the heavier edge, and both of those say it
+   better than a glyph in a corner. */
 .cell__act { position: absolute; top: 3px; left: 5px; font-size: 11px; opacity: .75; }
 .cell--empty {
   background: transparent; border-style: dashed; color: var(--text-faint);
