@@ -118,6 +118,11 @@ nothing behind it — pictograms from [ARASAAC](https://arasaac.org), speech fro
 piper or Azure. The build turns those into RGB565 images and 16 kHz WAVs and
 packs them into a LittleFS image for the flash.
 
+That is this repository. It is one of several: an Android viewer opens the
+packages this page exports, and four shared libraries come in pinned by tag.
+Which repositories there are, what each one does, and what passes between them
+is [docs/repository-map.md](docs/repository-map.md).
+
 ## Languages
 
 The **product** comes in German and English — interface, build log and the
@@ -140,6 +145,7 @@ of it, including what the display's font can and cannot draw, is in
 | [docs/browser-tts.md](docs/browser-tts.md) | Speaking without a server: what was measured, and which voices survive it |
 | [docs/cable.md](docs/cable.md) | Pushing content down the USB-C cable, for when there is no server to fetch from |
 | [docs/exchange.md](docs/exchange.md) | The app package export: two doors rather than one, and why the licence makes that structural |
+| [docs/repository-map.md](docs/repository-map.md) | The repositories in the family, what each one does, and the seams between them |
 | [docs/packages.md](docs/packages.md) | The four shared packages, how they are pinned, and what vorlaut asks of them |
 | [docs/releases.md](docs/releases.md) | Which tag prefix releases what, and the commit convention release-please reads |
 | [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
