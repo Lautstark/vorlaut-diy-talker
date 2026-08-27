@@ -8,10 +8,11 @@
  * where that person is standing, from one that lost them. §3.8.
  *
  * The other end is a modal that stops the page, and it is the only place in
- * this product where that is the right thing: no reader in data/rescue.ts
- * recognised what is in the database, so store.ts aborted the upgrade and
- * every record is still there, untouched, at its old version. Nothing may
- * happen next until the person holding those records has them in a file.
+ * this product where that is the right thing: data/migrations.ts had no step
+ * for a version this database has to cross, or the database is not the shape
+ * its version claims, so store.ts aborted the upgrade and every record is
+ * still there, untouched, at its old version. Nothing may happen next until
+ * the person holding those records has them in a file.
  *
  * Closing the sheet costs nothing, and that is the point rather than an
  * oversight - the database is exactly as it was, and a reload asks again. The
@@ -22,18 +23,19 @@
 import { openDialog } from "@lautstark/design/dialog";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
-import { asFile, isUnreadable, type Dump } from "../data/rescue.js";
-import { discardEverything, dumpEverything, onCarried, type Carried } from "../data/store.js";
+import { isRefusal } from "../data/migrations.js";
+import { asFile, type Dump } from "../data/rescue.js";
+import { discardEverything, dumpEverything, onMigrated, type Migrated } from "../data/store.js";
 import { status } from "./dom.js";
 
-/** What an upgrade carried, waiting for a moment when saying so will last. */
-let pending: Carried | null = null;
+/** What an upgrade did, waiting for a moment when saying so will last. */
+let pending: Migrated | null = null;
 
 /** Registered before anything opens the database - app.ts does it beside
  *  onBlocked(), and a listener added after the first read would be a listener
  *  for the next upgrade rather than for this one. */
 export function wireRescue(): void {
-  onCarried((carried) => { pending = carried; });
+  onMigrated((what) => { pending = what; });
 }
 
 /** The sentence for an upgrade that went well, once the page has settled.
@@ -45,12 +47,12 @@ export function wireRescue(): void {
  * report. So this waits for the end of the chain instead of racing it, which
  * e2e/upgrade.spec.ts is what noticed. */
 export function sayCarried(): void {
-  const carried = pending;
+  const what = pending;
   pending = null;
-  if (!carried) return;
-  status(carried.boards === 1
-    ? t("ui.db_carried_one", { from: carried.from })
-    : t("ui.db_carried", { n: carried.boards, from: carried.from }));
+  if (!what) return;
+  status(what.boards === 1
+    ? t("ui.db_carried_one", { from: what.from })
+    : t("ui.db_carried", { n: what.boards, from: what.from }));
 }
 
 /** Offers the sheet, and says whether this was its error to take.
@@ -59,7 +61,7 @@ export function sayCarried(): void {
  * .catch() that already knows how to report everything else and this is one
  * error out of all of them. */
 export function offerRescue(error: unknown, again: () => void): boolean {
-  if (!isUnreadable(error)) return false;
+  if (!isRefusal(error)) return false;
   void show(again);
   return true;
 }

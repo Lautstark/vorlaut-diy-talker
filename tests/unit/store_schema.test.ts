@@ -10,20 +10,21 @@
  * board she had. adr/0015 is the answer and this is what it looks like from
  * outside store.ts.
  *
- * Versions 1 and 2 are one shape and one reader: everything in a `content`
- * store, keyed by prefix. 2 held a registry and a layout per `layout:<id>`;
- * 1 held the one layout there was under `layout`, with no registry and no name
- * for it. The difference between them is which keys are present rather than
- * what a record looks like, which is why there is one reader and not two.
+ * Both versions here kept everything in one `content` store: 2 held a registry
+ * under `collections` and a layout per `layout:<id>`, 1 held the one layout
+ * there was under `layout`, with no registry and no name for it. So a version 2
+ * database crosses two steps to get here and a version 1 database crosses
+ * three, which makes this the file that proves the steps compose - a chain
+ * replayed from further back is the thing about incremental migrations that
+ * nothing else checks.
  *
- * tests/unit/store_upgrade.test.ts covers the other shape, version 3 to 4, and
- * tests/unit/store_refuses.test.ts covers what happens when neither reader
- * recognises anything.
+ * tests/unit/store_upgrade.test.ts covers the last step on its own, and
+ * tests/unit/store_refuses.test.ts covers a version there is no step for.
  */
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Layout } from "../../src/core/types.js";
-import type { Carried } from "../../src/data/store.js";
+import type { Migrated } from "../../src/data/store.js";
 
 const DB_NAME = "vorlaut";
 
@@ -106,20 +107,21 @@ const wipe = (): Promise<void> => new Promise((resolve, reject) => {
  * but a top-level import that ever grew an eager open would make this file
  * quietly test nothing. Loading it here is what guarantees the order. */
 let store: typeof import("../../src/data/store.js");
-const announced: Carried[] = [];
+const announced: Migrated[] = [];
 
 beforeAll(async () => {
   await seedVersionTwo();
   store = await import("../../src/data/store.js");
-  store.onCarried((carried) => { announced.push(carried); });
+  store.onMigrated((what) => { announced.push(what); });
 });
 
 describe("opening a database left behind by version 2", () => {
-  /* The upgrade reads, deletes every store it finds, creates the schema and
-   * writes back. All four halves can throw - deleteObjectStore outside a
-   * versionchange transaction, createIndex on a name that is already there, a
-   * record that will not read - and anything thrown in there rejects the open,
-   * which every call in this file is waiting on. */
+  /* Two steps run here - 2 to 3, then 3 to 4 - and the first is the only one
+   * in data/migrations.ts that moves records in bulk. Every part of it can
+   * throw: createObjectStore on a name already there, createIndex on the same,
+   * deleteObjectStore outside a versionchange transaction, a record that is
+   * not what it should be. Anything thrown in there aborts the upgrade and
+   * rejects the open, which every call in this file is waiting on. */
   it("upgrades without throwing, so the store answers at all", async () => {
     await expect(store.readCollections()).resolves.toBeTruthy();
   });
@@ -143,7 +145,7 @@ describe("opening a database left behind by version 2", () => {
 
   it("says so", async () => {
     await store.readCollections();
-    expect(announced).toEqual([{ from: 2, to: 4, boards: 1, symbols: 1 }]);
+    expect(announced).toEqual([{ from: 2, to: 4, boards: 1 }]);
   });
 
   /* And it is an ordinary database afterwards: a second Sammlung is made the

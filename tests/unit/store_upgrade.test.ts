@@ -13,11 +13,19 @@
  * Every Sammlung, the order they were in, which one was open, the pictures,
  * and the settings - including the two secrets a Sicherung deliberately drops,
  * which have no reason to be lost inside one browser.
+ *
+ * The step this exercises is one statement - `deleteObjectStore("data")`, the
+ * whole of what 3 to 4 changed - so most of what is asserted below is that
+ * nothing else was touched. That is the point rather than a weakness of the
+ * test: the first version of this migration read every record out, dropped
+ * every store and wrote it all back, and each of these assertions was a way
+ * for that to go wrong. A migration that never opens a layout cannot lose one,
+ * and this is what that looks like from outside.
  */
 
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Layout } from "../../src/core/types.js";
-import type { Carried } from "../../src/data/store.js";
+import type { Migrated } from "../../src/data/store.js";
 
 const DB_NAME = "vorlaut";
 
@@ -120,14 +128,14 @@ function inspect(): Promise<{ version: number; stores: string[] }> {
  * but a top-level import that ever grew an eager open would make this file
  * quietly test nothing. Loading it here is what guarantees the order. */
 let store: typeof import("../../src/data/store.js");
-const announced: Carried[] = [];
+const announced: Migrated[] = [];
 
 beforeAll(async () => {
   await seedVersionThree();
   store = await import("../../src/data/store.js");
   // Before the first read, which is what opens the database. A listener
   // registered afterwards would be testing nothing.
-  store.onCarried((carried) => { announced.push(carried); });
+  store.onMigrated((what) => { announced.push(what); });
 });
 
 describe("a version 3 database opened by version 4", () => {
@@ -189,6 +197,6 @@ describe("a version 3 database opened by version 4", () => {
   it("says so, rather than moving somebody's boards in silence", async () => {
     await store.readCollections();
     expect(announced).toHaveLength(1);
-    expect(announced[0]).toMatchObject({ from: 3, to: 4, boards: 2, symbols: 2 });
+    expect(announced[0]).toEqual({ from: 3, to: 4, boards: 2 });
   });
 });
