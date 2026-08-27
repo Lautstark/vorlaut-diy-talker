@@ -28,8 +28,9 @@ rather than discovered afterwards. It is held to a bar — no tag until the
 fixtures have run against both implementations *and* a mutation run says they
 bite — written out step by step in
 [`format-freeze.md` section 8](format-freeze.md#8-sequencing-what-has-to-be-true-before-device-v1);
-as of 2026-08-27 what it is still waiting on is a first run on real hardware,
-the six-row table in [`cable.md`](cable.md). Pin a commit SHA in the meantime.
+as of 2026-08-27 the first run on real hardware has happened and five of the
+six rows in [`cable.md`](cable.md)'s table are ticked. The sixth — a cable
+pulled mid-send — is what it now waits on. Pin a commit SHA in the meantime.
 
 They are separate prefixes because the things they release have nothing to do
 with each other's cadence. A firmware release is an 8 MB image somebody flashes
@@ -69,9 +70,9 @@ git tag v0.2 && git push origin v0.2
 
 `release.yml` compiles the sketch, and writes the release notes in the
 workflow itself: how to flash with `esptool`, what the merged image contains,
-why the device comes up empty, the warning that the firmware has never run on
-real hardware, and the SHA-256 sums of both binaries pinned to the tag's own
-tree.
+why the device comes up empty, the note that the firmware has run on one
+talker and not a fleet, and the SHA-256 sums of both binaries pinned to the
+tag's own tree.
 
 **Those notes are written by hand on purpose, and the inconsistency with the
 builder's generated ones is not a defect to be fixed.** They are instructions

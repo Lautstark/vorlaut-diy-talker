@@ -26,8 +26,9 @@ or a symbol changes, the program does not have to be reflashed — steps 3 and 4
 are enough then.
 
 **Steps 3 and 4 are the rare route, not the normal one.** Content reaches a
-device from the editor over the cable, in one press — [cable.md](cable.md) —
-and nothing here has to be done for it. What is below is for the case where
+device over the cable: the editor exports the collection as a file, the loader
+page checks it, compiles it, connects and sends — [cable.md](cable.md) — and
+nothing here has to be done for it. What is below is for the case where
 that is not available: a file area written straight from a computer.
 
 **A device flashed from a release comes up empty**, showing *no content* on
@@ -96,7 +97,7 @@ wrongly either.
 
 > **The image is 8 MB and covers the whole flash**, file area included. It
 > leaves that area erased, so a device that already carries your content loses
-> it — and gets it back in one press from the editor. To update only the
+> it — and gets it back by sending the same exported file again. To update only the
 > program and leave the content alone, write the app on its own — the release
 > carries it as `vorlaut.ino.bin`, and `0x10000` is where `app0` starts:
 >
@@ -200,8 +201,11 @@ there. The 3 MB app partition now has a great deal of room to spare.
 The file area holds 1536 KiB. A full layout with five sets takes around
 630 KiB of that, so a good 40 %.
 
-> The sketch **compiles** but has never run on real hardware. Check the pin
-> assignment against the actual boards before the first flash.
+> The sketch has **run on real hardware**: flashed, fed a board over the cable
+> and heard, first on 2026-08-27. Check the pin assignment against your own
+> boards before the first flash anyway — that is the part which is about your
+> soldering rather than about this sketch, and
+> [bring-up.md](bring-up.md) takes it apart one stage at a time.
 
 ## Behaviour
 

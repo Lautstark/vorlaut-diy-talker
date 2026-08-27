@@ -48,14 +48,19 @@ resonance lower.
 
 ![Wiring](wiring.png)
 
-Drawn by `tools/wiring.py` from the assignment below — if something turns
-out differently on the real modules, change it there and run the script again:
+Drawn once by `tools/wiring.py` from the assignment below. **That script is
+gone** — it went with the rest of the Python on 2026-08-22 — so the picture no
+longer regenerates: it is a checked-in image of the table below, correct as of
+the day it was drawn. If something turns out differently on the real modules,
+the table is the thing to change, and the picture has to be redrawn by hand or
+the script written again.
 
-```bash
-python3 tools/wiring.py
-```
+## Pin assignment
 
-## Pin assignment (proposed)
+**Confirmed on hardware.** These were calculated, and stages 2 to 4 of
+[bring-up.md](bring-up.md) held them against the real modules on 2026-08-22:
+the CS order and the key order are correct as written, and the panel offsets
+below are measured rather than guessed.
 
 | Function                | GPIO | Label on the Feather |
 |-------------------------|-----:|----------------------|

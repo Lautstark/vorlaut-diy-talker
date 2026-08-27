@@ -6,7 +6,10 @@ time: four speak a stored sentence, the fifth switches between sets.
 I am building it for my three-and-a-half-year-old daughter, who does not
 speak yet.
 
-> **Work in progress.** Has not run on real hardware yet.
+> **It runs.** Firmware flashed, a board exported from the editor, compiled and
+> pushed down the cable, and a talker that speaks it — first done end to end on
+> real hardware on 2026-08-27. One acceptance row is still blank; the table at
+> the end of [docs/cable.md](docs/cable.md) is which.
 
 ## What it does
 
@@ -71,14 +74,20 @@ firmware once first; [docs/cable.md](docs/cable.md) is the wire, and
 [adr/0011](adr/0011-editor-exports-the-talker-repository-sends.md) is why it is
 two pages.
 
-> **The one thing that is not here yet.** No board has run any of this. The
-> loader page compiles a file into tiles and WAVs and pushes them down the
-> cable, and every part of that is checked — against the Python it was ported
-> from in [docs/browser-tts.md](docs/browser-tts.md) and
-> [docs/tile-rendering.md](docs/tile-rendering.md), and against the firmware's
-> own reader, compiled, in `tests/test_cable_format.py`. What none of it has
-> met is a talker. What a first run has to show is the table at the end of
-> [docs/cable.md](docs/cable.md).
+> **What a talker has done, and what is still owed.** On 2026-08-27 the whole
+> chain ran on real hardware: the firmware flashed, a board exported from the
+> editor, compiled into tiles and WAVs, pushed down the cable, and spoken. A
+> second export moved nothing — content-addressed names, so an unchanged device
+> is proof rather than a shrug — and a later session found the device again with
+> no port picker, which is what *Connect* rests on. **Five of the
+> six acceptance rows** at the end of [docs/cable.md](docs/cable.md) are ticked.
+>
+> Two things are still owed, and neither is a doubt about the happy path. The
+> sixth row needs a hand on the cable: pull it mid-send, and check that what is
+> left is a fragment rather than a half-file under a real name. And the
+> transfer's own numbers — `gap`, `stall`, the rate — have still not been read
+> off the page while it sends, so what version 2 of the protocol costs is
+> written down as a prediction rather than a measurement.
 
 ## Working on it
 
