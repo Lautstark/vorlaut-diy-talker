@@ -1,5 +1,142 @@
 # Changelog
 
+## [1.0.0](https://github.com/Lautstark/vorlaut-diy-talker/compare/builder-v0.1.0...builder-v1.0.0) (2026-08-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* the talker keeps the repository, and the loader page takes the root
+* **tools:** CABLE_VERSION is 2 here too. The two halves move together.
+* **editor:** a button and a menu where the button sheet's three selects were
+* **case:** every outer dimension moves again, and the USB-C is on the opposite side wall. Parts printed from the previous model do not fit this one, and a cable that reached the socket before now reaches the wrong edge.
+
+### Features
+
+* **app:** a new Sammlung starts with a way back to the start page ([a605bdb](https://github.com/Lautstark/vorlaut-diy-talker/commit/a605bdb245fbf02ab1c1620a8ae96a7eaa9ab439))
+* **case:** put the icon and a name you can set on the front ([af0caa8](https://github.com/Lautstark/vorlaut-diy-talker/commit/af0caa8d2165b3e63ce7567a9273751452d75617))
+* **case:** stand the Feather on edge, and take 13 mm off the depth ([609465b](https://github.com/Lautstark/vorlaut-diy-talker/commit/609465b854beb6bd53fb8ff635164ae8ff43c31b))
+* **device:** a package kind under device/fixtures/, and the interface at 1.1.0 ([b0557ce](https://github.com/Lautstark/vorlaut-diy-talker/commit/b0557cea2097c05ee484be79aabe5231f5fdc8b0))
+* **device:** drop the per-set colour from layout.bin ([8018672](https://github.com/Lautstark/vorlaut-diy-talker/commit/8018672f2fa3447378313fa275326d8dc09e3373))
+* draw a cross over a picture that means "not" ([a28974a](https://github.com/Lautstark/vorlaut-diy-talker/commit/a28974a4da416effd5aa3addf14411dcbc8bdf3f))
+* **editor-app:** a button can carry its word onto the page it opens ([103c5e0](https://github.com/Lautstark/vorlaut-diy-talker/commit/103c5e0e7aca5ae552d84f89074b9e3665ba8a43))
+* **editor:** a button and a menu where the button sheet's three selects were ([851ae24](https://github.com/Lautstark/vorlaut-diy-talker/commit/851ae2457cc26f6d9f60944e2d4e3faa5de99811))
+* **editor:** a page picker at the right edge, listing every page ([57197bb](https://github.com/Lautstark/vorlaut-diy-talker/commit/57197bb6892564b47c31b8a45a621cd8672849dc))
+* **editor:** a path line over the tablet strip, and the page's ... on it ([8d5d51f](https://github.com/Lautstark/vorlaut-diy-talker/commit/8d5d51f5a7435be87aa21953e9c5ce4afc749ec4))
+* **editor:** cross a key's picture out from the sheet that opens it ([df30c77](https://github.com/Lautstark/vorlaut-diy-talker/commit/df30c77892f59f9e71545f80d786afb9fdd683a2))
+* **editor:** move the pages into the sidebar and drop the path ([1dcf8de](https://github.com/Lautstark/vorlaut-diy-talker/commit/1dcf8de523299cb654657667aa861193b815919b))
+* **editor:** one row of what this page opens, in a height that cannot grow ([a8790e9](https://github.com/Lautstark/vorlaut-diy-talker/commit/a8790e94f2b7670813e3bac3f48d9b7c753f1cb2))
+* **editor:** ring the play control where a word is spoken at once ([224c292](https://github.com/Lautstark/vorlaut-diy-talker/commit/224c29264c5cf6da81a373e10cb2588b98d46680))
+* **editor:** say what a page is full of, not only how full it is ([7d59016](https://github.com/Lautstark/vorlaut-diy-talker/commit/7d59016d6fdcc9c647f7e8daa5869c01ccae9b9d))
+* **exchange:** a navigating button may put its word in the bar first ([2cf873d](https://github.com/Lautstark/vorlaut-diy-talker/commit/2cf873dcf65edbaff52c69dd51d4b4806a57ed82))
+* **exchange:** stop writing a set colour into an app package ([7394531](https://github.com/Lautstark/vorlaut-diy-talker/commit/739453196854fec7a83da66bfcad4836b8f4d306))
+* **export:** the device build's own .obz, as a third door ([a5b440b](https://github.com/Lautstark/vorlaut-diy-talker/commit/a5b440b14d21777735b60a4e59e162f9b3b9b5e2))
+* **firmware:** draw the five tiles without a set colour ([7ba933f](https://github.com/Lautstark/vorlaut-diy-talker/commit/7ba933f1908b1eb32a9f58bb216fad89378edd50))
+* **import:** read a Sicherung of one Sammlung through the door that adds ([76db6a8](https://github.com/Lautstark/vorlaut-diy-talker/commit/76db6a8c464747b20e396d5e76c986ddf9d0325e))
+* **loader:** a page that takes an exported file to the talker ([ad4614a](https://github.com/Lautstark/vorlaut-diy-talker/commit/ad4614a64283392e5758ab7d7c51438ac96fde49))
+* **loader:** move the device preview onto the loader page ([b0d6716](https://github.com/Lautstark/vorlaut-diy-talker/commit/b0d6716bbdd940de77f7ac46a9fff61a94383734))
+* say on the row which device a Sammlung is for ([5a6bb37](https://github.com/Lautstark/vorlaut-diy-talker/commit/5a6bb376c597c19f29960aee01f2d6accc77ac0b))
+* say when a search found only near misses ([b06c78f](https://github.com/Lautstark/vorlaut-diy-talker/commit/b06c78f3fe4b688ddcc738fe715717ecbc0f2281))
+* **sheet:** cut somebody's own picture to a square before it is kept ([ced491f](https://github.com/Lautstark/vorlaut-diy-talker/commit/ced491f2b7181181fdf85db6254c3dd9eb217c43))
+* **shell:** offer the way back into a METACOM folder where somebody is standing ([c870371](https://github.com/Lautstark/vorlaut-diy-talker/commit/c8703711c703986f49df7c6aa9568349a3054ecc))
+* **shell:** one export entry, and it asks what the file is for ([c47802d](https://github.com/Lautstark/vorlaut-diy-talker/commit/c47802d690c6595397063a9a1e62240684461d69))
+* **shell:** the symbol source is the Sammlung's, and a new one starts from the browser ([1648f85](https://github.com/Lautstark/vorlaut-diy-talker/commit/1648f85b85330a3b4027ca2d3a463096bab1f6da))
+* the talker keeps the repository, and the loader page takes the root ([d71ffba](https://github.com/Lautstark/vorlaut-diy-talker/commit/d71ffbab30e2d09363dbd319b45f065849bfe915))
+* **tiles:** the symbol fills the key, and the reference was re-frozen ([6ab8d0a](https://github.com/Lautstark/vorlaut-diy-talker/commit/6ab8d0aa9b8b4f5b6eb437955cd37f100feaf816))
+* **tools:** the browser waits for each window to be acknowledged ([e42934a](https://github.com/Lautstark/vorlaut-diy-talker/commit/e42934af534a550c2dbbd5574480a1b8418f2569))
+
+
+### Fixes
+
+* **app-package:** hand the package over as .zip, so Android takes it ([1057ea5](https://github.com/Lautstark/vorlaut-diy-talker/commit/1057ea5b9b3bbdfbd68fea339db3fb8c9cf86b01))
+* **board:** give dark line art a light ground in dark mode ([fe9201e](https://github.com/Lautstark/vorlaut-diy-talker/commit/fe9201e62e52552c401d4efd1d86efff6782aa1b))
+* **build:** an empty key is blank on the device, not a missing picture ([82168fb](https://github.com/Lautstark/vorlaut-diy-talker/commit/82168fbc21e6fd66592e722001e89deb362fdde0))
+* **cable:** the client compares CABLE_VERSION, and a mismatch says which half to change ([40d3617](https://github.com/Lautstark/vorlaut-diy-talker/commit/40d3617a72f3a26aaa8bd2abb549fedd596c345f))
+* **case:** give the Feather's connectors their own number, not an allowance ([b3fcb73](https://github.com/Lautstark/vorlaut-diy-talker/commit/b3fcb73092b2bea3421e3370773818c89dc45e5a))
+* **deps:** take bildquelle 1.6.2, so a sibling's schema cannot lock this out ([f724f8c](https://github.com/Lautstark/vorlaut-diy-talker/commit/f724f8cbd115bf7c4b0fcf18c87629e5ba4c6b22))
+* **deps:** take bildquelle 1.6.4, the release this repository's picker asked for ([e8fa30c](https://github.com/Lautstark/vorlaut-diy-talker/commit/e8fa30cbe77576750ed45358f22a912b6f4a31f4))
+* **design:** take v1.17.0, so a card has an edge that can be seen ([7fbdfe4](https://github.com/Lautstark/vorlaut-diy-talker/commit/7fbdfe43b48dc8cbaa138a37f6cafa26323711b4))
+* **device:** four holes the mutation run found, and one it cannot reach ([85949b8](https://github.com/Lautstark/vorlaut-diy-talker/commit/85949b83b3779cc30cc1f6d9e3153607fb30c189))
+* **diy:** call a set a Seite, the word the tablet editor already uses ([fdaaf1a](https://github.com/Lautstark/vorlaut-diy-talker/commit/fdaaf1afd72214e97ecceadb9656f827403989eb))
+* **editor-app:** give the Raster panel's options back the rules they lost ([abfa924](https://github.com/Lautstark/vorlaut-diy-talker/commit/abfa9248e9f8de368fc30359728db56b34413a70))
+* **editor:** draw the board's start key as the tablet draws it ([0191dee](https://github.com/Lautstark/vorlaut-diy-talker/commit/0191dee23e1e7bb613161547622cb5820753d450))
+* **editor:** give a cell's two corners seats that never move ([3d6fb6a](https://github.com/Lautstark/vorlaut-diy-talker/commit/3d6fb6a7d5d34b447f20c78c0365fed47e54112c))
+* **editor:** mark a way onward by its corner and a way back by its edge ([be88cd3](https://github.com/Lautstark/vorlaut-diy-talker/commit/be88cd3b603b513ae627ae80a33640bda336ae6f))
+* **editor:** name a row's sentence to the control it is about ([942f030](https://github.com/Lautstark/vorlaut-diy-talker/commit/942f030f257903f2735816ca0113295cf45eeb38))
+* **editor:** put the pages nothing leads to back on the page strip ([dfca92c](https://github.com/Lautstark/vorlaut-diy-talker/commit/dfca92c90ea037fcf0e49859e194bf0cd2a95ab4))
+* **editor:** put the play control on the left and the way onward on the right ([683935f](https://github.com/Lautstark/vorlaut-diy-talker/commit/683935f31f9ea9bfceede3ef128463249df77411))
+* **editor:** say what the first column costs across the sheet, not above one field ([7a23171](https://github.com/Lautstark/vorlaut-diy-talker/commit/7a2317153fd00e9743f868bbb9fdb2941022edcb))
+* file a crossed-out picture apart from the one it is drawn from ([7f8008b](https://github.com/Lautstark/vorlaut-diy-talker/commit/7f8008baeacb5058b2cebf11d5173f1fb6ad421c))
+* **layout:** the sleep timeout gains a range, and the reader a clamp beside the parse ([ef20584](https://github.com/Lautstark/vorlaut-diy-talker/commit/ef205843385c1bd30ad46a3147f03cc8366df28c))
+* **loader:** name the export the way the menu names it ([7773e28](https://github.com/Lautstark/vorlaut-diy-talker/commit/7773e2828ddba1c8889dd3ffa3ccc46df3ae3e51))
+* **obf:** keep a crossed-out key crossed out through a document ([99aef6a](https://github.com/Lautstark/vorlaut-diy-talker/commit/99aef6ae6ac151caed6afa0ecec8259329de8fed))
+* reassemble "liest … vor" and "häng … auf" into one word ([a769359](https://github.com/Lautstark/vorlaut-diy-talker/commit/a769359679d85c34d88de509411a7a6e52f054a7))
+* **save:** visiting a Sammlung is not editing it, so it does not rise ([dbb594d](https://github.com/Lautstark/vorlaut-diy-talker/commit/dbb594de46594b16f09039f9e6b39f4afc02b60c))
+* **sheet:** hide the cross-out label when there is nothing to cross out ([d336091](https://github.com/Lautstark/vorlaut-diy-talker/commit/d336091c1a55e18c08745e37a4326d2154a4b5fa))
+* **sheet:** the sheet's Fertig keeps the open crop instead of dropping it ([19077dc](https://github.com/Lautstark/vorlaut-diy-talker/commit/19077dc249f4de9163d33abcc1dfac7692987584))
+* **shell:** even the steps between the first board and 6x11 ([61890d4](https://github.com/Lautstark/vorlaut-diy-talker/commit/61890d4fdd604fe5d9c28a1730b3fa62610ec025))
+* **shell:** one scrolling area in the settings sheet, and a foot for the panel ([d8eab7f](https://github.com/Lautstark/vorlaut-diy-talker/commit/d8eab7f01d3b2538abb69318e7c390a9dd4d09d3))
+* **shell:** the open Sammlung's row follows what is done inside it ([b5a22d7](https://github.com/Lautstark/vorlaut-diy-talker/commit/b5a22d7bd69f80f95da8eadfd90b94badc5f6b3d))
+* **store:** carry the boards across a DB_VERSION bump, or change nothing ([b2bb1b2](https://github.com/Lautstark/vorlaut-diy-talker/commit/b2bb1b22a9d5f3fc0191352ca0c38e3ea657489f))
+* **symbols:** name the rendering in the start key's METACOM reference ([d16cf96](https://github.com/Lautstark/vorlaut-diy-talker/commit/d16cf964cc8ee5cc22c040900b44731db1fe23cf))
+* **tests:** a Trouble word may be built, not only written out ([f6a2d64](https://github.com/Lautstark/vorlaut-diy-talker/commit/f6a2d6434bf76fcd80965e36307e32afcf9f8ce4))
+
+
+### Rearranged
+
+* **builder:** the device's audio format leaves the build's orchestration ([2d29b16](https://github.com/Lautstark/vorlaut-diy-talker/commit/2d29b162f6425bcba5e607119b4b62e1a344c214))
+* **core:** BoardSet.color goes, and the palette with it ([b9d765e](https://github.com/Lautstark/vorlaut-diy-talker/commit/b9d765e14997a6aee925aa524ef9e4c35b02bba8))
+* **editor:** one line per question in the tablet button sheet ([1e9178a](https://github.com/Lautstark/vorlaut-diy-talker/commit/1e9178abd8fe83bd61fad6f542d0580247e17a06))
+* **editor:** put a row's sentence on a line that already exists ([aa3dbe6](https://github.com/Lautstark/vorlaut-diy-talker/commit/aa3dbe6f8d6aa513192c8cf125f891c062a68425))
+* **editor:** the editor exports a file and stops knowing about the talker ([ef65b20](https://github.com/Lautstark/vorlaut-diy-talker/commit/ef65b20ab1f68fc96a077947c283efd6325968a6))
+* keep the score a symbol was found with ([8c1e9ea](https://github.com/Lautstark/vorlaut-diy-talker/commit/8c1e9eafa47879ed5d862500d5cd8432a73cb097))
+* **loader:** move the device's own code into a directory of its own ([618d40e](https://github.com/Lautstark/vorlaut-diy-talker/commit/618d40e7858f069a1f370633e3dc5b5b29222f84))
+* offer the page's language the way the scheme beside it is offered ([a1e4ecb](https://github.com/Lautstark/vorlaut-diy-talker/commit/a1e4ecbf6804d30dadabbd7da89322810d4a049d))
+* **sheet:** the crop keeps no buttons of its own ([6c6e71c](https://github.com/Lautstark/vorlaut-diy-talker/commit/6c6e71cf33a052c86d8928904e0ed39e6f458728))
+* **sheet:** the tablet's grid becomes a panel of the Sammlung's settings ([42a4aa2](https://github.com/Lautstark/vorlaut-diy-talker/commit/42a4aa2e5aad76956c391cde35fbbc70a9baf39b))
+* **shell:** build canReconnect out of bildquelle's needsAttention ([d5138c2](https://github.com/Lautstark/vorlaut-diy-talker/commit/d5138c21cfb3f4aa36ea825a430bcb94d8bba7da))
+* **store:** migrate one step per version, instead of sniffing the shape ([a7ea511](https://github.com/Lautstark/vorlaut-diy-talker/commit/a7ea5116bdd194ce83eb122448b13cd99059db7c))
+* **tiles:** renderSymbol, from the point the picture is decoded ([9f28ca4](https://github.com/Lautstark/vorlaut-diy-talker/commit/9f28ca4b1a61941898ea8b5fadbb206ce9e0f46e))
+
+
+### Written down
+
+* adr/0011, and the pages that stopped being true ([900f88d](https://github.com/Lautstark/vorlaut-diy-talker/commit/900f88d5f1a67e5d48d65150f8cdbd372183ba9b))
+* **adr:** 0006 gains the distinction its argument was missing ([5b81168](https://github.com/Lautstark/vorlaut-diy-talker/commit/5b811686986dca84a05e9961117b9ab288a22714))
+* **adr:** 0009 records the fixture set, and 0006 gains its dated line ([069d075](https://github.com/Lautstark/vorlaut-diy-talker/commit/069d07546246720eabccce1fc7aae942a5348aac))
+* **adr:** 0010, the device export is a third door and stays one ([252f103](https://github.com/Lautstark/vorlaut-diy-talker/commit/252f103ab6797eeaa8901fb57a7bc052232c6a2b))
+* **adr:** 0013 - device/fixtures/ covers the package as well as the interface ([60da11c](https://github.com/Lautstark/vorlaut-diy-talker/commit/60da11cd1bac2528341d202978cc6c8dd47d743c))
+* **adr:** name the two lists format-freeze now keeps apart ([7a541ac](https://github.com/Lautstark/vorlaut-diy-talker/commit/7a541aceb286f39457c083f7fbdcbad1e4b9724a))
+* **adr:** record what the second removed ext_vorlaut_* field cost ([e36bb0a](https://github.com/Lautstark/vorlaut-diy-talker/commit/e36bb0a1bebc893472817dad3669b88c31519ae7))
+* **adr:** the editor exports a file, the talker's repository sends it ([fa79dbd](https://github.com/Lautstark/vorlaut-diy-talker/commit/fa79dbdc3cc850c4779cf142ff247c9d54a71b19))
+* **adr:** the repository splits, and the editor is the half that leaves ([13c327d](https://github.com/Lautstark/vorlaut-diy-talker/commit/13c327da03533cb66d31746390c433a2997bca6f))
+* answer 0006's first condition, and say what the device format is missing ([50f515f](https://github.com/Lautstark/vorlaut-diy-talker/commit/50f515f2eb7918401dc26ca15529b8cb4a602eb8))
+* **cable:** the window replaces the receive buffer ([2ad945d](https://github.com/Lautstark/vorlaut-diy-talker/commit/2ad945d4e54f420c787487989c5926548d20717e))
+* correct why a cross beats a negation symbol of its own ([0f7254f](https://github.com/Lautstark/vorlaut-diy-talker/commit/0f7254f9b0c6faf8f10e10cc069cf0e043b9d005))
+* **crop:** the square it cuts to is 128 now, and has no set colour in it ([bfe9a8e](https://github.com/Lautstark/vorlaut-diy-talker/commit/bfe9a8ee22fe35bcbbf0b8257117f3765b696fd6))
+* decide what serves the Pages root after the editor leaves ([7c69083](https://github.com/Lautstark/vorlaut-diy-talker/commit/7c69083f9bf20c33bec7ee92b0bc29ad07dd94e4))
+* drop the 0.1.0 note now that 0.1.0 is out ([1167497](https://github.com/Lautstark/vorlaut-diy-talker/commit/11674970b7644ff1076700dc21547b84102a6c2b))
+* **format-freeze:** C1 landed, and what the survey got right ([3becb62](https://github.com/Lautstark/vorlaut-diy-talker/commit/3becb6256d57c3e71b6a5697095791ce37dbf562))
+* **format-freeze:** repair the citations §9 found, and the ones it missed ([8e5fab9](https://github.com/Lautstark/vorlaut-diy-talker/commit/8e5fab95cedb8597f75836a4111560b776035feb))
+* **picker:** METACOM does file a negation symbol, under a name search missed ([c597676](https://github.com/Lautstark/vorlaut-diy-talker/commit/c5976768810a009a9d481f86544ded0b99e5c6ee))
+* point split-crossings.md at a decision that has landed ([8557168](https://github.com/Lautstark/vorlaut-diy-talker/commit/85571682a14e78dd96491326a6c571d1dc848a97))
+* propose how a crossed-out symbol would work ([440b324](https://github.com/Lautstark/vorlaut-diy-talker/commit/440b324d50a1f8d9ec9fbe6eca0b06ebb3ecbbef))
+* record the mutation run at 83 of 83, and what the two overlaps mean ([f6739d4](https://github.com/Lautstark/vorlaut-diy-talker/commit/f6739d4449cede19b64da4b3a69d1d005816903d))
+* **references:** record how the layout lock survived the colour going ([c74f251](https://github.com/Lautstark/vorlaut-diy-talker/commit/c74f2512f628112efbac3e186de3bfc18be2bdec))
+* rehearse the split a second time, with the bill paid ([ce99c98](https://github.com/Lautstark/vorlaut-diy-talker/commit/ce99c986dbbc4f1825f1e09826f67dd2ddc91e80))
+* rehearse the split on a copy, and correct the Python division ([92e1ea5](https://github.com/Lautstark/vorlaut-diy-talker/commit/92e1ea5e69bc14ee1b6188ccfca32302914a56f8))
+* **releases:** the fourth tag prefix, and what device-v1 still waits on ([1f48250](https://github.com/Lautstark/vorlaut-diy-talker/commit/1f482503934e2abc7b5401032da2a5a570432c4b))
+* **repository-map:** record the three names, and what the direction costs ([4ea1cb1](https://github.com/Lautstark/vorlaut-diy-talker/commit/4ea1cb160e05f61e32417509f3208cfa4181849d))
+* **sammlung-settings:** close the question it parked about the grid card ([b72476e](https://github.com/Lautstark/vorlaut-diy-talker/commit/b72476e80c10c2da9ce7edeffb29444fb1993d53))
+* survey what is still moving in the three formats ([ed52759](https://github.com/Lautstark/vorlaut-diy-talker/commit/ed52759a6a17520cf885bce35085fad2deaa3667))
+* the .obz can carry the device build, in a form of its own ([98e4793](https://github.com/Lautstark/vorlaut-diy-talker/commit/98e4793f53d5b7d18a4505073b28952a518cfd41))
+* the bill for the split, answered name by name ([e962259](https://github.com/Lautstark/vorlaut-diy-talker/commit/e9622596781fe72086d412439f8b19817c7aa0f6))
+* the loader takes the Pages root when the editor leaves ([b7e2dfb](https://github.com/Lautstark/vorlaut-diy-talker/commit/b7e2dfbda518ebc2153e5223a39cda7cd6398c36))
+* the map of the repositories, and the seams between them ([759ed2c](https://github.com/Lautstark/vorlaut-diy-talker/commit/759ed2c95ee670757a37d4e0b4229a45d6306990))
+* **tiles:** say 128 where the tile used to be 116 ([1b24ae7](https://github.com/Lautstark/vorlaut-diy-talker/commit/1b24ae7ecd2c1965c3b66ad335887c0623a12e4a))
+* **types:** say what BoardSet.color still is, now nothing draws it ([05656c4](https://github.com/Lautstark/vorlaut-diy-talker/commit/05656c42f0cfc59df0bf76f799197f04038f8333))
+* weigh what a DB_VERSION bump does to somebody's boards, and decide ([61688bf](https://github.com/Lautstark/vorlaut-diy-talker/commit/61688bf0b4a6c2ae6d4bbd107a8b77259db5af6e))
+* whether the .obz can be the device build's input ([d0465a4](https://github.com/Lautstark/vorlaut-diy-talker/commit/d0465a4e5597a4f558395794753a639ffa4e89e4))
+
 ## 0.1.0 (2026-08-25)
 
 
