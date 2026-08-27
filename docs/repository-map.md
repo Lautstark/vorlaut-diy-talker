@@ -93,8 +93,8 @@ else and repeated where each part is described.
 
 | | |
 |---|---|
-| **Decided** | The Android app is a separate repository and a viewer only ([ADR 0004](../adr/0004-android-app-is-a-viewer.md)). The four shared packages are separate repositories ([`packages.md`](packages.md)). The package format is the app's boundary, specified and fixtured ([ADR 0005](../adr/0005-obf-obz-exchange-format.md), [`exchange/SPEC.md`](../exchange/SPEC.md)). The builder and the firmware share this repository ([ADR 0006](../adr/0006-builder-and-hardware-one-repo.md)). The device interface has fixtures owned by neither half ([ADR 0009](../adr/0009-device-interface-fixtures.md)). And if this repository is ever split, [what the pieces are called](#the-three-names-if-it-happens) — and that the **editor** is the half that leaves. |
-| **Proposed, nothing built** | A device-shaped `.obz` export, a device compiler shipped as a pinned package, and the split of this repository ([`obz-as-device-input.md`](obz-as-device-input.md), [`device-interface.md`](device-interface.md)). **Whether** to split is undecided and waits on evidence; only the [naming](#the-three-names-if-it-happens) is settled. |
+| **Decided** | The Android app is a separate repository and a viewer only ([ADR 0004](../adr/0004-android-app-is-a-viewer.md)). The four shared packages are separate repositories ([`packages.md`](packages.md)). The package format is the app's boundary, specified and fixtured ([ADR 0005](../adr/0005-obf-obz-exchange-format.md), [`exchange/SPEC.md`](../exchange/SPEC.md)). The builder and the firmware share this repository ([ADR 0006](../adr/0006-builder-and-hardware-one-repo.md)). The device interface has fixtures owned by neither half ([ADR 0009](../adr/0009-device-interface-fixtures.md)). The device build has an `.obz` export of its own ([ADR 0010](../adr/0010-device-shaped-obz-export.md)). The editor exports a file and stops, and the talker's own repository compiles it and sends it ([ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md)). And if this repository is ever split, [what the pieces are called](#the-three-names-if-it-happens) — and that the **editor** is the half that leaves. |
+| **Proposed, nothing built** | The split of this repository ([`device-interface.md`](device-interface.md)). **Whether** to split is undecided and waits on evidence; only the [naming](#the-three-names-if-it-happens) is settled. ~~A device compiler shipped as a pinned package~~ is no longer proposed by anybody — see [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md), and [`obz-as-device-input.md`](obz-as-device-input.md) for the route it replaced. |
 
 ---
 
@@ -119,14 +119,17 @@ What it writes, and who reads it:
 | `layout.bin`, the tiles and the 16 kHz WAVs | the build, pushed down the cable or into a folder | the firmware, on the device |
 | An `.obz` board document, symbols **by reference** | [`src/data/obf.ts`](../src/data/obf.ts) | vorlaut itself, and other AAC software |
 | An `.obz` app package, symbols and audio **baked in** | [`src/data/app_package.ts`](../src/data/app_package.ts) | `vorlaut-app` |
+| An `.obz` device package, sources unresampled and the device's own WAVs | [`src/data/device_package.ts`](../src/data/device_package.ts) | the page that compiles it and sends it ([ADR 0010](../adr/0010-device-shaped-obz-export.md), [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md)) |
 | A backup of everything, credentials and paths dropped | [`src/data/backup.ts`](../src/data/backup.ts), through `sicherung` | a folder the user picked, and whatever syncs it |
 
-The two `.obz` doors are two functions that share no code path, and
+The three `.obz` doors are three functions that share no code path, and
 [`exchange.md`](exchange.md) is why that is structural rather than tidy: the
-first refuses to write a METACOM symbol as pixels at all, the second takes one
-narrow step past that under [`SPEC.md`](../exchange/SPEC.md) §5.2, and one
-function behind an argument would put the licence guarantee one call site away
-from being untrue.
+first refuses to write a METACOM symbol as pixels at all, the other two each
+take one narrow step past that under [`SPEC.md`](../exchange/SPEC.md) §5.2, and
+one function behind an argument would put the licence guarantee one call site
+away from being untrue.
+[ADR 0010](../adr/0010-device-shaped-obz-export.md) is why the third one is a
+door of its own rather than a flag on either of the first two.
 
 ## `vorlaut-app`
 
@@ -210,26 +213,42 @@ still moving.
 
 ### Proposed, and not decided
 
-**Nothing in this section is built, and none of it is a plan of record.**
+**One thing is left in this section, and it is the split.** The rest was
+decided on 2026-08-27 and has moved into the table above; what stood here
+before is struck through rather than deleted, because the route that was not
+taken is what the taken one had to beat.
 
-[`obz-as-device-input.md`](obz-as-device-input.md) weighs making the editor's
+~~[`obz-as-device-input.md`](obz-as-device-input.md) weighs making the editor's
 only output an `.obz`, with a device-side compiler that turns it into
 `layout.bin` and the tiles, shipped as a package pinned the way the four above
-are pinned. Its answer is that the premise holds — an `.obz` can carry
-everything the device build uses — and that the move should **not** be made:
-its recommendation 4 says not to package or split yet, because ADR 0006's
-condition 2 is unmet and the format is still moving.
+are pinned.~~ [`obz-as-device-input.md`](obz-as-device-input.md) established
+that the premise holds — an `.obz` can carry everything the device build uses —
+and that half of it stands. The package half does not.
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) replaced
+it: **the editor exports a file and stops**, one action whatever kind of board
+it is, and **the talker's own repository gains a page** that a person opens with
+a talker in front of them — choose the file, validate it, compile it, connect,
+send. There is no shared package and no cross-repo code dependency; the
+boundary is the file format, full stop.
 
 Three things follow, and it is worth keeping them apart:
 
 - **The third export door** — a device-shaped `.obz` with the sources
-  unresampled, negation as a flag and the device's own WAVs — is recommended on
-  its own merits, independently of any split, and is the one part being built.
-- **The compiler as a package** is the decision ADR 0006 refused. An ADR for it
-  would **supersede** 0006 rather than amend it.
+  unresampled, negation as a flag and the device's own WAVs — was built on its
+  own merits, independently of any split.
+  [ADR 0010](../adr/0010-device-shaped-obz-export.md) records it. It is what
+  makes the file boundary expressible at all.
+- ~~**The compiler as a package** is the decision ADR 0006 refused. An ADR for it
+  would **supersede** 0006 rather than amend it.~~ Still true of a package, and
+  nobody is proposing one. ADR 0011 puts the compiler in the repository the
+  firmware is already in, so both implementations of every device format stay on
+  one side and 0006 is **amended** rather than superseded — its revisit
+  condition 2 lost its premise rather than its force.
 - **Splitting this repository** waits on evidence, and ADR 0006 says what
   counts as evidence and what does not. Which half moves is no longer open:
-  it is the editor, and the section below is what that costs.
+  it is the editor, and the section below is what that costs. ADR 0011 makes
+  that cheaper without making it due — the seam is a file format now, not a
+  function call.
 
 #### The three names, if it happens
 
@@ -240,9 +259,23 @@ does happen — cheap to settle now, expensive to settle halfway through a move.
 
 | | |
 |---|---|
-| `vorlaut-diy-talker` | **This repository**, keeping its name and its history. It becomes the device: [`firmware/`](../firmware/), [`case/`](../case/), and whatever compiles a package into what the talker reads. |
-| `vorlaut-editor` | New. The editor leaves — [`src/shell/`](../src/shell/), [`src/editor-diy/`](../src/editor-diy/), [`src/editor-app/`](../src/editor-app/) and the two `.obz` doors. |
+| `vorlaut-diy-talker` | **This repository**, keeping its name and its history. It becomes the device: [`firmware/`](../firmware/), [`case/`](../case/), and the page that compiles an exported file into what the talker reads and sends it down the cable. |
+| `vorlaut-editor` | New. The editor leaves — [`src/shell/`](../src/shell/), [`src/editor-diy/`](../src/editor-diy/), [`src/editor-app/`](../src/editor-app/) and the three `.obz` doors. |
 | `vorlaut` | New. A GitHub Pages site explaining the three products — the Android app, the editor, the DIY talker — to a reader who is not a developer. |
+
+**The three names are unchanged by
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md), and one
+of them stopped being vague.** *"Whatever compiles a package into what the
+talker reads"* was a placeholder for something undecided when this table was
+written; it is now a page, and it is being built here rather than waiting for a
+split. Two consequences worth having in front of the names. This repository's
+Pages deployment starts carrying two things rather than one — the editor and
+the talker's page — so the split is not the moment a second site has to be
+stood up, it is the moment the editor's build moves out and the talker's page
+stays where it already was. And what leaves with the editor is three writer
+functions rather than two: the talker document, the app package and the device
+package ([ADR 0010](../adr/0010-device-shaped-obz-export.md)), all three of
+them files and none of them a cable.
 
 **The direction is the opposite of the one the rest of this page assumes.**
 Every sentence above about the firmware moving into a repository of its own
@@ -295,7 +328,13 @@ published address changes too, from
 project site that changes repository leaves no redirect behind it. `README.md`
 names the old one, and so does every bookmark a caregiver made. The explainer
 site is the answer to that if it exists first — one address that outlives
-whichever repository serves the editor.
+whichever repository serves the editor. After
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) the bill
+is smaller than that paragraph assumes, and it is worth knowing which half
+pays: the **editor's** address moves, and the talker page's does not, because
+the page is served from the repository that keeps the name. So the bookmark
+that matters at a bench — the one somebody opens with a cable in their hand —
+is the one that never changes.
 
 **`v*` keeps meaning a firmware release, and that is the naming's clearest
 win.** [ADR 0006](../adr/0006-builder-and-hardware-one-repo.md#consequences)
@@ -339,13 +378,18 @@ already establishes that the two directories do not overlap, that
 `device/fixtures/` belongs to neither half and "becomes the third repository."
 That sentence was written when the third repository was going to be the device
 format's. Under these names the third one is the explainer site, and there is
-no spare name left: the fixtures either sit in `vorlaut-diy-talker`, where one
+no spare name left: ~~the fixtures either sit in `vorlaut-diy-talker`, where one
 of the two halves owns them and
 [ADR 0009](../adr/0009-device-interface-fixtures.md)'s whole point is that
-neither should, or a fourth name is needed. That is worth deciding before a
-split rather than during one, and §6 is worth re-reading once it is settled,
-because "the third repository" there now reads as this page's `vorlaut` and
-does not mean it. The locks divide the same way and no more neatly:
+neither should, or a fourth name is needed.~~
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) answers
+this one, and answers it by removing the problem: **both** implementations of
+every device format end up in `vorlaut-diy-talker` — the C++ reader and the
+page that writes the bytes — so the fixtures sit beside the two halves they are
+held against rather than beside one of them, which is exactly the arrangement
+they have today. No fourth name is needed. §6 is still worth re-reading once
+this is settled, because "the third repository" there reads as this page's
+`vorlaut` and does not mean it. The locks divide the same way and no more neatly:
 `obf.lock.json` and `tts.lock.json` follow the converter and the recording
 chain to the editor, `layout.lock.json` follows the writer it protects to the
 device, and `tiles.lock.json` is awkward because the module under it is.
@@ -364,7 +408,10 @@ device's actual reader, and
 repository can hold two implementations against each other. Under this
 direction both implementations land in `vorlaut-diy-talker`: the C++ reader,
 and the TypeScript writer, because the writer is the compiler and the compiler
-goes with the device. `test_layout_frozen.py`, `test_cable_format.py`,
+goes with the device. That was a prediction when it was written and
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) makes it
+a fact, before any repository moves: the compiler is the page, and the page is
+the device's. `test_layout_frozen.py`, `test_cable_format.py`,
 `test_texts.py`, `test_device_host.py` and `test_device_fixtures.py` all stay
 beside the thing they compile. This does not make the split allowed — ADR 0006
 asks for evidence and none of this is evidence — but it is why this direction
@@ -374,15 +421,20 @@ plus `test_exchange_fixtures.py`, which travels with `exchange/`. That is all
 the Python it needs, and none of it needs a compiler: ADR 0006's
 three-toolchain consequence unwinds for the editor and stands for the device.
 
-**The seam the names describe is not a directory yet.** "Whatever compiles a
-package into what the talker reads" is today `runBuild()`, at the foot of
+**The seam the names describe is ~~not a directory yet~~ being made one, and
+that is the whole of what changed.** "Whatever compiles a package into what the
+talker reads" was `runBuild()`, at the foot of
 [`src/backend/local.ts`](../src/backend/local.ts) — the same file that answers
 the editor's questions, as its own opening comment says. The move is cheap
 exactly when that boundary is a file format rather than a function call, and
-the device-shaped `.obz` in the first bullet above is what would make it one:
-the editor writes a package, the device repository compiles it, and the two are
-held apart by fixtures instead of by an import. Worth noticing, and not a
-reason to hurry.
+the device-shaped `.obz` in the first bullet above is what makes it one: the
+editor writes a package, the device's page compiles it, and the two are held
+apart by fixtures instead of by an import.
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) is the
+decision to do that, and it is being done now rather than at a split — which
+means the split, if it ever comes, is a directory moving out of a repository
+rather than a boundary being invented under time pressure. Still not a reason
+to hurry.
 
 ---
 
@@ -410,7 +462,9 @@ Nothing above replaces these. Each one answers a question this page only names.
 | [ADR 0006](../adr/0006-builder-and-hardware-one-repo.md) | Why the builder and the firmware share a repository, and what would change that. |
 | [ADR 0009](../adr/0009-device-interface-fixtures.md) | Why the device interface has fixtures of its own, owned by neither half. |
 | [`device-interface.md`](device-interface.md) | What the interface actually consists of, measured, and whether the firmware can leave. |
-| [`obz-as-device-input.md`](obz-as-device-input.md) | Whether the package could be the device build's input, and what it would cost. |
+| [ADR 0010](../adr/0010-device-shaped-obz-export.md) | Why the device build has an `.obz` export of its own, and why it is a third door. |
+| [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) | Why the editor exports a file and stops, and why the page that sends it is the talker's. |
+| [`obz-as-device-input.md`](obz-as-device-input.md) | Whether the package could be the device build's input — yes — and what a compiler package would have cost. Half superseded; read its status line first. |
 | [`format-freeze.md`](format-freeze.md) | What is still moving in the three formats, and what has to be true before a freeze. |
 | [`exchange.md`](exchange.md) | The app package export: two doors rather than one, and why the licence makes that structural. |
 | [`packages.md`](packages.md) | The four shared packages, how they are pinned, and what holds the pin honest. |
