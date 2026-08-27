@@ -12,8 +12,12 @@
 // in cable_format.h. What is here is the part that needs a device: Serial,
 // LittleFS, and the half-written file.
 //
-// This does NOT replace sync.h. Both are compiled in and both work, until the
-// cable has been shown to do the job on real hardware.
+// This replaced sync.h. Both were compiled in and both worked for a day, the
+// intention being to keep the radio until the cable had been shown to do the
+// job on real hardware. That is not how it went: sync.h, and the rest of the
+// Wi-Fi stack with it, was deleted on 2026-08-23 with none of that bar met,
+// because the other end of the Wi-Fi path had already gone. This is the only
+// way in now - see docs/cable.md, "The Wi-Fi path is gone".
 //
 // Three things are worth knowing before reading on:
 //
@@ -483,7 +487,7 @@ class Cable {
 
     // Only now under its real name. A transfer that breaks off leaves .part
     // behind and not half a file under a name that promises whole content -
-    // the same rule sync.h follows, and for the same reason.
+    // the same rule sync.h followed, and for the same reason.
     const String target = path(command.name);
     LittleFS.remove(target);
     if (!LittleFS.rename(CABLE_PART_FILE, target)) {

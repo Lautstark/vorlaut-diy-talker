@@ -6,15 +6,16 @@
 // socket the device is charged through anyway - see docs/cable.md for the
 // whole protocol and the reasoning.
 //
-// Deliberately without any Arduino dependency, like layout_format.h and
-// pair_format.h: that way tests/test_cable_format.py can compile it on the
+// Deliberately without any Arduino dependency, like layout_format.h - and like
+// pair_format.h, which had the same shape and went with the radio on
+// 2026-08-23: that way tests/test_cable_format.py can compile it on the
 // computer and check it against what tools/cable.js really sends, instead of
 // on a device that stores the wrong bytes and says nothing about why.
 //
-// Lines, not JSON - the same reason as the manifest in sync.h. A parser on
-// the ESP32 means a library, a heap and a class of failure that a fixed line
-// format does not have. Unknown keywords are skipped, so the browser can gain
-// a field without a device already in a drawer falling over.
+// Lines, not JSON - the same reason the Wi-Fi sync's manifest in sync.h was
+// lines. A parser on the ESP32 means a library, a heap and a class of failure
+// that a fixed line format does not have. Unknown keywords are skipped, so the
+// browser can gain a field without a device already in a drawer falling over.
 
 #pragma once
 #include <stdint.h>
@@ -52,13 +53,17 @@
 // for a longer one later without reaching LittleFS's own limit.
 #define CABLE_NAME_MAX 63
 
-// Where a file lands until it is whole. The same name sync.h uses, because
-// the two never run at once and its sweep already knows to leave it alone.
+// Where a file lands until it is whole. The name was shared with sync.h while
+// both existed, because the two never ran at once and its sweep already knew
+// to leave it alone. It is this one's alone since 2026-08-23.
 #define CABLE_PART_FILE "/.part"
 
-// The one file the Wi-Fi sync keeps its bookkeeping in. A cable session that
-// changed anything deletes it, so a later Wi-Fi sync does not believe a
-// stamp that describes content the cable has since replaced.
+// There was a second name here, for the one file the Wi-Fi sync kept its
+// bookkeeping in: a cable session that changed anything deleted it, so a later
+// Wi-Fi sync would not believe a stamp describing content the cable had since
+// replaced. The Wi-Fi sync went on 2026-08-23 and took both the file and the
+// constant with it. Nothing writes such a stamp now, so a cable session has
+// nothing left to invalidate.
 
 // What the device does when the bytes of a file stop arriving. Short enough
 // that a browser tab that was closed mid-transfer does not leave the device

@@ -89,9 +89,9 @@ in [`cable.md`](cable.md) under "Before the Wi-Fi path can go".
 
 ### The speech chain — the one that had nothing
 
-`tests/test_browser_tts.py` was never a behavioural test. It parses constants
-out of `static/tts/level.js` and compares them with `tts.py` — its own docstring
-says "the exported numbers out of level.js, without running any JavaScript."
+`tests/test_browser_tts.py` was never a behavioural test. It parsed constants
+out of `static/tts/level.js` and compared them with `tts.py` — its own docstring
+said "the exported numbers out of level.js, without running any JavaScript."
 Correct constants over wrong arithmetic passed every check in it. The real
 verification was `tools/ttscheck.py`, run by hand,
 whose result exists as a table in [`browser-tts.md`](browser-tts.md) that
@@ -120,8 +120,9 @@ that `python3 tests/run.py` picks it up. Four kinds of frozen reference:
   about 50 dB.
 - **The whole chain.** Four synthetic utterances, each put through
   `tts.postprocess()` — real `ffmpeg`, the real filter chain — and the finished
-  file measured. `level.js` gets the same bytes and must arrive at the same
-  place. This is the check that would have caught anything, and it is only not
+  file measured. The browser's own levelling — `static/tts/level.js` then,
+  `@lautstark/stimmquelle/browser` now — gets the same bytes and must arrive at
+  the same place. This is the check that would have caught anything, and it is only not
   circular because the ruler above is checked first, then used.
 
 The three 440/1000 Hz values reproduce `mitreden`'s frozen numbers exactly
@@ -157,16 +158,20 @@ else reaches:
 | `quantisation` | 116×116, which `thumbnail()` will not enlarge, so nothing is resampled and the RGB565 conversion is alone. Values sit either side of every bit it throws away. It was exactly tile-sized when it was drawn and is 6 px shy of it now, which adds a centring offset to what it proves rather than taking anything away |
 | `fully-transparent` | every pixel transparent over a colour, which must be dropped rather than smeared into the edges |
 
-The test now makes three comparisons and is explicit about which survives: node
+The test made three comparisons and was explicit about which survives: node
 against the frozen bytes (needs nothing else), `tiles.py` against the frozen
 bytes (catches a Pillow upgrade, skipped without Pillow), and the constants.
+Two are left. `tiles.py` went with the Python half on 2026-08-22 and nothing
+replaces that row: from here the frozen bytes are the only opinion there is
+about what a tile should look like, and they answer only for the fourteen
+symbols recorded. The test's own docstring says so in the same words.
 
 ### The layout binary — the instinct was wrong
 
-`tests/test_layout_format.py` compiles the firmware's own C reader — the same
-`firmware/vorlaut/layout_format.h` that `vorlaut.ino` includes at line 36,
-calling the `parseLayout` the device calls at line 150. That reader owes Python
-nothing, so the obvious conclusion is that this check survives on its own.
+`tests/test_layout_format.py` compiled the firmware's own C reader — the same
+`firmware/vorlaut/layout_format.h` that `vorlaut.ino` includes, calling the
+`parseLayout` the device calls. That reader owes Python nothing, so the obvious
+conclusion was that this check survives on its own.
 
 It does not, and the reason is worth keeping. The reader survives; what it was
 compared against did not. `normalize_layout()` in `layout.py` built every input
@@ -184,11 +189,17 @@ but the C reader is *compiled from the firmware's source at test time*, not
 frozen, and its field-by-field output is what makes a frozen byte string mean
 something.
 
-`tests/test_layout_format.py` stays as it was and keeps doing the live
-three-way comparison. One check was added to it: that the frozen layouts are
-still what `normalize_layout()` produces. Nothing else would notice that going
-stale — the frozen cases would keep agreeing with each other about a layout
-Python no longer generates.
+The three-way comparison is still made, and it is
+[`tests/test_layout_frozen.py`](../tests/test_layout_frozen.py) that makes it:
+node writes the bytes, the lock says what they have to be, and the compiled C
+reader says what they mean. Only the third party changed. In
+`tests/test_layout_format.py` it was `layout_format.py` writing every case
+alongside node — a live opinion that could answer for an input nobody had
+recorded — and here it is a captured value that cannot. That test went with the
+Python half on 2026-08-22, and one check went with it: that the frozen layouts
+are still what `normalize_layout()` produces. Nothing else would notice that
+going stale, and now nothing does — the frozen cases go on agreeing with each
+other about a layout no program here generates.
 
 ### The board as a document — the only one with no second opinion
 
@@ -502,9 +513,9 @@ much it would cost to be wrong:
    page that rendered nothing at all ship green.
 
    It is shallow on purpose, and everything below it is still unexercised in a
-   tab. The vendored chain and `tiles.js` are checked under node, where they
-   are deliberately free of the DOM, so node is a fair stand-in for the
-   arithmetic — but `tools/ttscheck.html` and `tools/tilecheck.html`, the pages
+   tab. The vendored chain and `src/data/tiles.ts` are checked under node,
+   where they are deliberately free of the DOM, so node is a fair stand-in for
+   the arithmetic — but `tools/ttscheck.html` and `tools/tilecheck.html`, the pages
    that drove them in a real tab, were deleted with the Python harnesses that
    fed them, and nothing has replaced those.
 2. **No other program has ever opened a `.obz` this wrote**, and that is the
@@ -529,22 +540,32 @@ much it would cost to be wrong:
    different files. The utterances are synthetic. Agreement on real sentences
    is still only [`browser-tts.md`](browser-tts.md)'s hand-run table, and
    nothing regenerates it.
-5. **`static/tts/speak.js` has no behavioural test.** The voice path —
-   vits-web, Azure — is checked only for the shape of `voices.json` and the
-   `onnxruntime-web` pin, in `tests/test_browser_tts.py`. Nothing runs it.
+5. **The voice path has no behavioural test.** `static/tts/speak.js` is now
+   `@lautstark/stimmquelle`'s, and vits-web and Azure are reached through it;
+   nothing here runs one. What checked the vendored side at all was
+   `tests/test_browser_tts.py` — that the bundle, the catalogue and
+   `CONTRACT.md` were present, and that `tts.py`'s constants matched the
+   contract's — and it went with the Python half on 2026-08-22. The
+   `onnxruntime-web` pin is written in three places, `package.json`,
+   `src/backend/local.ts`'s CDN URL and `src/types/cdn.d.ts`; `renovate.json5`
+   explains in a comment why they have to name one version, and no test says
+   it.
 6. **Symbol search is frozen for the name only.** What the adapter makes of
    a path is now checked without `metacom.py` — but that is the whole of it.
    Whether the vendored `bildquelle` *finds* the right symbol is the package's
    own business and has its own tests upstream; nothing here exercises the
-   search, the index it builds, or the METACOM `.asar` reader in
-   `metacom.py`. Those are still checked only by `tests/test_metacom_index.py`
-   against Python.
+   search or the index it builds. The METACOM `.asar` reader was
+   `metacom.py`'s, and `tests/test_metacom_index.py` was the only thing that
+   checked it; both went on 2026-08-22, and no `.asar` reader of this
+   repository's remains to check.
 7. **`normalize_layout()` now exists in the browser too**, in
    `src/data/obf.ts`, because an imported board has to be given a colour and its
-   four slots. It is checked against `layout.py` in `tests/test_obf_js.py` and
-   frozen in `obf.lock.json` — but only on the inputs recorded there, and
-   `tests/reference/layout.lock.json`'s layouts are still `layout.py`'s output
-   rather than something the browser reproduces.
+   four slots. It was checked against `layout.py` in `tests/test_obf_js.py`;
+   both went on 2026-08-22, so what is left is the frozen answers in
+   `obf.lock.json`, read by `tests/test_obf_frozen.py` — only on the inputs
+   recorded there, and no case can be added to them. `tests/reference/layout.lock.json`'s
+   layouts are still `layout.py`'s output rather than something the browser
+   reproduces.
 8. **Tolerances.** The speech checks allow 0.15 LU on the ruler and 0.2 LU
    end-to-end, against agreement of 0.04 and 0.05 when frozen. The slack is
    room for a different `ffmpeg` build, not measured error — but a systematic

@@ -1,16 +1,17 @@
 // layout.bin - the table the firmware reads, written in the browser.
 //
 // A port of render_layout_bin() from layout_format.py, byte for byte. The app
-// is becoming a static site, so the writer has to exist here as well; the
-// firmware does not change with it, which leaves exactly one acceptable
-// output - the one Python already produces. tests/test_layout_format.py holds
-// this to it: every case is written by both, the bytes are compared, and the
-// firmware's own C reader reads the file this module produced.
+// became a static site, so the writer had to exist here as well; the firmware
+// did not change with it, which left exactly one acceptable output - the one
+// Python produced. That Python went on 2026-08-22, and tests/test_layout_format.py
+// went with it. What holds this module to that output now is
+// tests/test_layout_frozen.py: the bytes are compared against the ones frozen
+// from the Python writer while it was still here, and the firmware's own C
+// reader, compiled at test time, reads the file this module produced.
 //
-// The structure itself is written down in layout_format.py and in
-// firmware/vorlaut/layout_format.h, and is not copied a third time here. The
-// strides below are spelled out as the same sums for the same reason: the sum
-// is the thing that has to keep agreeing.
+// The structure itself is written down in firmware/vorlaut/layout_format.h and
+// is not spelled out again here. The strides below are repeated as the same
+// sums for the same reason: the sum is the thing that has to keep agreeing.
 //
 // Two places deviate from the Python on purpose, both only for input the
 // Python does not survive either - they are marked where they are.
@@ -36,8 +37,9 @@ export const SLOT_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1;                      
 export const SET_BYTES = NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES; // 184
 export const HEADER_BYTES = 4 + 4 + 4;                                           // 12
 
-// The index the device labels its own menu by - see LANGUAGE_CODES in
-// layout.py, and LANGUAGES in firmware/vorlaut/texts.h.
+// The index the device labels its own menu by - see
+// device/fixtures/language.expected.json, which states the table, and
+// LANGUAGES in firmware/vorlaut/texts.h.
 export const LANGUAGE_CODES = { en: 0, de: 1 };
 export const DEFAULT_LANGUAGE = "en";
 
@@ -71,10 +73,12 @@ export function hashBytes(filename) {
 }
 
 /**
- * The bytes of layout.bin, as build.py would write them.
+ * The bytes of layout.bin - what build.py used to write, and the frozen answer
+ * in tests/reference/layout.lock.json is that writer's.
  *
  * layout is a normalized layout, the three lists are per set and in its order
- * - exactly what builder.py hands the Python.
+ * - exactly what builder.py handed the Python, and what backend/local.ts's
+ * build hands this.
  */
 export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles) {
   // Every set in the layout: a Sammlung is the selection, so there is nothing
