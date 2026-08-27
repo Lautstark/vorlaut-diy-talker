@@ -10,7 +10,8 @@
 // The protocol is written down in docs/cable.md. The short of it: lines in
 // both directions, marked "> " outbound and "< " inbound because this stream
 // is shared with the device's serial log, and one file at a time as raw bytes
-// between a "go" and an "ok".
+// between a "go" and an "ok" - a window at a time, waiting after each for the
+// device to say the bytes are in its file system.
 //
 // The device is deliberately stupid here. It can list what it holds, hand
 // back a checksum, take a file, delete a file, and say goodbye - it does not
@@ -19,7 +20,7 @@
 
 /** The protocol version this client speaks. See CABLE_VERSION in
  *  firmware/vorlaut/cable_format.h. */
-export const CABLE_VERSION = 1;
+export const CABLE_VERSION = 2;
 
 /* The shapes of the answers, so that this file says what it hands back rather
  * than leaving each of its three consumers - the bench, the node harness and
@@ -82,6 +83,11 @@ export class CableError extends Error {
 
 // --- The connection ----------------------------------------------------------
 
+// How long any one answer may take. Longer than the device's own
+// CABLE_QUIET_MS of 4000 on purpose: both ends are now waiting on each other
+// during a transfer, and whichever gives up first is the one that gets to say
+// why. The device gives up first, sends "err short" and shuts the session -
+// which arrives here as a word to act on instead of a silence to guess at.
 const DEFAULT_TIMEOUT = 5000;
 
 export class Cable {
@@ -103,7 +109,9 @@ export class Cable {
     this.failure = null;
     // The longest the device waited for bytes, and the longest a single write
     // into LittleFS took, over every file this connection has carried. These
-    // are what say how close CABLE_QUIET_MS came - see docs/cable.md.
+    // are what say how close CABLE_QUIET_MS came - see docs/cable.md. Since
+    // the device waits for a window after every ack, a gap of zero now means
+    // the acknowledging is not happening rather than that nothing was late.
     this.worstGap = 0;
     this.worstStall = 0;
     this.queue = Promise.resolve();   // one command at a time, in order
@@ -298,24 +306,49 @@ export class Cable {
   }
 
   /**
-   * One file. The bytes go out only after the device has said "go" - it has
-   * opened its half-written file by then and is counting. Without that
-   * handshake a refusal would be followed by a file's worth of content
-   * arriving in the device's line reader.
+   * One file, a window at a time.
+   *
+   * The bytes go out only after the device has said "go" - it has opened its
+   * half-written file by then and is counting. Without that handshake a
+   * refusal would be followed by a file's worth of content arriving in the
+   * device's line reader.
+   *
+   * The "go" carries the window: the most the device will take before it says
+   * it has the bytes. After each window this waits for an "ack" carrying the
+   * running total, and sends nothing until it arrives. Writing here is quick
+   * and storing on the device is not, so without that wait the browser
+   * finishes a file while the device is still emptying a buffer into flash -
+   * and everything that lands while it is in there is discarded by a USB stack
+   * with no way to mention it. Waiting is what makes a slow flash cost time
+   * rather than content.
+   *
+   * The number comes off the wire and is not a constant here, deliberately.
+   * The device is the end that knows how much room it has, and a browser that
+   * decided for itself would be back to guessing.
    */
-  put(name, bytes, { onProgress = null, chunk = 4096 } = {}) {
+  put(name, bytes, { onProgress = null } = {}) {
     return this.#serial(async () => {
       const sum = crc32(bytes);
       await this.send(`put ${name} ${bytes.length} ${hex8(sum)}`);
-      await this.expectOneOf(["go"]);
-      for (let at = 0; at < bytes.length; at += chunk) {
-        await this.writer.write(bytes.subarray(at, Math.min(at + chunk, bytes.length)));
-        if (onProgress) onProgress(Math.min(at + chunk, bytes.length), bytes.length);
+      const window = Number((await this.expectOneOf(["go"])).rest);
+      if (!Number.isInteger(window) || window <= 0) {
+        throw new Error(`the device said "go" with a window of ${window}`);
       }
-      // Writing is quick and storing is not: the device is still emptying its
-      // buffer into flash when the last chunk is accepted here.
-      // "ok", with whatever the device chose to say first stepped over. That
-      // is where its gap and stall timings arrive.
+      let at = 0;
+      while (at < bytes.length) {
+        const end = Math.min(at + window, bytes.length);
+        await this.writer.write(bytes.subarray(at, end));
+        at = end;
+        // Whatever the device chose to say first is stepped over here too. An
+        // ack is an ordinary keyword line and gets no special reading.
+        const acked = Number((await this.expectOneOf(["ack"])).rest);
+        if (acked !== at) {
+          throw new Error(`sent ${at} bytes of ${name}, `
+                          + `the device acknowledged ${acked}`);
+        }
+        if (onProgress) onProgress(at, bytes.length);
+      }
+      // "ok", with the gap and stall timings stepped over on the way.
       const { rest } = await this.expectOneOf(["ok"]);
       const stored = Number(rest.slice(rest.lastIndexOf(" ") + 1));
       // The device echoes back what it stored, and it is worth reading rather

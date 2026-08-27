@@ -271,6 +271,21 @@ function scriptedDevice(steps: any[]) {
   let held = new Uint8Array(0);
   let done = false;
 
+  /* How much the client has handed over, against how much this has taken out
+   * of it. The difference is what the client wrote without waiting to be
+   * answered, and it is counted at the writable end rather than read off
+   * `held` because bytes the client has written but this has not asked for yet
+   * are in the stream, invisible from in here - which is exactly where a
+   * client that ran ahead puts them. */
+  let written = 0;
+  let consumed = 0;
+  const inbound = toDevice.writable.getWriter();
+  const counting = new WritableStream<Uint8Array>({
+    write(chunk) { written += chunk.length; return inbound.write(chunk); },
+    close() { return inbound.close(); },
+    abort(reason) { return inbound.abort(reason); },
+  });
+
   async function more(): Promise<boolean> {
     if (done) return false;
     const { value, done: ended } = await incoming.read();
@@ -290,6 +305,7 @@ function scriptedDevice(steps: any[]) {
       if (cut >= 0) {
         const text = decoder.decode(held.subarray(0, cut)).replace(/\r$/, "");
         held = held.subarray(cut + 1);
+        consumed += cut + 1;
         return text;
       }
       if (!await more()) return null;
@@ -300,12 +316,41 @@ function scriptedDevice(steps: any[]) {
     while (held.length < count) if (!await more()) return null;
     const taken = held.subarray(0, count);
     held = held.subarray(count);
+    consumed += count;
     return taken;
   }
+
+  /* A turn of the event loop, so that everything the client was going to write
+   * has been written before it is counted. Without it the comparison below is
+   * a race between two promise chains and would report whichever won. */
+  const settleWrites = () => new Promise((r) => setTimeout(r, 0));
 
   const walk = (async () => {
     for (const step of steps) {
       if (step.from === "device") {
+        /* Nothing of the host's may be waiting to be read at the moment the
+         * device speaks. Every device line in every transcript is one the host
+         * is waiting for, so a client that is behaving has written nothing
+         * since the last thing this consumed.
+         *
+         * That is the only way a transcript can express the acknowledged
+         * transfer at all. The bytes of a file are the same bytes whether they
+         * were sent a window at a time or all at once, so comparing them says
+         * nothing about the waiting - and the waiting is the whole change. What
+         * distinguishes the two is that one of them has run ahead, and running
+         * ahead is visible right here.
+         *
+         * One-directional, and deliberately: bytes present prove the client ran
+         * ahead, and bytes absent prove nothing, since a write that has not
+         * arrived yet looks the same. It catches the fault without ever
+         * claiming the absence is a pass. */
+        await settleWrites();
+        if (written !== consumed) {
+          problems.push(`the client had already written ${written - consumed} `
+                        + `byte(s) more than were asked for when the device `
+                        + `said "${step.line}" - it is not waiting to be `
+                        + "answered");
+        }
         await out.write(encoder.encode(`${step.line}\n`));
         continue;
       }
@@ -336,13 +381,13 @@ function scriptedDevice(steps: any[]) {
   })();
 
   return {
-    port: { readable: fromDevice.readable, writable: toDevice.writable },
+    port: { readable: fromDevice.readable, writable: counting },
     problems,
     async settle() {
       let finished = false;
       await Promise.race([
         walk.then(() => { finished = true; }),
-        new Promise((r) => setTimeout(r, 500)),
+        new Promise((r) => setTimeout(r, 2000)),
       ]);
       if (!finished) {
         problems.push("the transcript was not walked to its end - the client "

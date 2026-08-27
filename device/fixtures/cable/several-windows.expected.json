@@ -1,0 +1,134 @@
+{
+  "fixture": "several-windows",
+  "kind": "cable",
+  "summary": "A file that takes three windows, the last of them short. The browser sends what it was told and waits to be told again.",
+  "ends": [
+    "device",
+    "browser"
+  ],
+  "protocol_version": 2,
+  "window": 256,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 2"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> put t0123456789abcdef0123456789abcdef.bin 640 9da35474"
+    },
+    {
+      "from": "device",
+      "line": "< go 256"
+    },
+    {
+      "from": "host",
+      "raw": "FzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8g==",
+      "bytes": 256
+    },
+    {
+      "from": "device",
+      "line": "< ack 256"
+    },
+    {
+      "from": "host",
+      "raw": "FzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8g==",
+      "bytes": 256
+    },
+    {
+      "from": "device",
+      "line": "< ack 512"
+    },
+    {
+      "from": "host",
+      "raw": "FzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXI=",
+      "bytes": 128
+    },
+    {
+      "from": "device",
+      "line": "< ack 640"
+    },
+    {
+      "from": "device",
+      "line": "< ok t0123456789abcdef0123456789abcdef.bin 640"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 1 0 640"
+    }
+  ],
+  "device_ends_with": {
+    "files": [
+      {
+        "name": "t0123456789abcdef0123456789abcdef.bin",
+        "size": 640,
+        "crc": "9da35474"
+      }
+    ],
+    "stored": 1,
+    "removed": 0,
+    "bytes": 640
+  },
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 2,
+        "total": 1441792,
+        "free": 1441792,
+        "files": 0
+      }
+    },
+    {
+      "call": "put",
+      "name": "t0123456789abcdef0123456789abcdef.bin",
+      "content": "FzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJHbJG22wAlSm+Uud4DKE1yl7zhBitQdZq/5AkuU3idwucMMVZ7oMXqDzRZfqPI7RI3XIGmy/AVOl+Eqc7zGD1ih6zR9htAZYqv1PkeQ2iNstf8IUZrkLXa/yRJbpO43QInTHGWu+AFKk90mb7jCC1Sd5zB5gswVXqfxOkOM1h9osfsETZbgKXK7xQ5XoOozfIXPGGGq9D1Gj9kia7T+B1CZ4yx1vsgRWqPtNn+I0htkrfcASZLcJW63wQpTnOYveIHLFF2m8DlCi9UeZ7D6A0yV3yhxusQNVp/pMnuEzhdgqfM8RY7YIWqz/QZPmOIrdL3HEFmi7DV+h9EaY6z2P0iR2yRttsAJUpvlLneAyhNcg==",
+      "returns": {
+        "name": "t0123456789abcdef0123456789abcdef.bin",
+        "size": 640
+      }
+    },
+    {
+      "call": "done",
+      "returns": {
+        "stored": 1,
+        "removed": 0,
+        "bytes": 640
+      }
+    }
+  ],
+  "notes": [
+    "This is the flow control, written down as the only thing that can express it: an order. The rule is not that a file is acknowledged - it is that the host never has more than one window outstanding, and no single line says that. Three sends and three acks, strictly alternating, does.",
+    "The window is the device's number and the browser must take it off the wire. The device is the end that knows how much room it has; a browser choosing for itself is the guess this replaced. 256 here against 4096 in every other transcript is what makes a client that ignored it fail rather than pass by luck.",
+    "The last window is 128 bytes and is acknowledged like the others. The end of the file ends the window, so there is no full-or-partial case to get wrong on either side - cable.h acks on `got - acked >= window || got == size` and the browser sends `min(window, what is left)`.",
+    "The acks carry a running total rather than the size of the piece. A per-piece count would agree with itself all the way down a stream that had slipped; a total disagrees with what the browser has sent, at the first window, out loud.",
+    "What this cannot show is the part it exists for. There is no clock in a transcript, so nothing here proves the device was busy between an ack and the next window - only that it said so in the right places. The timing is docs/cable.md's table and a board on a desk.",
+    "No gap and no stall here, for that same reason and not by oversight. Both are held to the device end, and the harness that plays the device end has no clock to produce them with - a fixture that carried them would be asking a compiled header for a measurement. They appear in skip-unknown-keyword, which is the browser's end only, where what is being asked is whether they are stepped over."
+  ]
+}

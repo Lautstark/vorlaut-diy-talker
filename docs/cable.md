@@ -89,7 +89,7 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 `tools/cable.js`. The answers:
 
 ```
-< vorlaut 1                  it is one of ours, and 1 is the protocol version
+< vorlaut 2                  it is one of ours, and 2 is the protocol version
 < total 1441792              the partition
 < free 1146880               what is left of it
 < files 37
@@ -100,7 +100,8 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 < end list 37
 
 < crc layout.bin 1a2b3c4d
-< go
+< go 4096                    send at most this much, then wait
+< ack 8192                   this much is in the file system
 < ok a8c1….wav 41008
 < gone t3bd7….bin
 < bye 12 3 486400            stored, removed, bytes
@@ -190,8 +191,14 @@ The `go` in the middle of a `put` is the other half of that:
 
 ```
 > put a8c1….wav 41008 1a2b3c4d
-< go
-<41008 raw bytes>
+< go 4096
+<4096 raw bytes>
+< ack 4096
+<4096 raw bytes>
+< ack 8192
+    …
+<432 raw bytes>
+< ack 41008
 < ok a8c1….wav 41008
 ```
 
@@ -201,6 +208,10 @@ device that refused the file would be followed by 41008 bytes of WAV arriving in
 its line reader — and somewhere in a WAV there is eventually something that
 looks like a command. The round trip costs about a millisecond and removes the
 whole category.
+
+**And the bytes go a window at a time.** That is the subject of [the window is
+the flow control](#the-window-is-the-flow-control) below, and it is the reason
+this document no longer has a receive buffer in it.
 
 **The name is created by the rename and by nothing else.** That is worth
 stating on its own, because more rests on it than on any other line of the
@@ -250,21 +261,34 @@ real device to be tried on:
    `err lost`, which is a different word from the `err write` of a file that
    could not be opened at all — the distinction is not cosmetic, it is
    whether there are still bytes in flight to be thrown away.
-2. **Drain before listening.** The rest of the file is still coming, so the
-   device throws bytes away until the wire has been quiet for 400 ms. Only then
-   does it read lines again.
+2. **Drain before listening.** What is left of the window may still be coming,
+   so the device throws bytes away until the wire has been quiet for 400 ms.
+   Only then does it read lines again. The window is what makes that a few
+   thousand bytes rather than most of a WAV — but it is not why the rule
+   exists, and the rule does not change with it.
 3. **Only `hello` gets back in.** Everything else is answered `err session`
    until the browser introduces itself again. A stretch of a WAV that happens
    to contain `\n> hello\n` would have to be chosen on purpose, and whoever is
    holding the cable has easier things to do.
 
-### The four seconds are a guess until they are a measurement
+### The four seconds, and what they are now for
 
-`CABLE_QUIET_MS` is the one constant here with a real design risk behind it: it
-has to be longer than any pause LittleFS can take in the middle of a transfer,
-and nothing on a computer can say what that is. A run that works only shows the
-pause did not exceed four seconds *once*. It says nothing about the margin, and
-a constant that survived one evening is not evidence.
+`CABLE_QUIET_MS` used to be the one constant here with a real design risk
+behind it: it had to be longer than any pause LittleFS could take in the middle
+of a transfer, and nothing on a computer could say what that was. A run that
+worked only showed the pause did not exceed four seconds *once*.
+
+**That risk went with the window.** The device now waits only for bytes it has
+just asked for, so what four seconds has to outlast is one round trip and a
+browser's own scheduling — milliseconds against seconds. It stays where it is
+rather than being tuned down, because what it is really for is a browser that
+has gone away, and noticing that a little late costs nothing.
+
+The browser has the mirror of it and waits five seconds for any one answer.
+Longer on purpose: both ends are waiting on each other during a transfer now,
+and whichever gives up first is the one that gets to say why. The device gives
+up first, sends `err short` and shuts the session — which reaches the browser
+as a word to act on instead of a silence to guess at.
 
 So the device measures and reports, before every `ok`:
 
@@ -279,6 +303,14 @@ where a garbage collection pause shows up — and it does **not** appear in `gap
 because while it happens the device is inside `file.write()` rather than
 waiting for bytes.
 
+**What `gap` means changed with the window**, and it is worth knowing which
+number is being read. It used to be the browser running late, and under a full
+receive buffer it read 4001 ms because the bytes were not late at all but gone.
+Now the device waits after every `ack` for a window it has just asked for, so
+`gap` is a round trip: expected to be small and **not zero**. A zero over a
+whole payload no longer means nothing was ever late — it means no window was
+ever waited for, which is a client that is not acknowledging.
+
 Both are ordinary keyword lines, so a reader that does not know them steps over
 them. That rule is stated all through this document; these are the first lines
 to depend on it, which is worth saying because until they existed the browser
@@ -286,27 +318,92 @@ client did not actually follow it. It does now, and the mock reports fixed
 values so every test run goes through that path rather than only the one test
 aimed at it.
 
-The bench shows the worst of each after a push, with the margin. **When a full
-transfer has run on real hardware, the numbers belong here** — and then 4000
-either has a measurement behind it or is changed to one:
+The bench shows the worst of each after a push, with the margin.
 
-| | |
+**The numbers that were here were taken under version 1 and do not carry over.**
+They are kept below because the reasoning is still worth reading, but they
+describe a protocol in which the browser sent whether or not the device was
+listening, and that is no longer what happens.
+
+| measured 2026-08-23, protocol version 1 | |
 |---|---|
-| longest `gap` over a full payload | **0 ms** |
-| longest `stall` over a full payload | **53 ms** |
-| `CABLE_QUIET_MS` | 4000 |
+| longest `gap` over a full payload | 0 ms |
+| longest `stall` over a full payload | 53 ms |
+| the same payload before `CABLE_RX_BUFFER` | `gap` 4001 ms, dead on the first file |
 
-Measured on 2026-08-23, the first hardware to run this: a full payload of ten
-files and 199 KiB, across in 3.3 s at 60 KB/s. So 4000 has a measurement behind
-it now, and an enormous one — the margin is the timeout itself, near enough.
+A full payload of ten files and 199 KiB, across in 3.3 s at 60 KB/s. The `gap`
+of 0 did not mean the wire was fast; it meant a 64 KB buffer was swallowing the
+burst, so the device never had to wait. And the 4001 ms before that buffer
+existed was not lateness — the device was waiting for bytes that had been
+**thrown away**, which no value of `CABLE_QUIET_MS` could have rescued.
 
-**That margin is only real because of `CABLE_RX_BUFFER`, and the two have to be
-read together.** Before it, the same transfer reported a `gap` of 4001 ms and
-died on the first file, and no value of `CABLE_QUIET_MS` would have saved it:
-the device was not waiting for bytes that were late, it was waiting for bytes
-that had been thrown away. The gap being 0 now does not mean the wire got
-faster - it means nothing is being discarded, so the device never waits at
-all.
+**What version 2 has to show is different, and none of it has run on hardware
+yet.** Written down before the run rather than remembered after it:
+
+| what a bench run has to report | what it should say, and why |
+|---|---|
+| longest `gap` over a full payload | **small and not zero.** The device waits after every `ack` for a window it has just asked for, so the gap is now a round trip. Zero would mean no window was ever waited for. |
+| longest `stall` over a full payload | around 53 ms still, or worse on a fuller partition — and it no longer matters what it is. A stall is a pause now, not a hole. |
+| the rate | slower than 60 KB/s, by one round trip per window. 55 of them for that payload, so the question is whether it is 5% or 50%. |
+| bytes lost | **zero, and this is the one that is not a matter of degree.** A short file, a wrong checksum or an `err short` on a payload the device had room for means the window is not doing its job. |
+
+The last row is the whole change. The others are the price of it, and the price
+is worth knowing before anybody decides it is too high.
+
+### The window is the flow control
+
+The device sends a number with its `go` and takes no more than that before
+saying it has the bytes:
+
+```
+< go 4096          at most this much
+<4096 raw bytes>
+< ack 8192         and this much is now in the file system
+```
+
+`ack` carries the **running total**, not the size of the piece. A per-piece
+count agrees with itself all the way down a stream that has slipped; a total
+disagrees with what the browser has sent, at the first window, out loud. The
+browser compares them and stops.
+
+Three things follow, and the third is the point:
+
+- **The browser reads the number, it does not choose one.** The device is the
+  end that knows how much room it has. A browser with a chunk size of its own
+  is the guess this replaced, one layer up.
+- **The end of the file ends the window.** The last one is short and is
+  acknowledged like the rest, so neither side has a full-or-partial case to get
+  wrong. An empty file has no windows and no acks, which is the rule read
+  literally rather than an exception to remember.
+- **The bytes in flight are bounded by a number the device chose**, so the
+  receive buffer is sized from it — `Serial.setRxBufferSize(CABLE_WINDOW)`,
+  4 KB where 64 KB used to be. That is not a saving, it is the difference
+  between a promise and a hope.
+
+**`CABLE_RX_BUFFER` was a workaround and it has gone.** It was arithmetic
+rather than comfort — USB fills an empty buffer at about 490 KB/s, the longest
+LittleFS write measured 46 ms, so 22 KB could arrive with nowhere to go, and
+16 KB had already been tried and lost 214 bytes of 26912. But it was a *bound
+and not a guarantee*: a longer stall on a fuller partition would have overrun
+64 KB in exactly the same silence, because the interrupt reads the USB FIFO,
+finds no room and discards, and CDC has no way to tell the other end. The
+browser reports every chunk written and the device is quietly short.
+
+There is no number to get wrong now. The device cannot fall further behind than
+it asked to.
+
+**It cost a version.** `CABLE_VERSION` is 2, and the break is in both
+directions: a version 1 browser pushes a whole file into a device waiting to be
+asked, and a version 1 device never sends the window a version 2 browser waits
+for. There is no compatibility path and there should not be one — no devices
+are in the field, every one is on the desk, and a protocol carrying a path
+nobody needs is worse than a clean one. It was free exactly once.
+
+**And it did not add a second idea of a session.** That was the thing to watch:
+an acknowledgement scheme is where "in a transfer" quietly becomes state that
+outlives the transfer. The window and the running total live for one file and
+die with it. `open` in `serve()` is untouched, so the rule below still reads the
+way it did.
 
 That third rule is not a special case. **A device that has not been greeted is
 in exactly the same state as one that has just lost a transfer** — refusing
@@ -398,11 +495,14 @@ report a connection — but nothing should ever drive the pair in sequence.
   The one thing the two used to share is handled: a device that was synced
   before still has `/version` on it, and because the name is now an ordinary one
   the first cable session sweeps it off.
-- **It has not run on real hardware yet.** Everything below has been checked
-  on a computer — see [Where it lives](#where-it-lives-and-what-is-checked) —
-  but no board has spoken this protocol. The parts that most want a real device
-  are the three timing rules above, none of which a test without a clock can
-  exercise. What a first run has to show is set out in
+- **No board has spoken version 2.** A board ran version 1 on 2026-08-23 and
+  produced the two numbers in [the four
+  seconds](#the-four-seconds-and-what-they-are-now-for) above — that is the
+  whole of the hardware this protocol has ever seen, and none of the six rows
+  below was ticked even then. Everything else has been checked on a computer;
+  see [Where it lives](#where-it-lives-and-what-is-checked). The parts that most
+  want a real device are the three timing rules above, none of which a test
+  without a clock can exercise. What a first run has to show is set out in
   [The Wi-Fi path is gone](#the-wi-fi-path-is-gone).
 
 ## Running it on a device
@@ -586,7 +686,7 @@ once and remembered is a row nobody can audit later:
 
 | | |
 |---|---|
-| a full payload transfers | all five sets, worst case near the 1.5 MB partition |
+| a full payload transfers | all five sets, worst case near the 1.5 MB partition, **with nothing lost** — see the version 2 table above for what each number should say |
 | an incremental transfer moves only what changed | the whole point of the content-addressed names |
 | an interrupted transfer leaves a fragment | pull the cable mid-transfer: `.part` and no half-file under a real name |
 | the device *speaks* the new content | not merely reports success |
@@ -666,6 +766,7 @@ amount of code to remove and deserves to say so in its own commit.
 | [`src/backend/cable.ts`](../src/backend/cable.ts) | the page's side: which port, where the files come from, what the page is told |
 | [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) | the one button — build, then send, with progress and a way to stop |
 | `tests/test_cable_format.py` | the wire format, held against the firmware's own reader |
+| `device/fixtures/cable/several-windows` | the ack cadence as a transcript, with a window of its own |
 | `e2e/build.spec.ts` | the wiring: a press, against the mock served into a real browser |
 
 The split between the last two is the useful one. `tools/cable.js` is the
@@ -707,9 +808,27 @@ suite is watched:
 python3 tools/cablemutate.py
 ```
 
-Twenty-three of them, one at a time, plus two changes that alter no behaviour
-and are expected to survive — a run in which everything fails proves only that
-the harness is broken. **23 of 23 caught, both controls surviving.**
+Thirty of them, one at a time, plus two changes that alter no behaviour and are
+expected to survive — a run in which everything fails proves only that the
+harness is broken. **30 of 30 caught, both controls surviving.**
+
+Seven of the thirty are the acknowledged transfer, and they are worth listing
+because most of them are not caught by anything the client *says*:
+
+| the fault | what catches it |
+|---|---|
+| the browser sends a chunk of its own instead of the window it was given | the mock throws away what arrives past its window and gives up, the way a full receive buffer does |
+| the browser stops waiting to be acknowledged | the same |
+| the window is assumed rather than read off the `go` | the same, and `device/fixtures/cable/several-windows`, which announces a different number from every other transcript |
+| the browser stops comparing the ack with what it sent | a scenario that forces the mock to acknowledge one byte short — nothing that is working can produce it |
+| the mock stops minding a host that outruns it | a client driven past the window by hand, which has to fail |
+| the mock's flash stops taking any time | a transfer that would then be too quick to have waited for anything |
+| the mock can no longer be made to acknowledge the wrong total | the scenario above, which then has nothing to catch |
+
+The last three are the guards on the guards. A mock that minds nothing and
+answers instantly would let every one of the first four through, so **the
+control that a client which does not wait really is caught is itself a test**,
+and it runs beside them.
 
 It did not start there. The first run caught 12, and each of the five misses
 was a real hole rather than a missing assertion:
@@ -734,7 +853,20 @@ with no newline between them, so counting is the only exactly right reading.
 **What none of this reaches is `cable.h`.** It needs Arduino and LittleFS and
 is not compiled here, so the `.part` rule, the timeouts and the drain have no
 mutation testing behind them — they are the same half a run on the bench has to
-answer for.
+answer for. The device's side of the acknowledgement is in there too: the loop
+that acks *after* writing rather than before is mutated by nothing. The
+stand-ins next door in `tests/` are harnesses rather than implementations, so
+breaking one of those would only be breaking the test.
+
+One thing does compile it, and it is worth naming because nothing in the suite
+does:
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
+```
+
+That is a compiler, not a bench. It says the header builds against the real
+Arduino core and nothing more.
 
 ## Trying it without a device
 

@@ -331,7 +331,8 @@ def device_groups(steps: list[dict]) -> list[list[str]]:
 
 
 def check_cable(reader: Path, name: str, want: dict) -> None:
-    got = run(reader, ["cable", str(want["capacity"])], wire(want))
+    got = run(reader, ["cable", str(want["capacity"]), str(want["window"])],
+              wire(want))
     spoken = [l for l in got.split("\n") if l.startswith("< ")]
     groups = device_groups(want["steps"])
     wanted = [line for group in groups for line in group]

@@ -27,7 +27,12 @@ hole rather than a missing assertion:
 
 What this cannot reach is firmware/vorlaut/cable.h: it needs Arduino and
 LittleFS, so it is not compiled here. That is the half holding the .part rule,
-the timeouts and the drain - the same half a bench run has to answer for.
+the timeouts and the drain - the same half a bench run has to answer for. The
+device's side of the acknowledgement is in there too: the loop that acks after
+writing rather than before is not mutated by anything, and the stand-ins next
+door in tests/ are harnesses rather than implementations, so breaking one of
+those would only be breaking the test. The browser's side, and the mock's
+enforcement of the window, are both below.
 
 The working tree has to be clean. Each mutation is written into a tracked file
 and undone afterwards, and doing that on top of unsaved work is not a risk
@@ -47,8 +52,10 @@ MOCK = ROOT / "tools" / "cable_mock.js"
 
 # (file, what to find, what to put there, what that would mean)
 MUTANTS: list[tuple[pathlib.Path, str, str, str]] = [
-    (FORMAT, "#define CABLE_VERSION 1", "#define CABLE_VERSION 2",
+    (FORMAT, "#define CABLE_VERSION 2", "#define CABLE_VERSION 3",
      "the protocol version moves"),
+    (FORMAT, "#define CABLE_WINDOW 4096", "#define CABLE_WINDOW 2048",
+     "the announced window changes without the answers moving with it"),
     (FORMAT, "#define CABLE_HOST_SIGIL '>'", "#define CABLE_HOST_SIGIL '@'",
      "the host sigil changes"),
     (FORMAT, "#define CABLE_NAME_MAX 63", "#define CABLE_NAME_MAX 31",
@@ -97,12 +104,47 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str]] = [
      "a checksum is read as decimal"),
     (MOCK, "await this.reply(`gap ${pending.gap ?? 0}`);", "",
      "the device stops reporting its timings"),
+
+    # --- the acknowledged transfer -------------------------------------------
+    #
+    # The flow control, from both ends and from the thing that watches it. The
+    # first two are the fault this protocol was changed to remove: a browser
+    # that sends without being asked. Neither is caught by anything the client
+    # says - they are caught because the mock throws away what arrives past its
+    # window and gives up, the way a full receive buffer does.
+    (CLIENT, "const end = Math.min(at + window, bytes.length);",
+     "const end = Math.min(at + 4096, bytes.length);",
+     "the browser sends a chunk of its own instead of the window it was given"),
+    (CLIENT,
+     "        const acked = Number((await this.expectOneOf([\"ack\"])).rest);\n"
+     "        if (acked !== at) {",
+     "        const acked = at;\n"
+     "        if (acked !== at) {",
+     "the browser stops waiting to be acknowledged"),
+    (CLIENT, "        if (acked !== at) {", "        if (false) {",
+     "the browser stops comparing the ack with what it sent"),
+    (CLIENT, 'const window = Number((await this.expectOneOf(["go"])).rest);',
+     "const window = 512;",
+     "the window is assumed rather than read off the go"),
+    (MOCK, "if (pending.since + take > pending.window) {", "if (false) {",
+     "the mock stops minding a host that outruns it"),
+    (MOCK, "  async flash() {\n    if (this.stallMs)",
+     "  async flash() {\n    if (false)",
+     "the mock's flash stops taking any time"),
+    (MOCK, "return pending.forced === \"ack\" ? pending.at - 1 : pending.at;",
+     "return pending.at;",
+     "the mock can no longer be made to acknowledge the wrong total"),
 ]
 
 # Changes that alter no behaviour. These SHOULD survive: a run in which
 # everything fails proves only that the harness is broken.
 CONTROLS: list[tuple[pathlib.Path, str, str, str]] = [
-    (CLIENT, "chunk = 4096", "chunk = 997", "the write chunk size changes"),
+    # The size of the pieces is not the protocol - which is the same thing the
+    # old "chunk = 4096" control said, from the end that now decides it. The
+    # browser reads whatever it is told, so a mock that says a different number
+    # is a different conversation and the same agreement.
+    (MOCK, "export const MOCK_WINDOW = 512;", "export const MOCK_WINDOW = 640;",
+     "the mock announces a different window"),
     (CLIENT, "const DEFAULT_TIMEOUT = 5000;", "const DEFAULT_TIMEOUT = 6000;",
      "the timeout is more generous"),
 ]

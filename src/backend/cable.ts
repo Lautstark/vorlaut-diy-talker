@@ -98,9 +98,11 @@ export type Sending = {
 
 export type Sent = {
   stored: number; removed: number; bytes: number; keep: number;
-  /** The two numbers docs/cable.md is waiting for: the longest the device sat
-   *  with nothing arriving, and the longest a single write into LittleFS took.
-   *  CABLE_QUIET_MS is 4000 and has never been measured against anything. */
+  /** The two numbers docs/cable.md keeps its table of: the longest the device
+   *  sat with nothing arriving, and the longest a single write into LittleFS
+   *  took. Since the device acknowledges every window, the gap is a round trip
+   *  rather than a browser running late - small and non-zero on a device that
+   *  is working, and zero only on one that is not acknowledging. */
   worstGap: number; worstStall: number;
 };
 

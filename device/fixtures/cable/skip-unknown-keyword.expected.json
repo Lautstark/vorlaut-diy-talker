@@ -5,7 +5,8 @@
   "ends": [
     "browser"
   ],
-  "protocol_version": 1,
+  "protocol_version": 2,
+  "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
   "steps": [
@@ -15,7 +16,7 @@
     },
     {
       "from": "device",
-      "line": "< vorlaut 1"
+      "line": "< vorlaut 2"
     },
     {
       "from": "device",
@@ -43,12 +44,20 @@
     },
     {
       "from": "device",
-      "line": "< go"
+      "line": "< go 4096"
     },
     {
       "from": "host",
       "raw": "BSpPdJm+4wgtUnecweYLMFV6n8TpDjNYfaLH7BE2W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJHbJG22wAlSm+Uud4DKE1yl7zhBitQdZq/5AkuU3idwucMMVZ7oMXqDzRZfqPI7RI3XIGmy/AVOl+Eqc7zGD1ih6zR9htAZYqv1PkeQ2iNstf8IUZrkLXa/yRJbpO43QInTHGWu+A=",
       "bytes": 512
+    },
+    {
+      "from": "device",
+      "line": "< blether 7"
+    },
+    {
+      "from": "device",
+      "line": "< ack 512"
     },
     {
       "from": "device",
@@ -68,7 +77,7 @@
     {
       "call": "hello",
       "returns": {
-        "version": 1,
+        "version": 2,
         "total": 1441792,
         "free": 1441792,
         "files": 0
@@ -87,6 +96,7 @@
   "notes": [
     "This is the cable's extension rule, and it is the opposite of the layout's. A reader skips keywords it does not know, in both directions and on purpose, so a browser can gain a field without a device in a drawer falling over - and a device can gain one without a browser that has not been reloaded falling over.",
     "The browser half only, because the device's formatters cannot produce a keyword the device does not have. A firmware that gained one would have to gain a function to write it, and the fixture it would then be held to is this one with the line moved into the device half.",
-    "'gap 12' is not invented: the firmware reports its timings that way already, and until it started doing so this client waited for exactly one line and would have read the first extra keyword as a failed transfer."
+    "'gap 12' is not invented: the firmware reports its timings that way already, and until it started doing so this client waited for exactly one line and would have read the first extra keyword as a failed transfer.",
+    "'blether 7' sits where the browser is waiting for an ack, which is the one place the extension rule was newly at risk. A client that read the very next line as its acknowledgement would take 7 for a byte count, disagree with what it had sent, and fail a transfer that was going perfectly well."
   ]
 }

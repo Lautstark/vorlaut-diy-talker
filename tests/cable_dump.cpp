@@ -44,6 +44,7 @@ static int limits(void) {
   printf("part %s\n", CABLE_PART_FILE);
   printf("quiet_ms %d\n", CABLE_QUIET_MS);
   printf("drain_ms %d\n", CABLE_DRAIN_MS);
+  printf("window %d\n", CABLE_WINDOW);
   return 0;
 }
 
@@ -108,7 +109,8 @@ static int sayAll(void) {
                      "t3bd7a1c045e29f8b6d0a4e17c93f5028.bin", 26912u); say(out);
   cableSayNameNumber(out, sizeof(out), "end", "list", 37u); say(out);
   cableSayNameHex(out, sizeof(out), "crc", "layout.bin", 0x1a2b3c4du); say(out);
-  cableSayBare(out, sizeof(out), "go"); say(out);
+  cableSayNumber(out, sizeof(out), "go", CABLE_WINDOW); say(out);
+  cableSayNumber(out, sizeof(out), "ack", 8192u); say(out);
   cableSayNameNumber(out, sizeof(out), "ok",
                      "a8c1e9b0d4f2a6c3b7e5d1908a4c2f6b.wav", 41008u); say(out);
   cableSayWord(out, sizeof(out), "gone", "layout.bin"); say(out);
@@ -236,13 +238,26 @@ static int session(void) {
           say(out);
           break;
         }
-        cableSayBare(out, sizeof(out), "go");
+        cableSayNumber(out, sizeof(out), "go", CABLE_WINDOW);
         say(out);
 
+        // A window at a time, acknowledged after each, exactly as cable.h
+        // does it. Nothing here is waiting on the acks - this is a replay of
+        // bytes that were recorded earlier - but they have to be SAID, in the
+        // right places, or the browser transcript this is fed and the answers
+        // this prints would describe two different protocols.
         std::string payload;
         payload.resize(command.size);
-        const size_t got = command.size
-            ? fread(&payload[0], 1, command.size, stdin) : 0;
+        uint32_t got = 0;
+        while (got < command.size) {
+          size_t want = command.size - got;
+          if (want > (size_t)CABLE_WINDOW) want = (size_t)CABLE_WINDOW;
+          const size_t took = fread(&payload[got], 1, want, stdin);
+          got += (uint32_t)took;
+          if (took != want) break;
+          cableSayNumber(out, sizeof(out), "ack", got);
+          say(out);
+        }
         if (got != command.size) {
           device.greeted = false;
           cableSayErr(out, sizeof(out), "short", command.name);

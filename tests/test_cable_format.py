@@ -25,6 +25,14 @@ every line the device can send, and the browser client is made to read them
 back. What neither can prove without hardware is anything to do with time -
 giving up on a transfer that stopped arriving, and finding the way back into
 line mode afterwards. Those are marked as such below rather than faked.
+
+The acknowledged transfer straddles that line and is worth saying where. That
+the browser waits for each window before sending the next IS checked here, in
+the "windows" scenario, because the mock can be made slow and can throw away
+what arrives past its window exactly as a full receive buffer does - so a
+client that does not wait fails. What is still out of reach is whether a real
+device's flash is what it is waiting for. That is a number on a bench and it
+lives in docs/cable.md.
 """
 
 from __future__ import annotations
@@ -98,18 +106,38 @@ def check_limits(reader: Path, problems: list[str]) -> None:
     """
     got = fields(subprocess.run([str(reader), "limits"], capture_output=True,
                                 text=True, check=True).stdout)
-    expected = {"version": "1", "line_max": "128", "name_max": "63",
+    expected = {"version": "2", "line_max": "128", "name_max": "63",
                 "host_sigil": ">", "device_sigil": "<", "part": "/.part"}
     for key, value in expected.items():
         if got.get(key) != value:
             problems.append(f"{key} is {got.get(key)}, the contract says {value}")
 
     # The client has to carry the same version, or a device that answers
-    # "vorlaut 2" would be driven with a protocol it no longer speaks.
+    # "vorlaut 3" would be driven with a protocol it no longer speaks.
     source = (ROOT / "tools" / "cable.js").read_text(encoding="utf-8")
     if f"export const CABLE_VERSION = {got.get('version')};" not in source:
         problems.append("tools/cable.js does not carry the same CABLE_VERSION "
                         f"as the firmware ({got.get('version')})")
+
+    # The window and the receive buffer, which is the whole arithmetic of the
+    # acknowledged transfer and is not visible anywhere else.
+    #
+    # The browser reads the window off the wire and never needs the constant,
+    # so there is no second copy of it to compare against. What there IS to
+    # check is the property the number rests on: the device promises to hold a
+    # window, so the buffer it allocates has to be that window. Sized from
+    # anything else - a literal, an older constant, a guess - and the promise
+    # is not backed by the memory to keep it, which is exactly the failure the
+    # 64 KB receive buffer was papering over.
+    window = got.get("window")
+    if not (window or "").isdigit() or int(window) <= 0:
+        problems.append(f"the window is {window}, which is not a size")
+    sketch = (ROOT / "firmware" / "vorlaut" / "vorlaut.ino").read_text(
+        encoding="utf-8")
+    if "Serial.setRxBufferSize(CABLE_WINDOW);" not in sketch:
+        problems.append("vorlaut.ino does not size its receive buffer from "
+                        "CABLE_WINDOW, so the device is promising to hold a "
+                        "window it may have no room for")
 
 
 # --- Names -------------------------------------------------------------------
@@ -289,7 +317,7 @@ def check_commands(reader: Path, problems: list[str]) -> int:
 # rather than derived, because this is the half tools/cable.js has to read and
 # a change on either side should have to be made twice on purpose.
 ANSWERS = """\
-< vorlaut 1
+< vorlaut 2
 < total 1441792
 < free 1146880
 < files 37
@@ -297,7 +325,8 @@ ANSWERS = """\
 < file t3bd7a1c045e29f8b6d0a4e17c93f5028.bin 26912
 < end list 37
 < crc layout.bin 1a2b3c4d
-< go
+< go 4096
+< ack 8192
 < ok a8c1e9b0d4f2a6c3b7e5d1908a4c2f6b.wav 41008
 < gone layout.bin
 < bye 12 3 486400
@@ -332,7 +361,7 @@ def check_readback(node: str, problems: list[str], answers: str) -> None:
         return
     seen = report["detail"]
     expected = {
-        "hello": {"version": 1, "total": 1441792, "free": 1146880, "files": 37},
+        "hello": {"version": 2, "total": 1441792, "free": 1146880, "files": 37},
         "list": [{"name": "t3bd7a1c045e29f8b6d0a4e17c93f5028.bin", "size": 26912}],
         "crc": "1a2b3c4d",
         # The one where a signed shift would turn eight digits into eleven.
@@ -501,6 +530,9 @@ def check_sessions(reader: Path, node: str, problems: list[str]) -> list[str]:
 
 CLIENT_ONLY = [
     ("ungreeted", "a verb before hello is refused, and hello still gets in after"),
+    ("windows", "a file crosses a window at a time, waiting for each to be taken"),
+    ("outran", "and a client that does not wait has its bytes thrown away"),
+    ("slipped", "an ack that disagrees with what was sent stops the transfer"),
     ("badcrc", "a file that arrived wrong is refused, and says so"),
     ("cancelLast", "aborting on the last step still never sends done"),
     ("timings", "the device's gap and stall arrive, and are stepped over"),
@@ -536,7 +568,7 @@ def check_greeting(reader: Path, problems: list[str]) -> str:
                         f"{refused} rather than two 'err session'")
     # And the door is not locked behind them - the refusal is the way back in,
     # not the end of the session.
-    if "< vorlaut 1" not in replies:
+    if "< vorlaut 2" not in replies:
         problems.append("the C reader refused hello after refusing what came "
                         "before it")
     return "a verb before hello is refused by the firmware reader too"
@@ -596,8 +628,10 @@ def main() -> int:
     for note in client:
         print(f"    {note}")
     print("\n  Not covered here, and not coverable without hardware: giving up "
-          "on a\n  transfer that stopped arriving, and the drain back into "
-          "line mode after it.")
+          "on a\n  transfer that stopped arriving, the drain back into line "
+          "mode after it,\n  and whether a real flash write is what the "
+          "browser waits out between\n  two windows. The waiting itself is "
+          "checked; what it is waiting FOR is not.")
     print("\n  All good.")
     return 0
 

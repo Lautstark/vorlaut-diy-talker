@@ -5,7 +5,8 @@
   "ends": [
     "device"
   ],
-  "protocol_version": 1,
+  "protocol_version": 2,
+  "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
   "steps": [
@@ -31,7 +32,7 @@
     },
     {
       "from": "device",
-      "line": "< vorlaut 1"
+      "line": "< vorlaut 2"
     },
     {
       "from": "device",

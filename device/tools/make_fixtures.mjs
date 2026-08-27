@@ -994,8 +994,17 @@ fixture({
 // it does not know. Each of those is exactly one direction of the cable's
 // extension rule, and each can only be checked from the side that reads it.
 
-const CABLE_VERSION = 1;
+const CABLE_VERSION = 2;
 const CAPACITY = 1441792;
+
+// The window a transcript's device announces in its "go", and the most file
+// content it takes before answering "ack". Written here rather than taken from
+// CABLE_WINDOW in the firmware, on purpose: what a fixture pins is one
+// conversation, and a fixture that followed the header would move whenever the
+// header did and could never hold a browser to reading the number it was given
+// rather than one it assumed. A transcript may announce 256 where the firmware
+// announces 4096 and both are conformant - `several-windows` below does.
+const WINDOW = 4096;
 
 const TILE_FILE = `t${NAME_HASH}.bin`;
 const AUDIO_FILE = `a${AUDIO_HASH}.wav`;
@@ -1010,6 +1019,25 @@ function content(seed, length) {
 const host = (line) => ({ from: "host", line });
 const device = (line) => ({ from: "device", line });
 const raw = (bytes) => ({ from: "host", raw: b64(bytes), bytes: bytes.length });
+
+/** A file's content as it really crosses: a window at a time, each window
+ *  answered before the next one is sent.
+ *
+ * This is the shape of the whole change, and it is why a transcript is the
+ * right thing to state it in. The rule is not "an ack per file" - it is that
+ * the host has at most one window outstanding, which only an ordered list of
+ * who-said-what can express. `at` is the running total the device sends back,
+ * so a stream that slipped disagrees with itself out loud. */
+function windows(bytes, window) {
+  const steps = [];
+  for (let at = 0; at < bytes.length; ) {
+    const end = Math.min(at + window, bytes.length);
+    steps.push(raw(bytes.subarray(at, end)));
+    at = end;
+    steps.push(device(`< ack ${at}`));
+  }
+  return steps;
+}
 
 /** A device line whose position among its neighbours is not specified.
  *
@@ -1026,13 +1054,14 @@ const raw = (bytes) => ({ from: "host", raw: b64(bytes), bytes: bytes.length });
 const anyOrder = (line) => ({ from: "device", line, any_order: true });
 
 function cableFixture({ name, summary, ends, start = [], steps, end = null,
-                        script = null, notes = [] }) {
+                        script = null, notes = [], window = WINDOW }) {
   fixture({
     kind: "cable", name, dir: "cable", outcome: "accepted", summary,
     expected: {
       fixture: name, kind: "cable", summary,
       ends,
       protocol_version: CABLE_VERSION,
+      window,
       device_starts_with: start.map((f) => ({
         name: f.name, size: f.bytes.length, crc: hex8(crc32(f.bytes)),
         content: b64(f.bytes),
@@ -1106,8 +1135,8 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       device("< files 0"),
       device("< end hello"),
       host(`> put ${AUDIO_FILE} ${payload.length} ${hex8(sum)}`),
-      device("< go"),
-      raw(payload),
+      device(`< go ${WINDOW}`),
+      ...windows(payload, WINDOW),
       device(`< ok ${AUDIO_FILE} ${payload.length}`),
       host("> done"),
       device("< bye 1 0 1024"),
@@ -1126,6 +1155,7 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
     notes: [
       "The bytes follow the go with no newline in front of them and no newline after them. That is why a reader of this stream has to count rather than search: anything looking for the next command at a line start misses it after every file, and anything searching for the text of a command finds one inside a recording sooner or later.",
       "The checksum is of the file's own bytes and not of its name. The names are hashes of the INPUT that produced a file - the source picture and the pipeline version, the sentence and the voice - so a name proves which content was meant and never which arrived.",
+      "The go carries a window and the ack carries a running total. The file fits inside one window here, so there is one of each - see several-windows for the cadence when it does not. What the pair is for is that the device writes to flash between them: the ack means the bytes are in the file system, and until it arrives the browser sends nothing, so a slow write costs time instead of the content that would have landed during it.",
     ],
   });
 }
@@ -1145,8 +1175,10 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       device("< files 0"),
       device("< end hello"),
       host(`> put ${TILE_FILE} ${payload.length} ${hex8(crc32(payload))}`),
-      device("< go"),
+      device(`< go ${WINDOW}`),
       raw(payload),
+      device("< blether 7"),
+      device(`< ack ${payload.length}`),
       device("< gap 12"),
       device("< quirk something entirely new"),
       device(`< ok ${TILE_FILE} ${payload.length}`),
@@ -1161,6 +1193,62 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       "This is the cable's extension rule, and it is the opposite of the layout's. A reader skips keywords it does not know, in both directions and on purpose, so a browser can gain a field without a device in a drawer falling over - and a device can gain one without a browser that has not been reloaded falling over.",
       "The browser half only, because the device's formatters cannot produce a keyword the device does not have. A firmware that gained one would have to gain a function to write it, and the fixture it would then be held to is this one with the line moved into the device half.",
       "'gap 12' is not invented: the firmware reports its timings that way already, and until it started doing so this client waited for exactly one line and would have read the first extra keyword as a failed transfer.",
+      "'blether 7' sits where the browser is waiting for an ack, which is the one place the extension rule was newly at risk. A client that read the very next line as its acknowledgement would take 7 for a byte count, disagree with what it had sent, and fail a transfer that was going perfectly well.",
+    ],
+  });
+}
+
+{
+  // The cadence, and the only fixture whose window is not the usual one.
+  //
+  // 256 is small enough that 640 bytes takes three of them and the last is a
+  // remainder, which are the two things one window could never show: that the
+  // browser sends the announced amount and waits, and that the end of the file
+  // ends the window whether or not it is full.
+  //
+  // A different number from every other transcript on purpose. A browser that
+  // had quietly kept a chunk size of its own would agree with all of them and
+  // disagree with this one.
+  const SMALL = 256;
+  const payload = content(23, 640);
+  const sum = crc32(payload);
+  cableFixture({
+    name: "several-windows",
+    summary: "A file that takes three windows, the last of them short. The browser sends what it was told and waits to be told again.",
+    ends: ["device", "browser"],
+    window: SMALL,
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device("< end hello"),
+      host(`> put ${TILE_FILE} ${payload.length} ${hex8(sum)}`),
+      device(`< go ${SMALL}`),
+      ...windows(payload, SMALL),
+      device(`< ok ${TILE_FILE} ${payload.length}`),
+      host("> done"),
+      device(`< bye 1 0 ${payload.length}`),
+    ],
+    end: {
+      files: [{ name: TILE_FILE, size: payload.length, crc: hex8(sum) }],
+      stored: 1, removed: 0, bytes: payload.length,
+    },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY, files: 0 } },
+      { call: "put", name: TILE_FILE, content: b64(payload),
+        returns: { name: TILE_FILE, size: payload.length } },
+      { call: "done", returns: { stored: 1, removed: 0, bytes: payload.length } },
+    ],
+    notes: [
+      "This is the flow control, written down as the only thing that can express it: an order. The rule is not that a file is acknowledged - it is that the host never has more than one window outstanding, and no single line says that. Three sends and three acks, strictly alternating, does.",
+      "The window is the device's number and the browser must take it off the wire. The device is the end that knows how much room it has; a browser choosing for itself is the guess this replaced. 256 here against 4096 in every other transcript is what makes a client that ignored it fail rather than pass by luck.",
+      "The last window is 128 bytes and is acknowledged like the others. The end of the file ends the window, so there is no full-or-partial case to get wrong on either side - cable.h acks on `got - acked >= window || got == size` and the browser sends `min(window, what is left)`.",
+      "The acks carry a running total rather than the size of the piece. A per-piece count would agree with itself all the way down a stream that had slipped; a total disagrees with what the browser has sent, at the first window, out loud.",
+      "What this cannot show is the part it exists for. There is no clock in a transcript, so nothing here proves the device was busy between an ack and the next window - only that it said so in the right places. The timing is docs/cable.md's table and a board on a desk.",
+      "No gap and no stall here, for that same reason and not by oversight. Both are held to the device end, and the harness that plays the device end has no clock to produce them with - a fixture that carried them would be asking a compiled header for a measurement. They appear in skip-unknown-keyword, which is the browser's end only, where what is being asked is whether they are stepped over.",
     ],
   });
 }
@@ -1289,8 +1377,8 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       host("> rm .part"),
       device("< err bad"),
       host(`> put ${TILE_FILE} ${payload.length} 00000000`),
-      device("< go"),
-      raw(payload),
+      device(`< go ${WINDOW}`),
+      ...windows(payload, WINDOW),
       device(`< err crc ${TILE_FILE}`),
       host(`> put ${AUDIO_FILE} ${CAPACITY + 1} deadbeef`),
       device(`< err nospace ${AUDIO_FILE}`),
@@ -1302,6 +1390,7 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
     end: { files: [], stored: 0, removed: 0, bytes: 0 },
     notes: [
       "Nothing is left behind by any of these. A refused checksum throws the half-written file away and nothing appears under the real name, which is why the device ends holding nothing at all.",
+      "The bad file is acknowledged and THEN refused, in that order, because the acknowledgement is about the bytes arriving and says nothing about whether they were the right ones. cable.h acks inside the loop that reads the file and only looks at the checksum once that loop has run out of file, so an ack before an err crc is not a contradiction - it is the only order there is.",
       "The no-space refusal comes BEFORE the go, so the browser never starts sending. That is the whole reason go exists as a step of its own.",
       "One word for what went wrong and an optional second for whoever is reading. The first word is what a browser acts on; the second is for a person.",
     ],
