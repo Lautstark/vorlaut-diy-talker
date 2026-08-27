@@ -174,6 +174,7 @@ async function supplyFiles(page: Page) {
 }
 
 
+
 /* The symbol source is the Sammlung's, and a new one starts from the machine.
  *
  * The pattern the voice and bildhaft already use: the app's setting is the
