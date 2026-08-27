@@ -28,7 +28,8 @@ import { t } from "../core/texts.js";
 import {
   asksForHome, homeSymbolUrl, homeWord, takeHomeSymbol,
 } from "./homekey.js";
-import type { ProviderId } from "@lautstark/bildquelle";
+import { needsAttention } from "@lautstark/bildquelle";
+import type { ProviderId, ProviderStatus } from "@lautstark/bildquelle";
 
 /* --- The seam ------------------------------------------------------------
  *
@@ -119,14 +120,22 @@ function folderWanted(): string {
  * does between visits, without being asked. Only the second has a way back in
  * that does not involve going and finding the folder again.
  *
- * A rule over what the provider says, rather than a reach into it, so that it
+ * **Narrower than bildquelle's `needsAttention`, and built out of it.** That is
+ * the package's answer to "is this somebody's to act on", and it counts a
+ * folder that could not be *read* as well - a path that has gone, an empty
+ * directory. Those are things to act on and are not things a permission prompt
+ * mends, so a button offering to would promise something it cannot do. What is
+ * left after the narrowing is this app's question, but the half both share is
+ * asked once, in the package that knows what the states mean. Written out here
+ * it agreed with `needsAttention` on the day it was written and would have
+ * drifted from it silently on any day after.
+ *
+ * A rule over what the provider says rather than a reach into it, so that it
  * can be held to plain objects in tests/unit/picker_reconnect.test.ts. The
- * distinction is the whole of what the button promises, and getting it wrong
- * would offer a press that opens a picker somebody did not ask for.
+ * distinction is the whole of what the button promises.
  */
-export const canReconnect = (
-  status: { kind: string; code?: string },
-): boolean => status.kind === "needs-setup" && status.code === "permission-needed";
+export const canReconnect = (status: ProviderStatus): boolean =>
+  needsAttention(status) && status.kind === "needs-setup";
 
 /** The way back in, where there is one.
  *
