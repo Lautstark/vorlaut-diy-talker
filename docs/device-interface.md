@@ -431,7 +431,7 @@ intuition about tidiness. Held to it:
 | The transport | replaced entirely 2026-08-22/23. Wi-Fi out, cable in — which **deleted one of the four formats ADR 0006 names** |
 | `cable_format.h` | three commits, newest 2026-08-23, and its own comment names a pending change *to both halves of the protocol*: the device acknowledging each chunk, *"worth doing before this device is out of reach of a cable"* |
 | `src/data/layout_format.ts` | changed 2026-08-25 — yesterday — in a breaking commit that permanently invalidated one of the seventeen frozen cases |
-| The model itself | `exchange/SPEC.md` is 1.1.0 **draft**; no `exchange-v*` tag is cut and none will be until a real board reaches a tablet |
+| The model itself | `exchange/SPEC.md` is 1.2.0 **draft** — 1.1.0 when this row was written, minor-bumped the day after; no `exchange-v*` tag is cut and none will be until a real board reaches a tablet |
 
 Condition 1 asks whether `layout.bin` and the cable protocol are "frozen for
 good". One had a semantic change yesterday; the other has a named pending change

@@ -181,7 +181,7 @@ payload is simply too big for the partition and nothing is sent at all.
 ## Half a file, and the handshake that prevents worse
 
 Files land under `/.part` and are renamed only once they are whole and their
-checksum agrees — the same rule `sync.h` follows, for the same reason. **A
+checksum agrees — the same rule `sync.h` followed, for the same reason. **A
 transfer that breaks off leaves a fragment behind, never half a file under a
 name that promises whole content.** The name was shared with the Wi-Fi sync
 while both existed — deliberately, since the two never ran at once — and it is

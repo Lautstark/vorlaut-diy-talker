@@ -1,9 +1,14 @@
 # Negation: crossing out a symbol
 
-**Status: proposal, nothing built. 2026-08-25.** Written to be argued with.
-Four of its five answers are recommendations somebody else can overturn without
-touching the fifth; the last section says which decisions are not this
-repository's to make.
+**Status: proposal, 2026-08-25 — and everything in it is built by 2026-08-27
+except the one part that needs the specification.** `bakeImage({ negated })`
+draws the cross into the package PNG, `tiles.ts` draws it into the device tile,
+and `obf.ts` writes `ext_vorlaut_negated` on the talker's own export. What is
+still unbuilt is `ext_lautstark_negated` in §2, which is not this repository's
+alone to spend — see [`format-freeze.md`](format-freeze.md#p1-ext-lautstark-negated-is-recommended-and-unwritten).
+Written to be argued with. Four of its five answers are recommendations
+somebody else can overturn without touching the fifth; the last section says
+which decisions are not this repository's to make.
 
 ## The question
 
@@ -113,7 +118,9 @@ between the three options; it is the floor under all of them.
 
 The question is only whether the *fact* travels beside the pixels, and the
 recommendation is that it should: **`ext_lautstark_negated`, a button
-extension, minor bump to 1.2.0.**
+extension, minor bump to 1.3.0.** This document proposed 1.2.0 when it was
+written; 1.2.0 was spent on `ext_lautstark_append_on_navigate` on 2026-08-26,
+so the negation field is the minor after it.
 
 Bake-only loses something real. A package that comes back cannot be
 un-negated, no reader can search for negated buttons, no reader can caption
@@ -143,7 +150,7 @@ closer to:
 
 Under that wording the two can never disagree in a way that reaches a screen,
 because only one of them is ever drawn. The field is then exactly as
-round-trippable as bake-only is not, and costs a v1.1.0 reader nothing: §10.3
+round-trippable as bake-only is not, and costs a v1.2.0 reader nothing: §10.3
 already has it ignoring unknown fields, and the shipped
 [`vorlaut-app`](https://github.com/Lautstark/vorlaut-app) renders the crossed
 PNG correctly today, knowing nothing.
@@ -422,12 +429,12 @@ Four, in the order they block anything.
    how the numbers drift.
 
 2. **The specification bump.** §2 proposes `ext_lautstark_negated` as a button
-   extension at 1.2.0, with wording that forbids an importer drawing anything.
+   extension at 1.3.0, with wording that forbids an importer drawing anything.
    Proposing a version bump is not making one, and
    [`exchange/SPEC.md`](../exchange/SPEC.md) is unchanged by this document. §13
    makes fixtures normative over prose, so the bump owes a fixture and an
    `.expected.json` before it means anything, and §12 makes it a minor because a
-   1.1.0 importer ignoring the field renders a correctly crossed board.
+   1.2.0 importer ignoring the field renders a correctly crossed board.
 
 3. **Whether the tablet gets the mark at all in the first pass.** The talker
    needs it and has no alternative. The tablet has a genuinely better answer

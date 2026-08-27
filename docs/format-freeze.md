@@ -1,7 +1,10 @@
 # What is still moving in the three formats
 
-**Status: survey, nothing changed. 2026-08-27.** Nothing here was fixed, no
-format was touched, and no tag was cut. The list is the deliverable.
+**Status: survey. 2026-08-27.** No format was touched and no tag was cut, and
+that is still true. Two things have moved since it was written, both recorded
+in place rather than folded away: [C1](#c1-chunk-acknowledgement--in-flight)
+landed, and the six drifted citations in §9 were repaired. The list is the
+deliverable.
 
 [`adr/0006`](../adr/0006-builder-and-hardware-one-repo.md) gained a dated line
 on 2026-08-26 — *condition 1, not met* — on the strength of two facts: a
@@ -546,22 +549,76 @@ Not pending format changes, and listed separately for that reason. Each of
 these travels with a format across a repository boundary, which is when a
 wrong sentence stops being harmless.
 
+**All six were repaired on 2026-08-27**, and the entries are kept rather than
+deleted, for the reason [C1](#c1-chunk-acknowledgement--in-flight)'s is: what a
+survey found, against what fixing it turned up, is the part worth reading a
+second time. Fixing them turned up **eighteen more of exactly the same kind** —
+in six of the seven files named below, and in three that are not named below at
+all: [`cable.md`](cable.md), `vorlaut.ino` and `test5_sound.ino`. That is the
+finding. This section was written by reading, and reading caught the citation
+at the top of a file and missed the one two hundred lines down. The method that
+caught the rest was `git log --diff-filter=D --name-only` for what has actually
+been deleted, then grepping every tracked file for those names. **No gate
+covers this.** `tests/test_links.py` checks paths written out in prose, but its
+pattern is `docs/*.md` and nothing else, so a comment naming `build.py` or
+`sync.h` has never been anybody's to catch but a reader's.
+
 - **[`frozen-references.md`](frozen-references.md) names five test files that
   no longer exist**, two of them in the present tense — *"`test_layout_format.py`
   stays as it was and keeps doing the live three-way comparison"*. That
   comparison does still happen, in `test_layout_frozen.py`, which feeds the
   bytes node just wrote into the compiled C reader. The claim is right and the
-  file name is wrong.
+  file name is wrong. *Repaired, and the third party named for what it now is:
+  a captured value where `layout_format.py` was a live opinion.* **Three more
+  present-tense claims, not two** — the last three rows of "What is still only
+  checked against itself" each say a thing is checked by a test that went on
+  2026-08-22, which is the one section where a wrong name reads as coverage
+  that exists. `static/tts/level.js`, `tiles.js` and one comparison of the tile
+  test's three had drifted the same way.
 - **`layout_format.h` and `layout_format.ts` both open by citing deleted
   files** — `build.py`, `layout_format.py`, `static/layout_format.js`,
   `tests/test_layout_format.py`. `layout_format.h` is the file another
-  repository would pin.
+  repository would pin. *Repaired.* **Three more, all further down.**
+  `layout_format.h`'s stride block says the numbers *"have to agree with
+  layout_format.py"*, which is the one sentence in that header a second
+  implementer would act on. `layout_format.ts` cites `LANGUAGE_CODES in
+  layout.py`, which is `device/fixtures/language.expected.json`'s statement
+  now, and `renderLayoutBin()`'s own docstring promised "as build.py would
+  write them".
 - **`cable_format.h` carries a comment with no `#define` under it**, describing
   the bookkeeping file the Wi-Fi sync kept. The constant went with the radio;
-  the paragraph stayed.
+  the paragraph stayed. *Repaired as the record of why the constant is absent.*
+  **Three more citations in the same file** — `pair_format.h` as a live
+  sibling, and `sync.h` twice, once for the manifest's line format and once for
+  the name `/.part` was said to share with a sweep that no longer runs.
 - **`cable.h` still says "This does NOT replace sync.h. Both are compiled in
-  and both work."** `sync.h` was deleted on 2026-08-23.
+  and both work."** `sync.h` was deleted on 2026-08-23. *Repaired, including
+  what the sentence promised and did not get: the deletion happened with the
+  real-hardware bar unmet, because the far end of the Wi-Fi path had gone
+  first.* **A second `sync.h` in the same file**, on the `/.part` rename — and
+  `cable.md` carries that one too, in a paragraph that contradicts itself four
+  lines later.
 - **`device-interface.md`'s evidence table records SPEC.md as 1.1.0 draft.**
   It is 1.2.0, and has been since the day after that table was written.
+  *Repaired; the row now carries the move, which is itself evidence for the
+  argument the table is making.*
 - **`negation.md` still says "nothing built"** and names a version that has
   been spent. See [P1](#p1-ext-lautstark-negated-is-recommended-and-unwritten).
+  *Repaired.* **The spent version is named four times, not once** — twice as
+  the bump to make, and twice as the importer version that ignores the field
+  harmlessly, which moves with it.
+
+- **Not in this section at all: the sketch.** `vorlaut.ino` opens by saying
+  *"layout.h and the contents of data/ are produced by build.py"* — three names
+  in one sentence, none of which exists — and names
+  `tests/test_layout_format.py` as what compiles `layout_format.h` on the
+  computer. It is the file a second implementer reads first, for the same
+  reason `layout_format.h` is the file they would pin. `test5_sound.ino` calls
+  16000 *"the rate build.py writes the WAVs at"*. *All repaired.*
+
+**One thing this pass did not find:** a place where the prose is right and the
+code is wrong. Every item above is a pointer that moved. The nearest thing to a
+finding of the other kind is a gap rather than a contradiction, and it is
+recorded in `frozen-references.md` where the rest of that list lives: the
+`onnxruntime-web` version is written in three files that have to agree,
+`renovate.json5` explains at length why, and nothing checks that they do.
