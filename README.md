@@ -163,7 +163,7 @@ draw, is in [docs/languages.md](docs/languages.md).
 | [docs/repository-map.md](docs/repository-map.md) | The repositories in the family, what each one does, and the seams between them |
 | [docs/split-crossings.md](docs/split-crossings.md) | What crossed the seam before the editor left, name by name, and what each crossing cost |
 | [docs/packages.md](docs/packages.md) | The shared packages, how they are pinned, and what this repository asks of them |
-| [docs/releases.md](docs/releases.md) | Which tag prefix releases what, and the commit convention release-please reads |
+| [docs/releases.md](docs/releases.md) | Which tag prefix releases what, why the loader page has none, and the commit convention |
 | [docs/frozen-references.md](docs/frozen-references.md) | What still checks the browser halves once the Python ones are deleted, and what does not |
 | [adr/](adr/) | The decisions that would otherwise be "tidied up" later, and why each of them is not an oversight |
 

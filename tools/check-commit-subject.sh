@@ -31,23 +31,26 @@ if printf '%s' "$subject" | grep -Eq "$pattern"; then
   exit 0
 fi
 
+# Unquoted heredoc, because the message has to expand $subject. So the message
+# must contain no backticks and no bare $ - either would be substituted, and the
+# result is a rejection message with this repository's git log pasted into it.
 cat >&2 <<MSG
 Not a conventional commit:
 
   $subject
 
-release-please reads the prefix and ignores everything else, so a commit
-without one lands with no changelog entry and no version bump, and says
-nothing about it. Silence is the whole failure.
+The prefix says what a commit is before the sentence says what it does, and
+it is what makes a one-line log skimmable across three languages. Put it in
+front of the sentence you were going to write anyway.
 
-  feat:      a capability that was not there before   -> minor
-  fix:       something that was wrong is now right    -> patch
-  perf:      the same thing, faster                   -> patch
+  feat:      a capability that was not there before
+  fix:       something that was wrong is now right
+  perf:      the same thing, faster
   refactor:  the same behaviour, arranged differently
   docs:      prose
   test, build, ci, chore:  everything else
 
-  feat!: or a "BREAKING CHANGE:" trailer -> major
+  feat!: or a "BREAKING CHANGE:" trailer marks a breaking change
 
 A scope is optional and is a path-ish word, not a sentence: fix(cable):,
 docs(adr):.

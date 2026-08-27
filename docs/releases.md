@@ -1,96 +1,65 @@
 # Releasing, and which tag means what
 
-Four tag prefixes are spoken for in this repository, on as many schedules and
-by as many mechanisms — two of them cut today, two reserved against formats
-that are not frozen yet. That is a consequence of keeping the builder and the
-hardware together — see [`adr/0006-builder-and-hardware-one-repo.md`](../adr/0006-builder-and-hardware-one-repo.md)
-— and it works only as long as the tag prefixes stay out of each other's way.
+**One prefix is cut in this repository, and one is reserved.** It was four until
+2026-08-27, and the shrinking is two decisions rather than a tidy-up:
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) took the editor
+and `exchange/` to `vorlaut-editor`, and
+[ADR 0016](../adr/0016-the-browser-half-stops-being-released.md) retired
+`builder-v*` because what was left of the browser half is a page deployed
+continuously to Pages rather than a thing anybody releases.
 
 | Prefix | What it releases | Cut by | Notes written by |
 |---|---|---|---|
-| `builder-v*` | the page in `src/` | release-please, on merge of its pull request | release-please, from the commits |
 | `v*` | the firmware image | `git tag v0.2 && git push origin v0.2` | a person, in `release.yml` |
-| `exchange-v*` | `SPEC.md` and its fixtures | by hand, and not yet | a person |
 | `device-v*` | the device interface in `device/` | by hand, and not yet | a person |
+| ~~`builder-v*`~~ | ~~the page in `src/`~~ | **retired** — [ADR 0016](../adr/0016-the-browser-half-stops-being-released.md). `builder-v0.1.0` stays published and valid; nothing is re-cut. | |
+| ~~`exchange-v*`~~ | ~~`SPEC.md` and its fixtures~~ | **gone with `exchange/`** — it is `vorlaut-editor`'s to cut, and the Android viewer's pin is what waits on it. | |
 
 **`v*` means the firmware and nothing else.** Until now that was visible only
 by reading the `on: push: tags:` trigger at the top of
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which is
 not where anybody looks before choosing a tag name. It is written here so that
-`v1.0.0` is never used for the builder by somebody who assumed the obvious
-prefix was free.
+`v1.0.0` is never assumed free for something else — and it is now the only
+prefix this repository cuts, which is the clearest that sentence has ever been.
 
-**The bottom two rows are reserved and have never been cut**, and they are in
-this table for the same reason `v*` is: so that the prefix is taken before
-somebody needs it, rather than discovered afterwards. Each is held to the same
-bar — no tag until the fixtures have run against both implementations *and* a
-mutation run says they bite. For `device-v*` that bar is written out step by
-step in [`format-freeze.md` section 8](format-freeze.md#8-sequencing-what-has-to-be-true-before-device-v1);
+**`device-v*` is reserved and has never been cut**, and it is in this table for
+the same reason `v*` is: so that the prefix is taken before somebody needs it,
+rather than discovered afterwards. It is held to a bar — no tag until the
+fixtures have run against both implementations *and* a mutation run says they
+bite — written out step by step in
+[`format-freeze.md` section 8](format-freeze.md#8-sequencing-what-has-to-be-true-before-device-v1);
 as of 2026-08-27 what it is still waiting on is a first run on real hardware,
 the six-row table in [`cable.md`](cable.md). Pin a commit SHA in the meantime.
 
-They are separate because the things they release have nothing to do with each
-other's cadence. The builder is deployed to Pages from `main` on every push and
-a release of it is a changelog and a version, not an artefact anybody
-downloads. A firmware release is an 8 MB image somebody flashes onto a device
-that a child then uses, and it goes out when the firmware is worth flashing —
-which may be months apart from anything happening in `src/`. One tag scheme
-serving both would mean every builder change minting a version of firmware
-nobody rebuilt.
+They are separate prefixes because the things they release have nothing to do
+with each other's cadence. A firmware release is an 8 MB image somebody flashes
+onto a device that a child then uses, and it goes out when the firmware is worth
+flashing. The device interface is a format two implementations have to agree
+about. One tag scheme serving both would mean every format change minting a
+version of firmware nobody rebuilt.
 
-## The builder: release-please
+## The loader page: deployed, not released
 
-[`.github/workflows/release-please.yml`](../.github/workflows/release-please.yml)
-watches `main`. When it sees conventional commits it has not released, it opens
-— and then keeps updating — a pull request containing the next `CHANGELOG.md`
-and the next version in `package.json`. **Merging that pull request is the
-release**: it cuts `builder-vX.Y.Z` and creates the GitHub release.
+[`pages.yml`](../.github/workflows/pages.yml) builds `loader/` and deploys it to
+<https://lautstark.github.io/vorlaut-diy-talker/> on every merge to `main`,
+behind the full suite. There is no version, no changelog entry and no tag, and
+that is the decision in
+[ADR 0016](../adr/0016-the-browser-half-stops-being-released.md) rather than an
+omission: the current build is whatever `main` last deployed, nobody can select
+an older one, and a version nobody can select is a number rather than a version.
 
-> **This is the one pull request in a repository that does not use them.** The
-> convention here is a short branch merged locally into `main` with `--no-ff`.
-> release-please's model is a bot-maintained pull request and there is no way
-> to run it without one, so this is an exception rather than a change of
-> practice. Nobody reviews it; merging it is pressing the button.
+**What was here until 2026-08-27.** release-please watched `main`, kept a pull
+request open with the next `CHANGELOG.md` and version in it, and merging that
+pull request cut `builder-vX.Y.Z`. It cut exactly one release, `builder-v0.1.0`,
+which stays published and valid. The workflow, `release-please-config.json` and
+`.release-please-manifest.json` are deleted; `CHANGELOG.md` stays, frozen, with
+a note at its head saying what it records.
 
-> **CI does not run on that pull request.** It is opened with the workflow's
-> own `GITHUB_TOKEN`, and events from that token deliberately do not start new
-> workflow runs. The pull request only ever changes `CHANGELOG.md` and the
-> version in `package.json`, so there is little for CI to say — but do not read
-> its lack of a green tick as a problem, and do not read it as an all-clear
-> either.
-
-### Which commits count: paths, not scopes
-
-`release-please-config.json` excludes `firmware/`, `case/`, `exchange/` and
-`device/`. A commit whose files all fall inside those is not a builder change
-and does not appear in the builder's changelog. **Everything else counts** —
-`src/`, but also `docs/`, `tests/`, `e2e/`, `adr/`, `dns/`, and the
-configuration at the root.
-
-This is deliberately decided by path rather than by the scope written in the
-commit message. A scope is a thing somebody has to remember, and the failure
-when they forget is silent: the commit lands, nothing appears in the changelog,
-and no version moves. A path is mechanical.
-
-**A commit that touches both `src/` and `firmware/` counts for the builder.**
-release-please drops a commit only when *every* file in it is excluded. That
-direction is chosen on purpose: an occasional version bump for a change that
-was mostly firmware costs nothing, and an omitted change is the failure that
-matters.
-
-To stop a new directory from counting, add it to `exclude-paths`. That is the
-whole mechanism.
-
-### If the builder ever leaves this repository
-
-`"component": "builder"` with `"include-component-in-tag": true` is what makes
-the tag `builder-v1.2.0` instead of `v1.2.0`. In a repository containing only
-the builder, `v*` would be free and the prefix would be noise.
-
-Setting `include-component-in-tag` to `false` is the whole change. The
-versions, the changelog, the manifest and the workflow all carry over
-untouched, and the existing `builder-v*` tags stay valid history. It is a
-rename, not a redesign, and it is written this way now so that it stays one.
+**Before proposing that a release train come back**, ADR 0016's *Not to be
+"fixed" later* is the section to read. The short version: the argument is not
+that versions are bad, it is that this page has no consumer who can hold an old
+one, and what a proposal has to establish is that two builds can exist at once
+and somebody needs to name which they mean.
 
 ## The firmware: a tag, by hand
 
@@ -113,9 +82,15 @@ unified, the notes are the thing to preserve, not the thing to replace.
 
 ## Conventional commits
 
-release-please reads the prefix of each commit subject and nothing else.
+**Nothing generates a changelog from these any more**, and the convention stays
+anyway — [ADR 0016](../adr/0016-the-browser-half-stops-being-released.md)'s Why
+has the argument. The prefixes say what a commit *is* before its sentence says
+what it does, and they make `git log --oneline` skimmable across a repository
+holding TypeScript, C++ and Python. The table below is what each one meant to
+release-please; the version column is history now, and the left two columns are
+still the rule.
 
-| Prefix | For | Version |
+| Prefix | For | Version (historical) |
 |---|---|---|
 | `feat:` | a capability that was not there before | minor |
 | `fix:` | something that was wrong is now right | patch |
@@ -124,7 +99,8 @@ release-please reads the prefix of each commit subject and nothing else.
 | `docs:` | prose | — |
 | `test:` `build:` `ci:` `chore:` | everything else | — |
 
-`feat!:` — or a `BREAKING CHANGE:` trailer in the body — is a major.
+`feat!:` — or a `BREAKING CHANGE:` trailer in the body — was a major, and is
+still how a breaking change announces itself to a reader.
 
 **This repository's commit subjects have never been written this way.** A
 hundred and fifty of them are plain sentences: *Wake in half a second instead
@@ -138,10 +114,10 @@ fix: turn the backlight off when the device sleeps, and mean it
 docs: write down why waking her device takes three presses
 ```
 
-Older commits are simply invisible to release-please, which is harmless — it
-looks for what it has not released yet, and finds nothing before the first
-`feat:` or `fix:`. The first release will therefore contain only what happened
-after the convention started, and that is the correct answer rather than a gap.
+Older commits were simply invisible to release-please, which was harmless: it
+looked for what it had not released yet and found nothing before the first
+`feat:` or `fix:`. `builder-v0.1.0` therefore contains only what happened after
+the convention started, which was the correct answer rather than a gap.
 
 ### The gate is CI, not the hook
 
@@ -152,11 +128,15 @@ here runs only when something it checks changed, and this one checks the
 commits themselves.
 
 This was a hook first, and a hook was the wrong shape. `core.hooksPath` is
-per-clone opt-in, and the thing it guards fails *silently* — a commit with no
-prefix lands with no changelog entry, no version bump, and no complaint. A
-silent failure guarded by a check somebody has to remember to switch on is not
-guarded. It is also the same failure that path-filtering exists to prevent,
-arriving through a different door.
+per-clone opt-in, so a clone that never ran it has no check at all.
+
+The failure it was guarding used to be *silent*: a commit with no prefix landed
+with no changelog entry, no version bump and no complaint, and a silent failure
+guarded by a check somebody has to remember to switch on is not guarded. That
+particular failure is gone with release-please — a missing prefix now costs a
+reader's time and nothing else. The gate stays because the convention does, and
+because a rule enforced everywhere is cheaper to keep than one enforced in the
+clones that happened to opt in.
 
 **Commits written before the convention existed are not held to it**, and the
 boundary needs no marker file: the workflow skips any commit whose tree does
@@ -192,7 +172,8 @@ twice gets relaxed once, and then the two disagree about what landed.
 
 ### Renovate agrees with all of this
 
-`.github/renovate-shared.json5` extends `:semanticPrefixFixDepsChoreOthers`,
-so a runtime dependency bump arrives as `fix(deps):` and reaches the changelog,
-while a dev dependency bump arrives as `chore(deps):` and does not. Nobody
-reading a release note needs to know which version of vitest built it.
+`.github/renovate-shared.json5` extends `:semanticPrefixFixDepsChoreOthers`, so
+a runtime dependency bump arrives as `fix(deps):` and a dev dependency bump as
+`chore(deps):`. That distinction was about which reached the changelog; with no
+changelog it is about which a person skimming `git log` should stop at, and the
+answer is the same one.

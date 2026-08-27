@@ -31,10 +31,12 @@ name: Tests
 # dns/ earns its place twice over, because dns/verify.py is Python that
 # nothing else runs.
 #
-# The four configuration files at the bottom are the exception to that rule
-# and are listed for a weaker reason: no test reads them today. They are here
-# so that a change to how this repository releases or updates itself is not
-# the one kind of change that skips its own test suite.
+# The configuration files at the bottom are the exception to that rule and are
+# listed for a weaker reason: no test reads them today. They are here so that a
+# change to how this repository builds or updates itself is not the one kind of
+# change that skips its own test suite. There were two more until adr/0016 -
+# release-please-config.json and .release-please-manifest.json - and they went
+# with the workflow that read them.
 on:
   push:
     branches: [main]
@@ -72,8 +74,6 @@ on:
       - playwright.config.ts
       - renovate.json5
       - .github/renovate-shared.json5
-      - release-please-config.json
-      - .release-please-manifest.json
       - .github/workflows/ci-tests.yml
   pull_request:
     paths: *paths
