@@ -603,14 +603,22 @@ somebody can check rather than judge. Adding what this survey found, in order:
    control wrongly caught, no mutation caught by the wrong end, and nothing in
    the list whose text has moved. This is the acceptance test for the whole
    directory and the tool prints each failure mode by name. *Checkable: an exit
-   code.*
+   code.* ✅ **Done, 2026-08-27**, against the tree with ADR 0011's split
+   merged: **65 of 65 faults caught**, 40 by the firmware runner and 25 by the
+   browser one, each by the end it was applied to. All three controls survived,
+   which is what says the runners were not simply failing throughout. Nothing
+   missed, nothing moved, one fault recorded as unreachable and not run.
 
 2. **[C1](#c1-chunk-acknowledgement--in-flight) has landed, or has been
    deferred on the record.** It is the one change already named as belonging
    *before* the device is out of reach of a cable, and freezing the protocol
    without it means either shipping `CABLE_RX_BUFFER`'s bound permanently or
    spending a MAJOR on it later. *Checkable: `CABLE_RX_BUFFER` is gone from
-   `cable_format.h`, or an ADR says why it stayed.*
+   `cable_format.h`, or an ADR says why it stayed.* ✅ **Done, 2026-08-27.**
+   The name survives in `cable_format.h` only in the comment explaining what
+   `CABLE_WINDOW` replaced; there is no `#define` for it, and the receive
+   buffer is sized from the window `vorlaut.ino` passes to
+   `Serial.setRxBufferSize()`.
 
 3. **[C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) is
    closed.** ✅ **Done, 2026-08-27.** `versionVerdict()` is the runtime
@@ -638,6 +646,23 @@ somebody can check rather than judge. Adding what this survey found, in order:
    [`releases.md`](releases.md)'s table lists three prefixes; the fourth is in
    ADR 0009 and in `device/README.md` and not there. `device/` is already in
    `exclude-paths`, so the mechanical half is done. *Checkable: a fourth row.*
+   ✅ **Done, 2026-08-27.** The row is there, phrased as `exchange-v*` is —
+   *"by hand, and not yet"* — with a paragraph under the table naming what it
+   waits on. The same edit fixed a drift found while making it: the prose in
+   *Which commits count* still listed three excluded paths where the config has
+   had four since ADR 0009.
+
+7. **The fixture set stops calling itself a draft.**
+   `device/fixtures/index.json` carries `device_interface_version`, and it says
+   `0.1.0-draft`. ADR 0009 is explicit that this number is the version of the
+   whole interface rather than `LAYOUT_VERSION` or `CABLE_VERSION`, so a
+   `device-v1` cut over a fixture set that calls itself a draft is a tag
+   contradicting the thing it tags. Both runners *print* the string and neither
+   *asserts* it, so nothing currently catches this. The string lives in two
+   places — the generated `index.json` and `device/tools/make_fixtures.mjs`,
+   which writes it — and they have to move together. *Checkable: the version in
+   `index.json` has no `-draft` on it, and `make_fixtures.mjs` agrees.*
+   **Found while working the list on 2026-08-27; not yet done.**
 
 **Not on the list, deliberately:** the prose specification. ADR 0009 and
 `device-interface.md` recommendation 3 both say fixtures first and prose once
@@ -645,11 +670,14 @@ the format holds still, and this survey is the measurement of whether it does.
 Six pending items, two of them blocking, was not "holds still" — but it was a
 much shorter list than the week of history behind ADR 0006's dated line, and it
 was finite and written down, which is the state a freeze can be decided from.
-Both blocking items have now landed, and what is left of steps 1 to 6 is a
-mutation run, a first run on real hardware, and a row in a table. **Three
-remaining items, none of them blocking**, is a good deal closer to holding
-still — though L2, N1 and P1 are still changes to a format that has not been
-frozen, and the measurement that matters is how long they stay unmade.
+Both blocking items have now landed. Of what was then left of steps 1 to 6 —
+a mutation run, a first run on real hardware, and a row in a table — the
+mutation run and the row were done on 2026-08-27, and working the list turned
+up a seventh item that had been nobody's. **Two remaining items, neither of
+them blocking**: a first run on real hardware, and a version string that still
+says draft. That is a good deal closer to holding still — though L2, N1 and P1
+are still changes to a format that has not been frozen, and the measurement
+that matters is how long they stay unmade.
 
 **Also not on the list:** anything about `exchange/`. §5 has the argument. The
 two boundaries are independent and cutting `device-v1` neither needs nor
