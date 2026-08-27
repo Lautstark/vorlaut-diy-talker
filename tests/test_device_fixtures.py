@@ -25,6 +25,11 @@ reads anything else - a committed artefact, a module under src/ - it fails
 here. That is the "never reads its own output back" rule, enforced rather than
 asked for.
 
+One thing here is not about reproducibility at all: the version the index
+calls the interface. It lives in this file because it is a statement about the
+fixture set rather than about either implementation, and the two runners are
+the two implementations' halves. See the note beside it.
+
 Needs node. The other half of the fixtures - what they actually say about the
 two implementations - is tests/test_device_host.py and
 tests/unit/device_fixtures.test.ts.
@@ -34,6 +39,7 @@ from __future__ import annotations
 
 import filecmp
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -111,6 +117,40 @@ def main() -> int:
 
     index = json.loads((FIXTURES / "index.json").read_text(encoding="utf-8"))
     listed = index["fixtures"]
+
+    # The version the fixture set calls itself, which can go wrong two ways.
+    #
+    # The first is index.json and make_fixtures.mjs disagreeing about it, and
+    # that is already covered above rather than here: the generator is the only
+    # writer of index.json, so a version moved in one place and not the other
+    # arrives as "index.json: regenerating changes it". Comparing the two by
+    # reading the number back out of the generator's source would be the thing
+    # ADR 0009 counts as one of the four gaps it closed - tests/test_texts.py
+    # reading LANGUAGE_CODES out of another module with a regular expression.
+    #
+    # The second is the suffix, and nothing caught that at all. This said
+    # 0.1.0-draft from the day it was written until 2026-08-27; both runners
+    # PRINT the string and neither asserts it, so device-v1 could have been cut
+    # over a fixture set that called itself a draft with nothing red anywhere.
+    # ADR 0009 makes this the version of the whole interface rather than
+    # LAYOUT_VERSION or CABLE_VERSION, which is what makes a pre-release suffix
+    # on it a claim about the interface instead of a label on a file.
+    #
+    # Stated here for the same reason the kinds below are: it is a statement
+    # about the fixture set itself, and neither runner is the fixture set's
+    # half. Whether the interface is ratified is the tag's business - see
+    # device/README.md, "The tag".
+    version = index.get("device_interface_version")
+    if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+",
+                                                       version):
+        problems.append(
+            f"device_interface_version is {version!r}: ADR 0009 makes it "
+            f"MAJOR.MINOR.PATCH over the whole interface, and a fixture set "
+            f"that calls itself a draft is one no device-v* tag can be cut "
+            f"over")
+    else:
+        print(f"  ok    the interface calls itself {version}, with no "
+              f"pre-release suffix")
 
     # Every fixture is reachable from the index, and everything the index names
     # is there. A fixture nobody can find is a fixture nobody runs, and an

@@ -1580,8 +1580,22 @@ for (const [name, spoken, verdict, summary, remedy] of [
 
 // =============================================================================
 
+// MAJOR.MINOR.PATCH over the whole interface, which ADR 0009 is explicit is
+// neither LAYOUT_VERSION nor CABLE_VERSION - those are a byte in a file and a
+// number on a wire, and all three drift apart on purpose.
+//
+// No pre-release suffix, and none is coming back. This said 0.1.0-draft from
+// the day it was written until 2026-08-27, which would have made device-v1 a
+// tag contradicting the thing it tags. Whether the interface is ratified is the
+// tag's statement, not this string's - the same division exchange/ has, where
+// spec_version is a plain 1.2.0 and "draft, not ratified" is a sentence in
+// SPEC.md. device/ has no prose to carry that sentence, which is how the word
+// ended up inside the number.
+//
+// tests/test_device_fixtures.py refuses a suffix here, and refuses this file
+// and the committed index.json disagreeing about the version at all.
 const INDEX = {
-  device_interface_version: "0.1.0-draft",
+  device_interface_version: "1.0.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };
