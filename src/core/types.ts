@@ -137,6 +137,26 @@ export interface DiyLayout {
   language?: string;
   /** The voice chosen for this board, "" or absent when none is. */
   voice?: string;
+  /** Which symbol collection this Sammlung's pictures come from.
+   *
+   * **An intention, and that is the whole of why it is stored.** Which source a
+   * Sammlung uses was already decided - picker.ts's offeredSource() reads it
+   * off the pictures already on the board, and exchange/SPEC.md §5.1 makes one
+   * source per package a rule of the format. What derivation cannot hold is a
+   * Sammlung that has no pictures yet: it followed whatever this machine was
+   * set to, so switching the machine between placing two pictures built a mixed
+   * board out of two perfectly ordinary presses.
+   *
+   * Absent is not a third value. It means nobody has said, which is every
+   * Sammlung written before this field existed and is read exactly as it was
+   * then - from the pictures, then from the machine. There is no migration, for
+   * the reason DiyLayout.target has none: the flag arrived after boards did.
+   *
+   * Set when a Sammlung is made, from what this browser is set to. That is the
+   * pattern the voice and bildhaft already use, one level along: the app's
+   * setting is the default for a new one, and the Sammlung carries its own from
+   * then on. */
+  symbolSource?: "arasaac" | "metacom";
   sleep_timeout_seconds?: number;
 }
 
@@ -158,6 +178,26 @@ export interface AppLayout {
   target: "app";
   language?: string;
   voice?: string;
+  /** Which symbol collection this Sammlung's pictures come from.
+   *
+   * **An intention, and that is the whole of why it is stored.** Which source a
+   * Sammlung uses was already decided - picker.ts's offeredSource() reads it
+   * off the pictures already on the board, and exchange/SPEC.md §5.1 makes one
+   * source per package a rule of the format. What derivation cannot hold is a
+   * Sammlung that has no pictures yet: it followed whatever this machine was
+   * set to, so switching the machine between placing two pictures built a mixed
+   * board out of two perfectly ordinary presses.
+   *
+   * Absent is not a third value. It means nobody has said, which is every
+   * Sammlung written before this field existed and is read exactly as it was
+   * then - from the pictures, then from the machine. There is no migration, for
+   * the reason DiyLayout.target has none: the flag arrived after boards did.
+   *
+   * Set when a Sammlung is made, from what this browser is set to. That is the
+   * pattern the voice and bildhaft already use, one level along: the app's
+   * setting is the default for a new one, and the Sammlung carries its own from
+   * then on. */
+  symbolSource?: "arasaac" | "metacom";
   /** One size for every page in the Sammlung, not one per page.
    *
    *  OBF would allow a grid per board and this deliberately does not use it.

@@ -28,6 +28,8 @@ import { state } from "../core/state.js";
 import { isApp } from "../core/types.js";
 import { applyTexts, t } from "../core/texts.js";
 import { save } from "../core/save.js";
+import * as symbols from "../data/symbols.js";
+import { offeredSource } from "./picker.js";
 import { editor } from "../core/editor.js";
 import { speak } from "./speech.js";
 import { forgetKey, loadSettings, paintStates, saveSettings } from "./settings.js";
@@ -708,6 +710,93 @@ export function collectionSheetPanel(
  * opening entirely folded is a sheet that asks for a second click before it
  * says anything - which is the opposite of what the folding is for.
  */
+/**
+ * Which symbol collection this Sammlung's pictures come from.
+ *
+ * **The Sammlung's own fact, not this browser's.** exchange/SPEC.md §5.1 makes
+ * one source per package a rule of the format, so it was always the Sammlung
+ * that decided - picker.ts's offeredSource() read it off the pictures already
+ * on the board. What derivation could not hold is a Sammlung with no pictures
+ * yet: it followed whatever this machine was set to, so switching the machine
+ * between two presses built a mixed board out of them. This is where the
+ * intention is said instead, and the machine's setting is what a new Sammlung
+ * starts from - the same shape bildhaft uses, and the voice one panel down.
+ *
+ * METACOM is offered only where a folder answers. It is a per-person licence
+ * living in a folder on this computer, so choosing it on a machine that has
+ * none would be choosing a source that can find nothing; settings.ts hides its
+ * "use this source" button on the same test.
+ *
+ * A Sammlung that already asks for METACOM keeps asking while the folder is
+ * asleep - that is the whole reason the field is stored - and the way back in
+ * is offered here rather than pointed at. The gear is two sheets away, and
+ * somebody who is in the picker wanting a picture is not looking for settings.
+ */
+function paintSymbolSource(): void {
+  const body = $("symbolBody");
+  body.replaceChildren();
+  $("symbolSection").textContent = t("ui.symbol_source_section");
+
+  const chosen = offeredSource();
+  $("symbolState").textContent = t(chosen === "metacom" ? "ui.metacom" : "ui.arasaac");
+
+  const note = document.createElement("p");
+  note.className = "note";
+  note.textContent = t("ui.symbol_source_note");
+  body.appendChild(note);
+
+  const ready = symbols.metacomReady();
+  for (const source of ["arasaac", "metacom"] as const) {
+    const pick = document.createElement("button");
+    pick.type = "button";
+    pick.className = "btn choice";
+    pick.setAttribute("aria-pressed", String(chosen === source));
+    const head = document.createElement("strong");
+    head.textContent = t(source === "metacom" ? "ui.metacom" : "ui.arasaac");
+    const says = document.createElement("span");
+    says.textContent = source === "metacom" && !ready
+      ? t("ui.symbol_source_needs_folder")
+      : t(`ui.symbol_source_${source}_note`);
+    pick.append(head, says);
+    // Disabled rather than hidden: a source that is not on offer here is still
+    // one of the two answers, and hiding it would make the panel look like it
+    // had one. The sentence under it says what is missing.
+    pick.disabled = source === "metacom" && !ready;
+    pick.onclick = () => { void chooseSymbolSource(source); };
+    body.appendChild(pick);
+  }
+
+  /* The way back in, where the folder is remembered and the browser wants a
+   * click. Only then: with no folder at all there is nothing to re-grant, and
+   * the sentence above already says to go and connect one. */
+  const status = symbols.metacomStatus();
+  if (!ready && status.kind === "needs-setup" && status.code === "permission-needed"
+      && state.layout.symbolSource === "metacom") {
+    const why = document.createElement("p");
+    why.className = "note";
+    why.textContent = t("ui.symbol_source_sleeping");
+    const again = document.createElement("button");
+    again.type = "button";
+    again.className = "btn";
+    again.textContent = t("ui.symbol_source_reconnect");
+    again.onclick = async () => {
+      // The browser's own prompt needs the gesture, so this is the handler and
+      // not something further in. A refusal leaves everything as it was.
+      if (await symbols.reconnectMetacom()) paintSymbolSource();
+    };
+    body.append(why, again);
+  }
+}
+
+/** Writes the choice onto the Sammlung. Nothing on any board moves: the source
+ *  binds what the picker offers next, never what a button already holds. */
+async function chooseSymbolSource(source: "arasaac" | "metacom"): Promise<void> {
+  if (state.layout.symbolSource === source) return;
+  state.layout.symbolSource = source;
+  paintSymbolSource();
+  await save();
+}
+
 export async function openCollectionSettings() {
   $("voiceList").innerHTML = "";
   $("voiceHint").textContent = "";
@@ -731,7 +820,9 @@ export async function openCollectionSettings() {
   // list would do it too, but only because the accordion closes the previous
   // one - which is the browser undoing something this line should not have
   // said in the first place.
-  const panels = [language, extra, $<HTMLDetailsElement>("voicePanel")];
+  paintSymbolSource();
+  const panels = [language, extra, $<HTMLDetailsElement>("symbolPanel"),
+                  $<HTMLDetailsElement>("voicePanel")];
   const first = panels.find((one) => !one.hidden);
   for (const one of panels) one.open = one === first;
   $<HTMLDialogElement>("collectionSheet").showModal();

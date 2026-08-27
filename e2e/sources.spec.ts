@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { LANGUAGES, TEXTS } from "../src/core/boot_data.js";
 import { cells, hits, key, keySheet, press, query, search, searchNote } from "./diy.js";
+import { openCollectionSettings } from "./sheets.js";
 
 /* Which collection the sheet offers, across a reload.
  *
@@ -171,6 +172,51 @@ async function supplyFiles(page: Page) {
   // collection is active, which is the thing under test.
   await expect(page.locator("#metacomForget")).toBeVisible();
 }
+
+
+/* The symbol source is the Sammlung's, and a new one starts from the machine.
+ *
+ * The pattern the voice and bildhaft already use: the app's setting is the
+ * default for a new Sammlung, and the Sammlung carries its own from then on.
+ * exchange/SPEC.md §5.1 is why it has to be the Sammlung's at all - one source
+ * per package - and picker.ts read it off the pictures long before there was a
+ * field. What the field adds is the Sammlung that has no pictures yet: it used
+ * to follow whatever this browser was set to, so switching the browser between
+ * two presses built a mixed board out of two ordinary clicks.
+ */
+test("a new Sammlung takes the symbol source this browser is set to",
+  async ({ page }) => {
+    await page.goto("./");
+    await page.locator("#collectionNew").click();
+    const asked = page.locator("dialog[open]").filter({ has: page.locator("h2") });
+    await asked.locator("button.choice")
+      .filter({ has: page.locator("strong", { hasText: label("ui.collection_target_app") }) })
+      .click();
+    await asked.locator("button", { hasText: label("ui.collection_create") }).click();
+
+    /* The panel is where the answer shows, rather than a peek into the layout:
+     * what a reader can see is the claim worth holding, and a field read out
+     * of the page would pass whether or not anything drew it. */
+    await openCollectionSettings(page);
+    await expect(page.locator("#symbolPanel")).toBeVisible();
+    await expect(page.locator("#symbolSection"))
+      .toHaveText(label("ui.symbol_source_section"));
+    /* ARASAAC, because that is what a browser with no METACOM folder is set
+     * to, and a test machine has none. */
+    await expect(page.locator("#symbolState")).toHaveText(label("ui.arasaac"));
+    await expect(page.locator("#symbolBody button.choice").first())
+      .toHaveAttribute("aria-pressed", "true");
+    // METACOM is offered and refused rather than hidden: it is still one of the
+    // two answers, and the sentence under it says what is missing.
+    const metacom = page.locator("#symbolBody button.choice").nth(1);
+    await expect(metacom).toBeDisabled();
+    /* Unanchored: label() builds `^(...)$`, which never matches inside a
+     * button that also carries its heading. */
+    await expect(metacom).toContainText(
+      new RegExp(LANGUAGES.map((l) =>
+        (TEXTS as Record<string, Record<string, string>>)[l]["ui.symbol_source_needs_folder"]
+          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")));
+  });
 
 test("a folder arriving after the page did brings its collection back", async ({ page }) => {
   /* The half a boot-time read cannot cover, and the one the bug was actually
