@@ -1,7 +1,7 @@
 // Only the ui.* entries of the chosen language - see texts.py. Every label on
 // this page goes through t(), so no string sits in the markup twice.
 import { $ } from "../shell/dom.js";
-import { LANG, TEXTS } from "./boot.js";
+import { LANG, t } from "./boot.js";
 import { editor, haveEditor } from "./editor.js";
 
 // A label and its address, both out of the table. Everything else on this page
@@ -28,15 +28,11 @@ function mailward(id: string, key: string) {
   link.href = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ? `mailto:${address}` : "";
 }
 
-export function t(key: string, params?: Record<string, string | number>): string {
-  let out = TEXTS[key] || key;
-  if (params) {
-    for (const name in params) {
-      out = out.split("{" + name + "}").join(params[name]);
-    }
-  }
-  return out;
-}
+/* t() itself is core/boot.ts's now, beside the table it reads, and is
+ * re-exported here so that every `import { t } from "../core/texts.js"` in the
+ * editor stays what it was. The reason it moved is loader/: a second page that
+ * needs the same labels and none of the markup this file fills in. */
+export { t } from "./boot.js";
 
 // Fills in every fixed label. Runs once - the page is served in one language
 // and reloads when it changes, so nothing here has to react later.

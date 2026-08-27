@@ -6,7 +6,7 @@ import { check } from "./harness.js";
 import {
   renderLayoutBin, hashBytes, LANGUAGE_CODES, DEFAULT_LANGUAGE,
   LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, SLOT_BYTES, SLOTS_PER_SET,
-  NAME_BYTES, HASH_BYTES,
+  NAME_BYTES, HASH_BYTES, MAX_SETS,
 } from "../../loader/src/layout_format.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
 import {
@@ -73,6 +73,36 @@ check("the browser's strides are the ones the fixtures were laid out from",
       && LAYOUT_VERSION === 2,
       `header ${HEADER_BYTES}, set ${SET_BYTES}, slot ${SLOT_BYTES}, `
       + `version ${LAYOUT_VERSION}`);
+
+/* How many sets the device has room for, read out of the fixtures rather than
+ * written here beside the constant it is checking.
+ *
+ * MAX_SETS is not a limit renderLayoutBin() enforces - it writes as many sets
+ * as fit in a byte - so nothing on the writing side would notice the number
+ * moving. It matters because loader/src/validate.ts refuses a package with a
+ * sixth set before anything is sent, and a wrong number there is a talker that
+ * takes a file and then shows nothing: readLayout() answers LAYOUT_BAD_LENGTH
+ * and there is no screen anywhere saying why.
+ *
+ * So the fixtures are asked. The most sets any accepted layout is read with is
+ * the room there is, and the file with one more than that is the refusal -
+ * which is the same pair of facts device/fixtures/layout/five-sets and
+ * sets-past-max were written to state. */
+{
+  const accepted = ofKind("layout")
+    .map(({ want }) => want.read)
+    .filter((read) => read?.result === "ok" && typeof read.sets === "number")
+    .map((read) => read.sets as number);
+  const most = Math.max(...accepted);
+  check("the browser's MAX_SETS is the most sets a fixture is accepted with",
+        MAX_SETS === most, `${MAX_SETS} against the fixtures' ${most}`);
+
+  const past = expectations.get("sets-past-max");
+  check("and a file with one more set than that is the one the device refuses",
+        past.read.result === "LAYOUT_BAD_LENGTH"
+        && past.bytes === HEADER_BYTES + (MAX_SETS + 1) * SET_BYTES,
+        `${past.bytes} bytes, ${past.read.result}`);
+}
 
 let written = 0;
 for (const { listed: one, want } of ofKind("layout")) {

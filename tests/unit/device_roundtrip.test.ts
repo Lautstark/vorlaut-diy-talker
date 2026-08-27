@@ -5,10 +5,14 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
-  buildDevicePackage, compileDevice, devicePackageBytes, devicePlan,
+  buildDevicePackage, devicePackageBytes, devicePlan,
   readDevicePackage, sniffImageType, wavFormat, isDeviceWav, wavSeconds,
-  type DeviceHost, type DevicePackage, type DeviceSound, type DeviceSource,
+  type DevicePackage, type DeviceSound, type DeviceSource,
 } from "../../src/data/device_package.js";
+/* The compiler is the loader's half and the writer is the editor's, and this
+ * file is the one place they meet - which is the whole reason it imports
+ * across the boundary adr/0011 drew. */
+import { compileDevice, type DeviceHost } from "../../loader/src/compile.js";
 import {
   HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET, renderLayoutBin,
 } from "../../loader/src/layout_format.js";

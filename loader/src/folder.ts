@@ -28,9 +28,8 @@
 // Asking and writing are two functions, the way the cable's are, and for the
 // same reason: a picker needs a user gesture that expires in about five
 // seconds, so whatever is slow has to come after it.
-import { buildIsCurrent, builtFiles } from "../../src/data/built.js";
+import type { Build } from "./cable.js";
 import { HASH_BYTES, LAYOUT_BIN } from "./layout_format.js";
-import { Trouble } from "../../src/core/errors.js";
 
 /** Whether a folder can be chosen at all: Chromium on the desktop, and nowhere
  *  else. Safari and Firefox have no picker, and no browser on Android has one
@@ -98,29 +97,29 @@ export async function chooseBuildFolder(): Promise<FileSystemDirectoryHandle | n
 }
 
 /**
- * Writes the build into a folder that has already been chosen.
+ * Writes a compiled package into a folder that has already been chosen.
  *
- * Both refusals are backstops rather than the normal path - the caller builds
- * first if it has to - but they stay, because the failure they prevent is the
- * one a folder cannot show you afterwards: yesterday's content looks exactly
- * like today's on a disk, and everything downstream of it, an image or a bench
- * push, would carry the difference all the way to a device without a word.
+ * Two refusals used to stand at the top of this: that there was a build at
+ * all, and that it was a build of what was on the screen. Both were about the
+ * `data` store, which is what a folder cannot show you afterwards - yesterday's
+ * content looks exactly like today's on a disk. Neither is answerable here and
+ * neither is needed: there is no screen to be stale against and no store to be
+ * empty, only the file the person on this page chose a minute ago and watched
+ * being compiled.
  */
 export async function writeBuildTo(
-  directory: FileSystemDirectoryHandle, options: Exporting = {},
+  directory: FileSystemDirectoryHandle, build: Build, options: Exporting = {},
 ): Promise<Exported> {
   const { onFile = () => {} } = options;
-  const made = await builtFiles();
-  if (!await buildIsCurrent()) throw new Trouble("folder_stale");
 
   let written = 0;
   let bytes = 0;
-  for (const [name, file] of made) {
-    onFile(name, written + 1, made.size);
+  for (const [name, file] of build) {
+    onFile(name, written + 1, build.size);
     const handle = await directory.getFileHandle(name, { create: true });
     const stream = await handle.createWritable();
     try {
-      await stream.write(file.bytes);
+      await stream.write(file);
     } finally {
       // Closing is what commits the file. A write that threw must still close
       // its stream, or the folder keeps a lock and the next export cannot open
@@ -128,7 +127,7 @@ export async function writeBuildTo(
       await stream.close();
     }
     written++;
-    bytes += file.bytes.length;
+    bytes += file.length;
   }
 
   // Now the ones this build did not produce. Collected first and removed
@@ -138,7 +137,7 @@ export async function writeBuildTo(
   const stale: string[] = [];
   for await (const entry of directory.values()) {
     if (entry.kind !== "file") continue;
-    if (!isBuildFile(entry.name) || made.has(entry.name)) continue;
+    if (!isBuildFile(entry.name) || build.has(entry.name)) continue;
     stale.push(entry.name);
   }
   for (const name of stale) await directory.removeEntry(name);

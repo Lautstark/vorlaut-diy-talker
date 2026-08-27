@@ -24,14 +24,21 @@
 // ---------------------------------------------------------------------------
 // Why this file is worth having at all
 //
-// A device build lives in IndexedDB, in one browser, on one machine. Nothing
-// anywhere says "this is what is on that talker" in a form somebody can diff,
-// archive, or carry to a bench. The folder export writes the loose files and
-// cannot be read back. This can: readDevicePackage() and compileDevice() below
-// turn the file back into exactly the bytes runBuild() puts in the store.
+// It is the only thing that passes between the editor and the talker.
 //
-// That is the whole claim, and tests/unit/device_roundtrip.test.ts is where it
-// is held to it.
+// It began as an artefact somebody could diff, archive or carry to a bench,
+// beside a build that lived in IndexedDB and went down a cable from the same
+// page. That build is gone from the editor - adr/0011 - and what is left is
+// this: the editor writes the file, loader/ reads it, compiles it and sends
+// it, and neither half knows the other exists. Both halves of the round trip
+// are still here, readDevicePackage() below and compileDevice() in
+// loader/src/compile.ts, and the claim they make together is unchanged: the
+// file turns back into exactly the bytes a talker holds.
+//
+// tests/unit/device_roundtrip.test.ts is where it is held to it, and that test
+// is now the only thing standing between an editor and a talker that have
+// stopped agreeing - which is why it walks the whole way through the actual
+// bytes of the archive rather than handing objects across.
 //
 // ---------------------------------------------------------------------------
 // The four form rules, and what each one is
@@ -85,7 +92,7 @@
 // of its scope entirely, so none of §5.3's PNG-and-1024 rules reach here.
 //
 // A marker field saying "this one is compilable" was considered and left out.
-// compileDevice() refuses a package it cannot compile by looking at what is
+// readDevicePackage() refuses a package it cannot compile by looking at what is
 // actually there - an image entry with no bytes behind it, a sound that is not
 // a 16 kHz mono WAV - and a structural check beats a flag, because a flag can
 // be written by a wrong writer too. docs/device-interface.md §6 is the reason
@@ -107,10 +114,15 @@ import { slotIsEmpty } from "./app_package.js";
 import {
   DEVICE_BITS_PER_SAMPLE, DEVICE_CHANNELS, DEVICE_SAMPLE_RATE,
 } from "./audio_format.js";
-import {
-  HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET, renderLayoutBin,
-} from "../../loader/src/layout_format.js";
-import * as tiles from "../../loader/src/tiles.js";
+/* Two numbers and nothing else, and that is the whole of what this file now
+ * needs from the device's own code. The tile renderer and the layout.bin
+ * writer went to loader/src/compile.ts with compileDevice() - see adr/0011 -
+ * so the editor writes a package for the talker without holding any of the
+ * code that turns one into what the talker reads. What is left is the shape
+ * of the device: four keys to a set, and sixteen bytes of hash in a name.
+ * device/fixtures/ is the authority on both, and
+ * tests/unit/device_fixtures.test.ts is what holds them to it. */
+import { HASH_BYTES, SLOTS_PER_SET } from "../../loader/src/layout_format.js";
 import { zipBytes, type ZipMember } from "./zip.js";
 import type { DiyLayout } from "../core/types.js";
 
@@ -893,117 +905,4 @@ export function readDevicePackage(pkg: DevicePackage): ReadDevicePackage {
     sources,
     sounds,
   };
-}
-
-/* ------------------------------------------------------------ compiling --- */
-
-/**
- * The two things a compiler needs from its host, and nothing else.
- *
- * Decoding a picture and hashing bytes are the browser's, and everything else
- * about turning this package into a device build is arithmetic. That is the
- * split docs/obz-as-device-input.md §7 predicted - a node-safe core and a
- * browser-only renderer over it - drawn as an argument rather than as a
- * repository boundary, because recommendation 4 of that document is that
- * nothing is packaged or split yet and this changes none of that.
- *
- * It is also what makes the round trip testable: under node the decode is a
- * fixture and the arithmetic is the real thing.
- */
-export interface DeviceHost {
-  /** One images/ member as pixels - `data`, `width`, `height` - or null when
-   *  it will not decode, which is not an error but the grey cross.
-   *
-   *  Pixels rather than something drawImage takes, and that is where the line
-   *  falls: decoding is the browser's and everything after it is arithmetic.
-   *  tiles.renderPixels() is the half on this side of it. */
-  decode(
-    bytes: Uint8Array<ArrayBuffer>, contentType: string,
-  ): Promise<{ data: Uint8ClampedArray; width: number; height: number } | null>;
-  /** sha256 cut to HASH_BYTES, as hex. The name rule, and the reason it is
-   *  passed in rather than written here is that runBuild() already has one and
-   *  two of them would be two opinions about a file name. */
-  hash(bytes: Uint8Array<ArrayBuffer>): Promise<string>;
-}
-
-/**
- * A device export, compiled into exactly the files a build puts in the store.
- *
- * layout.bin, one t<hash>.bin per distinct picture, one a<hash>.wav per
- * distinct sentence - the map builtFiles() answers with and the cable sends.
- *
- * This is the claim the whole file exists for, so it is worth saying what it
- * does *not* need: no store, no Sammlung, no synthesiser, no Azure key, no
- * voice catalogue, no METACOM folder and no network. Items 10 and 12 of
- * docs/obz-as-device-input.md §1 stayed in the editor, and everything about
- * people - the progress list, the missing-symbol hints, the log's language,
- * the folder picker, Web Serial - stayed with them.
- */
-export async function compileDevice(
-  read: ReadDevicePackage, host: DeviceHost,
-): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
-  const files = new Map<string, Uint8Array<ArrayBuffer>>();
-  const { plan } = read;
-
-  // One render per distinct picture rather than per use, keyed the way
-  // runBuild() keys its own: the reference and whether it is crossed out,
-  // because a crossed-out key is different pixels and therefore a different
-  // name. Keyed by the reference alone, a set holding "Brot" and "kein Brot"
-  // gets whichever of the two was drawn first on both.
-  const drawn = new Map<string, string>();
-  const tileFor = async (reference: string, negated: boolean): Promise<string> => {
-    const key = (negated ? "!" : "") + reference;
-    const already = drawn.get(key);
-    if (already) return already;
-    const source = read.sources.get(reference);
-    const decoded = source ? await host.decode(source.bytes, source.contentType) : null;
-    const bytes = tiles.renderPixels(decoded, { negated });
-    const name = `t${await host.hash(bytes)}.bin`;
-    drawn.set(key, name);
-    files.set(name, bytes);
-    return name;
-  };
-
-  // The blank, rendered once for the whole compile and kept out of `drawn` for
-  // the reason runBuild()'s storeBlank() gives: that map is keyed by a
-  // reference and whether it is crossed out, and an empty key is neither.
-  let blankName = "";
-  const blank = async (): Promise<string> => {
-    if (!blankName) {
-      const bytes = tiles.toRgb565Be(tiles.blank());
-      blankName = `t${await host.hash(bytes)}.bin`;
-      files.set(blankName, bytes);
-    }
-    return blankName;
-  };
-
-  const labelFiles: string[] = [];
-  const tileFiles: string[][] = [];
-  const audioFiles: string[][] = [];
-
-  for (const set of plan.sets) {
-    labelFiles.push(await tileFor(set.symbol, false));
-    const tileNames: string[] = [];
-    const audioNames: string[] = [];
-    for (const slot of set.slots) {
-      tileNames.push(slot.empty ? await blank() : await tileFor(slot.symbol, slot.negated));
-      const sound = slot.text ? read.sounds.get(slot.text) : undefined;
-      if (sound) {
-        files.set(sound.name, sound.bytes);
-        audioNames.push(sound.name);
-      } else {
-        // No recording is a silent key rather than a failure - a Sammlung with
-        // no voice set is a normal one, and layout.bin's per-slot flag is what
-        // says so. The zeros hashBytes() writes for an empty name are the
-        // firmware's own "nothing to play".
-        audioNames.push("");
-      }
-    }
-    tileFiles.push(tileNames);
-    audioFiles.push(audioNames);
-  }
-
-  files.set(LAYOUT_BIN,
-    renderLayoutBin(planLayout(plan), labelFiles, tileFiles, audioFiles));
-  return files;
 }

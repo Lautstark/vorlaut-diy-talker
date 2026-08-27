@@ -19,8 +19,21 @@
 // about: which port out of the several a laptop has, where the files come
 // from, and what the page is told while it happens.
 import { Cable, LAYOUT_FILE, plan, push } from "../tools/cable.js";
-import { builtFiles } from "../../src/data/built.js";
 import { Trouble } from "../../src/core/errors.js";
+
+/** What is to be on the device, by the name it goes under.
+ *
+ * compileDevice() answers with exactly this - layout.bin, one t<hash>.bin per
+ * distinct picture, one a<hash>.wav per distinct sentence. It used to come out
+ * of the `data` store instead, through builtFiles(), and sendToDevice() went
+ * and fetched it: the build wrote into storage, and the transport read it back
+ * by name, which is the arrangement builder.py had with data/ on disk.
+ *
+ * There is no store on this page and nothing to fetch from, so the files are
+ * an argument now. That is a smaller interface rather than a bigger one, and
+ * it is what makes the transfer testable against a Map somebody wrote by hand
+ * - see loader/README.md on what the e2e specs do with it. */
+export type Build = Map<string, Uint8Array<ArrayBuffer>>;
 
 // 115200 because port.open() will not run without a number and vorlaut.ino
 // says Serial.begin(115200). On the S3's native USB there is no UART in the
@@ -146,9 +159,10 @@ async function findTalker(ports: SerialPort[], onLog: (line: string) => void) {
  * The whole of it: find the talker, work out what it is missing, send that.
  *
  * Takes the granted ports rather than fetching them, because the caller is the
- * one that knows whether it just asked for one. Returns what the device said
- * it did - not what was sent, which is the same distinction the CRC on every
- * put exists for.
+ * one that knows whether it just asked for one, and takes the build rather
+ * than fetching that either - see Build above. Returns what the device said it
+ * did, not what was sent, which is the same distinction the CRC on every put
+ * exists for.
  *
  * The order is the protocol's, and it is the safe one: send what is missing,
  * send layout.bin, then delete what is stale. layout.bin is the commit, and
@@ -159,10 +173,13 @@ async function findTalker(ports: SerialPort[], onLog: (line: string) => void) {
  * the page can say as much before anybody presses anything.
  */
 export async function sendToDevice(
-  ports: SerialPort[], options: Sending = {},
+  ports: SerialPort[], build: Build, options: Sending = {},
 ): Promise<Sent> {
   const { onLog = () => {}, onPlan = () => {}, onStep = () => {}, signal } = options;
-  const made = await builtFiles();
+  // plan() and push() want {bytes} per name, because the plan may also be made
+  // from sizes and checksums alone. One line of shaping rather than a second
+  // shape for compileDevice() to answer in.
+  const made = new Map([...build].map(([name, bytes]) => [name, { bytes }]));
   const { port, cable, hello } = await findTalker(ports, onLog);
   try {
     const have = await cable.list();

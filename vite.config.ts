@@ -1,3 +1,5 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import { piperVendor } from "@lautstark/stimmquelle/vite";
 
@@ -9,6 +11,8 @@ import { piperVendor } from "@lautstark/stimmquelle/vite";
  * code - the Pages workflow passes it. Locally it is "/", which is what
  * `npm run dev` and `npm run preview` serve from. */
 const base = process.env.BASE_PATH ?? "/";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base,
@@ -25,6 +29,35 @@ export default defineConfig({
   plugins: [piperVendor()],
   build: {
     outDir: "dist",
+    /* Two pages out of one build, and one deploy serves both.
+     *
+     * index.html is the editor; loader/index.html is the page that takes an
+     * exported file to a talker - adr/0011, and loader/README.md. Named
+     * explicitly rather than left to the default, because Vite's default input
+     * is index.html alone and a second entry point that is never named simply
+     * is not built: the file sits in the repository, the page 404s on Pages,
+     * and nothing anywhere says so.
+     *
+     * The base is the sharp edge here and it is worth being exact about why it
+     * is not one any more. Every path either page writes is absolute and
+     * rewritten by Vite from `base` above - /icon.svg becomes
+     * /vorlaut-diy-talker/icon.svg - and that includes the entry script this
+     * file resolves for loader/index.html. What must not appear anywhere is a
+     * repository name written out by hand: docs/repository-map.md lists three
+     * tracked places where the base already is written out literally, and each
+     * of them is a place a rename breaks silently. The link between the two
+     * pages is the one new opportunity for a fourth, and it is spent on
+     * import.meta.env.BASE_URL instead - see loader/README.md.
+     *
+     * The directory name in dist/ follows the source, so the published address
+     * is <base>loader/ and `npm run dev` serves it at /loader/. One rule, both
+     * places, nothing to keep in step. */
+    rollupOptions: {
+      input: {
+        editor: resolve(here, "index.html"),
+        loader: resolve(here, "loader/index.html"),
+      },
+    },
     /* Vite's default target is a floor of browsers from 2020, which does not
        have top-level await - main.ts uses it to mount the page's structure
        before importing the module that wires it. Raising it is honest rather
