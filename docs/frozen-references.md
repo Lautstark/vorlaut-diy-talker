@@ -357,18 +357,21 @@ than its summary and found the rest.
 **Nothing could build content, and now something can.** `build.py`,
 `builder.py`, `manifest.py`, `tiles.py`, `tts.py`, `layout.py` and
 `layout_format.py` are gone, and for a while nothing stood in for them:
-`runBuild()` in [`src/backend/local.ts`](../src/backend/local.ts) threw by its
-own admission and both sides refused. It is written now — the orchestration
-that was `builder.py`, against the ports of `tiles.py` and `tts.py` that were
-already here and already measured. Changing a symbol or a sentence renders
-again.
+`runBuild()` in the editor threw by its own admission and both sides refused.
+It was written — the orchestration that was `builder.py`, against the ports of
+`tiles.py` and `tts.py` that were already here and already measured — and it
+has since moved rather than gone: `compileDevice()` in
+[`loader/src/compile.ts`](../loader/src/compile.ts) does the same work on the
+page that sends, out of a file rather than out of a store
+([adr/0011](../adr/0011-editor-exports-loader-sends.md)). Changing a symbol or a
+sentence renders again.
 
 **Both routes onto a device went, not one.** `flashing.py` made the LittleFS
 image and drove `esptool`, so the cable is not merely the only *new* path — it
 is the only path, and it had never touched hardware when the Python was
-deleted. It still has not. What has changed is that the page can now drive it
-end to end: *Send to the device* builds and pushes in one press, and
-`e2e/build.spec.ts` holds that against the mock. The wire format was never the
+deleted. It still has not. What has changed is that the browser can now drive it
+end to end: the editor exports a file, `/loader/` compiles and pushes it, and
+`e2e/loader.spec.ts` holds that against the mock. The wire format was never the
 doubtful part — `tests/test_cable_format.py` feeds the client's own bytes to
 the firmware's reader — and a talker is still the thing none of it has met.
 

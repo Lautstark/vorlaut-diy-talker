@@ -46,6 +46,7 @@ flowchart LR
   subgraph V["vorlaut — this repository"]
     SH["src/shell/<br/>boards, symbols, voices, settings"]
     DIY["src/editor-diy/<br/>four keys, five sets"]
+    LD["loader/<br/>checks, compiles, sends"]
     DEV["device/fixtures/<br/>owned by neither half"]
     FW["firmware/<br/>Arduino sketch, C++"]
     APP["src/editor-app/<br/>tablet boards"]
@@ -60,16 +61,24 @@ flowchart LR
   SH --- DIY
   SH --- APP
 
-  DIY -->|"layout.bin, tiles, WAVs<br/>down the USB-C cable"| TALKER
+  DIY -->|".obz — sources, flags, 16 kHz WAVs"| LD
+  LD -->|"layout.bin, tiles, WAVs<br/>down the USB-C cable"| TALKER
   DIY -->|".obz — symbols by reference, no pixels"| AAC
   APP -->|".obz app package — PNG and Opus baked in"| VA
   FW -->|"flashed once"| TALKER
 
-  DEV -.-|held against it| DIY
+  DEV -.-|held against it| LD
   DEV -.-|held against it| FW
   EX -.-|normative for the writer| APP
   EX -.-|pinned by commit SHA| VA
 ```
+
+**The one arrow that changed, and what it changed into.** The editor used to
+reach the talker directly — a build in IndexedDB, a serial port, a megabyte
+down a cable. It writes a file now and stops, and `loader/` is a second page
+that takes one ([ADR 0011](../adr/0011-editor-exports-loader-sends.md)). Both
+consumers therefore have the same relationship with the editor: the viewer takes
+a file, and so does the talker.
 
 **Nothing proposed is drawn.** The diagram is what exists and runs today; the
 proposals are prose, under [their own heading](#proposed-and-not-decided), so
@@ -108,15 +117,17 @@ halves**, and that they write to three different readers.
 | | |
 |---|---|
 | [`src/shell/`](../src/shell/) | What any board builder needs, and neither editor owns: the list of boards, the symbol picker, the voices, the settings, import and export. |
-| [`src/editor-diy/`](../src/editor-diy/) | The five-key talker, and only it — four slots to a set, five sets on the device, and the cable. |
+| [`src/editor-diy/`](../src/editor-diy/) | The five-key talker's Sammlung, and only it — four slots to a set, five sets on the device. Not the cable: that left with [ADR 0011](../adr/0011-editor-exports-loader-sends.md). |
 | [`src/editor-app/`](../src/editor-app/) | The tablet boards the Android viewer renders — a grid, pages, a first column. |
+| [`loader/`](../loader/README.md) | The second page, and the talker's half of the browser code: the checks, the compiler, the tile renderer, the `layout.bin` writer and the cable. A sibling of `firmware/` rather than a directory under `src/`, because it is what stays behind when the editor leaves. |
 | [`firmware/`](../firmware/) | The talker itself. C++, Arduino, ESP32-S3. |
 
 What it writes, and who reads it:
 
 | Artefact | Written by | Read by |
 |---|---|---|
-| `layout.bin`, the tiles and the 16 kHz WAVs | the build, pushed down the cable or into a folder | the firmware, on the device |
+| An `.obz` for the talker: sources, flags and 16 kHz WAVs | [`src/data/device_package.ts`](../src/data/device_package.ts) | [`loader/`](../loader/README.md), and anybody archiving or diffing one |
+| `layout.bin`, the tiles and the 16 kHz WAVs | [`loader/src/compile.ts`](../loader/src/compile.ts), pushed down the cable or into a folder | the firmware, on the device |
 | An `.obz` board document, symbols **by reference** | [`src/data/obf.ts`](../src/data/obf.ts) | vorlaut itself, and other AAC software |
 | An `.obz` app package, symbols and audio **baked in** | [`src/data/app_package.ts`](../src/data/app_package.ts) | `vorlaut-app` |
 | A backup of everything, credentials and paths dropped | [`src/data/backup.ts`](../src/data/backup.ts), through `sicherung` | a folder the user picked, and whatever syncs it |
@@ -223,8 +234,11 @@ condition 2 is unmet and the format is still moving.
 Three things follow, and it is worth keeping them apart:
 
 - **The third export door** — a device-shaped `.obz` with the sources
-  unresampled, negation as a flag and the device's own WAVs — is recommended on
-  its own merits, independently of any split, and is the one part being built.
+  unresampled, negation as a flag and the device's own WAVs — was recommended on
+  its own merits, independently of any split. It is built
+  ([ADR 0010](../adr/0010-device-shaped-obz-export.md)), and it turned out to be
+  the whole boundary: it is the only thing that reaches a talker now
+  ([ADR 0011](../adr/0011-editor-exports-loader-sends.md)).
 - **The compiler as a package** is the decision ADR 0006 refused. An ADR for it
   would **supersede** 0006 rather than amend it.
 - **Splitting this repository** waits on evidence, and ADR 0006 says what
@@ -357,6 +371,14 @@ Pillow's rounding step for step. Split the module and that rounding rule exists
 twice with nothing holding the copies together, which is the failure
 [`frozen-references.md`](frozen-references.md) exists to record.
 
+The module has since moved to the device's side whole, which settles where it
+*lives* and not the awkwardness: the editor imports `thumbnailSize()` across the
+line, and `renderSymbol()` with it, for the device preview on the DIY editor's
+board. [ADR 0011](../adr/0011-editor-exports-loader-sends.md) counts those
+crossings rather than pretending they are not there, and
+`tests/unit/layers.test.ts` is the list. On the day of a split they are what has
+to be answered for, and the answer is still not "split the module".
+
 **`tests/run.py` stays here whole, and that is the naming's other win.** It
 compiles `firmware/vorlaut/*.h` and replays the browser's actual bytes into the
 device's actual reader, and
@@ -374,15 +396,25 @@ plus `test_exchange_fixtures.py`, which travels with `exchange/`. That is all
 the Python it needs, and none of it needs a compiler: ADR 0006's
 three-toolchain consequence unwinds for the editor and stands for the device.
 
-**The seam the names describe is not a directory yet.** "Whatever compiles a
-package into what the talker reads" is today `runBuild()`, at the foot of
-[`src/backend/local.ts`](../src/backend/local.ts) — the same file that answers
-the editor's questions, as its own opening comment says. The move is cheap
-exactly when that boundary is a file format rather than a function call, and
-the device-shaped `.obz` in the first bullet above is what would make it one:
-the editor writes a package, the device repository compiles it, and the two are
-held apart by fixtures instead of by an import. Worth noticing, and not a
-reason to hurry.
+**The seam the names describe is a directory now, and this is the paragraph
+that predicted it.** It used to read: *"Whatever compiles a package into what
+the talker reads" is today `runBuild()`, at the foot of `src/backend/local.ts` —
+the same file that answers the editor's questions. The move is cheap exactly
+when that boundary is a file format rather than a function call, and the
+device-shaped `.obz` in the first bullet above is what would make it one: the
+editor writes a package, the device repository compiles it, and the two are held
+apart by fixtures instead of by an import.*
+
+That is what happened, minus the split.
+[ADR 0011](../adr/0011-editor-exports-loader-sends.md) made the boundary a file
+and put everything on the far side of it in [`loader/`](../loader/README.md).
+`runBuild()` is gone, and `compileDevice()` does its work from the package on
+the page that sends it. **None of which is evidence for a split** — ADR 0006
+asks for a measurement or an event and this is neither, and condition 2 is as
+unmet as it was. What it does mean is that the day would be cheaper than this
+page assumed: the pieces are in one directory, what passes between them is an
+artefact, and what has to be decided on the day is a list of six names in
+`tests/unit/layers.test.ts` rather than an excavation.
 
 ---
 

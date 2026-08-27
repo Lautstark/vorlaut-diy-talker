@@ -534,30 +534,36 @@ the table below.
 python3 -m http.server 8799
 ```
 
-**4. Press *Send to the device* in the editor.** That opens a sheet, and the
-whole of the transfer happens inside it without it closing in between. It first
-says what is about to be written — the Sammlung, how many of its sets are
-switched on, how many keys carry something, and which port it is going to. Then
-it builds the board, works out what the talker is missing and sends that, with
-the device's own serial output inline in the log. It stays open when it is over:
-the log is the most useful thing there is when something has gone wrong, and it
-must not disappear with the last line. Dismiss it when you have read it.
+**4. Export the Sammlung, then open the loader page.** These are two steps and
+two pages now, and [ADR 0011](../adr/0011-editor-exports-loader-sends.md) is
+why: the editor writes a file for the talker — the `⋯` beside the Sammlung's
+name — and says where to take it, and `/loader/` is the page that takes one.
 
-**The first press has a step before that one**, because a port has to be
-granted and `requestPort()` needs transient activation that expires in about
-five seconds — so it cannot come after a build. The sheet explains what the
-browser is about to ask and puts *Choose the device* under it; that button's
-own click is the activation. Chrome's chooser is drawn in the browser's chrome
-and no token of ours reaches it, which is why everything around it is ours and
-it is not.
+**5. Choose the file there.** The page runs five steps down one column and says
+what it found at each: what is in the file, anything the device will not be
+able to do with it, what it compiled, which port it is going to, and then the
+transfer itself with the device's own serial output inline in the log. The log
+stays on the page when it is over — it is the most useful thing there is when
+something has gone wrong, and it must not disappear with the last line.
 
-**Closing that chooser does nothing at all** — no build, no log, nothing
-changed, and the sheet is still standing on the step it was on. That is the
-case this got wrong twice: it used to build anyway and then report that nothing
-was sent, which read as the dialog having been ignored; then the chooser was
-moved out of the press altogether, which fixed it by removing the thing
-somebody had pressed the button for. Every press after the first goes straight
-through — `getPorts()` hands the port back with no gesture at all, and the
+**Connecting is a step of its own**, because a port has to be granted and
+`requestPort()` needs transient activation that expires in about five seconds.
+The step explains what the browser is about to ask and puts *Choose the port*
+under it; that button's own click is the activation. Chrome's chooser is drawn
+in the browser's chrome and no token of ours reaches it, which is why
+everything around it is ours and it is not.
+
+**Closing that chooser does nothing at all** — nothing compiled again, nothing
+logged, nothing changed, and the page is still standing on the step it was on.
+That is the case this got wrong twice while it lived in the editor: it used to
+build anyway and then report that nothing was sent, which read as the dialog
+having been ignored; then the chooser was moved out of the press altogether,
+which fixed it by removing the thing somebody had pressed the button for. What
+made it expensive there was that a wrong port cost a whole build — minutes of
+synthesis — and that cost is gone: the compile here needs no network and takes
+seconds, so a wrong port costs a second press. Every attempt after the first
+goes straight through — `getPorts()` hands the port back with no gesture at
+all, and the
 sheet names it rather than asking again.
 
 **Choosing a different port later needs no settings panel**, and since
@@ -698,9 +704,10 @@ the third — pulling the cable out mid-transfer is a thing only hands can do �
 and the third is the one whose device-side behaviour has no test at all, since
 it is the timeout, the drain and the refusal that only `hello` clears.
 
-Two of them now have a version that runs in a browser: `e2e/build.spec.ts`
-presses the editor's button against `cable_mock.js` and checks that the device
-ends up holding exactly the build, and that a second press sends nothing. That
+Two of them now have a version that runs in a browser: `e2e/loader.spec.ts`
+feeds the loader page a real package, presses Send against `cable_mock.js` and
+checks that the device ends up holding exactly what was compiled, and that a
+second press sends nothing. That
 is the second and sixth rows in everything except the part that matters here —
 there is no flash, no re-enumeration and no clock in it. It is what says the
 wiring is right, so that a failure on the bench is about the hardware rather
@@ -767,7 +774,7 @@ amount of code to remove and deserves to say so in its own commit.
 | [`loader/src/main.ts`](../loader/src/main.ts) | the page — choose a file, check it, compile it, connect, send, with progress and a way to stop |
 | `tests/test_cable_format.py` | the wire format, held against the firmware's own reader |
 | `device/fixtures/cable/several-windows` | the ack cadence as a transcript, with a window of its own |
-| `e2e/build.spec.ts` | the wiring: a press, against the mock served into a real browser |
+| `e2e/loader.spec.ts` | the wiring: a file, a press, against the mock served into a real browser |
 
 The split between the last two is the useful one. `loader/tools/cable.js` is the
 protocol and is checked by the C; nothing above it in `src/` has any business

@@ -47,19 +47,23 @@ device is, and it is the sentence the privacy notice now makes.
 
 ## Building
 
-*Send to the device* in the editor, which builds and then pushes. The build on
-its own is what the rest of this section describes; where the files go
-afterwards is [cable.md](cable.md).
+Two pages and a file between them. The editor exports the Sammlung as an
+`.obz` for the talker — sources, negation flags and the 16 kHz WAVs — and
+[`loader/`](../loader/README.md) compiles that file into what the device reads
+and sends it. What the compile produces is what the rest of this section
+describes; where the files go afterwards is [cable.md](cable.md), and
+[ADR 0011](../adr/0011-editor-exports-loader-sends.md) is why it is two pages.
 
-There is one other way out of the store, and it exists because the cable is the
-only way in: *Write the build into a folder*, in the `⋯` beside the
-Sammlung's name, writes the same files into a folder. `tools/serialcheck.html` can send that
-folder and `mklittlefs` can turn it into an image, so a cable that turns out
-wrong on hardware is not the end of the road.
+There is one other way out of the compile, and it exists because the cable is
+the only way in: *Write into a folder instead*, on the same page, puts the same
+files on a disk. `tools/serialcheck.html` can send that folder and `mklittlefs`
+can turn it into an image, so a cable that turns out wrong on hardware is not
+the end of the road.
 
-It used to be `build.py`, writing into `firmware/vorlaut/data/`. It runs in the
-browser now and writes into IndexedDB, under the same names, and the device
-reads them the same way:
+It used to be `build.py`, writing into `firmware/vorlaut/data/`. Then it was
+`runBuild()` in the editor, writing into IndexedDB. It is `compileDevice()` now
+and answers with a map of files rather than writing anywhere — but the names
+have never changed, and the device reads them the same way it always has:
 
 | File            | Content                                     |
 |-----------------|---------------------------------------------|

@@ -21,6 +21,7 @@ says what the cleanup will look like when it is proposed.
 | [0008](0008-audio-masters-derived-artefacts.md) | One master per utterance; everything else is derived |
 | [0009](0009-device-interface-fixtures.md) | The device interface has fixtures of its own, owned by neither half |
 | [0010](0010-device-shaped-obz-export.md) | The device build has an `.obz` export of its own, and it is a third door |
+| [0011](0011-editor-exports-loader-sends.md) | The editor exports a file; a second page puts it on the talker |
 
 ## The shape
 

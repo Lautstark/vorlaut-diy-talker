@@ -173,8 +173,10 @@ the recovery is one press rather than a page reload:
 
 So it costs an attempt, and the sheet says why while it is costing it. That is
 better than a panel somebody has to know to visit: the failure is the moment
-the question becomes worth asking. `e2e/build.spec.ts` pins the whole loop,
-sentence included.
+the question becomes worth asking. `e2e/loader.spec.ts` pins the whole loop,
+sentence included — on the loader page rather than in a sheet, since
+[adr/0011](../adr/0011-editor-exports-loader-sends.md), and the paragraph below
+about what an attempt costs went with the build it was about.
 
 **What that attempt costs is a build, and it is not free.** `run()` builds and
 then sends, so the press that discovers a dead port has already paid for every

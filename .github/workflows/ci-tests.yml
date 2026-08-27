@@ -41,6 +41,12 @@ on:
     paths: &paths
       - index.html
       - src/**
+      # The second page, and everything the talker's half of the browser code
+      # is made of - the compiler, the tile renderer, the layout.bin writer and
+      # the cable. A change in here reaches tests/run.py as well as the two
+      # JavaScript suites, since that is where the tile and cable checks read
+      # their modules from now.
+      - loader/**
       - e2e/**
       - tests/**
       # tools/installcheck.mjs runs ahead of all three suites, so a change to

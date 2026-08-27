@@ -42,8 +42,13 @@ seeds an empty set with four keys, so there is something to type into
 immediately. The boards, the symbols and the settings live in the browser's own
 storage — in that browser, on that machine, and nowhere else.
 
-Getting it onto the talker is [docs/cable.md](docs/cable.md): flash the
-firmware once, then push content down the USB-C cable from the same page.
+Getting it onto the talker is two steps and two pages. The editor writes a file
+for the device — *Export as a device package*, in the `⋯` beside the
+collection's name — and [`loader/`](loader/README.md), a second page out of the
+same build, checks that file, compiles it into what the talker reads and pushes
+it down the USB-C cable. Flash the firmware once first;
+[docs/cable.md](docs/cable.md) is the wire, and
+[adr/0011](adr/0011-editor-exports-loader-sends.md) is why it is two pages.
 
 No voice is installed for you. Nothing is needed to start editing — the
 interface works without one, and new sentences simply stay silent and say so.
@@ -51,8 +56,8 @@ The piper voices are one press away in the voice picker in the header, and
 Azure Speech is the other route, against a key of your own. Both are in
 [docs/browser-tts.md](docs/browser-tts.md).
 
-> **The one thing that is not here yet.** No board has run any of this. *Send
-> to the device* builds a board into tiles and WAVs and pushes them down the
+> **The one thing that is not here yet.** No board has run any of this. The
+> loader page compiles a file into tiles and WAVs and pushes them down the
 > cable, and every part of that is checked — against the Python it was ported
 > from in [docs/browser-tts.md](docs/browser-tts.md) and
 > [docs/tile-rendering.md](docs/tile-rendering.md), and against the firmware's
@@ -69,19 +74,23 @@ each side of one seam:
 | | |
 |---|---|
 | `src/shell/` | what any board builder needs: the list of boards, the symbol picker, the voices, the settings, the import and export |
-| `src/editor-diy/` | the five-key talker, and only it: four keys to a set, five sets on the device, and the cable |
+| `src/editor-diy/` | the five-key talker's Sammlung, and only it: four keys to a set, five sets on the device |
 | `src/core/`, `src/data/`, `src/backend/` | shared underneath both — the texts, the storage, the formats, and the seam to the outside |
+| `loader/` | the second page, and the talker's half of the browser code: the checks, the compiler, the tile renderer, the `layout.bin` writer and the cable — see [loader/README.md](loader/README.md) |
 
-The shell may not import out of `src/editor-diy/`; `src/main.ts` and
-`src/app.ts` mount and connect the two, and are the only modules that may name
-both. `tests/unit/layers.test.ts` is what holds that, because the way it goes
-wrong is one import that compiles, runs and passes everything else.
+Two boundaries, and one test each. The shell may not import out of
+`src/editor-diy/`; `src/main.ts` and `src/app.ts` mount and connect the two
+editors, and are the only modules that may name both. And `src/` takes nothing
+out of `loader/` but four format constants and the device preview's renderer —
+the editor writes a file for the talker and cannot reach one.
+`tests/unit/layers.test.ts` holds both, because the way either goes wrong is one
+import that compiles, runs and passes everything else.
 
 | | |
 |---|---|
 | `npm run dev` | the page, with reloading |
 | `npm run typecheck` | `tsc -b` over three projects — the browser, the config files, and the browser tests, which span both |
-| `npm test` | vitest: the frozen references for the tile renderer, the OBF converter and the recording chain, the text table, and the walk that says every module under `src/` is one the page reaches |
+| `npm test` | vitest: the frozen references for the tile renderer, the OBF converter and the recording chain, the text table, and the walk that says every module under `src/` and `loader/` is one a page reaches |
 | `npm run test:e2e` | Playwright: the page, built and opened in a real browser, under the base a project site is served from |
 | `python3 tests/run.py` | the checks that need a C++ compiler — the firmware's own readers, compiled and fed the browser's bytes |
 

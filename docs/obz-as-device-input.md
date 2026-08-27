@@ -1,6 +1,23 @@
 # The `.obz` as the device build's input, and the compiler as a package
 
-**Status: proposal, nothing built. 2026-08-27.** Written to be argued with.
+**Status: proposal, largely built, one part still refused. 2026-08-27.**
+Written to be argued with, and it was.
+
+**What happened since, so that nothing below is read as still open.**
+Recommendation 3 — the device-shaped export — landed as
+[adr/0010](../adr/0010-device-shaped-obz-export.md). The premise this document
+set out to test, that an `.obz` can be the device build's input, is now how the
+product works: [adr/0011](../adr/0011-editor-exports-loader-sends.md) made the
+editor's only route to a talker that file, and put the compiler on a page of its
+own in [`loader/`](../loader/README.md). What is **still** refused is the part
+this document is named for and recommendation 4 is about: the compiler is not a
+package and this repository is not split, because [adr/0006](../adr/0006-builder-and-hardware-one-repo.md)
+asks for evidence and none has arrived.
+
+Everything below describes the code as it stood on the morning of that day.
+`runBuild()`, the `data` store and the editor's cable are named throughout in
+the present tense and no longer exist; the measurements are what they were, and
+rewriting them would turn a record into a summary.
 
 The proposal weighed here: the editor's only output becomes an `.obz`, a
 device-side compiler turns that into `layout.bin` and the tiles, the compiler
