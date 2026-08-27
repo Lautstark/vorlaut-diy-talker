@@ -6,7 +6,7 @@
 // over data. That line is what lets the mapping and its validator be checked
 // under node, which is where most of the rules worth checking live.
 
-import { thumbnailSize } from "./tiles.js";
+import { thumbnailSize } from "../../loader/src/tiles.js";
 import { digest, IMAGE_SIZE, type BakedImage, type BakedSound } from "./app_package.js";
 import { encodeOpus, ENCODER_RATE } from "./opus.js";
 

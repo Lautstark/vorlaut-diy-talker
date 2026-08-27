@@ -109,8 +109,8 @@ import {
 } from "./audio_format.js";
 import {
   HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET, renderLayoutBin,
-} from "./layout_format.js";
-import * as tiles from "./tiles.js";
+} from "../../loader/src/layout_format.js";
+import * as tiles from "../../loader/src/tiles.js";
 import { zipBytes, type ZipMember } from "./zip.js";
 import type { DiyLayout } from "../core/types.js";
 

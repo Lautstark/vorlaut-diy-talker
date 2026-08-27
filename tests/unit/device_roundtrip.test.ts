@@ -11,8 +11,8 @@ import {
 } from "../../src/data/device_package.js";
 import {
   HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET, renderLayoutBin,
-} from "../../src/data/layout_format.js";
-import { blank, renderPixels, toRgb565Be } from "../../src/data/tiles.js";
+} from "../../loader/src/layout_format.js";
+import { blank, renderPixels, toRgb565Be } from "../../loader/src/tiles.js";
 import type { DiyLayout } from "../../src/core/types.js";
 import { unzip } from "./obz.js";
 

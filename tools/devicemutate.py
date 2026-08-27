@@ -49,10 +49,10 @@ NAME_H = ROOT / "firmware" / "vorlaut" / "name_format.h"
 CABLE_H = ROOT / "firmware" / "vorlaut" / "cable_format.h"
 TEXTS_H = ROOT / "firmware" / "vorlaut" / "texts.h"
 
-LAYOUT_TS = ROOT / "src" / "data" / "layout_format.ts"
-TILES_TS = ROOT / "src" / "data" / "tiles.ts"
+LAYOUT_TS = ROOT / "loader" / "src" / "layout_format.ts"
+TILES_TS = ROOT / "loader" / "src" / "tiles.ts"
 AUDIO_TS = ROOT / "src" / "data" / "audio_format.ts"
-CABLE_JS = ROOT / "tools" / "cable.js"
+CABLE_JS = ROOT / "loader" / "tools" / "cable.js"
 
 FIRMWARE = "firmware"
 BROWSER = "browser"

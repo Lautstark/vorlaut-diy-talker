@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks that src/data/tiles.ts still renders the tiles tiles.py rendered.
+"""Checks that loader/src/tiles.ts still renders the tiles tiles.py rendered.
 
 The app moved into the browser, and render_symbol() existed twice while it
 did. Two implementations of one thing drift, and this one drifting is
@@ -24,7 +24,7 @@ The Python half is now gone, and this is what is left of that comparison:
 
   node against the frozen bytes     the whole of it. Needs nothing but node.
   the constants                     TILE_PIPELINE and the sizes, read out of
-                                    src/data/tiles.ts as text. Needs not even
+                                    loader/src/tiles.ts as text. Needs not even
                                     that.
 
 There used to be a third, tiles.py against the same bytes, which is what
@@ -72,7 +72,7 @@ def have_js() -> bool:
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
-MODULE = ROOT / "src" / "data" / "tiles.ts"
+MODULE = ROOT / "loader" / "src" / "tiles.ts"
 REFERENCE = ROOT / "tests" / "reference"
 LOCK = REFERENCE / "tiles.lock.json"
 
@@ -219,9 +219,9 @@ def check_against_node(lock: dict, work: Path) -> None:
         [JS_RUNNER, str(driver), MODULE.as_uri(), str(plan_file)],
         capture_output=True, text=True)
     if result.returncode != 0:
-        check("node ran src/data/tiles.ts", False, result.stderr.strip()[:400])
+        check("node ran loader/src/tiles.ts", False, result.stderr.strip()[:400])
         return
-    check("node ran src/data/tiles.ts", True)
+    check("node ran loader/src/tiles.ts", True)
 
     total = lock["tile_size"] ** 2
     for entry in lock["fixtures"]:
@@ -245,7 +245,7 @@ def main() -> int:
     check_fixtures_are_intact(lock)
 
     if not have_js():
-        print("  skipped: node is not installed, so src/data/tiles.ts was not "
+        print("  skipped: node is not installed, so loader/src/tiles.ts was not "
               "run. Only the constants were checked.")
     else:
         with tempfile.TemporaryDirectory() as work:

@@ -145,7 +145,7 @@ says nothing, because it is said to somebody who believes it.
   `docs/device-interface.md` §5 expects it to. That section describes CI after a
   split, where the firmware side is a different repository with a path filter of
   its own. Inside one repository the same move would stop the format checks
-  running on a change to `src/data/layout_format.ts` — which is the change that
+  running on a change to `loader/src/layout_format.ts` — which is the change that
   broke a format most recently — or make every `src/` change pay for the ESP32
   toolchain. The reason is in a comment in that workflow.
 - **The live checks stay.** `test_layout_frozen.py` and `test_cable_format.py`

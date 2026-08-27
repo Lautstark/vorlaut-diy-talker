@@ -7,12 +7,12 @@ import {
   renderLayoutBin, hashBytes, LANGUAGE_CODES, DEFAULT_LANGUAGE,
   LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, SLOT_BYTES, SLOTS_PER_SET,
   NAME_BYTES, HASH_BYTES,
-} from "../../src/data/layout_format.js";
-import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../src/data/tiles.js";
+} from "../../loader/src/layout_format.js";
+import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
 } from "../../src/data/audio_format.js";
-import { Cable, CABLE_VERSION, crc32, hex8 } from "../../tools/cable.js";
+import { Cable, CABLE_VERSION, crc32, hex8 } from "../../loader/tools/cable.js";
 
 /* The builder's half of device/fixtures/.
  *

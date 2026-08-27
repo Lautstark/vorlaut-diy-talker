@@ -24,7 +24,7 @@
 // grants, which needs no gesture at all. This module is what the two share.
 import {
   askForDevice, cableSupported, grantedDevices, watchDevices,
-} from "../backend/index.js";
+} from "../../src/backend/index.js";
 
 let known: SerialPort[] = [];
 

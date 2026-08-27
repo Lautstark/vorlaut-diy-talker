@@ -27,8 +27,8 @@ the Python halves were deleted, and this is what is left behind them.
 | | frozen from | needs, to check it | what it protects |
 |---|---|---|---|
 | [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `node_modules/@lautstark/stimmquelle/` |
-| [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `src/data/tiles.ts` |
-| [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `src/data/layout_format.ts` |
+| [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `loader/src/tiles.ts` |
+| [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `loader/src/layout_format.ts` |
 | [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `src/data/symbols.ts` |
 | [`tests/reference/obf.lock.json`](../tests/reference/obf.lock.json) | `obf.py` and `normalize_layout()` in `layout.py` | node | `src/data/obf.ts` |
 
@@ -175,7 +175,7 @@ conclusion was that this check survives on its own.
 
 It does not, and the reason is worth keeping. The reader survives; what it was
 compared against did not. `normalize_layout()` in `layout.py` built every input
-and `src/data/layout_format.ts` has no equivalent — only `normalizeColor`. `expected()` built the field lines the reader was held
+and `loader/src/layout_format.ts` has no equivalent — only `normalizeColor`. `expected()` built the field lines the reader was held
 against. And `render_layout_bin()` was the only opinion on whether the
 JavaScript bytes were right. Delete Python and what is left is a reader that
 parses whatever it is handed and a test with nothing to compare.
@@ -513,7 +513,7 @@ much it would cost to be wrong:
    page that rendered nothing at all ship green.
 
    It is shallow on purpose, and everything below it is still unexercised in a
-   tab. The vendored chain and `src/data/tiles.ts` are checked under node,
+   tab. The vendored chain and `loader/src/tiles.ts` are checked under node,
    where they are deliberately free of the DOM, so node is a fair stand-in for
    the arithmetic — but `tools/ttscheck.html` and `tools/tilecheck.html`, the pages
    that drove them in a real tab, were deleted with the Python harnesses that

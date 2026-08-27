@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 def language_codes() -> dict[str, int]:
     """Which language rides in which byte.
 
-    This used to be a regular expression over src/data/layout_format.ts -
+    This used to be a regular expression over loader/src/layout_format.ts -
     first over layout.py, and then over the TypeScript that replaced it when
     the app became a static site. Reading the writer as text was better than
     restating the table here, and it was still a paraphrase: a regex over

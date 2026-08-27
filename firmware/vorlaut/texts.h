@@ -12,7 +12,7 @@
 // because the language is chosen by the content and an empty device has none.
 //
 // Which language is used comes from layout.bin - see LANGUAGE_CODES below and
-// the header description in src/data/layout_format.ts. The tables are all compiled in; together
+// the header description in loader/src/layout_format.ts. The tables are all compiled in; together
 // they cost a few hundred bytes, and that way one and the same firmware image
 // works for every language.
 
@@ -59,7 +59,7 @@ struct Strings {
   // this yet, so nobody could see it either. Keep the two lists in step.
 };
 
-// The order has to match LANGUAGE_CODES in src/data/layout_format.ts - the
+// The order has to match LANGUAGE_CODES in loader/src/layout_format.ts - the
 // file stores the index, not the name.
 static const Strings LANGUAGES[] = {
   {  // 0 - English

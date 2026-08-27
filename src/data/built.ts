@@ -14,7 +14,7 @@
 // business being loaded by a module whose whole job is to read three object
 // stores. It is also what made this untestable without a DOM.
 import * as store from "./store.js";
-import { LAYOUT_BIN } from "./layout_format.js";
+import { LAYOUT_BIN } from "../../loader/src/layout_format.js";
 import { Trouble } from "../core/errors.js";
 
 /** One file out of a build.

@@ -44,7 +44,7 @@ import {
   DEFAULT_LANGUAGE,
   LANGUAGE_CODES,
   SLOTS_PER_SET,
-} from "./layout_format.js";
+} from "../../loader/src/layout_format.js";
 import type { DiyLayout } from "../core/types.js";
 
 /* The Open Board Format shapes this reads and writes.

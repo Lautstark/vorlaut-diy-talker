@@ -52,9 +52,9 @@ now, and getting it right is most of the work.
 
 | | Browser side | Device side | Held together by |
 |---|---|---|---|
-| `layout.bin` | [`src/data/layout_format.ts`](../src/data/layout_format.ts) | [`layout_format.h`](../firmware/vorlaut/layout_format.h) | `test_layout_frozen.py` — frozen bytes, live C reader |
-| The cable | [`tools/cable.js`](../tools/cable.js), [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) | [`cable_format.h`](../firmware/vorlaut/cable_format.h), [`cable.h`](../firmware/vorlaut/cable.h) | `test_cable_format.py` — live both ends |
-| `t<hash>.bin` | [`src/data/tiles.ts`](../src/data/tiles.ts) | `drawTile()` in `vorlaut.ino` | **nothing** |
+| `layout.bin` | [`loader/src/layout_format.ts`](../loader/src/layout_format.ts) | [`layout_format.h`](../firmware/vorlaut/layout_format.h) | `test_layout_frozen.py` — frozen bytes, live C reader |
+| The cable | [`loader/tools/cable.js`](../loader/tools/cable.js), [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) | [`cable_format.h`](../firmware/vorlaut/cable_format.h), [`cable.h`](../firmware/vorlaut/cable.h) | `test_cable_format.py` — live both ends |
+| `t<hash>.bin` | [`loader/src/tiles.ts`](../loader/src/tiles.ts) | `drawTile()` in `vorlaut.ino` | **nothing** |
 | `a<hash>.wav` | the build | `seekToWavData()` in `vorlaut.ino` | **nothing** |
 | The name rule | `hashBytes()` in `layout_format.ts` | `hashPath()` in `vorlaut.ino`, `cableNameOk()` in `cable_format.h` | **nothing** |
 | The language byte | `LANGUAGE_CODES` in `layout_format.ts` | `LANGUAGES` in `texts.h` | `test_texts.py`, by regex over the TypeScript |
@@ -275,7 +275,7 @@ the honest cost of the move rather than a detail.
 |---|---|
 | `layout_dump.cpp` | the same program, in the firmware repository, taking its input from a fixture instead of from Node. It already prints the field lines the expectation would hold. |
 | `cable_dump.cpp` | a transcript replayer. It already starts from an empty state reachable only through the wire, which is the property that matters. |
-| `texts_dump.cpp` | **nothing. It does not move and is not replaced.** It stays firmware-side and unchanged, except that its language-count check reads the specification's table instead of a regex over `src/data/layout_format.ts`. |
+| `texts_dump.cpp` | **nothing. It does not move and is not replaced.** It stays firmware-side and unchanged, except that its language-count check reads the specification's table instead of a regex over `loader/src/layout_format.ts`. |
 
 ### What is lost, and what has to replace it
 
@@ -430,7 +430,7 @@ intuition about tidiness. Held to it:
 | `firmware/` changed | on five of the last seven days |
 | The transport | replaced entirely 2026-08-22/23. Wi-Fi out, cable in — which **deleted one of the four formats ADR 0006 names** |
 | `cable_format.h` | three commits, newest 2026-08-23, and its own comment names a pending change *to both halves of the protocol*: the device acknowledging each chunk, *"worth doing before this device is out of reach of a cable"* |
-| `src/data/layout_format.ts` | changed 2026-08-25 — yesterday — in a breaking commit that permanently invalidated one of the seventeen frozen cases |
+| `loader/src/layout_format.ts` | changed 2026-08-25 — yesterday — in a breaking commit that permanently invalidated one of the seventeen frozen cases |
 | The model itself | `exchange/SPEC.md` is 1.2.0 **draft** — 1.1.0 when this row was written, minor-bumped the day after; no `exchange-v*` tag is cut and none will be until a real board reaches a tablet |
 
 Condition 1 asks whether `layout.bin` and the cable protocol are "frozen for

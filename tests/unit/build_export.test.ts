@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as store from "../../src/data/store.js";
 import { chooseBuildFolder, isBuildFile, writeBuildTo }
-  from "../../src/backend/folder.js";
+  from "../../loader/src/folder.js";
 import { Trouble } from "../../src/core/errors.js";
 import type { Layout } from "../../src/core/types.js";
 

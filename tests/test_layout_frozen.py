@@ -79,7 +79,7 @@ It is an anticipated loss rather than a surprise: the lock's invalidated_by
 names "a change to render_layout_bin() in layout_format.py", and removing the
 filter is one. It cannot be won back - layout_format.py and
 tools/layoutfreeze.py went with the Python half, so there is nothing left to
-re-freeze from, and re-deriving the bytes from src/data/layout_format.ts would
+re-freeze from, and re-deriving the bytes from loader/src/layout_format.ts would
 be the browser compared against itself.
 
 The other sixteen cases are untouched and keep their full value: the bytes, the
@@ -102,7 +102,7 @@ layout_format.py", so this is an anticipated invalidation rather than a cheat -
 but anticipated is not the same as answerable. layout_format.py,
 tools/layoutfreeze.py and normalize_layout() went with the Python half on
 2026-08-22, and docs/frozen-references.md is explicit that re-deriving the
-bytes from src/data/layout_format.ts would leave the browser compared against
+bytes from loader/src/layout_format.ts would leave the browser compared against
 itself, which is the one thing these files exist to stop.
 
 **What is done instead is a deletion, not a guess.** Nothing new has to be
@@ -242,7 +242,7 @@ def read_back(reader: Path, tmp: Path, name: str, data: bytes) -> list[str] | st
 
 
 def render_with_node(cases: list[dict]) -> list[bytes | str] | None:
-    """Every frozen layout, written by src/data/layout_format.ts.
+    """Every frozen layout, written by loader/src/layout_format.ts.
 
     All of them in one run: starting node costs more than writing every case.
     A case the writer refused comes back as its message instead of as bytes,

@@ -947,7 +947,7 @@ fixture({
 // A field of the layout header - byte 7, the index into the device's table -
 // and not the panel texts themselves, which cross no boundary at all. This
 // table replaces the regex tests/test_texts.py used to run over
-// src/data/layout_format.ts: a regex over somebody else's file is a
+// loader/src/layout_format.ts: a regex over somebody else's file is a
 // paraphrase, and docs/frozen-references.md has the account of what happened
 // the last time a paraphrase stood in for an oracle.
 

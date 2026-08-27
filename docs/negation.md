@@ -38,7 +38,7 @@ vorlaut draws a symbol in four places, and they are not one problem.
 |---|---|---|
 | `symbolInto()` — [`backend/local.ts`](../src/backend/local.ts) | an `<img>` on screen: the sheet's preview, a tablet cell, a talker key | an overlay, exactly as bildhaft does it |
 | `previewInto()` — same file | the talker's life-size 128x128 preview, which runs the real tile pipeline | free, and correct — it is the tile |
-| `renderSymbol()` — [`data/tiles.ts`](../src/data/tiles.ts) | 128x128 RGB565 written to the device | composited into a bitmap |
+| `renderSymbol()` — [`data/tiles.ts`](../loader/src/tiles.ts) | 128x128 RGB565 written to the device | composited into a bitmap |
 | `bakeImage()` — [`data/app_assets.ts`](../src/data/app_assets.ts) | a PNG member of an app package | composited into a bitmap |
 
 And there is a fifth surface that has no pixels at all, which turns out to
@@ -170,7 +170,7 @@ firmware that composited a mark would need the mark, a colour, an inset and a
 version bump on the wire to say which tiles had been drawn the old way.
 
 So for the DIY device, baking is the only option available, and the good news
-is that the machinery is already in [`data/tiles.ts`](../src/data/tiles.ts) and
+is that the machinery is already in [`data/tiles.ts`](../loader/src/tiles.ts) and
 already frozen against an outside opinion. `placeholder()` draws a grey cross —
 two thick diagonals — through `wideLinePolygon()` and `fillPolygon()`, which
 reproduce Pillow's hard-edged quadrilateral fill step for step, "checked

@@ -1,7 +1,7 @@
 // How sixteen hash bytes become a file name.
 //
 // The name rule is stated three times in this repository: hashBytes() in
-// src/data/layout_format.ts reads a hash back out of a name, hashPath() below
+// loader/src/layout_format.ts reads a hash back out of a name, hashPath() below
 // writes one, and cableNameOk() in cable_format.h independently decides which
 // names the device is willing to store. The third has to be a superset of the
 // first two or a file silently never arrives - no error anywhere, one black

@@ -28,9 +28,9 @@
 // Asking and writing are two functions, the way the cable's are, and for the
 // same reason: a picker needs a user gesture that expires in about five
 // seconds, so whatever is slow has to come after it.
-import { buildIsCurrent, builtFiles } from "../data/built.js";
-import { HASH_BYTES, LAYOUT_BIN } from "../data/layout_format.js";
-import { Trouble } from "../core/errors.js";
+import { buildIsCurrent, builtFiles } from "../../src/data/built.js";
+import { HASH_BYTES, LAYOUT_BIN } from "./layout_format.js";
+import { Trouble } from "../../src/core/errors.js";
 
 /** Whether a folder can be chosen at all: Chromium on the desktop, and nowhere
  *  else. Safari and Firefox have no picker, and no browser on Android has one

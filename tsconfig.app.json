@@ -20,7 +20,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* tools/cable.js is JavaScript on purpose and is included below, so the
+    /* loader/tools/cable.js is JavaScript on purpose and is included below, so the
        compiler has to be willing to read it. checkJs stays off: that file is
        held to the C reader by tests/test_cable_format.py, which is a stronger
        statement about it than tsc would make, and turning it on would ask for
@@ -35,10 +35,16 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   },
-  /* The one file outside src/ the page imports. It stays in tools/ because the
-     bench and the node harness import it from there as it is written, and
-     because a copy under src/ would be a second implementation of a protocol
-     whose whole point is that one implementation is checked against the
-     firmware's. See the head of src/backend/cable.ts. */
-  "include": ["src", "tools/cable.js"]
+  /* Two programs' worth of source, and one file that is neither. `src` is the
+     editor; `loader` is the page that takes an exported file to a talker, and
+     it is a directory of its own because it travels with firmware/ and device/
+     when this repository is ever split - see loader/README.md.
+
+     loader/tools/cable.js is named a third time because it is JavaScript, and
+     it lives under tools/ rather than src/ because the bench page and the node
+     harness import it from there as it is written: a copy beside the modules
+     would be a second implementation of a protocol whose whole point is that
+     one implementation is checked against the firmware's. See the head of
+     loader/src/cable.ts. */
+  "include": ["src", "loader", "loader/tools/cable.js"]
 }

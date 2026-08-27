@@ -9,8 +9,8 @@ import { put } from "./diy.js";
 import { openSettings, pickFromMenu } from "./sheets.js";
 /* Out of the modules that decide them rather than written here: a stride
  * this test spelled out for itself would agree with nothing. */
-import { HEADER_BYTES, SET_BYTES } from "../src/data/layout_format.js";
-import { TILE_SIZE } from "../src/data/tiles.js";
+import { HEADER_BYTES, SET_BYTES } from "../loader/src/layout_format.js";
+import { TILE_SIZE } from "../loader/src/tiles.js";
 
 /* The language this page comes up in, pinned rather than left to the runner.
  *

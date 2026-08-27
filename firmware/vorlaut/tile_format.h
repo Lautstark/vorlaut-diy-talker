@@ -2,7 +2,7 @@
 //
 // These three numbers were #defines in vorlaut.ino, next to the display
 // pixels they happen to equal. That put them somewhere no test could reach:
-// the browser's TILE_SIZE in src/data/tiles.ts is the same number written a
+// the browser's TILE_SIZE in loader/src/tiles.ts is the same number written a
 // second time, and nothing has ever compared them. A tile carries no header,
 // so its size is agreed out of band or not at all - which makes this file the
 // agreement.

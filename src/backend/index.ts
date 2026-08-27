@@ -134,8 +134,8 @@ export {
 
   // The transfer. Takes the ports, not the files.
   sendToDevice,
-} from "./cable.js";
-export type { Plan, Sending, Sent } from "./cable.js";
+} from "../../loader/src/cable.js";
+export type { Plan, Sending, Sent } from "../../loader/src/cable.js";
 
 // --- Getting it into a folder ------------------------------------------------
 //
@@ -145,8 +145,8 @@ export type { Plan, Sending, Sent } from "./cable.js";
 // should have, and it is the only thing standing between a cable that turns
 // out to be wrong on hardware and no way in at all. See the head of folder.ts.
 export { folderExportSupported, chooseBuildFolder, writeBuildTo, isBuildFile }
-  from "./folder.js";
-export type { Exported, Exporting } from "./folder.js";
+  from "../../loader/src/folder.js";
+export type { Exported, Exporting } from "../../loader/src/folder.js";
 
 // What it does not take is the files, and that was written here before the
 // cable was: the transport does have to be handed them, it just is not handed

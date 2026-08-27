@@ -62,7 +62,7 @@ With them, the rule on each side is one line long:
 The device's log survives that instead of being crushed by it: the browser puts
 every unmarked line in the transfer sheet's log, which is the most useful thing on the wire
 when something has gone wrong. `tools/serialcheck.html` shows them mixed in,
-and the mock in `tools/cable_mock.js` chatters on purpose so that a client
+and the mock in `loader/tools/cable_mock.js` chatters on purpose so that a client
 which only works on a silent wire fails here rather than on a bench.
 
 ## The device is deliberately stupid
@@ -86,7 +86,7 @@ of it. Everything the device would have had to hold in a `String` to do the
 comparison is a `String` it does not allocate.
 
 So `list` walks the directory and prints it as it goes, and the diff happens in
-`tools/cable.js`. The answers:
+`loader/tools/cable.js`. The answers:
 
 ```
 < vorlaut 2                  it is one of ours, and 2 is the protocol version
@@ -760,16 +760,16 @@ amount of code to remove and deserves to say so in its own commit.
 |---|---|
 | [`firmware/vorlaut/cable_format.h`](../firmware/vorlaut/cable_format.h) | the wire format, with no Arduino in it |
 | [`firmware/vorlaut/cable.h`](../firmware/vorlaut/cable.h) | the session: Serial, LittleFS, the half-written file |
-| [`tools/cable.js`](../tools/cable.js) | the browser's half, and the diff |
-| [`tools/cable_mock.js`](../tools/cable_mock.js) | a device made of a `Map`, for when there is no board |
+| [`loader/tools/cable.js`](../loader/tools/cable.js) | the browser's half, and the diff |
+| [`loader/tools/cable_mock.js`](../loader/tools/cable_mock.js) | a device made of a `Map`, for when there is no board |
 | [`tools/serialcheck.html`](../tools/serialcheck.html) | the bench, standalone |
-| [`src/backend/cable.ts`](../src/backend/cable.ts) | the page's side: which port, where the files come from, what the page is told |
+| [`loader/src/cable.ts`](../loader/src/cable.ts) | the page's side: which port, where the files come from, what the page is told |
 | [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) | the one button — build, then send, with progress and a way to stop |
 | `tests/test_cable_format.py` | the wire format, held against the firmware's own reader |
 | `device/fixtures/cable/several-windows` | the ack cadence as a transcript, with a window of its own |
 | `e2e/build.spec.ts` | the wiring: a press, against the mock served into a real browser |
 
-The split between the last two is the useful one. `tools/cable.js` is the
+The split between the last two is the useful one. `loader/tools/cable.js` is the
 protocol and is checked by the C; nothing above it in `src/` has any business
 knowing what a `put` line looks like. What the page adds is everything the C
 cannot see — that a press builds, that the build is read back out of storage
@@ -892,7 +892,7 @@ two, and leave the rest alone.
 It could not have worked: this bench is served on its own port so that
 `localhost` gives it a secure context, and a different origin is a different
 IndexedDB — there is nothing of the editor's for it to read. The editor sends
-its own build now, through this same `tools/cable.js`, which is the answer that
+its own build now, through this same `loader/tools/cable.js`, which is the answer that
 button was standing in for.
 
 What is left here is what that button cannot be: a payload with no build behind
@@ -908,7 +908,7 @@ naming because they are easy to leave out:
   cannot be: the press builds first and then sends what that build produced, so
   there is no window in which the two disagree.
 - **Each file is checked against the length the manifest declared**, which is
-  what a build moving underneath the read looks like. `src/backend/cable.ts`
+  what a build moving underneath the read looks like. `loader/src/cable.ts`
   does this and refuses the whole transfer rather than sending a mixture of two
   builds — a device that is half one and half another is wrong in a way nothing
   downstream would notice.

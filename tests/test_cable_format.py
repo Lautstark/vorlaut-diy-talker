@@ -7,13 +7,13 @@ through anyway. docs/cable.md has the protocol and the reasoning; this checks
 that the three places it is written down agree.
 
 Those places are firmware/vorlaut/cable_format.h, which the device reads and
-writes with, and tools/cable.js, which the browser reads and writes with. A
+writes with, and loader/tools/cable.js, which the browser reads and writes with. A
 protocol whose two halves are only ever run against their own author's idea of
 the other one is not tested, it is asserted - so the check that matters here
 is the one in the middle:
 
   * The browser client is driven through whole sessions against the mock in
-    tools/cable_mock.js, and every byte it wrote is recorded.
+    loader/tools/cable_mock.js, and every byte it wrote is recorded.
   * Those exact bytes are then handed to the C reader out of the sketch,
     compiled here, which starts empty and can only be reached through the
     wire.
@@ -62,8 +62,8 @@ def build_reader(target: Path) -> None:
 
 
 def node_or_stop() -> str:
-    # Plain node: tests/cable_node.mjs imports tools/cable.js and
-    # tools/cable_mock.js, both of which are still JavaScript. The TypeScript
+    # Plain node: tests/cable_node.mjs imports loader/tools/cable.js and
+    # loader/tools/cable_mock.js, both of which are still JavaScript. The TypeScript
     # loader is only for the harnesses that reach into src/.
     node = shutil.which("node")
     if not node:
@@ -114,9 +114,9 @@ def check_limits(reader: Path, problems: list[str]) -> None:
 
     # The client has to carry the same version, or a device that answers
     # "vorlaut 3" would be driven with a protocol it no longer speaks.
-    source = (ROOT / "tools" / "cable.js").read_text(encoding="utf-8")
+    source = (ROOT / "loader" / "tools" / "cable.js").read_text(encoding="utf-8")
     if f"export const CABLE_VERSION = {got.get('version')};" not in source:
-        problems.append("tools/cable.js does not carry the same CABLE_VERSION "
+        problems.append("loader/tools/cable.js does not carry the same CABLE_VERSION "
                         f"as the firmware ({got.get('version')})")
 
     # The window and the receive buffer, which is the whole arithmetic of the
@@ -314,7 +314,7 @@ def check_commands(reader: Path, problems: list[str]) -> int:
 # --- Writing an answer -------------------------------------------------------
 
 # Every line the device can send, exactly as it composes it. Written out here
-# rather than derived, because this is the half tools/cable.js has to read and
+# rather than derived, because this is the half loader/tools/cable.js has to read and
 # a change on either side should have to be made twice on purpose.
 ANSWERS = """\
 < vorlaut 2

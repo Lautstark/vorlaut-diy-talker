@@ -95,7 +95,7 @@ import { isDiy } from "../core/types.js";
 import type { DiyLayout } from "../core/types.js";
 import { onBuildState, saveNow } from "../core/save.js";
 import { runBuild, cableSupported, sendToDevice, type Plan } from "../backend/index.js";
-import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js";
+import { connectDevice, devices, haveDevice, watchForDevices } from "../../loader/src/device.js";
 
 /* Set when nothing on the wire answered as a talker. The next press asks for
  * the port again, which is the way back for somebody who chose the wrong one:

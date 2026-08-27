@@ -148,7 +148,7 @@ renamed to say so. Asked properly, the answer is weaker than that.
 * [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) already offers a
   connect button *inside the release dialog* at the step where it finds it has
   no port — with the words about what is about to be written already read.
-* [`src/editor-diy/device.ts`](../src/editor-diy/device.ts) opens with "One
+* [`loader/src/device.ts`](../loader/src/device.ts) opens with "One
   explicit connect the first time, and silent reconnect for ever after" via
   `getPorts()`.
 * The build-to-a-folder act needs no port at all, and it has moved out.

@@ -10,7 +10,7 @@
 // starting Node costs more than writing all of them.
 
 import { readFileSync } from "node:fs";
-import { renderLayoutBin } from "../src/data/layout_format.ts";
+import { renderLayoutBin } from "../loader/src/layout_format.ts";
 
 const cases = JSON.parse(readFileSync(0, "utf8"));
 const lines = cases.map((one) => {

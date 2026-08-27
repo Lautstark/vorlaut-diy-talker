@@ -349,7 +349,7 @@ does not mean it. The locks divide the same way and no more neatly:
 `obf.lock.json` and `tts.lock.json` follow the converter and the recording
 chain to the editor, `layout.lock.json` follows the writer it protects to the
 device, and `tiles.lock.json` is awkward because the module under it is.
-[`src/data/tiles.ts`](../src/data/tiles.ts) is not on one side — `renderSymbol()`
+[`loader/src/tiles.ts`](../loader/src/tiles.ts) is not on one side — `renderSymbol()`
 belongs to the device build, while `thumbnailSize()` is imported by
 [`src/data/app_assets.ts`](../src/data/app_assets.ts) for the app package's
 images, and the only reason that function is worth having is that it follows

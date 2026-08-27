@@ -9,7 +9,7 @@
 // Deliberately without any Arduino dependency, like layout_format.h - and like
 // pair_format.h, which had the same shape and went with the radio on
 // 2026-08-23: that way tests/test_cable_format.py can compile it on the
-// computer and check it against what tools/cable.js really sends, instead of
+// computer and check it against what loader/tools/cable.js really sends, instead of
 // on a device that stores the wrong bytes and says nothing about why.
 //
 // Lines, not JSON - the same reason the Wi-Fi sync's manifest in sync.h was

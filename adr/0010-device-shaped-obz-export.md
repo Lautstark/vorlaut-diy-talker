@@ -6,7 +6,7 @@
 
 A device build lives in one browser's IndexedDB, on one machine. `runBuild()`
 writes `layout.bin`, a `t<hash>.bin` per picture and an `a<hash>.wav` per
-sentence into the `data` store; `tools/cable.js` sends them to a talker. There
+sentence into the `data` store; `loader/tools/cable.js` sends them to a talker. There
 is no artefact anywhere that says *"this is what is on that talker"* in a form
 anybody can diff, archive, or hand to somebody debugging at a bench. The folder
 export writes the loose files and cannot be read back into a build.

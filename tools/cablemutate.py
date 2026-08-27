@@ -47,8 +47,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FORMAT = ROOT / "firmware" / "vorlaut" / "cable_format.h"
-CLIENT = ROOT / "tools" / "cable.js"
-MOCK = ROOT / "tools" / "cable_mock.js"
+CLIENT = ROOT / "loader" / "tools" / "cable.js"
+MOCK = ROOT / "loader" / "tools" / "cable_mock.js"
 
 # (file, what to find, what to put there, what that would mean)
 MUTANTS: list[tuple[pathlib.Path, str, str, str]] = [

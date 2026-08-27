@@ -27,11 +27,11 @@ import { ENCODER_RATE } from "../data/opus.js";
 import { DEVICE_SAMPLE_RATE } from "../data/audio_format.js";
 import { buildIsCurrent } from "../data/built.js";
 import * as store from "../data/store.js";
-import * as tiles from "../data/tiles.js";
+import * as tiles from "../../loader/src/tiles.js";
 import * as symbols from "../data/symbols.js";
 import {
   DEFAULT_LANGUAGE, HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET, renderLayoutBin,
-} from "../data/layout_format.js";
+} from "../../loader/src/layout_format.js";
 import { reason } from "../core/errors.js";
 import { t } from "../core/texts.js";
 import {

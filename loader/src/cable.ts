@@ -18,9 +18,9 @@
 // What is left for here, then, is three things the wire format has no opinion
 // about: which port out of the several a laptop has, where the files come
 // from, and what the page is told while it happens.
-import { Cable, LAYOUT_FILE, plan, push } from "../../tools/cable.js";
-import { builtFiles } from "../data/built.js";
-import { Trouble } from "../core/errors.js";
+import { Cable, LAYOUT_FILE, plan, push } from "../tools/cable.js";
+import { builtFiles } from "../../src/data/built.js";
+import { Trouble } from "../../src/core/errors.js";
 
 // 115200 because port.open() will not run without a number and vorlaut.ino
 // says Serial.begin(115200). On the S3's native USB there is no UART in the
