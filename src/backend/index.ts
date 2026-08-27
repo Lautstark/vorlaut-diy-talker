@@ -80,6 +80,12 @@ export {
   // symbol as pixels - exchange/SPEC.md §5.2.
   exportAppPackage,
 
+  // And the same Sammlung as the device build's own .obz: the source pictures,
+  // a negation flag rather than a baked cross, and the 16 kHz WAVs the cable
+  // would have sent. A third door for the same §5.2 reason, and the one export
+  // here that can be compiled back into a build - adr/0010.
+  exportDevicePackage,
+
   // Turning all of it into tiles and WAVs for the device, and reading back
   // what that left - which is how the files reach whatever sends them.
   runBuild,

@@ -21,9 +21,11 @@ import * as obf from "../data/obf.js";
 import { isBackup, readOneCollection } from "../data/backup.js";
 import type { Backup, StoredSymbol } from "../data/backup.js";
 import * as appPackage from "../data/app_package.js";
+import * as devicePackage from "../data/device_package.js";
 import { bakeImage, bakeSound } from "../data/app_assets.js";
 import { ENCODER_RATE } from "../data/opus.js";
 import { DEVICE_SAMPLE_RATE } from "../data/audio_format.js";
+import { buildIsCurrent } from "../data/built.js";
 import * as store from "../data/store.js";
 import * as tiles from "../data/tiles.js";
 import * as symbols from "../data/symbols.js";
@@ -759,6 +761,141 @@ export async function exportAppPackage(
   };
 }
 
+/**
+ * The Sammlung as the device build's own .obz - the third export door.
+ *
+ * A door of its own and not a flag, for the reason exchange/SPEC.md §5.2 gives
+ * and exportAppPackage() above repeats: a guarantee enforced by an argument is
+ * one flag away from being untrue. Three functions now write .obz here and
+ * adr/0010 is why they stay three. data/device_package.ts is the format and
+ * its four form rules; this is the half that needs the browser.
+ *
+ * What it writes is what runBuild() consumed: the source pictures at their own
+ * size, un-crossed, with ext_vorlaut_negated beside them, and the 16 kHz WAVs
+ * the cable would have sent. compileDevice() turns it back into exactly the
+ * files in the `data` store, which is what makes this the first artefact here
+ * that says "this is what is on that talker" in a form somebody can diff,
+ * archive, or carry to a bench.
+ *
+ * IT EXPORTS A BUILD RATHER THAN SYNTHESISING ONE, and that is the decision
+ * worth knowing about. The WAVs come out of the `data` store by the name
+ * audioName() gives them - the build's own bytes, not a second set rendered
+ * now. Two consequences, both wanted. It is instant, so it needs none of the
+ * progress-and-stop machinery a tablet package needs for its hundreds of
+ * syntheses. And the file cannot claim to be a talker's contents while holding
+ * audio that talker has never had, which is the claim the whole artefact is
+ * for. The price is that it asks for a current build first, and says so.
+ *
+ * `missing` counts pictures that resolved to nothing - usually a METACOM
+ * folder this browser has not been given back yet. Not an error: the build
+ * drew its grey cross for those too, so an export carrying the same gap is an
+ * honest picture of the same device.
+ */
+export async function exportDevicePackage(): Promise<{ blob: Blob; missing: number }> {
+  const list = await store.readCollections();
+  if (!list.collections.some((one) => one.id === list.current)) {
+    throw new Error("There is no Sammlung open to export.");
+  }
+  const held = await store.readLayout();
+  const layout = held.layout || NOTHING;
+  if (!isDiy(layout)) {
+    throw new Error(
+      "This export is the five-key talker's. A tablet Sammlung has no sets " +
+      "and nothing to build, so there would be no device build to write down.");
+  }
+  // The mark recordBuild() writes, against the layout version the build ran
+  // on. A stale build exports a file that says it is what is on the talker and
+  // is not - the one thing this artefact must never do.
+  if (!await buildIsCurrent()) {
+    throw new Error(
+      "This export writes down a build, and there is none for what is on " +
+      "screen. Release this Sammlung first, then export.");
+  }
+
+  const voice = chosenVoice(layout);
+  const plan = devicePackage.devicePlan(layout, voice);
+
+  // Every distinct reference once, sources and set keys alike. The set key's
+  // picture is a tile like any other on the device, so it travels the same way.
+  const sources = new Map<string, devicePackage.DeviceSource>();
+  let missing = 0;
+  const references = new Set<string>();
+  for (const set of plan.sets) {
+    if (set.symbol) references.add(set.symbol);
+    for (const slot of set.slots) if (slot.symbol) references.add(slot.symbol);
+  }
+  for (const reference of references) {
+    const bytes = await sourceBytes(reference);
+    if (!bytes) { missing++; continue; }
+    sources.set(reference, {
+      key: await devicePackage.digest(bytes),
+      bytes,
+      contentType: devicePackage.sniffImageType(bytes),
+    });
+  }
+
+  // The build's own WAVs, found by the name the build gave them. Nothing is
+  // synthesised here: a sentence with no file under its name is a key the
+  // build could not speak either, and the export says the same thing the
+  // device does by leaving the sound off.
+  const sounds = new Map<string, devicePackage.DeviceSound>();
+  if (voice) {
+    const spoken = new Set<string>();
+    for (const set of plan.sets) {
+      for (const slot of set.slots) if (slot.text) spoken.add(slot.text);
+    }
+    for (const text of spoken) {
+      const name = await audioName(text, voice);
+      const stored = await store.getFile("data", name);
+      if (stored) sounds.set(text, { name, bytes: new Uint8Array(stored) });
+    }
+  }
+
+  const pkg = devicePackage.buildDevicePackage({ layout, voice, sources, sounds });
+  return {
+    blob: new Blob([await devicePackage.devicePackageBytes(pkg)],
+                   { type: "application/zip" }),
+    missing,
+  };
+}
+
+/**
+ * A reference as the bytes behind it, rather than as something drawImage takes.
+ *
+ * picture() above answers with a decoded image because that is what the tile
+ * renderer wants. This export wants the source itself - form rule 1 in
+ * data/device_package.ts - so it goes one step earlier: the store holds the
+ * file somebody downloaded or uploaded, and a METACOM reference resolves to a
+ * URL in the folder they licensed, which is fetched rather than drawn.
+ *
+ * Reading METACOM pixels into a file is the narrow case exchange/SPEC.md §5.2
+ * blesses by name - a licensee preparing material for the person they support,
+ * sideloaded onto that person's own device. It is the case the device build
+ * has been since the day the device worked: picture() resolves the same
+ * reference out of the same folder and renderSymbol() puts it in a t<hash>.bin
+ * that goes down the cable. This writes the same pixels to the same person's
+ * talker by way of a file they can keep.
+ */
+async function sourceBytes(reference: string): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!reference) return null;
+  if (reference.startsWith("metacom:")) {
+    const url = await symbols.metacomImageByName(reference.slice("metacom:".length));
+    if (!url) return null;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      return new Uint8Array(await response.arrayBuffer());
+    } catch {
+      // A blob: URL the provider has since revoked, or a folder whose
+      // permission lapsed between the plan and this line. Counted as missing,
+      // which is what the build calls the same thing.
+      return null;
+    }
+  }
+  const bytes = await store.getFile("symbols", reference);
+  return bytes ? new Uint8Array(bytes) : null;
+}
+
 /** What a file on the way in turned out to hold. */
 export interface ReadFile {
   layout: Layout;
@@ -846,6 +983,31 @@ async function fingerprint(bytes: BufferSource): Promise<string> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, HASH_BYTES * 2);
+}
+
+/**
+ * What a spoken sentence's WAV is called, before it has been spoken.
+ *
+ * The name is for what goes *into* the synthesis rather than for what comes
+ * out, and that is the one place the audio differs from the tiles. Synthesis
+ * is the expensive step - a model off a CDN, then a sentence at a time - so
+ * the name has to be knowable before it is paid for, or a rebuild could never
+ * reuse anything. Same rule as tts.fingerprint(): text, voice, and every
+ * option that changes how it sounds, the pipeline's own version included, so
+ * a levelling change renames rather than silently reuses.
+ *
+ * At module scope rather than inside runBuild(), because the device export
+ * asks it too - that is how it finds the build's own WAVs in the store without
+ * synthesising a second set that would be named the same and be different
+ * bytes. Neither the Azure key nor ownsInference is in the payload: both say
+ * who may ask, not how the sentence sounds, and rotating a key must not
+ * re-render a device's worth of audio.
+ */
+async function audioName(text: string, spokenBy: string): Promise<string> {
+  const payload = JSON.stringify({
+    text: text.trim(), voice: spokenBy, pipeline: PIPELINE_VERSION, ...VORLAUT,
+  });
+  return `a${await fingerprint(new TextEncoder().encode(payload))}.wav`;
 }
 
 /** The voice this layout is spoken in - chosen_voice() in layout.py.
@@ -955,24 +1117,14 @@ export async function runBuild(): Promise<{ log: string[] }> {
     return { name: blankName, missing: false };
   }
 
-  // The WAV is named for what goes into it rather than for what comes out,
-  // and that is the one place this differs from the tiles. Synthesis is the
-  // expensive step - a model off a CDN, then a sentence at a time - so the
-  // name has to be knowable before it is paid for, or a rebuild could never
-  // reuse anything. Same rule as tts.fingerprint(): text, voice, and every
-  // option that changes how it sounds, the pipeline's own version included,
-  // so a levelling change renames rather than silently reuses.
+  // audioName() is at module scope and says why - the device export asks the
+  // same question, and a second copy of the rule would name the same sentence
+  // two different things.
   async function storeAudio(text: string, spokenBy: string): Promise<string> {
-    const payload = JSON.stringify({
-      text: text.trim(), voice: spokenBy, pipeline: PIPELINE_VERSION, ...VORLAUT,
-    });
-    const name = `a${await fingerprint(new TextEncoder().encode(payload))}.wav`;
+    const name = await audioName(text, spokenBy);
     if (!await store.getFile("data", name)) {
       // The Azure key rides along the way synthesise() sends it, or a board
-      // whose voice is azure: previews fine and then fails on Release. Not in
-      // the fingerprint above, deliberately: the key changes who may ask, not
-      // how the sentence sounds, and rotating a key must not re-render a
-      // device's worth of audio.
+      // whose voice is azure: previews fine and then fails on Release.
       const held = await store.readSettings(NO_SETTINGS);
       // ownsInference for the same reason synthesise() states it, and like
       // the key it stays out of the fingerprint payload above: both say who
