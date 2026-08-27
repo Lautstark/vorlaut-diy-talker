@@ -1,0 +1,91 @@
+{
+  "fixture": "sleep",
+  "kind": "sleep",
+  "summary": "The range of sleep timeouts a builder may write, what the device waits for everything else, and the fact that the first is inside the second.",
+  "field": {
+    "file": "layout.bin",
+    "byte": 8,
+    "width": 4,
+    "meaning": "Seconds of no key pressed before the device goes into deep sleep. Little-endian, unsigned."
+  },
+  "min": 10,
+  "max": 86400,
+  "default": 600,
+  "unset_value": 0,
+  "rules": [
+    "A builder writes a timeout between 10 and 86400 inclusive, or zero to mean the default. The field is a uint32 and holds far more; the range is narrower than the field on purpose.",
+    "A reader hands the four bytes back as they stand, unclamped. The same rule byte 7 follows: what a number means is settled where it is used, not where it is parsed. tests/reference/layout.lock.json has frozen this reader's answer for a field of 0 and one of 0xffffffff, and that lock cannot be rewritten.",
+    "The device brings the field inside the range at the point it becomes a length of time - layoutIdleSeconds() in layout_format.h, which vorlaut.ino waits on. Zero means the default; anything below the floor means the floor; anything above the ceiling means the ceiling.",
+    "Every timeout a builder emits must be one the device waits for exactly. That is the direction that matters and it is the same shape as the name rule's: a builder may emit fewer values than the device will take, and the one thing that must never happen is a builder emitting a number the device silently turns into a different one.",
+    "The ceiling is not arbitrary. The device computes idle * 1000UL, which wraps where unsigned long is 32 bits, so a timeout above 4294967 seconds is neither honoured nor refused but quietly turned into some other number. 86400 is a day, which is the longest a talker sitting in a room has any use for, and it is comfortably below the wrap."
+  ],
+  "cases": [
+    {
+      "what": "the unset field",
+      "sleep_seconds": 0,
+      "idle_seconds": 600,
+      "emitted": false,
+      "note": "Zero is what a writer leaves when it has nothing to say, and it means the default of 600 - not 'never sleep' and not 'sleep at once'. The device did this already, in a `? :` in vorlaut.ino with a bare 600 in it; what is new is that the number is written down once instead of twice."
+    },
+    {
+      "what": "one below the floor",
+      "sleep_seconds": 9,
+      "idle_seconds": 10,
+      "emitted": false,
+      "note": null
+    },
+    {
+      "what": "the floor",
+      "sleep_seconds": 10,
+      "idle_seconds": 10,
+      "emitted": true,
+      "note": null
+    },
+    {
+      "what": "ten minutes, which is also the default",
+      "sleep_seconds": 600,
+      "idle_seconds": 600,
+      "emitted": true,
+      "note": "The default is inside the range, so a builder may write it and it means itself. Nothing distinguishes it from any other honoured value once it is in the field - only zero is special."
+    },
+    {
+      "what": "an hour",
+      "sleep_seconds": 3600,
+      "idle_seconds": 3600,
+      "emitted": true,
+      "note": null
+    },
+    {
+      "what": "the ceiling",
+      "sleep_seconds": 86400,
+      "idle_seconds": 86400,
+      "emitted": true,
+      "note": null
+    },
+    {
+      "what": "one past the ceiling",
+      "sleep_seconds": 86401,
+      "idle_seconds": 86400,
+      "emitted": false,
+      "note": null
+    },
+    {
+      "what": "the largest wait that does not wrap",
+      "sleep_seconds": 4294967,
+      "idle_seconds": 86400,
+      "emitted": false,
+      "note": "4294967 * 1000 is the largest product that fits in a 32-bit unsigned long. Above this the device's own arithmetic gives a different length of time from the one written, which is why the range is narrower than the field rather than the field being the range."
+    },
+    {
+      "what": "the largest the field holds",
+      "sleep_seconds": 4294967295,
+      "idle_seconds": 86400,
+      "emitted": false,
+      "note": "136 years as written, and something else entirely once multiplied. See layout/sleep-timeout-max."
+    }
+  ],
+  "notes": [
+    "The zero case is why this is a range with a hole in it rather than a plain clamp. Zero is below the floor and does not clamp to the floor - it means the default, which is sixty times larger. A reader that treated the field as a simple clamp would put a device to sleep ten minutes early on every file that leaves the field unset.",
+    "Nothing here reaches a clock. That the device waits this long is not checked by any fixture and cannot be; what is checked is that both halves compute the same number of seconds from the same field."
+  ]
+}

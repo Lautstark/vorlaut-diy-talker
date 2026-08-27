@@ -7,7 +7,9 @@ import {
   renderLayoutBin, hashBytes, LANGUAGE_CODES, DEFAULT_LANGUAGE,
   LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, SLOT_BYTES, SLOTS_PER_SET,
   NAME_BYTES, HASH_BYTES,
+  SLEEP_MIN, SLEEP_MAX, SLEEP_DEFAULT, layoutIdleSeconds,
 } from "../../src/data/layout_format.js";
+import { normalizeLayout } from "../../src/data/obf.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../src/data/tiles.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
@@ -34,6 +36,9 @@ import { Cable, CABLE_VERSION, crc32, hex8 } from "../../tools/cable.js";
  *            is the firmware runner's half.
  *   names    the hash a name carries, read back out of the name.
  *   language the table, and what a writer does with a language not in it.
+ *   sleep    the range, and that everything normalizeLayout() emits is inside
+ *            it. What the device does with a field outside it is the firmware
+ *            runner's half.
  *   cable    the client, driven through the transcript from the browser end:
  *            given these device lines it must write exactly these host lines.
  *
@@ -247,6 +252,66 @@ for (const { listed: one, want } of ofKind("audio")) {
     check(`${l.code} is written into byte 7 as ${l.index}`,
           made[7] === l.index, `${made[7]}`);
   }
+}
+
+// --- the sleep timeout -------------------------------------------------------
+
+{
+  const want = expectations.get("sleep");
+
+  check("the browser's sleep range is the fixture's",
+        SLEEP_MIN === want.min && SLEEP_MAX === want.max
+        && SLEEP_DEFAULT === want.default,
+        `[${SLEEP_MIN}, ${SLEEP_MAX}], default ${SLEEP_DEFAULT}`);
+
+  /* The same clamp the firmware runner asks of layoutIdleSeconds() in
+   * layout_format.h. Two implementations of one rule, each held to the fixture
+   * and never to the other - a device and a browser that disagree about what
+   * an unset field means is a talker that sleeps at a time nobody chose. */
+  for (const one of want.cases) {
+    const got = layoutIdleSeconds(one.sleep_seconds);
+    check(`a timeout of ${one.sleep_seconds} - ${one.what} - `
+          + `is a wait of ${one.idle_seconds}`,
+          got === one.idle_seconds, `${got}`);
+  }
+
+  /* The writer does NOT clamp, and that is a rule rather than an oversight.
+   * renderLayoutBin() puts in the field what it is handed, because
+   * tests/reference/layout.lock.json froze its bytes for a timeout of 0 and
+   * one of 0xffffffff and that lock cannot be rewritten. The gate is
+   * normalizeLayout(), one layer up. */
+  for (const value of [0, 5, want.max + 1, 4294967295]) {
+    const bytes = renderLayoutBin(
+      { language: "en", sleep_timeout_seconds: value, sets: [] }, [], [], []);
+    const wrote = new DataView(
+      bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(8, true);
+    check(`the browser writes a timeout of ${value} into the field unchanged`,
+          wrote === value, `${wrote}`);
+  }
+
+  /* And the superset, which is this end's half of it: everything the gate
+   * lets through is a timeout the device waits for exactly. The firmware
+   * runner asks the same question of the fixture's `emitted` cases; this asks
+   * it of the function that actually decides, on inputs no fixture lists -
+   * including the ones a foreign document arrives with. */
+  const arrivals: unknown[] = [
+    undefined, null, 0, 1, 5, 9, 10, 11, 600, 3600, 86400, 86401,
+    4294967, 4294967295, -1, -86400, 0.5, 600.7, "600", "1e3", "0x10",
+    "not a number", "", true, false, {}, [], NaN, Infinity, -Infinity,
+  ];
+  const escaped: string[] = [];
+  for (const given of arrivals) {
+    const raw: Record<string, unknown> = { sets: [] };
+    if (given !== undefined) raw.sleep_timeout_seconds = given;
+    const emitted = normalizeLayout(raw).sleep_timeout_seconds;
+    if (emitted < SLEEP_MIN || emitted > SLEEP_MAX
+        || layoutIdleSeconds(emitted) !== emitted) {
+      escaped.push(`${JSON.stringify(given) ?? String(given)} became ${emitted}`);
+    }
+  }
+  check("every timeout the browser emits is one the device waits exactly",
+        escaped.length === 0,
+        escaped.join("; ") || `${arrivals.length} foreign values`);
 }
 
 // --- the cable ---------------------------------------------------------------

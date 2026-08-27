@@ -21,6 +21,8 @@
 //   names           cableNameOk() and hashPath(), one name per line on stdin
 //   language        the table's size, its default, and what an index past it
 //                   falls back to
+//   sleep           the timeout range, and what layoutIdleSeconds() makes of a
+//                   field outside it - one number per line on stdin
 //   cable           a whole transcript on stdin, replayed into a device made
 //                   of a std::map, a window of file content at a time
 
@@ -101,6 +103,12 @@ static int layoutMode(const char *path) {
   printf("sets %u\n", layout.setCount);
   printf("language %u\n", layout.language);
   printf("sleep %u\n", layout.sleepSeconds);
+  // The field as it stands, and then the length of time it means. Two lines
+  // because they are two answers: parseLayout hands byte 8 back untouched, and
+  // layoutIdleSeconds() is what vorlaut.ino waits on. A fixture that only had
+  // the first could not tell a device that sleeps in ten minutes from one that
+  // sleeps in 136 years.
+  printf("idle_seconds %u\n", layoutIdleSeconds(layout.sleepSeconds));
   for (uint8_t i = 0; i < layout.setCount; i++) {
     const SetEntry &e = layout.sets[i];
     // The name as hex rather than as text: the field may hold a character cut
@@ -220,6 +228,28 @@ static int namesMode(void) {
     // "name <the name>", so that an empty name can be asked about at all.
     const char *name = strncmp(line, "name ", 5) == 0 ? line + 5 : line;
     printf("stored %s\n", cableNameOk(name) ? "ok" : "no");
+  }
+  return 0;
+}
+
+// --- The sleep timeout -------------------------------------------------------
+
+// The range the device honours, and what it does with a field outside it. One
+// number per line on stdin, one answer per line out, so the fixture decides
+// which values matter rather than this file - the same arrangement the name
+// rule has.
+//
+// Asked of layoutIdleSeconds() rather than restated, because the whole point
+// of L1 is that the clamp is a function both halves can be held to instead of
+// a `? :` in the one file no test can include.
+static int sleepMode(void) {
+  printf("min %u\n", (unsigned)LAYOUT_SLEEP_MIN);
+  printf("max %u\n", (unsigned)LAYOUT_SLEEP_MAX);
+  printf("default %u\n", (unsigned)LAYOUT_SLEEP_DEFAULT);
+  char line[64];
+  while (fgets(line, sizeof(line), stdin)) {
+    const unsigned long asked = strtoul(line, nullptr, 10);
+    printf("idle %lu %u\n", asked, layoutIdleSeconds((uint32_t)asked));
   }
   return 0;
 }
@@ -449,12 +479,13 @@ int main(int argc, char **argv) {
   if (argc >= 3 && strcmp(argv[1], "audio") == 0) return audioMode(argv[2]);
   if (argc >= 2 && strcmp(argv[1], "names") == 0) return namesMode();
   if (argc >= 2 && strcmp(argv[1], "language") == 0) return languageMode();
+  if (argc >= 2 && strcmp(argv[1], "sleep") == 0) return sleepMode();
   if (argc >= 4 && strcmp(argv[1], "cable") == 0) {
     return cableMode((uint32_t)strtoul(argv[2], nullptr, 10),
                      (uint32_t)strtoul(argv[3], nullptr, 10));
   }
   fprintf(stderr, "usage: device_host layout <file> | tile <file> | "
-                  "audio <file> | names | language | "
+                  "audio <file> | names | language | sleep | "
                   "cable <capacity> <window>\n");
   return 2;
 }

@@ -29,6 +29,68 @@
 // serial port saying which reason.
 #define LAYOUT_VERSION 2
 
+// The sleep timeout: the range a builder may write, and what the device does
+// with everything else.
+//
+// The field is a uint32 and parseLayout hands it back exactly as it stands.
+// That is the same rule byte 7 follows and it is deliberate twice over: what a
+// number MEANS is not a parser's business, and tests/reference/layout.lock.json
+// holds this reader to handing back 0 and 0xffffffff unchanged. So the meaning
+// is settled here, at the point the number becomes a length of time, and both
+// ends of the field are settled rather than left to arithmetic:
+//
+//   zero      What a writer leaves in the field when it has nothing to say.
+//             It means LAYOUT_SLEEP_DEFAULT - which is what the device already
+//             did, in a `? :` in vorlaut.ino with a bare 600 in it. The same
+//             600 was written down a second time as DEFAULT_SLEEP_TIMEOUT in
+//             src/data/obf.ts, and the two agreed by coincidence rather than
+//             because either knew about the other. This is that number, once.
+//   the top   0xffffffff seconds is 136 years, and `idle * 1000UL` wraps where
+//             unsigned long is 32 bits. Anything above 4294967 seconds is a
+//             different length of time from the one written, silently and
+//             without a wrong-looking byte anywhere - so the largest timeout
+//             the format can express was not one the device could wait for.
+//             Clamped, so that it is.
+//
+// A conforming builder writes between LAYOUT_SLEEP_MIN and LAYOUT_SLEEP_MAX,
+// or zero for the default, and normalizeLayout() in src/data/obf.ts already
+// holds every builder here to exactly that. What this function is for is
+// everything that does not go through it: a second builder, a hand-written
+// layout.bin, a file from a version of this project that has not been written
+// yet. A flashed device cannot be given a writer rule afterwards, which is why
+// this half exists at all rather than only the sentence in the specification.
+#define LAYOUT_SLEEP_MIN 10u
+#define LAYOUT_SLEEP_MAX 86400u
+#define LAYOUT_SLEEP_DEFAULT 600u
+
+// What the device really waits, given the field.
+//
+// Beside parseLayout and deliberately never inside it. The reason is worth
+// stating exactly, because the obvious version of it is wrong: a clamp in
+// there does NOT turn tests/reference/layout.lock.json red. Two of its
+// seventeen cases hold the values that would move - "sleep of zero" and "sleep
+// at both ends of the uint32" - and both are kind "bytes", whose recorded
+// reader lines nothing compares. The nine cases that ARE compared field by
+// field all carry timeouts inside the range, so they would go on passing.
+//
+// What a clamp in parseLayout would really do is leave that lock stating, of
+// this reader, an answer this reader no longer gives - silently, with no test
+// anywhere to notice, and with no way back: the oracle that wrote it went on
+// 2026-08-22 and docs/frozen-references.md is explicit that refreezing from
+// the module under test is never the answer. A red test is an argument that
+// can be won by editing the test. A frozen reference quietly describing
+// something that no longer exists is the failure that document is about.
+//
+// So the parse stays what it was, and device/fixtures/ is what holds this
+// function: sleep_seconds and idle_seconds are checked separately there, which
+// is the check the lock cannot make.
+static inline uint32_t layoutIdleSeconds(uint32_t sleepSeconds) {
+  if (sleepSeconds == 0) return LAYOUT_SLEEP_DEFAULT;
+  if (sleepSeconds < LAYOUT_SLEEP_MIN) return LAYOUT_SLEEP_MIN;
+  if (sleepSeconds > LAYOUT_SLEEP_MAX) return LAYOUT_SLEEP_MAX;
+  return sleepSeconds;
+}
+
 // Fixed strides. Have to agree with src/data/layout_format.ts.
 #define LAYOUT_HEADER_BYTES 12
 #define LAYOUT_SLOT_BYTES (HASH_BYTES + HASH_BYTES + 1 + 1)          // 34

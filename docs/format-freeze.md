@@ -49,7 +49,7 @@ the module under test is never the answer.
 
 | | Format | Before a freeze? | Lock |
 |---|---|---|---|
-| [L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use) | `layout.bin` | **Yes**, if resolved in the reader | at risk |
+| [L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use) | `layout.bin` | **landed 2026-08-27** | held |
 | [L2](#l2-the-set-count-cap-is-a-device-rule-the-writer-does-not-hold-itself-to) | `layout.bin` | No | no |
 | [C1](#c1-chunk-acknowledgement--in-flight) | cable | **landed 2026-08-27** | no |
 | [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) | cable | **Yes** | no |
@@ -110,6 +110,47 @@ nothing and can be added at any MINOR.
 **Recommendation:** the writer rule, and no reader change. The reader's
 forgiveness is not wrong, it is undocumented, and the same argument the tile's
 `short` fixture makes applies here — *stated rather than changed*.
+
+**Status: landed**, on 2026-08-27, and the recommendation above was half right.
+Kept rather than rewritten, because which half is the part worth reading twice.
+
+*Right about the parse.* `parseLayout` is untouched and hands the four bytes
+back exactly as it always did. `renderLayoutBin()` is untouched too and still
+writes whatever it is handed, including `0xffffffff` — which the survey did not
+ask about and which turns out to be forced by the same lock, since `sleep at
+both ends of the uint32` froze that writer's bytes for exactly that input. Both
+ends of the "resolve it in the reader" route were closed, not one.
+
+*Wrong that a writer rule was enough.* A sentence saying a builder MUST write
+between 10 and 86400 does nothing about a **flashed device** handed a file by
+somebody else's builder, and `idle * 1000UL` wraps there regardless of what
+this repository's prose says. So the range was written down **and** a clamp
+landed — just not where the survey assumed a clamp would have to go.
+`layoutIdleSeconds()` sits beside `parseLayout` in `layout_format.h`, is called
+from `vorlaut.ino` in place of the `? :` with the bare 600 in it, and turns the
+field into a length of time. The parse says what the bytes hold; that function
+says what they mean. It is the same division byte 7 already had, and it was
+available the whole time.
+
+*Wrong about the lock, in the direction that matters.* This entry said "at
+risk", meaning a reader change would be caught. It would not have been.
+`layout.lock.json` records what its reader makes of a timeout of zero and one
+of `0xffffffff`, and **compares neither** — both are kind `bytes`, and only the
+nine kind `fields` cases are compared line by line, every one of them carrying
+a timeout already inside the range. Verified by making the change and running
+the suite: `test_layout_frozen.py` stays green with a clamp inside
+`parseLayout`. The lock was never a guard here. It was a witness that would
+have gone on describing a reader that no longer existed, with the oracle gone
+since 2026-08-22 — which is a worse outcome than a red test and the reason the
+answer would have been the same even if nothing had been at risk at all.
+
+What guards it now is `device/fixtures/`: every accepted layout fixture carries
+`sleep_seconds` and `idle_seconds` as separate fields, `sleep.expected.json`
+states the range and the emitted-inside-honoured rule the way
+`names.expected.json` states its own, and the same mutation goes red in
+`test_device_host.py` immediately. The 600 that `DEFAULT_SLEEP_TIMEOUT` and
+`vorlaut.ino` had each arrived at separately is now one constant that both
+sides are held to.
 
 ### L2. The set-count cap is a device rule the writer does not hold itself to
 

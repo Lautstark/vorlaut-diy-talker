@@ -43,6 +43,41 @@ export const HEADER_BYTES = 4 + 4 + 4;                                          
 export const LANGUAGE_CODES = { en: 0, de: 1 };
 export const DEFAULT_LANGUAGE = "en";
 
+// The sleep timeout's range, beside the strides because it is the same kind of
+// thing: a number both halves have to hold. The firmware states it in
+// LAYOUT_SLEEP_MIN, LAYOUT_SLEEP_MAX and LAYOUT_SLEEP_DEFAULT in
+// layout_format.h, and device/fixtures/sleep.expected.json is what holds the
+// two ends to it without either reading the other.
+//
+// The field is a uint32, so the format can hold far more than this. What it
+// cannot do is mean it: the device computes `idle * 1000UL` and that wraps
+// above 4294967 seconds, so the range is narrower than the field on purpose
+// and that is the whole of L1 in docs/format-freeze.md.
+export const SLEEP_MIN = 10;
+export const SLEEP_MAX = 86400;
+export const SLEEP_DEFAULT = 600;
+
+/** What the device really waits, given what the field holds.
+ *
+ * layoutIdleSeconds() in firmware/vorlaut/layout_format.h, written a second
+ * time - the same relation renderLayoutBin() has to parseLayout(). Zero is the
+ * default rather than "never" or "at once", and either end past the range is
+ * brought back inside it.
+ *
+ * This is not called on the way to a file and must not be: renderLayoutBin()
+ * writes the field as it is handed it, because tests/reference/layout.lock.json
+ * has frozen its bytes for a timeout of 0 and one of 0xffffffff. What holds a
+ * builder to the range is normalizeLayout() in obf.ts, and what this is for is
+ * saying - on this side, checkably - what the device would do with a file that
+ * never went through it.
+ */
+export function layoutIdleSeconds(sleepSeconds) {
+  if (sleepSeconds === 0) return SLEEP_DEFAULT;
+  if (sleepSeconds < SLEEP_MIN) return SLEEP_MIN;
+  if (sleepSeconds > SLEEP_MAX) return SLEEP_MAX;
+  return sleepSeconds;
+}
+
 const encoder = new TextEncoder();
 
 /** What Path(name).stem does: the file name without its last suffix. */

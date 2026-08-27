@@ -118,7 +118,16 @@ def check_layout(reader: Path, name: str, path: Path, want: dict) -> None:
         return
 
     for key, value in (("sets", want["sets"]), ("language", want["language"]),
-                       ("sleep", want["sleep_seconds"])):
+                       ("sleep", want["sleep_seconds"]),
+                       # The field, and the length of time it means. Both, and
+                       # separately, because that pair is the whole of L1: a
+                       # reader that clamped inside parseLayout would give the
+                       # right idle_seconds and the wrong sleep_seconds, and
+                       # layout.lock.json cannot say so - the two cases holding
+                       # the values that move are kind "bytes", whose reader
+                       # lines it records and never compares. This is the check
+                       # that catches it.
+                       ("idle_seconds", want["idle_seconds"])):
         check(f"{name}: {key} is {value}",
               said.get(key) == str(value), said.get(key, "-"))
 
@@ -286,6 +295,46 @@ def check_language(reader: Path, want: dict) -> None:
         counted("language")
 
 
+# --- The sleep timeout -------------------------------------------------------
+
+def check_sleep(reader: Path, want: dict) -> None:
+    asked = "".join(f"{one['sleep_seconds']}\n" for one in want["cases"])
+    got = run(reader, ["sleep"], asked.encode())
+    said = fields(got)
+
+    for key in ("min", "max", "default"):
+        check(f"the device's sleep {key} is {want[key]}",
+              said.get(key) == str(want[key]), said.get(key, "-"))
+        counted("sleep")
+
+    waits = {}
+    for line in got.strip().split("\n"):
+        parts = line.split(" ")
+        if parts[0] == "idle":
+            waits[int(parts[1])] = int(parts[2])
+
+    for one in want["cases"]:
+        field, wanted = one["sleep_seconds"], one["idle_seconds"]
+        check(f"a timeout of {field} - {one['what']} - is a wait of {wanted}",
+              waits.get(field) == wanted, str(waits.get(field)))
+        counted("sleep")
+
+    # The rule the two statements of the range were never held to. An
+    # implication rather than a list, the same way the name rule is written: a
+    # builder may emit fewer timeouts than the device honours, and the one
+    # direction that must never happen is a builder emitting a number the
+    # device quietly waits a different length of time for.
+    broken = [one["sleep_seconds"] for one in want["cases"]
+              if one["emitted"]
+              and waits.get(one["sleep_seconds"]) != one["sleep_seconds"]]
+    check("every timeout a builder may emit is one the device waits exactly",
+          not broken,
+          "" if not broken else
+          f"the device turns {broken} into something else - each of those is a "
+          f"device sleeping at a time nobody asked for, with no error at "
+          f"either end")
+
+
 # --- The cable ---------------------------------------------------------------
 
 def wire(want: dict) -> bytes:
@@ -415,6 +464,8 @@ def main() -> int:
                 check_names(reader, want)
             elif kind == "language":
                 check_language(reader, want)
+            elif kind == "sleep":
+                check_sleep(reader, want)
             elif kind == "cable":
                 if "device" in want["ends"]:
                     check_cable(reader, one["fixture"], want)

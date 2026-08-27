@@ -46,9 +46,25 @@
       "fixture": "sleep-timeout-max",
       "kind": "layout",
       "outcome": "accepted",
-      "summary": "A sleep timeout of 0xffffffff, the largest a uint32 holds.",
+      "summary": "A sleep timeout of 0xffffffff, the largest a uint32 holds. It parses, and it is not a length of time the device can wait.",
       "file": "layout/sleep-timeout-max.bin",
       "expected": "layout/sleep-timeout-max.expected.json"
+    },
+    {
+      "fixture": "sleep-timeout-at-max",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A sleep timeout of 86400 - one day, the longest the device honours as written.",
+      "file": "layout/sleep-timeout-at-max.bin",
+      "expected": "layout/sleep-timeout-at-max.expected.json"
+    },
+    {
+      "fixture": "sleep-timeout-under-min",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A sleep timeout of 5 seconds. Below the range, and brought up to it rather than obeyed.",
+      "file": "layout/sleep-timeout-under-min.bin",
+      "expected": "layout/sleep-timeout-under-min.expected.json"
     },
     {
       "fixture": "slot-reserved-byte-set",
@@ -255,6 +271,13 @@
       "outcome": "accepted",
       "summary": "Which language rides in which byte, what an unknown index means, and how many tables the device has to have.",
       "expected": "language.expected.json"
+    },
+    {
+      "fixture": "sleep",
+      "kind": "sleep",
+      "outcome": "accepted",
+      "summary": "The range of sleep timeouts a builder may write, what the device waits for everything else, and the fact that the first is inside the second.",
+      "expected": "sleep.expected.json"
     },
     {
       "fixture": "greet-and-list",

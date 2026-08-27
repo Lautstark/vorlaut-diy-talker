@@ -9,6 +9,7 @@
     "sets": 1,
     "language": 0,
     "sleep_seconds": 60,
+    "idle_seconds": 60,
     "entries": [
       {
         "name": "42726f742c2042757474657220756e64204d61726d656c6164652c2073c3bcc3",

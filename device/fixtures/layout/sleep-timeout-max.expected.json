@@ -2,13 +2,14 @@
   "fixture": "sleep-timeout-max",
   "kind": "layout",
   "file": "layout/sleep-timeout-max.bin",
-  "summary": "A sleep timeout of 0xffffffff, the largest a uint32 holds.",
+  "summary": "A sleep timeout of 0xffffffff, the largest a uint32 holds. It parses, and it is not a length of time the device can wait.",
   "bytes": 196,
   "read": {
     "result": "ok",
     "sets": 1,
     "language": 0,
     "sleep_seconds": 4294967295,
+    "idle_seconds": 86400,
     "entries": [
       {
         "name": "4672c3bc687374c3bc636b",
@@ -39,37 +40,11 @@
       }
     ]
   },
-  "write": {
-    "layout": {
-      "language": "en",
-      "sleep_timeout_seconds": 4294967295,
-      "sets": [
-        {
-          "name": "Frühstück"
-        }
-      ]
-    },
-    "label": [
-      "t11111111111111111111111111111111.bin"
-    ],
-    "images": [
-      [
-        "t21212121212121212121212121212121.bin",
-        "t22222222222222222222222222222222.bin",
-        "t23232323232323232323232323232323.bin",
-        "t24242424242424242424242424242424.bin"
-      ]
-    ],
-    "sounds": [
-      [
-        "a31313131313131313131313131313131.wav",
-        "a32323232323232323232323232323232.wav",
-        "",
-        "a34343434343434343434343434343434.wav"
-      ]
-    ]
-  },
+  "write": null,
   "notes": [
-    "Four bytes wide and unsigned. Read as sixteen bits it is 65535 and read as signed it is -1, and neither of those is a length of time."
+    "Four bytes wide and unsigned. Read as sixteen bits it is 65535 and read as signed it is -1, and neither of those is a length of time.",
+    "It is not one read CORRECTLY either, and that is the finding this fixture used to stop one step short of. 4294967295 seconds is 136 years, and the device computes idle * 1000UL - which wraps where unsigned long is 32 bits, so the wait it produces is neither 136 years nor an error but some other number entirely. Anything above 4294967 seconds has that problem.",
+    "So the reader hands the field back as it stands and the timeout is clamped to SLEEP_MAX where the number becomes a length of time. Both halves are in this fixture: sleep_seconds is what parseLayout returns, idle_seconds is what the device waits.",
+    "The write half went when the range was written down. A conforming builder emits between 10 and 86400, so none produces this file - the same reason trailing-bytes and slot-reserved-byte-set have no write half. renderLayoutBin() will still put these four bytes in a file if it is handed them, and must: tests/reference/layout.lock.json has frozen its output for exactly this input, and normalizeLayout() rather than the byte writer is what holds a builder to the range."
   ]
 }

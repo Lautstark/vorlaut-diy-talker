@@ -73,6 +73,21 @@ const SLOTS_PER_SET = 4;
 const SLOT_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1;                      // 34
 const SET_BYTES = NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES;  // 184
 
+// The sleep timeout's range, stated here the same way the strides are: from
+// the rule, not from either implementation. The field is a uint32 and holds
+// far more than this - narrowing it is the whole point, because the device
+// multiplies by 1000 into an unsigned long and wraps above 4294967 seconds.
+const SLEEP_MIN = 10;
+const SLEEP_MAX = 86400;
+const SLEEP_DEFAULT = 600;
+
+/** The length of time a field means, which is not always the number in it. */
+const idleFor = (sleep) =>
+  sleep === 0 ? SLEEP_DEFAULT
+  : sleep < SLEEP_MIN ? SLEEP_MIN
+  : sleep > SLEEP_MAX ? SLEEP_MAX
+  : sleep;
+
 /** Sixteen hash bytes from a short spelling: "01" fills them with 0x01. */
 function hash(seed) {
   return Buffer.alloc(HASH_BYTES, parseInt(seed, 16));
@@ -151,6 +166,10 @@ function readsAs({ sets, language, sleep, entries }) {
     sets,
     language,
     sleep_seconds: sleep,
+    // The field, and then what it means. A reader hands the first back
+    // untouched - that is the rule byte 7 follows too - and the second is the
+    // length of time the device really waits.
+    idle_seconds: idleFor(sleep),
     entries: entries.map((entry) => ({
       name: nameAsRead(nameField(entry.name)),
       name_text: entry.nameText ?? null,
@@ -215,6 +234,7 @@ layoutFixture({
   write: writtenFrom({ language: "en", sleep: 0, entries: [] }),
   notes: [
     "A layout with no sets is not an error. The device shows its 'no content' panel, which is a true sentence.",
+    "Its sleep timeout is zero, which is the unset field rather than a timeout of nothing: the reader hands back 0 and the device waits the default of 600 seconds. This is the one accepted fixture where sleep_seconds and idle_seconds differ by more than a clamp, and it is the case a reader treating the field as a plain clamp would get wrong - see sleep.expected.json.",
   ],
 });
 
@@ -308,12 +328,38 @@ layoutFixture({
 
 layoutFixture({
   name: "sleep-timeout-max",
-  summary: "A sleep timeout of 0xffffffff, the largest a uint32 holds.",
+  summary: "A sleep timeout of 0xffffffff, the largest a uint32 holds. It parses, and it is not a length of time the device can wait.",
   bytes: layoutBytes({ entries: ONE_SET.map(setEntry), sleep: 0xffffffff }),
   read: readsAs({ sets: 1, language: 0, sleep: 4294967295, entries: ONE_SET }),
-  write: writtenFrom({ language: "en", sleep: 4294967295, entries: ONE_SET }),
   notes: [
     "Four bytes wide and unsigned. Read as sixteen bits it is 65535 and read as signed it is -1, and neither of those is a length of time.",
+    "It is not one read CORRECTLY either, and that is the finding this fixture used to stop one step short of. 4294967295 seconds is 136 years, and the device computes idle * 1000UL - which wraps where unsigned long is 32 bits, so the wait it produces is neither 136 years nor an error but some other number entirely. Anything above 4294967 seconds has that problem.",
+    "So the reader hands the field back as it stands and the timeout is clamped to SLEEP_MAX where the number becomes a length of time. Both halves are in this fixture: sleep_seconds is what parseLayout returns, idle_seconds is what the device waits.",
+    "The write half went when the range was written down. A conforming builder emits between 10 and 86400, so none produces this file - the same reason trailing-bytes and slot-reserved-byte-set have no write half. renderLayoutBin() will still put these four bytes in a file if it is handed them, and must: tests/reference/layout.lock.json has frozen its output for exactly this input, and normalizeLayout() rather than the byte writer is what holds a builder to the range.",
+  ],
+});
+
+layoutFixture({
+  name: "sleep-timeout-at-max",
+  summary: "A sleep timeout of 86400 - one day, the longest the device honours as written.",
+  bytes: layoutBytes({ entries: ONE_SET.map(setEntry), sleep: SLEEP_MAX }),
+  read: readsAs({ sets: 1, language: 0, sleep: SLEEP_MAX, entries: ONE_SET }),
+  write: writtenFrom({ language: "en", sleep: SLEEP_MAX, entries: ONE_SET }),
+  notes: [
+    "The top of the range, and the case that says the clamp is a clamp rather than a ceiling one lower. A reader that brought 86400 back to something smaller would pass sleep-timeout-max and fail here.",
+    "It has a write half where sleep-timeout-max no longer does, which is the line between the two: this is the largest timeout a builder may emit.",
+  ],
+});
+
+layoutFixture({
+  name: "sleep-timeout-under-min",
+  summary: "A sleep timeout of 5 seconds. Below the range, and brought up to it rather than obeyed.",
+  bytes: layoutBytes({ entries: ONE_SET.map(setEntry), sleep: 5 }),
+  read: readsAs({ sets: 1, language: 0, sleep: 5, entries: ONE_SET }),
+  notes: [
+    "The other end of the same rule. Five seconds is a device that goes back to sleep between one key press and the next, which is a device that cannot be used - so the floor is 10 and a field below it means 10.",
+    "Zero is not this case and does not clamp to 10: it is the unset field and means the default of 600. no-sets is where that is pinned.",
+    "No write half. normalizeLayout() clamps to the range before any builder here reaches the byte writer, so this file is one only a foreign builder or a hand-written layout.bin produces - which is exactly who this rule is for.",
   ],
 });
 
@@ -976,6 +1022,76 @@ fixture({
     ],
     notes: [
       "The panel texts themselves are not here and are not part of this interface. Ten characters a display, code page 437, the struct order against the initialiser order: none of that needs the browser, and tests/test_texts.py keeps all of it. Exactly one thing crosses, and it is this table.",
+    ],
+  },
+});
+
+// =============================================================================
+// The sleep timeout
+// =============================================================================
+//
+// A field of the layout header - bytes 8 to 11, a uint32 little-endian - and
+// the one field in this format where what the bytes hold and what they MEAN
+// come apart. The reader hands the number back untouched; the range below is
+// what the device can actually wait, and the two ends of the field that lie
+// outside it are the whole of L1 in docs/format-freeze.md.
+//
+// Stated as its own fixture rather than only inside the layout ones for the
+// same reason names.expected.json exists: the relation between what a builder
+// may emit and what the device honours is a rule, it is written in two
+// languages in two files, and nothing was holding either end to it.
+
+const SLEEP_CASES = [
+  { what: "the unset field", sleep: 0, idle: SLEEP_DEFAULT, emitted: false,
+    note: "Zero is what a writer leaves when it has nothing to say, and it means the default of 600 - not 'never sleep' and not 'sleep at once'. The device did this already, in a `? :` in vorlaut.ino with a bare 600 in it; what is new is that the number is written down once instead of twice." },
+  { what: "one below the floor", sleep: SLEEP_MIN - 1, idle: SLEEP_MIN,
+    emitted: false, note: null },
+  { what: "the floor", sleep: SLEEP_MIN, idle: SLEEP_MIN, emitted: true,
+    note: null },
+  { what: "ten minutes, which is also the default", sleep: 600, idle: 600,
+    emitted: true, note: "The default is inside the range, so a builder may write it and it means itself. Nothing distinguishes it from any other honoured value once it is in the field - only zero is special." },
+  { what: "an hour", sleep: 3600, idle: 3600, emitted: true, note: null },
+  { what: "the ceiling", sleep: SLEEP_MAX, idle: SLEEP_MAX, emitted: true,
+    note: null },
+  { what: "one past the ceiling", sleep: SLEEP_MAX + 1, idle: SLEEP_MAX,
+    emitted: false, note: null },
+  { what: "the largest wait that does not wrap", sleep: 4294967, idle: SLEEP_MAX,
+    emitted: false, note: "4294967 * 1000 is the largest product that fits in a 32-bit unsigned long. Above this the device's own arithmetic gives a different length of time from the one written, which is why the range is narrower than the field rather than the field being the range." },
+  { what: "the largest the field holds", sleep: 4294967295, idle: SLEEP_MAX,
+    emitted: false, note: "136 years as written, and something else entirely once multiplied. See layout/sleep-timeout-max." },
+];
+
+fixture({
+  kind: "sleep", name: "sleep", outcome: "accepted",
+  summary: "The range of sleep timeouts a builder may write, what the device waits for everything else, and the fact that the first is inside the second.",
+  expected: {
+    fixture: "sleep", kind: "sleep",
+    summary: "The range of sleep timeouts a builder may write, what the device waits for everything else, and the fact that the first is inside the second.",
+    field: {
+      file: "layout.bin", byte: 8, width: 4,
+      meaning: "Seconds of no key pressed before the device goes into deep sleep. Little-endian, unsigned.",
+    },
+    min: SLEEP_MIN,
+    max: SLEEP_MAX,
+    default: SLEEP_DEFAULT,
+    unset_value: 0,
+    rules: [
+      "A builder writes a timeout between 10 and 86400 inclusive, or zero to mean the default. The field is a uint32 and holds far more; the range is narrower than the field on purpose.",
+      "A reader hands the four bytes back as they stand, unclamped. The same rule byte 7 follows: what a number means is settled where it is used, not where it is parsed. tests/reference/layout.lock.json has frozen this reader's answer for a field of 0 and one of 0xffffffff, and that lock cannot be rewritten.",
+      "The device brings the field inside the range at the point it becomes a length of time - layoutIdleSeconds() in layout_format.h, which vorlaut.ino waits on. Zero means the default; anything below the floor means the floor; anything above the ceiling means the ceiling.",
+      "Every timeout a builder emits must be one the device waits for exactly. That is the direction that matters and it is the same shape as the name rule's: a builder may emit fewer values than the device will take, and the one thing that must never happen is a builder emitting a number the device silently turns into a different one.",
+      "The ceiling is not arbitrary. The device computes idle * 1000UL, which wraps where unsigned long is 32 bits, so a timeout above 4294967 seconds is neither honoured nor refused but quietly turned into some other number. 86400 is a day, which is the longest a talker sitting in a room has any use for, and it is comfortably below the wrap.",
+    ],
+    cases: SLEEP_CASES.map((one) => ({
+      what: one.what,
+      sleep_seconds: one.sleep,
+      idle_seconds: one.idle,
+      emitted: one.emitted,
+      note: one.note ?? null,
+    })),
+    notes: [
+      "The zero case is why this is a range with a hole in it rather than a plain clamp. Zero is below the floor and does not clamp to the floor - it means the default, which is sixty times larger. A reader that treated the field as a simple clamp would put a device to sleep ten minutes early on every file that leaves the field unset.",
+      "Nothing here reaches a clock. That the device waits this long is not checked by any fixture and cannot be; what is checked is that both halves compute the same number of seconds from the same field.",
     ],
   },
 });
