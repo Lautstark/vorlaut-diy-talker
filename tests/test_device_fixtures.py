@@ -137,7 +137,7 @@ def main() -> int:
     # a fixture that is silently never run. Stated here rather than in either
     # runner, because a runner can only say what it does not recognise once it
     # has been taught the ones it does.
-    KINDS = {"layout", "tile", "audio", "cable", "names", "language"}
+    KINDS = {"layout", "tile", "audio", "cable", "names", "language", "sleep"}
     for entry in listed:
         if entry["kind"] not in KINDS:
             problems.append(f"{entry['fixture']}: kind {entry['kind']!r} is "

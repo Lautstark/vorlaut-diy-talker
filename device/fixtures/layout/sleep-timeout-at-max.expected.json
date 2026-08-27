@@ -1,15 +1,15 @@
 {
-  "fixture": "language-german",
+  "fixture": "sleep-timeout-at-max",
   "kind": "layout",
-  "file": "layout/language-german.bin",
-  "summary": "Byte 7 set to 1, which is German. The same firmware image, a different set of words on the menu.",
+  "file": "layout/sleep-timeout-at-max.bin",
+  "summary": "A sleep timeout of 86400 - one day, the longest the device honours as written.",
   "bytes": 196,
   "read": {
     "result": "ok",
     "sets": 1,
-    "language": 1,
-    "sleep_seconds": 3600,
-    "idle_seconds": 3600,
+    "language": 0,
+    "sleep_seconds": 86400,
+    "idle_seconds": 86400,
     "entries": [
       {
         "name": "4672c3bc687374c3bc636b",
@@ -42,8 +42,8 @@
   },
   "write": {
     "layout": {
-      "language": "de",
-      "sleep_timeout_seconds": 3600,
+      "language": "en",
+      "sleep_timeout_seconds": 86400,
       "sets": [
         {
           "name": "Frühstück"
@@ -71,6 +71,7 @@
     ]
   },
   "notes": [
-    "The language rides in the content and not in the program, which is why a translation needs no cable."
+    "The top of the range, and the case that says the clamp is a clamp rather than a ceiling one lower. A reader that brought 86400 back to something smaller would pass sleep-timeout-max and fail here.",
+    "It has a write half where sleep-timeout-max no longer does, which is the line between the two: this is the largest timeout a builder may emit."
   ]
 }

@@ -1,10 +1,14 @@
 # What is still moving in the three formats
 
-**Status: survey. 2026-08-27.** No format was touched and no tag was cut, and
-that is still true. Two things have moved since it was written, both recorded
-in place rather than folded away: [C1](#c1-chunk-acknowledgement--in-flight)
+**Status: survey. 2026-08-27.** No tag has been cut, and that is still true.
+What is no longer true is that no format was touched: four things have moved
+since this was written, all recorded in place rather than folded away.
+[C1](#c1-chunk-acknowledgement--in-flight),
+[L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use)
+and [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs)
 landed, and the six drifted citations in §9 were repaired. The list is the
-deliverable.
+deliverable, and each entry now carries what actually happened underneath what
+was predicted.
 
 [`adr/0006`](../adr/0006-builder-and-hardware-one-repo.md) gained a dated line
 on 2026-08-26 — *condition 1, not met* — on the strength of two facts: a
@@ -30,29 +34,42 @@ is where a change to them would land.
 
 ## The short answer
 
-**Six pending items, of which one has since landed.** Two of the six had to
-land before a device freeze; four can wait behind a version. Three whole
-categories the brief asked about came back empty, and saying so is the point
-of §7.
+**Six pending items, of which three have since landed.** Everything that had to
+land before a device freeze has; the three that are left can wait behind a
+version. Three whole categories the brief asked about came back empty, and
+saying so is the point of §7.
 
-[C1](#c1-chunk-acknowledgement--in-flight), the one that was in flight when
-this was written, landed on 2026-08-27 and took `CABLE_RX_BUFFER` with it. The
-entry is kept rather than deleted: what a survey said would happen, against
-what did, is the part that is worth reading a second time.
+All three landings were on 2026-08-27.
+[C1](#c1-chunk-acknowledgement--in-flight) was in flight when this was written
+and took `CABLE_RX_BUFFER` with it.
+[L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use)
+and [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) were
+the two the freeze was waiting on — L1 because a frozen format must not permit
+values its reader mishandles, C2 because a version nothing checks is not a
+version. Every entry is kept rather than deleted: what a survey said would
+happen, against what did, is the part that is worth reading a second time.
 
-Nothing on this list invalidates a lock as it stands. **Two of them would if
-they were resolved the other way**, and that is stated per item, because
-[`layout.lock.json`](../tests/reference/layout.lock.json) cannot be rewritten —
-the oracle that wrote it went on 2026-08-22 and
+Nothing on this list has invalidated a lock. **One of them was expected to and
+did not**, and how that went is worth more than the prediction was:
+[L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use)
+was marked "at risk" on the reasoning that a reader change would be caught by
+[`layout.lock.json`](../tests/reference/layout.lock.json), and it would not have
+been — the two frozen cases holding the values in question are kind `bytes`,
+whose recorded reader output nothing compares. The lock would have gone on
+describing a reader that no longer existed, silently, with no way to re-derive
+the truth: the oracle went on 2026-08-22 and
 [`frozen-references.md`](frozen-references.md) is explicit that refreezing from
-the module under test is never the answer.
+the module under test is never the answer. **A lock that cannot go red is not a
+lock that permits the change.** That is the general form of it, and it is the
+thing to carry to [N1](#n1-the-builder-emits-names-the-name-rule-forbids), whose
+"at risk" was arrived at the same way and has not been checked.
 
 | | Format | Before a freeze? | Lock |
 |---|---|---|---|
-| [L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use) | `layout.bin` | **Yes**, if resolved in the reader | at risk |
+| [L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use) | `layout.bin` | **landed 2026-08-27** | held |
 | [L2](#l2-the-set-count-cap-is-a-device-rule-the-writer-does-not-hold-itself-to) | `layout.bin` | No | no |
 | [C1](#c1-chunk-acknowledgement--in-flight) | cable | **landed 2026-08-27** | no |
-| [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) | cable | **Yes** | no |
+| [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) | cable | **landed 2026-08-27** | no |
 | [N1](#n1-the-builder-emits-names-the-name-rule-forbids) | name rule | No | at risk |
 | [P1](#p1-ext-lautstark-negated-is-recommended-and-unwritten) | package | No | no |
 
@@ -110,6 +127,47 @@ nothing and can be added at any MINOR.
 **Recommendation:** the writer rule, and no reader change. The reader's
 forgiveness is not wrong, it is undocumented, and the same argument the tile's
 `short` fixture makes applies here — *stated rather than changed*.
+
+**Status: landed**, on 2026-08-27, and the recommendation above was half right.
+Kept rather than rewritten, because which half is the part worth reading twice.
+
+*Right about the parse.* `parseLayout` is untouched and hands the four bytes
+back exactly as it always did. `renderLayoutBin()` is untouched too and still
+writes whatever it is handed, including `0xffffffff` — which the survey did not
+ask about and which turns out to be forced by the same lock, since `sleep at
+both ends of the uint32` froze that writer's bytes for exactly that input. Both
+ends of the "resolve it in the reader" route were closed, not one.
+
+*Wrong that a writer rule was enough.* A sentence saying a builder MUST write
+between 10 and 86400 does nothing about a **flashed device** handed a file by
+somebody else's builder, and `idle * 1000UL` wraps there regardless of what
+this repository's prose says. So the range was written down **and** a clamp
+landed — just not where the survey assumed a clamp would have to go.
+`layoutIdleSeconds()` sits beside `parseLayout` in `layout_format.h`, is called
+from `vorlaut.ino` in place of the `? :` with the bare 600 in it, and turns the
+field into a length of time. The parse says what the bytes hold; that function
+says what they mean. It is the same division byte 7 already had, and it was
+available the whole time.
+
+*Wrong about the lock, in the direction that matters.* This entry said "at
+risk", meaning a reader change would be caught. It would not have been.
+`layout.lock.json` records what its reader makes of a timeout of zero and one
+of `0xffffffff`, and **compares neither** — both are kind `bytes`, and only the
+nine kind `fields` cases are compared line by line, every one of them carrying
+a timeout already inside the range. Verified by making the change and running
+the suite: `test_layout_frozen.py` stays green with a clamp inside
+`parseLayout`. The lock was never a guard here. It was a witness that would
+have gone on describing a reader that no longer existed, with the oracle gone
+since 2026-08-22 — which is a worse outcome than a red test and the reason the
+answer would have been the same even if nothing had been at risk at all.
+
+What guards it now is `device/fixtures/`: every accepted layout fixture carries
+`sleep_seconds` and `idle_seconds` as separate fields, `sleep.expected.json`
+states the range and the emitted-inside-honoured rule the way
+`names.expected.json` states its own, and the same mutation goes red in
+`test_device_host.py` immediately. The 600 that `DEFAULT_SLEEP_TIMEOUT` and
+`vorlaut.ino` had each arrived at separately is now one constant that both
+sides are held to.
 
 ### L2. The set-count cap is a device rule the writer does not hold itself to
 
@@ -232,6 +290,42 @@ reason that has nothing to do with this field. So: behind, now, and still
 wanted. What C1 changed is that the number finally distinguishes two protocols
 that really existed, and the next change to bump it may not be as lucky about
 where it fails.
+
+**Status: landed**, on 2026-08-27, the same day as the bump that made it
+matter. The survey was right about every part of the diagnosis and wrong about
+one thing in the prescription, which is the part worth keeping.
+
+*Right that the field had no reader.* `versionVerdict()` in `tools/cable.js` is
+the comparison, beside the constant rather than anywhere else, so the number and
+the meaning of the number are one edit apart. `findTalker()` calls it instead of
+testing for truthiness.
+
+*Right that the fixtures said nothing.* There are ten cable transcripts now
+rather than eight, and every one of them carries `device_speaks` and
+`version_verdict` beside `protocol_version` — the pair and the conclusion. The
+two new ones announce `vorlaut 1` and `vorlaut 3`. A client that went back to
+accepting anything fails on both, and `device_fixtures.test.ts` also asserts
+that both mismatch directions are present at all, so a later transcript sweep
+cannot quietly leave only the agreeing cases behind.
+
+*Wrong that a mismatch is only a refusal.* Tightening `if (hello.version)` into
+an equality is the obvious closure and it is a bug: a port answering with the
+wrong version would then be skipped exactly like a printer, the walk would end
+with nothing found, and the page would say **"Nothing answered"** about a device
+that had answered — sending a carer to check a cable that is fine. The refusal
+had to arrive with the fact that something *did* answer, which is why the walk
+now remembers the mismatch, carries on to the remaining ports, and reports it
+only when no port is drivable. `tests/unit/cable_version.test.ts` holds that
+routing; each of its claims was checked by making the opposite change.
+
+**What a carer is told.** Refused both ways, with different sentences, because
+the remedies are opposite and neither is "the device is broken": a device below
+this page's version needs newer firmware, and one above it means the page is the
+stale half and wants reloading. Both sentences end by saying that nothing on the
+device has changed, which is the thing somebody standing there actually needs to
+know. Warning and proceeding was the alternative and was rejected: it would mean
+starting a transfer the protocol says cannot finish, and the failure lands
+mid-flight, where the outcome is a talker with silent keys.
 
 ### N1. The builder emits names the name rule forbids
 
@@ -504,18 +598,18 @@ somebody can check rather than judge. Adding what this survey found, in order:
    `cable_format.h`, or an ADR says why it stayed.*
 
 3. **[C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) is
-   closed.** `CABLE_VERSION` gains a runtime comparison and a fixture in which
-   the device answers a version the client does not know. Without this, C1 bumps
-   a number nothing reads, and the bump is the only protection an already-shipped
-   browser has. *Checkable: a fixture whose transcript carries `< vorlaut 2`,
-   and the client's stated behaviour on it.*
+   closed.** ✅ **Done, 2026-08-27.** `versionVerdict()` is the runtime
+   comparison and `version-older-device` and `version-newer-device` are the two
+   transcripts — a mismatch each way rather than the one the clause asked for,
+   because the remedies are opposite and the sentences differ.
 
 4. **[L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use)
-   is decided in writing**, either way. If the answer is a reader clamp it must
-   land first, because a flashed device cannot be given one. If the answer is a
-   writer rule — the recommendation — it is a sentence and can follow.
-   *Checkable: the fixture set states a range for byte 8–11, or `parseLayout`
-   clamps.*
+   is decided in writing**, either way. ✅ **Done, 2026-08-27**, and the answer
+   was both: the range is stated in `sleep.expected.json` *and* a clamp landed,
+   in `layoutIdleSeconds()` beside `parseLayout` rather than inside it. The
+   clause offered those as alternatives; they are not, because a writer rule
+   cannot reach a flashed device and a clamp in the parse would have left
+   `layout.lock.json` describing a reader that no longer existed.
 
 5. **A first run on real hardware.** `cable.md`'s six-row table is still
    unticked, and it is the same bar `exchange-v*` is held to for the same
@@ -533,9 +627,14 @@ somebody can check rather than judge. Adding what this survey found, in order:
 **Not on the list, deliberately:** the prose specification. ADR 0009 and
 `device-interface.md` recommendation 3 both say fixtures first and prose once
 the format holds still, and this survey is the measurement of whether it does.
-Six pending items, two of them blocking, is not "holds still" — but it is a
+Six pending items, two of them blocking, was not "holds still" — but it was a
 much shorter list than the week of history behind ADR 0006's dated line, and it
-is finite and written down, which is the state a freeze can be decided from.
+was finite and written down, which is the state a freeze can be decided from.
+Both blocking items have now landed, and what is left of steps 1 to 6 is a
+mutation run, a first run on real hardware, and a row in a table. **Three
+remaining items, none of them blocking**, is a good deal closer to holding
+still — though L2, N1 and P1 are still changes to a format that has not been
+frozen, and the measurement that matters is how long they stay unmade.
 
 **Also not on the list:** anything about `exchange/`. §5 has the argument. The
 two boundaries are independent and cutting `device-v1` neither needs nor

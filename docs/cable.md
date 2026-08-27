@@ -119,6 +119,41 @@ payload that will not fit *before* it starts sending one.
 back. A browser waiting for a reply that never arrives looks exactly like a
 broken cable, and the two are worth telling apart.
 
+**And the number in `vorlaut 2` is compared.** It had not been until
+2026-08-27: `findTalker()` tested it for truthiness, so any non-zero version was
+accepted and then driven as whatever the browser spoke, and the only thing that
+read it at all was a test grepping `tools/cable.js` for the digit. That was
+survivable while there was one protocol. The acknowledged transfer made it two.
+
+A version that is not this browser's is **refused, in both directions**, and
+the reason is what the number means rather than caution. `cable_format.h` bumps
+it exactly when the two ends can no longer drive each other, and says outright
+that gaining a keyword is not that — unknown keywords are skipped on both sides
+and cost no version at all. So a different number is a statement that these two
+do not work together, and there is no field saying a particular bump was safe
+one way round. Sending anyway means finding out mid-transfer: a browser waiting
+forever for an `ack` it will not get, or a device overrun and failing on a
+checksum. Either can leave a talker with silent keys, which is worse than a
+sentence before anything is sent.
+
+The two directions get different sentences, because the remedies are opposite
+and neither of them is "the device is broken":
+
+| The device says | What it is | What fixes it |
+|---|---|---|
+| a version below this page's | firmware older than the page | flash the device |
+| a version above this page's | the page is the stale half | reload the page |
+
+`hello` does not refuse either of them. It is also how the browser tells a
+talker from a dongle, and throwing there would file a device that answered
+under the same heading as a port that said nothing — which reads as "nothing
+answered" and sends somebody to check a cable that is fine. So the greeting
+comes back whole, `versionVerdict()` says what it means, and `findTalker()`
+keeps walking the remaining ports before it reports anything: two boards
+plugged in should still reach the one that works.
+`fixtures/cable/version-older-device` and `version-newer-device` are the two
+transcripts.
+
 ## The names already say what changed
 
 The file names are hashes, so the manifest thinking from
