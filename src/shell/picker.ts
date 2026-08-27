@@ -71,6 +71,18 @@ export type SymbolHit = Awaited<ReturnType<typeof symbols.searchIn>>[number];
  * place it could be put right from.
  */
 export function offeredSource(): ProviderId {
+  /* What the Sammlung says, before what it happens to hold.
+   *
+   * The two agree on every Sammlung that has pictures, so this changes nothing
+   * for them; what it adds is the one the reading below cannot answer. A
+   * Sammlung with no pictures yet used to follow whatever this machine was set
+   * to, which meant switching the machine between two presses built a mixed
+   * board out of them. An intention has a memory that a derivation does not. */
+  const said = state.layout.symbolSource;
+  if (said === "arasaac" || said === "metacom") return said;
+
+  /* Nobody has said, which is every Sammlung written before the field existed.
+   * Read it off the board, exactly as it was read before. */
   const drawn = drawnFrom(state.layout);
   if (drawn.metacom.length && !drawn.arasaac.length) return "metacom";
   if (drawn.arasaac.length && !drawn.metacom.length) return "arasaac";

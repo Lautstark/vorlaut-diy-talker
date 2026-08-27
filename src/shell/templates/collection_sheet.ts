@@ -100,6 +100,19 @@ export const markup = `
     <div class="setting" id="collectionEditorBody"></div>
   </details>
 
+  <!-- Which symbol collection this Sammlung's pictures come from. Both targets
+       have it, because both have pictures - unlike the language above, which
+       is the talker's, and the panel above that, which is whichever editor is
+       on screen. exchange/SPEC.md §5.1 makes one source per package a rule of
+       the format, so this is the Sammlung's own fact and not this browser's. -->
+  <details class="panel" name="collection" id="symbolPanel">
+    <summary>
+      <span class="section" id="symbolSection"></span>
+      <span class="state" id="symbolState"></span>
+    </summary>
+    <div class="setting" id="symbolBody"></div>
+  </details>
+
   <details class="panel" name="collection" id="voicePanel">
     <summary>
       <span class="section" id="voiceSection"></span>

@@ -48,6 +48,7 @@ import { offer, openPackageExport } from "./packageExport.js";
 import { openCollectionSettings } from "./voices.js";
 import { homeSymbol, homeSymbolSource, takeHomeSymbol } from "./homekey.js";
 import { state } from "../core/state.js";
+import * as symbols from "../data/symbols.js";
 import { load, saveNow } from "../core/save.js";
 import { t } from "../core/texts.js";
 // A pure rule about names, not a way out of the page - which is why it comes
@@ -658,6 +659,20 @@ async function create(): Promise<void> {
    * compared, because "the answer the dialog gave" is the thing this line is
    * about and a guess that happens to agree is still a guess. */
   if (made.language) blank.language = made.language;
+  /* And which symbol collection its pictures will come from, taken from what
+   * this browser is set to.
+   *
+   * The pattern the voice and bildhaft already use one level along: the app's
+   * setting is the default for a new Sammlung, and the Sammlung carries its
+   * own from then on. Written here rather than in blank(), because blank() is
+   * the editor's and the setting is the shell's - and because "what this
+   * machine is set to" is a fact about the moment a Sammlung is made, not
+   * about what a blank one is.
+   *
+   * readSettings() has already refused "metacom" where no folder answers, so
+   * a Sammlung cannot be born asking for a collection this browser has never
+   * seen. */
+  blank.symbolSource = symbols.activeSource();
   const id = await createCollection(defaultName(), blank);
   await useCollection(id);
   await load();
