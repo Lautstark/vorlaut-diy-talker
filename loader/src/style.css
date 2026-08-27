@@ -1,12 +1,24 @@
-/* The loader's own layout, over @lautstark/design's tokens and components.
+/* The loader's own layout, over @lautstark's design tokens and components.
  *
  * Deliberately small, and none of it is a copy of the editor's own
  * src/styles/ui.css, which is in vorlaut-editor. The two
- * pages share a vocabulary - .btn, .panel, the tokens - because both import
+ * pages share a vocabulary - .btn, .linklike, the tokens - because both import
  * the same package, and they share nothing else: that file is a sidebar, a
  * work head and a board grid, and this page is one column of steps. Reaching
  * for the editor's stylesheet would have coupled a page that is going to move
  * repositories to one that is going to stay behind.
+ *
+ * ## The names in here are the package's names, and that is not a detail
+ *
+ * This file spent its whole life asking for --muted and --panel, and
+ * @lautstark/design has never shipped either: they are mitreden's old names,
+ * and design.md says outright that they map onto --text-dim and --surface. An
+ * undefined custom property makes the whole declaration invalid, silently, so
+ * six rules did nothing at all - the privacy note, the notes in a finding
+ * list, the preview lead and the board captions all rendered at full --text,
+ * and the log and the board block had no fill. The page had a secondary voice
+ * written down and none on the screen. Nothing here may name a token the
+ * package does not export; tokens/vorlaut.css is the list.
  */
 * { box-sizing: border-box; }
 
@@ -29,7 +41,7 @@ main {
   padding: 2rem 1.25rem 4rem;
 }
 
-h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
 
 .lead { margin: 0 0 0.75rem; }
 
@@ -38,62 +50,269 @@ h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
    in a footer: it answers the question somebody has while they are deciding
    whether to pick a file, which is before they have scrolled. */
 .here {
-  margin: 0 0 2rem;
-  color: var(--muted);
+  margin: 0 0 1.5rem;
+  color: var(--text-dim);
   font-size: 0.9rem;
 }
 
-/* A step. Present from the start, because the five of them together are what
-   this page is, and a flow that grows a step at a time gives no sense of how
-   much is left. What changes is the state, not the presence. */
+/* Screen-reader-only. One user: the progress bar's own name. */
+.sr {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ------------------------------------------------------------- the gate ---
+
+   Whether this browser can reach the device at all, said above the first step
+   rather than discovered at the fourth.
+
+   It used to be a note inside step 4: somebody on Firefox chose a file,
+   waited through a compile and only then read that the cable needs Chrome -
+   having spent the whole page to learn the one fact that decided whether the
+   page was any use. It is not a refusal and it is not styled as one: checking
+   a file and seeing the boards is worth opening the page for on any browser,
+   and that is what the second line says. */
+
+.gate {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  margin: 0 0 1.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+}
+
+.gate__mark {
+  flex: none;
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.gate p { margin: 0; }
+.gate p + p { margin-top: 0.35rem; color: var(--text-dim); }
+
+/* ------------------------------------------------------------- a step ---
+
+   Present from the start, because the five of them together are what this
+   page is, and a flow that grows a step at a time gives no sense of how much
+   is left. What changes is the state, not the presence. */
+
 .step {
   border-top: 1px solid var(--line);
-  padding: 1rem 0 0.25rem;
+  padding: 1rem 0 0.5rem;
+}
+
+.step__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .step h2 {
   font-size: 1rem;
   font-weight: 600;
-  margin: 0 0 0.5rem;
+  margin: 0;
+  flex: 1 1 auto;
 }
 
-/* A step nothing has reached yet: still legible, plainly not the one to look
-   at. Not `display: none`, and not disabled - both would hide the shape of
-   the flow, which is the reason all five are drawn. */
-.step[data-state="waiting"] { opacity: 0.45; }
+.step .body { margin-top: 0.6rem; }
 
+/* The gap between a step's own lines. `.step p` set all four margins and beat
+   this on specificity when it was written as `.body > * + *`, so the
+   paragraphs in a step sat on top of each other. */
+.step .body > * + * { margin-top: 0.6rem; }
+
+.step p { margin: 0; }
+
+/* The number, in a marker of its own so that the heading can be prose.
+ *
+ * It was "1. " glued to the front of every step label in both languages, and
+ * moving it here buys three things at once: the heading reads as a heading,
+ * done can be a check rather than a number, and the three states below become
+ * three different objects instead of three opacities. The marker is
+ * aria-hidden - a screen reader gets five named landmarks in their own order,
+ * which is better than hearing an ordinal read out five times. */
+.step__mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  background: transparent;
+}
+
+/* Behind you. The heading steps back; the marker keeps the accent, because
+   what somebody is scanning for is how far down the page the work has got. */
+.step[data-state="done"] .step__mark {
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+
+.step[data-state="done"] h2 { color: var(--text-dim); }
+
+/* Here. One filled marker on the page at a time, and it is the step with the
+   press in it. */
+.step[data-state="doing"] .step__mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Not yet: still legible, plainly not the one to look at. Not `display: none`
+   and not disabled - both would hide the shape of the flow, which is the
+   reason all five are drawn.
+
+   --text-dim rather than `opacity: .45`, which put a 16px semibold heading at
+   3.99:1 against the ground and needed 4.5:1. Opacity is also the wrong tool
+   for the job twice over: it dims the marker's border and the heading by the
+   same amount, so there was nothing left to say which of the two mattered. */
+.step[data-state="waiting"] h2 { color: var(--text-dim); }
+.step[data-state="waiting"] .step__mark { border-style: dashed; }
 .step[data-state="waiting"] .body { display: none; }
 
-.step p, .step ul { margin: 0 0 0.5rem; }
-
-.step ul { padding-left: 1.15rem; }
-
-/* A refusal and a note, and the difference has to survive being read quickly.
-   Colour alone would not: the marker in front of each line is what says which
-   is which for anybody who cannot see the difference between the two colours,
-   and it is in the markup rather than in ::before so that it reaches a screen
-   reader as text. */
-li.refuses { color: var(--danger); }
-li.notes { color: var(--muted); }
-
-/* The device's own serial output and the transfer's running commentary. A
-   fixed pitch because it is a machine talking, and a scroll of its own so
-   that a long transfer does not push the buttons off the screen. */
-.log {
-  margin: 0.5rem 0;
-  padding: 0.6rem 0.75rem;
-  max-height: 18rem;
-  overflow: auto;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  font-family: var(--mono, ui-monospace, monospace);
-  font-size: 0.85rem;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+/* Not coming. The state a step is left in when this browser cannot do it at
+   all - a dashed marker with nothing behind it says "not here" rather than
+   "next", which is what waiting says and would be a lie. */
+.step[data-state="blocked"] h2 { color: var(--text-dim); }
+.step[data-state="blocked"] .step__mark {
+  border-style: dashed;
+  color: var(--text-faint);
 }
 
-.doing { font-weight: 600; }
+/* ---------------------------------------------- the count beside a heading
+
+   What a step came to, before its prose says it: a count of notes, a size, or
+   a refusal in --danger. A step's outcome is the thing somebody scrolling
+   past is looking for, and it was four sentences down. */
+
+.chip {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.chip--size { background: var(--accent-soft); color: var(--accent-strong); }
+.chip--refuses { background: var(--danger-soft); color: var(--danger); }
+
+/* --------------------------------------------------- what the check found */
+
+/* No list marker. The ✖ and the • in front of each line are the marker - they
+   are in the markup rather than in ::before so that they reach a screen
+   reader as text, and the browser's own disc was drawing a second bullet in
+   front of every one of them. */
+.findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.findings li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.findings .mark { flex: none; width: 0.8rem; font-weight: 700; }
+
+/* A refusal and a note, and the difference has to survive being read quickly.
+   Colour alone would not, which is what the marker above is for. Named for
+   what they are: `.notes` collided with nothing here, but the class that says
+   "this is a note" and the class that says "this is the notes area" are two
+   different things and one of them was going to win. */
+.finding--refuses { color: var(--danger); }
+.finding--note { color: var(--text-dim); }
+
+/* And the sentence under a refusal, which is the one line on the page that
+   decides whether there is anything else to do. */
+.refusal {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--danger-soft);
+  border-left: 3px solid var(--danger);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-weight: 600;
+}
+
+.aside {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+/* ------------------------------------------------------------ the file ---
+
+   A target as well as a button. The .obz has just been written by the editor
+   and is sitting in a folder somebody has open; dragging it here is the
+   gesture they already have in their hand, and the picker stays for everyone
+   who would rather not. */
+
+.drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.drop__text { flex: 1 1 12rem; color: var(--text-dim); font-size: 0.9rem; }
+
+.drop--over {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.file {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.file__name { font-weight: 600; overflow-wrap: anywhere; }
+
+.file__size {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The file input itself is never on screen: browsers style it in five
+   different ways and none of them looks like the buttons beside it. The
+   button next to it opens it.
+
+   It is out of the tab order and out of the accessibility tree as well, which
+   it was not: a keyboard reader's first Tab landed on an invisible control,
+   and a screen reader announced load.pick twice - once for the input and once
+   for the button that clicks it. The button carries the name now. */
+input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 
 .row {
   display: flex;
@@ -103,16 +322,25 @@ li.notes { color: var(--muted); }
   margin: 0.75rem 0 0.25rem;
 }
 
-/* The file input itself is never on screen: browsers style it in five
-   different ways and none of them looks like the buttons beside it. The
-   button next to it opens it, and the input keeps its own accessible name -
-   see main.ts. */
-input[type="file"] {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
+/* ---------------------------------------------------------- the folder ---
+
+   The other way in, demoted but not hidden.
+
+   It was a full-tier button under two lines of lead, competing with the
+   load.connect button directly below it for the same eye - two calls to action
+   on a page whose whole argument is that the steps happen in an order. What it
+   is is a footnote to the compile: the same files, on a disk, for a bench.
+
+   It stays on the page rather than going behind a disclosure, because
+   folder.ts is right that this is a second way in and not a fallback - it is
+   what works when the cable protocol itself is wrong, and something you have
+   to know to look for is no use on the day you need it. So: one sentence with
+   the action inside it, at .linklike, which is components.css's own tier for
+   a button that has to read as a link. */
+.footnote {
+  margin-top: 1.25rem;
+  color: var(--text-dim);
+  font-size: 0.9rem;
 }
 
 /* ------------------------------------------------------- the board picture
@@ -135,7 +363,7 @@ input[type="file"] {
 }
 
 .preview__lead {
-  color: var(--muted);
+  color: var(--text-dim);
   font-size: 0.9rem;
 }
 
@@ -153,7 +381,7 @@ input[type="file"] {
 
 .preview__set figcaption {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--text-dim);
   margin: 0 0 0.35rem;
 }
 
@@ -161,16 +389,21 @@ input[type="file"] {
    the block: 15.21 mm is the visible area of a ScreenKey - docs/hardware.md -
    so this is life-size on screen and a pictogram that does not survive the
    trip can be seen not to. A share of the column would be a picture of
-   nothing. */
+   nothing.
+
+   --surface-3 for the plate, not --surface. A tile is white and so is
+   --surface in the light scheme, which left five keys and the gaps between
+   them as one white rectangle; the board between the keys is not the same
+   white as a screen, and now it does not look like one either. */
 .device {
   display: grid;
   grid-template-columns: repeat(3, 15.21mm);
   gap: 1.5mm;
   width: max-content;
   padding: 2mm;
-  background: var(--panel);
+  background: var(--surface-3);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 
 /* Pixelated, which is the rule the editor's preview carried and is kept rather
@@ -195,4 +428,52 @@ input[type="file"] {
   height: 7mm;
   border: 1px solid var(--line);
   border-radius: 50%;
+}
+
+/* --------------------------------------------------------------- sending */
+
+.doing {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* How far along, beside the line that says it in words. The numbers are
+   already there - onStep is handed done and total - and what the bar adds is
+   that they are readable from where somebody is actually standing, which is
+   over a talker with a cable in it rather than in front of the screen. */
+.bar {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width .13s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar span { transition: none; }
+}
+
+/* The device's own serial output and the transfer's running commentary. A
+   fixed pitch because it is a machine talking, and a scroll of its own so
+   that a long transfer does not push the buttons off the screen. */
+.log {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.75rem;
+  max-height: 18rem;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-dim);
 }

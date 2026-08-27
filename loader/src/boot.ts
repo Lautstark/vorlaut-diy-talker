@@ -22,6 +22,7 @@
 // language. docs/split-crossings.md's direction three is where that is written
 // down.
 import { DEFAULT_LANGUAGE, LANGUAGES, TEXTS as ALL } from "./boot_data.js";
+import { fill } from "./fill.js";
 
 const CHOICE = "vorlaut.language";
 
@@ -58,11 +59,14 @@ const TEXTS = ALL[LANG] ?? ALL[DEFAULT_LANGUAGE]!;
  * screen names the line to add.
  */
 export function t(key: string, params?: Record<string, string | number>): string {
-  let out = TEXTS[key] || key;
-  if (params) {
-    for (const name in params) {
-      out = out.split("{" + name + "}").join(String(params[name]));
-    }
-  }
-  return out;
+  return fill(TEXTS[key] || key, params, LANG);
+}
+
+/** Whether the table has a line for this key at all.
+ *
+ * t() answers a missing key with the key, which is right on a screen and wrong
+ * as a question: a caller that wants to fall back to something other than the
+ * key - the language name in main.ts is the one - has to ask first. */
+export function says(key: string): boolean {
+  return Object.hasOwn(TEXTS, key);
 }

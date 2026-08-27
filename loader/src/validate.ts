@@ -202,7 +202,14 @@ export function check(read: ReadDevicePackage): Finding[] {
 
       const sound = read.sounds.get(slot.text);
       if (!sound) {
-        note(t("load.silent_key", { label: where, slot: key, text: slot.text }));
+        /* A key whose text is a space is a key with no words on it, and
+           quoting it produced `there is no recording for " "` - a sentence
+           naming nothing, in the middle of a list somebody is reading to find
+           out which key will be wrong. `!slot.text` above catches the empty
+           string and not that one. */
+        note(slot.text.trim()
+          ? t("load.silent_key", { label: where, slot: key, text: slot.text })
+          : t("load.silent_key_untexted", { label: where, slot: key }));
         continue;
       }
       const format = wavFormat(sound.bytes);
