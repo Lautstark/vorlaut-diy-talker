@@ -689,6 +689,27 @@ const size = (card: Locator, rows: number, columns: number) =>
   card.locator(".size").filter({ has: card.page().locator("b", {
     hasText: new RegExp(`^${rows} . ${columns}$`) }) });
 
+/* One press applies the whole panel - the size, how a word class is worn, and
+ * whether the first column belongs to the Sammlung - so it is drawn as the
+ * panel's foot rather than as one more control under the last checkbox above
+ * it. A rule across the panel and the button at its far end is the same shape
+ * the sheet's own foot uses one level up.
+ */
+test("the press that applies the grid panel is drawn as its foot",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+    await openGrid(page);
+
+    const row = page.locator("dialog.sheet[open] .row--apply");
+    await expect(row).toHaveCount(1);
+    await expect(row).toHaveCSS("justify-content", "flex-end");
+    await expect(row).not.toHaveCSS("border-top-width", "0px");
+    // And it really is the last thing in the panel, not something with more
+    // controls under it.
+    await expect(row.locator("xpath=following-sibling::*")).toHaveCount(0);
+  });
+
 test("the grid grows in silence and asks before it shrinks", async ({ page }) => {
   await standIn(page);
   await build(page);

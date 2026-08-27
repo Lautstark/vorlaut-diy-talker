@@ -303,6 +303,36 @@ test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
     ]);
   });
 
+/* One scrolling area in the settings sheet, and only one.
+ *
+ * The voice list used to be a box of its own - 340px of `overflow: auto` inside
+ * a body that is about 460px - on the argument that a personal Azure key brings
+ * hundreds of rows. The argument was true and the box was still wrong:
+ * @lautstark/design says of this very sheet that "two of them nested is a way
+ * to lose the Save button without noticing it is there", and that is what
+ * happened. A wheel gesture latches to whatever is under the pointer for its
+ * whole run, so with the pointer over the voices the sheet did not move at all
+ * and the button at the foot of the panel below could not be reached.
+ *
+ * Asserted by counting scrollers rather than by driving a wheel, because the
+ * latching is the browser's and not ours - what we control is whether there is
+ * a second box for it to latch onto.
+ *
+ * The talker's Sammlung, which is what openCollection() opens, because the
+ * voice panel is on both sheets and it is the voice panel that had the box.
+ */
+test("the settings sheet has one scrolling area, not two", async ({ page }) => {
+  await openCollection(page);
+  await openCollectionSettings(page);
+
+  const inner = await page.locator("dialog.sheet[open] > .body").evaluate((body) =>
+    [...body.querySelectorAll("*")]
+      .filter((one) => one.scrollHeight > one.clientHeight + 2)
+      .map((one) => one.tagName + "." + String(one.className)));
+  expect(inner).toEqual([]);
+
+});
+
 /* The build is an act on one Sammlung, so it is in the ⋯ beside the name of
  * the one it would build - not in Einstellungen, which is about this browser.
  * Where it lands is e2e/build.spec.ts's; that it is not left behind in the
