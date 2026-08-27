@@ -354,10 +354,24 @@ site is the answer to that if it exists first — one address that outlives
 whichever repository serves the editor. After
 [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) the bill
 is smaller than that paragraph assumes, and it is worth knowing which half
-pays: the **editor's** address moves, and the talker page's does not, because
-the page is served from the repository that keeps the name. So the bookmark
-that matters at a bench — the one somebody opens with a cable in their hand —
-is the one that never changes.
+pays: the **editor's** address changes repository and the talker page's does
+not. Its path does change, and that is the correction to carry into the move —
+the page moves up from `<base>loader/` to `<base>`, because once the editor is
+gone it is this site's only page and takes the root. Nothing is bookmarked
+either way yet, the loader page being days old, so what that costs is this
+sentence rather than a broken link. What was load-bearing survives: the address
+somebody eventually opens with a cable in their hand is served from the
+repository that keeps its name, and no rename sits underneath it.
+
+**The loader becomes the root entry point, and that is the whole of the
+answer.** [`vite.config.ts`](../vite.config.ts)'s `rollupOptions.input` names
+one page rather than two afterwards, and the page has to sit at the repository
+root for Vite to emit it there — an input is emitted at its own path, so naming
+`loader/index.html` alone would go on publishing `<base>loader/`. That block's
+long comment, about a second entry point that is never named and 404s in
+silence, is worth leaving intact for whoever makes the edit. The three literal
+base paths above need no edit at all: `/vorlaut-diy-talker/` is still the base,
+because it is the repository name that is unchanged rather than the path.
 
 **`v*` keeps meaning a firmware release, and that is the naming's clearest
 win.** [ADR 0006](../adr/0006-builder-and-hardware-one-repo.md#consequences)
@@ -453,11 +467,18 @@ beside the thing they compile. This was the reason the direction was chosen and
 it is now the reason the split is safe:
 [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) claims no
 evidence under ADR 0006's four conditions and does not need any, because the cut
-does not run through what 0006 protects. The editor keeps `test_links.py` and
-`test_language.py`, which are about a repository rather than about a format,
-plus `test_exchange_fixtures.py`, which travels with `exchange/`. That is all
-the Python it needs, and none of it needs a compiler: ADR 0006's
-three-toolchain consequence unwinds for the editor and stands for the device.
+does not run through what 0006 protects. The editor takes
+`test_exchange_fixtures.py`, which travels with `exchange/`, and **a copy** of
+`test_links.py` and `test_language.py` — ~~keeps~~, because a rehearsal found
+both are needed by *both* halves rather than kept by one.
+[`split-rehearsal.md` §5](split-rehearsal.md#5-the-python-division-as-written-is-wrong)
+has the finding: `test_language.py` allowlists `firmware/vorlaut/texts.h` as a
+file permitted to hold German, so a talker keeping `firmware/` with no copy
+loses the rule over the files it was written for, and `test_links.py` checks
+prose the talker keeps most of, since `adr/` and `docs/` go there.
+`test_texts.py` is the talker's outright, not the editor's, for the same kind of
+reason. None of the editor's needs a compiler: ADR 0006's three-toolchain
+consequence unwinds for the editor and stands for the device.
 
 **The seam the names describe is ~~not a directory yet~~ being made one, and
 that is the whole of what changed.** "Whatever compiles a package into what the

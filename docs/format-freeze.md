@@ -662,7 +662,35 @@ somebody can check rather than judge. Adding what this survey found, in order:
    places — the generated `index.json` and `device/tools/make_fixtures.mjs`,
    which writes it — and they have to move together. *Checkable: the version in
    `index.json` has no `-draft` on it, and `make_fixtures.mjs` agrees.*
-   **Found while working the list on 2026-08-27; not yet done.**
+   ✅ **Done, 2026-08-27**, and the version is **`1.0.0`**. Reaching 1.0.0 from
+   a 0.x is not a breaking change but the statement that the thing is now
+   stable, which is what a freeze is; ADR 0009's MAJOR rule — a flashed device
+   *misreading* what a conforming builder writes — governs the increments after
+   it, and nothing about the interface moved here. The suffix is not replaced
+   by another word, because whether the interface is ratified is the **tag's**
+   statement rather than the string's: `exchange/`'s `spec_version` is a plain
+   `1.2.0` while “draft, not ratified” is a sentence in `SPEC.md`, and `device/`
+   having no prose by design is exactly how the word got inside the number.
+
+   **The assertion landed somewhere neither runner is**, which was the part
+   worth deciding rather than typing.
+   [`tests/test_device_fixtures.py`](../tests/test_device_fixtures.py) already
+   owns the statements the fixture set makes about *itself* — that every
+   fixture is reachable from the index, that no fixture carries a kind neither
+   runner knows — and it says why in its own words: a runner can only report
+   what it does not recognise once it has been taught the ones it does. A
+   version is that kind of statement, and the two runners are the two
+   *implementations'* halves. Half the check turned out to be there already and
+   nobody had noticed: that file regenerates the fixtures into a scratch copy
+   and compares byte for byte, and the generator is the only writer of
+   `index.json`, so *“they have to move together”* was never capable of
+   drifting — a version moved in one place arrives as `index.json: regenerating
+   changes it`. What was missing was only the suffix, and reading the number
+   back out of the generator's source to compare the two would have been ADR
+   0009's own anti-pattern, `test_texts.py` grepping `LANGUAGE_CODES` out of
+   another module. **Both halves were then mutated and seen red**, and they
+   fail through different ends: putting `-draft` back leaves the
+   reproducibility comparison green, and only the new assertion catches it.
 
 **Not on the list, deliberately:** the prose specification. ADR 0009 and
 `device-interface.md` recommendation 3 both say fixtures first and prose once
@@ -673,9 +701,11 @@ was finite and written down, which is the state a freeze can be decided from.
 Both blocking items have now landed. Of what was then left of steps 1 to 6 —
 a mutation run, a first run on real hardware, and a row in a table — the
 mutation run and the row were done on 2026-08-27, and working the list turned
-up a seventh item that had been nobody's. **Two remaining items, neither of
-them blocking**: a first run on real hardware, and a version string that still
-says draft. That is a good deal closer to holding still — though L2, N1 and P1
+up a seventh item that had been nobody's. That seventh item was then done the same day.
+**One remaining item, and it is not one anybody here can type**: a first run on
+real hardware. Everything else on this list is closed, so `device-v1` waits on
+`cable.md`'s six rows and on nothing else. That is a good deal closer to
+holding still — though L2, N1 and P1
 are still changes to a format that has not been frozen, and the measurement
 that matters is how long they stay unmade.
 

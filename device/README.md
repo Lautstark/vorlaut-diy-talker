@@ -66,6 +66,21 @@ Those are a byte in a file and a number on a wire, both currently 2; this is
 `MAJOR.MINOR.PATCH` over the whole interface, and the three of them will drift
 apart on purpose.
 
+It reads **`1.0.0`**, and it carries no word about status. It said
+`0.1.0-draft` until 2026-08-27, which put a claim about the interface inside a
+number nothing asserted — both runners printed the string and neither checked
+it, so a `device-v1` cut over it would have contradicted the thing it tagged.
+**Whether this interface is ratified is what the tag says, not what the string
+says**, and the tag is the line above: reserved and not cut. `exchange/` splits
+it the same way, with a plain `1.2.0` in its index and "draft, not ratified" in
+a sentence of `SPEC.md`; the reason the word ended up in the number here is
+that this directory has no prose to put it in, deliberately.
+[`tests/test_device_fixtures.py`](../tests/test_device_fixtures.py) refuses a
+pre-release suffix, and refuses `index.json` and `make_fixtures.mjs`
+disagreeing — the second by regenerating rather than by reading the number out
+of the generator's source, which is the shape ADR 0009 removed from
+`test_texts.py`.
+
 ---
 
 ## Running them

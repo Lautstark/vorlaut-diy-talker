@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "0.1.0-draft",
+  "device_interface_version": "1.0.0",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
