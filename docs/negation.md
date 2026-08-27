@@ -37,7 +37,7 @@ vorlaut draws a symbol in four places, and they are not one problem.
 | | what it is | what a cross costs there |
 |---|---|---|
 | `symbolInto()` — [`backend/local.ts`](../src/backend/local.ts) | an `<img>` on screen: the sheet's preview, a tablet cell, a talker key | an overlay, exactly as bildhaft does it |
-| `previewInto()` — same file | the talker's life-size 128x128 preview, which runs the real tile pipeline | free, and correct — it is the tile |
+| `previewBoards()` — [`loader/src/preview.ts`](../loader/src/preview.ts) | the talker's life-size 128x128 preview, which is the compiled tile itself | free, and correct — it *is* the tile. It was `previewInto()` beside `symbolInto()` until [ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) moved it, which changed where the picture is drawn and not what the cross costs there |
 | `renderSymbol()` — [`data/tiles.ts`](../loader/src/tiles.ts) | 128x128 RGB565 written to the device | composited into a bitmap |
 | `bakeImage()` — [`data/app_assets.ts`](../src/data/app_assets.ts) | a PNG member of an app package | composited into a bitmap |
 

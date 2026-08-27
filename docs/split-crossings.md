@@ -1,6 +1,14 @@
 # The bill for the split: what crosses `src/` ↔ `loader/`, name by name
 
-**Status: a proposal. Nothing is moved and no migration is written here.**
+**Status: a proposal, with one item of it built.**
+[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) took the
+recommendation in *"The preview: not dropped, relocated"* below and landed it on
+2026-08-27: the device preview is on the loader page, and `renderSymbol()` and
+`TILE_SIZE` no longer cross. **The counts in this document are the ones that
+were measured when it was written and are not restated;** where a number here
+says ten, the enforced list says eight and
+[`layers.test.ts`](../tests/unit/layers.test.ts) is the one that is checked.
+Nothing else is moved and no migration is written here.
 [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) landed the same
 day this page did and decided the split; the anchors and the two sentences that
 assumed it undecided are corrected below, and the measurement is untouched.
@@ -146,8 +154,8 @@ duplicate; it is why this particular duplicate is not the class of fault
 
 | name | who takes it | disposition |
 |---|---|---|
-| `renderSymbol` | `src/backend/local.ts` (`previewInto()`) | **stops crossing** — the preview moves to the loader page |
-| `TILE_SIZE` | `src/backend/local.ts` (`previewInto()`) | **stops crossing** — same |
+| `renderSymbol` | ~~`src/backend/local.ts` (`previewInto()`)~~ nobody | **stopped crossing 2026-08-27** — the preview is on the loader page ([ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md)) |
+| `TILE_SIZE` | ~~`src/backend/local.ts` (`previewInto()`)~~ nobody | **stopped crossing 2026-08-27** — same |
 | `thumbnailSize` | `src/data/app_assets.ts` | **duplicated**, held against a freeze taken on the day |
 
 The argument is [hard case two](#hard-case-two--tilests-does-not-divide-and-does-not-have-to) below.
@@ -367,6 +375,16 @@ two products. One product wants the whole pipeline, and the other wants a pictur
 of what the pipeline will do.
 
 ### The preview: not dropped, relocated
+
+**Built 2026-08-27 —
+[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md).** What
+follows is the argument as it was made; the decision took it, and the ADR is
+where the cost is recorded as accepted rather than proposed. Two details of the
+built thing that this section did not predict: the preview is under step 3
+rather than beside `validate.ts`, because the pixels it needs do not exist until
+the compile has run; and `compileDevice()` now answers with the table of which
+tile lands on which panel, which it already computed and used to throw away, so
+nothing renders twice.
 
 The brief for this page named the preview as the drop candidate. It should not be
 dropped, and it should not be duplicated either. It should **move to the loader

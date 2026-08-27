@@ -27,28 +27,26 @@ import { ENCODER_RATE } from "../data/opus.js";
 import { DEVICE_SAMPLE_RATE } from "../data/audio_format.js";
 import * as store from "../data/store.js";
 import * as symbols from "../data/symbols.js";
-/* Four names out of loader/, and every one of them is here on purpose.
+/* Two names out of loader/, and both are facts about the format.
  *
  * HASH_BYTES is how long the hash in a WAV's name has to be for layout.bin to
  * carry it, and DEFAULT_LANGUAGE is what the device labels itself in when it
- * has no number for the language it was given: facts about the format, which
- * the editor has to know because it writes a file a talker has to read.
+ * has no number for the language it was given. The editor has to know both
+ * because it writes a file a talker has to be able to read.
  *
- * renderSymbol() and TILE_SIZE are the other kind and are worth being exact
- * about, because they are the one place the editor still runs the device's own
- * code. previewInto() below draws a symbol the way a ScreenKey will draw it -
- * scaled to 128x128 and rounded to RGB565 - so that somebody choosing a
- * pictogram can see at 15.21 mm whether a child will recognise it. Fitting it
- * to a square here instead would be a preview that is not the preview, which
- * is the whole of what that control is for.
+ * There were four until 2026-08-27. renderSymbol() and TILE_SIZE were the
+ * other kind - the one place the editor ran the device's own code - and
+ * previewInto(), which stood below, was their only caller: a symbol drawn as a ScreenKey
+ * draws it, so a pictogram could be judged at 15.21 mm. That picture is on the
+ * loader page now, drawn from the tiles the compile has already made, and
+ * adr/0013 is why. What is left here reads no pixels at all.
  *
  * What left with the device path (adr/0011) is renderLayoutBin() and every
  * *use* of a tile as a file: nothing here writes a t<hash>.bin, and nothing
- * here can reach a talker. What stayed is one read-only rendering onto a
- * canvas. tests/unit/layers.test.ts holds this list to exactly these four. */
+ * here can reach a talker. tests/unit/layers.test.ts holds this list to
+ * exactly these two. */
 import { DEFAULT_LANGUAGE, HASH_BYTES }
   from "../../loader/src/layout_format.js";
-import { TILE_SIZE, renderSymbol } from "../../loader/src/tiles.js";
 import { reason } from "../core/errors.js";
 import {
   speak, asBlob, shippable, displayName, parseVoiceId, usePiperRuntime,
@@ -177,7 +175,8 @@ const NOTHING: Layout = { sets: [] };
  * Three kinds, and they are not interchangeable. A METACOM reference is
  * resolved by the package, out of the folder somebody licensed, and never
  * copied anywhere. A plain file name is a picture kept in here. Anything that
- * resolves to nothing is not an error - renderSymbol draws its grey cross. */
+ * resolves to nothing is not an error - the loader page draws its grey cross
+ * when it compiles the tile. */
 async function picture(reference) {
   if (!reference) return null;
   if (reference.startsWith("metacom:")) {
@@ -234,55 +233,27 @@ export async function uploadSymbol(file, name = file.name) {
   return { symbol: key };
 }
 
-/** The 128x128 the panel really shows, which is the tile and nothing else.
+/* previewInto() stood here, and it is on the loader page now - adr/0013.
  *
- * Reproduces preview_png() in app.py, including the part that looks like a
- * detail and is not - RGB565 has five bits of red and six of green, and a
- * panel lights the missing low bits by repeating the high ones. Dropping that
- * gives a preview very slightly darker than the device, which is exactly the
- * kind of difference nobody can see and everybody argues about.
+ * It drew a symbol the way a ScreenKey draws it, at the 15.21 mm a key really
+ * is, while somebody was choosing the pictogram. What it cost was that the
+ * editor ran the device's own tile pipeline, which is a repository boundary
+ * away (adr/0012), and the two ways of keeping it here were a second Lanczos
+ * implementation or the browser's own scaler - which differs from the device
+ * by up to 29.5% of pixels in Chromium and 45.6% in Safari, and differs from
+ * itself between the two. docs/split-crossings.md prices all three.
  *
- * There were six pixels round the tile - the set's colour, then black, then
- * nothing. The tile is the whole display now, so the canvas is the tile: no
- * ground to fill and no offset to draw at, which is also what drawTile() in
- * the firmware does. */
-export async function previewInto(image, symbol, negated = false) {
-  const raw = renderSymbol(await picture(symbol), { negated });
-  const side = TILE_SIZE;
-  const inner = new ImageData(side, side);
-  for (let i = 0; i < side * side; i++) {
-    const value = (raw[i * 2] << 8) | raw[i * 2 + 1];
-    const r = (value >> 11) << 3;
-    const g = ((value >> 5) & 0x3f) << 2;
-    const b = (value & 0x1f) << 3;
-    inner.data[i * 4] = r | (r >> 5);
-    inner.data[i * 4 + 1] = g | (g >> 6);
-    inner.data[i * 4 + 2] = b | (b >> 5);
-    inner.data[i * 4 + 3] = 255;
-  }
-
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = side;
-  canvas.getContext("2d").putImageData(inner, 0, 0);
-
-  // The element is handed over rather than a URL returned precisely so that
-  // this can happen: the picture is not there until it has been drawn, and
-  // the URL has to be let go of afterwards or every render leaks one.
-  canvas.toBlob((blob) => {
-    const url = URL.createObjectURL(blob);
-    const previous = image.dataset.blobUrl;
-    if (previous) URL.revokeObjectURL(previous);
-    image.dataset.blobUrl = url;
-    image.src = url;
-  }, "image/png");
-}
+ * What it cost to move is a longer loop, and that is not argued away: the
+ * picture arrives after an export rather than at the moment of choosing. If it
+ * is ever wanted back here, the argument to make is a measurement from users,
+ * and the two options above are still the only ones there are. */
 
 /** The symbol itself, out of wherever it lives.
  *
- * The same resolution previewInto() uses, which is the point of picture()
- * being separate: a reference is a file in here, or a name in a licensed
- * collection the package resolves, and neither is a path anybody can write
- * down. The previous blob is let go of on the way, or every render leaks one.
+ * picture() resolves the reference and this puts it on screen: a reference is a
+ * file in the store, or a name in a licensed collection the package resolves,
+ * and neither is a path anybody can write down. The previous blob is let go of
+ * on the way, or every render leaks one.
  */
 export async function symbolInto(image, reference) {
   const source = await picture(reference);

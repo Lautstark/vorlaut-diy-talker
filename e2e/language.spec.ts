@@ -136,7 +136,13 @@ test("the choice survives a reload, over what the browser asks for",
 
     // The whole bug: this was the browser's answer again, every time.
     await expect(page.locator("html")).toHaveAttribute("lang", CHOSEN);
-    await expect(page.locator("#previewText")).toHaveText(says(CHOSEN, "ui.preview"));
+    /* And the editor's own markup, which is the half applyTexts() cannot
+       reach on its own - the board is drawn from LANG at render time. The
+       eyebrow on the set key rather than the preview toggle, which used to be
+       asserted here and went to the loader page with the picture it drew
+       (adr/0013); this editor's controls all carry their words from render()
+       now. */
+    await expect(page.locator(".cell__eyebrow")).toHaveText(says(CHOSEN, "ui.set_key"));
     // And the sheet's own controls, which are painted from LANG rather than
     // carried by the markup and so are not covered by applyTexts().
     await openSettings(page);
@@ -288,7 +294,7 @@ test("opening a Sammlung does not re-language the editor", async ({ page }) => {
   await page.reload();
   await expect(page.locator("#device .cell")).toHaveCount(6);
   await expect(page.locator("html")).toHaveAttribute("lang", ASKED);
-  await expect(page.locator("#previewText")).toHaveText(says(ASKED, "ui.preview"));
+  await expect(page.locator(".cell__eyebrow")).toHaveText(says(ASKED, "ui.set_key"));
 
   // The Sammlung kept its own answer through all of that.
   await openCollectionSettings(page);

@@ -294,29 +294,12 @@ button, select, input, textarea { font-family: inherit; }
    <input type="checkbox" switch> natively that way, elsewhere there is only
    the box. So it is built from the box: that stays underneath, and with it
    keyboard operation and screen readers. */
-.toggle {
-  display: flex; align-items: center; gap: 8px; cursor: pointer;
-  color: var(--text-dim); font-size: 13px; white-space: nowrap;
-}
-.toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
-/* The box is 0x0 and invisible - the ring it earns goes on the pill below. */
-.toggle input:focus-visible { outline: none; }
-.pill {
-  width: 38px; height: 22px; border-radius: 11px; flex: none;
-  background: var(--line); position: relative; transition: background .15s;
-}
-.pill::after {
-  content: ""; position: absolute; top: 2px; left: 2px;
-  width: 18px; height: 18px; border-radius: 50%; background: var(--surface);
-  /* --shadow-sm rather than a hand-mixed black: the token is solved for the
-     scheme, and a .45 black under a white knob on a light ground was a smudge. */
-  box-shadow: var(--shadow-sm); transition: transform .15s;
-}
-.toggle input:checked + .pill { background: var(--accent); }
-.toggle input:checked + .pill::after { transform: translateX(16px); }
-.toggle input:focus-visible + .pill {
-  outline: 2px solid var(--text-dim); outline-offset: 2px;
-}
+/* .toggle and .pill stood here: a label, a hidden checkbox and the switch it
+   drew. There was one of them in this product - the talker editor's device
+   preview - and it went to the loader page with the picture it turned on
+   (adr/0013). Removed rather than kept for the next one: a switch is
+   @lautstark/design's to draw if a second one is ever wanted, and a rule
+   nothing wears is a rule nobody knows is unused. */
 /* --danger-soft is the plane and --danger the text colour on plain ground;
    the line drawn between them has no token, so it is mixed out of --danger
    rather than written down a third time. Declared on the user rather than at
@@ -440,8 +423,11 @@ pre.log {
      The status keeps its auto margin: with the wordmark hidden just above,
      that margin is what still pushes the group against the right edge.
 
-     Scoped to the header on purpose - .toggle is also the device preview in
-     the work head, and an auto margin sent that one to the right edge too. */
+     It was scoped to the header on purpose, because .toggle was also the
+     device preview in the work head and an auto margin sent that one to the
+     right edge too. That toggle went to the loader page (adr/0013) and the
+     scoping stays: the reason it is not a bare rule is the general one, that
+     this block is about the header's own group. */
 
   /* Wrapping, not a scrolling row. A row that scrolls sideways hides the
      sets past the edge with nothing to say they are there - and the sets
@@ -1393,7 +1379,7 @@ a.factlinks__line:hover { text-decoration: underline; }
    The shared .cell is 4:3, which is the tablet's cell and a fair picture of a
    tablet button. It is not a fair picture of this one: a key on this device is
    a 128x128 screen showing a 128x128 tile - IMG_SIZE and TILE_SIZE in
-   src/data/tiles.ts, one being the other - so a 4:3 cell here reports a shape
+   loader/src/tiles.ts, one being the other - so a 4:3 cell here reports a shape
    the hardware does not
    have, and reports it while somebody is deciding whether a pictogram survives
    at that size. Whatever else the board is doing, it is drawing the device.
@@ -1447,20 +1433,11 @@ a.factlinks__line:hover { text-decoration: underline; }
 }
 .cell--setkey .cell__pic { max-height: 48%; margin-top: 8px; }
 
-/* The device preview, which is the picture at the size the display really
-   shows it: 15.21 mm, scaled to 128x128 and rounded to RGB565 by
-   previewInto(). Life-size on screen, so somebody can judge whether a
-   pictogram survives the trip at all.
-
-   It replaces the cell's picture rather than joining it - the reasoning is at
-   editor-diy's deviceImage(), and the short version is that a cell is a fixed
-   ratio and a second image plus a caption is exactly the content that makes a
-   row ragged. So the only rule needed here is the size, which must be the
-   millimetres and not a percentage of the cell. */
-.cell__pic--device {
-  width: 15.21mm; height: 15.21mm; max-width: none; max-height: none;
-  image-rendering: pixelated; border-radius: 2px;
-}
+/* There was a .cell__pic--device here: the picture at the 15.21 mm the display
+   really shows, drawn the way the display draws it. It is on the loader page
+   now, in loader/src/style.css, where the pixels it needs have already been
+   rendered by the compile - adr/0013. Nothing under src/ draws a tile any
+   more, and the cell's picture is the stored symbol again. */
 
 /* ------------------------------------------------- what a Sammlung is for
 

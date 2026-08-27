@@ -128,12 +128,16 @@ was the expensive half of any separation and it has already been paid for, on
 its own merits, in a commit that had nothing to do with a split. What is left is
 `git mv` and a set of addresses.
 
-**The bill is counted rather than discovered, and it is ten names.**
+**The bill is counted rather than discovered, and it is ~~ten~~ eight names.**
 `tests/unit/layers.test.ts` holds the editor to exactly what it may take out of
 `loader/`: seven facts about the format from `layout_format.ts` —
 `SLOTS_PER_SET`, `HASH_BYTES`, `LANGUAGE_CODES`, `DEFAULT_LANGUAGE`,
-`SLEEP_MIN`, `SLEEP_MAX`, `SLEEP_DEFAULT` — and `thumbnailSize()`,
-`renderSymbol()` and `TILE_SIZE` from `tiles.ts`. That test is the one thing
+`SLEEP_MIN`, `SLEEP_MAX`, `SLEEP_DEFAULT` — and `thumbnailSize()` from
+`tiles.ts`. (*Counted 2026-08-27:* it was ten when this was written.
+[ADR 0013](0013-the-device-preview-moves-to-the-loader-page.md) moved the
+editor's device preview to the loader page, which struck `renderSymbol()` and
+`TILE_SIZE`. Nothing else about this paragraph changed, and the two struck names
+were the largest single item on the bill.) That test is the one thing
 here that cannot survive the split: a rule about imports has nothing to read
 once the two directories are in two repositories. On the day it stops being a
 check and becomes the list of ten things to answer for, which is exactly what it
@@ -226,7 +230,11 @@ in service of.
   the copies together, which is the failure
   [`frozen-references.md`](../docs/frozen-references.md) exists to record. So the
   editor goes on importing one function across a repository boundary, or the
-  rule is written down where both can be held to it. The locks divide more
+  rule is written down where both can be held to it. (*2026-08-27:*
+  `thumbnailSize()` is now the **only** name the editor takes out of this module
+  — [ADR 0013](0013-the-device-preview-moves-to-the-loader-page.md) — which
+  narrows this consequence without changing it: one function, one rounding rule,
+  and the same two answers on the day.) The locks divide more
   neatly: `obf.lock.json` and `tts.lock.json` follow the converter and the
   recording chain to the editor, `layout.lock.json` and `tiles.lock.json` follow
   the modules they protect to the talker.

@@ -358,7 +358,7 @@ describe("a device build, out of the export and back", () => {
 
     const built = await fromLayout(made, sources, sounds);
     const { bytes } = await exported(made, sources, sounds);
-    const compiled = await compileDevice(
+    const { files: compiled } = await compileDevice(
       readDevicePackage(throughTheFile(bytes)), host(sources));
 
     // The names first, because a difference here says which file went missing
@@ -377,7 +377,7 @@ describe("a device build, out of the export and back", () => {
     const made = layout();
     const sources = sourcesFor();
     const { bytes } = await exported(made, sources, soundsFor());
-    const compiled = await compileDevice(
+    const { files: compiled } = await compileDevice(
       readDevicePackage(throughTheFile(bytes)), host(sources));
 
     for (const name of ["hilfe", "ja", "nein"]) {
@@ -417,7 +417,7 @@ describe("a device build, out of the export and back", () => {
     expect(pkg.boards[0]!.buttons[0]!.image_id)
       .toBe(pkg.boards[0]!.buttons[1]!.image_id);
 
-    const compiled = await compileDevice(
+    const { files: compiled } = await compileDevice(
       readDevicePackage(throughTheFile(bytes)), host(sources));
     const plain = `t${hashOf(named("ja").tile)}.bin`;
     expect(compiled.has(plain)).toBe(true);
