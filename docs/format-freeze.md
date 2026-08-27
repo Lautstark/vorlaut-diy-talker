@@ -12,7 +12,7 @@ was predicted.
 
 [`adr/0006`](../adr/0006-builder-and-hardware-one-repo.md) gained a dated line
 on 2026-08-26 — *condition 1, not met* — on the strength of two facts: a
-breaking change to [`layout_format.ts`](../src/data/layout_format.ts) the day
+breaking change to [`layout_format.ts`](../loader/src/layout_format.ts) the day
 before, and one pending change named in
 [`cable_format.h`](../firmware/vorlaut/cable_format.h)'s own comment. One
 pending change is not a list. This is the list.
@@ -21,8 +21,8 @@ It covers the three formats that cross a boundary:
 
 | | Browser side | Other side |
 |---|---|---|
-| `layout.bin` | [`src/data/layout_format.ts`](../src/data/layout_format.ts) | [`layout_format.h`](../firmware/vorlaut/layout_format.h) |
-| The cable | [`src/backend/cable.ts`](../src/backend/cable.ts), [`tools/cable.js`](../tools/cable.js) | [`cable.h`](../firmware/vorlaut/cable.h), [`cable_format.h`](../firmware/vorlaut/cable_format.h) |
+| `layout.bin` | [`loader/src/layout_format.ts`](../loader/src/layout_format.ts) | [`layout_format.h`](../firmware/vorlaut/layout_format.h) |
+| The cable | [`loader/src/cable.ts`](../loader/src/cable.ts), [`loader/tools/cable.js`](../loader/tools/cable.js) | [`cable.h`](../firmware/vorlaut/cable.h), [`cable_format.h`](../firmware/vorlaut/cable_format.h) |
 | The package | [`src/data/app_package.ts`](../src/data/app_package.ts) | [`exchange/SPEC.md`](../exchange/SPEC.md) and the Android viewer |
 
 The tile payload, the audio payload and the name rule are part of the device
@@ -252,7 +252,7 @@ asked to.
 **What would change.** The client compares the version the device reports, and
 a fixture covers a mismatch. Neither exists.
 
-`CABLE_VERSION` is 2 in `cable_format.h` and 2 in `tools/cable.js`, and **the
+`CABLE_VERSION` is 2 in `cable_format.h` and 2 in `loader/tools/cable.js`, and **the
 bump has now happened** — [C1](#c1-chunk-acknowledgement--in-flight) landed on
 2026-08-27. It went into a field nothing reads, exactly as this entry predicted,
 so the entry stands and is one degree more urgent rather than less: there is now
@@ -262,9 +262,9 @@ Its stated job is to be *"bumped when a device that speaks the old protocol
 could no longer be driven correctly by a browser that speaks the new one."* The
 only thing that reads it is
 [`test_cable_format.py`](../tests/test_cable_format.py), whose hello check greps
-`tools/cable.js` for the number the compiled firmware reported.
+`loader/tools/cable.js` for the number the compiled firmware reported.
 
-At runtime, `findTalker()` in [`cable.ts`](../src/backend/cable.ts) has
+At runtime, `findTalker()` in [`cable.ts`](../loader/src/cable.ts) has
 `if (hello.version) return { port, cable, hello };` — a truthiness test. Any
 non-zero version is accepted and driven as whatever the browser speaks. All
 eight cable fixtures say `< vorlaut 2`; none exercises a mismatch, in either
@@ -500,7 +500,7 @@ The two sets are not even the same *kind* of statement — one records what a
 deleted program answered, the other asserts what a reader must do.
 
 The tile pair do not even share a subject. `tiles.lock.json` protects
-`src/data/tiles.ts` against a renderer that is gone, and it never crossed the
+`loader/src/tiles.ts` against a renderer that is gone, and it never crossed the
 device boundary. `device/fixtures/tile/` says which way round a file is and what
 a reader does with the wrong length, and its own note says *"Nothing here is a
 picture."*

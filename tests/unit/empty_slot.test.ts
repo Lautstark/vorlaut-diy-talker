@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAppPackage, slotIsEmpty, type PackageInput }
   from "../../src/data/app_package.js";
-import { blank, placeholder, TILE_SIZE, toRgb565Be } from "../../src/data/tiles.js";
+import { blank, placeholder, TILE_SIZE, toRgb565Be } from "../../loader/src/tiles.js";
 import type { CollectionRef, DiyLayout } from "../../src/core/types.js";
 
 /* A talker key with nothing on it, on both sides of the seam.

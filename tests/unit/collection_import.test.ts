@@ -51,7 +51,6 @@ const one = () => sicherung([
 
 beforeEach(async () => {
   await store.empty("symbols");
-  await store.empty("data");
 });
 
 describe("one Sammlung out of a Sicherung", () => {

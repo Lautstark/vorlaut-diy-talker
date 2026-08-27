@@ -2,7 +2,7 @@
 
 The app half is being rewritten as a static site, so `metacom.py` and the
 ARASAAC endpoints in `app.py` have to exist a second time in the browser — the
-same move `tiles.py` already made into [`src/data/tiles.ts`](../src/data/tiles.ts).
+same move `tiles.py` already made into [`loader/src/tiles.ts`](../loader/src/tiles.ts).
 
 This one is not a port. bildhaft had already written it, so the code was lifted
 out into [bildquelle](https://github.com/Lautstark/bildquelle), a package the

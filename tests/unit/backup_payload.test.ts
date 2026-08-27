@@ -56,7 +56,6 @@ async function seed(): Promise<void> {
 
 beforeEach(async () => {
   await store.empty("symbols");
-  await store.empty("data");
   await store.writeSettings({} as Settings);
 });
 
@@ -138,13 +137,12 @@ describe("what the standing backup is handed", () => {
     expect(backup.symbols.map((one) => one.name)).toEqual(["arasaac-2483.png"]);
   });
 
-  it("leaves build output behind, because a build makes it again", async () => {
-    await seed();
-    await store.putFile("data", "sets.bin", new Uint8Array([1, 2, 3]).buffer);
-
-    const json = JSON.stringify(await exportEverything(NOTICE));
-    expect(json).not.toContain("sets.bin");
-  });
+  /* There was a test here saying the backup leaves build output behind,
+   * because a build makes it again out of the layout and the symbols. It was
+   * about the `data` store, which went with the build - adr/0011 - so there is
+   * no longer a second folder for a backup to be right about. What the rule
+   * protected is now structural: there is one folder of files, it is content,
+   * and it is the one that travels. */
 
   it("carries the notice it was handed, verbatim", async () => {
     await seed();

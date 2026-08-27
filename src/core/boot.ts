@@ -103,6 +103,31 @@ export const LANGUAGES = BUILT_IN_LANGUAGES;
 export const LANGUAGE_NAMES: Record<string, string> = { de: "Deutsch", en: "English" };
 export let TEXTS = BUILT_IN_TEXTS[LANG];
 
+/**
+ * A label out of the table, with its blanks filled in.
+ *
+ * Here rather than in core/texts.ts, which is where it used to sit and which
+ * still re-exports it so that nothing had to change: TEXTS is this file's, and
+ * the lookup belongs beside it. What made the move worth an edit is that there
+ * are two pages now - the editor, and loader/, which takes an exported file to
+ * a talker - and the second one needs the same table without any of the
+ * editor's markup. A second t() would have been a second translation system
+ * within a week; this is the same one, read from both.
+ *
+ * The key itself when there is no entry, deliberately. A blank would hide a
+ * missing label in whichever language nobody is reading, and a key on the
+ * screen names the line to add.
+ */
+export function t(key: string, params?: Record<string, string | number>): string {
+  let out = TEXTS[key] || key;
+  if (params) {
+    for (const name in params) {
+      out = out.split("{" + name + "}").join(String(params[name]));
+    }
+  }
+  return out;
+}
+
 /** Switch language in place. Callers re-apply the labels; this only moves the
  *  two values every label is read through. */
 export function setLanguage(code: string): void {

@@ -145,10 +145,10 @@ than the attribute, because the attribute was correct the whole time.
 The proposal kept it in Einstellungen as what remains of the Device panel,
 renamed to say so. Asked properly, the answer is weaker than that.
 
-* [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) already offers a
+* `src/editor-diy/release.ts` already offered a
   connect button *inside the release dialog* at the step where it finds it has
   no port — with the words about what is about to be written already read.
-* [`src/editor-diy/device.ts`](../src/editor-diy/device.ts) opens with "One
+* [`loader/src/device.ts`](../loader/src/device.ts) opens with "One
   explicit connect the first time, and silent reconnect for ever after" via
   `getPorts()`.
 * The build-to-a-folder act needs no port at all, and it has moved out.
@@ -173,8 +173,10 @@ the recovery is one press rather than a page reload:
 
 So it costs an attempt, and the sheet says why while it is costing it. That is
 better than a panel somebody has to know to visit: the failure is the moment
-the question becomes worth asking. `e2e/build.spec.ts` pins the whole loop,
-sentence included.
+the question becomes worth asking. `e2e/loader.spec.ts` pins the whole loop,
+sentence included — on the loader page rather than in a sheet, since
+[adr/0011](../adr/0011-editor-exports-the-talker-repository-sends.md), and the paragraph below
+about what an attempt costs went with the build it was about.
 
 **What that attempt costs is a build, and it is not free.** `run()` builds and
 then sends, so the press that discovers a dead port has already paid for every
@@ -291,7 +293,7 @@ has no Save.
    tablet's grid card, and now~~ carrying the talker's build. The tablet's grid
    went through it too until amendment 5 gave the sheet a hand-over of its own;
    what is left in the menu is acts, which is what the menu is for, and
-   `editor-diy/folder_build.ts` is its one caller.
+   `editor-diy/folder_build.ts` was its one caller.
 
 ### The grid card stayed its own entry
 

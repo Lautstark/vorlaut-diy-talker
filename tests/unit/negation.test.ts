@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeholder, renderSymbol, rgbTo565, TILE_SIZE } from "../../src/data/tiles.js";
+import { placeholder, renderSymbol, rgbTo565, TILE_SIZE } from "../../loader/src/tiles.js";
 import { documentToLayout, layoutToDocument, normalizeLayout } from "../../src/data/obf.js";
 import { pictureKey, symbolPlaces } from "../../src/data/app_package.js";
 import type { AppLayout, DiyLayout } from "../../src/core/types.js";

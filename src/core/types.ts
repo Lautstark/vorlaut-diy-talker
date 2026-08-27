@@ -399,12 +399,15 @@ export type Act =
    *  start page is an ordinary board, not an edge case. */
   | { kind: "home"; alsoAppend?: boolean };
 
-/** A layout as it comes out of storage, with the two stamps that say whether
- *  somebody else has written since we read and whether a build is due. */
+/** A layout as it comes out of storage, with the stamp that says whether
+ *  somebody else has written since we read.
+ *
+ *  There were two stamps. The second said whether a build was due, and it went
+ *  with the build - adr/0011. Nothing in the editor is stale against a device
+ *  any more, because the editor does not know there is one. */
 export interface HeldLayout {
   layout: Layout | null;
   version: string | null;
-  buildCurrent: string | null;
 }
 
 /** What a write answers with: the conflict case is a value rather than a
@@ -413,7 +416,6 @@ export interface SaveResult {
   conflict?: boolean;
   saved?: Layout;
   version?: string | null;
-  buildCurrent?: string | null;
 }
 
 /** This installation rather than this content, which is why none of it is in

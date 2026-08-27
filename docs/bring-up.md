@@ -231,10 +231,10 @@ It has not been heard on the finished device.
 
 No sketch of its own, and that is the point: the real firmware answers a
 browser without anything being chosen on the device, so this stage is the
-firmware from stage 7 with a cable in it. Flash it, open the editor, press
-*Send to the device*. All five displays should show **Kabel** with a count
-climbing, and the talker should come back by itself afterwards holding the new
-content.
+firmware from stage 7 with a cable in it. Flash it, export a Sammlung from the
+editor, and open `/loader/` with that file. All five displays should show
+**Kabel** with a count climbing, and the talker should come back by itself
+afterwards holding the new content.
 
 Stages 6 and 7 used to be **Wi-Fi** and **Fetching content** — `test6_wlan`
 opened a captive portal and `test7_sync` pulled a manifest off `app.py`. Both

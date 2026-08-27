@@ -1,6 +1,6 @@
 import { check } from "./harness.js";
-import { CABLE_VERSION, versionVerdict } from "../../tools/cable.js";
-import { findTalker } from "../../src/backend/cable.js";
+import { CABLE_VERSION, versionVerdict } from "../../loader/tools/cable.js";
+import { findTalker } from "../../loader/src/cable.js";
 
 /* What a version mismatch turns into for whoever is holding the cable.
  *

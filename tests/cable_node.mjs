@@ -1,4 +1,4 @@
-// Drives tools/cable.js against tools/cable_mock.js and reports what happened.
+// Drives loader/tools/cable.js against loader/tools/cable_mock.js and reports what happened.
 //
 // The report carries the exact bytes the client wrote. tests/test_cable_format.py
 // hands those to the compiled C reader out of the sketch and checks that it
@@ -11,8 +11,8 @@
 // that the C reader - which also starts empty and can only be reached through
 // the wire - goes through the same states. Nothing is set up behind its back.
 
-import { Cable, plan, push, crc32, hex8, LAYOUT_FILE } from "../tools/cable.js";
-import { MockDevice } from "../tools/cable_mock.js";
+import { Cable, plan, push, crc32, hex8, LAYOUT_FILE } from "../loader/tools/cable.js";
+import { MockDevice } from "../loader/tools/cable_mock.js";
 
 // --- Content that is the same every run --------------------------------------
 

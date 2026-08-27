@@ -49,10 +49,10 @@ NAME_H = ROOT / "firmware" / "vorlaut" / "name_format.h"
 CABLE_H = ROOT / "firmware" / "vorlaut" / "cable_format.h"
 TEXTS_H = ROOT / "firmware" / "vorlaut" / "texts.h"
 
-LAYOUT_TS = ROOT / "src" / "data" / "layout_format.ts"
-TILES_TS = ROOT / "src" / "data" / "tiles.ts"
+LAYOUT_TS = ROOT / "loader" / "src" / "layout_format.ts"
+TILES_TS = ROOT / "loader" / "src" / "tiles.ts"
 AUDIO_TS = ROOT / "src" / "data" / "audio_format.ts"
-CABLE_JS = ROOT / "tools" / "cable.js"
+CABLE_JS = ROOT / "loader" / "tools" / "cable.js"
 
 FIRMWARE = "firmware"
 BROWSER = "browser"
@@ -76,6 +76,9 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
     (LAYOUT_TS, BROWSER, "export const SLOTS_PER_SET = 4;",
      "export const SLOTS_PER_SET = 5;",
      "the browser writes five slots to a set"),
+    (LAYOUT_TS, BROWSER, "export const MAX_SETS = 5;",
+     "export const MAX_SETS = 6;",
+     "the browser thinks the device has room for a sixth set"),
     (LAYOUT_TS, BROWSER, "export const HEADER_BYTES = 4 + 4 + 4;",
      "export const HEADER_BYTES = 4 + 4 + 2;",
      "the browser's header shrinks"),

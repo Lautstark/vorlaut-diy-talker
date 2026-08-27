@@ -131,7 +131,7 @@ They are the opposite: they are the reason it *should* be. §4 works that out.
 
 `renderSymbol()` takes the source at its own size, computes `fillColour()` from
 its edge pixels, and Lanczos-resamples straight to 128
-([`tiles.ts`](../src/data/tiles.ts)). `bakeImage()` fits the same source into 512
+([`tiles.ts`](../loader/src/tiles.ts)). `bakeImage()` fits the same source into 512
 through a canvas and encodes a PNG ([`app_assets.ts`](../src/data/app_assets.ts))
 — and says so in its own first line: **"Not the device's tile."**
 
@@ -212,7 +212,7 @@ testable:
   flag says so
 - hash the inputs into `t<hash>.bin` and `a<hash>.wav` names
 - write `layout.bin`
-- decide what to keep and what to send, and speak the wire (`tools/cable.js`)
+- decide what to keep and what to send, and speak the wire (`loader/tools/cable.js`)
 
 Everything about *people* — the progress list, the missing-symbol hints, the
 build log's language, the reuse-by-name across rebuilds, the folder picker, Web
@@ -307,7 +307,7 @@ against what moving would actually take:
 | `a<hash>.wav` | `audio_format.ts`'s three constants | the synthesis chain — see §3 |
 | The name rule | `hashBytes()`, the `t`/`a` + 32 hex shape | — |
 | The language byte | `LANGUAGE_CODES` | **also needed by the editor** — below |
-| The cable | `tools/cable.js` | `src/backend/cable.ts` — see §8 |
+| The cable | `loader/tools/cable.js` | `loader/src/cable.ts` — see §8 |
 
 Three of `layout_format.ts`'s thirteen exports are read by editor code with
 nothing to do with the device build, and that is the detail §1 could not have
@@ -320,8 +320,10 @@ seen, because it was enumerating the *interface* rather than the *file*:
   [`obf.ts`](../src/data/obf.ts), [`app_package.ts`](../src/data/app_package.ts),
   [`shell/voices.ts`](../src/shell/voices.ts). The *tablet* export falls back to
   this table and the settings sheet paints from it.
-- `HASH_BYTES` and `LAYOUT_BIN` — [`folder.ts`](../src/backend/folder.ts) and
-  [`built.ts`](../src/data/built.ts), both device-side, both travelling.
+- `HASH_BYTES` and `LAYOUT_BIN` — [`folder.ts`](../loader/src/folder.ts) and
+  `built.ts`, both device-side, both travelling. (`built.ts` has since gone
+  altogether: with no build in the editor there is no store of build output
+  for anything to read back.)
 
 None of that blocks anything: the editor pins the package and imports the table
 from it, which is what pinning is for. But it means the package is not a leaf.
@@ -336,7 +338,7 @@ also take. Worth knowing beforehand rather than at the first release.
 **Partly superseded, 2026-08-27.** Browser-only is still the answer and is
 now free: the compiler runs in a page, which is a browser by definition. What
 falls away is the cost in the last paragraph — `tests/test_tile_render_js.py`
-executes `src/data/tiles.ts` as text, and under
+executes `loader/src/tiles.ts` as text, and under
 [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) that file
 changes directory without changing repository, so the test follows a path and
 never reads a pinned copy.
@@ -355,7 +357,7 @@ already imports exactly those three and runs under node. So the package has a
 node-safe core and a browser-only renderer on top, and the existing fixture
 runner shows where the line falls because it is already standing on it.
 
-One real cost: `tests/test_tile_render_js.py` executes `src/data/tiles.ts` as
+One real cost: `tests/test_tile_render_js.py` executes `loader/src/tiles.ts` as
 text against pixels frozen from Pillow. After a move that test either follows
 the package or reads a pinned copy, and the second is a paraphrase of the kind
 [`frozen-references.md`](frozen-references.md) has an account of.
@@ -365,16 +367,16 @@ the package or reads a pinned copy, and the second is a paraphrase of the kind
 ## 8. The cable client, and where the seam already is
 
 **The seam is drawn and does not need moving.** It is the first paragraph of
-[`src/backend/cable.ts`](../src/backend/cable.ts):
+[`loader/src/cable.ts`](../loader/src/cable.ts):
 
-> The protocol is not here. `tools/cable.js` is the browser's half of the wire
+> The protocol is not here. `loader/tools/cable.js` is the browser's half of the wire
 > and stays where it is, because it is the half `tests/test_cable_format.py`
 > drives against the C reader compiled out of the sketch — byte for byte, in
 > both directions. A copy of it inside `src/` would be a second implementation,
 > and the tested one would not be the shipped one.
 
-So `tools/cable.js` travels — `Cable`, `plan()`, `push()`, the CRC, the framing
-— and `src/backend/cable.ts`'s 199 lines stay: Web Serial, the port picker,
+So `loader/tools/cable.js` travels — `Cable`, `plan()`, `push()`, the CRC, the framing
+— and `loader/src/cable.ts`'s 199 lines stay: Web Serial, the port picker,
 `GREETINGS`, the progress callbacks, the `Trouble` codes the sheet renders.
 
 The interface between them is already clean. `plan()` takes a
@@ -553,8 +555,8 @@ it landed while this was being written.**
 
 Branch `claude/amazing-chaplygin-9fe616` carries two commits: `1bdfdda`
 *"acknowledge every window of a cable transfer"* in `firmware/`, and `e42934a`
-*"the browser waits for each window to be acknowledged"* in `tools/cable.js`,
-`src/backend/cable.ts` and `tools/cable_mock.js`. The second one's footer:
+*"the browser waits for each window to be acknowledged"* in `loader/tools/cable.js`,
+`loader/src/cable.ts` and `loader/tools/cable_mock.js`. The second one's footer:
 
 > BREAKING CHANGE: `CABLE_VERSION` is 2 here too. The two halves move together.
 

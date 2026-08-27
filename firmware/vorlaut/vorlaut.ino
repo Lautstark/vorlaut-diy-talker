@@ -6,7 +6,7 @@
 // triggers nothing.
 //
 // /layout.bin and the content files beside it are produced in the browser -
-// renderLayoutBin() in src/data/layout_format.ts writes the table, and either
+// renderLayoutBin() in loader/src/layout_format.ts writes the table, and either
 // the cable or the folder export puts the lot on the file system. They were
 // layout.h and data/, written by build.py, until the Python half went on
 // 2026-08-22.

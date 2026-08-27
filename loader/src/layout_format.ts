@@ -30,6 +30,20 @@ export const LAYOUT_MAGIC = "MTRD";
 export const LAYOUT_VERSION = 2;
 
 export const SLOTS_PER_SET = 4;
+/* How many sets the device has room for, which is MAX_SETS in
+ * firmware/vorlaut/layout_format.h and the size of the array it reads them
+ * into. Not a limit this writer enforces: renderLayoutBin() below writes as
+ * many sets as fit in one byte, because the count and the length are the same
+ * refusal at the far end - readLayout() answers LAYOUT_BAD_LENGTH for a sixth
+ * set, and device/fixtures/layout/sets-past-max.expected.json is that case
+ * written down.
+ *
+ * It is exported because somebody has to say so before the file gets there.
+ * The editor could once be trusted to, since it was the only writer and could
+ * not make a sixth set; now that a file arrives from elsewhere it is the
+ * loader's to check, and loader/src/validate.ts is where it is checked. A
+ * talker that refuses its layout shows nothing and says nothing about why. */
+export const MAX_SETS = 5;
 export const NAME_BYTES = 32;
 export const HASH_BYTES = 16;
 // Fixed strides - the firmware works with the same numbers.

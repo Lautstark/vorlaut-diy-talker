@@ -27,8 +27,8 @@ the Python halves were deleted, and this is what is left behind them.
 | | frozen from | needs, to check it | what it protects |
 |---|---|---|---|
 | [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `node_modules/@lautstark/stimmquelle/` |
-| [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `src/data/tiles.ts` |
-| [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `src/data/layout_format.ts` |
+| [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `loader/src/tiles.ts` |
+| [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `loader/src/layout_format.ts` |
 | [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `src/data/symbols.ts` |
 | [`tests/reference/obf.lock.json`](../tests/reference/obf.lock.json) | `obf.py` and `normalize_layout()` in `layout.py` | node | `src/data/obf.ts` |
 
@@ -175,7 +175,7 @@ conclusion was that this check survives on its own.
 
 It does not, and the reason is worth keeping. The reader survives; what it was
 compared against did not. `normalize_layout()` in `layout.py` built every input
-and `src/data/layout_format.ts` has no equivalent — only `normalizeColor`. `expected()` built the field lines the reader was held
+and `loader/src/layout_format.ts` has no equivalent — only `normalizeColor`. `expected()` built the field lines the reader was held
 against. And `render_layout_bin()` was the only opinion on whether the
 JavaScript bytes were right. Delete Python and what is left is a reader that
 parses whatever it is handed and a test with nothing to compare.
@@ -357,18 +357,21 @@ than its summary and found the rest.
 **Nothing could build content, and now something can.** `build.py`,
 `builder.py`, `manifest.py`, `tiles.py`, `tts.py`, `layout.py` and
 `layout_format.py` are gone, and for a while nothing stood in for them:
-`runBuild()` in [`src/backend/local.ts`](../src/backend/local.ts) threw by its
-own admission and both sides refused. It is written now — the orchestration
-that was `builder.py`, against the ports of `tiles.py` and `tts.py` that were
-already here and already measured. Changing a symbol or a sentence renders
-again.
+`runBuild()` in the editor threw by its own admission and both sides refused.
+It was written — the orchestration that was `builder.py`, against the ports of
+`tiles.py` and `tts.py` that were already here and already measured — and it
+has since moved rather than gone: `compileDevice()` in
+[`loader/src/compile.ts`](../loader/src/compile.ts) does the same work on the
+page that sends, out of a file rather than out of a store
+([adr/0011](../adr/0011-editor-exports-the-talker-repository-sends.md)). Changing a symbol or a
+sentence renders again.
 
 **Both routes onto a device went, not one.** `flashing.py` made the LittleFS
 image and drove `esptool`, so the cable is not merely the only *new* path — it
 is the only path, and it had never touched hardware when the Python was
-deleted. It still has not. What has changed is that the page can now drive it
-end to end: *Send to the device* builds and pushes in one press, and
-`e2e/build.spec.ts` holds that against the mock. The wire format was never the
+deleted. It still has not. What has changed is that the browser can now drive it
+end to end: the editor exports a file, `/loader/` compiles and pushes it, and
+`e2e/loader.spec.ts` holds that against the mock. The wire format was never the
 doubtful part — `tests/test_cable_format.py` feeds the client's own bytes to
 the firmware's reader — and a talker is still the thing none of it has met.
 
@@ -513,7 +516,7 @@ much it would cost to be wrong:
    page that rendered nothing at all ship green.
 
    It is shallow on purpose, and everything below it is still unexercised in a
-   tab. The vendored chain and `src/data/tiles.ts` are checked under node,
+   tab. The vendored chain and `loader/src/tiles.ts` are checked under node,
    where they are deliberately free of the DOM, so node is a fair stand-in for
    the arithmetic — but `tools/ttscheck.html` and `tools/tilecheck.html`, the pages
    that drove them in a real tab, were deleted with the Python harnesses that

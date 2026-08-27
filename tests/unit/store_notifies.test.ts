@@ -24,7 +24,6 @@ describe("the change notifier", () => {
 
   beforeEach(async () => {
     await store.empty("symbols");
-    await store.empty("data");
     heard = 0;
     stop();
     stop = onChanged(() => { heard++; });
@@ -62,24 +61,17 @@ describe("the change notifier", () => {
     expect(heard).toBe(1);
   });
 
-  /* The deliberate silences, tested so that "helpfully" wiring them up later
-   * has to argue with something.
+  /* Two deliberate silences used to be tested here, so that "helpfully" wiring
+   * them up later had to argue with something. Both were about the build: a
+   * data/ store that a build emptied and refilled, where announcing would have
+   * rewritten the backup file once per artefact to say nothing new, and
+   * recordBuild(), which stamped which layout a build had run against.
    *
-   * data/ is build output, which a build makes again out of the layout and the
-   * symbols, so it is not in the backup. A build empties it and refills it -
-   * announcing that would rewrite the file once per artefact to say nothing
-   * new. recordBuild() only stamps which layout a build ran against. */
-  it("data/ stays quiet, in and out, because it is build output", async () => {
-    await store.putFile("data", "sets.bin", new Uint8Array([1]).buffer);
-    await store.dropFile("data", "sets.bin");
-    await store.empty("data");
-    expect(heard).toBe(0);
-  });
-
-  it("recordBuild() stays quiet — it stamps a build, it does not change content", async () => {
-    await store.recordBuild("abc123");
-    expect(heard).toBe(0);
-  });
+   * The build is not in this page any more (adr/0011) and neither of them
+   * exists. What is left announces, all of it, which is the simpler rule and
+   * is now the true one: every store here holds content, and content is what
+   * the standing backup is for.
+   */
 
   it("emptying symbols/ does announce, because that is content going away", async () => {
     await store.putFile("symbols", "eins.png", new Uint8Array([1]).buffer);

@@ -60,7 +60,6 @@ export async function load() {
   // switched now - this paints one control in a sheet nothing else here
   // touches - and it stays first only because that is where it has always been.
   sayCollectionLanguage();
-  tellBuildState(fresh.buildCurrent);
   $("conflict").classList.remove("show");
   unsaved = false;
   status("");
@@ -69,52 +68,6 @@ export async function load() {
   // this file may not name an editor, and until there were two of them the
   // second half was the whole of it.
   showEditorFor(state.layout);
-}
-
-/* Whether the build in data/ still matches the layout - told, not asked.
- *
- * This used to be markReleaseState(), and it reached straight into
- * `$("releaseBtn")` from here. That is a button only editor-diy mounts, and
- * $() throws by design, so the first tablet Sammlung to be opened took the
- * page down inside load() before it had drawn anything. Nothing could have
- * caught it: tests/unit/layers.test.ts proves that src/shell/ imports nothing
- * out of an editor, and this was never an import - it was an element id, which
- * is a dependency the module graph cannot see.
- *
- * So the flag is published and whoever cares subscribes. That is the shape
- * this repository already uses three times for the same reason - onChanged(),
- * onBlocked(), subscribeMetacom() - and it puts the knowledge that a build is
- * a thing that can be out of date back in the half that owns the build.
- *
- * The value itself is not the editor's to work out: it comes off the storage
- * layer with the layout (HeldLayout.buildCurrent) and this is only the relay.
- */
-const builds = new Set<(flag: string | null) => void>();
-
-/** Listen for the build mark. Called with whatever is currently known, so a
- *  subscriber wired after the first load is not left waiting for the next
- *  write to find out where it stands.
- *
- * Hands back a way to stop, and that is not tidiness - it is the whole reason
- * this is safe. A listener here reaches an element in one editor's markup, and
- * that markup is taken out of the page when a Sammlung for the other target is
- * opened. A subscription that outlives its own elements is the same defect as
- * the one moving this out of save.ts fixed, one layer along: the first tablet
- * Sammlung saved after a talker Sammlung had been open reported "the page has
- * no #releaseBtn" from inside the save loop. core/editor.ts calls this before
- * it mounts a different editor. */
-export function onBuildState(listener: (flag: string | null) => void): () => void {
-  builds.add(listener);
-  listener(buildFlag);
-  return () => { builds.delete(listener); };
-}
-
-let buildFlag: string | null = null;
-
-function tellBuildState(flag: string | null | undefined): void {
-  if (flag === null || flag === undefined) return;
-  buildFlag = flag;
-  for (const listener of builds) listener(flag);
 }
 
 // One second after the last keystroke. Shorter gains nothing - it does not
@@ -256,7 +209,6 @@ async function doSave() {
       return;
     }
     layoutVersion = result.version;
-    tellBuildState(result.buildCurrent);
     // Do NOT replace state.layout with the answer here. The input fields hang
     // off exactly these objects; a fresh graph from the server would leave
     // their handlers pointing at nothing, and everything typed afterwards
@@ -289,8 +241,7 @@ export function wireConflict() {
   $<HTMLButtonElement>("overwriteBtn").onclick = async () => {
     const fresh = await loadLayout(editorFor(FIRST_TARGET).blank());
     layoutVersion = fresh.version;
-    tellBuildState(fresh.buildCurrent);
-    await save();
+      await save();
   };
   $<HTMLButtonElement>("reloadBtn").onclick = () => load();
 

@@ -137,3 +137,104 @@ for (const name of all.filter(inEditor)) {
 }
 check("no editor reaches into another editor", strays.length === 0,
       strays.join(", ") || `${EDITORS.length} editors, importing nothing from each other`);
+
+/* ## The second boundary: the editor does not know about the talker
+ *
+ * adr/0011 took the device path out of the editor. The editor exports a file
+ * and stops; loader/ takes a file and puts it on a talker; neither knows the
+ * other exists. That is a claim about what is deleted, and a deleted thing
+ * comes back one import at a time - `import { renderSymbol } from
+ * "../../loader/src/tiles.js"` in a preview would compile, run, and pass every
+ * other test here, exactly as the three shell modules that reached for the
+ * board renderer did before the rule above existed.
+ *
+ * So the crossings are counted rather than forbidden, because the ones that
+ * are left are real. They come in two kinds and the difference is the whole
+ * reason this is a list rather than a ban.
+ *
+ * **Facts about the format.** A set holds four keys, a hash is sixteen bytes,
+ * these are the languages the device has an index for, and this is the range
+ * of sleep timeouts a conforming builder may write. The editor has to know all
+ * of them because it writes a file a talker has to be able to read -
+ * normalizeLayout() holds every builder to the sleep range, which is the writer
+ * half of a rule whose reader half is layoutIdleSeconds() in the firmware's own
+ * header. device/fixtures/ is the authority on every one of them and belongs to
+ * neither half (adr/0009), which is what makes them safe to duplicate across a
+ * repository boundary when the day comes.
+ *
+ * **The pixels, twice, and both are read-only.** thumbnailSize() is the app
+ * package's fit, and docs/repository-map.md gives the argument at length:
+ * renderSymbol() is the device's and thumbnailSize() is the tablet's, they are
+ * one module because they are one rounding rule that follows Pillow step for
+ * step, and splitting them would put that arithmetic in two places with
+ * nothing holding the copies together. renderSymbol() and TILE_SIZE are the
+ * editor's device preview - a symbol drawn the way a ScreenKey draws it, so
+ * that a pictogram can be judged at 15.21 mm before a child has to recognise
+ * it there. Neither of them writes a file and neither can reach a device; what
+ * adr/0011 took away is the build and the cable, not the ability to draw a
+ * picture of one.
+ *
+ * **This list is the bill for the split.** When the editor leaves, these five
+ * names are what has to be answered for - written down on the editor's side
+ * against device/fixtures/, or moved into a package both can pin. Anything
+ * added here without that argument is the boundary quietly closing again.
+ */
+const ALLOWED_FROM_SRC = new Map<string, string[]>([
+  ["loader/src/layout_format.ts",
+   ["SLOTS_PER_SET", "HASH_BYTES", "LANGUAGE_CODES", "DEFAULT_LANGUAGE",
+    "SLEEP_MIN", "SLEEP_MAX", "SLEEP_DEFAULT"]],
+  ["loader/src/tiles.ts", ["thumbnailSize", "renderSymbol", "TILE_SIZE"]],
+]);
+
+/** Every name one module takes out of another, as `spec -> name` pairs.
+ *
+ * A regular expression over the statement rather than a parse, which is the
+ * same reading importsOf() above does and is honest about its limits: a
+ * namespace import is one name and it is a star, so it is reported as `*` and
+ * fails the list below rather than passing it silently. `import * as tiles`
+ * from the editor is precisely the crossing this is here to catch.
+ *
+ * `export ... from` counts as an import and has to, because backend/index.ts
+ * is written entirely in it: a re-export is how the editor's whole contract
+ * with the outside used to name the cable, and a rule that only read `import`
+ * would have watched that file hand the device path straight back. */
+function namesImported(text: string): { spec: string; name: string }[] {
+  /* Comments out first, and this file is why: backend/index.ts writes a
+   * paragraph beside every name in its re-export list, and a clause split on
+   * commas with those still in it reports half a sentence as an imported
+   * name. Crude, and safe for the one thing it is asked about - a "//" inside
+   * a string literal is not something any import statement here contains. */
+  const source = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  const out: { spec: string; name: string }[] = [];
+  const pattern = /(?:import|export)\s+(type\s+)?([^"';]*?)\s+from\s+"([^"]+)"/g;
+  for (const [, , clause, spec] of source.matchAll(pattern)) {
+    const braced = clause.match(/\{([^}]*)\}/);
+    if (braced) {
+      for (const piece of braced[1]!.split(",")) {
+        const name = piece.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0]!.trim();
+        if (name) out.push({ spec, name });
+      }
+    } else if (clause.trim()) {
+      out.push({ spec, name: clause.includes("*") ? "*" : clause.trim() });
+    }
+  }
+  return out;
+}
+
+const intoLoader: string[] = [];
+for (const name of all) {
+  const source = readFileSync(join(SRC, name), "utf8");
+  for (const { spec, name: imported } of namesImported(source)) {
+    if (!spec.includes("loader/")) continue;
+    const target = posix.normalize(posix.join("src", posix.dirname(name), spec))
+      .replace(/\.js$/, ".ts");
+    const allowed = ALLOWED_FROM_SRC.get(target) ?? [];
+    if (!allowed.includes(imported)) intoLoader.push(`${name} -> ${target}: ${imported}`);
+  }
+}
+
+check("the editor takes nothing out of loader/ but the format's own numbers",
+      intoLoader.length === 0,
+      intoLoader.length ? intoLoader.join(", ")
+                        : `${[...ALLOWED_FROM_SRC.values()].flat().length} names, `
+                          + `from ${ALLOWED_FROM_SRC.size} modules`);

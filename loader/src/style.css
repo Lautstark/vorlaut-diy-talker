@@ -1,0 +1,115 @@
+/* The loader's own layout, over @lautstark/design's tokens and components.
+ *
+ * Deliberately small, and none of it is a copy of src/styles/ui.css. The two
+ * pages share a vocabulary - .btn, .panel, the tokens - because both import
+ * the same package, and they share nothing else: that file is a sidebar, a
+ * work head and a board grid, and this page is one column of steps. Reaching
+ * for the editor's stylesheet would have coupled a page that is going to move
+ * repositories to one that is going to stay behind.
+ */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: var(--leading);
+}
+
+/* One column, and a narrow one. Every line on this page is a sentence to be
+   read rather than a control to be aimed at, and a measure this wide is what
+   keeps a warning about a key readable on the laptop somebody has balanced on
+   their knee beside a talker. */
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+
+.lead { margin: 0 0 0.75rem; }
+
+/* Where the file goes and does not go. In the smaller size because it is a
+   note rather than an instruction, and kept above the first step rather than
+   in a footer: it answers the question somebody has while they are deciding
+   whether to pick a file, which is before they have scrolled. */
+.here {
+  margin: 0 0 2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* A step. Present from the start, because the five of them together are what
+   this page is, and a flow that grows a step at a time gives no sense of how
+   much is left. What changes is the state, not the presence. */
+.step {
+  border-top: 1px solid var(--line);
+  padding: 1rem 0 0.25rem;
+}
+
+.step h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+/* A step nothing has reached yet: still legible, plainly not the one to look
+   at. Not `display: none`, and not disabled - both would hide the shape of
+   the flow, which is the reason all five are drawn. */
+.step[data-state="waiting"] { opacity: 0.45; }
+
+.step[data-state="waiting"] .body { display: none; }
+
+.step p, .step ul { margin: 0 0 0.5rem; }
+
+.step ul { padding-left: 1.15rem; }
+
+/* A refusal and a note, and the difference has to survive being read quickly.
+   Colour alone would not: the marker in front of each line is what says which
+   is which for anybody who cannot see the difference between the two colours,
+   and it is in the markup rather than in ::before so that it reaches a screen
+   reader as text. */
+li.refuses { color: var(--danger); }
+li.notes { color: var(--muted); }
+
+/* The device's own serial output and the transfer's running commentary. A
+   fixed pitch because it is a machine talking, and a scroll of its own so
+   that a long transfer does not push the buttons off the screen. */
+.log {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.75rem;
+  max-height: 18rem;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.doing { font-weight: 600; }
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0 0.25rem;
+}
+
+/* The file input itself is never on screen: browsers style it in five
+   different ways and none of them looks like the buttons beside it. The
+   button next to it opens it, and the input keeps its own accessible name -
+   see main.ts. */
+input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

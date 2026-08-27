@@ -890,7 +890,7 @@ test("a button moves to another cell, by keyboard and by drag", async ({ page })
    * before it reads anything back, so the round trip is the product's own. */
   const rows = page.locator("#collectionList > *");
   await rows.filter({ hasText: /^(Sammlung vom|Collection of)/ }).first().click();
-  await expect(page.locator("#releaseBtn")).toBeVisible();
+  await expect(page.locator("#previewLabel")).toBeVisible();
   await rows.filter({ hasText: "Tablet" }).click();
   await expect(at(1)).toHaveText("ich");
   await expect(at(6)).toHaveText("will");
@@ -1004,21 +1004,25 @@ test("a talker Sammlung and a tablet Sammlung swap cleanly", async ({ page }) =>
   // The first Sammlung a browser gets is the talker's, and it is still in the
   // list. Going to it and back is the path that used to take the page down:
   // core/save.ts reached for #releaseBtn from inside load(), and the build
-  // mark stayed subscribed after its own markup had gone.
+  // mark stayed subscribed after its own markup had gone. Both are gone with
+  // the device path (adr/0011); the rule they taught is not, and the element
+  // asked about here is the one the talker's editor still mounts alone.
   // By name, not by position: the sidebar is ordered last-edited-first
   // (conventions.md §1.4), so switching is exactly the act that moves the rows.
   const talker = page.locator("#collectionList > *")
     .filter({ hasText: /^(Sammlung vom|Collection of)/ });
   await talker.first().click();
-  await expect(page.locator("#releaseBtn")).toBeVisible();
+  await expect(page.locator("#previewLabel")).toBeVisible();
   await expect(page.locator("#appGrid")).toHaveCount(0);
 
   await page.locator("#collectionList > *", { hasText: "Tablet" }).click();
   await expect(page.locator("#appGrid")).toBeVisible();
-  await expect(page.locator("#releaseBtn")).toHaveCount(0);
+  await expect(page.locator("#previewLabel")).toHaveCount(0);
 
   // And a write on the tablet side still lands, which is what the stale
   // subscription broke: the save reported "the page has no #releaseBtn".
+  // Nothing subscribes to the shell from an editor any more, so this is a
+  // regression test for a shape rather than for a live subscription.
   await put(page, 4, { label: "bitte", wordClass: "social" });
   await expect(page.locator("#status")).toHaveText(SAVED, { timeout: 10_000 });
 });

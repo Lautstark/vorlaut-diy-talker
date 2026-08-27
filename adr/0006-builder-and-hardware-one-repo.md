@@ -136,7 +136,7 @@ to split it. It is a description of the problem.
 ## Examined
 
 **2026-08-26 — condition 1, not met.** `layout.bin` and the cable protocol are
-not frozen for good: `src/data/layout_format.ts` had a breaking change the day
+not frozen for good: `loader/src/layout_format.ts` had a breaking change the day
 before, which permanently invalidated one of the seventeen frozen cases, and
 `cable_format.h`'s own comment names a pending change to *both halves* of the
 protocol. Condition 2 is untouched — the Android viewer consumes the package

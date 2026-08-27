@@ -62,7 +62,7 @@ With them, the rule on each side is one line long:
 The device's log survives that instead of being crushed by it: the browser puts
 every unmarked line in the transfer sheet's log, which is the most useful thing on the wire
 when something has gone wrong. `tools/serialcheck.html` shows them mixed in,
-and the mock in `tools/cable_mock.js` chatters on purpose so that a client
+and the mock in `loader/tools/cable_mock.js` chatters on purpose so that a client
 which only works on a silent wire fails here rather than on a bench.
 
 ## The device is deliberately stupid
@@ -86,7 +86,7 @@ of it. Everything the device would have had to hold in a `String` to do the
 comparison is a `String` it does not allocate.
 
 So `list` walks the directory and prints it as it goes, and the diff happens in
-`tools/cable.js`. The answers:
+`loader/tools/cable.js`. The answers:
 
 ```
 < vorlaut 2                  it is one of ours, and 2 is the protocol version
@@ -569,30 +569,36 @@ the table below.
 python3 -m http.server 8799
 ```
 
-**4. Press *Send to the device* in the editor.** That opens a sheet, and the
-whole of the transfer happens inside it without it closing in between. It first
-says what is about to be written — the Sammlung, how many of its sets are
-switched on, how many keys carry something, and which port it is going to. Then
-it builds the board, works out what the talker is missing and sends that, with
-the device's own serial output inline in the log. It stays open when it is over:
-the log is the most useful thing there is when something has gone wrong, and it
-must not disappear with the last line. Dismiss it when you have read it.
+**4. Export the Sammlung, then open the loader page.** These are two steps and
+two pages now, and [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) is
+why: the editor writes a file for the talker — the `⋯` beside the Sammlung's
+name — and says where to take it, and `/loader/` is the page that takes one.
 
-**The first press has a step before that one**, because a port has to be
-granted and `requestPort()` needs transient activation that expires in about
-five seconds — so it cannot come after a build. The sheet explains what the
-browser is about to ask and puts *Choose the device* under it; that button's
-own click is the activation. Chrome's chooser is drawn in the browser's chrome
-and no token of ours reaches it, which is why everything around it is ours and
-it is not.
+**5. Choose the file there.** The page runs five steps down one column and says
+what it found at each: what is in the file, anything the device will not be
+able to do with it, what it compiled, which port it is going to, and then the
+transfer itself with the device's own serial output inline in the log. The log
+stays on the page when it is over — it is the most useful thing there is when
+something has gone wrong, and it must not disappear with the last line.
 
-**Closing that chooser does nothing at all** — no build, no log, nothing
-changed, and the sheet is still standing on the step it was on. That is the
-case this got wrong twice: it used to build anyway and then report that nothing
-was sent, which read as the dialog having been ignored; then the chooser was
-moved out of the press altogether, which fixed it by removing the thing
-somebody had pressed the button for. Every press after the first goes straight
-through — `getPorts()` hands the port back with no gesture at all, and the
+**Connecting is a step of its own**, because a port has to be granted and
+`requestPort()` needs transient activation that expires in about five seconds.
+The step explains what the browser is about to ask and puts *Choose the port*
+under it; that button's own click is the activation. Chrome's chooser is drawn
+in the browser's chrome and no token of ours reaches it, which is why
+everything around it is ours and it is not.
+
+**Closing that chooser does nothing at all** — nothing compiled again, nothing
+logged, nothing changed, and the page is still standing on the step it was on.
+That is the case this got wrong twice while it lived in the editor: it used to
+build anyway and then report that nothing was sent, which read as the dialog
+having been ignored; then the chooser was moved out of the press altogether,
+which fixed it by removing the thing somebody had pressed the button for. What
+made it expensive there was that a wrong port cost a whole build — minutes of
+synthesis — and that cost is gone: the compile here needs no network and takes
+seconds, so a wrong port costs a second press. Every attempt after the first
+goes straight through — `getPorts()` hands the port back with no gesture at
+all, and the
 sheet names it rather than asking again.
 
 **Choosing a different port later needs no settings panel**, and since
@@ -733,9 +739,10 @@ the third — pulling the cable out mid-transfer is a thing only hands can do �
 and the third is the one whose device-side behaviour has no test at all, since
 it is the timeout, the drain and the refusal that only `hello` clears.
 
-Two of them now have a version that runs in a browser: `e2e/build.spec.ts`
-presses the editor's button against `cable_mock.js` and checks that the device
-ends up holding exactly the build, and that a second press sends nothing. That
+Two of them now have a version that runs in a browser: `e2e/loader.spec.ts`
+feeds the loader page a real package, presses Send against `cable_mock.js` and
+checks that the device ends up holding exactly what was compiled, and that a
+second press sends nothing. That
 is the second and sixth rows in everything except the part that matters here —
 there is no flash, no re-enumeration and no clock in it. It is what says the
 wiring is right, so that a failure on the bench is about the hardware rather
@@ -795,16 +802,16 @@ amount of code to remove and deserves to say so in its own commit.
 |---|---|
 | [`firmware/vorlaut/cable_format.h`](../firmware/vorlaut/cable_format.h) | the wire format, with no Arduino in it |
 | [`firmware/vorlaut/cable.h`](../firmware/vorlaut/cable.h) | the session: Serial, LittleFS, the half-written file |
-| [`tools/cable.js`](../tools/cable.js) | the browser's half, and the diff |
-| [`tools/cable_mock.js`](../tools/cable_mock.js) | a device made of a `Map`, for when there is no board |
+| [`loader/tools/cable.js`](../loader/tools/cable.js) | the browser's half, and the diff |
+| [`loader/tools/cable_mock.js`](../loader/tools/cable_mock.js) | a device made of a `Map`, for when there is no board |
 | [`tools/serialcheck.html`](../tools/serialcheck.html) | the bench, standalone |
-| [`src/backend/cable.ts`](../src/backend/cable.ts) | the page's side: which port, where the files come from, what the page is told |
-| [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) | the one button — build, then send, with progress and a way to stop |
+| [`loader/src/cable.ts`](../loader/src/cable.ts) | the page's side: which port, where the files come from, what the page is told |
+| [`loader/src/main.ts`](../loader/src/main.ts) | the page — choose a file, check it, compile it, connect, send, with progress and a way to stop |
 | `tests/test_cable_format.py` | the wire format, held against the firmware's own reader |
 | `device/fixtures/cable/several-windows` | the ack cadence as a transcript, with a window of its own |
-| `e2e/build.spec.ts` | the wiring: a press, against the mock served into a real browser |
+| `e2e/loader.spec.ts` | the wiring: a file, a press, against the mock served into a real browser |
 
-The split between the last two is the useful one. `tools/cable.js` is the
+The split between the last two is the useful one. `loader/tools/cable.js` is the
 protocol and is checked by the C; nothing above it in `src/` has any business
 knowing what a `put` line looks like. What the page adds is everything the C
 cannot see — that a press builds, that the build is read back out of storage
@@ -927,7 +934,7 @@ two, and leave the rest alone.
 It could not have worked: this bench is served on its own port so that
 `localhost` gives it a secure context, and a different origin is a different
 IndexedDB — there is nothing of the editor's for it to read. The editor sends
-its own build now, through this same `tools/cable.js`, which is the answer that
+its own build now, through this same `loader/tools/cable.js`, which is the answer that
 button was standing in for.
 
 What is left here is what that button cannot be: a payload with no build behind
@@ -943,7 +950,7 @@ naming because they are easy to leave out:
   cannot be: the press builds first and then sends what that build produced, so
   there is no window in which the two disagree.
 - **Each file is checked against the length the manifest declared**, which is
-  what a build moving underneath the read looks like. `src/backend/cable.ts`
+  what a build moving underneath the read looks like. `loader/src/cable.ts`
   does this and refuses the whole transfer rather than sending a mixture of two
   builds — a device that is half one and half another is wrong in a way nothing
   downstream would notice.

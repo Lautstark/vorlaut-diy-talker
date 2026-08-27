@@ -78,7 +78,7 @@
 // because it has no bar; a tablet appends by default because it has one. That
 // difference is the Act on each button rather than a flag on the export.
 
-import { LANGUAGE_CODES, DEFAULT_LANGUAGE } from "./layout_format.js";
+import { LANGUAGE_CODES, DEFAULT_LANGUAGE } from "../../loader/src/layout_format.js";
 import { encodeOpus, ENCODER_RATE, type OpusClip } from "./opus.js";
 import { zipBytes, type ZipMember } from "./zip.js";
 import { WORD_CLASSES } from "../core/boot_data.js";

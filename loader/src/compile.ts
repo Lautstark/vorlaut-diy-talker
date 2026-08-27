@@ -1,0 +1,141 @@
+// A device export, compiled into exactly the files a talker reads.
+//
+// Split out of data/device_package.ts, which is where the four form rules and
+// the reader are written down at length, and the line it was split along is
+// the one that file had already drawn: everything above it is a mapping over
+// data, and this is the half that renders pixels and writes layout.bin. Those
+// two are the device's own code - loader/src/tiles.ts and
+// loader/src/layout_format.ts - so this is the half that belongs on this side
+// of the boundary, and the editor is now a page that imports neither.
+//
+// adr/0011 is the decision that drew the boundary. adr/0010 is the one that
+// wrote this function, and its own note said that DeviceHost was "drawn as an
+// argument rather than as a repository boundary" because nothing was being
+// split yet. The argument is now also the boundary, and the interface did not
+// have to change for it: decoding a picture is the browser's, hashing is the
+// browser's, and everything between them is arithmetic that runs under node.
+//
+// What did NOT move is readDevicePackage(), and that is deliberate rather than
+// an oversight. It reads a shape and refuses one, it touches no pixels and no
+// bytes of layout.bin, and it sits beside the writer whose output it reads -
+// which is the arrangement exchange/README.md argues for, fixtures with the
+// writer and the reader holding itself to them. When this repository is split
+// it is the whole of data/device_package.ts that has to answer for itself, in
+// the way adr/0009 says a format with two implementations has to; pre-cutting
+// it here would only mean the cut happened twice.
+
+import { planLayout, type ReadDevicePackage }
+  from "../../src/data/device_package.js";
+import { LAYOUT_BIN, renderLayoutBin } from "./layout_format.js";
+import * as tiles from "./tiles.js";
+
+/**
+ * The two things a compiler needs from its host, and nothing else.
+ *
+ * Decoding a picture and hashing bytes are the browser's, and everything else
+ * about turning this package into a device build is arithmetic. That is the
+ * split docs/obz-as-device-input.md §7 predicted - a node-safe core and a
+ * browser-only renderer over it - drawn as an argument rather than as a
+ * repository boundary, because recommendation 4 of that document is that
+ * nothing is packaged or split yet and this changes none of that.
+ *
+ * It is also what makes the round trip testable: under node the decode is a
+ * fixture and the arithmetic is the real thing.
+ */
+export interface DeviceHost {
+  /** One images/ member as pixels - `data`, `width`, `height` - or null when
+   *  it will not decode, which is not an error but the grey cross.
+   *
+   *  Pixels rather than something drawImage takes, and that is where the line
+   *  falls: decoding is the browser's and everything after it is arithmetic.
+   *  tiles.renderPixels() is the half on this side of it. */
+  decode(
+    bytes: Uint8Array<ArrayBuffer>, contentType: string,
+  ): Promise<{ data: Uint8ClampedArray; width: number; height: number } | null>;
+  /** sha256 cut to HASH_BYTES, as hex. The name rule, and the reason it is
+   *  passed in rather than written here is that runBuild() already has one and
+   *  two of them would be two opinions about a file name. */
+  hash(bytes: Uint8Array<ArrayBuffer>): Promise<string>;
+}
+
+/**
+ * A device export, compiled into exactly the files a build puts in the store.
+ *
+ * layout.bin, one t<hash>.bin per distinct picture, one a<hash>.wav per
+ * distinct sentence - the map builtFiles() answers with and the cable sends.
+ *
+ * This is the claim the whole file exists for, so it is worth saying what it
+ * does *not* need: no store, no Sammlung, no synthesiser, no Azure key, no
+ * voice catalogue, no METACOM folder and no network. Items 10 and 12 of
+ * docs/obz-as-device-input.md §1 stayed in the editor, and everything about
+ * people - the progress list, the missing-symbol hints, the log's language,
+ * the folder picker, Web Serial - stayed with them.
+ */
+export async function compileDevice(
+  read: ReadDevicePackage, host: DeviceHost,
+): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+  const files = new Map<string, Uint8Array<ArrayBuffer>>();
+  const { plan } = read;
+
+  // One render per distinct picture rather than per use, keyed the way
+  // runBuild() keys its own: the reference and whether it is crossed out,
+  // because a crossed-out key is different pixels and therefore a different
+  // name. Keyed by the reference alone, a set holding "Brot" and "kein Brot"
+  // gets whichever of the two was drawn first on both.
+  const drawn = new Map<string, string>();
+  const tileFor = async (reference: string, negated: boolean): Promise<string> => {
+    const key = (negated ? "!" : "") + reference;
+    const already = drawn.get(key);
+    if (already) return already;
+    const source = read.sources.get(reference);
+    const decoded = source ? await host.decode(source.bytes, source.contentType) : null;
+    const bytes = tiles.renderPixels(decoded, { negated });
+    const name = `t${await host.hash(bytes)}.bin`;
+    drawn.set(key, name);
+    files.set(name, bytes);
+    return name;
+  };
+
+  // The blank, rendered once for the whole compile and kept out of `drawn` for
+  // the reason runBuild()'s storeBlank() gives: that map is keyed by a
+  // reference and whether it is crossed out, and an empty key is neither.
+  let blankName = "";
+  const blank = async (): Promise<string> => {
+    if (!blankName) {
+      const bytes = tiles.toRgb565Be(tiles.blank());
+      blankName = `t${await host.hash(bytes)}.bin`;
+      files.set(blankName, bytes);
+    }
+    return blankName;
+  };
+
+  const labelFiles: string[] = [];
+  const tileFiles: string[][] = [];
+  const audioFiles: string[][] = [];
+
+  for (const set of plan.sets) {
+    labelFiles.push(await tileFor(set.symbol, false));
+    const tileNames: string[] = [];
+    const audioNames: string[] = [];
+    for (const slot of set.slots) {
+      tileNames.push(slot.empty ? await blank() : await tileFor(slot.symbol, slot.negated));
+      const sound = slot.text ? read.sounds.get(slot.text) : undefined;
+      if (sound) {
+        files.set(sound.name, sound.bytes);
+        audioNames.push(sound.name);
+      } else {
+        // No recording is a silent key rather than a failure - a Sammlung with
+        // no voice set is a normal one, and layout.bin's per-slot flag is what
+        // says so. The zeros hashBytes() writes for an empty name are the
+        // firmware's own "nothing to play".
+        audioNames.push("");
+      }
+    }
+    tileFiles.push(tileNames);
+    audioFiles.push(audioNames);
+  }
+
+  files.set(LAYOUT_BIN,
+    renderLayoutBin(planLayout(plan), labelFiles, tileFiles, audioFiles));
+  return files;
+}

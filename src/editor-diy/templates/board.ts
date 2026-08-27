@@ -36,19 +36,23 @@ export const markup = `
  * to be inferred - which is exactly the inference that goes wrong on a page
  * that can switch Sammlung. conventions.md §3.3. */
 export const action = `
-<!-- The device preview, beside the button that sends: both are about this
-     device, both are reached from the same row, and the row is short enough to
-     hold them. -->
+<!-- The device preview, and it is on its own here now.
+     
+     It used to have the button that sent beside it, and the pair of them was
+     the argument for this slot: both were about this device and both were
+     reached from the same row. The sending went with the device path -
+     adr/0011 - and what is left is the one control that is genuinely about
+     the Sammlung on the screen rather than about a talker: whether to draw
+     the keys as the hardware will show them.
+     
+     The slot stays rather than the label moving into the board, because
+     conventions.md 3.3 is about where an act on the open Sammlung belongs and
+     this is one. What goes in it on a tablet Sammlung is editor-app's own. -->
 <label class="toggle" id="previewLabel">
   <input type="checkbox" id="previewToggle">
   <span class="pill"></span>
   <span id="previewText"></span>
 </label>
-<!-- The whole of what follows the press is in the sheet this opens, the way
-     to stop it included: a stop button sitting in the work head is greyed out
-     for the whole of the time nothing is running, and reads as a thing that
-     is broken. -->
-<button class="btn primary" id="releaseBtn" type="button"></button>
 `;
 
 export function render(where: HTMLElement, head: HTMLElement): void {

@@ -286,13 +286,14 @@ test("the ⋯ holds this Sammlung's acts, then its settings, then the delete",
     await page.locator("#collectionMenu").click();
     const entries = page.locator('[role="menuitem"]');
     await expect(entries).toHaveText([
-      // Three exports of the Sammlung, then the build's own folder export.
-      // The three are three functions all the way down and adr/0010 is why
-      // they stay three; the order here is that a Sammlung comes out of the
-      // first three and a build's loose files out of the fourth.
+      // Three exports of the Sammlung, and three functions all the way down -
+      // adr/0010 is why they stay three. There was a fourth entry, writing a
+      // build's loose files into a folder, and it went with the build
+      // (adr/0011): the loader page compiles and offers the same folder now,
+      // beside the cable, where the files exist.
       label("ui.collection_export"), label("ui.collection_export_app"),
       label("ui.collection_export_device"),
-      label("ui.build_export"), label("ui.collection_settings"),
+      label("ui.collection_settings"),
       label("ui.collection_delete"),
     ]);
     await page.keyboard.press("Escape");

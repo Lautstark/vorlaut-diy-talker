@@ -27,17 +27,17 @@
 // whole reason this file grew a mount function. Which editor a page needs is a
 // fact about the Sammlung, so it cannot be known until the store has answered
 // - and the two must not both be in the document, or a tablet Sammlung would
-// carry a #releaseBtn that the shell could reach without importing anything.
-// That is the shape of coupling this split exists to remove and the shape the
-// layers test cannot see.
+// carry the talker's own controls where the shell could reach them without
+// importing anything. That is the shape of coupling this split exists to
+// remove and the shape the layers test cannot see. It was a #releaseBtn that
+// found it, twice; that button has gone with the device path, and the rule it
+// taught has not.
 import { reason } from "./core/errors.js";
 import { $, status} from "./shell/dom.js";
 import { t, applyTexts } from "./core/texts.js";
 import { load, wireConflict } from "./core/save.js";
 import { editor, haveEditor, useEditors } from "./core/editor.js";
-import { wireRelease } from "./editor-diy/release.js";
 import { diy, wireEditor } from "./editor-diy/editor.js";
-import { wireBuildEntry } from "./editor-diy/folder_build.js";
 import * as diyBoard from "./editor-diy/templates/board.js";
 import { app, wireEditor as wireApp } from "./editor-app/editor.js";
 import * as appBoard from "./editor-app/templates/board.js";
@@ -100,24 +100,12 @@ export function start(): void {
         clearEditor();
         diyBoard.render($("editor"), $("collectionAction"));
       },
-      // Three, because wireRelease() binds #releaseBtn and #previewToggle is
-      // wireEditor()'s - both elements the mount above has just made - and
-      // wireBuildEntry() puts the build into the ⋯ beside the Sammlung's name.
-      // All three belong to this editor now: the one piece of talker wiring
-      // that used to sit outside it, in the settings sheet, was the Device
-      // panel, and that has gone entirely.
-      //
-      // Two of the three answer with a teardown and this composes them: one
-      // subscribes to the build mark and the other holds a menu entry, and
-      // both of those are the shell's and outlive this editor's markup. A
-      // tablet Sammlung must not be offered a build for hardware it is not
-      // for, which is what taking the entry back is about.
-      wire: () => {
-        wireEditor();
-        const stopRelease = wireRelease();
-        const stopBuildEntry = wireBuildEntry();
-        return () => { stopRelease(); stopBuildEntry(); };
-      },
+      // One, and it used to be three. wireRelease() bound the transfer button
+      // and subscribed to the build mark; wireBuildEntry() put a build into
+      // the ⋯ beside the Sammlung's name. Both went with the device path -
+      // adr/0011 - and what is left is the editor's own markup, which needs
+      // no teardown because it goes out of the page with the markup.
+      wire: wireEditor,
     },
     app: {
       editor: app,

@@ -47,7 +47,7 @@ import {
   SLEEP_MIN,
   SLEEP_MAX,
   SLEEP_DEFAULT,
-} from "./layout_format.js";
+} from "../../loader/src/layout_format.js";
 import type { DiyLayout } from "../core/types.js";
 
 /* The Open Board Format shapes this reads and writes.

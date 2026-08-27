@@ -37,8 +37,8 @@
   The browser half of <a href="../docs/cable.md">docs/cable.md</a>, on its own —
   the last of the standalone benches, now that ttscheck and tilecheck have gone
   with the Python they measured against. It speaks the same
-  <code>tools/cable.js</code> the static site will use, to a real device over
-  WebSerial or to the mock in <code>tools/cable_mock.js</code> when there is no
+  <code>loader/tools/cable.js</code> the static site will use, to a real device over
+  WebSerial or to the mock in <code>loader/tools/cable_mock.js</code> when there is no
   device to hand.
 </p>
 
@@ -94,7 +94,7 @@
   its own port, and a different origin is a different IndexedDB — there is
   nothing of the editor's for it to read. What replaced it is the editor's own
   <i>Send to the device</i>, which builds and pushes down this same
-  <code>tools/cable.js</code> in one press. This page is what is left over for
+  <code>loader/tools/cable.js</code> in one press. This page is what is left over for
   the cases that button cannot reach: an invented payload, a folder off the
   disk, and the mock.</small></p>
   <div id="payload"></div>
@@ -215,7 +215,7 @@ $("#mock").addEventListener("click", async () => {
   window.mock = device;                 // for poking at from the console
   mocked = true;
   await greet(device.open(), "the mock, no hardware involved");
-  log("  this is tools/cable_mock.js. It answers the way cable.h is written to,");
+  log("  this is loader/tools/cable_mock.js. It answers the way cable.h is written to,");
   log("  and it chatters unmarked log lines into the same stream on purpose.");
   log(`  its window is ${device.window} bytes and it pauses ${device.stallMs} ms `
       + "before every ack, so a push through it is slower than the wire.");
@@ -329,7 +329,7 @@ function describe(what) {
 }
 
 // Neither of these is the real path any more - the editor's own button is, and
-// it goes through the same tools/cable.js. What is left here is what that
+// it goes through the same loader/tools/cable.js. What is left here is what that
 // button cannot be: a payload with no build behind it, so that a failure is
 // the wire or the firmware and nothing else, and a folder read straight off
 // the disk for a first run on hardware.

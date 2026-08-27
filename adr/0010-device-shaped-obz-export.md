@@ -1,12 +1,13 @@
 # ADR 0010 — The device build has an export of its own, and it is a third door
 
-**Status:** accepted · **Date:** 2026-08-27 · **Applies to:** `src/data/device_package.ts`
+**Status:** accepted, amended by [ADR 0011](0011-editor-exports-the-talker-repository-sends.md)
+· **Date:** 2026-08-27 · **Applies to:** `src/data/device_package.ts`
 
 ## Context
 
 A device build lives in one browser's IndexedDB, on one machine. `runBuild()`
 writes `layout.bin`, a `t<hash>.bin` per picture and an `a<hash>.wav` per
-sentence into the `data` store; `tools/cable.js` sends them to a talker. There
+sentence into the `data` store; `loader/tools/cable.js` sends them to a talker. There
 is no artefact anywhere that says *"this is what is on that talker"* in a form
 anybody can diff, archive, or hand to somebody debugging at a bench. The folder
 export writes the loose files and cannot be read back into a build.
@@ -59,10 +60,24 @@ Three further things this decides:
 - **It exports a build rather than synthesising one.** The WAVs come out of the
   `data` store under the names `audioName()` gave them, so the file cannot
   claim to be a talker's contents while holding audio that talker has never
-  had. It asks for a current build first and says so.
+  had. It asks for a current build first and says so. — **Amended the same day
+  by [ADR 0011](0011-editor-exports-the-talker-repository-sends.md), which is the one part of
+  this decision that did not survive.** There is no build in the editor for the
+  file to be a record of, and the relationship has inverted: the file is what a
+  talker is *given*. So it synthesises, and it needs no current build. The
+  paragraph is kept rather than rewritten because the reasoning in it is still
+  the reasoning — it is what stops anybody deriving these WAVs from the app
+  package's Opus, which [ADR 0008](0008-audio-masters-derived-artefacts.md)
+  forbids and this file's form rule 3 is about.
 - **`compileDevice()` is the inverse**, and it takes decoding and hashing from
   its host. Fed the export it reproduces exactly the files in the `data` store,
-  which is what `tests/unit/device_roundtrip.test.ts` holds it to.
+  which is what `tests/unit/device_roundtrip.test.ts` holds it to. — Since
+  [ADR 0011](0011-editor-exports-the-talker-repository-sends.md) it lives in
+  `loader/src/compile.ts` and there is no `data` store to reproduce: it *is* the
+  build, on the page that sends one. The round trip is unchanged and is now the
+  only thing standing between an editor and a talker that have stopped
+  agreeing, which is why that test walks the whole way through the actual bytes
+  of the archive.
 
 **No new `ext_vorlaut_*` field, and no change to `exchange/SPEC.md`.** Every
 field this profile needs `obf.ts` was already writing. §1 of SPEC.md puts the
@@ -80,7 +95,9 @@ argument does not weaken with a third writer; it is the reason there is one.
 
 **The export is worth having whether or not anything is ever packaged or
 split.** It is the first artefact here that can reconstruct a device build
-without the editor's store. That is the same argument ADR 0009 made about the
+without the editor's store. (Within the day it became the *only* one: see
+[ADR 0011](0011-editor-exports-the-talker-repository-sends.md). The argument below was made
+without that in view and stands better for it.) That is the same argument ADR 0009 made about the
 fixtures — the expensive half of a split turned out to be worth paying for on
 its own — and `docs/obz-as-device-input.md` recommendation 4 is explicit that
 nothing is being packaged or split. This ADR makes no claim about ADR 0006.

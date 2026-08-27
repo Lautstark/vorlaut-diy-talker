@@ -1,25 +1,27 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import * as store from "../../src/data/store.js";
 import { chooseBuildFolder, isBuildFile, writeBuildTo }
-  from "../../src/backend/folder.js";
-import { Trouble } from "../../src/core/errors.js";
-import type { Layout } from "../../src/core/types.js";
+  from "../../loader/src/folder.js";
+import type { Build } from "../../loader/src/cable.js";
 
-/* The build, written into a folder somebody picked.
+/* A compiled package, written into a folder somebody picked.
  *
- * Two things here are worth a test and the rest is plumbing.
+ * One thing here is worth a test and the rest is plumbing: the tidy-up.
+ * Writing twice after changing a symbol leaves the old tile behind, and a
+ * stale file in that folder is a file mklittlefs puts into the image - so the
+ * write removes what this package did not produce. That means deleting inside
+ * a directory a person chose, which is the one thing on this page that could
+ * destroy something of theirs. The rule is the device's own naming and nothing
+ * else, and "a file that is not ours is not touched" is asserted here rather
+ * than trusted to a regex nobody reads.
  *
- * The first is the tidy-up. Exporting twice after changing a symbol leaves the
- * old tile behind, and a stale file in that folder is a file mklittlefs puts
- * into the image - so the export removes what this build did not produce. That
- * means deleting inside a directory a person chose, which is the one thing in
- * this app that could destroy something of theirs. The rule is the device's own
- * naming and nothing else, and "a file that is not ours is not touched" is
- * asserted here rather than trusted to a regex nobody reads.
- *
- * The second is the refusal. A folder holding yesterday's content looks exactly
- * like one holding today's, and everything downstream would carry the
- * difference to the device without a word.
+ * There was a second thing, and it has gone with what it was about. The write
+ * used to fetch the build out of the `data` store for itself and refuse two
+ * ways - no build at all, and a build of something other than what was on the
+ * screen - because a folder holding yesterday's content looks exactly like one
+ * holding today's. There is no store and no screen on this page (adr/0011):
+ * what gets written is the Map the person watched being compiled out of the
+ * file they chose a minute ago, and it is an argument rather than something to
+ * go and find. Those two refusals had nothing left to be about.
  *
  * The directory is a Map. It is the file system, not the code under test - and
  * the File System Access API is small enough at this end that standing one in
@@ -78,26 +80,21 @@ let dismissed = false;
   },
 };
 
-const board = (name: string): Layout => ({
-  sleep_timeout_seconds: 600,
-  language: "de",
-  sets: [{ name, symbol: "", color: "#3B5BDB",
-           slots: [{ text: "", symbol: "" }] }],
-} as unknown as Layout);
-
 const hash = (fill: string) => fill.repeat(32).slice(0, 32);
 const TILE = `t${hash("a")}.bin`;
 const WAV = `a${hash("b")}.wav`;
 
-/** A build in the store, and the mark that says it matches the layout. */
-async function seedBuild(): Promise<void> {
-  await store.empty("data");
-  const saved = await store.writeLayout(board("Erste"), null);
-  await store.putFile("data", "layout.bin", new Uint8Array([1, 2, 3]).buffer);
-  await store.putFile("data", TILE, new Uint8Array([4, 4, 4, 4]).buffer);
-  await store.putFile("data", WAV, new Uint8Array([5, 5]).buffer);
-  await store.recordBuild(saved.version);
-}
+/** What compileDevice() answers with, written out by hand.
+ *
+ * Three files and the shortest possible bytes, because nothing here is about
+ * what is in them - device_roundtrip.test.ts is what says the compiler makes
+ * the right ones. What this file is about is a directory, and the three names
+ * are the three shapes isBuildFile() has to know. */
+const compiled = (): Build => new Map<string, Uint8Array<ArrayBuffer>>([
+  ["layout.bin", new Uint8Array([1, 2, 3])],
+  [TILE, new Uint8Array([4, 4, 4, 4])],
+  [WAV, new Uint8Array([5, 5])],
+]);
 
 describe("which names belong to a build", () => {
   it("takes the three shapes the device reads", () => {
@@ -118,15 +115,14 @@ describe("which names belong to a build", () => {
   });
 });
 
-describe("writing the build into a folder", () => {
-  beforeEach(async () => {
+describe("writing a compiled package into a folder", () => {
+  beforeEach(() => {
     dismissed = false;
     offered = new FakeDirectory("bench");
-    await seedBuild();
   });
 
-  it("writes every file, with the bytes the store holds", async () => {
-    const done = await writeBuildTo(offered!);
+  it("writes every file, with the bytes it was handed", async () => {
+    const done = await writeBuildTo(offered!, compiled());
 
     expect(done).not.toBeNull();
     expect(done!.folder).toBe("bench");
@@ -141,7 +137,7 @@ describe("writing the build into a folder", () => {
     const old = `t${hash("c")}.bin`;
     offered!.files.set(old, new FakeFile(new Uint8Array([9])));
 
-    const done = await writeBuildTo(offered!);
+    const done = await writeBuildTo(offered!, compiled());
 
     expect(done!.removed).toBe(1);
     expect(offered!.files.has(old)).toBe(false);
@@ -152,7 +148,7 @@ describe("writing the build into a folder", () => {
     offered!.files.set("Steuer 2025.pdf", new FakeFile(new Uint8Array([7])));
     offered!.files.set("IMG_1234.jpg", new FakeFile(new Uint8Array([8])));
 
-    const done = await writeBuildTo(offered!);
+    const done = await writeBuildTo(offered!, compiled());
 
     expect(done!.removed).toBe(0);
     expect(offered!.files.has("Steuer 2025.pdf")).toBe(true);
@@ -161,24 +157,24 @@ describe("writing the build into a folder", () => {
 
   it("reports progress per file", async () => {
     const seen: string[] = [];
-    await writeBuildTo(offered!, { onFile: (name, at, total) => seen.push(`${name} ${at}/${total}`) });
+    await writeBuildTo(offered!, compiled(),
+                       { onFile: (name, at, total) => seen.push(`${name} ${at}/${total}`) });
     expect(seen).toHaveLength(3);
     expect(seen.every((line) => line.endsWith("/3"))).toBe(true);
   });
 
-  it("refuses a build that no longer matches the board, and writes nothing", async () => {
-    // An edit after the build: recordBuild() was against the older version.
-    await store.writeLayout(board("Zweite"), null);
+  it("writes nothing at all for an empty package, and removes nothing either", async () => {
+    // Not a case the page can reach - compileDevice() always writes layout.bin
+    // - but it is what the two refusals that used to stand here would have
+    // caught, and the answer now is that there is nothing to catch: an empty
+    // Map writes no files and, having produced none, claims none of the ones
+    // already in the folder.
+    offered!.files.set("Steuer 2025.pdf", new FakeFile(new Uint8Array([7])));
+    const done = await writeBuildTo(offered!, new Map());
 
-    await expect(writeBuildTo(offered!)).rejects.toThrow(Trouble);
-    await expect(writeBuildTo(offered!)).rejects.toMatchObject({ word: "folder_stale" });
-    expect(offered!.files.size).toBe(0);
-  });
-
-  it("refuses when there is no build at all", async () => {
-    await store.empty("data");
-    await expect(writeBuildTo(offered!)).rejects.toMatchObject({ word: "build_none" });
-    expect(offered!.files.size).toBe(0);
+    expect(done!.written).toBe(0);
+    expect(done!.removed).toBe(0);
+    expect(offered!.files.has("Steuer 2025.pdf")).toBe(true);
   });
 
   it("answers null when the picker is dismissed, which is not a failure", async () => {
@@ -188,8 +184,9 @@ describe("writing the build into a folder", () => {
 
   it("asks for the folder before anything slow, so the gesture is still there",
      async () => {
-    // The order is the whole reason these are two functions: a build between
-    // the click and the picker would spend the activation the picker needs.
+    // The order is the whole reason these are two functions: anything slow
+    // between the click and the picker would spend the activation the picker
+    // needs.
     expect(await chooseBuildFolder()).toBe(offered);
   });
 });
