@@ -293,7 +293,7 @@ hold the bump up.
    for bildquelle.
 
 **Why any of this needed writing down.** On 2026-08-25 the main checkout at
-`~/Code/vorlaut` was running `1.6.0` against a pin that said `1.5.0`, so every
+`~/Code/vorlaut-diy-talker` was running `1.6.0` against a pin that said `1.5.0`, so every
 test taken there for part of an afternoon measured one version while naming the
 other. It was not an accidental re-resolution and it could not have been:
 `1b0c0c2` exists only on the local machine, and `node_modules/.package-lock.json`
