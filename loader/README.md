@@ -36,6 +36,7 @@ have named the firmware's business rather than this one's.
 |---|---|
 | `index.html`, `src/main.ts`, `src/style.css` | the page: five steps, and the log at the end |
 | `src/validate.ts` | the checks — the job that did not exist while one program wrote the file and read it back |
+| `src/preview.ts` | the compiled tiles, at the size a key really is — [ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) |
 | `src/read.ts`, `src/unzip.ts` | the archive, opened |
 | `src/compile.ts`, `src/browser_host.ts` | the package as the files a talker holds |
 | `src/tiles.ts`, `src/layout_format.ts` | the device's own formats: a tile, and the table the firmware reads |
@@ -60,10 +61,10 @@ blessed case into the travelling file the rule exists to prevent.
 [ADR 0002](../adr/0002-no-server-no-accounts.md) says the same about the product
 as a whole.
 
-**It does not edit.** It refuses a file it cannot compile and it names what will
-be different once one is on the device, and neither of those is an offer to fix
-anything. The fix is in the editor, and the loop is: change it there, export
-again, choose the new file.
+**It does not edit.** It refuses a file it cannot compile, it names what will be
+different once one is on the device, and it shows what the device will show —
+and none of those is an offer to fix anything. The fix is in the editor, and the
+loop is: change it there, export again, choose the new file.
 
 ## The words on it
 
@@ -88,17 +89,24 @@ right answer for them.
 
 ## What crosses into `src/`, and what comes back
 
-Ten names in one direction and two modules in the other, and they are counted
+Eight names in one direction and two modules in the other, and they are counted
 rather than forbidden.
 
 `src/` takes out of here `SLOTS_PER_SET`, `HASH_BYTES`, `LANGUAGE_CODES`,
 `DEFAULT_LANGUAGE`, `SLEEP_MIN`, `SLEEP_MAX` and `SLEEP_DEFAULT` — facts about
 the format, because the editor writes a file a talker has to be able to read —
-plus `renderSymbol()` with `TILE_SIZE`, which is the editor's device preview: a
-symbol drawn the way a ScreenKey draws it, so a pictogram can be judged at
-15.21 mm, and `thumbnailSize()`, which is the app package's fit.
-`tests/unit/layers.test.ts` holds that list to exactly those ten and is where an
-eleventh has to be argued for.
+plus `thumbnailSize()`, which is the app package's fit.
+`tests/unit/layers.test.ts` holds that list to exactly those eight and is where a
+ninth has to be argued for.
+
+It was ten until 2026-08-27. `renderSymbol()` and `TILE_SIZE` were the editor's
+device preview — a symbol drawn the way a ScreenKey draws it, so a pictogram
+could be judged at 15.21 mm — and that picture is `src/preview.ts` on this page
+now, drawn from the tiles the compile has already made rather than rendered a
+second time.
+[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) is the
+decision, and it states what the move costs: the loop is longer for whoever is
+choosing the pictogram.
 
 This page takes out of `src/` the label table above, and
 `src/data/device_package.ts`, which is the format itself — the writer, the

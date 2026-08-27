@@ -81,8 +81,13 @@ export interface Summary {
   voice: string;
 }
 
-/** The set's name as it is said in a finding: "Page 2", or "Page 2 (Food)". */
-function label(plan: DevicePlan, at: number): string {
+/** The set's name as it is said in a finding: "Page 2", or "Page 2 (Food)".
+ *
+ * Exported because the preview captions its boards with it (preview.ts), and a
+ * second spelling of the same two sentences would drift: a reader looking at a
+ * note about "Page 2 (Food)" and a picture captioned "Set 2" would have to
+ * work out that they are the same set. */
+export function setLabel(plan: DevicePlan, at: number): string {
   const name = plan.sets[at]!.name.trim();
   return name ? t("load.set_named", { n: at + 1, name }) : t("load.set", { n: at + 1 });
 }
@@ -167,7 +172,7 @@ export function check(read: ReadDevicePackage): Finding[] {
   }
 
   for (const [at, set] of plan.sets.entries()) {
-    const where = label(plan, at);
+    const where = setLabel(plan, at);
 
     if (set.slots.length > SLOTS_PER_SET) {
       note(t("load.too_many_keys", {

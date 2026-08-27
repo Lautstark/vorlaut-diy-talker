@@ -93,33 +93,23 @@ document.getElementById("go").onclick = async () => {
 
     check("there is no pairing here", (await local.pairState()).waiting.length === 0);
 
-    // The preview is the one that has to look right, not merely return.
+    /* Two checks stood here and both drove previewInto(), which drew a symbol
+       the way a ScreenKey draws it. That picture is the loader page's now -
+       adr/0013 - and it is asserted in e2e/loader.spec.ts, against tiles a
+       compile really made. The second of the two had already stopped meaning
+       anything: it compared the preview against app.py's preview_png over
+       /api/preview, and app.py went on 2026-08-22.
+
+       What is left of the same question here is the plain one: a stored symbol
+       reaches an <img>. */
     await store.putFile("symbols", "dot.png", await dot());
     const image = document.createElement("img");
-    await local.previewInto(image, "dot.png");
+    await local.symbolInto(image, "dot.png");
     await new Promise((r) => { image.onload = r; setTimeout(r, 1500); });
-    check("a preview draws at the size the panel shows",
-          image.naturalWidth === 128 && image.naturalHeight === 128,
+    check("a stored symbol reaches an <img> at its own size",
+          image.naturalWidth === 64 && image.naturalHeight === 64,
           `${image.naturalWidth}x${image.naturalHeight}`);
     document.getElementById("shot").append("rendered: ", image);
-
-    // The preview claims to reproduce preview_png() in app.py, including the
-    // low bits a panel pads by repeating the high ones. Claimed is not
-    // measured, and while the server is still there it can be measured: the
-    // same picture, both routes, every channel compared.
-    const cmp = await (await fetch("/api/upload?name=cmp.png",
-                                   { method: "POST", body: await blobOf() })).json();
-    await store.putFile("symbols", cmp.symbol, await (await blobOf()).arrayBuffer());
-    const mine = document.createElement("img");
-    await local.previewInto(mine, cmp.symbol);
-    await new Promise((r) => { mine.onload = r; setTimeout(r, 2000); });
-    const a = await pixels(`/api/preview?symbol=${encodeURIComponent(cmp.symbol)}&color=%232F9E44`);
-    const b = await pixels(mine.src);
-    let off = 0;
-    for (let i = 0; i < a.data.length; i += 4)
-      for (let k = 0; k < 3; k++) if (a.data[i + k] !== b.data[i + k]) off++;
-    check("the preview is what app.py's preview_png draws, channel for channel",
-          off === 0, `${off} of ${(a.data.length / 4) * 3} differ`);
 
     out.insertAdjacentHTML("beforeend",
       bad ? `\n<span class="bad">${bad} problem(s)</span>\n`
@@ -132,38 +122,11 @@ document.getElementById("go").onclick = async () => {
   }
 };
 
-function pixels(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      const context = canvas.getContext("2d");
-      context.drawImage(image, 0, 0);
-      resolve(context.getImageData(0, 0, canvas.width, canvas.height));
-    };
-    image.onerror = reject;
-    image.src = src;
-  });
-}
+/* pixels() and blobOf() stood here and went with the two preview checks above:
+ * both existed to compare a rendering against app.py's, and there is no
+ * rendering on this side of the seam any more to compare. */
 
-/** Something with an edge and a curve in it, so the resampling has work to
- * do - a flat square would agree even if the filters did not. */
-async function blobOf() {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 64;
-  const context = canvas.getContext("2d");
-  context.fillStyle = "#c92a2a";
-  context.fillRect(8, 8, 48, 48);
-  context.fillStyle = "#1971c2";
-  context.beginPath();
-  context.arc(20, 20, 10, 0, Math.PI * 2);
-  context.fill();
-  return await new Promise((r) => canvas.toBlob(r, "image/png"));
-}
-
-/** A small red square, as a PNG, so the preview has something to scale. */
+/** A small red square, as a PNG, so there is something to put on screen. */
 async function dot() {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 64;

@@ -9,7 +9,7 @@
 // shell reaches it through core/editor.ts instead, and `diy` at the foot of
 // this file is what it reaches.
 //
-// dragSet, dragSlot, preview and `current` live here and nowhere else.
+// dragSet, dragSlot and `current` live here and nowhere else.
 //
 // ## The board is 2x3 with a hole in it, and always was
 //
@@ -36,7 +36,7 @@
 // round it - and no row for what a press does, because there is no sentence
 // bar for a key to put anything into.
 import { $, negationCross } from "../shell/dom.js";
-import { previewInto, symbolInto } from "../backend/index.js";
+import { symbolInto } from "../backend/index.js";
 import { state } from "../core/state.js";
 import type { Editor } from "../core/editor.js";
 import { isDiy } from "../core/types.js";
@@ -52,7 +52,6 @@ import { confirmDialog } from "@lautstark/design/dialog";
 
 let dragSet: number | null = null;    // index of the dragged set
 let dragSlot: number | null = null;   // index of the dragged speech key
-let preview = false;                  // draw the keys the way the display does
 /* Which set is being edited. It was `state.current` while the page held one
  * board and every module that touched a set index was allowed to know about
  * it. Now it is an index into whichever board is open, so it belongs to the
@@ -158,54 +157,22 @@ function emptySet(index: number): BoardSet {
   };
 }
 
-/* The device's own rendering of a symbol, at the size the device shows it.
+/* There was a toggle here that drew every key the way the display draws it -
+ * scaled to 128x128, rounded to RGB565, life-size at 15.21 mm - and it is on
+ * the loader page now, after a compile, showing the tiles that are about to go
+ * down the cable rather than a prediction of them. adr/0013 has the decision
+ * and states what the move costs, which is that the picture arrives later than
+ * it used to. docs/split-crossings.md has the costing behind it.
  *
- * The visible area of a ScreenKey is 15.21 mm, and whether a pictogram is
- * recognisable on it shows only at that size and only rendered the way the
- * display renders it: scaled to 128x128 and rounded to RGB565, which is what
- * previewInto() does.
- *
- * **It replaces the picture rather than joining it, and that is this file's
- * own decision** - the mock does not cover the preview, because a tablet has
- * no display to preview. Two reasons, and the second is the one that changed:
- *
- * A cell is a fixed ratio holding a picture and a word, and its `min-height:
- * 0` rule is there because content taller than the ratio makes the whole row
- * ragged. A second image plus the caption that used to sit beside it is
- * exactly that content, six times over.
- *
- * And the reason the board had to keep the sharp copy is gone. The tile was
- * where a symbol was picked, so it had to show the source image to pick
- * against; picking happens in the sheet now, whose preview is the source image
- * at the display's own square. So the board can afford to be the device, and
- * the toggle is what turns it into one - the whole board at once rather than a
- * strip under each key, which is also the honest comparison, since the device
- * shows five of these side by side.
- */
-function deviceImage(symbol: string, negated: boolean): HTMLImageElement {
-  const image = document.createElement("img");
-  image.className = "cell__pic cell__pic--device";
-  image.alt = "";
-  // The cell's own opener carries the accessible name; this says what somebody
-  // hovering a suddenly coarse picture is looking at.
-  image.title = t("ui.device_size");
-  previewInto(image, symbol, negated);
-  return image;
-}
+ * What is left on a cell is the stored symbol, which is what this board drew
+ * before the preview existed and what a tablet cell has always drawn. */
 
-/** The picture on a cell: the device's rendering while the preview is on, and
- *  the stored symbol otherwise.
+/** The picture on a cell: the symbol, as it was put there.
  *
  * A crossed-out key comes back wrapped, because the cross has to be the size
  * of the picture rather than of the cell - see .cell__crossed. Only then:
- * every key that is not negated is the bare <img> it has always been.
- *
- * Not while the preview is on, and that is the point of the preview. There the
- * cross is already in the picture, baked into the tile by tiles.ts exactly as
- * the device will show it; laying a second one over it would draw the editor's
- * idea of the cross on top of the device's. */
+ * every key that is not negated is the bare <img> it has always been. */
 function picture(symbol: string, negated = false): HTMLElement {
-  if (preview) return deviceImage(symbol, negated);
   const image = document.createElement("img");
   image.className = "cell__pic";
   image.alt = "";
@@ -784,14 +751,12 @@ async function askDelete(): Promise<boolean> {
   return true;
 }
 
-/** The one control on this editor's markup that is not in a sheet and not on
- *  the board. */
-export function wireEditor(): void {
-  $<HTMLInputElement>("previewToggle").onchange = () => {
-    preview = $<HTMLInputElement>("previewToggle").checked;
-    render();
-  };
-}
+/* wireEditor() stood here and bound one control: the preview toggle, which
+ * went to the loader page with the picture it drew (adr/0013). There is
+ * nothing on this editor's own markup left to bind - every control it has is
+ * built by render() or by a sheet, with its handler attached as it is made -
+ * so app.ts passes a wire step that does nothing rather than this file
+ * exporting a function that does nothing. */
 
 /* What the shell is handed, and the whole of what it may ask for.
  *
@@ -876,15 +841,18 @@ export const diy: Editor = {
    * page holds anything from nothing to sixty-six - see editor-app. */
   unit: "set",
 
-  /* The fixed words on the controls this editor owns. They sit in the work
-   * head, and they are re-read on every language switch like every other label
-   * - applyTexts() calls this rather than naming these ids itself.
+  /* The fixed words on the controls this editor owns, re-read on every
+   * language switch - applyTexts() calls this rather than naming ids itself.
    *
-   * Two where there were four. The button that deleted a set is in the set's
-   * own card now, which builds its own label every time it opens; the button
-   * that sent to the talker is on a page of its own - adr/0011. */
-  labels(): void {
-    $("previewLabel").title = t("ui.preview_title");
-    $("previewText").textContent = t("ui.preview");
-  },
+   * None, now. There were four: the button that deleted a set went into the
+   * set's own card, which builds its own label every time it opens; the button
+   * that sent to the talker went to a page of its own (adr/0011); and the
+   * preview toggle went with the picture it drew (adr/0013). Everything else
+   * this editor puts on screen is built by render() or by a sheet, with its
+   * words read at the moment it is made.
+   *
+   * Empty rather than absent: Editor.labels() is how the shell asks, and an
+   * editor that answers "nothing" is a different statement from one the shell
+   * cannot ask. */
+  labels(): void {},
 };

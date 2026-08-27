@@ -9,8 +9,11 @@
 // module loaded. It stopped being so, and the failure was the page throwing
 // before it drew anything - which is exactly the shape of breakage this
 // repository shipped once already. That button is in the set's own card now
-// and the lookup went with it; the ordering this file exists for has not
-// changed, because #previewToggle is reached the same way.
+// and the lookup went with it, and #previewToggle - the last element reached
+// that way - went to the loader page with the preview (adr/0013). So nothing
+// under src/ depends on the ordering today; it is kept because the next
+// element mounted by a template and reached by id will, and finding that out
+// again is a page that throws before it draws.
 //
 // main.ts mounts, then imports this. The ordering is then a fact about the
 // module graph rather than a convention somebody has to keep.
@@ -37,7 +40,7 @@ import { $, status} from "./shell/dom.js";
 import { t, applyTexts } from "./core/texts.js";
 import { load, wireConflict } from "./core/save.js";
 import { editor, haveEditor, useEditors } from "./core/editor.js";
-import { diy, wireEditor } from "./editor-diy/editor.js";
+import { diy } from "./editor-diy/editor.js";
 import * as diyBoard from "./editor-diy/templates/board.js";
 import { app, wireEditor as wireApp } from "./editor-app/editor.js";
 import * as appBoard from "./editor-app/templates/board.js";
@@ -100,12 +103,16 @@ export function start(): void {
         clearEditor();
         diyBoard.render($("editor"), $("collectionAction"));
       },
-      // One, and it used to be three. wireRelease() bound the transfer button
-      // and subscribed to the build mark; wireBuildEntry() put a build into
-      // the ⋯ beside the Sammlung's name. Both went with the device path -
-      // adr/0011 - and what is left is the editor's own markup, which needs
-      // no teardown because it goes out of the page with the markup.
-      wire: wireEditor,
+      // Nothing, and it used to be three. wireRelease() bound the transfer
+      // button and subscribed to the build mark; wireBuildEntry() put a build
+      // into the ⋯ beside the Sammlung's name. Both went with the device path
+      // (adr/0011), and wireEditor() - one line, binding the preview toggle -
+      // went with the preview (adr/0013). Every control this editor has left
+      // is built by render() or by a sheet with its handler already on it, so
+      // there is nothing mounted for a wire step to find and nothing to take
+      // back afterwards. Written out here rather than as an exported empty
+      // function, so that the fact lives at the seam that asks for it.
+      wire: () => {},
     },
     app: {
       editor: app,

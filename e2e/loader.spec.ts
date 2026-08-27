@@ -325,6 +325,70 @@ test("it compiles the file into exactly what a talker holds", async ({ page }) =
   expect(wavs).toHaveLength(SPOKEN.length);
 });
 
+test("it shows the compiled tiles at the size a key really is", async ({ page }) => {
+  /* The picture adr/0013 moved here. It used to be a toggle in the editor,
+     drawn while a pictogram was being chosen, and it was the one place the
+     editor ran the device's own tile pipeline; here it is what the compile
+     just made, which is a stronger claim than the one it replaced - those are
+     the bytes about to go down the cable rather than a prediction of them.
+
+     So what is asserted is the three things that would each make it a
+     different picture: the arrangement, the millimetres, and that the pixels
+     are the tile rather than the source. */
+  await withDevice(page);
+  await choose(page, await packageBytes());
+  await compiled(page);
+
+  const preview = step(page, "load.step_compile").locator(".preview");
+  await expect(preview.getByRole("heading", { name: SPEAKS["load.preview"] }))
+    .toBeVisible();
+
+  /* One board per set, and each is the hardware's own six places: the speaker
+     is a hole and the other five are screens. A row of five would be a
+     different device. */
+  const boards = preview.locator(".preview__set");
+  await expect(boards).toHaveCount(2);
+  await expect(boards.first().locator(".device__hole")).toHaveCount(1);
+  await expect(boards.first().locator(".device__key")).toHaveCount(5);
+  await expect(boards.first().locator("figcaption"))
+    .toHaveText(filled("load.set_named", { n: 1, name: "Erste" }));
+
+  /* 15.21 mm, which is the whole visible area of a ScreenKey -
+     docs/hardware.md - so this is life-size and a pictogram that does not
+     survive the trip can be seen not to. Within a tenth of a pixel rather than
+     exactly: the browser resolves a millimetre in its own precision, and
+     pinning that rounding would assert Chromium's arithmetic rather than that
+     the rule is in millimetres at all. */
+  const width = await boards.first().locator(".device__key").first()
+    .evaluate((el) => parseFloat(getComputedStyle(el).width));
+  expect(Math.abs(width - (15.21 / 25.4 * 96))).toBeLessThan(0.1);
+
+  /* And the pixels are the compiled tile, which is what nothing about the
+     layout above can show. Keys 1 and 2 of the first set are the same source
+     picture, and the second is crossed out: the cross is baked into the tile
+     by the compiler, so two tiles differ. A preview drawing the source image
+     would have drawn one picture twice. */
+  const asData = (nth: number, board = 0) =>
+    boards.nth(board).locator(".device__key").nth(nth)
+      .evaluate((el) => (el as HTMLCanvasElement).toDataURL());
+  expect(await asData(0)).not.toBe(await asData(1));
+
+  /* The other half of the same claim, from the empty end: key 2 of the second
+     set holds neither word nor picture, and what the device shows there is the
+     blank tile - white, and not the grey cross a missing picture gets.
+     loader/src/tiles.ts's blank() is the whole argument for those being two
+     different tiles. */
+  const white = await boards.nth(1).locator(".device__key").nth(1).evaluate((el) => {
+    const canvas = el as HTMLCanvasElement;
+    const { data } = canvas.getContext("2d")!
+      .getImageData(0, 0, canvas.width, canvas.height);
+    // Every channel and the alpha alike: blank() fills the tile with 255 and
+    // the panel is opaque, so one number covers all four.
+    return data.every((value) => value === 255);
+  });
+  expect(white).toBe(true);
+});
+
 test("a picture that will not decode is a grey cross and a line, not a failure",
      async ({ page }) => {
   await withDevice(page);
