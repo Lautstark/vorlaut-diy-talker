@@ -103,15 +103,23 @@ git add -A
 npm run typecheck && npm test && npm run test:e2e && python3 tests/run.py
 ```
 
-Then land it. `main` is checked out at `~/Code/vorlaut`, shared with every
-other agent, so look before touching it — and use `git -C`, never `cd`, or
+Then land it. `main` is checked out at `~/Code/vorlaut-diy-talker`, shared with
+every other agent, so look before touching it — and use `git -C`, never `cd`, or
 every command after it runs in the wrong tree:
 
 ```bash
-git -C ~/Code/vorlaut status -sb          # must say main, and be clean
-git -C ~/Code/vorlaut merge --no-ff "$(git branch --show-current)"
-git -C ~/Code/vorlaut push origin main
+git -C ~/Code/vorlaut-diy-talker status -sb          # must say main, and be clean
+git -C ~/Code/vorlaut-diy-talker merge --no-ff "$(git branch --show-current)"
+git -C ~/Code/vorlaut-diy-talker push origin main
 ```
+
+**The path is `vorlaut-diy-talker`, and `~/Code/vorlaut` is somebody else.** The
+folder was renamed on 2026-08-27 to match the repository, because
+`Lautstark/vorlaut` now exists as a separate, unrelated repository — the
+explainer site. A merge run against `~/Code/vorlaut` would land this repository's
+branch in that one and push it, and the commands would look right the whole way.
+If a transitional symlink is still standing there, it is on its way out; write
+the real path.
 
 `--no-ff` always, even where the branch would fast-forward. A branch stays
 visible as a unit that way, which is worth more than a linear history when
