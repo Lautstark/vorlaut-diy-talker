@@ -32,10 +32,10 @@
 // what it will look like on the device. The words themselves are in the label
 // table with everything else - see loader/README.md for why there is no second
 // one.
-import { t } from "../../src/core/boot.js";
+import { t } from "./boot.js";
 import type { DevicePlan, ReadDevicePackage }
-  from "../../src/data/device_package.js";
-import { wavFormat, wavSeconds } from "../../src/data/device_package.js";
+  from "./device_package.js";
+import { wavFormat, wavSeconds } from "./device_package.js";
 import {
   LANGUAGE_CODES, MAX_SETS, NAME_BYTES, SLEEP_MAX, SLEEP_MIN, SLOTS_PER_SET,
   layoutIdleSeconds,

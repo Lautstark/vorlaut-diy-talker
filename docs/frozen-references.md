@@ -26,11 +26,11 @@ the Python halves were deleted, and this is what is left behind them.
 
 | | frozen from | needs, to check it | what it protects |
 |---|---|---|---|
-| [`tests/reference/tts.lock.json`](../tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `node_modules/@lautstark/stimmquelle/` |
+| [`tests/reference/tts.lock.json`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/reference/tts.lock.json) | real `ffmpeg` 9.0.1, and `tts.py` driving it | node | `node_modules/@lautstark/stimmquelle/` |
 | [`tests/reference/tiles.lock.json`](../tests/reference/tiles.lock.json) | Pillow, through `tiles.py` | node | `loader/src/tiles.ts` |
 | [`tests/reference/layout.lock.json`](../tests/reference/layout.lock.json) | `layout_format.py`, confirmed by the firmware's C reader | node, a C++ compiler | `loader/src/layout_format.ts` |
-| [`tests/reference/symbols.lock.json`](../tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `src/data/symbols.ts` |
-| [`tests/reference/obf.lock.json`](../tests/reference/obf.lock.json) | `obf.py` and `normalize_layout()` in `layout.py` | node | `src/data/obf.ts` |
+| [`tests/reference/symbols.lock.json`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/reference/symbols.lock.json) | `metacom._scan_files()` | node | `src/data/symbols.ts` |
+| [`tests/reference/obf.lock.json`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/reference/obf.lock.json) | `obf.py` and `normalize_layout()` in `layout.py` | node | `src/data/obf.ts` |
 
 Each was written by a tool that could only run while the Python half was here
 — `tools/ttsfreeze.py`, `tools/tilefreeze.py`, `tools/layoutfreeze.py`,
@@ -97,7 +97,7 @@ verification was `tools/ttscheck.py`, run by hand,
 whose result exists as a table in [`browser-tts.md`](browser-tts.md) that
 nothing regenerates.
 
-[`tests/unit/level.test.ts`](../tests/unit/level.test.ts) now runs the
+[`tests/unit/level.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/level.test.ts) now runs the
 module, via [`npm test`](../npm test) so
 that `python3 tests/run.py` picks it up. Four kinds of frozen reference:
 
@@ -209,7 +209,7 @@ compiled at test time, the speech chain has `ffmpeg`, and symbol search is a
 naming rule two implementations both state. A `.obf` is a mapping this project
 invented — which set becomes which board, what a set key is, where the colour
 lives — so `obf.py` was the entire outside opinion on whether
-[`src/data/obf.ts`](../src/data/obf.ts) is right.
+[`src/data/obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts) is right.
 
 `tests/test_obf_js.py` compared the two live and imported `obf` at the top, so
 it could not survive the deletion in a form that reported anything: it would
@@ -237,7 +237,7 @@ nothing but node:
 - **The licence rule**: nine documents, seven of which have to be refused, and
   the sentence each is refused with.
 - **The container.** Thirteen files under
-  [`tests/reference/obf/`](../tests/reference/obf/) — nothing compressed, no
+  [`tests/reference/obf/`](https://github.com/Lautstark/vorlaut-editor/tree/main/tests/reference/obf/) — nothing compressed, no
   manifest, a manifest naming a root nobody packed, board ids that are not the
   file names, a board that is a list, three that have to be refused rather
   than answered with an empty layout — and, for every export case, the members
@@ -290,7 +290,7 @@ check — found by mutation testing, not by reading.
 Every lock file answers only for the cases in it, and for the OBF converter
 that limit bites hardest: `obf.py` is gone, so no case can ever be added.
 
-[`tests/unit/obf_roundtrip.test.ts`](../tests/unit/obf_roundtrip.test.ts)
+[`tests/unit/obf_roundtrip.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/obf_roundtrip.test.ts)
 asks something a lock file structurally cannot:
 `documentToLayout(layoutToDocument(x)) == x`. That holds for any correct
 mapping on any input, recorded or not, and needs nothing outside the converter

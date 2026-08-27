@@ -36,7 +36,7 @@ one, though, it is the **Sammlung's** language that picks it, never the
 interface's: the shipped catalogue's own recommendation for that language,
 marked in the sheet with a word saying nobody chose it.
 
-The texts live as one table per language in [`src/core/boot_data.ts`](../src/core/boot_data.ts) for the
+The texts live as one table per language in [`src/core/boot_data.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/core/boot_data.ts) for the
 computer and the interface, and in
 [`firmware/vorlaut/texts.h`](../firmware/vorlaut/texts.h) for the device.
 English is the default.

@@ -1,6 +1,7 @@
 /* The loader's own layout, over @lautstark/design's tokens and components.
  *
- * Deliberately small, and none of it is a copy of src/styles/ui.css. The two
+ * Deliberately small, and none of it is a copy of the editor's own
+ * src/styles/ui.css, which is in vorlaut-editor. The two
  * pages share a vocabulary - .btn, .panel, the tokens - because both import
  * the same package, and they share nothing else: that file is a sidebar, a
  * work head and a board grid, and this page is one column of steps. Reaching

@@ -50,7 +50,7 @@ Thirteen files, all reaching into `loader/`:
 | `loader/src/compile.js` | 1 |
 
 Six of those sites are in `src/` and are the ones
-[`layers.test.ts`](../tests/unit/layers.test.ts) already pins. **The rest are
+[`layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts) already pins. **The rest are
 tests**, which that file does not watch — it guards `src/` only, and says so.
 
 ## 3. Eight of thirty-two unit tests cross — the count checks out
@@ -140,7 +140,7 @@ src/device/thumbnail.ts: error TS2304: Cannot find name 'TILE_SIZE'
 ```
 
 `thumbnailSize(width, height, max = TILE_SIZE)` takes `TILE_SIZE` as a **default
-argument**. It is the one name [`layers.test.ts`](../tests/unit/layers.test.ts)
+argument**. It is the one name [`layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts)
 still allows out of `tiles.ts`, and copying it verbatim does not compile.
 
 Nothing is wrong with the allowed list. The dependency is *inside* the module
@@ -150,7 +150,7 @@ words: *"an element id is a dependency the module graph cannot see."* This is
 the arithmetic version of it.
 
 **The fix is one line and it has to be deliberate.**
-[`src/data/app_assets.ts`](../src/data/app_assets.ts) always passes `IMAGE_SIZE`
+[`src/data/app_assets.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_assets.ts) always passes `IMAGE_SIZE`
 explicitly, so the default never fires in the editor and the copy can simply drop
 it. What must not happen is `TILE_SIZE` being duplicated to satisfy a compiler:
 that is the second copy of the device's tile geometry that

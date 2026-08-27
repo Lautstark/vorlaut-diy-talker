@@ -9,11 +9,10 @@ import {
   NAME_BYTES, HASH_BYTES, MAX_SETS,
   SLEEP_MIN, SLEEP_MAX, SLEEP_DEFAULT, layoutIdleSeconds,
 } from "../../loader/src/layout_format.js";
-import { normalizeLayout } from "../../src/data/obf.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
-} from "../../src/data/audio_format.js";
+} from "../../loader/src/audio_format.js";
 import {
   Cable, CABLE_VERSION, crc32, hex8, versionVerdict,
 } from "../../loader/tools/cable.js";
@@ -38,9 +37,9 @@ import {
  *            is the firmware runner's half.
  *   names    the hash a name carries, read back out of the name.
  *   language the table, and what a writer does with a language not in it.
- *   sleep    the range, and that everything normalizeLayout() emits is inside
- *            it. What the device does with a field outside it is the firmware
- *            runner's half.
+ *   sleep    the range, and that every wait layoutIdleSeconds() settles on is
+ *            inside it and settled. What the editor's normalizer emitted was
+ *            asked here until the split took that function to vorlaut-editor.
  *   cable    the client, driven through the transcript from the browser end:
  *            given these device lines it must write exactly these host lines.
  *
@@ -310,8 +309,10 @@ for (const { listed: one, want } of ofKind("audio")) {
   /* The writer does NOT clamp, and that is a rule rather than an oversight.
    * renderLayoutBin() puts in the field what it is handed, because
    * tests/reference/layout.lock.json froze its bytes for a timeout of 0 and
-   * one of 0xffffffff and that lock cannot be rewritten. The gate is
-   * normalizeLayout(), one layer up. */
+   * one of 0xffffffff and that lock cannot be rewritten. The gate is one layer
+   * up, and after the split it is a different thing on each side: the editor's
+   * normalizeLayout() over there, and loader/src/validate.ts here - which does
+   * not clamp either, it says what the device will do instead. */
   for (const value of [0, 5, want.max + 1, 4294967295]) {
     const bytes = renderLayoutBin(
       { language: "en", sleep_timeout_seconds: value, sets: [] }, [], [], []);
@@ -321,27 +322,36 @@ for (const { listed: one, want } of ofKind("audio")) {
           wrote === value, `${wrote}`);
   }
 
-  /* And the superset, which is this end's half of it: everything the gate
-   * lets through is a timeout the device waits for exactly. The firmware
-   * runner asks the same question of the fixture's `emitted` cases; this asks
-   * it of the function that actually decides, on inputs no fixture lists -
-   * including the ones a foreign document arrives with. */
-  const arrivals: unknown[] = [
-    undefined, null, 0, 1, 5, 9, 10, 11, 600, 3600, 86400, 86401,
-    4294967, 4294967295, -1, -86400, 0.5, 600.7, "600", "1e3", "0x10",
-    "not a number", "", true, false, {}, [], NaN, Infinity, -Infinity,
+  /* And the superset, on the arrivals no fixture lists.
+   *
+   * This asked normalizeLayout() the same question until the split: everything
+   * the editor's gate lets through is a timeout the device waits for exactly.
+   * That function is vorlaut-editor's now, and the claim went with it - a
+   * repository cannot hold a writer it does not have to anything. What is left
+   * here is the half that is this side's, and it is the half the device
+   * depends on: whatever value arrives, from any writer anywhere, the wait
+   * layoutIdleSeconds() decides on is inside the range and is a value it would
+   * not move again. A rule that is not idempotent is one where a document
+   * round-tripped through any tool comes back asleep at a different time.
+   *
+   * What this no longer covers: a writer that emits a timeout the device
+   * silently changes. Only a writer can be held to that, and there is none in
+   * this repository - loader/src/validate.ts notes the clamp for a person
+   * rather than applying one, which is deliberate and is checked next door in
+   * e2e/loader.spec.ts. */
+  const arrivals: number[] = [
+    0, 1, 5, 9, 10, 11, 600, 3600, 86400, 86401,
+    4294967, 4294967295, -1, -86400, 0.5, 600.7,
   ];
   const escaped: string[] = [];
   for (const given of arrivals) {
-    const raw: Record<string, unknown> = { sets: [] };
-    if (given !== undefined) raw.sleep_timeout_seconds = given;
-    const emitted = normalizeLayout(raw).sleep_timeout_seconds;
-    if (emitted < SLEEP_MIN || emitted > SLEEP_MAX
-        || layoutIdleSeconds(emitted) !== emitted) {
-      escaped.push(`${JSON.stringify(given) ?? String(given)} became ${emitted}`);
+    const waited = layoutIdleSeconds(given);
+    if (waited < SLEEP_MIN || waited > SLEEP_MAX
+        || layoutIdleSeconds(waited) !== waited) {
+      escaped.push(`${given} became ${waited}`);
     }
   }
-  check("every timeout the browser emits is one the device waits exactly",
+  check("every wait the device settles on is in range and settled",
         escaped.length === 0,
         escaped.join("; ") || `${arrivals.length} foreign values`);
 }

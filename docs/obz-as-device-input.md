@@ -44,7 +44,7 @@ Everything rests on one question, so it is answered first.
 ## The answer
 
 **Yes — an `.obz` can carry everything the device build uses. What
-[`diyBoards()`](../src/data/app_package.ts) writes today does not, but every gap
+[`diyBoards()`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts) writes today does not, but every gap
 is a matter of *form* rather than of *presence*, and each one has a determined
 answer.**
 
@@ -64,7 +64,7 @@ specification to write, not a wall.
 | Sets, order, names, slot text, the ring | ✓ | ✓ unchanged |
 
 Every row on the right already exists somewhere in this repository. The four
-`ext_vorlaut_*` rows are what [`obf.ts`](../src/data/obf.ts) writes today. The
+`ext_vorlaut_*` rows are what [`obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts) writes today. The
 media rows are what the build itself resolves. Nothing has to be invented; it
 has to be assembled into one export that does not exist yet.
 
@@ -98,7 +98,7 @@ question. The question is what a device-shaped export has to hold.
 
 ## 1. What `runBuild` actually consumes
 
-[`runBuild()`](../src/backend/local.ts) reads `store.readLayout()` and takes
+[`runBuild()`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/backend/local.ts) reads `store.readLayout()` and takes
 thirteen things. Nine come out of the `Layout`:
 
 1. `layout.sets`, in order, with the count going into the header byte
@@ -137,7 +137,7 @@ They are the opposite: they are the reason it *should* be. §4 works that out.
 `renderSymbol()` takes the source at its own size, computes `fillColour()` from
 its edge pixels, and Lanczos-resamples straight to 128
 ([`tiles.ts`](../loader/src/tiles.ts)). `bakeImage()` fits the same source into 512
-through a canvas and encodes a PNG ([`app_assets.ts`](../src/data/app_assets.ts))
+through a canvas and encodes a PNG ([`app_assets.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_assets.ts))
 — and says so in its own first line: **"Not the device's tile."**
 
 Compiling a tile out of that PNG resamples twice. For any pictogram larger than
@@ -167,7 +167,7 @@ The app package has no negation flag and will not get one: SPEC §4.3 closes the
 button extensions at v1, and `app_assets.ts` gives the reason — a flag *"would
 need the spec, the fixtures and the Android viewer to move together before one
 child saw one cross."* That reasoning is about `ext_lautstark_*` and does not
-reach `ext_vorlaut_*`, where [`obf.ts`](../src/data/obf.ts) has written
+reach `ext_vorlaut_*`, where [`obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts) has written
 `ext_vorlaut_negated` all along. [ADR 0001](../adr/0001-two-ext-namespaces.md)
 is precisely the decision that keeps that possible.
 
@@ -247,7 +247,7 @@ own.
 
 §5.2's constraint on this is real, and it is structural rather than
 prohibitive. The rule that applies is the one already quoted in
-[`local.ts`](../src/backend/local.ts)'s own comment on the second export door:
+[`local.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/backend/local.ts)'s own comment on the second export door:
 
 > **On the builder side**, an app-package export that bakes pixels MUST be a
 > separate entry point from the talker export — a different function, not the
@@ -318,12 +318,12 @@ Three of `layout_format.ts`'s thirteen exports are read by editor code with
 nothing to do with the device build, and that is the detail §1 could not have
 seen, because it was enumerating the *interface* rather than the *file*:
 
-- `SLOTS_PER_SET` — [`obf.ts`](../src/data/obf.ts), where `normalizeLayout()`
+- `SLOTS_PER_SET` — [`obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts), where `normalizeLayout()`
   refuses a set of five slots and pads a short one to four. That is the editor's
   own shape rule and a device constant at the same time.
 - `LANGUAGE_CODES` and `DEFAULT_LANGUAGE` —
-  [`obf.ts`](../src/data/obf.ts), [`app_package.ts`](../src/data/app_package.ts),
-  [`shell/voices.ts`](../src/shell/voices.ts). The *tablet* export falls back to
+  [`obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts), [`app_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts),
+  [`shell/voices.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/voices.ts). The *tablet* export falls back to
   this table and the settings sheet paints from it.
 - `HASH_BYTES` and `LAYOUT_BIN` — [`folder.ts`](../loader/src/folder.ts) and
   `built.ts`, both device-side, both travelling. (`built.ts` has since gone

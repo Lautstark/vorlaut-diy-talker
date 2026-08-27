@@ -4,12 +4,12 @@ import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 /* The labels are asserted out of the table the page reads them from, rather
  * than written out here in one language. */
-import { TEXTS } from "../src/core/boot_data.js";
+import { TEXTS } from "../loader/src/boot_data.js";
 /* Out of the modules that decide them rather than written here: a stride this
  * test spelled out for itself would agree with nothing. */
 import { HEADER_BYTES, MAX_SETS, SET_BYTES } from "../loader/src/layout_format.js";
 import { TILE_SIZE } from "../loader/src/tiles.js";
-import { LONG, SPOKEN, packageBytes, wav } from "./package.js";
+import { LONG, SPOKEN, packageBytes } from "./package.js";
 
 /* The file, on the talker - the whole of the second half.
  *
@@ -179,7 +179,7 @@ const findings = (page: Page, key: string) => step(page, key).locator("li");
 test("it says what is in the file before it does anything with it",
      async ({ page }) => {
   await withDevice(page);
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
 
   /* The counts somebody recognises their own Sammlung by, and the cheapest
      moment there is to notice they exported the wrong one. Two sets, eight
@@ -196,7 +196,7 @@ test("it says what is in the file before it does anything with it",
 test("it names every key that will not be what the Sammlung says it is",
      async ({ page }) => {
   await withDevice(page);
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
 
   /* Three notes, and each is a different way a key ends up not saying what
@@ -248,15 +248,7 @@ test("a Sammlung with more sets than the device has room for is refused",
      that takes the transfer and then shows nothing, with no screen anywhere
      saying why. device/fixtures/layout/sets-past-max.expected.json is that
      refusal written down. */
-  const bytes = await packageBytes((input) => {
-    while (input.layout.sets.length <= MAX_SETS) {
-      input.layout.sets.push({
-        ...structuredClone(input.layout.sets[0]!),
-        name: `Extra ${input.layout.sets.length}`,
-      });
-    }
-  });
-  await choose(page, bytes);
+  await choose(page, packageBytes("too-many-sets"));
 
   const refusals = findings(page, "load.step_check").filter({ hasText: "✖" });
   await expect(refusals).toHaveCount(1);
@@ -272,15 +264,11 @@ test("a recording that is not the WAV the device plays is refused",
      plays whatever is in it at the rate I2S was started with, which is a word
      at the wrong pitch on a talker with nothing anywhere saying why. So the
      rule is kept on this side, and this is the last place it can be. */
-  const bytes = await packageBytes(() => {}, (pkg) => {
-    /* Past the writer's own refusal on purpose: buildDevicePackage() will not
-       write this, which is right and is why the tampering happens after it.
-       The file this page has to be ready for is one this editor did not
-       write. */
-    const path = [...pkg.files.keys()].find((one) => one.startsWith("sounds/"))!;
-    pkg.files.set(path, wav(0.6, 24000));
-  });
-  await choose(page, bytes);
+  /* Written past the writer's own refusal on purpose: buildDevicePackage()
+     would not write this, which is right, and is why the fixture was tampered
+     with after it. The file this page has to be ready for is one the editor
+     did not write - see e2e/fixtures/packages/README.md. */
+  await choose(page, packageBytes("sound-at-the-wrong-rate"));
 
   await expect(findings(page, "load.step_check").filter({ hasText: "✖" }).first())
     .toContainText("24000");
@@ -291,7 +279,7 @@ test("a recording that is not the WAV the device plays is refused",
 
 test("it compiles the file into exactly what a talker holds", async ({ page }) => {
   await withDevice(page);
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
   await step(page, "load.step_send")
     .getByRole("button", { name: SPEAKS["load.send"], exact: true }).click();
@@ -336,7 +324,7 @@ test("it shows the compiled tiles at the size a key really is", async ({ page })
      different picture: the arrangement, the millimetres, and that the pixels
      are the tile rather than the source. */
   await withDevice(page);
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
 
   const preview = step(page, "load.step_compile").locator(".preview");
@@ -397,13 +385,7 @@ test("a picture that will not decode is a grey cross and a line, not a failure",
      answer to "it does not" is the same tile it draws for a picture that is
      not there. Right, and silent - so the host keeps a list and the page says
      it. */
-  const bytes = await packageBytes((input) => {
-    const one = input.sources.get("wide.png")!;
-    input.sources.set("wide.png", {
-      ...one, bytes: new Uint8Array([1, 2, 3, 4]) as Uint8Array<ArrayBuffer>,
-    });
-  });
-  await choose(page, bytes);
+  await choose(page, packageBytes("picture-that-will-not-decode"));
   await compiled(page);
 
   await expect(findings(page, "load.step_compile").filter({ hasText: "wide.png" }))
@@ -416,7 +398,7 @@ test("a picture that will not decode is a grey cross and a line, not a failure",
 
 test("one press puts the compiled file on the talker", async ({ page }) => {
   await withDevice(page);
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
 
   const compiledLine = await step(page, "load.step_compile")
@@ -449,7 +431,7 @@ test("one press puts the compiled file on the talker", async ({ page }) => {
 test("a second press sends nothing, because the device already has it",
      async ({ page }) => {
   await withDevice(page);
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
 
   const send = () => step(page, "load.step_send")
@@ -476,7 +458,7 @@ test("a second press sends nothing, because the device already has it",
 test("with no port granted, the connect step offers the chooser and nothing else",
      async ({ page }) => {
   await withDevice(page, { granted: false });
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
 
   /* requestPort() needs transient activation and Chrome expires it in about
@@ -530,7 +512,7 @@ test("a port that answers nothing gets the chooser offered again, and says so",
       },
     });
   });
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
 
   // A port is granted, so the send step is offered rather than the chooser.
@@ -598,7 +580,7 @@ test("the compiled files can be written into a folder instead", async ({ page })
       async () => directory;
   });
   await withDevice(page);
-  await choose(page, await packageBytes());
+  await choose(page, packageBytes());
   await compiled(page);
 
   await step(page, "load.step_compile")

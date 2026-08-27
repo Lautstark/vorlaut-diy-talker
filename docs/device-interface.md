@@ -33,8 +33,8 @@ half is the last two sections.
 ## The asymmetry the question comes from
 
 The Android app could leave because its interface is a **document**.
-[`exchange/SPEC.md`](../exchange/SPEC.md) is versioned, has conformance
-fixtures, and [`exchange/README.md`](../exchange/README.md) forbids copying
+[`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) is versioned, has conformance
+fixtures, and [`exchange/README.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/README.md) forbids copying
 them. Two programs implement a written specification and neither one is the
 specification.
 

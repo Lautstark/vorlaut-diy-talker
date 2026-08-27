@@ -23,7 +23,7 @@ It covers the three formats that cross a boundary:
 |---|---|---|
 | `layout.bin` | [`loader/src/layout_format.ts`](../loader/src/layout_format.ts) | [`layout_format.h`](../firmware/vorlaut/layout_format.h) |
 | The cable | [`loader/src/cable.ts`](../loader/src/cable.ts), [`loader/tools/cable.js`](../loader/tools/cable.js) | [`cable.h`](../firmware/vorlaut/cable.h), [`cable_format.h`](../firmware/vorlaut/cable_format.h) |
-| The package | [`src/data/app_package.ts`](../src/data/app_package.ts) | [`exchange/SPEC.md`](../exchange/SPEC.md) and the Android viewer |
+| The package | [`src/data/app_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts) | [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) and the Android viewer |
 
 The tile payload, the audio payload and the name rule are part of the device
 interface too — [`device/README.md`](../device/README.md) is the list of what
@@ -93,7 +93,7 @@ Two ends of one field, and neither is written down anywhere:
   minutes on the device, not "never sleep" and not "sleep at once". That `600`
   is a magic number in the one file no test can include, and it is the same
   number `DEFAULT_SLEEP_TIMEOUT` carries in
-  [`obf.ts`](../src/data/obf.ts) — arrived at twice, agreeing by coincidence.
+  [`obf.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/obf.ts) — arrived at twice, agreeing by coincidence.
 - **The top.** The field is a uint32 and the fixture
   `layout/sleep-timeout-max` pins that `0xffffffff` parses. The reader then
   computes `idle * 1000UL`, and on a target where `unsigned long` is 32 bits
@@ -175,7 +175,7 @@ sides are held to.
 or the fixture set states the number the way it states the language table.
 
 `MAX_SETS` is 5 in [`layout_format.h`](../firmware/vorlaut/layout_format.h).
-`LIMITS.maxSets` is 5 in [`boot_data.ts`](../src/core/boot_data.ts).
+`LIMITS.maxSets` is 5 in [`boot_data.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/core/boot_data.ts).
 `renderLayoutBin()` refuses only above 255 — one byte's worth — and the editor
 and `normalizeLayout()` are what actually keep the number at five.
 
@@ -184,7 +184,7 @@ every name a builder emits must be a name the device will store, and
 `test_device_host.py` checks it. The set count has the same shape — the
 builder's cap must be at or below the device's — and nothing states it. The one
 place the two numbers are compared is
-[`test_obf_frozen.py`](../tests/test_obf_frozen.py), by a regular expression
+[`test_obf_frozen.py`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/test_obf_frozen.py), by a regular expression
 over `boot_data.ts`. That is a paraphrase standing in for an oracle,
 which is exactly what the language table was created to stop being.
 
@@ -561,7 +561,7 @@ described.** All four, checked one at a time:
 | Gap | Closed by |
 |---|---|
 | The tile payload — two constants, no check | `TILE_W` in [`tile_format.h`](../firmware/vorlaut/tile_format.h), `TILE_SIZE` held to the fixture's geometry in `device_fixtures.test.ts`, `tileReadRow()` held from the host side. The zero-fill is stated in `tile/short`. |
-| The audio payload — whatever `seekToWavData()` walked past | [`wav_format.h`](../firmware/vorlaut/wav_format.h) and [`audio_format.ts`](../src/data/audio_format.ts), six fixtures, four of them refusals. |
+| The audio payload — whatever `seekToWavData()` walked past | [`wav_format.h`](../firmware/vorlaut/wav_format.h) and [`audio_format.ts`](../loader/src/audio_format.ts), six fixtures, four of them refusals. |
 | The name rule — stated three times, related nowhere | `names.expected.json`, and `test_device_host.py` checks emitted ⊆ stored. What is left is [N1](#n1-the-builder-emits-names-the-name-rule-forbids), which is enforcement rather than statement. |
 | The language enumeration — read by a regex | `language.expected.json`. `test_texts.py` reads the fixture now, and the regex over `layout_format.ts` is gone. |
 

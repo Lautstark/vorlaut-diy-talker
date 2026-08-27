@@ -11,7 +11,7 @@ one's answer and landed that: there is a `package` kind under
 `device/fixtures/`, and `device_roundtrip.test.ts` is gone. **The counts in this
 document are the ones that were measured when it was written and are not
 restated;** where a number here says ten, the enforced list says eight and
-[`layers.test.ts`](../tests/unit/layers.test.ts) is the one that is checked.
+[`layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts) is the one that is checked.
 The recommendation and the paragraphs it was argued in are untouched — what has
 moved is that two of the answers exist, and the places that said they *would
 have to* say where they are. Nothing else is moved and no migration is written
@@ -21,7 +21,7 @@ day this page did and decided the split; the anchors and the two sentences that
 assumed it undecided are corrected below, and the measurement is untouched.
 [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) put a file
 between the editor and the talker and left two directories importing each other.
-[`tests/unit/layers.test.ts`](../tests/unit/layers.test.ts) calls that list *the
+[`tests/unit/layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts) calls that list *the
 bill for the eventual split* and asks that every name on it be answered for
 before anybody moves a directory. This is the answer, in the form
 [`obz-as-device-input.md`](obz-as-device-input.md) is in — a measurement and a
@@ -71,7 +71,7 @@ piece of evidence, and it is the thing this document exists to stop.
 
 | says | claims | actual |
 |---|---|---|
-| [`layers.test.ts`](../tests/unit/layers.test.ts)'s closing comment | *"these five names"* | ten |
+| [`layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts)'s closing comment | *"these five names"* | ten |
 | [`loader/README.md`](../loader/README.md) | *"Six names in one direction"* | ten |
 | [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md)'s Built section | *"seven format constants and `renderSymbol()`"* | seven constants and **three** names out of `tiles.ts` |
 | `layers.test.ts`'s `ALLOWED_FROM_SRC` | — | **ten**, and it is the only one that is checked |
@@ -95,7 +95,7 @@ and it belongs with whoever lands a decision from this page, not here.
 ## Direction one — `src/` → `loader/`
 
 Ten names, two modules, held by
-[`layers.test.ts`](../tests/unit/layers.test.ts)'s `ALLOWED_FROM_SRC`.
+[`layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts)'s `ALLOWED_FROM_SRC`.
 
 ### The seven constants: duplicated, and already held against `device/fixtures/`
 
@@ -125,7 +125,7 @@ having in front of the move task.**
 The pin already has to exist. Whatever else the editor takes, it takes these,
 so `vorlaut-editor` pins `device/fixtures/` on day one — by submodule or by
 archive, the two ways
-[`exchange/README.md`](../exchange/README.md) already documents for
+[`exchange/README.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/README.md) already documents for
 `vorlaut-app`. Every later question about where a device fact is held has that
 pin available for free.
 
@@ -214,7 +214,7 @@ Named because a test that reads import statements cannot see any of them, which
 is the limit `layers.test.ts` already states about itself in its own *What this
 test does not prove* section.
 
-**The handoff link.** [`src/shell/packageExport.ts`](../src/shell/packageExport.ts)
+**The handoff link.** [`src/shell/packageExport.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/packageExport.ts)
 builds `new URL("loader/", BASE_URL)` and offers it after a device export. It is
 a relative link within one Pages deployment today and an absolute cross-site link
 afterwards. **The address to write out is
@@ -229,7 +229,7 @@ the same treatment as the three literal base paths that page lists, and there is
 no gate for any of them.
 
 **The shared language choice, which survives by accident.** Both pages read
-`vorlaut.language` out of `localStorage` ([`src/core/boot.ts`](../src/core/boot.ts)
+`vorlaut.language` out of `localStorage` ([`src/core/boot.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/core/boot.ts)
 says why it is there rather than in a Sammlung). Two GitHub Pages project sites
 share an origin, so a carer's choice still carries across the split for free —
 and it stops the moment either side takes a custom domain, silently, with the
@@ -244,7 +244,7 @@ and `device_compile.test.ts` took its place on the list, importing
 `readDevicePackage()` out of `src/` and everything else out of `loader/` — which
 is the *reader's* crossing and moves with it, so it straddles on paper and not
 on the day.
-[`tests/unit/reachable.test.ts`](../tests/unit/reachable.test.ts) walks both
+[`tests/unit/reachable.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/reachable.test.ts) walks both
 trees deliberately, and `vite.config.ts` builds both entry points. These are
 [the last section](#what-happens-to-layerstestts-and-to-the-suite-around-it).
 
@@ -318,7 +318,7 @@ package sits **upstream of** the device interface, and its faults arrive at the
 party that cannot move even though its two implementations both can.
 
 There is a third reason `exchange/` cannot host this even if one wanted it to:
-[`exchange/SPEC.md`](../exchange/SPEC.md) §1 rules the talker out by name, on
+[`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) §1 rules the talker out by name, on
 [ADR 0001](../adr/0001-two-ext-namespaces.md)'s grounds. The device package is a
 different profile with a different extension namespace, and *"this specification
 does not govern it."*
@@ -382,7 +382,7 @@ proposal to add a kind has a test to meet rather than a precedent to cite.
 ## Hard case two — `tiles.ts` does not divide, and does not have to
 
 [`repository-map.md`](repository-map.md#the-three-names) and
-[`layers.test.ts`](../tests/unit/layers.test.ts) both argue that splitting the
+[`layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts) both argue that splitting the
 module puts one rounding rule in two places with nothing holding the copies
 together, which is the failure
 [`frozen-references.md`](frozen-references.md) exists to record. Reading the code
@@ -398,7 +398,7 @@ neighbour of the device pipeline. It is inside it.
 **And `renderSymbol()` has no production consumer in `loader/` at all.**
 `compile.ts` uses `blank`, `renderPixels` and `toRgb565Be`; `browser_host.ts`
 uses `sourcePixels`. The only place `renderSymbol()` is called in shipped code is
-`previewInto()` at [`src/backend/local.ts:249`](../src/backend/local.ts) — the
+`previewInto()` at [`src/backend/local.ts:249`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/backend/local.ts) — the
 editor's device preview. So the module is not being pulled in two directions by
 two products. One product wants the whole pipeline, and the other wants a picture
 of what the pipeline will do.
@@ -472,7 +472,7 @@ it is stated as one.
 
 The requirement is aesthetic, not normative. `app_assets.ts` says why it borrows
 rather than re-derives — *so that a symbol lands in the same proportions on the
-tablet as on the device* — and [`exchange/SPEC.md`](../exchange/SPEC.md) §5.3
+tablet as on the device* — and [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) §5.3
 fixes the size cap and the encoding but says nothing about the rounding. Nothing
 refuses a package whose symbol is one pixel differently proportioned; no importer
 notices; no child sees a wrong word. Compare what a wrong `HASH_BYTES` does.
@@ -521,7 +521,7 @@ pages in one repository, and after the split there is no first table on the
 talker's side for the second one to drift from.
 
 **What has to be copied with it, and is easy to miss**, is
-[`tests/unit/boot_data.test.ts`](../tests/unit/boot_data.test.ts). Its whole
+[`tests/unit/boot_data.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/boot_data.test.ts). Its whole
 reason for existing is that two language objects side by side make a missing
 translation invisible, and after the split each half needs its own copy watching
 its own keys. A `load.*` key present in German and missing in English would

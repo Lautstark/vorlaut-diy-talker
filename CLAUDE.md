@@ -1,5 +1,25 @@
 # Working in this repository
 
+## Where you are
+
+`vorlaut-diy-talker` is **the device**: `firmware/`, `case/`, `device/` and
+`loader/` — the page that takes a board exported from the editor, compiles it
+into what a talker reads and sends it down the cable. It keeps this
+repository's name, its history, its published address and its `v*` tags.
+
+The editor left on 2026-08-27 and is
+[`Lautstark/vorlaut-editor`](https://github.com/Lautstark/vorlaut-editor):
+`src/`, `exchange/`, the symbol search, the voices and the three `.obz` doors.
+[ADR 0012](adr/0012-the-repository-splits-editor-leaves.md) is the decision.
+
+Two things follow for anybody working here. **The boundary is a file, not a
+dependency** — nothing here imports the editor and nothing there imports this,
+so a change that needs both halves is two changes in two repositories, not one.
+And **you cannot fix the editor from here.** A crossing that turns out to be
+wrong is answered on this side or reported, never by vendoring a copy of the
+editor's code: `docs/split-crossings.md` names that as the edit that must not
+happen, and `device/fixtures/` is the arrangement that makes it unnecessary.
+
 Several agents work here at once, in parallel worktrees. Three rules keep them
 from colliding. They exist because on 2026-08-24 three agents independently
 committed the same repository rename, none of them wrong to do it.
@@ -37,6 +57,13 @@ git config --get-regexp 'branch\..*\.description'
 A repo-wide edit is anything touching unrelated files for a single mechanical
 reason: a rename, a mass find-and-replace, a formatting sweep, a dependency
 bump, a licence header.
+
+Since the split there is a second way to acquire one without meaning to. Prose
+in `docs/` and `adr/` cites the editor's files by relative path, and those paths
+now resolve across a repository boundary; `tests/test_links.py` is what notices,
+and it checks every tracked file rather than every changed one. Fixing the whole
+sweep is a repo-wide edit and belongs on `main`. Fixing the links your own
+change broke is not one — it is part of your change.
 
 A feature branch never contains one. It lands on `main` in its own session, and
 every other branch rebases onto it.

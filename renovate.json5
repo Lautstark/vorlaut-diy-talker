@@ -14,13 +14,18 @@
 
   packageRules: [
     // -----------------------------------------------------------------------
-    // The four shared packages: Renovate does not touch them
+    // The shared packages: Renovate does not touch them
     // -----------------------------------------------------------------------
     //
-    // @lautstark/bildquelle, design, sicherung and stimmquelle are pinned as
-    // github: dependencies by release tag, and none is on npm:
+    // @lautstark/design is pinned as a github: dependency by release tag, and
+    // is not on npm:
     //
-    //     "@lautstark/stimmquelle": "github:Lautstark/stimmquelle#v2.7.0"
+    //     "@lautstark/design": "github:Lautstark/design#v1.17.0"
+    //
+    // It was four - bildquelle, sicherung and stimmquelle answered questions
+    // the editor asks and went with it (adr/0012). The rule stays written for
+    // the whole namespace rather than for the one package left, because which
+    // of them this repository depends on is the thing that changes.
     //
     // Renovate can be made to follow those, but not with the npm manager that
     // finds them: it needs git-refs or github-tags wired up by hand, with a
@@ -53,28 +58,22 @@
     },
 
     // -----------------------------------------------------------------------
-    // onnxruntime-web: the version is written in three places
+    // onnxruntime-web had a rule here, and no longer needs one
     // -----------------------------------------------------------------------
     //
-    //   package.json                 the wasm binaries piperVendor() copies
-    //                                into vendor/
-    //   src/backend/local.ts:92      the CDN URL the browser imports at the
-    //                                moment somebody first asks to speak
-    //   src/types/cdn.d.ts:17        the module declaration for that URL
+    // Its version was written in three places - package.json for the wasm
+    // binaries piperVendor() copied into vendor/, src/backend/local.ts for the
+    // CDN URL, and src/types/cdn.d.ts for that URL's module declaration - and
+    // Renovate was disabled on it because bumping one of the three gives a
+    // build where the wasm and the runtime are different releases of the same
+    // library. Nothing fails at build time; the first sentence somebody tries
+    // to speak does.
     //
-    // The binaries in vendor/ have to be exactly the ones that module
-    // expects, so the two pins name one version on purpose - cdn.d.ts says
-    // so. Renovate would bump package.json and leave the other two, which
-    // gives a build where the wasm and the runtime are different releases of
-    // the same library. Nothing fails at build time; the first sentence
-    // somebody tries to speak does.
-    //
-    // Moving this version is therefore a three-file edit with a listen
-    // afterwards. If it is ever automated, it needs a regex manager covering
-    // all three, not the npm manager covering one.
-    {
-      matchPackageNames: ["onnxruntime-web"],
-      enabled: false,
-    },
+    // All three of those are vorlaut-editor's now (adr/0012). This page speaks
+    // nothing: it reads WAVs the editor already synthesised out of the package
+    // and hands them to the device. The dependency is gone from package.json
+    // with piperVendor(), so a rule naming it would match nothing - and a rule
+    // that matches nothing is worse than none, because it reads as a hazard
+    // somebody is still guarding against.
   ],
 }

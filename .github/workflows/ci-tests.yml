@@ -39,13 +39,14 @@ on:
   push:
     branches: [main]
     paths: &paths
+      # The page itself, which sits at the repository root because it is the
+      # only one - adr/0012. src/** was here beside it until the editor left.
       - index.html
-      - src/**
-      # The second page, and everything the talker's half of the browser code
-      # is made of - the compiler, the tile renderer, the layout.bin writer and
-      # the cable. A change in here reaches tests/run.py as well as the two
+      # Everything the page is made of - the compiler, the tile renderer, the
+      # layout.bin writer, the cable, and the reader half of the device
+      # package. A change in here reaches tests/run.py as well as the two
       # JavaScript suites, since that is where the tile and cable checks read
-      # their modules from now.
+      # their modules from.
       - loader/**
       - e2e/**
       - tests/**
@@ -56,7 +57,6 @@ on:
       - example/**
       - firmware/vorlaut/**
       - docs/**
-      - exchange/**
       - device/**
       - adr/**
       - dns/**
@@ -114,8 +114,8 @@ jobs:
         run: npm run typecheck
 
       - name: Unit and frozen references
-        # vitest. Imports src/ directly rather than a build of it, because a
-        # frozen reference compared against compiled output has stopped
+        # vitest. Imports loader/ directly rather than a build of it, because
+        # a frozen reference compared against compiled output has stopped
         # measuring the source it names.
         run: npm test
 
@@ -146,9 +146,9 @@ jobs:
         # a path filter of its own. Inside one repository the same move costs
         # something rather than nothing - ci-firmware.yml runs on firmware/**,
         # so the format checks would stop running on a change to
-        # src/data/layout_format.ts, which is the change that broke a format
-        # most recently. Widening that filter instead makes every src/ change
-        # pay for the ESP32 core.
+        # loader/src/layout_format.ts, which is the change that broke a format
+        # most recently. Widening that filter instead makes every loader/
+        # change pay for the ESP32 core.
         #
         # What did move is the new capability: ci-firmware.yml now compiles the
         # firmware's readers on the host and runs them against the fixture

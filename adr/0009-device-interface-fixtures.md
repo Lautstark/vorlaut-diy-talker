@@ -6,7 +6,7 @@
 ## Context
 
 The Android app could leave this repository because its interface is a
-**document**: [`exchange/SPEC.md`](../exchange/SPEC.md) is versioned, has
+**document**: [`exchange/SPEC.md`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/SPEC.md) is versioned, has
 conformance fixtures, and forbids copying them. Two programs implement a
 written specification and neither one is the specification.
 

@@ -18,7 +18,7 @@ see [languages.md](languages.md).
 
 ## The problem
 
-`chooseVoice()` in [`src/shell/voices.ts`](../src/shell/voices.ts) is two
+`chooseVoice()` in [`src/shell/voices.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/voices.ts) is two
 lines: write `state.layout.voice`, save. That writes the **open Sammlung's**
 `layout.json`, and the hint under the list says what it costs — every recording
 spoken again on the next release. The control sat in the sheet at the foot of
@@ -83,7 +83,7 @@ either.
 ### 1. The Sammlung's language is DIY-only
 
 The proposal argued tablets need it too, citing `localeFor()` in
-[`src/data/app_package.ts`](../src/data/app_package.ts). That reads the other
+[`src/data/app_package.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/data/app_package.ts). That reads the other
 way. `localeFor()` derives the locale from the **voice** first —
 `azure:de-DE-KatjaNeural` → `de-DE` — and falls back to `layout.language` only
 when the voice name carries no usable tag. Its own comment is explicit that the
@@ -124,7 +124,7 @@ of a search field with no voices behind it.
 A deferred, invisible default is the same shape as the bug `920ae21` removed:
 one control whose effect appears somewhere else, later, unseen. The question is
 asked where it is decided instead — the create-a-Sammlung dialog in
-[`src/shell/collections.ts`](../src/shell/collections.ts) gained a
+[`src/shell/collections.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/collections.ts) gained a
 device-language field for the talker, pre-filled from the page's language. That
 dialog already asks the target and already asks grid size only for a tablet, so
 a target-conditional question is the shape it already had.
@@ -244,7 +244,7 @@ The two reasons the entry was kept, answered:
   [§3.6 needs a sentence](#36-needs-a-sentence) was written about. The layer
   objection underneath it is real and is answered the same way the menu itself
   already answered it — the editor hands the panel in.
-  `collectionSheetPanel()` in [`src/shell/voices.ts`](../src/shell/voices.ts)
+  `collectionSheetPanel()` in [`src/shell/voices.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/src/shell/voices.ts)
   is `collectionMenuExtras()` one floor along: the shell owns an empty
   `<details>` in the sheet's markup, hands the editor its body and a way to
   write its heading, and hides it when no editor registered one. So the shell

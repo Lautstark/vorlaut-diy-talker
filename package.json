@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Editor for a small AAC talker: five keys that are displays at the same time.",
+  "description": "The DIY talker: five keys that are displays at the same time - the firmware, the enclosure, and the page that takes an exported board to the device down a USB-C cable.",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -18,18 +18,11 @@
     "build:pages": "BASE_PATH=/vorlaut-diy-talker/ npm run build"
   },
   "dependencies": {
-    "@diffusionstudio/piper-wasm": "^1.0.0",
-    "@lautstark/bildquelle": "github:Lautstark/bildquelle#v1.7.0",
-    "@lautstark/design": "github:Lautstark/design#v1.17.0",
-    "@lautstark/sicherung": "github:Lautstark/sicherung#v1.2.0",
-    "@lautstark/stimmquelle": "github:Lautstark/stimmquelle#v2.7.0",
-    "idb": "^8.0.3",
-    "onnxruntime-web": "1.18.0"
+    "@lautstark/design": "github:Lautstark/design#v1.17.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
     "@types/node": "^22.10.0",
-    "fake-indexeddb": "^6.0.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vitest": "^2.1.0"

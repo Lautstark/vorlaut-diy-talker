@@ -29,20 +29,20 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}${BASE}`,
     trace: "on-first-retry",
   },
-  /* Two, the way both siblings have them. The phone is not a smaller desktop
-     here: below 820px the sidebar is a layer over the work rather than a column
-     beside it (conventions.md §3.1), and that arrangement has no coverage at
-     all from a 1280px viewport. */
+  /* One, and it is a desktop. There were two until the split adr/0012 decided:
+     the editor's mobile.spec.ts ran under a Pixel 7 because below 820px its
+     sidebar is a layer over the work rather than a column beside it
+     (conventions.md §3.1), and that arrangement had no coverage from a 1280px
+     viewport. That spec is vorlaut-editor's now, and so is the sidebar.
+
+     This page is opened with a talker and a USB-C cable in front of you, and
+     WebSerial is desktop Chrome and Edge - there is no phone this page runs
+     the whole of. A second project here would be a viewport with nothing in
+     it. */
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /mobile\.spec\.ts/,
-    },
-    {
-      name: "mobile",
-      use: { ...devices["Pixel 7"] },
-      testMatch: /mobile\.spec\.ts/,
     },
   ],
   webServer: {

@@ -21,7 +21,7 @@
 import {
   Cable, CABLE_VERSION, LAYOUT_FILE, plan, push, versionVerdict,
 } from "../tools/cable.js";
-import { Trouble } from "../../src/core/errors.js";
+import { Trouble } from "./errors.js";
 
 /** What is to be on the device, by the name it goes under.
  *

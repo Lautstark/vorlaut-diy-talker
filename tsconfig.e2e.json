@@ -1,10 +1,10 @@
 {
   /* The browser tests, which are the one program that legitimately spans both
-     worlds: they run in node and they import src/ to read the text table, so
-     that a label is asserted from the same source the page reads rather than
-     written out here in one language.
+     worlds: they run in node and they import loader/ to read the text table
+     and the format's own constants, so that a label is asserted from the same
+     source the page reads rather than written out here in one language.
 
-     src/ is in `include` rather than reached through a project reference,
+     loader/ is in `include` rather than reached through a project reference,
      because a reference would need the app project to emit declarations and it
      is deliberately noEmit. Checking those files twice costs a second and
      avoids a build artefact nothing else wants. */
@@ -24,5 +24,5 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo"
   },
-  "include": ["e2e", "src", "loader", "playwright.config.ts"]
+  "include": ["e2e", "loader", "playwright.config.ts"]
 }

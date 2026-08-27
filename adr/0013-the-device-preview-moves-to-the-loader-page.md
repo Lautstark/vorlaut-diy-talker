@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Date:** 2026-08-27 · **Applies to:** the two names
 `renderSymbol()` and `TILE_SIZE` on
-[`tests/unit/layers.test.ts`](../tests/unit/layers.test.ts)'s crossing list, and
+[`tests/unit/layers.test.ts`](https://github.com/Lautstark/vorlaut-editor/blob/main/tests/unit/layers.test.ts)'s crossing list, and
 the control they were reached from
 
 ## Context

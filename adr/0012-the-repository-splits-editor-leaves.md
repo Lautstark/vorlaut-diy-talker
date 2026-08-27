@@ -41,7 +41,7 @@ and the editor is the half that leaves.**
 | | |
 |---|---|
 | `vorlaut-diy-talker` | **This repository**, keeping its name, its history, its published address and its `v*` tags. [`firmware/`](../firmware/), [`case/`](../case/), [`device/`](../device/README.md), [`loader/`](../loader/README.md), `tests/run.py` and the Python beside it. |
-| `vorlaut-editor` | New. [`src/`](../src/), [`exchange/`](../exchange/README.md) and the three `.obz` doors. |
+| `vorlaut-editor` | New. [`src/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/), [`exchange/`](https://github.com/Lautstark/vorlaut-editor/blob/main/exchange/README.md) and the three `.obz` doors. |
 | `vorlaut` | New. The explainer site. It reads no format, writes no format, pins nothing and is pinned by nothing. |
 
 Four things this settles that were open:

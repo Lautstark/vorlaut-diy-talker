@@ -3,39 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- The title is in the label table with everything else and is set by main.ts.
+     What stands here is what a tab shows before any module has run, and it is
+     the product's name rather than a sentence in one of two languages. -->
 <title>vorlaut</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="manifest" href="/manifest.webmanifest">
-<!-- No content: the scheme decides it. #161618 was vorlaut's dark --bg, from
-     when this page committed to a dark ground and was the only product that
-     did; it stopped being true when the product moved to "both" and left the
-     address bar describing a page that may well be white. main.ts sets it from
-     the resolved --bg and keeps it there. -->
+<!-- No manifest, and it stays that way now that this page is the root rather
+     than a page under one. The editor was the installable thing and is in
+     vorlaut-editor; this is a page somebody opens with a cable in their hand
+     and closes again, and an app icon for it would be an icon for something
+     nobody opens twice in a row. public/manifest.webmanifest is still served,
+     because the icons beside it are what a bookmark uses. -->
 <meta name="theme-color">
-<!-- Before the stylesheet, and inline rather than in the bundle: a module is
+<!-- Inline rather than in the bundle, and before anything else: a module is
      deferred, so a scheme read there lands after the first paint and the page
      flashes the OS's answer before correcting itself. bootSnippet() from
      @lautstark/design/theme, copied in because there is nothing earlier than
-     this to import it from. It touches one attribute and nothing else. -->
+     this to import it from. The editor's own page carries the same three lines
+     for the same reason, and both read vorlaut.theme off one origin, so a
+     reader who set that one dark finds this one dark too - for as long as
+     neither takes a custom domain. -->
 <script>
 try{var t=localStorage.getItem("vorlaut.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}
 </script>
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="vorlaut">
 </head>
 <body>
-<!-- Everything that was here is in src/ui/templates/ now, beside the module
-     that wires it: the header, the board, the symbol picker and the settings
-     sheet. main.ts mounts them before it wires anything, and the order it
-     mounts them in is the order they appear.
-
-     Absolute paths above rather than relative ones, and that is Vite's doing
-     rather than a reversal: `base` is set from the environment at build time,
-     so /icon.svg becomes /vorlaut-diy-talker/icon.svg in the published bundle and stays
-     /icon.svg when `npm run dev` serves from the root. Writing "./" here would
-     opt those files out of that rewriting. -->
-<script type="module" src="/src/main.ts"></script>
+<!-- Empty. main.ts builds the five steps, because which of them exists and
+     what each one says depends on how far the file has got - and markup here
+     would be a sixth copy of the flow that has to be kept in step with the one
+     in that module. -->
+<script type="module" src="/loader/src/main.ts"></script>
 </body>
 </html>

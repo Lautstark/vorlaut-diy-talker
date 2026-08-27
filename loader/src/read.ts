@@ -11,7 +11,7 @@
 // refusals and validate.ts's warnings, and keeping the three apart is what
 // lets each of them say something specific instead of "this file is broken".
 import type { DeviceBoard, DeviceManifest, DevicePackage }
-  from "../../src/data/device_package.js";
+  from "./device_package.js";
 import { NotAPackage, unzip } from "./unzip.js";
 
 const MANIFEST = "manifest.json";

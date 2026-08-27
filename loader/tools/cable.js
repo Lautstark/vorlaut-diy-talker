@@ -64,7 +64,7 @@ export function versionVerdict(theirs) {
 
 /* The shapes of the answers, so that this file says what it hands back rather
  * than leaving each of its three consumers - the bench, the node harness and
- * src/backend/cable.ts - to find out. They are comments: nothing here is
+ * loader/src/cable.ts - to find out. They are comments: nothing here is
  * compiled, and tests/test_cable_format.py remains what actually holds this
  * client to the device's own reader.
  *
