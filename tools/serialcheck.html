@@ -207,12 +207,18 @@ $("#connect").addEventListener("click", async () => {
 
 $("#mock").addEventListener("click", async () => {
   await detach();
-  const device = new MockDevice({ noise: true });
+  // A flash that takes a moment, because that is what the acknowledgement is
+  // for. A mock which answers instantly cannot tell a client that waits from
+  // one that does not, and the one that does not is the fault this protocol
+  // was changed to remove.
+  const device = new MockDevice({ noise: true, stallMs: 4 });
   window.mock = device;                 // for poking at from the console
   mocked = true;
   await greet(device.open(), "the mock, no hardware involved");
   log("  this is tools/cable_mock.js. It answers the way cable.h is written to,");
   log("  and it chatters unmarked log lines into the same stream on purpose.");
+  log(`  its window is ${device.window} bytes and it pauses ${device.stallMs} ms `
+      + "before every ack, so a push through it is slower than the wire.");
 });
 
 async function detach() {
@@ -408,6 +414,12 @@ $("#push").addEventListener("click", async () => {
     // The numbers that say how close the timeout came. A run that worked
     // proves the pause did not exceed four seconds once; this says by how
     // much, which is the difference between "it worked" and evidence.
+    //
+    // What the gap measures changed with the window. It used to be the browser
+    // being late; now the device waits after every ack for a window it has
+    // just asked for, so it is a round trip. A gap of zero over a whole
+    // payload no longer means "nothing was ever late" - it means no window was
+    // ever waited for, which is a client that is not acknowledging at all.
     const QUIET_MS = 4000;               // CABLE_QUIET_MS in cable_format.h
     const margin = QUIET_MS - cable.worstGap;
     log(`worst gap ${cable.worstGap} ms, worst LittleFS write `

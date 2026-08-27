@@ -16,8 +16,24 @@
 // It also prints unmarked lines on purpose. A real device is talking to its
 // serial log the whole time this is going on, and a client that only works on
 // a silent wire does not work.
+//
+// And it can be slow, which matters more than it looks. A device made of a Map
+// answers instantly, so a client that never waited for an acknowledgement
+// would pass against it forever - the thing the acknowledgement exists for is
+// a flash write that takes tens of milliseconds, and a mock without one proves
+// nothing about it. So `stallMs` puts a real pause before every ack, and
+// anything that arrives beyond the window while it is in there is DISCARDED,
+// which is exactly what a full USB receive buffer does and exactly how silent
+// the loss is. The transfer then fails the way the bench failed before any of
+// this existed: "err short", session shut, nothing stored.
 
 import { crc32, hex8 } from "./cable.js";
+
+/** The window this mock announces, and the most it will hold at once. Not
+ *  CABLE_WINDOW out of the firmware: the browser reads this off the wire, and
+ *  a mock that used the same constant could not tell a client that reads it
+ *  from a client that assumes it. */
+export const MOCK_WINDOW = 1024;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -37,13 +53,22 @@ export class MockDevice {
    *          failAt?: {name: string, how: "short"|"crc"|"nospace"}}} options
    *   failAt forces one file to go wrong, which is the only way to reach the
    *   paths that matter most and never run when everything works.
+   *   stallMs is how long the flash takes, so that a client which does not
+   *   wait for an ack really does outrun this rather than merely being able to.
    */
   constructor({ files = new Map(), total = 1441792, noise = false,
-                failAt = null } = {}) {
+                failAt = null, window = MOCK_WINDOW, stallMs = 0 } = {}) {
     this.files = files;
     this.total = total;
     this.noise = noise;
     this.failAt = failAt;
+    this.window = window;
+    this.stallMs = stallMs;
+    // Set when more than a window arrived without being asked for, which is a
+    // client that is not waiting for its acknowledgements. The transfer fails
+    // as a real one would; this is here so the harness can say which fault it
+    // was rather than reporting a mysterious short.
+    this.overran = null;
     // Whether a hello has been answered. cable.h calls this `open`, starts
     // every session with it false, and clears it again when a transfer is
     // given up on - one rule rather than two, so that "not greeted yet" and
@@ -120,13 +145,40 @@ export class MockDevice {
           const still = pending.size - pending.at;
           if (buffer.length === 0) break;
           const take = Math.min(still, buffer.length);
+          if (pending.since + take > pending.window) {
+            // More than a window arrived without having been asked for. On a
+            // device the receive buffer is full by now and the USB stack is
+            // dropping what lands with no way to say so, which is why this
+            // throws the bytes away rather than storing them: a mock that
+            // quietly accepted them would let a client that never waits for an
+            // ack pass, and that client is the whole fault this protects
+            // against. What the device does next is give up on the silence.
+            this.overran = `${pending.name}: ${pending.since + take} bytes for `
+              + `a window of ${pending.window}`;
+            buffer = buffer.subarray(take);
+            this.greeted = false;
+            await this.reply(`err short ${pending.name}`);
+            pending = null;
+            continue;
+          }
           pending.got.set(buffer.subarray(0, take), pending.at);
           pending.at += take;
+          pending.since += take;
           buffer = buffer.subarray(take);
-          if (pending.at < pending.size) break;
-          await this.finish(pending);
-          pending = null;
-          continue;
+          if (pending.at === pending.size) {
+            // finish() sends the last ack. Whether that window was full or a
+            // remainder is not a case here, for the same reason it is not one
+            // in cable.h: the end of the file ends the window.
+            await this.finish(pending);
+            pending = null;
+            continue;
+          }
+          if (pending.since >= pending.window) {
+            await this.flash();
+            pending.since = 0;
+            await this.reply(`ack ${pending.at}`);
+          }
+          break;
         }
         const cut = buffer.indexOf(10);          // "\n"
         if (cut < 0) break;
@@ -196,13 +248,13 @@ export class MockDevice {
           await this.reply(`err nospace ${name}`);
           return null;
         }
-        await this.reply("go");
+        await this.reply(`go ${this.window}`);
         await this.chatter();
         // Numbers a device made of a Map has no honest way to produce. Small
         // and fixed, so a run against the mock cannot be mistaken for a
         // measurement of anything.
-        return { name, size, crc: sum, at: 0, got: new Uint8Array(size), forced,
-                 gap: 1, stall: 2 };
+        return { name, size, crc: sum, at: 0, since: 0, window: this.window,
+                 got: new Uint8Array(size), forced, gap: 1, stall: 2 };
       }
 
       case "done": {
@@ -217,6 +269,14 @@ export class MockDevice {
     }
   }
 
+  /** How long the flash takes. Zero by default, because most scenarios are
+   *  about what is said rather than when - but a run with a real pause in here
+   *  is the only kind that can tell a client which waits from one which does
+   *  not. */
+  async flash() {
+    if (this.stallMs) await new Promise((r) => setTimeout(r, this.stallMs));
+  }
+
   async finish(pending) {
     if (pending.forced === "short") {
       // What a cable pulled out halfway looks like from here: the device
@@ -226,6 +286,14 @@ export class MockDevice {
       await this.reply(`err short ${pending.name}`);
       return;
     }
+    await this.flash();
+    // The last window, acknowledged like every other one, and before the
+    // checksum is looked at. That order is the firmware's: cable.h acks inside
+    // the loop that reads the file and only checks the checksum once the loop
+    // has run out of file. So a put that is about to be refused for its
+    // contents is acknowledged first - the acknowledgement is about the bytes
+    // arriving, and says nothing about whether they were the right ones.
+    await this.reply(`ack ${pending.at}`);
     const sum = crc32(pending.got);
     if (pending.forced === "crc" || sum !== pending.crc) {
       await this.reply(`err crc ${pending.name}`);
