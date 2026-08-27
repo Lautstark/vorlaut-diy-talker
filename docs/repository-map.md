@@ -359,6 +359,94 @@ the page is served from the repository that keeps the name. So the bookmark
 that matters at a bench — the one somebody opens with a cable in their hand —
 is the one that never changes.
 
+**What answers at the Pages root once the editor has gone, and it is not the
+loader.** [`vite.config.ts`](../vite.config.ts) names two entry points out of
+one build — `index.html` at the root and `loader/index.html` at
+`<base>loader/` — and the editor is the half that leaves, so on the day of the
+move this repository has exactly one page and it is sitting in a subdirectory
+with nothing above it. **Decided on 2026-08-27: the loader is not promoted. It
+stays at `<base>loader/`, and a short static page takes the root.** Three
+tracked sentences promise that address never moves — the paragraph above,
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)'s second
+consequence, and
+[`split-crossings.md`](split-crossings.md#direction-three--the-crossings-that-are-not-imports),
+which is the one that decides it. After the split
+[`src/shell/packageExport.ts`](../src/shell/packageExport.ts)'s handoff link
+stops being `new URL("loader/", BASE_URL)` and becomes
+`https://lautstark.github.io/vorlaut-diy-talker/loader/` written out by hand in
+the *other* repository, and the only thing that makes hard-coding it safe is
+this page saying it does not move. Promoting the loader would make that promise
+false on the day the literal is written, in the one crossing whose breakage a
+carer sees rather than a test — and would buy a shorter address for it. One
+published address moves in this move, and it is the editor's.
+
+**The root has to answer with something, because it is the repository's own
+address.** `https://lautstark.github.io/vorlaut-diy-talker/` is what
+[`README.md`](../README.md) names and what GitHub's repository page links;
+left empty it serves Pages' 404, and nothing here would fail. So: a page, and a
+deliberately thin one — what this repository is in a few sentences, a link to
+`loader/` for somebody holding a cable, a link to the editor at its new address,
+and later a link to the explainer site. It stops there. The moment it starts
+explaining the product it is competing with `vorlaut`, and it is the copy that
+will go stale.
+
+**What it costs, file by file, and the answer is nearly nothing.** The three
+literal base paths need **no edit at all** — this repository keeps its name, so
+[`package.json`](../package.json)'s `test:e2e` and `build:pages` and
+[`playwright.config.ts`](../playwright.config.ts)'s `BASE` are as correct after
+the move as before it, and against a literal whose failure modes are both silent
+the safest edit is the one nobody makes. That is the largest single argument for
+this answer over the other one. [`pages.yml`](../.github/workflows/pages.yml) is
+untouched. `vite.config.ts` keeps two entry points and keeps its long comment,
+because `index.html` is **replaced rather than removed**: `editor:` becomes
+`home:` and the shape of the block stands. One clause of that comment does need
+amending — the link between the two pages is the editor's and leaves with it.
+What replaces it is a **relative** `href="loader/"` on the new page, which needs
+no base at all: from `/vorlaut-diy-talker/` it resolves to
+`/vorlaut-diy-talker/loader/` and under `npm run dev` to `/loader/`. Not a
+fourth literal, and one mechanism fewer than the one it replaces. Its asset
+paths stay **absolute** (`/icon.svg`), for the reason today's `index.html`
+already gives in a comment: those are Vite's to rewrite from `base`, and `./`
+would opt them out. Absolute assets beside a relative link look inconsistent and
+are not, which is worth a comment on the day rather than a correction a month
+later.
+
+**The one thing this adds rather than moves.** A spec that opens the root,
+asserts the body is not empty, and asserts the link resolves to `<base>loader/`
+— the same assertion [`e2e/device_export.spec.ts`](../e2e/device_export.spec.ts)
+already makes about the editor's handoff link, in a spec that leaves with the
+editor. Only the first of the two silent failure modes above can reach this
+page — a build with no base renders it empty, and it fetches no phonemizer to
+fetch from the wrong prefix — but the first is the whole of what it is, and
+without that spec it arrives with no coverage at all.
+
+**What changes if the explainer site exists first: less than it looks.**
+`vorlaut` is *"one address that outlives whichever repository serves the
+editor"*, and it is a different address — it cannot answer for this one. What it
+changes is the root page's contents, not its existence: the explaining sentences
+go, a link goes in, and what is left is a signpost. Expect the proposal to delete
+the page instead, and expect it to cite the explainer as the reason.
+
+**Considered, and not taken: promote the loader and leave a redirect at
+`loader/`.** It keeps the bookmark working and gives the page one canonical
+address, and it costs the thing the directory is for.
+[`loader/README.md`](../loader/README.md) put the directory at the top level,
+beside `firmware/`, `case/` and `device/`, so that the eventual move would be *"a
+move rather than an excavation"*; turning the source directory into a stub while
+the page's source moves to the root is that excavation, performed on the day of
+the move. A meta refresh is also still a page somebody maintains, and it
+maintains nothing but an address. The same objection answers the plain promotion:
+Pages leaves no redirect behind a path that moves either.
+
+**This is a checklist item and not an ADR, and the line is worth stating.**
+[`adr/README.md`](../adr/README.md) keeps the numbers for decisions that *"look
+like an oversight from the outside"*; this one settles no boundary, no format and
+no ownership, and ADR 0012 already decided both halves of it — the editor's build
+moves out, the talker's page stays where it is. What was missing was the sentence
+after that one, and a checklist somebody works through is where they meet it. If
+the promotion is proposed more than once after the move, that is the moment it
+earns a number.
+
 **`v*` keeps meaning a firmware release, and that is the naming's clearest
 win.** [ADR 0006](../adr/0006-builder-and-hardware-one-repo.md#consequences)
 records `v*` as a firmware release, built and annotated by `release.yml`, and
