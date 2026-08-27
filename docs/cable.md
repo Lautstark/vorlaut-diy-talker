@@ -764,7 +764,7 @@ amount of code to remove and deserves to say so in its own commit.
 | [`loader/tools/cable_mock.js`](../loader/tools/cable_mock.js) | a device made of a `Map`, for when there is no board |
 | [`tools/serialcheck.html`](../tools/serialcheck.html) | the bench, standalone |
 | [`loader/src/cable.ts`](../loader/src/cable.ts) | the page's side: which port, where the files come from, what the page is told |
-| [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) | the one button — build, then send, with progress and a way to stop |
+| [`loader/src/main.ts`](../loader/src/main.ts) | the page — choose a file, check it, compile it, connect, send, with progress and a way to stop |
 | `tests/test_cable_format.py` | the wire format, held against the firmware's own reader |
 | `device/fixtures/cable/several-windows` | the ack cadence as a transcript, with a window of its own |
 | `e2e/build.spec.ts` | the wiring: a press, against the mock served into a real browser |

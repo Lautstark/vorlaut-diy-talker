@@ -39,12 +39,12 @@ import { renameField, type RenameField } from "@lautstark/design/rename";
 import { drawCollections } from "@lautstark/design/collections";
 import { reason } from "../core/errors.js";
 import {
-  createCollection, deleteCollection, exportBoard, exportDevicePackage,
+  createCollection, deleteCollection, exportBoard,
   layoutOf, listCollections, readSettings, renameCollection, useCollection,
   writeSettings,
 } from "../backend/index.js";
 import { editorFor, editorOf, FIRST_TARGET } from "../core/editor.js";
-import { offer, openPackageExport } from "./packageExport.js";
+import { offer, openDeviceExport, openPackageExport } from "./packageExport.js";
 import { openCollectionSettings } from "./voices.js";
 import { homeSymbol, homeSymbolSource, takeHomeSymbol } from "./homekey.js";
 import { state } from "../core/state.js";
@@ -715,36 +715,28 @@ async function exportOne(): Promise<void> {
   }
 }
 
-/** The Sammlung as the device build's own .obz: the sources, the negation
- * flags and the 16 kHz WAVs the last Release wrote.
+/** The Sammlung as the talker's own .obz: the sources, the negation flags and
+ * the 16 kHz WAVs a talker plays.
  *
  * The third entry, and a third door all the way down for the reason the other
  * two are two - exchange/SPEC.md §5.2 and adr/0010. It sits directly under the
- * first two rather than beside the folder export, because it is a Sammlung
- * that comes out of it and not a build: a file somebody keeps, diffs against
- * last month's, or sends to whoever is at the bench with the talker.
+ * first two because it is a Sammlung that comes out of it: a file somebody
+ * keeps, diffs against last month's, or carries to whoever is at the bench
+ * with the talker.
  *
- * No progress dialog, unlike the app package. It writes down a build rather
- * than synthesising one, so there is nothing slow in it - see
- * exportDevicePackage(). What it can say instead is that there is no current
- * build to write down, and that sentence comes back as the error.
+ * **It is also, since adr/0011, the only way a Sammlung reaches a device.**
+ * The button that sent one is gone and so is the build behind it; this file is
+ * what a talker is given, and loader/ is the page that gives it. Two things
+ * follow. It gets the same progress-and-stop sheet the app package has, since
+ * it synthesises rather than copying a build that was already paid for. And
+ * the sheet says where the file goes next, because the page that finishes the
+ * job is an address nobody would guess - shell/packageExport.ts's
+ * openDeviceExport() is where both live.
  */
 async function exportDevice(): Promise<void> {
   if (held.collections.findIndex((one) => one.id === held.current) < 0) return;
-  try {
-    await saveNow();
-    const made = await exportDevicePackage();
-    offer(made.blob, `${fileStem()}-device.obz`);
-    // The gap is named rather than swallowed: a picture that resolved to
-    // nothing is a grey cross on the device too, so the file is honest - but
-    // somebody looking at it later has no way to tell a symbol that was never
-    // there from a METACOM folder this browser had forgotten.
-    status(made.missing
-      ? t("ui.collection_exported_device_gaps", { n: made.missing })
-      : t("ui.collection_exported_device"));
-  } catch (error) {
-    status(t("ui.collection_export_failed", { error: reason(error) }));
-  }
+  await saveNow();
+  openDeviceExport(currentName(), fileStem());
 }
 
 /** The Sammlung as the package the Android viewer opens: pictures and

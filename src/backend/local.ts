@@ -25,15 +25,31 @@ import * as devicePackage from "../data/device_package.js";
 import { bakeImage, bakeSound } from "../data/app_assets.js";
 import { ENCODER_RATE } from "../data/opus.js";
 import { DEVICE_SAMPLE_RATE } from "../data/audio_format.js";
-import { buildIsCurrent } from "../data/built.js";
 import * as store from "../data/store.js";
-import * as tiles from "../../loader/src/tiles.js";
 import * as symbols from "../data/symbols.js";
-import {
-  DEFAULT_LANGUAGE, HASH_BYTES, LAYOUT_BIN, SLOTS_PER_SET, renderLayoutBin,
-} from "../../loader/src/layout_format.js";
+/* Four names out of loader/, and every one of them is here on purpose.
+ *
+ * HASH_BYTES is how long the hash in a WAV's name has to be for layout.bin to
+ * carry it, and DEFAULT_LANGUAGE is what the device labels itself in when it
+ * has no number for the language it was given: facts about the format, which
+ * the editor has to know because it writes a file a talker has to read.
+ *
+ * renderSymbol() and TILE_SIZE are the other kind and are worth being exact
+ * about, because they are the one place the editor still runs the device's own
+ * code. previewInto() below draws a symbol the way a ScreenKey will draw it -
+ * scaled to 128x128 and rounded to RGB565 - so that somebody choosing a
+ * pictogram can see at 15.21 mm whether a child will recognise it. Fitting it
+ * to a square here instead would be a preview that is not the preview, which
+ * is the whole of what that control is for.
+ *
+ * What left with the device path (adr/0011) is renderLayoutBin() and every
+ * *use* of a tile as a file: nothing here writes a t<hash>.bin, and nothing
+ * here can reach a talker. What stayed is one read-only rendering onto a
+ * canvas. tests/unit/layers.test.ts holds this list to exactly these four. */
+import { DEFAULT_LANGUAGE, HASH_BYTES }
+  from "../../loader/src/layout_format.js";
+import { TILE_SIZE, renderSymbol } from "../../loader/src/tiles.js";
 import { reason } from "../core/errors.js";
-import { t } from "../core/texts.js";
 import {
   speak, asBlob, shippable, displayName, parseVoiceId, usePiperRuntime,
   PIPELINE_VERSION,
@@ -136,11 +152,7 @@ export async function loadLayout(seed: Layout) {
   // would make the first save look like somebody else's write. The write also
   // mints the board this page has been editing all along without a name for.
   const seeded = await store.writeLayout(seed, null);
-  return {
-    layout: seeded.saved,
-    version: seeded.version,
-    buildCurrent: seeded.buildCurrent,
-  };
+  return { layout: seeded.saved, version: seeded.version };
 }
 
 export async function saveLayout(layout, version) {
@@ -235,8 +247,8 @@ export async function uploadSymbol(file, name = file.name) {
  * ground to fill and no offset to draw at, which is also what drawTile() in
  * the firmware does. */
 export async function previewInto(image, symbol, negated = false) {
-  const raw = tiles.renderSymbol(await picture(symbol), { negated });
-  const side = tiles.TILE_SIZE;
+  const raw = renderSymbol(await picture(symbol), { negated });
+  const side = TILE_SIZE;
   const inner = new ImageData(side, side);
   for (let i = 0; i < side * side; i++) {
     const value = (raw[i * 2] << 8) | raw[i * 2 + 1];
@@ -761,37 +773,103 @@ export async function exportAppPackage(
   };
 }
 
+/** The voice this layout is spoken in.
+ *
+ * An empty entry is not an error but the normal case for a fresh Sammlung, and
+ * defaultVoice() is what answers then - see the note there for why the
+ * Sammlung's language is the one that asks and why the network is not. */
+function chosenVoice(layout: Layout): string {
+  if (layout.voice) return layout.voice;
+  // The same answer the settings sheet marks, from the same helper - the two
+  // disagreeing would mean the row saying "picked for this collection's
+  // language" and the export speaking somebody else.
+  return startsOn(layout.language || "");
+}
+
+/** The bytes as an array with a buffer of its own.
+ *
+ * speak() answers with a view, and a view that does not cover its whole buffer
+ * would carry whatever else is in that buffer into the archive. A view that
+ * already covers its own is handed over as it stands.
+ *
+ * This was owned() in the build, where the store took the buffer; here the
+ * package takes the array. Same rule, one step earlier. */
+function ownBytes(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+    ? bytes
+    : bytes.slice()) as Uint8Array<ArrayBuffer>;
+}
+
+/** The 32 hex characters a name carries: sha256, cut to HASH_BYTES. */
+async function fingerprint(bytes: BufferSource): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, HASH_BYTES * 2);
+}
+
 /**
- * The Sammlung as the device build's own .obz - the third export door.
+ * What a spoken sentence's WAV is called.
+ *
+ * The name is for what goes *into* the synthesis rather than for what comes
+ * out: text, voice, and every option that changes how it sounds, the
+ * pipeline's own version included, so that a levelling change renames rather
+ * than silently reuses. Same rule tts.fingerprint() applies. Neither the Azure
+ * key nor ownsInference is in the payload - both say who may ask, not how the
+ * sentence sounds, and rotating a key must not rename a device's worth of
+ * audio.
+ *
+ * It used to matter that this was knowable *before* the synthesis was paid
+ * for, because a rebuild looked in the `data` store for a file under this name
+ * and skipped the model inference if one was there. There is no store and no
+ * build now (adr/0011), so the reuse it bought is gone and what is left is the
+ * part that was always load-bearing: HASH_BYTES * 2 hex characters after an
+ * `a`, which is the only shape layout.bin can carry a name in. The compiler on
+ * the other side reads the name out of the package rather than deriving it, so
+ * this function is the only opinion about it that exists.
+ */
+async function audioName(text: string, spokenBy: string): Promise<string> {
+  const payload = JSON.stringify({
+    text: text.trim(), voice: spokenBy, pipeline: PIPELINE_VERSION, ...VORLAUT,
+  });
+  return `a${await fingerprint(new TextEncoder().encode(payload))}.wav`;
+}
+
+/**
+ * The Sammlung as the talker's own .obz - the third export door.
  *
  * A door of its own and not a flag, for the reason exchange/SPEC.md §5.2 gives
  * and exportAppPackage() above repeats: a guarantee enforced by an argument is
- * one flag away from being untrue. Three functions now write .obz here and
+ * one flag away from being untrue. Three functions write .obz here and
  * adr/0010 is why they stay three. data/device_package.ts is the format and
  * its four form rules; this is the half that needs the browser.
  *
- * What it writes is what runBuild() consumed: the source pictures at their own
- * size, un-crossed, with ext_vorlaut_negated beside them, and the 16 kHz WAVs
- * the cable would have sent. compileDevice() turns it back into exactly the
- * files in the `data` store, which is what makes this the first artefact here
- * that says "this is what is on that talker" in a form somebody can diff,
- * archive, or carry to a bench.
+ * **This is now the only thing that reaches a talker, and that changed what it
+ * is.** adr/0010 wrote it as an artefact that *recorded* a build: the WAVs
+ * came out of the `data` store under the names audioName() had given them,
+ * instantly, and the export refused to run at all unless there was a current
+ * build to write down - because a file claiming to be a talker's contents
+ * while holding audio that talker had never had was the one thing it must not
+ * do. adr/0011 turned that relationship round. There is no build in this page
+ * any more; the file is not a record of what is on a talker, it is the input a
+ * talker is given, and loader/ is what turns it into what the device reads.
  *
- * IT EXPORTS A BUILD RATHER THAN SYNTHESISING ONE, and that is the decision
- * worth knowing about. The WAVs come out of the `data` store by the name
- * audioName() gives them - the build's own bytes, not a second set rendered
- * now. Two consequences, both wanted. It is instant, so it needs none of the
- * progress-and-stop machinery a tablet package needs for its hundreds of
- * syntheses. And the file cannot claim to be a talker's contents while holding
- * audio that talker has never had, which is the claim the whole artefact is
- * for. The price is that it asks for a current build first, and says so.
+ * So it synthesises, and it needs the progress and the stop the app package
+ * needs and for the same reason: every distinct sentence is a model inference
+ * or a round trip to Azure, and a five-set Sammlung is up to twenty of them.
+ * What it costs is that the export is no longer instant. What it buys is that
+ * a Sammlung can be written out the moment it is finished, by somebody who has
+ * never seen a cable, and the file is complete on its own.
  *
  * `missing` counts pictures that resolved to nothing - usually a METACOM
- * folder this browser has not been given back yet. Not an error: the build
- * drew its grey cross for those too, so an export carrying the same gap is an
- * honest picture of the same device.
+ * folder this browser has not been given back yet. Not an error: the compiler
+ * draws its grey cross for those, so a file carrying the same gap is honest
+ * about the same device, and loader/ says which keys they are.
  */
-export async function exportDevicePackage(): Promise<{ blob: Blob; missing: number }> {
+export async function exportDevicePackage(
+  onProgress?: (at: PackageProgress) => boolean | void,
+): Promise<{ blob: Blob; missing: number } | null> {
   const list = await store.readCollections();
   if (!list.collections.some((one) => one.id === list.current)) {
     throw new Error("There is no Sammlung open to export.");
@@ -801,15 +879,7 @@ export async function exportDevicePackage(): Promise<{ blob: Blob; missing: numb
   if (!isDiy(layout)) {
     throw new Error(
       "This export is the five-key talker's. A tablet Sammlung has no sets " +
-      "and nothing to build, so there would be no device build to write down.");
-  }
-  // The mark recordBuild() writes, against the layout version the build ran
-  // on. A stale build exports a file that says it is what is on the talker and
-  // is not - the one thing this artefact must never do.
-  if (!await buildIsCurrent()) {
-    throw new Error(
-      "This export writes down a build, and there is none for what is on " +
-      "screen. Release this Sammlung first, then export.");
+      "and nothing a talker could show, so there would be nothing to write.");
   }
 
   const voice = chosenVoice(layout);
@@ -834,22 +904,40 @@ export async function exportDevicePackage(): Promise<{ blob: Blob; missing: numb
     });
   }
 
-  // The build's own WAVs, found by the name the build gave them. Nothing is
-  // synthesised here: a sentence with no file under its name is a key the
-  // build could not speak either, and the export says the same thing the
-  // device does by leaving the sound off.
+  /* Without a voice there is nothing to record, and that is a normal Sammlung
+   * rather than a broken one - every key is simply silent, which is what
+   * layout.bin's per-slot flag is for and what loader/ says out loud when it
+   * checks the file.
+   *
+   * The list is taken before the loop rather than walked inside it, and that
+   * is what `total` is for: a wait behind a line that says one thing at the
+   * start and nothing after is indistinguishable from a page that has died. */
   const sounds = new Map<string, devicePackage.DeviceSound>();
-  if (voice) {
-    const spoken = new Set<string>();
-    for (const set of plan.sets) {
-      for (const slot of set.slots) if (slot.text) spoken.add(slot.text);
-    }
-    for (const text of spoken) {
-      const name = await audioName(text, voice);
-      const stored = await store.getFile("data", name);
-      if (stored) sounds.set(text, { name, bytes: new Uint8Array(stored) });
-    }
+  const settings = await store.readSettings(NO_SETTINGS);
+  // ownsInference for the reason synthesise() states it, and like the key it
+  // stays out of the fingerprint payload above: both say who may ask, not how
+  // the sentence sounds.
+  const options = settings.azureSecret && settings.azureRegion
+    ? { ...VORLAUT, ownsInference: true,
+        azure: { key: settings.azureSecret, region: settings.azureRegion } }
+    : { ...VORLAUT, ownsInference: true };
+
+  const spoken = voice
+    ? [...new Set(plan.sets.flatMap((set) =>
+        set.slots.map((slot) => slot.text).filter(Boolean)))]
+    : [];
+  for (const [done, text] of spoken.entries()) {
+    // Stopping is somebody deciding not to, which is not a failure and must
+    // not read as one - the same rule this repository keeps for a dismissed
+    // dialog. So it is a value rather than a throw, and the caller says
+    // "nothing was written" rather than showing an error.
+    if (onProgress?.({ done, total: spoken.length, text }) === false) return null;
+    const said = await speak(text, voice, options);
+    sounds.set(text, {
+      name: await audioName(text, voice), bytes: ownBytes(said.wav),
+    });
   }
+  onProgress?.({ done: spoken.length, total: spoken.length, text: "" });
 
   const pkg = devicePackage.buildDevicePackage({ layout, voice, sources, sounds });
   return {
@@ -942,331 +1030,4 @@ export async function importBoard(file): Promise<ReadFile> {
     if (isBackup(parsed)) return readOneCollection(parsed as Backup);
   }
   return { layout: await obf.importObz(bytes, name), name: "", symbols: [] };
-}
-
-// --- The build ---------------------------------------------------------------
-//
-// builder.py's build(), which was deleted with the Python half. The parts it
-// orchestrated are all here already - tiles.js renders, layout_format.js
-// writes the table, the vendored stimmquelle speaks, store.js is the folder -
-// so what this is, exactly as it was there, is the order they happen in, what
-// gets skipped, and what the log says about it.
-//
-// Per active set and slot it puts into the "data" store:
-//
-//   t<hash>.bin   128x128 RGB565 big-endian, the whole display, no border
-//   a<hash>.wav   spoken sentence, 16 kHz mono 16 bit
-//   layout.bin    the table the firmware reads all of it back out of
-//
-// The names are hashes, which is what makes the same symbol in three sets one
-// file on the device, and what makes a stale file impossible: change what goes
-// into it and the name changes with it. Sixteen bytes of hash, because that is
-// what layout.bin carries per slot - hashBytes() reads them straight back out
-// of the name, so the two ends only agree if the hex is exactly that long.
-
-/** The bytes as an ArrayBuffer of their own, which is what the store takes.
- *
- * renderSymbol(), renderLayoutBin() and speak() all answer with a view. A view
- * that already covers its whole buffer is handed over as it stands; anything
- * else is copied, because putting the buffer of a partial view into the store
- * would quietly keep whatever else is in it. */
-function owned(bytes: Uint8Array): ArrayBuffer {
-  return bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
-    ? bytes.buffer as ArrayBuffer
-    : bytes.slice().buffer as ArrayBuffer;
-}
-
-/** The 32 hex characters a name carries: sha256, cut to HASH_BYTES. */
-async function fingerprint(bytes: BufferSource): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .slice(0, HASH_BYTES * 2);
-}
-
-/**
- * What a spoken sentence's WAV is called, before it has been spoken.
- *
- * The name is for what goes *into* the synthesis rather than for what comes
- * out, and that is the one place the audio differs from the tiles. Synthesis
- * is the expensive step - a model off a CDN, then a sentence at a time - so
- * the name has to be knowable before it is paid for, or a rebuild could never
- * reuse anything. Same rule as tts.fingerprint(): text, voice, and every
- * option that changes how it sounds, the pipeline's own version included, so
- * a levelling change renames rather than silently reuses.
- *
- * At module scope rather than inside runBuild(), because the device export
- * asks it too - that is how it finds the build's own WAVs in the store without
- * synthesising a second set that would be named the same and be different
- * bytes. Neither the Azure key nor ownsInference is in the payload: both say
- * who may ask, not how the sentence sounds, and rotating a key must not
- * re-render a device's worth of audio.
- */
-async function audioName(text: string, spokenBy: string): Promise<string> {
-  const payload = JSON.stringify({
-    text: text.trim(), voice: spokenBy, pipeline: PIPELINE_VERSION, ...VORLAUT,
-  });
-  return `a${await fingerprint(new TextEncoder().encode(payload))}.wav`;
-}
-
-/** The voice this layout is spoken in - chosen_voice() in layout.py.
- *
- * An empty entry is not an error but the normal case for a fresh layout, and
- * defaultVoice() is what answers then - see the note there for why the
- * Sammlung's language is the one that asks and why the network is not. */
-function chosenVoice(layout: Layout): string {
-  if (layout.voice) return layout.voice;
-  // The same answer the settings sheet marks, from the same helper - the two
-  // disagreeing would mean the row saying "picked for this collection's
-  // language" and the build speaking somebody else.
-  return startsOn(layout.language || "");
-}
-
-/** Why a symbol resolves to nothing - as a key for the build log.
- *
- * missing_hint() in tiles.py, with the METACOM branch pointing at the folder
- * picker rather than at an environment variable: the collection is chosen in
- * this browser now, and telling somebody to set VORLAUT_METACOM_DIR would send
- * them looking for a server that is not there. */
-function missingHint(reference: string): string {
-  if (!reference.startsWith("metacom:")) return "build.missing_symbol";
-  return symbols.metacomReady() ? "build.missing_metacom"
-                                : "build.missing_metacom_off";
-}
-
-/** Everything the firmware needs, out of the layout and into the "data" store.
- *
- * Answers with the log, and nothing else - the files stay where buildManifest()
- * and buildFile() come and read them, which is the arrangement builder.py had
- * with data/ and the reason 1.5 MB never travels through a return value. See
- * the note at the foot of backend.js. */
-export async function runBuild(): Promise<{ log: string[] }> {
-  const log: string[] = [];
-  // The page is served in one language and the log is part of the page, so it
-  // reads in that one. An empty key is the blank line before the closing note.
-  const note = (key: string, params?: Record<string, string | number>) =>
-    log.push(key ? t(key, params) : "");
-
-  const held = await store.readLayout();
-  const layout = held.layout || NOTHING;
-  // The whole Sammlung goes onto the device: it is itself the selection, and
-  // it cannot hold more sets than the device has room for.
-  const sets = isDiy(layout) ? layout.sets || [] : [];
-
-  if (!sets.length) note("build.no_sets");
-
-  // What this run produced. Anything in the store that is not in here at the
-  // end is from an earlier one and goes.
-  const expected = new Set([LAYOUT_BIN]);
-  let audioOk = true;
-
-  const voice = chosenVoice(layout);
-  // Without a voice nothing can be spoken. In the Python a cached WAV still
-  // counted, because the cache was keyed by a voice that had once been there;
-  // here the name of a WAV has the voice in it, so with no voice there is no
-  // name to look for and nothing to find.
-  const silent = !voice;
-
-  const tileFiles: string[][] = [];   // [set][slot] -> file name
-  const audioFiles: string[][] = [];
-  const labelFiles: string[] = [];
-
-  // One render per distinct symbol rather than per use: the tile is the same
-  // picture whatever set it stands in, and hashing it is what proves that
-  // rather than assumes it.
-  const drawn = new Map<string, { name: string; missing: boolean }>();
-  async function storeTile(reference: string, negated = false) {
-    const symbol = String(reference || "");
-    // Keyed by both, because a crossed-out key is a different tile: the cross
-    // is baked into the pixels, so the file it produces is different bytes and
-    // therefore a different name. Keyed by the reference alone, a set holding
-    // "Brot" and "kein Brot" got whichever of the two was drawn first on both.
-    const key = appPackage.pictureKey(symbol, negated);
-    if (!drawn.has(key)) {
-      const source = await picture(symbol);
-      const bytes = tiles.renderSymbol(source, { negated });
-      const name = `t${await fingerprint(bytes)}.bin`;
-      await store.putFile("data", name, owned(bytes));
-      // A reference that resolves to nothing is not an error - renderSymbol
-      // draws its grey cross - but it is worth a line in the log.
-      drawn.set(key, { name, missing: Boolean(symbol) && !source });
-    }
-    const tile = drawn.get(key);
-    expected.add(tile.name);
-    return tile;
-  }
-
-  // The tile for a key holding nothing, rendered once for the whole build.
-  //
-  // Kept out of `drawn` rather than given a reserved key in it: that map is
-  // indexed by pictureKey(), which is a symbol reference and whether it is
-  // crossed out, and an empty key is neither of those things. A sentinel in
-  // there would be a value the key scheme has no room for, sitting next to
-  // "" - which is a different tile now and is what an unresolved reference
-  // still draws.
-  let blankName = "";
-  async function storeBlank(): Promise<{ name: string; missing: boolean }> {
-    if (!blankName) {
-      const bytes = tiles.toRgb565Be(tiles.blank());
-      blankName = `t${await fingerprint(bytes)}.bin`;
-      await store.putFile("data", blankName, owned(bytes));
-    }
-    expected.add(blankName);
-    // Never missing: nothing was asked for, so nothing failed to arrive.
-    return { name: blankName, missing: false };
-  }
-
-  // audioName() is at module scope and says why - the device export asks the
-  // same question, and a second copy of the rule would name the same sentence
-  // two different things.
-  async function storeAudio(text: string, spokenBy: string): Promise<string> {
-    const name = await audioName(text, spokenBy);
-    if (!await store.getFile("data", name)) {
-      // The Azure key rides along the way synthesise() sends it, or a board
-      // whose voice is azure: previews fine and then fails on Release.
-      const held = await store.readSettings(NO_SETTINGS);
-      // ownsInference for the same reason synthesise() states it, and like
-      // the key it stays out of the fingerprint payload above: both say who
-      // may ask, not how the sentence sounds.
-      const options = held.azureSecret && held.azureRegion
-        ? { ...VORLAUT, ownsInference: true,
-            azure: { key: held.azureSecret, region: held.azureRegion } }
-        : { ...VORLAUT, ownsInference: true };
-      const spoken = await speak(text, spokenBy, options);
-      await store.putFile("data", name, owned(spoken.wav));
-    }
-    expected.add(name);
-    return name;
-  }
-
-  for (const [index, entry] of sets.entries()) {
-    // The position in the order on the device, which is the layout's own.
-    const number = index + 1;
-    const named = String(entry.name || "");
-    const label = (!named || named === t("build.set", { n: number }))
-      ? t("build.set", { n: number })
-      : t("build.set_named", { n: number, name: named });
-
-    const setSymbol = String(entry.symbol || "");
-    const setTile = await storeTile(setSymbol);
-    labelFiles.push(setTile.name);
-    if (!setSymbol) {
-      note("build.no_set_symbol", { label });
-    } else if (setTile.missing) {
-      note("build.missing_prefixed", {
-        label, what: t(missingHint(setSymbol), { symbol: setSymbol }),
-      });
-    }
-
-    const tileNames = [];
-    const audioNames = [];
-    // The first four and no more: layout.bin holds exactly that many per set,
-    // and renderLayoutBin() would drop the rest without a word. Logging slots
-    // that cannot reach the device would be worse than not mentioning them.
-    const slots = (entry.slots || []).slice(0, SLOTS_PER_SET);
-    for (const [at, slot] of slots.entries()) {
-      const nth = at + 1;
-      const symbol = String(slot.symbol || "");
-      // An empty key and a key whose picture would not resolve are two
-      // different sentences, and until 2026-08-27 the device said the second
-      // one for both - see slotIsEmpty() and tiles.blank(). The predicate is
-      // the export's, so that the two halves cannot drift apart again.
-      const tile = appPackage.slotIsEmpty(slot)
-        ? await storeBlank()
-        : await storeTile(symbol, Boolean(slot.negated));
-      tileNames.push(tile.name);
-      if (tile.missing) {
-        note("build.missing_in_slot", {
-          label, slot: nth, what: t(missingHint(symbol), { symbol }),
-        });
-      }
-
-      const text = String(slot.text || "");
-      if (!text) {
-        note("build.no_text", { label, slot: nth });
-        audioNames.push("");
-        continue;
-      }
-      if (silent) {
-        audioOk = false;
-        note("build.slot_no_voice", {
-          label, slot: nth, text, reason: t("build.err.no_voice"),
-        });
-        audioNames.push("");
-        continue;
-      }
-      try {
-        audioNames.push(await storeAudio(text, voice));
-        note("build.slot_text", { label, slot: nth, text });
-      } catch (error) {
-        // A sentence that would not speak is a warning rather than the end of
-        // the build: everything except the sound is still worth having, and
-        // the log says which key is silent.
-        audioOk = false;
-        note("build.tts_failed", { text, reason: reason(error) });
-        audioNames.push("");
-      }
-    }
-    tileFiles.push(tileNames);
-    audioFiles.push(audioNames);
-  }
-
-  // Leftovers from earlier runs, so that no old set stays behind. layout.bin
-  // is in `expected` from the start rather than added after this loop the way
-  // the Python did it - there it was deleted here and written back two lines
-  // later, and said so in the log on every single build.
-  for (const file of await store.listFiles("data")) {
-    if (expected.has(file.name)) continue;
-    await store.dropFile("data", file.name);
-    note("build.removed", { name: file.name });
-  }
-
-  await store.putFile("data", LAYOUT_BIN, owned(
-    renderLayoutBin(layout, labelFiles, tileFiles, audioFiles)));
-  note("build.written", { name: `data/${LAYOUT_BIN}` });
-
-  const left = await store.listFiles("data");
-  // What clears the "a release is due" mark: the version this build ran
-  // against. saveNow() has already written whatever was on screen, so it is
-  // the version the page is showing.
-  await store.recordBuild(held.version);
-  note("build.done", {
-    sets: sets.length,
-    files: left.length,
-    size: Math.round(left.reduce((total, file) => total + file.size, 0) / 1024),
-    where: "data/",
-  });
-  if (!audioOk) note("build.audio_missing");
-
-  // Where the files go next is not this function's sentence to write. It used
-  // to be - three lines saying that a build does not reach the device and
-  // where to read about the ways that might - and they were true for as long
-  // as nothing here could send. ui/release.ts sends now, and it says what
-  // happened to these files immediately below this log: which of them the
-  // talker was missing, which went down the cable, what it holds afterwards.
-  // Two accounts of the same moment, one of them written before the fact, is
-  // how a log starts lying.
-  return { log };
-}
-
-export async function buildManifest() {
-  const files = await store.listFiles("data");
-  const held = await store.readLayout();
-  return {
-    version: held.version,
-    current: held.buildCurrent === "1",
-    // A tablet Sammlung has no sets and nothing to build: the build writes
-    // tiles and WAVs for a five-key device. Zero rather than a throw, because
-    // the Daten panel reads this whichever Sammlung happens to be open.
-    sets: held.layout && isDiy(held.layout) ? held.layout.sets.length : 0,
-    files,
-    bytes: files.reduce((total, file) => total + file.size, 0),
-  };
-}
-
-export async function buildFile(name) {
-  const bytes = await store.getFile("data", name);
-  if (!bytes) throw new Error(`no such file in data/: ${name}`);
-  return bytes;
 }

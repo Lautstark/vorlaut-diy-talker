@@ -286,7 +286,9 @@ seen, because it was enumerating the *interface* rather than the *file*:
   [`shell/voices.ts`](../src/shell/voices.ts). The *tablet* export falls back to
   this table and the settings sheet paints from it.
 - `HASH_BYTES` and `LAYOUT_BIN` — [`folder.ts`](../loader/src/folder.ts) and
-  [`built.ts`](../src/data/built.ts), both device-side, both travelling.
+  `built.ts`, both device-side, both travelling. (`built.ts` has since gone
+  altogether: adr/0011 took the build out of the editor, so there is no store
+  of build output left for anything to read back.)
 
 None of that blocks anything: the editor pins the package and imports the table
 from it, which is what pinning is for. But it means the package is not a leaf.

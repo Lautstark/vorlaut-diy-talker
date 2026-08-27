@@ -53,7 +53,7 @@ now, and getting it right is most of the work.
 | | Browser side | Device side | Held together by |
 |---|---|---|---|
 | `layout.bin` | [`loader/src/layout_format.ts`](../loader/src/layout_format.ts) | [`layout_format.h`](../firmware/vorlaut/layout_format.h) | `test_layout_frozen.py` — frozen bytes, live C reader |
-| The cable | [`loader/tools/cable.js`](../loader/tools/cable.js), [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) | [`cable_format.h`](../firmware/vorlaut/cable_format.h), [`cable.h`](../firmware/vorlaut/cable.h) | `test_cable_format.py` — live both ends |
+| The cable | [`loader/tools/cable.js`](../loader/tools/cable.js), [`loader/src/cable.ts`](../loader/src/cable.ts) | [`cable_format.h`](../firmware/vorlaut/cable_format.h), [`cable.h`](../firmware/vorlaut/cable.h) | `test_cable_format.py` — live both ends |
 | `t<hash>.bin` | [`loader/src/tiles.ts`](../loader/src/tiles.ts) | `drawTile()` in `vorlaut.ino` | **nothing** |
 | `a<hash>.wav` | the build | `seekToWavData()` in `vorlaut.ino` | **nothing** |
 | The name rule | `hashBytes()` in `layout_format.ts` | `hashPath()` in `vorlaut.ino`, `cableNameOk()` in `cable_format.h` | **nothing** |

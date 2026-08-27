@@ -866,12 +866,23 @@ export function readDevicePackage(pkg: DevicePackage): ReadDevicePackage {
             `${name} is not a name layout.bin can carry, so this package ` +
             "cannot be compiled without renaming what the device would hold.");
         }
-        if (!isDeviceWav(wavFormat(bytes))) {
+        const heard = wavFormat(bytes);
+        if (!isDeviceWav(heard)) {
+          // Both halves, and the second one is the half that is useful. Saying
+          // only what the device wants leaves whoever is reading it to open
+          // the file in something that can tell them what it is; saying what
+          // arrived is usually the whole diagnosis, because the answer is
+          // nearly always one number.
           throw new Error(
-            `${name} is not the WAV the device plays - ${DEVICE_SAMPLE_RATE} Hz, ` +
-            `${DEVICE_CHANNELS} channel, ${DEVICE_BITS_PER_SAMPLE}-bit. An app ` +
-            "package's Ogg Opus is the usual thing to find here, and adr/0008 " +
-            "is why it must not be converted into one.");
+            `${name} is not the WAV the device plays. It wants ` +
+            `${DEVICE_SAMPLE_RATE} Hz, ${DEVICE_CHANNELS} channel, ` +
+            `${DEVICE_BITS_PER_SAMPLE}-bit, and this is ` +
+            (heard
+              ? `${heard.sampleRate} Hz, ${heard.channels} channel, `
+                + `${heard.bitsPerSample}-bit`
+              : "not a RIFF/WAVE file at all - an app package's Ogg Opus is "
+                + "the usual thing to find here") +
+            ". adr/0008 is why it must not be converted into one.");
         }
         sounds.set(text, { name, bytes });
       }

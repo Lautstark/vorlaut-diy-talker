@@ -145,7 +145,7 @@ than the attribute, because the attribute was correct the whole time.
 The proposal kept it in Einstellungen as what remains of the Device panel,
 renamed to say so. Asked properly, the answer is weaker than that.
 
-* [`src/editor-diy/release.ts`](../src/editor-diy/release.ts) already offers a
+* `src/editor-diy/release.ts` already offered a
   connect button *inside the release dialog* at the step where it finds it has
   no port — with the words about what is about to be written already read.
 * [`loader/src/device.ts`](../loader/src/device.ts) opens with "One
@@ -291,7 +291,7 @@ has no Save.
    tablet's grid card, and now~~ carrying the talker's build. The tablet's grid
    went through it too until amendment 5 gave the sheet a hand-over of its own;
    what is left in the menu is acts, which is what the menu is for, and
-   `editor-diy/folder_build.ts` is its one caller.
+   `editor-diy/folder_build.ts` was its one caller.
 
 ### The grid card stayed its own entry
 

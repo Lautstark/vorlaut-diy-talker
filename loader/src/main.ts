@@ -406,8 +406,16 @@ function portName(port: SerialPort): string {
 }
 
 /** Step four. Draws itself again after every answer, because what it should be
- *  offering is entirely a question of whether there is a port yet. */
-function connectStep(): void {
+ *  offering is entirely a question of whether there is a port yet.
+ *
+ * `andSend` is what keeps a finished transfer on the screen. This step opens
+ * the one below it when it finds a port, which is right on the way in and
+ * wrong on the way back: send() redraws this step afterwards - a port that did
+ * not answer has to offer the chooser again - and a cascade from there would
+ * wipe the log that had just explained why. The log is the most useful thing
+ * there is when something went wrong, and it must not vanish with the last
+ * line. */
+function connectStep({ andSend = true } = {}): void {
   steps.connect.begin();
   if (!cableSupported()) {
     // Not a refusal of the file: everything up to here worked, and the folder
@@ -434,7 +442,7 @@ function connectStep(): void {
     steps.connect.button(t("load.connect"), () => void grant()),
   );
   steps.connect.done();
-  sendStep();
+  if (andSend) sendStep();
 }
 
 /** Chrome's chooser, from a click of ours, with our words already read.
@@ -532,11 +540,14 @@ async function send(go: HTMLButtonElement): Promise<void> {
     }
   } finally {
     stop.remove();
-    // The log stays and so does the way back: a second attempt is a second
-    // press, and after a port that did not answer the connect step above is
-    // the one that has changed rather than this one.
-    steps.send.row(steps.send.button(t("load.send"), () => void send(go), "btn primary"));
-    connectStep();
+    // The log stays, and the way back is a button under it rather than a
+    // redraw: a second attempt is a second press, and after a port that did
+    // not answer it is the connect step above that has changed rather than
+    // this one. Which is also why that redraw is told not to cascade back
+    // down here - it would take the log with it.
+    const again = steps.send.button(t("load.send"), () => void send(again), "btn primary");
+    steps.send.row(again);
+    connectStep({ andSend: false });
     go.disabled = false;
   }
 }

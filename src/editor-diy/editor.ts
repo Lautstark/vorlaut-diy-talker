@@ -880,11 +880,11 @@ export const diy: Editor = {
    * head, and they are re-read on every language switch like every other label
    * - applyTexts() calls this rather than naming these ids itself.
    *
-   * Three where there were four: the button that deleted a set is in the set's
-   * own card now, which builds its own label every time it opens. */
+   * Two where there were four. The button that deleted a set is in the set's
+   * own card now, which builds its own label every time it opens; the button
+   * that sent to the talker is on a page of its own - adr/0011. */
   labels(): void {
     $("previewLabel").title = t("ui.preview_title");
     $("previewText").textContent = t("ui.preview");
-    $<HTMLButtonElement>("releaseBtn").textContent = t("ui.release");
   },
 };

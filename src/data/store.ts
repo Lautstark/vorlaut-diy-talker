@@ -66,33 +66,51 @@ import type { CollectionList, CollectionRef, HeldLayout, Layout, SaveResult, Set
   from "../core/types.js";
 import { touched } from "./changed.js";
 
-/** The two picture folders, as the callers name them. Was three: a `speech`
- *  member sat here with nothing behind it in the database, so every call naming
- *  it would have thrown at run time. The typed schema is what makes that a
- *  compile error, and removing the member is the first thing it caught. */
-export type StoreName = "symbols" | "data";
+/** The folder of files, as the callers name them.
+ *
+ * One member, and it has been three. A `speech` member sat here with nothing
+ * behind it in the database, so every call naming it would have thrown at run
+ * time - the typed schema is what makes that a compile error, and removing it
+ * is the first thing it caught. `data` went the other way round: it was real,
+ * and what filled it was the build. There is no build in the editor any more
+ * (adr/0011), the talker's files are compiled on the page that sends them, and
+ * a store nothing writes is exactly the member this type exists to make
+ * impossible.
+ *
+ * A union of one rather than the argument going away, because the argument is
+ * what says which folder at every call site, and a second folder is a plausible
+ * thing for this page to want again - recordings somebody made themselves were
+ * one, and were declined for other reasons. */
+export type StoreName = "symbols";
 
 const DB_NAME = "vorlaut";
 
-/* Version 3, and it starts from nothing.
+/* Version 4, and it starts from nothing.
  *
  * 1 held one layout under one key; 2 held a registry and `layout:<id>` beside
- * it; 3 is the schema below. There is no carrying-across between 2 and 3, and
- * that is the decision rather than an omission - conventions.md's rule about
- * its own rules: these products have one user, who is the person writing them,
- * and where a design is right it is adopted and the old one deleted in the same
- * change. A browser that has been here before opens this version, loses what it
- * had, and gets a first visit. Somebody who wanted to keep a board across the
- * change had data/backup.ts to write it out with, which is what that file is
- * for and is a better answer than a migration nobody will read again.
+ * it; 3 was the schema below with a `data` store beside it, holding what a
+ * build made for the cable; 4 is the schema below. There is no carrying-across
+ * between any two of them, and that is the decision rather than an omission -
+ * conventions.md's rule about its own rules: these products have one user, who
+ * is the person writing them, and where a design is right it is adopted and the
+ * old one deleted in the same change. A browser that has been here before opens
+ * this version, loses what it had, and gets a first visit. Somebody who wanted
+ * to keep a board across the change had data/backup.ts to write it out with,
+ * which is what that file is for and is a better answer than a migration nobody
+ * will read again.
  *
- * So the upgrade drops *every* store it finds, including symbols/ and data/,
- * whose shape has not changed. Keeping them would leave a browser holding
- * pictures for boards that no longer exist and a build of a layout that is
- * gone - half-old, which is the state this repository has decided not to have.
- * One statement, and afterwards a database that reads exactly like a fresh one.
+ * So the upgrade drops *every* store it finds, including symbols/, whose shape
+ * has not changed. Keeping it would leave a browser holding pictures for boards
+ * that no longer exist - half-old, which is the state this repository has
+ * decided not to have. One statement, and afterwards a database that reads
+ * exactly like a fresh one.
+ *
+ * The bump to 4 is what makes `data` actually leave rather than merely stop
+ * being named. Dropping it out of the upgrade alone would have left every
+ * browser that has been here holding a megabyte of tiles for a device this page
+ * can no longer reach, invisible to everything and freed by nothing.
  */
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 /** One Sammlung's layout, as it is stored: the bytes and the stamp over them.
  *  The id is in the record rather than only in the key, because the store has
@@ -136,10 +154,8 @@ interface VorlautDB extends DBSchema {
    *  the rest of the app writes down - see core/types.ts. */
   settings: { key: typeof SETTINGS; value: Settings };
   marks: { key: MarkName; value: string | null };
-  /** What /api/pick and /api/upload put in symbols/, by name. */
+  /** The pictures somebody picked or uploaded, by name. */
   symbols: { key: string; value: ArrayBuffer };
-  /** What a build puts in data/, for the cable. */
-  data: { key: string; value: ArrayBuffer };
 }
 
 const COLLECTIONS = "collections";
@@ -149,7 +165,6 @@ const SETTINGS = "settings";
 const BY_UPDATED = "updatedAt";
 
 const CURRENT: MarkName = "current";
-const BUILT: MarkName = "built";
 
 /** The stores a write to a board touches. One tuple, so the three operations
  *  that have to move the registry and a layout together cannot be written with
@@ -208,7 +223,6 @@ function open(): Promise<IDBPDatabase<VorlautDB>> {
       db.createObjectStore(SETTINGS);
       db.createObjectStore(MARKS);
       db.createObjectStore("symbols");
-      db.createObjectStore("data");
     },
 
     /* The three that were not here, and the first one is why a browser that
@@ -556,15 +570,10 @@ export async function readLayout(): Promise<HeldLayout> {
   const marks = tx.objectStore(MARKS);
   const current = await marks.get(CURRENT);
   const held = current ? await tx.objectStore(LAYOUTS).get(current) : undefined;
-  const built = await marks.get(BUILT);
   await tx.done;
 
-  if (!held) return { layout: null, version: EMPTY, buildCurrent: "0" };
-  return {
-    layout: JSON.parse(held.text),
-    version: held.version,
-    buildCurrent: built === held.version ? "1" : "0",
-  };
+  if (!held) return { layout: null, version: EMPTY };
+  return { layout: JSON.parse(held.text), version: held.version };
 }
 
 /** Write, unless somebody else wrote first.
@@ -621,18 +630,12 @@ export async function writeLayout(layout: Layout, expected: string | null): Prom
   }
 
   await layouts.put({ id, text, version });
-  const built = await marks.get(BUILT);
   await tx.done;
 
   // Only a write that actually landed. A conflict wrote nothing, and
   // announcing one would back up the layout this tab lost.
   touched();
-  return {
-    conflict: false,
-    saved: JSON.parse(text),
-    version,
-    buildCurrent: built === version ? "1" : "0",
-  };
+  return { conflict: false, saved: JSON.parse(text), version };
 }
 
 export async function readSettings<T extends object>(fallback: T = {} as T): Promise<T> {
@@ -651,42 +654,29 @@ export async function writeSettings(settings: Settings): Promise<Settings> {
   return settings;
 }
 
-/** What a finished build records, so the page can say whether one is due.
- *
- * The server compares a fingerprint over the active sets alone, so that
- * editing a switched-off set does not claim the device is stale. This compares
- * the whole layout, which is stricter: it will sometimes say a build is due
- * where app.py would say it is current. That is the safe direction - and the
- * same one build_current_flag() takes when it cannot tell - and it tightens on
- * its own once the build moves in here and can compute the real fingerprint.
- *
- * Quiet, deliberately. It stamps which layout a build ran against and changes
- * nothing a Sicherung carries; announcing it would rewrite the backup file to
- * say nothing new. */
-export async function recordBuild(version: string | null): Promise<void> {
-  const db = await open();
-  await db.put(MARKS, version, BUILT);
-}
-
-// --- The two folders of files ------------------------------------------------
+// --- The folder of files ------------------------------------------------------
 //
-// symbols/ is pictures somebody chose; data/ is what a build made out of them.
-// Kept apart for the reason they are two folders on disk: a build empties the
-// second and must never be able to reach the first. Two stores rather than one
-// store with prefixed keys, and that is the same argument the registry makes
-// above: a boundary the database enforces is one nothing has to remember.
+// symbols/ is the pictures somebody picked or uploaded. There was a data/ store
+// beside it, which is what a build made out of them, and the note here used to
+// be about why the two were kept apart: a build emptied the second and must
+// never have been able to reach the first, and a boundary the database enforces
+// is one nothing has to remember.
 //
-// Which of the two announces is the other half of it. symbols/ is content and
-// is in the backup; data/ is build output, which a build makes again out of the
-// layout and the symbols, and announcing it would rewrite the file once per
-// artefact to say nothing new.
-
-const announces = (which: StoreName): boolean => which === "symbols";
+// The build left with the device path - adr/0011 - so data/ went with it, and
+// what it was protecting no longer exists to protect. The argument was right
+// and is recorded rather than deleted, because the next thing that wants a
+// second folder of derived files will want exactly it.
+//
+// Every write here announces. That used to be a question - symbols/ is content
+// and is in the backup, while data/ was build output which a build made again
+// out of the layout and the symbols, so announcing it would have rewritten the
+// backup file once per artefact to say nothing new. With one folder left, and
+// it the one that is content, there is nothing left to ask.
 
 export async function putFile(which: StoreName, name: string, bytes: ArrayBuffer): Promise<void> {
   const db = await open();
   await db.put(which, bytes, name);
-  if (announces(which)) touched();
+  touched();
 }
 
 export async function getFile(which: StoreName, name: string): Promise<ArrayBuffer | null> {
@@ -712,14 +702,12 @@ export async function listFiles(which: StoreName): Promise<{ name: string; size:
 export async function dropFile(which: StoreName, name: string): Promise<void> {
   const db = await open();
   await db.delete(which, name);
-  if (announces(which)) touched();
+  touched();
 }
 
-/** Everything, gone. What a build does to data/ before it fills it again. */
+/** Everything, gone. What a restore does before it puts the file's own back. */
 export async function empty(which: StoreName): Promise<void> {
   const db = await open();
   await db.clear(which);
-  // A build empties data/ before it fills it again, which is the common case
-  // here and is not news. Emptying symbols/ is.
-  if (announces(which)) touched();
+  touched();
 }
