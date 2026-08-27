@@ -19,11 +19,25 @@ applied to ONE end, and the run records which end noticed:
 
     browser   npx vitest run tests/unit/device_fixtures.test.ts
     firmware  python3 tests/test_device_host.py
+    writer    npx vitest run tests/unit/device_package_writer.test.ts
+    reader    npx vitest run tests/unit/device_package_reader.test.ts
+
+Four ends and TWO boundaries, which adr/0013 is the decision behind. The first
+pair is the device interface: the bytes between a browser and the talker. The
+second is the device package - the .obz between the editor and the loader page,
+one step upstream, where neither end is the device and both are browsers. The
+fixtures for both live under device/fixtures/ and belong to none of the four.
 
 A fault in a header that only the browser runner catches would mean the two
 runners are not independent after all, and a fault in either that NEITHER
 catches is a hole in the fixtures. Both are printed as such rather than
 counted as a pass.
+
+Every fault is put to all four runners rather than to the two of its own
+boundary. That is not free and it is not ceremony: src/data/device_package.ts
+takes SLOTS_PER_SET and HASH_BYTES out of loader/src/layout_format.ts, so the
+two boundaries are not as disjoint as the picture above suggests, and a run
+that only asked the near pair would never see it.
 
 **A mutation nothing catches is a finding, not a tidy-up.** What it means is
 that the fixture set is silent about something, and the answer is a new
@@ -53,9 +67,12 @@ LAYOUT_TS = ROOT / "loader" / "src" / "layout_format.ts"
 TILES_TS = ROOT / "loader" / "src" / "tiles.ts"
 AUDIO_TS = ROOT / "src" / "data" / "audio_format.ts"
 CABLE_JS = ROOT / "loader" / "tools" / "cable.js"
+PACKAGE_TS = ROOT / "src" / "data" / "device_package.ts"
 
 FIRMWARE = "firmware"
 BROWSER = "browser"
+WRITER = "writer"
+READER = "reader"
 
 # (file, which end it is, what to find, what to put there, what that would mean)
 MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
@@ -276,6 +293,69 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      '        const acked = Number((await this.expectOneOf(["ack"])).rest);',
      "        const acked = at;",
      "the browser stops waiting to be acknowledged"),
+
+    # --- the device package: what a writer must put in the file --------------
+    #
+    # The other boundary, and the one adr/0013 added this directory a kind for.
+    # Everything below is aimed at a package that PARSES: a talker that says
+    # the wrong sentence rather than one that says nothing, which
+    # docs/device-interface.md section 6 is a whole section about.
+    (PACKAGE_TS, WRITER, "      if (slot.negated) button.ext_vorlaut_negated = true;",
+     "      if (false) button.ext_vorlaut_negated = true;",
+     "a crossed-out key is written into the package as a plain one"),
+    (PACKAGE_TS, WRITER, "      if (!reference) return undefined;",
+     "      if (!reference || !input.sources.get(reference)) return undefined;",
+     "a reference that resolved to nothing is dropped instead of recorded"),
+    (PACKAGE_TS, WRITER, "      if (slot.text) button.vocalization = slot.text;",
+     "      if (false) button.vocalization = slot.text;",
+     "the sentence a key speaks is not written, only the one printed on it"),
+    (PACKAGE_TS, WRITER, "        duration: wavSeconds(format!),",
+     "        duration: 0,",
+     "every recording is filed as lasting no time at all"),
+    (PACKAGE_TS, WRITER, "      locale: plan.language,", '      locale: "en",',
+     "the language is not the Sammlung's own"),
+    (PACKAGE_TS, WRITER, "      if (!isDeviceWav(format)) {", "      if (false) {",
+     "the writer stops refusing a recording at the wrong sample rate"),
+    (PACKAGE_TS, WRITER, "      if (!AUDIO_NAME.test(sound.name)) {",
+     "      if (false) {",
+     "the writer stops refusing a recording under a name layout.bin cannot carry"),
+    (PACKAGE_TS, WRITER, "    root: boardPath(ids[0]!),",
+     "    root: boardPath(ids[ids.length - 1]!),",
+     "the manifest says the ring starts at the last board"),
+
+    # --- the device package: what a reader must make of it -------------------
+    (PACKAGE_TS, READER, "        empty: slotIsEmpty({ text, symbol }),",
+     "        empty: false,",
+     "a key holding nothing comes back as a key holding something"),
+    (PACKAGE_TS, READER, "  if (walked.length !== byBoardId.size) {",
+     "  if (false) {",
+     "a ring that reaches some of the boards is taken for one that reaches all"),
+    (PACKAGE_TS, READER,
+     "      sleepTimeoutSeconds: root.ext_vorlaut_sleep_timeout_seconds as number,",
+     "      sleepTimeoutSeconds: walked[walked.length - 1]!.ext_vorlaut_sleep_timeout_seconds as number,",
+     "the sleep timeout is read off the last board rather than the root"),
+    (PACKAGE_TS, READER, "        negated: button.ext_vorlaut_negated === true,",
+     "        negated: false,",
+     "a crossed-out key comes back as a plain one"),
+    (PACKAGE_TS, READER, "      if (button.load_board) continue;",
+     "      if (false) continue;",
+     "the key that turns the page comes back as a fifth key on the board"),
+    (PACKAGE_TS, READER, "      if (!entry.path) {", "      if (false) {",
+     "a gap the export recorded on purpose is read as a missing file"),
+    (PACKAGE_TS, READER,
+     '      const text = String(button.vocalization ?? button.label ?? "");',
+     '      const text = String(button.label ?? "");',
+     "the caption printed on a key is taken for the sentence it speaks"),
+    (PACKAGE_TS, READER, "        if (!isDeviceWav(heard)) {",
+     "        if (false) {",
+     "the reader stops refusing a recording at the wrong sample rate"),
+    (PACKAGE_TS, READER, "        if (!AUDIO_NAME.test(name)) {",
+     "        if (false) {",
+     "the reader stops refusing a recording under a name layout.bin cannot carry"),
+    (PACKAGE_TS, READER,
+     '        contentType: String(entry.content_type ?? "application/octet-stream"),',
+     '        contentType: "application/octet-stream",',
+     "what a picture is gets forgotten between the file and the compiler"),
 ]
 
 # Real faults that no fixture at this boundary can see, with the reason.
@@ -317,41 +397,46 @@ CONTROLS: list[tuple[pathlib.Path, str, str, str, str]] = [
 ]
 
 
-def browser_passes() -> bool:
-    return subprocess.run(
-        ["npx", "vitest", "run", "tests/unit/device_fixtures.test.ts"],
+# The four runners, in the order a report reads best. Each one meets the
+# fixtures and never another runner: that is the property the whole directory
+# is built on, and a runner added here that imported another end's code would
+# take it away without anything going red.
+def vitest(spec: str):
+    return lambda: subprocess.run(
+        ["npx", "vitest", "run", spec],
         cwd=ROOT, capture_output=True, text=True).returncode == 0
 
 
-def firmware_passes() -> bool:
-    return subprocess.run(
+RUNNERS = {
+    BROWSER: vitest("tests/unit/device_fixtures.test.ts"),
+    FIRMWARE: lambda: subprocess.run(
         [sys.executable, "tests/test_device_host.py"],
-        cwd=ROOT, capture_output=True, text=True).returncode == 0
+        cwd=ROOT, capture_output=True, text=True).returncode == 0,
+    WRITER: vitest("tests/unit/device_package_writer.test.ts"),
+    READER: vitest("tests/unit/device_package_reader.test.ts"),
+}
 
 
-def apply(case) -> tuple[bool, bool] | None:
-    """(browser passed, firmware passed), or None if the text has moved."""
+def everything_passes() -> bool:
+    return all(passes() for passes in RUNNERS.values())
+
+
+def apply(case) -> dict[str, bool] | None:
+    """Which runners still passed, or None if the text to change has moved."""
     path, _end, find, replace, _what = case
     original = path.read_text(encoding="utf-8")
     if find not in original:
         return None
     path.write_text(original.replace(find, replace, 1), encoding="utf-8")
     try:
-        return browser_passes(), firmware_passes()
+        return {end: passes() for end, passes in RUNNERS.items()}
     finally:
         # Whatever happened, including a keyboard interrupt on the way past.
         path.write_text(original, encoding="utf-8")
 
 
-def describe(end: str, browser_ok: bool, firmware_ok: bool) -> str:
-    caught = []
-    if not browser_ok:
-        caught.append("browser")
-    if not firmware_ok:
-        caught.append("firmware")
-    if not caught:
-        return ""
-    return "+".join(caught)
+def describe(result: dict[str, bool]) -> str:
+    return "+".join(end for end, ok in result.items() if not ok)
 
 
 def main() -> int:
@@ -364,7 +449,7 @@ def main() -> int:
         print(dirty)
         return 2
 
-    if not (browser_passes() and firmware_passes()):
+    if not everything_passes():
         print("The fixture runners do not both pass to begin with, so nothing "
               "here would mean anything.")
         return 2
@@ -379,13 +464,12 @@ def main() -> int:
             moved.append(what)
             print(f"  ?                  {what} - the code to change has moved")
             continue
-        browser_ok, firmware_ok = result
-        caught = describe(end, browser_ok, firmware_ok)
+        caught = describe(result)
         if not caught:
             missed.append(what)
-            print(f"  MISSED             {what}")
+            print(f"  MISSED                    {what}")
             continue
-        print(f"  caught  {caught:<10} {what}")
+        print(f"  caught  {caught:<17} {what}")
         # A fault put into one end that only the OTHER end noticed would mean
         # the two runners are not the independent halves they are meant to be.
         if end not in caught:
@@ -400,7 +484,7 @@ def main() -> int:
         if result is None:
             moved.append(what)
             print(f"  ?               {what} - the code to change has moved")
-        elif all(result):
+        elif all(result.values()):
             print(f"  survived        {what}")
         else:
             wrongly.append(what)
