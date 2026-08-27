@@ -1,21 +1,32 @@
 # The device interface, and whether the firmware can leave
 
-**Status: proposal, nothing built. 2026-08-26.** Written to be argued with.
+**Status: the measurement stands; the question in the title was answered the
+other way round. Written 2026-08-26 as a proposal; recommendation 2 was built,
+and recommendation 1 was overtaken on 2026-08-27.** §§1–8 are the measurement of
+what the interface consists of and are unchanged — they are what
+[ADR 0009](../adr/0009-device-interface-fixtures.md) was written out of. What
+has moved is the split, and it moved in a direction this document does not
+assume anywhere: **the firmware does not leave, the editor does.**
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) decided that, and
+[`repository-map.md`](repository-map.md#the-three-names) has the names. Wherever
+a sentence below says "afterwards" or "the firmware side", read it as the older
+question — it is kept because the measurement under it is still the measurement.
 
 [`adr/0006`](../adr/0006-builder-and-hardware-one-repo.md) keeps the builder and
 the hardware in one repository and names four conditions for revisiting. This
 answers condition 1 — *"if `layout.bin` and the cable protocol are ever frozen
-for good … the split becomes cheap"* — and the answer has two halves that point
+for good … the split becomes cheap"* — and the answer had two halves that point
 in different directions:
 
-- **Do not split.** Condition 1 is not met, and the measurement is in
-  [What the evidence actually says](#what-the-evidence-actually-says).
+- ~~**Do not split.**~~ Condition 1 is not met, and the measurement is in
+  [What the evidence actually says](#what-the-evidence-actually-says). It is
+  still not met; the split happened for another reason, and ADR 0012 says which.
 - **Write the fixtures anyway**, because the expensive half of the split is also
   the thing this repository is missing *today*, inside one repository, with both
   implementations sitting next to each other.
 
-The second half is the substance of this document. The first half is the last
-two sections.
+The second half is the substance of this document, and it was built. The first
+half is the last two sections.
 
 ---
 
@@ -239,10 +250,20 @@ is supposed to be impossible, because the devices in the field are already
 reading this."* A specification the writer owns and the reader merely pins puts
 the authority on the side that has nothing at stake.
 
-So: a top-level `device/` directory, owned by neither `src/` nor `firmware/`,
-shaped like a repository without being one — which is precisely what `exchange/`
-already is. If the split ever happens, `device/` is the thing that becomes the
-third repository, and both halves pin it. It does not go with either.
+So: a top-level `device/` directory, owned by neither of the two
+implementations, shaped like a repository without being one — which is precisely
+what `exchange/` already is.
+
+~~If the split ever happens, `device/` is the thing that becomes the third
+repository, and both halves pin it.~~ **Corrected 2026-08-27.** That sentence
+assumed the firmware leaving. Under
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) the editor leaves
+and the two implementations of the device format stay together — the C++ reader
+in `firmware/` and the TypeScript writer in
+[`loader/`](../loader/README.md) — so `device/` stays with both of them, pinned
+by nobody and owned by neither, exactly as it is today. The rule in the
+paragraph above is untouched: it is about authority over a format, not about
+which repository a directory sits in.
 
 ---
 
@@ -442,10 +463,30 @@ maintainer.
 
 **So: not met, by the ADR's own words, and not close.**
 
+*Still not met, 2026-08-27, and the split was decided anyway.* Nothing in the
+table above has been withdrawn — conditions 1 to 4 are as unmet as they were.
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) does not claim
+one fired. It argues that
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) took the
+seam off the thing those conditions protect, which is a different question from
+the one measured here and is why this measurement stands unchanged.
+
 ## Recommendation
 
-1. **Do not split.** Every load-bearing sentence in ADR 0006 still holds, and the
-   week of history above is the measurement it asked for.
+1. ~~**Do not split.**~~ Every load-bearing sentence in ADR 0006 still holds, and
+   the week of history above is the measurement it asked for.
+
+   **Overtaken, 2026-08-27, and not reversed.** Every load-bearing sentence in
+   ADR 0006 does still hold, and that is why
+   [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) does not
+   supersede it. What this recommendation could not see is that the split would
+   not run through them. After
+   [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) both
+   implementations of every device format are on the side that keeps this
+   repository, so the editor leaving takes none of them with it and
+   `tests/run.py` goes on compiling both on one commit. None of ADR 0006's four
+   conditions fired, and 0012 claims none of them.
+
 2. **Write the fixtures anyway, and write them first.** Not as preparation for a
    split — as the check this repository is missing today. Five refusal codes with
    no fixture, a tile geometry that agrees by coincidence, a WAV acceptor nobody
@@ -460,7 +501,10 @@ maintainer.
    `exchange-v*` is being held to, for the same reason.
 
 If that is done, the split is what ADR 0006 predicted it would be when its
-condition is met: cheap, because the expensive part is already paid for.
+condition is met: cheap, because the expensive part is already paid for. It was
+done — [ADR 0009](../adr/0009-device-interface-fixtures.md) — and the sentence
+held, though not by way of a condition being met. See
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md).
 
 ## Should this be an ADR?
 
