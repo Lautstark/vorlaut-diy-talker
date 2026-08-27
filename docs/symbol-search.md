@@ -1,5 +1,14 @@
 # Finding a symbol, without a server
 
+**Status: the measurement stands; the move it was written during is finished,
+and what it describes is now the editor's.** `app.py` and `metacom.py` were
+deleted on 2026-08-22 with the rest of the Python, and the symbol search left
+this repository with the editor on 2026-08-27
+([ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)) — nothing here
+implements it, and [`repository-map.md`](repository-map.md) is why the document
+stayed. Everything below was measured before either of those and is unchanged;
+the present tense in the paragraph that follows is the tense it was written in.
+
 The app half is being rewritten as a static site, so `metacom.py` and the
 ARASAAC endpoints in `app.py` have to exist a second time in the browser — the
 same move `tiles.py` already made into [`loader/src/tiles.ts`](../loader/src/tiles.ts).

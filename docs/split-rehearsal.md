@@ -1,5 +1,12 @@
 # The split, rehearsed once on a copy
 
+**Status: a rehearsal, and the real move has since happened.** This was written
+on 2026-08-27 against a throwaway clone; later the same day the editor became
+[`Lautstark/vorlaut-editor`](https://github.com/Lautstark/vorlaut-editor) for
+real ([ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)). So where
+this page says something *cannot* be done yet, read it as what was true before
+the bill was paid — it is kept for the list it found, not as a live account.
+
 [`split-crossings.md`](split-crossings.md) costs the boundary by reading the
 code. This page is the other half of that: the move was **carried out**, on a
 throwaway clone, to find what reading does not.

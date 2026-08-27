@@ -1,5 +1,14 @@
 # Speaking in a tab
 
+**Status: the measurement stands; the move it was written during is finished.**
+`app.py` and `tts.py` were deleted on 2026-08-22 with the rest of the Python,
+and speech left this repository with the editor on 2026-08-27
+([ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md)) — what a talker
+receives is a finished 16 kHz WAV inside the exported file. The numbers below
+were taken against the real piper and the real ffmpeg before either of those
+happened, and they are what the browser port is still held to; the present tense
+below is the tense they were written in.
+
 The app half is being rewritten as a static site: no server, one page. Speech is
 the part of it that does not obviously survive the move, because today it is two
 programs on the machine running `app.py` — `piper` renders the sentence and
