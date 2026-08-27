@@ -88,15 +88,17 @@ right answer for them.
 
 ## What crosses into `src/`, and what comes back
 
-Six names in one direction and two modules in the other, and they are counted
+Ten names in one direction and two modules in the other, and they are counted
 rather than forbidden.
 
 `src/` takes out of here `SLOTS_PER_SET`, `HASH_BYTES`, `LANGUAGE_CODES`,
-`DEFAULT_LANGUAGE` — facts about the format, because the editor writes a file a
-talker has to be able to read — and `renderSymbol()` with `TILE_SIZE`, which is
-the editor's device preview: a symbol drawn the way a ScreenKey draws it, so a
-pictogram can be judged at 15.21 mm. `tests/unit/layers.test.ts` holds that list
-to exactly those six and is where a seventh has to be argued for.
+`DEFAULT_LANGUAGE`, `SLEEP_MIN`, `SLEEP_MAX` and `SLEEP_DEFAULT` — facts about
+the format, because the editor writes a file a talker has to be able to read —
+plus `renderSymbol()` with `TILE_SIZE`, which is the editor's device preview: a
+symbol drawn the way a ScreenKey draws it, so a pictogram can be judged at
+15.21 mm, and `thumbnailSize()`, which is the app package's fit.
+`tests/unit/layers.test.ts` holds that list to exactly those ten and is where an
+eleventh has to be argued for.
 
 This page takes out of `src/` the label table above, and
 `src/data/device_package.ts`, which is the format itself — the writer, the

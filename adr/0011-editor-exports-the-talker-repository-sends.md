@@ -200,10 +200,14 @@ writer functions are untouched and stay untouched: `exchange/SPEC.md` §5.2
 requires that, and it is a licensing decision rather than a technical one.
 
 **Two directories import each other, and the list is short on purpose.** `src/`
-takes seven format constants and `renderSymbol()` out of `loader/`; `loader/`
-takes the label table and `src/data/device_package.ts` out of `src/`.
-`tests/unit/layers.test.ts` holds the first list to exactly those names and is
-where an eighth has to be argued for. That list is the bill for the split, in
+takes seven format constants out of `loader/`, plus `renderSymbol()`,
+`TILE_SIZE` and `thumbnailSize()` — ten names; `loader/` takes the label table
+and `src/data/device_package.ts` out of `src/`. `tests/unit/layers.test.ts`
+holds the first list to exactly those names and is where an eleventh has to be
+argued for. (*Counted 2026-08-27:* this sentence said "seven constants and
+`renderSymbol()`" and was one of the three stale counts
+[`docs/split-crossings.md`](../docs/split-crossings.md#first-the-count--because-four-documents-disagree)
+measured. The enforced list never changed.) That list is the bill for the split, in
 one place, rather than something to be discovered on the day.
 
 **`device/fixtures/` gained a reader rather than losing one.** `MAX_SETS` is now

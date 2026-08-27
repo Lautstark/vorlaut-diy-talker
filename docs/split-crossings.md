@@ -1,6 +1,9 @@
 # The bill for the split: what crosses `src/` ↔ `loader/`, name by name
 
 **Status: a proposal. Nothing is moved and no migration is written here.**
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) landed the same
+day this page did and decided the split; the anchors and the two sentences that
+assumed it undecided are corrected below, and the measurement is untouched.
 [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) put a file
 between the editor and the talker and left two directories importing each other.
 [`tests/unit/layers.test.ts`](../tests/unit/layers.test.ts) calls that list *the
@@ -8,8 +11,11 @@ bill for the eventual split* and asks that every name on it be answered for
 before anybody moves a directory. This is the answer, in the form
 [`obz-as-device-input.md`](obz-as-device-input.md) is in — a measurement and a
 costing — because the decision it feeds is
-[`repository-map.md`](repository-map.md#proposed-and-not-decided)'s split, which
-is still waiting on evidence and is not made here.
+[`repository-map.md`](repository-map.md#the-split-and-the-route-it-replaced)'s
+split — ~~which is still waiting on evidence and~~ which was decided on
+2026-08-27 by
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) and is not made
+here.
 
 Like every page in `docs/`, this links to the arguments rather than restating
 them.
@@ -113,7 +119,7 @@ And the direction of ownership comes out right rather than merely acceptable.
 arrangement is that a format *the writer owns and the reader merely pins* puts
 the authority on the side with nothing at stake. Here the fixtures stay in
 `vorlaut-diy-talker` with both device implementations
-([`repository-map.md`](repository-map.md#the-three-names-if-it-happens), and
+([`repository-map.md`](repository-map.md#the-three-names), and
 ADR 0011 is why no fourth name is needed), and it is the **writer** — the editor
 — that pins. That is ADR 0009's arrangement with the authority on the side that
 cannot be made to move, which is the side it wanted it on.
@@ -197,7 +203,7 @@ test does not prove* section.
 builds `new URL("loader/", BASE_URL)` and offers it after a device export. It is
 a relative link within one Pages deployment today and an absolute cross-site link
 afterwards — `https://lautstark.github.io/vorlaut-diy-talker/loader/`, an address
-[`repository-map.md`](repository-map.md#the-three-names-if-it-happens) already
+[`repository-map.md`](repository-map.md#the-three-names) already
 establishes does **not** move, which is what makes hard-coding it safe. This is
 the only crossing on this page whose breakage a carer sees rather than a test,
 and the only one that is a runtime dependency rather than a build one. It needs
@@ -265,7 +271,7 @@ history. This page does not propose one.
 
 ### Why the `exchange/` arrangement does not answer it either
 
-[`repository-map.md`](repository-map.md#the-three-names-if-it-happens) says the
+[`repository-map.md`](repository-map.md#the-three-names) says the
 rule does not stretch: *"should the device build ever read an `.obz`, the device
 becomes a reader of a format whose fixtures live with the writer, and the device
 is exactly the party ADR 0009 says cannot be made to move."* That day has
@@ -338,7 +344,7 @@ directly adjacent to what **ADR 0012** is being written to answer. See
 
 ## Hard case two — `tiles.ts` does not divide, and does not have to
 
-[`repository-map.md`](repository-map.md#the-three-names-if-it-happens) and
+[`repository-map.md`](repository-map.md#the-three-names) and
 [`layers.test.ts`](../tests/unit/layers.test.ts) both argue that splitting the
 module puts one rounding rule in two places with nothing holding the copies
 together, which is the failure
@@ -565,27 +571,44 @@ e2e suite builds its input from a committed fixture instead.
 
 ## What this does not decide
 
-**Whether to split at all.** [ADR 0006](../adr/0006-builder-and-hardware-one-repo.md)
+~~**Whether to split at all.** [ADR 0006](../adr/0006-builder-and-hardware-one-repo.md)
 asks for evidence and nothing here is evidence. This page makes the move
-cheaper to schedule and no more due, exactly as ADR 0011 did.
+cheaper to schedule and no more due, exactly as ADR 0011 did.~~
+
+**Decided elsewhere, the same day.**
+[ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) records the split
+as decided. The first half of the sentence above stands and 0012 says the same
+thing in its own words: nothing here is evidence, no condition of ADR 0006
+fired, and 0012 claims none. What it argues instead is that ADR 0011 took the
+seam off the thing those conditions protect. The move is still not scheduled,
+which is the part of this paragraph that was never about evidence.
 
 **Where `device/fixtures/` lives, and what may be added to it.**
-[`repository-map.md`](repository-map.md#the-three-names-if-it-happens) records
+[`repository-map.md`](repository-map.md#the-three-names) records
 ADR 0011's answer — both device implementations end up in `vorlaut-diy-talker`,
 so the fixtures sit beside both halves and no fourth name is needed — and
-**ADR 0012 is being written to record the split as decided and to answer this
-directly.** It had not landed when this page was written. Two things here are
-inputs to it rather than answers over it:
+**ADR 0012 has since recorded the split as decided and answered this directly**:
+the fixtures stay in `vorlaut-diy-talker`, beside both implementations, and no
+fourth name is needed. Two things here were inputs to it rather than answers
+over it, and it answered one of them and declined the other:
 
 - Direction one assumes the editor can **pin** `device/fixtures/` from another
   repository. Nothing about that is new — it is `exchange/`'s mechanism pointed
   the other way — but it makes the editor a third party to a directory ADR 0009
   says belongs to neither half, and that is worth a sentence somewhere.
+  *Answered:* ADR 0012's Why has it. Pinning is consumption and not ownership;
+  ADR 0009's rule is about who may **change** a format, and a third pinned
+  consumer does not acquire that. The directory goes on belonging to neither
+  implementation.
 - Hard case one proposes **widening** the directory by one kind, from the bytes
   the talker reads to the file the page reads. If ADR 0012 draws that scope line
   differently, its answer wins and the fixtures need a home of their own — the
   mechanism in this page's recommendation survives the move to a different
   directory; only the address changes.
+  *Not drawn:* ADR 0012 decides where the directory lives and says nothing about
+  what may be added to it, deliberately. Widening it by a `package` kind is this
+  page's proposal to argue on its own merits, and nothing in 0012 blocks or
+  blesses it — the address is settled either way.
 
 **The three stale counts.** Recorded [above](#first-the-count--because-four-documents-disagree),
 not repaired here.

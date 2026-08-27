@@ -174,7 +174,7 @@ check("no editor reaches into another editor", strays.length === 0,
  * adr/0011 took away is the build and the cable, not the ability to draw a
  * picture of one.
  *
- * **This list is the bill for the split.** When the editor leaves, these five
+ * **This list is the bill for the split.** When the editor leaves, these ten
  * names are what has to be answered for - written down on the editor's side
  * against device/fixtures/, or moved into a package both can pin. Anything
  * added here without that argument is the boundary quietly closing again.

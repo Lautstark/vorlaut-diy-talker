@@ -164,6 +164,14 @@ it, because the split does not separate the two halves. **No fourth name is
 needed, and `format-freeze.md` §6's "becomes the third repository" is corrected
 rather than reinterpreted.**
 
+One thing follows and is worth a sentence, because
+[`split-crossings.md`](../docs/split-crossings.md) asks for it: the editor may
+**pin** `device/fixtures/` from the other repository, the way `vorlaut-app` pins
+`exchange/`, and that does not make it a third owner. ADR 0009's rule is about
+who may **change** a format. Pinning is consumption; a pinned consumer acquires
+no authority over what it pins, and the directory goes on belonging to neither
+implementation.
+
 **What is not being claimed.** Conditions 3 and 4 of ADR 0006 are untouched: CI
 is fast and there is one maintainer. Condition 1 is not met either — `layout.bin`
 and the cable protocol are not frozen for good, and `device-v*` is still uncut.
