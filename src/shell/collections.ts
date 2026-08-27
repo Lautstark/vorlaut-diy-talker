@@ -944,11 +944,14 @@ export function wireCollections(): void {
        * wrong file is worse than no entry - exchange/SPEC.md §7.4's argument
        * about a button that looks live and does the wrong thing, one floor up.
        *
-       * The package export is not missing on a tablet Sammlung, it has moved:
-       * it is that Sammlung's one whole-Sammlung act, so editor-app puts it in
-       * the work head beside the name (conventions.md §3.3). Two doors to one
-       * act is two things to keep in step for no gain - the same argument that
-       * took the gear out of the page header. */
+       * The package export is not missing on a tablet Sammlung either: it
+       * comes back a few lines down through extras?.(), because it is that
+       * Sammlung's one whole-Sammlung act and editor-app is what knows how to
+       * do it. It spent a while as a filled button in the work head beside the
+       * name; templates/board.ts has why that was given up. Wherever it sits,
+       * it sits in one place - two doors to one act is two things to keep in
+       * step for no gain, the same argument that took the gear out of the page
+       * header. */
       if (!isApp(state.layout)) {
         add(t("ui.collection_export"), () => { void exportOne(); });
         add(t("ui.collection_export_app"), () => { void exportApp(); });
@@ -958,11 +961,18 @@ export function wireCollections(): void {
          * loose files rather than a Sammlung. */
         add(t("ui.collection_export_device"), () => { void exportDevice(); });
       }
-      /* Whatever act the editor on screen has to add - for the talker, the
-       * build written into a folder, which is a third kind of export and so
-       * belongs directly under the two above it. A tablet adds none: its grid
-       * was here, and it was the one entry in this menu that was a setting
-       * rather than an act. */
+      /* Whatever act the editor on screen has to add, which is exactly one
+       * either way and an export both times.
+       *
+       * A talker adds the build written into a folder - a fourth thing to
+       * write and the only one that is not a single file, so it goes under the
+       * three above it. A tablet adds the package export named two paragraphs
+       * up, which is its only entry here because the three above are the
+       * talker's.
+       *
+       * The grid used to be here too and was the one entry in this menu that
+       * was a setting rather than an act. It is in the settings sheet now,
+       * behind the same ⋯, which is what the entry below opens. */
       extras?.(add);
       /* Then what this Sammlung is set to, rather than what can be done with
        * it: the voice it speaks in, the grid a tablet's pages are on, and - on
