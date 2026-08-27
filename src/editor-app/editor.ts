@@ -798,10 +798,20 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
   if (saying && (appends(held.act) || held.act.kind === "speak")) {
     const play = document.createElement("button");
     play.type = "button";
-    play.className = "cell__play";
+    /* The ring says the word is spoken at once and the sentence bar is left
+     * alone - §7.3's `speak`. It marks the exception, because almost every
+     * button on a board feeds the bar and marking that would be marking
+     * everything; and it sits on this control because what a press does with
+     * the sound is the same question as what the sound is.
+     *
+     * The words go with it. A ring is a mark and nothing else, so the control's
+     * own label is what carries the fact for anybody not looking at it. */
+    const atOnce = held.act.kind === "speak";
+    play.className = "cell__play" + (atOnce ? " cell__play--now" : "");
     play.textContent = "▶";
-    play.title = t("ui.play_title");
-    play.setAttribute("aria-label", t("ui.play_title"));
+    const says = t(atOnce ? "ui.play_at_once" : "ui.play_title");
+    play.title = says;
+    play.setAttribute("aria-label", says);
     play.onclick = (event) => {
       // The cell behind it opens the sheet; this one does not.
       event.stopPropagation();
@@ -930,7 +940,10 @@ function actBadge(act: Act): string {
      * further away than an 11px glyph. */
     case "goto": return "";
     case "home": return "";
-    case "speak": return "🔊";
+    /* Nothing: the ring on its play control says it, in the one place on the
+     * cell already about sound. A badge here as well would be the duplicated
+     * arrow again - two marks for one fact. */
+    case "speak": return "";
     case "clear": return "✕";
     case "backspace": return "⌫";
     case "sayBar": return "▶";
