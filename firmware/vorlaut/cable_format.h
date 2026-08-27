@@ -24,7 +24,14 @@
 // Bumped when a device that speaks the old protocol could no longer be driven
 // correctly by a browser that speaks the new one. Adding a keyword is not
 // that - both sides skip what they do not know.
-#define CABLE_VERSION 1
+//
+// 2 is the acknowledged transfer: "go" carries a window, every window of file
+// content is answered with "ack", and the browser sends nothing until it has
+// been. A version 1 browser would send a whole file into a device that is
+// waiting to be asked, and a version 1 device would never answer the window
+// the browser is waiting for - so this is a break in both directions, made on
+// purpose while every device was still on the desk.
+#define CABLE_VERSION 2
 
 // Every protocol line is marked, in both directions, because this stream is
 // shared with the serial log. The device prints prose to Serial while it
@@ -58,28 +65,43 @@
 // staring at the cable, long enough to survive a garbage collection pause in
 // LittleFS. A device that hangs here no longer speaks, and speaking is the
 // one thing it is for - the same rule as the setup portal's timeout.
+//
+// What this has to outlast changed with CABLE_WINDOW below. It used to have
+// to cover a flash pause, because the browser sent whether or not the device
+// was listening and the device's wait was where that showed up. Now the
+// device only ever waits for bytes it has just asked for, so what this covers
+// is one round trip and a browser's own scheduling - milliseconds, against
+// four seconds. It stays generous rather than being tuned down: the thing it
+// is really for is a browser that has gone away, and noticing that a little
+// late costs nothing.
 #define CABLE_QUIET_MS 4000
 
-// How much the device can be behind the browser without losing anything.
+// The most file content the device will take without saying it has it.
 //
-// This is not a comfort figure, it is an arithmetic one, and the first real
-// hardware supplied both numbers. USB fills an empty buffer at about
-// 490 KB/s - measured, 20480 bytes accepted in 42 ms - and the longest single
-// LittleFS write was 46 ms, during which the loop reads nothing at all. That
-// is 22 KB arriving with nowhere to put it. Once the buffer is full the
-// interrupt reads the USB FIFO, finds no room and discards, and CDC has no
-// way to tell the other end it happened: the browser reports every chunk
-// written and the device is quietly short.
+// This is the flow control, and it is the whole reason there is no longer a
+// number here for how far behind the device may fall. The device sends this
+// figure with its "go", reads at most this many bytes, writes them, and only
+// then answers "ack". The browser sends nothing until it has. So the bytes in
+// flight are bounded by what the device asked for rather than by how fast the
+// browser can write, and a flash write that takes an age costs time instead of
+// content.
 //
-// 16 KB was tried first and lost 214 bytes of 26912 - too small by about what
-// the sum above says. 64 KB is that worst case with room over it.
+// What it replaced was CABLE_RX_BUFFER, 64 KB of receive buffer sized against
+// a burst: USB fills an empty buffer at about 490 KB/s and the longest single
+// LittleFS write measured 46 ms, so 22 KB could arrive with nowhere to go. The
+// interrupt reads the USB FIFO, finds no room and discards, and CDC has no way
+// to tell the other end - the browser reports every chunk written and the
+// device is quietly short. 16 KB was tried first and lost 214 bytes of 26912.
+// 64 KB was that worst case with room over it, and it was still a bound rather
+// than a guarantee: a longer stall on a fuller file system would have overrun
+// it too, silently, in exactly the same way.
 //
-// It is a bound, not a guarantee: a longer stall than 46 ms on a fuller file
-// system would overrun this too. The fix that would not need a number here at
-// all is the device acknowledging each chunk so the browser waits while the
-// flash is busy - a change to both halves of the protocol, and worth doing
-// before this device is out of reach of a cable.
-#define CABLE_RX_BUFFER 65536
+// The receive buffer is now sized FROM this rather than against a guess -
+// vorlaut.ino passes CABLE_WINDOW to Serial.setRxBufferSize(), and one window
+// is by construction the most that can be in flight. 4096 because it is small
+// enough that the buffer costs 4 KB of RAM instead of 64, and large enough
+// that a megabyte of content is 250 round trips rather than 2000.
+#define CABLE_WINDOW 4096
 
 // How long the device waits for a whole line before it has been greeted.
 // Deliberately far shorter than CABLE_QUIET_MS: until a browser has said
@@ -105,7 +127,7 @@ enum CableVerb {
   CABLE_HELLO,   // who are you
   CABLE_LIST,    // what have you got
   CABLE_CRC,     // checksum of one file
-  CABLE_PUT,     // one file follows as raw bytes
+  CABLE_PUT,     // one file follows as raw bytes, a window at a time
   CABLE_RM,      // throw one away
   CABLE_DONE,    // that is all
   // Marked as ours but a verb this firmware does not have. Answered with an
@@ -362,11 +384,6 @@ static inline int cableFits(int written, size_t cap) {
   return (written > 0 && (size_t)written < cap) ? written : 0;
 }
 
-// "< go"
-static inline int cableSayBare(char *out, size_t cap, const char *key) {
-  return cableFits(snprintf(out, cap, "%c %s\n", CABLE_DEVICE_SIGIL, key), cap);
-}
-
 // "< end hello", "< gone t3bd7....bin"
 static inline int cableSayWord(char *out, size_t cap, const char *key,
                                const char *word) {
@@ -374,7 +391,11 @@ static inline int cableSayWord(char *out, size_t cap, const char *key,
                             word), cap);
 }
 
-// "< vorlaut 1", "< free 1146880"
+// "< vorlaut 2", "< free 1146880", "< go 4096", "< ack 8192"
+//
+// The two the acknowledged transfer added are both of this shape, so it gained
+// no formatter of its own - which is worth noticing rather than only being
+// convenient. A keyword and a number is what this protocol already was.
 static inline int cableSayNumber(char *out, size_t cap, const char *key,
                                  uint32_t number) {
   return cableFits(snprintf(out, cap, "%c %s %lu\n", CABLE_DEVICE_SIGIL, key,

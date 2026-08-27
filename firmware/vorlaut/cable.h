@@ -160,10 +160,12 @@ class Cable {
           const char *why = receive(command, abort);
           if (why) {
             say("err", why, command.name);
-            // Everything after a lost transfer is refused until hello: the
-            // rest of the file is still coming down the wire, and reading it
-            // as commands is the one way this protocol could quietly store
-            // the wrong thing.
+            // Everything after a lost transfer is refused until hello: what
+            // is left of the window may still be coming down the wire, and
+            // reading it as commands is the one way this protocol could
+            // quietly store the wrong thing. The window is why this is now at
+            // most a few thousand bytes rather than most of a WAV, but it is
+            // not why the rule exists, and the rule does not change with it.
             if (strcmp(why, "short") == 0 || strcmp(why, "lost") == 0) {
               drain();
               line.at = 0;      // whatever was half-read is not a command
@@ -213,12 +215,6 @@ class Cable {
 
   static void put(int length, const char *text) {
     if (length > 0) Serial.write((const uint8_t *)text, (size_t)length);
-  }
-
-  // "< go" - the only line with nothing after the keyword.
-  static void sayBare(const char *key) {
-    char out[CABLE_LINE_MAX];
-    put(cableSayBare(out, sizeof(out), key), out);
   }
 
   static void say(const char *word, const char *detail,
@@ -359,6 +355,13 @@ class Cable {
   //
   // Two numbers rather than one because they are two different risks, and one
   // of them would hide the other.
+  //
+  // What gap_ means changed when the window did. It used to be the browser
+  // being late, and a full buffer made it read 4001 ms because the bytes it
+  // was waiting for had been thrown away rather than delayed. Now the device
+  // waits after every "ack" for a window it has just asked for, so gap_ is a
+  // round trip - it is expected to be small and non-zero rather than zero, and
+  // a zero would mean the acknowledging is not happening at all.
   static uint32_t gap_;
   static uint32_t stall_;
 
@@ -368,6 +371,17 @@ class Cable {
   // sends nothing before it. Without that handshake a refusal would be
   // followed by a file's worth of content arriving in readLine(), where some
   // of it would eventually look like a command.
+  //
+  // The "go" carries CABLE_WINDOW, and that number is the whole of the flow
+  // control. The browser sends at most a window and then waits; this loop
+  // answers "ack" with the running total only once those bytes are in the file
+  // system. So the device is never behind the browser by more than it asked
+  // for, and a flash write that takes an age costs a pause rather than the
+  // bytes that arrived during it.
+  //
+  // Nothing here is a second idea of being in a session. The window and the
+  // running total live for one file and die with it; the one state that
+  // outlives a put is `open` in serve(), which this function does not touch.
   static const char *receive(const CableCommand &command, CableAbort abort) {
     LittleFS.remove(CABLE_PART_FILE);
 
@@ -382,15 +396,19 @@ class Cable {
     // nothing to drain afterwards.
     File file = LittleFS.open(CABLE_PART_FILE, "w");
     if (!file) return "write";
-    sayBare("go");
+    sayNumber("go", CABLE_WINDOW);
 
     uint32_t got = 0;
+    uint32_t acked = 0;
     uint32_t value = CABLE_CRC_INIT;
     uint8_t buffer[CABLE_CHUNK];
     uint32_t lastByte = millis();
     gap_ = 0;
     stall_ = 0;
 
+    // An empty file never goes round this loop, so it is never acknowledged.
+    // That is the rule read literally rather than a case to remember: every
+    // window of content is answered, and there are no windows.
     while (got < command.size) {
       const int there = Serial.available();
       if (there <= 0) {
@@ -438,6 +456,19 @@ class Cable {
       value = cableCrc32(value, buffer, take);
       got += (uint32_t)take;
       lastByte = millis();
+
+      // Everything up to here is in the file system, so it can be admitted to.
+      // Answering early would give the number away before the flash had it,
+      // which is the one thing an acknowledgement must not do - the browser
+      // would go on sending during exactly the write this exists to wait out.
+      //
+      // The running total rather than the size of the piece: the browser
+      // compares it with what it has sent, so a stream that slipped is loud
+      // where a per-piece count would agree with itself all the way down.
+      if (got - acked >= CABLE_WINDOW || got == command.size) {
+        acked = got;
+        sayNumber("ack", acked);
+      }
     }
     file.close();
 
@@ -465,6 +496,11 @@ class Cable {
   // Throw away whatever is still arriving, until the wire has been quiet for
   // a moment. This is what makes it safe to go back to reading lines after a
   // transfer was given up on halfway.
+  //
+  // Bounded by CABLE_WINDOW now: a browser that is following the protocol has
+  // at most one window out at any moment. It waits on the wire going quiet
+  // rather than on that number, because the browser that has to be drained
+  // after is by definition one that stopped behaving.
   static void drain() {
     uint8_t scratch[CABLE_CHUNK];
     uint32_t last = millis();

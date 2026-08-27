@@ -768,18 +768,17 @@ static void goToSleep() {
 // --- Arduino -----------------------------------------------------------------
 
 void setup() {
-  // Room for the browser to be ahead of the flash. A push arrives in 4096
-  // byte chunks as fast as USB will carry them, and this loop can only take
-  // CABLE_CHUNK at a time and then spends tens of milliseconds inside
-  // file.write() - during which nothing is read and everything that lands is
-  // dropped. USB CDC has no way to say it overflowed, so the loss is silent:
-  // the browser reports every chunk written, the device never sees the end of
-  // the file, and it times out with "short" pointing at a browser that did
-  // nothing wrong. The default 256 bytes is a quarter of one USB frame's
-  // worth of that burst.
+  // Room for exactly one window, which is the most that can be in flight.
+  //
+  // The browser sends CABLE_WINDOW bytes and then waits to be told they are in
+  // the file system, so this is not sized against how fast USB can push - it
+  // is sized against a number the device itself chose and announces. That is
+  // the difference from what stood here before: 64 KB picked to be bigger than
+  // the worst burst anybody had measured, on a protocol where a burst that was
+  // bigger still would have been discarded in silence.
   //
   // Has to come before begin() - the buffer is allocated there.
-  Serial.setRxBufferSize(CABLE_RX_BUFFER);
+  Serial.setRxBufferSize(CABLE_WINDOW);
   Serial.begin(115200);
 
 
@@ -874,9 +873,9 @@ void setup() {
   // port is not enumerated for the first moment after begin(), and anything
   // printed into that gap is simply lost. It was, which is how this comment
   // came to be written.
-  Serial.printf("vorlaut build %s %s (amp wake %u ms, rx buffer %u)\n",
+  Serial.printf("vorlaut build %s %s (amp wake %u ms, cable window %u)\n",
                 __DATE__, __TIME__, (unsigned)AMP_WAKE_MS,
-                (unsigned)CABLE_RX_BUFFER);
+                (unsigned)CABLE_WINDOW);
   // How long the press-to-picture gap is. Everything up to here happens with
   // the backlight deliberately off, so this number is exactly how long the
   // device looks broken to somebody who has just pressed a key.
