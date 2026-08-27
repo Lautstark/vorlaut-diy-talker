@@ -27,9 +27,15 @@ is where a change to them would land.
 
 ## The short answer
 
-**Six pending items, of which one is in flight.** Two of the six have to land
-before a device freeze; four can wait behind a version. Three whole categories
-the brief asked about came back empty, and saying so is the point of §7.
+**Six pending items, of which one has since landed.** Two of the six had to
+land before a device freeze; four can wait behind a version. Three whole
+categories the brief asked about came back empty, and saying so is the point
+of §7.
+
+[C1](#c1-chunk-acknowledgement--in-flight), the one that was in flight when
+this was written, landed on 2026-08-27 and took `CABLE_RX_BUFFER` with it. The
+entry is kept rather than deleted: what a survey said would happen, against
+what did, is the part that is worth reading a second time.
 
 Nothing on this list invalidates a lock as it stands. **Two of them would if
 they were resolved the other way**, and that is stated per item, because
@@ -42,7 +48,7 @@ the module under test is never the answer.
 |---|---|---|---|
 | [L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use) | `layout.bin` | **Yes**, if resolved in the reader | at risk |
 | [L2](#l2-the-set-count-cap-is-a-device-rule-the-writer-does-not-hold-itself-to) | `layout.bin` | No | no |
-| [C1](#c1-chunk-acknowledgement--in-flight) | cable | **Yes** | no |
+| [C1](#c1-chunk-acknowledgement--in-flight) | cable | **landed 2026-08-27** | no |
 | [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) | cable | **Yes** | no |
 | [N1](#n1-the-builder-emits-names-the-name-rule-forbids) | name rule | No | at risk |
 | [P1](#p1-ext-lautstark-negated-is-recommended-and-unwritten) | package | No | no |
@@ -145,17 +151,25 @@ what is missing is a statement and a check, not a byte.
 > halves of the protocol, and worth doing before this device is out of reach of
 > a cable.
 
-**Status: being landed by another session**, on branch
-`claude/amazing-chaplygin-9fe616`, whose description reads *"cable chunk
-acknowledgement: device ACKs each chunk, browser waits, CABLE_RX_BUFFER goes"*.
-Nothing had been committed to it when this survey ran.
+**Status: landed**, on 2026-08-27, from the branch this survey named while it
+was still empty. `CABLE_VERSION` is 2. The device sends a window with its `go`,
+acknowledges each one with a running total before the browser sends the next,
+and `CABLE_RX_BUFFER` has gone — the receive buffer is now sized *from* the
+window rather than against a guess at the worst burst. See
+[cable.md](cable.md#the-window-is-the-flow-control).
 
-**Which side breaks.** Both, and asymmetrically. A device that waits for an
-acknowledgement it never sends is fine; an old device driven by a new browser
-that pauses for one is a transfer that times out at `CABLE_QUIET_MS`. The cable
-skips unknown *keywords* in both directions, so the new line is invisible to an
-old browser — but a new browser waiting on an old device is not covered by that
-rule, and this is precisely what `CABLE_VERSION` exists for. See [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs).
+**Which side breaks.** Both, and the break was taken deliberately while every
+device was on a desk. What was expected here was that a new browser waiting on
+an old device would hang; in the event it does not, because the window rides on
+the `go` line rather than on a line of its own. An old device says `< go` with
+nothing after it, the browser reads a window of zero and refuses out loud. The
+other direction is loud too: an old browser pushes a whole file at a device
+whose buffer is now 4 KB, and it fails on the checksum or the timeout.
+
+That is luck rather than design, and it does not retire
+[C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) — it
+means the first bump happened to land somewhere that fails noisily. The next
+one may not.
 
 **Lock.** No. The cable has no frozen artefact at all — both halves are
 generated live on every run, which
@@ -165,28 +179,35 @@ here and the one that survives a split least well.
 **Before or behind a version.** Before, and the comment says why in the only
 terms that matter: *before this device is out of reach of a cable*.
 
-`CABLE_RX_BUFFER 65536` is the workaround-with-a-number this replaces, and it
-is the best-documented constant in the repository — 490 KB/s measured, a 46 ms
+`CABLE_RX_BUFFER 65536` was the workaround-with-a-number this replaced, and it
+was the best-documented constant in the repository — 490 KB/s measured, a 46 ms
 worst flash write, 22 KB arriving with nowhere to go, 16 KB tried first and
-short by 214 bytes of 26912. It is a bound and not a guarantee, and it says so.
+short by 214 bytes of 26912. It was a bound and not a guarantee, and it said so.
+Its successor needs no such note: the device cannot fall further behind than it
+asked to.
 
 ### C2. `CABLE_VERSION` is compared by a test, and by nothing that runs
 
 **What would change.** The client compares the version the device reports, and
 a fixture covers a mismatch. Neither exists.
 
-`CABLE_VERSION` is 1 in `cable_format.h` and 1 in `tools/cable.js`. Its stated
-job is to be *"bumped when a device that speaks the old protocol could no longer
-be driven correctly by a browser that speaks the new one."* The only thing that
-reads it is [`test_cable_format.py`](../tests/test_cable_format.py), whose
-hello check greps `tools/cable.js` for the number the compiled firmware
-reported — with the comment *"a device that answers `vorlaut 2` would be driven with a
-protocol it no longer speaks."*
+`CABLE_VERSION` is 2 in `cable_format.h` and 2 in `tools/cable.js`, and **the
+bump has now happened** — [C1](#c1-chunk-acknowledgement--in-flight) landed on
+2026-08-27. It went into a field nothing reads, exactly as this entry predicted,
+so the entry stands and is one degree more urgent rather than less: there is now
+a real version 1 to be told apart from a real version 2.
+
+Its stated job is to be *"bumped when a device that speaks the old protocol
+could no longer be driven correctly by a browser that speaks the new one."* The
+only thing that reads it is
+[`test_cable_format.py`](../tests/test_cable_format.py), whose hello check greps
+`tools/cable.js` for the number the compiled firmware reported.
 
 At runtime, `findTalker()` in [`cable.ts`](../src/backend/cable.ts) has
 `if (hello.version) return { port, cable, hello };` — a truthiness test. Any
-non-zero version is accepted and driven as version 1. All seven cable fixtures
-say `< vorlaut 1`; none exercises a mismatch, in either direction.
+non-zero version is accepted and driven as whatever the browser speaks. All
+eight cable fixtures say `< vorlaut 2`; none exercises a mismatch, in either
+direction.
 
 So the version field of the three formats behaves differently in each: byte 4
 of `layout.bin` is enforced and has a refusal code and two fixtures for it;
@@ -201,10 +222,13 @@ failure the number was introduced to prevent.
 
 **Lock.** No.
 
-**Before or behind a version.** Before, and it is a prerequisite of
-[C1](#c1-chunk-acknowledgement--in-flight) rather than a separate wish: C1 is
-the first change that would ever bump this number, and it will bump it into a
-field nothing reads.
+**Before or behind a version.** It was called a prerequisite of
+[C1](#c1-chunk-acknowledgement--in-flight) and it was not one — C1 landed
+without it, and the mismatch it leaves fails noisily in both directions for a
+reason that has nothing to do with this field. So: behind, now, and still
+wanted. What C1 changed is that the number finally distinguishes two protocols
+that really existed, and the next change to bump it may not be as lucky about
+where it fails.
 
 ### N1. The builder emits names the name rule forbids
 
