@@ -54,6 +54,7 @@ import { subscribeMetacom } from "./data/symbols.js";
 import { exportEverything } from "./data/backup.js";
 import { onChanged } from "./data/changed.js";
 import { onBlocked } from "./data/store.js";
+import { offerRescue, sayCarried, wireRescue } from "./shell/rescue.js";
 import { Sicherung } from "@lautstark/sicherung";
 
 /* The standing backup. `exportEverything` is what it is handed and the only
@@ -173,6 +174,12 @@ export function start(): void {
    * whose language is genuinely the browser's guess: the layout that would say
    * otherwise is behind the database that will not open. */
   onBlocked(() => status(t("ui.db_blocked")));
+  /* And the two other things a database can do to somebody on the way in: come
+   * up holding an older version's boards, which are carried across and said
+   * out loud, or come up in a shape no reader knows, which touches nothing and
+   * asks. adr/0015. Registered here rather than lower down for the same reason
+   * onBlocked is: everything below this line reaches the database. */
+  wireRescue();
 
   // Labels first: without them the page shows empty buttons for as long as
   // the first request takes.
@@ -199,9 +206,23 @@ export function start(): void {
    * page to German around it. nameIfUnnamed() runs after, so the name is in the
    * language the page settled on - and it catches the Sammlung carried across
    * from the single-layout database too, which never had one. */
-  ensureCollection()
-    .then(load)
-    .then(nameIfUnnamed)
-    .then(paintCollections)
-    .catch((error) => status(t("ui.load_failed", { error: reason(error) })));
+  /* Named, because it is now something that can be asked for a second time.
+   * A database no reader recognised leaves every record where it was and
+   * refuses to open; if the person then says to discard it, there is nothing
+   * to reload - the same chain runs again against a database that will now
+   * upgrade. */
+  const boot = (): void => {
+    void ensureCollection()
+      .then(load)
+      .then(nameIfUnnamed)
+      .then(paintCollections)
+      // Last, so that it is still on the line when the page goes quiet: load()
+      // clears the status on its way past, which is right of load().
+      .then(sayCarried)
+      .catch((error) => {
+        if (offerRescue(error, boot)) return;
+        status(t("ui.load_failed", { error: reason(error) }));
+      });
+  };
+  boot();
 }

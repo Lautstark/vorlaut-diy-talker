@@ -57,14 +57,16 @@
 // rule still has to be known. It is known in one place across three products
 // rather than learned separately in each.
 //
-// There is no migration into this shape and there is not meant to be. See
-// DB_VERSION below.
+// A database left behind by an older version is carried into this shape
+// rather than thrown away, and where it cannot be, nothing is touched at all.
+// See DB_VERSION below, and adr/0015.
 
-import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore, type StoreNames }
-  from "idb";
+import { openDB, type DBSchema, type IDBPDatabase, type IDBPObjectStore,
+         type IDBPTransaction, type StoreNames } from "idb";
 import type { CollectionList, CollectionRef, HeldLayout, Layout, SaveResult, Settings }
   from "../core/types.js";
 import { touched } from "./changed.js";
+import { readShape, UNREADABLE, type Dump, type Salvage } from "./rescue.js";
 
 /** The folder of files, as the callers name them.
  *
@@ -85,30 +87,49 @@ export type StoreName = "symbols";
 
 const DB_NAME = "vorlaut";
 
-/* Version 4, and it starts from nothing.
+/* Version 4, and a bump no longer costs anybody their boards.
  *
  * 1 held one layout under one key; 2 held a registry and `layout:<id>` beside
  * it; 3 was the schema below with a `data` store beside it, holding what a
- * build made for the cable; 4 is the schema below. There is no carrying-across
- * between any two of them, and that is the decision rather than an omission -
- * conventions.md's rule about its own rules: these products have one user, who
- * is the person writing them, and where a design is right it is adopted and the
- * old one deleted in the same change. A browser that has been here before opens
- * this version, loses what it had, and gets a first visit. Somebody who wanted
- * to keep a board across the change had data/backup.ts to write it out with,
- * which is what that file is for and is a better answer than a migration nobody
- * will read again.
+ * build made for the cable; 4 is the schema below. The bump to 4 is what made
+ * `data` actually leave rather than merely stop being named - dropping it out
+ * of the upgrade alone would have left every browser that has been here
+ * holding a megabyte of tiles for a device this page can no longer reach,
+ * invisible to everything and freed by nothing.
  *
- * So the upgrade drops *every* store it finds, including symbols/, whose shape
- * has not changed. Keeping it would leave a browser holding pictures for boards
- * that no longer exist - half-old, which is the state this repository has
- * decided not to have. One statement, and afterwards a database that reads
- * exactly like a fresh one.
+ * **This block used to argue that nothing crosses between any two versions,
+ * and that the loss was the decision rather than an omission.** It was a
+ * decision, and it rested on conventions.md's rule about its own rules: these
+ * products have one user, who is the person writing them, and whose own data
+ * is disposable. Read that rule to its end - "that condition will not hold
+ * forever, and this paragraph is what to re-read when it stops". Advertising
+ * this is when it stops. A developer losing their own test boards is a shrug;
+ * a carer opening the editor and finding their child's communication board
+ * gone, silently, because somebody bumped a number, is the worst thing this
+ * product can do. On 2026-08-27 this happened to the person who wrote the rule,
+ * which is the only reason anybody found out.
  *
- * The bump to 4 is what makes `data` actually leave rather than merely stop
- * being named. Dropping it out of the upgrade alone would have left every
- * browser that has been here holding a megabyte of tiles for a device this page
- * can no longer reach, invisible to everything and freed by nothing.
+ * So, adr/0015: an upgrade reads the whole database out before it deletes
+ * anything and writes it back through the new schema, in the one transaction -
+ * or it aborts that transaction, and the browser keeps the version and the
+ * records it had. docs/schema-upgrades.md weighs the five ways of doing this
+ * and says why the other four are worse than this one.
+ *
+ * **If you are here to bump this number, that costs you one question.** Open
+ * data/rescue.ts: does a reader still recognise the shape you are leaving?
+ * Adding a store does not change the answer and neither does removing one -
+ * that is exactly what the bump to 4 was, and it needs no new reader. Changing
+ * what a store *holds* does, and then the reader is part of your change. Skip
+ * it and nothing is lost: the readers validate what they read, an unrecognised
+ * shape aborts the upgrade, and the page refuses to start and says why. That
+ * is the failure this is designed to have, and it is why forgetting is safe.
+ *
+ * The upgrade still drops *every* store it finds, including symbols/, whose
+ * shape has not changed, and still builds the schema from nothing. Keeping a
+ * store because it happens to look right would leave a browser half-old, which
+ * is the state this repository has decided not to have. Carrying its
+ * *contents* across is a different act, it happens after the drop, and it is
+ * the whole of what changed here.
  */
 const DB_VERSION = 4;
 
@@ -186,6 +207,98 @@ const EMPTY = "empty";
 
 let opening: Promise<IDBPDatabase<VorlautDB>> | null = null;
 
+/** What an upgrade carried across, for the sentence the page says about it. */
+export interface Carried {
+  from: number;
+  to: number;
+  boards: number;
+  symbols: number;
+}
+
+/** Somebody to tell that a person's boards have just moved under them.
+ *
+ * A notifier rather than a message, for the reason onBlocked below is one:
+ * this file may not reach into the page, and the sentence a person reads is in
+ * the text table with every other sentence. An upgrade that moved somebody's
+ * data without saying so is indistinguishable from outside from one that lost
+ * it, which is half of what adr/0015 is about - so this is not optional
+ * decoration on top of the carry, it is the other half of it. */
+const moved = new Set<(carried: Carried) => void>();
+
+export function onCarried(listener: (carried: Carried) => void): () => void {
+  moved.add(listener);
+  return () => moved.delete(listener);
+}
+
+/* The three things the upgrade callback has to hand back to open().
+ *
+ * Module state rather than return values because the callback's return value
+ * goes to idb and nowhere else, and because openDB() resolves through an event
+ * rather than through this function. Only ever one open is in flight - open()
+ * memoises - so there is nothing here for a second one to trample. */
+let refusal: Error | null = null;
+let note: Carried | null = null;
+let discarding = false;
+
+/** The upgrade transaction, as idb hands it over. */
+type Upgrading = IDBPTransaction<VorlautDB, StoreNames<VorlautDB>[], "versionchange">;
+
+/** Every store the database has, keys and values, before any of it is deleted.
+ *
+ * Cast to a typeless transaction because the names in an *older* database are
+ * by definition not in the schema below - `content`, `data`, and whatever a
+ * future version leaves behind. idb documents this cast for exactly this case.
+ *
+ * Every await in here is a request on `tx`, and there is nothing between them.
+ * See the head of data/rescue.ts for why that sentence is load-bearing. */
+async function readOld(db: IDBPDatabase<VorlautDB>, tx: Upgrading,
+                       from: number): Promise<Salvage | null> {
+  const raw = tx as unknown as IDBPTransaction<unknown, string[], "versionchange">;
+  const stores: Dump["stores"] = {};
+  for (const name of [...db.objectStoreNames] as string[]) {
+    const held = raw.objectStore(name);
+    stores[name] = { keys: await held.getAllKeys(), values: await held.getAll() };
+  }
+  return readShape({ version: from, stores }, mintId);
+}
+
+/** The salvage, into the schema that has just been created for it.
+ *
+ * Through the same transaction the drop happened in, which is the whole point:
+ * the read, the drop and this commit together or not at all. A tab closed
+ * between them leaves a database at its old version with its old contents,
+ * rather than one holding neither copy.
+ *
+ * No hashing here and none wanted. A stored layout carries the bytes and the
+ * stamp over those bytes as a matched pair, and nothing on this path changes
+ * the bytes - versionOf() is a crypto.subtle call, and awaiting one here would
+ * commit this transaction underneath the loop below. */
+async function carryInto(tx: Upgrading, salvage: Salvage): Promise<void> {
+  const collections = tx.objectStore(COLLECTIONS);
+  const layouts = tx.objectStore(LAYOUTS);
+  for (const board of salvage.boards) {
+    await collections.put({ id: board.id, name: board.name, updatedAt: board.updatedAt });
+    await layouts.put({ id: board.id, text: board.text, version: board.version });
+  }
+
+  // A Sammlung named as the open one that did not survive the read is not the
+  // one to open - the same rule replaceCollections() applies to a restore.
+  const current = salvage.boards.some((one) => one.id === salvage.current)
+    ? salvage.current : salvage.boards[0]?.id ?? null;
+  await tx.objectStore(MARKS).put(current, CURRENT);
+
+  // Whole, rather than the safe half of it: this record moves from one object
+  // store to another inside one browser and never becomes a file, so stripping
+  // the Azure key and the METACOM path here would cost somebody both for
+  // nothing. data/backup.ts strips because what it makes leaves.
+  if (salvage.settings !== undefined) {
+    await tx.objectStore(SETTINGS).put(salvage.settings as Settings, SETTINGS);
+  }
+
+  const symbols = tx.objectStore("symbols");
+  for (const picture of salvage.symbols) await symbols.put(picture.bytes, picture.name);
+}
+
 /** Somebody to tell when the database cannot be opened at all.
  *
  * A notifier rather than a message, for the reason data/changed.ts gives about
@@ -205,24 +318,59 @@ function open(): Promise<IDBPDatabase<VorlautDB>> {
   // One connection, reused. Opening per call works and costs a round trip
   // through the database on every keystroke's worth of saving.
   if (opening) return opening;
+  refusal = null;
+  note = null;
   const pending = openDB<VorlautDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      // Snapshotted before the loop: objectStoreNames is live, and deleting
-      // through it skips every other name.
-      for (const name of [...db.objectStoreNames]) db.deleteObjectStore(name);
+    /* Read, drop, recreate, write back - in that order, in one transaction.
+     *
+     * `async`, and every await inside it and inside what it calls is a request
+     * on `tx` with nothing between them. That is not a style note. A
+     * versionchange transaction stays open only while requests are outstanding
+     * on it, so one await on anything else commits it underneath this function
+     * - and then the drop has landed and the write-back has not, which is the
+     * wipe again with more steps.
+     *
+     * A throw does *not* abort an async upgrade callback the way it aborts a
+     * synchronous one: the rejection escapes into nothing idb is watching and
+     * the transaction commits regardless. So the refusal is an explicit
+     * abort(), and what caused it is left where open() can pick it up. */
+    async upgrade(db, from, _to, tx) {
+      try {
+        // Before anything is deleted. Skipped only where somebody has been
+        // shown what could not be read and has said to discard it anyway.
+        const carrying = discarding ? null : await readOld(db, tx, from);
 
-      // keyPath rather than an out-of-line key for the two stores whose values
-      // carry their own id. It is one fewer place for the key and the record to
-      // disagree, and it is what lets a read hand back a CollectionRef that is
-      // complete on its own.
-      db.createObjectStore(COLLECTIONS, { keyPath: "id" })
-        .createIndex(BY_UPDATED, BY_UPDATED);
-      db.createObjectStore(LAYOUTS, { keyPath: "id" });
-      // Out-of-line: a Settings object has no id, an ArrayBuffer cannot have
-      // one, and a mark is a bare string.
-      db.createObjectStore(SETTINGS);
-      db.createObjectStore(MARKS);
-      db.createObjectStore("symbols");
+        // Snapshotted before the loop: objectStoreNames is live, and deleting
+        // through it skips every other name.
+        for (const name of [...db.objectStoreNames]) db.deleteObjectStore(name);
+
+        // keyPath rather than an out-of-line key for the two stores whose values
+        // carry their own id. It is one fewer place for the key and the record to
+        // disagree, and it is what lets a read hand back a CollectionRef that is
+        // complete on its own.
+        db.createObjectStore(COLLECTIONS, { keyPath: "id" })
+          .createIndex(BY_UPDATED, BY_UPDATED);
+        db.createObjectStore(LAYOUTS, { keyPath: "id" });
+        // Out-of-line: a Settings object has no id, an ArrayBuffer cannot have
+        // one, and a mark is a bare string.
+        db.createObjectStore(SETTINGS);
+        db.createObjectStore(MARKS);
+        db.createObjectStore("symbols");
+
+        if (carrying) {
+          // Written before the puts rather than after them, so that whichever
+          // order this function and the open request settle in, open() has it.
+          note = { from, to: DB_VERSION, boards: carrying.boards.length,
+                   symbols: carrying.symbols.length };
+          await carryInto(tx, carrying);
+        }
+      } catch (error) {
+        refusal = error instanceof Error ? error : new Error(UNREADABLE);
+        note = null;
+        // The abort rejects tx.done, and nothing else is listening to it.
+        tx.done.catch(() => undefined);
+        tx.abort();
+      }
     },
 
     /* The three that were not here, and the first one is why a browser that
@@ -270,7 +418,32 @@ function open(): Promise<IDBPDatabase<VorlautDB>> {
     terminated() {
       opening = null;
     },
-  });
+  }).then(
+    (db) => {
+      // One discard covers the one upgrade it was asked for, and no later one.
+      discarding = false;
+      const carried = note;
+      note = null;
+      if (carried && (carried.boards || carried.symbols)) {
+        /* On a later turn, deliberately. A listener says a sentence and
+         * touched() schedules a Sicherung that reads the whole store back -
+         * both of which go through open(), and open() is memoised on the very
+         * promise this callback is inside. By the time a microtask runs,
+         * `opening` has been assigned and they are handed it rather than
+         * starting a second connection. */
+        queueMicrotask(() => {
+          for (const listener of moved) listener(carried);
+          touched();
+        });
+      }
+      return db;
+    },
+    (error: unknown) => {
+      // An aborted upgrade surfaces as AbortError, which says nothing about
+      // why. The reason was put aside where the abort happened.
+      throw refusal ?? error;
+    },
+  );
   // A rejected open must not be the answer for the rest of the tab's life.
   // opening is memoised, so without this one failure - a browser refusing
   // storage in a private window, an upgrade that threw - would be handed to
@@ -294,6 +467,63 @@ export async function close(): Promise<void> {
   const db = await opening;
   opening = null;
   db.close();
+}
+
+/* --- when nothing could be read ----------------------------------------------
+ *
+ * The other end of adr/0015. An upgrade that meets a database no reader
+ * recognises aborts, so that database is still sitting there, at its own
+ * version, with everything in it - and the page is looking at an open() that
+ * rejected with UNREADABLE. What a person is owed before they agree to discard
+ * any of it is the contents, in a file. These two are how shell/rescue.ts
+ * gives it to them.
+ */
+
+/** Every record in whatever version of the database is on disk, without
+ *  upgrading it.
+ *
+ * openDB with no version opens what is there and never fires an upgrade, which
+ * is the only way to read a database this code has just refused to touch. The
+ * connection is closed again immediately: holding it would be this tab
+ * blocking its own next open, which is the failure blocked() above is for.
+ *
+ * One caveat worth writing down rather than leaving to be discovered: a
+ * no-version open of a database that is *not* there creates it, empty, at
+ * version 1. Harmless on this path - nothing reaches here except after an open
+ * that refused, so there is one - and an empty dump reads as nothing to rescue
+ * rather than as an error. */
+export async function dumpEverything(): Promise<Dump> {
+  const db = await openDB(DB_NAME);
+  try {
+    const stores: Dump["stores"] = {};
+    for (const name of [...db.objectStoreNames]) {
+      // One transaction per store rather than one over all of them: this runs
+      // on a page that is already refusing to start, and a store that will not
+      // read should cost its own records rather than everybody else's.
+      const tx = db.transaction(name, "readonly");
+      const held = tx.objectStore(name);
+      stores[name] = { keys: await held.getAllKeys(), values: await held.getAll() };
+      await tx.done;
+    }
+    return { version: db.version, stores };
+  } finally {
+    db.close();
+  }
+}
+
+/** Go ahead and drop what could not be read.
+ *
+ * Armed by a person, in a dialog that has already handed them the file. It
+ * covers exactly one open - the flag is cleared as soon as one succeeds - so a
+ * later version this browser meets asks again rather than inheriting an
+ * answer somebody gave about a different database.
+ *
+ * `opening` goes with it, because the open that refused is memoised as a
+ * rejected promise; without this, every call for the rest of the tab's life
+ * would be handed that same refusal. */
+export function discardEverything(): void {
+  discarding = true;
+  opening = null;
 }
 
 /** The layout as the bytes that get hashed and stored.
