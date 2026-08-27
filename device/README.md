@@ -146,14 +146,25 @@ browser waiting for a reply that never comes looks exactly like a broken cable
 | `layout/` | Every field, every stride, and **every one of the five refusal codes**. |
 | `tile/` | 128 by 128 RGB565 big-endian, and what a reader does with a file of the wrong length. |
 | `audio/` | 16 kHz mono 16-bit, chunk walking with its pad byte, and four refusals. |
-| `cable/` | Whole transcripts, both extension rules, every error word, and the window a file crosses in. |
+| `cable/` | Whole transcripts, both extension rules, every error word, the window a file crosses in, and a protocol-version mismatch in each direction. |
 | `names.expected.json` | Which names a builder emits, which the device stores, and that the first is inside the second. |
 | `language.expected.json` | Byte 7's table, its default, and what an index past it means. |
+| `sleep.expected.json` | The timeout range a builder may write, what the device waits for everything else, and that the first is inside the second. |
 
 The refusals are the point. `tests/reference/layout.lock.json` has seventeen
 frozen cases and **not one of them is refused**, because every one of them is
 something a correct-looking writer produced — a capture can only contain what
 its writer emits. All five refusal branches were authored here in an afternoon.
+
+There is a second thing a capture cannot do, and the sleep timeout is where it
+showed. That lock *records* what the firmware's reader makes of a timeout of
+zero and one of `0xffffffff` — and compares neither, because both cases are
+kind `bytes` and only the nine kind `fields` cases are checked line by line. So
+a reader that quietly started clamping in `parseLayout` would leave the lock
+describing an answer it no longer gives, with nothing red anywhere and no
+oracle left to re-derive the truth. `layout/*.expected.json` carries
+`sleep_seconds` and `idle_seconds` as two separate fields for exactly that
+reason: the field as it stands, and the length of time it means.
 
 ## What they do not cover
 

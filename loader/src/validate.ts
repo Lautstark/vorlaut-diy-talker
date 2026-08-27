@@ -37,7 +37,8 @@ import type { DevicePlan, ReadDevicePackage }
   from "../../src/data/device_package.js";
 import { wavFormat, wavSeconds } from "../../src/data/device_package.js";
 import {
-  LANGUAGE_CODES, MAX_SETS, NAME_BYTES, SLOTS_PER_SET,
+  LANGUAGE_CODES, MAX_SETS, NAME_BYTES, SLEEP_MAX, SLEEP_MIN, SLOTS_PER_SET,
+  layoutIdleSeconds,
 } from "./layout_format.js";
 
 /** How long a clip may run before it is worth mentioning.
@@ -132,13 +133,28 @@ export function check(read: ReadDevicePackage): Finding[] {
     refuse(t("load.too_many_sets", { sets: plan.sets.length, max: MAX_SETS }));
   }
 
-  /* renderLayoutBin() throws a RangeError on this rather than writing a
-   * header the firmware would read as something else. A throw in the middle
-   * of a compile is a page saying "RangeError" at somebody holding a cable,
-   * so the same question is asked here in words. */
+  /* Two different answers about the same field, and the difference is what a
+   * refusal is for.
+   *
+   * A value the header cannot carry at all is a refusal: renderLayoutBin()
+   * throws a RangeError rather than writing a header the firmware would read as
+   * something else, and a throw in the middle of a compile is a page saying
+   * "RangeError" at somebody holding a cable.
+   *
+   * A value the header carries and the device will not honour is a note. The
+   * firmware clamps - layoutIdleSeconds() in its own layout_format.h, with a
+   * range this file reads out of the browser's half of the same pair - so the
+   * file goes and the talker simply sleeps after a different length of time
+   * from the one written. Saying which is the whole of what is owed: a talker
+   * that goes to sleep after ten seconds when the file said two, and no screen
+   * anywhere explaining it, is indistinguishable from a fault. */
   const sleep = plan.sleepTimeoutSeconds;
   if (!Number.isInteger(sleep) || sleep < 0 || sleep > 0xffffffff) {
     refuse(t("load.bad_sleep", { value: String(sleep) }));
+  } else if (sleep !== 0 && (sleep < SLEEP_MIN || sleep > SLEEP_MAX)) {
+    note(t("load.sleep_clamped", {
+      value: sleep, used: layoutIdleSeconds(sleep), min: SLEEP_MIN, max: SLEEP_MAX,
+    }));
   }
 
   /* Not a refusal: renderLayoutBin() writes the default index for a language

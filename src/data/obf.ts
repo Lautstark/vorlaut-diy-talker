@@ -44,6 +44,9 @@ import {
   DEFAULT_LANGUAGE,
   LANGUAGE_CODES,
   SLOTS_PER_SET,
+  SLEEP_MIN,
+  SLEEP_MAX,
+  SLEEP_DEFAULT,
 } from "../../loader/src/layout_format.js";
 import type { DiyLayout } from "../core/types.js";
 
@@ -603,8 +606,12 @@ export function localeToLanguage(locale) {
 // many the device has room for stopped being two questions. A document with
 // more boards than that is refused rather than imported and half-shown.
 export const MAX_SETS = LIMITS.maxSets;
-// The one number that is in neither table. layout.py's DEFAULT_SLEEP_TIMEOUT.
-export const DEFAULT_SLEEP_TIMEOUT = 600;
+// layout.py's DEFAULT_SLEEP_TIMEOUT. It used to be the one number in neither
+// table, written 600 here and 600 again in vorlaut.ino's idle check, agreeing
+// by coincidence - two files that had each arrived at ten minutes on their own.
+// It is SLEEP_DEFAULT now, beside the range it belongs to, and the device says
+// the same number back through layoutIdleSeconds().
+export const DEFAULT_SLEEP_TIMEOUT = SLEEP_DEFAULT;
 
 /** Python's int(value), which is not Number(value).
  *
@@ -633,10 +640,16 @@ function pyInt(value, fallback) {
 
 /** layout.py's normalize_layout(): the file, brought into a complete shape. */
 export function normalizeLayout(raw) {
+  // The same [10, 86400] it has always clamped to, taken from the range
+  // layout_format.ts states rather than spelled out again here. This is the
+  // gate that keeps every builder in this repository inside the range the
+  // device honours exactly - device/fixtures/sleep.expected.json states that
+  // relation, and it is the same shape as names.expected.json's: what a
+  // builder emits has to be inside what the device will take.
   const timeout = Math.max(
-    10, Math.min(pyInt("sleep_timeout_seconds" in raw
+    SLEEP_MIN, Math.min(pyInt("sleep_timeout_seconds" in raw
       ? raw.sleep_timeout_seconds : DEFAULT_SLEEP_TIMEOUT,
-      DEFAULT_SLEEP_TIMEOUT), 24 * 3600));
+      DEFAULT_SLEEP_TIMEOUT), SLEEP_MAX));
 
   let language = text(raw.language || DEFAULT_LANGUAGE).trim().toLowerCase();
   if (!Object.hasOwn(LANGUAGE_CODES, language)) {

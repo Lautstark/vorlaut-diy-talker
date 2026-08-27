@@ -48,7 +48,7 @@ collection's name — and [`loader/`](loader/README.md), a second page out of th
 same build, checks that file, compiles it into what the talker reads and pushes
 it down the USB-C cable. Flash the firmware once first;
 [docs/cable.md](docs/cable.md) is the wire, and
-[adr/0011](adr/0011-editor-exports-loader-sends.md) is why it is two pages.
+[adr/0011](adr/0011-editor-exports-the-talker-repository-sends.md) is why it is two pages.
 
 No voice is installed for you. Nothing is needed to start editing — the
 interface works without one, and new sentences simply stay silent and say so.

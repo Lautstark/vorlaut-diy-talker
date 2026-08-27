@@ -65,7 +65,7 @@ import { HOME_TONES } from "./homekey.js";
 import type { Cropper } from "./crop.js";
 import { creditLine, findSymbols, searchPlaceholder, takeHome, takeSymbol, uploadOwn }
   from "./picker.js";
-import type { HomeSuggestion, SymbolHit } from "./picker.js";
+import type { HomeSuggestion, SymbolAct, SymbolHit } from "./picker.js";
 
 /** How a sheet was left. `null` is every way out that wrote nothing. */
 export type Left = "done" | "next" | null;
@@ -488,6 +488,10 @@ function drawPick(spec: PickColumn): Picked {
   let hits: SymbolHit[] = [];
   let home: HomeSuggestion | null = null;
   let nothing = "";
+  /* What can be done about `nothing`, where the seam offered something. Held
+   * beside it rather than inside the sentence, because a sentence is drawn and
+   * a button is pressed. */
+  let act: SymbolAct | null = null;
 
   /** The one tile the collection did not answer with: the picture a start key
    *  is prescribed, drawn the way that key is drawn rather than the way a
@@ -571,6 +575,24 @@ function drawPick(spec: PickColumn): Picked {
       const line = document.createElement("p");
       line.textContent = nothing;
       results.appendChild(line);
+      /* And the way out of it, where the seam knows one. The sentence says
+       * what is wrong; without this it also had to say where to go and fix it,
+       * which for the one case that has an answer meant closing this sheet,
+       * finding a panel two screens away and coming back. */
+      if (act) {
+        const doIt = document.createElement("button");
+        doIt.type = "button";
+        doIt.className = "btn";
+        doIt.textContent = act.label;
+        doIt.onclick = () => {
+          void act?.run().then((changed) => {
+            // Only when something really changed: a refused prompt leaves the
+            // sheet exactly as it was, which is what a refusal should cost.
+            if (changed) search();
+          });
+        };
+        results.appendChild(doIt);
+      }
     }
   };
 
@@ -599,6 +621,7 @@ function drawPick(spec: PickColumn): Picked {
       // never managed to ask - come back as a sentence from the seam, and are
       // written into the box under whatever else is in it.
       nothing = answer.empty;
+      act = answer.act ?? null;
       drawResults();
       // And the third answer, which is neither: hits that are the nearest the
       // collection holds rather than the word. They stay; this says so.

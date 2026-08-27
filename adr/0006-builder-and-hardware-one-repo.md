@@ -121,6 +121,9 @@ would do it:
    `layout.bin`, or another builder writes it, the firmware's format handling
    has met the same criterion the four shared packages met and should leave the
    same way — as a pinned package, not as a copy.
+   **This condition no longer has anything to gate, since 2026-08-27**: there
+   is no format handling in the editor left to extract. The entry below says
+   why, and it is a premise removed rather than a rule overridden.
 3. **CI time becomes a real cost**, measured: a median wall-clock that actually
    slows the work down, on jobs the `paths:` filters could not already have
    avoided.
@@ -164,3 +167,34 @@ is an amendment to the reasoning. The decision is unchanged, condition 2 is
 still unmet, and packaging one implementation of the device format remains the
 thing 0006 refused — a proposal for it would supersede this file rather than
 amend it.
+
+**2026-08-27 — condition 2 stopped being answerable, and the decision is
+untouched.** [ADR 0011](0011-editor-exports-the-talker-repository-sends.md)
+decided that the editor exports a file and stops, and that the talker's own
+repository gains the page that compiles that file and sends it. So
+`compileDevice()`, `tiles.ts` and `tools/cable.js` are the device's, beside the
+firmware, and the editor holds no device format at all.
+
+Condition 2 asks for a second consumer of `layout.bin` **before the format
+handling is extracted as a pinned package**. That is a test for *when* an
+extraction is justified, and it was the right test while an extraction was the
+thing on the table. There is now nothing to extract: the writer and the reader
+are on one side by construction, and no package is published, pinned or bumped.
+The condition is not overruled and not weakened — its premise is gone, so the
+question it answers stops arising.
+
+The entry above still reads correctly and is not withdrawn: a proposal to
+package one implementation of the device format would supersede this file
+rather than amend it. ADR 0011 is not that proposal. It removes the package
+from the picture instead of publishing one, which is why it sits here as an
+amendment.
+
+The Decision and the Why are untouched; condition 2 gained a pointer and
+nothing else. Every load-bearing sentence in this file is about two
+implementations that must agree living in one place, and after ADR 0011 they
+still do — both of them in the repository this file is about, whether
+or not the editor ever leaves it. If anything the argument is stronger, because
+the pairing survives a split rather than depending on there not being one:
+`tests/run.py` goes on compiling both halves on a single commit either way.
+This decision stands, its status does not change, and condition 2 is retired
+rather than met.

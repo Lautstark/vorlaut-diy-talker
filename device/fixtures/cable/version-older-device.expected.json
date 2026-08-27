@@ -1,0 +1,59 @@
+{
+  "fixture": "version-older-device",
+  "kind": "cable",
+  "summary": "A device one version behind this browser. It answers, and it cannot be driven.",
+  "ends": [
+    "browser"
+  ],
+  "protocol_version": 2,
+  "device_speaks": 1,
+  "version_verdict": "device_older",
+  "window": 4096,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 1"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    }
+  ],
+  "device_ends_with": null,
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 1,
+        "total": 1441792,
+        "free": 1441792,
+        "files": 0
+      }
+    }
+  ],
+  "notes": [
+    "hello() reads the greeting and does not refuse it. That is deliberate: the same call is how the browser tells a talker from a dongle, and a throw here would put a device that answered into the same bucket as a port that said nothing - which reads to whoever is holding the cable as 'nothing answered', and sends them to check the cable rather than the firmware.",
+    "So the greeting is returned whole and the verdict is a separate answer, stated by this fixture as version_verdict and computed by versionVerdict() in tools/cable.js. What acts on it is findTalker() in src/backend/cable.ts, which keeps walking the remaining ports - somebody with two boards plugged in should still reach the one that works - and reports the mismatch only if no port is drivable.",
+    "An older device needs newer firmware, and nothing else will do: the browser cannot fall back to a protocol it no longer implements, and a device on a shelf cannot be updated by a deploy.",
+    "Refused rather than warned, in both directions. cable_format.h defines a bump as the case where the two ends can no longer drive each other, and says that adding a keyword is not one - unknown keywords cost no version at all. So a number that is not ours is a statement that these ends do not work together, and sending anyway means finding out mid-transfer: for version 2 that is a browser waiting forever for an ack, or a device overrun and failing on a checksum, either of which can leave a talker with silent keys.",
+    "The transcript ends after 'end hello' because the browser sends nothing more. The other end of that rule is the runner's: a client that ran ahead has written bytes nobody asked for, and that is visible at the moment the device speaks."
+  ]
+}

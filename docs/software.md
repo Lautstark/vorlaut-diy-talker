@@ -52,7 +52,7 @@ Two pages and a file between them. The editor exports the Sammlung as an
 [`loader/`](../loader/README.md) compiles that file into what the device reads
 and sends it. What the compile produces is what the rest of this section
 describes; where the files go afterwards is [cable.md](cable.md), and
-[ADR 0011](../adr/0011-editor-exports-loader-sends.md) is why it is two pages.
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) is why it is two pages.
 
 There is one other way out of the compile, and it exists because the cable is
 the only way in: *Write into a folder instead*, on the same page, puts the same

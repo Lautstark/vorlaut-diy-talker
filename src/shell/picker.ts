@@ -28,7 +28,8 @@ import { t } from "../core/texts.js";
 import {
   asksForHome, homeSymbolUrl, homeWord, takeHomeSymbol,
 } from "./homekey.js";
-import type { ProviderId } from "@lautstark/bildquelle";
+import { needsAttention } from "@lautstark/bildquelle";
+import type { ProviderId, ProviderStatus } from "@lautstark/bildquelle";
 
 /* --- The seam ------------------------------------------------------------
  *
@@ -111,6 +112,50 @@ function folderWanted(): string {
   return `${t("ui.metacom_needed")} ${waiting ? t("ui.metacom_waiting") : ""}`.trim();
 }
 
+/**
+ * Whether a folder that is not answering is one a click could wake.
+ *
+ * Two states look alike from here and are not: a folder nobody has chosen, and
+ * one this browser was given and has since reset its permission for - which it
+ * does between visits, without being asked. Only the second has a way back in
+ * that does not involve going and finding the folder again.
+ *
+ * **Narrower than bildquelle's `needsAttention`, and built out of it.** That is
+ * the package's answer to "is this somebody's to act on", and it counts a
+ * folder that could not be *read* as well - a path that has gone, an empty
+ * directory. Those are things to act on and are not things a permission prompt
+ * mends, so a button offering to would promise something it cannot do. What is
+ * left after the narrowing is this app's question, but the half both share is
+ * asked once, in the package that knows what the states mean. Written out here
+ * it agreed with `needsAttention` on the day it was written and would have
+ * drifted from it silently on any day after.
+ *
+ * A rule over what the provider says rather than a reach into it, so that it
+ * can be held to plain objects in tests/unit/picker_reconnect.test.ts. The
+ * distinction is the whole of what the button promises.
+ */
+export const canReconnect = (status: ProviderStatus): boolean =>
+  needsAttention(status) && status.kind === "needs-setup";
+
+/** The way back in, where there is one.
+ *
+ * Only where the folder is remembered and the browser wants a click. With no
+ * folder at all there is nothing to re-grant - somebody has to go and pick one,
+ * which is the gear, and the sentence beside this already says so.
+ *
+ * The same words the Sammlung's own panel uses, out of the same key. A second
+ * wording for one act is how two places come to describe the same button
+ * differently. */
+function wayBackIn(): SymbolAct | null {
+  if (!canReconnect(symbols.metacomStatus())) return null;
+  return {
+    label: t("ui.symbol_source_reconnect"),
+    // The browser's prompt needs the gesture that started this, so the call is
+    // the handler's own and nothing is awaited in between.
+    run: () => symbols.reconnectMetacom(),
+  };
+}
+
 /** A finished search: the hits, and the sentence that says what kind of answer
  *  they are - which of the two silences an empty one was, or that a full grid
  *  is a grid of near misses.
@@ -120,10 +165,35 @@ function folderWanted(): string {
  *  so ARASAAC answers [] for a failed fetch as well as for a word it does not
  *  have, and "nothing found" is the wrong sentence for a browser with no
  *  network. */
+/**
+ * Something to do about an answer, offered beside the sentence that explains
+ * it.
+ *
+ * One case so far, and it is the case this exists for: this Sammlung's symbols
+ * come from METACOM, the folder is remembered, and the browser has reset its
+ * permission between visits. The sentence used to send somebody to the gear -
+ * close the sheet, find the panel, press the button that chooses a folder, come
+ * back - for a thing that is one browser prompt away.
+ *
+ * A label and a promise rather than an element, so that the seam stays what it
+ * was: this module says what is true and what could be done, and sheet.ts
+ * decides what a button looks like. The promise answers whether anything
+ * changed, because the only thing worth doing afterwards is running the search
+ * again - and a refusal must not.
+ */
+export interface SymbolAct {
+  label: string;
+  run(): Promise<boolean>;
+}
+
 export interface SymbolAnswer {
   hits: SymbolHit[];
   /** "" when there are hits. */
   empty: string;
+  /** What to do about `empty`, where there is something. Absent nearly always:
+   *  a word the collection does not have is not a thing anybody can act on
+   *  from here. */
+  act?: SymbolAct | null;
   /** The line above hits that answer something other than what was typed.
    *  "" when one of them really is the word. Never set together with `empty`:
    *  it is about hits, and there are none to be about. */
@@ -254,7 +324,7 @@ export async function findSymbols(word: string): Promise<SymbolAnswer> {
   // from ARASAAC here is a key this Sammlung can no longer export. So there
   // are no hits, and the sentence is the one click that fixes it.
   if (outOfReach(source)) {
-    return { hits: [], empty: folderWanted(), near: "", home };
+    return { hits: [], empty: folderWanted(), near: "", home, act: wayBackIn() };
   }
   try {
     const hits = await symbols.searchIn(source, term);

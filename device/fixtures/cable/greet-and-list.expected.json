@@ -7,6 +7,8 @@
     "browser"
   ],
   "protocol_version": 2,
+  "device_speaks": 2,
+  "version_verdict": "ok",
   "window": 4096,
   "device_starts_with": [
     {

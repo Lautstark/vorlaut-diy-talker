@@ -363,7 +363,7 @@ It was written — the orchestration that was `builder.py`, against the ports of
 has since moved rather than gone: `compileDevice()` in
 [`loader/src/compile.ts`](../loader/src/compile.ts) does the same work on the
 page that sends, out of a file rather than out of a store
-([adr/0011](../adr/0011-editor-exports-loader-sends.md)). Changing a symbol or a
+([adr/0011](../adr/0011-editor-exports-the-talker-repository-sends.md)). Changing a symbol or a
 sentence renders again.
 
 **Both routes onto a device went, not one.** `flashing.py` made the LittleFS

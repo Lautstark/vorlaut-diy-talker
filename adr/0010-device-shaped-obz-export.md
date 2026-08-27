@@ -1,6 +1,6 @@
 # ADR 0010 — The device build has an export of its own, and it is a third door
 
-**Status:** accepted, amended by [ADR 0011](0011-editor-exports-loader-sends.md)
+**Status:** accepted, amended by [ADR 0011](0011-editor-exports-the-talker-repository-sends.md)
 · **Date:** 2026-08-27 · **Applies to:** `src/data/device_package.ts`
 
 ## Context
@@ -61,7 +61,7 @@ Three further things this decides:
   `data` store under the names `audioName()` gave them, so the file cannot
   claim to be a talker's contents while holding audio that talker has never
   had. It asks for a current build first and says so. — **Amended the same day
-  by [ADR 0011](0011-editor-exports-loader-sends.md), which is the one part of
+  by [ADR 0011](0011-editor-exports-the-talker-repository-sends.md), which is the one part of
   this decision that did not survive.** There is no build in the editor for the
   file to be a record of, and the relationship has inverted: the file is what a
   talker is *given*. So it synthesises, and it needs no current build. The
@@ -72,7 +72,7 @@ Three further things this decides:
 - **`compileDevice()` is the inverse**, and it takes decoding and hashing from
   its host. Fed the export it reproduces exactly the files in the `data` store,
   which is what `tests/unit/device_roundtrip.test.ts` holds it to. — Since
-  [ADR 0011](0011-editor-exports-loader-sends.md) it lives in
+  [ADR 0011](0011-editor-exports-the-talker-repository-sends.md) it lives in
   `loader/src/compile.ts` and there is no `data` store to reproduce: it *is* the
   build, on the page that sends one. The round trip is unchanged and is now the
   only thing standing between an editor and a talker that have stopped
@@ -96,7 +96,7 @@ argument does not weaken with a third writer; it is the reason there is one.
 **The export is worth having whether or not anything is ever packaged or
 split.** It is the first artefact here that can reconstruct a device build
 without the editor's store. (Within the day it became the *only* one: see
-[ADR 0011](0011-editor-exports-loader-sends.md). The argument below was made
+[ADR 0011](0011-editor-exports-the-talker-repository-sends.md). The argument below was made
 without that in view and stands better for it.) That is the same argument ADR 0009 made about the
 fixtures — the expensive half of a split turned out to be worth paying for on
 its own — and `docs/obz-as-device-input.md` recommendation 4 is explicit that

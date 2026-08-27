@@ -1,15 +1,15 @@
 {
-  "fixture": "trailing-bytes",
+  "fixture": "sleep-timeout-under-min",
   "kind": "layout",
-  "file": "layout/trailing-bytes.bin",
-  "summary": "A valid one-set layout with four bytes stuck on the end. A reader ignores them.",
-  "bytes": 200,
+  "file": "layout/sleep-timeout-under-min.bin",
+  "summary": "A sleep timeout of 5 seconds. Below the range, and brought up to it rather than obeyed.",
+  "bytes": 196,
   "read": {
     "result": "ok",
     "sets": 1,
     "language": 0,
-    "sleep_seconds": 3600,
-    "idle_seconds": 3600,
+    "sleep_seconds": 5,
+    "idle_seconds": 10,
     "entries": [
       {
         "name": "4672c3bc687374c3bc636b",
@@ -42,8 +42,8 @@
   },
   "write": null,
   "notes": [
-    "The length rule is a floor and not an equality: the file holds at least 12 + sets * 184 bytes, and anything past that is not read.",
-    "That is NOT a way to extend the format. The header carries no length of its own, so a reader has no way to tell a trailing field from a file something was appended to by accident, and nothing would tell it what the field means. Byte 7 remains the only forward compatibility this format has.",
-    "A writer must not emit them, which is why this has no write half."
+    "The other end of the same rule. Five seconds is a device that goes back to sleep between one key press and the next, which is a device that cannot be used - so the floor is 10 and a field below it means 10.",
+    "Zero is not this case and does not clamp to 10: it is the unset field and means the default of 600. no-sets is where that is pinned.",
+    "No write half. normalizeLayout() clamps to the range before any builder here reaches the byte writer, so this file is one only a foreign builder or a hand-written layout.bin produces - which is exactly who this rule is for."
   ]
 }

@@ -1,30 +1,36 @@
-# The `.obz` as the device build's input, and the compiler as a package
+# The `.obz` as the device build's input, and ~~the compiler as a package~~
 
-**Status: proposal, largely built, one part still refused. 2026-08-27.**
-Written to be argued with, and it was.
+**Status: the measurement stands, the package half is superseded. Written
+2026-08-27 as a proposal; half of it was answered the same day.** The reasoning
+is kept where it still holds and struck through in words where it does not — a
+document that goes on describing a design nobody built is worse than no
+document.
 
-**What happened since, so that nothing below is read as still open.**
-Recommendation 3 — the device-shaped export — landed as
-[adr/0010](../adr/0010-device-shaped-obz-export.md). The premise this document
-set out to test, that an `.obz` can be the device build's input, is now how the
-product works: [adr/0011](../adr/0011-editor-exports-loader-sends.md) made the
-editor's only route to a talker that file, and put the compiler on a page of its
-own in [`loader/`](../loader/README.md). What is **still** refused is the part
-this document is named for and recommendation 4 is about: the compiler is not a
-package and this repository is not split, because [adr/0006](../adr/0006-builder-and-hardware-one-repo.md)
-asks for evidence and none has arrived.
+**What stands, and is the foundation for everything built since:** an `.obz`
+can carry everything the device build uses, in the four forms §2 works out.
+§§1–5, §8 and §10 are the measurement and are unchanged.
+[ADR 0010](../adr/0010-device-shaped-obz-export.md) is that export, built.
 
-Everything below describes the code as it stood on the morning of that day.
-`runBuild()`, the `data` store and the editor's cable are named throughout in
-the present tense and no longer exist; the measurements are what they were, and
-rewriting them would turn a record into a summary.
+**What is superseded is the second half of the title.** This file proposed that
+the editor keep a device-shaped dependency and pin a **compiler package**
+published by the firmware's repository, with the boundary
+[`adr/0006`](../adr/0006-builder-and-hardware-one-repo.md) draws around a folder
+becoming a package with a specified input. That is not the plan.
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) decided
+something simpler on 2026-08-27: **the editor exports a file and stops**, and
+the talker's own repository gains a page that compiles that file and sends it —
+no package, no pin, no bump, no cross-repo code dependency of any kind. What
+changed is *who compiles it*, not whether an `.obz` can be compiled. So §§6, 7,
+9 and 11 below are costings for a route nobody is taking; they are kept because
+they are what the cheaper answer had to beat, and each is marked where it
+starts.
 
-The proposal weighed here: the editor's only output becomes an `.obz`, a
+~~The proposal weighed here: the editor's only output becomes an `.obz`, a
 device-side compiler turns that into `layout.bin` and the tiles, the compiler
 ships as an npm package pinned the way `design`, `bildquelle`, `sicherung` and
-`stimmquelle` are pinned, and the boundary that
-[`adr/0006`](../adr/0006-builder-and-hardware-one-repo.md) draws around a folder
-becomes a package with a specified input.
+`stimmquelle` are pinned.~~ The editor's only output does become an `.obz`, and
+a compiler does turn it into `layout.bin` and the tiles. The compiler is a page
+in the talker's repository rather than a package the editor pins.
 
 Everything rests on one question, so it is answered first.
 
@@ -279,6 +285,18 @@ whether or not anything is ever packaged or split.
 
 ## 6. What is in the package, checked against `device-interface.md` §1
 
+**Superseded in its framing, 2026-08-27.** There is no package, so nothing
+"moves" across a repository boundary; under
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) the same
+code moves out of `src/` into a page in this same repository, and no version
+number stands between the two halves. The table's finding survives the change
+of framing and is the reason it is kept: `SLOTS_PER_SET`, `LANGUAGE_CODES` and
+`DEFAULT_LANGUAGE` are read by editor code that has nothing to do with the
+device build, so the device path is not a clean leaf however it is separated.
+Under a page that is a shared import; under a split it becomes a duplicated
+table, and it is the thing to decide before the editor leaves rather than
+during.
+
 [§1 of that document](device-interface.md) enumerates the interface. Held
 against what moving would actually take:
 
@@ -304,8 +322,8 @@ seen, because it was enumerating the *interface* rather than the *file*:
   this table and the settings sheet paints from it.
 - `HASH_BYTES` and `LAYOUT_BIN` — [`folder.ts`](../loader/src/folder.ts) and
   `built.ts`, both device-side, both travelling. (`built.ts` has since gone
-  altogether: adr/0011 took the build out of the editor, so there is no store
-  of build output left for anything to read back.)
+  altogether: with no build in the editor there is no store of build output
+  for anything to read back.)
 
 None of that blocks anything: the editor pins the package and imports the table
 from it, which is what pinning is for. But it means the package is not a leaf.
@@ -316,6 +334,14 @@ also take. Worth knowing beforehand rather than at the first release.
 ---
 
 ## 7. Where the tile rendering runs
+
+**Partly superseded, 2026-08-27.** Browser-only is still the answer and is
+now free: the compiler runs in a page, which is a browser by definition. What
+falls away is the cost in the last paragraph — `tests/test_tile_render_js.py`
+executes `loader/src/tiles.ts` as text, and under
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) that file
+changes directory without changing repository, so the test follows a path and
+never reads a pinned copy.
 
 **Browser-only, and worth saying rather than discovering.**
 
@@ -362,6 +388,16 @@ somebody already put it.
 ---
 
 ## 9. What the editor loses
+
+**Superseded, 2026-08-27.** This section measured what the editor loses when
+the *rendering* is packaged, and concluded: less than the question assumes.
+Under [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) the
+editor loses the whole device path — the build, the tiles, the wire and the
+transfer sheet — and gains an export in their place. The measurement below is
+still the reason that costs little: the editor never previewed the device, and
+what it draws is CSS. The last paragraph's conclusion inverts, though. Changing
+the tile pipeline and seeing the result in one commit is *kept*, not relocated,
+because the pipeline and the reader stay in one repository.
 
 **Less than the question assumes, and it is worth being precise about why.**
 
@@ -429,6 +465,15 @@ them.
 ---
 
 ## 11. The cost, against the flow this project already runs
+
+**Superseded, 2026-08-27.** This is the section that decided it. Every cost
+priced here is the cost of a release and a bump per format change, and
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) has none:
+no package is published, so there is no version number, no window in which two
+`main`s disagree, and no wrong bump to reach a talker with. The measurement
+below is kept because it is what the cheaper answer had to beat, and because
+the paragraph about a device that parses and is wrong is still true of anything
+that reaches a talker.
 
 **What is the same.** Tag, `npm install`, a lockfile line, a bump commit. This
 project does that routinely and has tooling for the failure mode —
@@ -540,31 +585,64 @@ lands, and §11 is the section it would change.**
 
 ## Recommendation
 
+**All five were answered on the day they were written, and the last two did not
+survive contact.** What each one turned into is marked below rather than
+rewritten, because the shape of the change is the useful part: the premise held
+and the route did not.
+
 1. **The premise holds.** An `.obz` can be the device build's input. What is
    missing is not a possibility but an export: a third door writing sources
    rather than fitted PNGs, a negation flag rather than a baked cross, 16 kHz
    WAVs rather than Opus, and the two `ext_vorlaut_*` fields the talker document
    already carries.
 
+   *Built, 2026-08-27:* `exportDevicePackage()` and
+   [ADR 0010](../adr/0010-device-shaped-obz-export.md), with the four form rules
+   as written.
+
 2. **Build that export first, and on its own merits** (§3). It is the first
    artefact in this project that can reconstruct a device build without the
    editor's IndexedDB — archivable, diffable, and something to hand to whoever is
-   debugging at a bench. It is also the expensive half of the packaging move, and
+   debugging at a bench. It is also ~~the expensive half of the packaging move~~
+   the expensive half of *any* separation, and
    it is worth paying for whether or not the move ever happens. Same argument ADR
    0009 made about the fixtures.
 
+   *Built, and it earned the sentence twice over:* the export is what made the
+   cheaper answer in recommendation 4 possible at all, and the round trip found
+   a bug on the way in.
+
 3. **Fix the empty-slot divergence** (§5). Small, real, uncaught, unrelated.
 
-4. **Do not package or split yet.** Not because the interface is unworkable — it
+   *Fixed:* `slotIsEmpty()` is one predicate, asked once and carried, and
+   `device_package.ts` says at length why a gap has to travel as a gap.
+
+4. ~~**Do not package or split yet.** Not because the interface is unworkable — it
    is workable, and §§1–5 say how — but because condition 2 of ADR 0006 has not
    been met and the format is still moving, with a breaking cable change landing
    today. Recommendations 1–3 need none of that resolved and make the eventual
-   move cheap, which is what 0006 predicted a met condition would look like.
+   move cheap, which is what 0006 predicted a met condition would look like.~~
+
+   **Superseded on 2026-08-27 by
+   [ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md).** Not
+   reversed — overtaken. "Not yet" was the right answer to *should the compiler
+   be a package*, and that question stopped being asked. The editor exports a
+   file and stops; the talker's repository gains a page that compiles the file
+   and sends it. There is no package to release, so the cost this
+   recommendation was waiting out never arrives, and nothing waits on ADR 0006's
+   condition 2 any more. The split is still unproposed and still needs evidence;
+   what changed is that the seam it would cut along is now a file format rather
+   than a function call.
 
 5. **Amend ADR 0006's Why** (§12) with the distinction its own sentence misses:
    a second *consumer* is the test for extraction; a second *implementation* is
    the test for a specification. The decision stands; the reason given for it is
    one sentence short.
+
+   *Done, and then amended again.* The distinction is in 0006's Why, and its
+   Examined section now carries a second 2026-08-27 entry recording that
+   condition 2 has no premise left. The distinction itself stands; it is simply
+   no longer a question this repository is waiting on the answer to.
 
 ## Should this be an ADR?
 
@@ -581,7 +659,17 @@ them. An ADR is what puts the reason where the tidying happens. It records the
 export, its four form rules and its non-redistributable posture — not a split,
 and not a package.
 
-If the compiler is ever actually packaged, that needs its own ADR, and that one
+~~If the compiler is ever actually packaged, that needs its own ADR, and that one
 **supersedes** ADR 0006 rather than amending it: moving one implementation of the
 device format into a package is the decision 0006 refused, and reversing a
-decision is what supersession is for. Nothing here reaches that bar today.
+decision is what supersession is for. Nothing here reaches that bar today.~~
+
+**That paragraph was right and does not apply, 2026-08-27.** A packaged
+compiler would still supersede ADR 0006, and nothing has packaged one. What
+happened instead is
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md), which
+puts both implementations of the device format on the same side and so amends
+0006 rather than reversing it. It earns an ADR of its own for the reason
+`adr/README.md` gives: somebody will ask why the editor cannot just send to the
+device, because it used to, and the answer has to be somewhere they will find
+it.

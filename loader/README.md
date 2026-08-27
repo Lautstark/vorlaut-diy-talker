@@ -3,7 +3,7 @@
 The editor writes an `.obz` and stops. This is what happens next: choose the
 file, check it, compile it into what the device reads, connect, send. It is a
 second page out of the same build, published at `<base>loader/`, and
-[ADR 0011](../adr/0011-editor-exports-loader-sends.md) is the decision behind
+[ADR 0011](../adr/0011-editor-exports-the-talker-repository-sends.md) is the decision behind
 it.
 
 ## Why the directory is here and not under `src/`

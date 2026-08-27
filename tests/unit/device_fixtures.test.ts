@@ -7,12 +7,16 @@ import {
   renderLayoutBin, hashBytes, LANGUAGE_CODES, DEFAULT_LANGUAGE,
   LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, SLOT_BYTES, SLOTS_PER_SET,
   NAME_BYTES, HASH_BYTES, MAX_SETS,
+  SLEEP_MIN, SLEEP_MAX, SLEEP_DEFAULT, layoutIdleSeconds,
 } from "../../loader/src/layout_format.js";
+import { normalizeLayout } from "../../src/data/obf.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
 } from "../../src/data/audio_format.js";
-import { Cable, CABLE_VERSION, crc32, hex8 } from "../../loader/tools/cable.js";
+import {
+  Cable, CABLE_VERSION, crc32, hex8, versionVerdict,
+} from "../../loader/tools/cable.js";
 
 /* The builder's half of device/fixtures/.
  *
@@ -34,6 +38,9 @@ import { Cable, CABLE_VERSION, crc32, hex8 } from "../../loader/tools/cable.js";
  *            is the firmware runner's half.
  *   names    the hash a name carries, read back out of the name.
  *   language the table, and what a writer does with a language not in it.
+ *   sleep    the range, and that everything normalizeLayout() emits is inside
+ *            it. What the device does with a field outside it is the firmware
+ *            runner's half.
  *   cable    the client, driven through the transcript from the browser end:
  *            given these device lines it must write exactly these host lines.
  *
@@ -279,6 +286,66 @@ for (const { listed: one, want } of ofKind("audio")) {
   }
 }
 
+// --- the sleep timeout -------------------------------------------------------
+
+{
+  const want = expectations.get("sleep");
+
+  check("the browser's sleep range is the fixture's",
+        SLEEP_MIN === want.min && SLEEP_MAX === want.max
+        && SLEEP_DEFAULT === want.default,
+        `[${SLEEP_MIN}, ${SLEEP_MAX}], default ${SLEEP_DEFAULT}`);
+
+  /* The same clamp the firmware runner asks of layoutIdleSeconds() in
+   * layout_format.h. Two implementations of one rule, each held to the fixture
+   * and never to the other - a device and a browser that disagree about what
+   * an unset field means is a talker that sleeps at a time nobody chose. */
+  for (const one of want.cases) {
+    const got = layoutIdleSeconds(one.sleep_seconds);
+    check(`a timeout of ${one.sleep_seconds} - ${one.what} - `
+          + `is a wait of ${one.idle_seconds}`,
+          got === one.idle_seconds, `${got}`);
+  }
+
+  /* The writer does NOT clamp, and that is a rule rather than an oversight.
+   * renderLayoutBin() puts in the field what it is handed, because
+   * tests/reference/layout.lock.json froze its bytes for a timeout of 0 and
+   * one of 0xffffffff and that lock cannot be rewritten. The gate is
+   * normalizeLayout(), one layer up. */
+  for (const value of [0, 5, want.max + 1, 4294967295]) {
+    const bytes = renderLayoutBin(
+      { language: "en", sleep_timeout_seconds: value, sets: [] }, [], [], []);
+    const wrote = new DataView(
+      bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(8, true);
+    check(`the browser writes a timeout of ${value} into the field unchanged`,
+          wrote === value, `${wrote}`);
+  }
+
+  /* And the superset, which is this end's half of it: everything the gate
+   * lets through is a timeout the device waits for exactly. The firmware
+   * runner asks the same question of the fixture's `emitted` cases; this asks
+   * it of the function that actually decides, on inputs no fixture lists -
+   * including the ones a foreign document arrives with. */
+  const arrivals: unknown[] = [
+    undefined, null, 0, 1, 5, 9, 10, 11, 600, 3600, 86400, 86401,
+    4294967, 4294967295, -1, -86400, 0.5, 600.7, "600", "1e3", "0x10",
+    "not a number", "", true, false, {}, [], NaN, Infinity, -Infinity,
+  ];
+  const escaped: string[] = [];
+  for (const given of arrivals) {
+    const raw: Record<string, unknown> = { sets: [] };
+    if (given !== undefined) raw.sleep_timeout_seconds = given;
+    const emitted = normalizeLayout(raw).sleep_timeout_seconds;
+    if (emitted < SLEEP_MIN || emitted > SLEEP_MAX
+        || layoutIdleSeconds(emitted) !== emitted) {
+      escaped.push(`${JSON.stringify(given) ?? String(given)} became ${emitted}`);
+    }
+  }
+  check("every timeout the browser emits is one the device waits exactly",
+        escaped.length === 0,
+        escaped.join("; ") || `${arrivals.length} foreign values`);
+}
+
 // --- the cable ---------------------------------------------------------------
 
 /**
@@ -287,7 +354,7 @@ for (const { listed: one, want } of ofKind("audio")) {
  * It answers with the fixture's device lines and holds the client to the
  * fixture's host lines, which is the browser end of "both sides run the same
  * file from opposite ends". It is not a model of a device and must not become
- * one: tools/cable_mock.js is that, and a second one would drift.
+ * one: loader/tools/cable_mock.js is that, and a second one would drift.
  */
 function scriptedDevice(steps: any[]) {
   const encoder = new TextEncoder();
@@ -481,6 +548,30 @@ for (const { listed: one, want } of ofKind("cable")) {
 check("the browser client speaks the fixtures' protocol version",
       CABLE_VERSION === expectations.get("greet-and-list").protocol_version,
       `${CABLE_VERSION}`);
+
+/* And what it makes of the version the device announced - which for a year was
+ * nothing at all. Every transcript states the pair and the conclusion, so the
+ * two that carry a mismatch are checked by the same line as the eight that do
+ * not, and a client that went back to testing for truthiness fails on both. */
+for (const { listed: one, want } of ofKind("cable")) {
+  const got = versionVerdict(want.device_speaks);
+  check(`${one.fixture}: a device speaking ${want.device_speaks} is `
+        + `"${want.version_verdict}" to a browser speaking ${CABLE_VERSION}`,
+        got === want.version_verdict, got);
+}
+
+/* The verdict is only worth something if it is not constant. A client that
+ * answered "ok" to everything would satisfy the eight transcripts that expect
+ * it, so the fixture set has to contain both mismatches - and this says so out
+ * loud rather than leaving it to whoever next adds a transcript. */
+{
+  const verdicts = new Set(
+    ofKind("cable").map(({ want }) => want.version_verdict));
+  check("the transcripts cover a mismatch in each direction, not only agreement",
+        verdicts.has("ok") && verdicts.has("device_older")
+        && verdicts.has("device_newer"),
+        [...verdicts].join(", "));
+}
 
 /* The transcripts' checksums came from node's zlib and the client computes
  * its own from a table it builds at load. Two implementations of CRC-32 that

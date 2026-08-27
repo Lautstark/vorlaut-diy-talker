@@ -152,11 +152,14 @@ check("no editor reaches into another editor", strays.length === 0,
  * are left are real. They come in two kinds and the difference is the whole
  * reason this is a list rather than a ban.
  *
- * **Facts about the format.** Four numbers: a set holds four keys, a hash is
- * sixteen bytes, and these are the languages the device has an index for. The
- * editor has to know them because it writes a file a talker has to be able to
- * read. device/fixtures/ is the authority on all four and belongs to neither
- * half (adr/0009), which is what makes them safe to duplicate across a
+ * **Facts about the format.** A set holds four keys, a hash is sixteen bytes,
+ * these are the languages the device has an index for, and this is the range
+ * of sleep timeouts a conforming builder may write. The editor has to know all
+ * of them because it writes a file a talker has to be able to read -
+ * normalizeLayout() holds every builder to the sleep range, which is the writer
+ * half of a rule whose reader half is layoutIdleSeconds() in the firmware's own
+ * header. device/fixtures/ is the authority on every one of them and belongs to
+ * neither half (adr/0009), which is what makes them safe to duplicate across a
  * repository boundary when the day comes.
  *
  * **The pixels, twice, and both are read-only.** thumbnailSize() is the app
@@ -178,7 +181,8 @@ check("no editor reaches into another editor", strays.length === 0,
  */
 const ALLOWED_FROM_SRC = new Map<string, string[]>([
   ["loader/src/layout_format.ts",
-   ["SLOTS_PER_SET", "HASH_BYTES", "LANGUAGE_CODES", "DEFAULT_LANGUAGE"]],
+   ["SLOTS_PER_SET", "HASH_BYTES", "LANGUAGE_CODES", "DEFAULT_LANGUAGE",
+    "SLEEP_MIN", "SLEEP_MAX", "SLEEP_DEFAULT"]],
   ["loader/src/tiles.ts", ["thumbnailSize", "renderSymbol", "TILE_SIZE"]],
 ]);
 

@@ -1,6 +1,6 @@
 // Runs the cable wire format from the sketch on this machine and prints what
 // it makes of its input. The Python script next door compares that with what
-// tools/cable.js really sends and with what the device is supposed to answer.
+// loader/tools/cable.js really sends and with what the device is supposed to answer.
 //
 // Four modes, because there are four things worth checking separately:
 //
@@ -138,7 +138,7 @@ struct Fake {
   // cable.h's `open`, under its own name: a session starts ungreeted, a hello
   // opens it, and a transfer given up on shuts it again. This was `broken`,
   // starting false, which let a pre-hello verb through - the same drift
-  // tools/cable_mock.js had, which is why neither caught the other.
+  // loader/tools/cable_mock.js had, which is why neither caught the other.
   bool greeted = false;
   uint32_t stored = 0, removed = 0, bytes = 0;
   size_t free_ = 1441792;

@@ -121,6 +121,43 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      'export const DEFAULT_LANGUAGE = "de";',
      "a language the builder does not know falls back to German"),
 
+    # --- the sleep timeout ----------------------------------------------------
+    (LAYOUT_H, FIRMWARE, "  if (sleepSeconds == 0) return LAYOUT_SLEEP_DEFAULT;",
+     "  if (sleepSeconds == 0) return LAYOUT_SLEEP_MIN;",
+     "an unset timeout means ten seconds instead of ten minutes"),
+    (LAYOUT_H, FIRMWARE,
+     "  if (sleepSeconds > LAYOUT_SLEEP_MAX) return LAYOUT_SLEEP_MAX;",
+     "  if (false) return LAYOUT_SLEEP_MAX;",
+     "the timeout is no longer clamped, so the multiplication wraps again"),
+    (LAYOUT_H, FIRMWARE,
+     "  if (sleepSeconds < LAYOUT_SLEEP_MIN) return LAYOUT_SLEEP_MIN;",
+     "  if (false) return LAYOUT_SLEEP_MIN;",
+     "a timeout below the floor is obeyed"),
+    (LAYOUT_H, FIRMWARE, "#define LAYOUT_SLEEP_MAX 86400u",
+     "#define LAYOUT_SLEEP_MAX 43200u",
+     "the device honours half the range the builder may write"),
+    (LAYOUT_H, FIRMWARE, "#define LAYOUT_SLEEP_DEFAULT 600u",
+     "#define LAYOUT_SLEEP_DEFAULT 900u",
+     "the two halves disagree about what an unset timeout means"),
+    # The one the lock cannot see: clamping where the parse happens rather than
+    # where the number becomes a length of time. sleep_seconds and idle_seconds
+    # are separate fixture fields precisely so that this is caught here.
+    (LAYOUT_H, FIRMWARE, "  out.sleepSeconds = layoutU32(data + 8);",
+     "  out.sleepSeconds = layoutIdleSeconds(layoutU32(data + 8));",
+     "the reader clamps the field instead of handing it back as it stands"),
+    (LAYOUT_TS, BROWSER, "export const SLEEP_MAX = 86400;",
+     "export const SLEEP_MAX = 604800;",
+     "the browser may emit a week, which the device will not wait"),
+    (LAYOUT_TS, BROWSER, "export const SLEEP_MIN = 10;",
+     "export const SLEEP_MIN = 1;",
+     "the browser may emit a timeout below the device's floor"),
+    (LAYOUT_TS, BROWSER, "export const SLEEP_DEFAULT = 600;",
+     "export const SLEEP_DEFAULT = 300;",
+     "the browser thinks an unset timeout is five minutes"),
+    (LAYOUT_TS, BROWSER, "  if (sleepSeconds === 0) return SLEEP_DEFAULT;",
+     "  if (sleepSeconds === 0) return 0;",
+     "the browser reads an unset timeout as a wait of nothing"),
+
     # --- byte order -----------------------------------------------------------
     (LAYOUT_H, FIRMWARE,
      "  return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16)\n"
@@ -216,6 +253,18 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
     (CABLE_JS, BROWSER, "if (want.includes(answer.key)) return answer;",
      "return answer;",
      "the browser stops skipping keywords it does not know"),
+    # The version, which for a year was compared by a test and by nothing that
+    # runs. Each of these is a way of having the field back without a reader.
+    (CABLE_JS, BROWSER, "  if (theirs === CABLE_VERSION) return \"ok\";",
+     "  return \"ok\";",
+     "any version the device announces is accepted again"),
+    (CABLE_JS, BROWSER,
+     "  return theirs < CABLE_VERSION ? \"device_older\" : \"device_newer\";",
+     "  return theirs < CABLE_VERSION ? \"device_newer\" : \"device_older\";",
+     "the two directions of a version mismatch are swapped"),
+    (CABLE_JS, BROWSER, "  if (theirs === CABLE_VERSION) return \"ok\";",
+     "  if (theirs >= CABLE_VERSION) return \"ok\";",
+     "a device newer than the browser is driven as though it were not"),
     (CABLE_JS, BROWSER, 'await this.send(`put ${name} ${bytes.length} ${hex8(sum)}`);',
      'await this.send(`put ${name} ${hex8(sum)} ${bytes.length}`);',
      "the browser sends the size and the checksum the other way round"),
