@@ -1374,6 +1374,31 @@ test("the arrow keys walk the page list, and leave the name field alone",
     await expect(standingOn(page)).toHaveValue("Morgens");
   });
 
+/* The status line says a Sammlung is saved, and then stops saying it.
+ *
+ * It is the one status that is true almost always, and a label that reads the
+ * same whenever anybody looks stops being read - which is the worst thing that
+ * can happen to the one line where a failed write appears. It fades rather
+ * than being cleared: the words stay true until the next keystroke, so they
+ * stay in the element for a reader who comes to the region.
+ */
+test("the saved status steps back, without taking its words with it",
+  async ({ page }) => {
+    await standIn(page);
+    await build(page);
+
+    const line = page.locator("#status");
+    await expect(line).toHaveText(SAVED, { timeout: 10_000 });
+    // Lit at first, and then only quiet - the text is still there.
+    await expect(line).toHaveClass(/status--rested/, { timeout: 10_000 });
+    await expect(line).toHaveText(SAVED);
+
+    /* Anything else said wakes it. Typing puts the line back to "not written
+     * yet", which is a state that must never inherit the fade. */
+    await page.locator("#appPageName").fill("Morgens");
+    await expect(line).not.toHaveClass(/status--rested/);
+  });
+
 /* The two marks a cell carries, and the two it no longer needs.
  *
  * A `goto` had an arrow in one corner and now has the corner that follows it in
@@ -1394,6 +1419,14 @@ test("a way onward is marked by its corner and a way back by its edge",
     const essen = cells(page).nth(3);
     await expect(essen.locator(".cell__follow")).toHaveCount(1);
     await expect(essen.locator(".cell__act")).toHaveCount(0);
+    /* And the two corners have seats of their own. Measured against the cell
+     * rather than by class, because the claim is where they are: the follow on
+     * the left, the play - drawn here because this button carries its word
+     * into the sentence - on the right, and no arithmetic keeping them
+     * apart. */
+    const box = await essen.boundingBox();
+    const corner = await essen.locator(".cell__follow").boundingBox();
+    expect(corner!.x - box!.x).toBeLessThan(box!.width / 2);
 
     /* And the way back, which build() puts in cell 14. A plain cell for the
      * comparison, so the assertion is a difference rather than a number

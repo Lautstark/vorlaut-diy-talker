@@ -3,7 +3,7 @@
 // saveTimer, unsaved and layoutVersion live here and nowhere else. They were
 // three of the eleven at the top of the old script; nothing outside this file
 // ever read them, and nothing can now.
-import { $, status} from "../shell/dom.js";
+import { $, status, statusRests } from "../shell/dom.js";
 import { reason } from "./errors.js";
 import { loadLayout, saveLayout } from "../backend/index.js";
 import { state } from "./state.js";
@@ -275,7 +275,7 @@ async function doSave() {
 
     unsaved = false;
     $("conflict").classList.remove("show");
-    status(t("ui.saved"));
+    statusRests(t("ui.saved"));
   } catch (error) {
     status(t("ui.save_failed", { error: reason(error) }));
   }
