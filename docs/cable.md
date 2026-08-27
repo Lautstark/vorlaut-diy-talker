@@ -718,21 +718,43 @@ It refuses to write a build that no longer matches the board, which is the one
 failure a folder cannot show you: yesterday's content looks exactly like
 today's once it is on a disk.
 
-So the table is unchanged and none of it has been ticked. It is no longer the
-gate on a deletion; it is the gate on trusting the only path there is.
+It is no longer the gate on a deletion; it is the gate on trusting the only
+path there is.
 
 What has to be true, written down before the run rather than remembered after
 it. **Results belong in this table as they come in** — a row that was checked
 once and remembered is a row nobody can audit later:
 
-| | |
-|---|---|
-| a full payload transfers | all five sets, worst case near the 1.5 MB partition, **with nothing lost** — see the version 2 table above for what each number should say |
-| an incremental transfer moves only what changed | the whole point of the content-addressed names |
-| an interrupted transfer leaves a fragment | pull the cable mid-transfer: `.part` and no half-file under a real name |
-| the device *speaks* the new content | not merely reports success |
-| a second transfer needs no port picker | `getPorts()` finds the device again — **this one decides an interface question, see below** |
-| a device that already holds content is updated | rather than confused by what is already there |
+| | | 2026-08-27 |
+|---|---|---|
+| a full payload transfers | all five sets, worst case near the 1.5 MB partition, **with nothing lost** — see the version 2 table above for what each number should say | ✅ **yes.** 25 tiles at exactly 32768 B each — five keys × five sets, none short — 20 WAVs, and a `layout.bin` of 932 B that parses. `free` 131072 of 1572864, so 91.7% full: the worst case this row asks for, met rather than approximated. |
+| an incremental transfer moves only what changed | the whole point of the content-addressed names | ✅ **yes, in its strictest form.** A second export was sent and the device came back **byte-identical** — same 46 files, same `free`. Content-addressed names mean a changed file arrives under a *new* hash, so an unchanged listing is proof that **nothing** moved rather than proof that nothing was checked. A naive sender would have pushed 1.4 MB again. Still worth doing once more with one symbol altered, to watch exactly one file move. |
+| an interrupted transfer leaves a fragment | pull the cable mid-transfer: `.part` and no half-file under a real name | ⬜ not tested. No `.part` appears in `list`, which is consistent with a clean run and is **not** evidence for this row. |
+| the device *speaks* the new content | not merely reports success | ✅ **yes**, reported by the person at the bench. The device also names its own set — `set 1: Sprechen` — where before the transfer it said *"No content on the device."* |
+| a second transfer needs no port picker | `getPorts()` finds the device again — **this one decides an interface question, see below** | ⬜ not tested, and it is the one that matters most. |
+| a device that already holds content is updated | rather than confused by what is already there | ✅ **yes.** The device held 46 files from an earlier build and answered *"No content on the device"*; after the transfer it holds a valid layout and speaks. |
+
+**Four of six.** The two that are left need a deliberate act — a cable pulled
+mid-send, and a reconnect. Neither happens by accident during a run that goes
+well, which is why they are blank rather than inferred from one that did.
+
+**Row two was nearly recorded as the wrong row.** It was reported as "a partial
+transfer" and that phrase fits row three just as well; the device could not
+settle it, because an incremental transfer that moves nothing and an interrupted
+one that was cleaned up leave the same listing. It took asking. Worth
+remembering, because the six rows are close enough in ordinary language that a
+run described afterwards can tick the wrong one.
+
+**The version 2 numbers were not captured.** `gap`, `stall` and the rate are
+what the page reports while it is sending, and this run was driven by hand
+without them being written down. They are not derivable afterwards: the device
+answers what it *holds*, not how it came to hold it. Next run, read them off the
+page as it goes.
+
+**What the file listing does settle**, because it needed no instrumentation:
+every tile is exactly 32768 bytes, which is 128 × 128 × 2 — a short file would
+show here and none does. That is the *bytes lost* row of the version 2 table,
+and it is the one that is not a matter of degree.
 
 None of the six has been run. The bench can produce every one of them except
 the third — pulling the cable out mid-transfer is a thing only hands can do —

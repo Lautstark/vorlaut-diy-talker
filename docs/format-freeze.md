@@ -645,12 +645,17 @@ somebody can check rather than judge. Adding what this survey found, in order:
    cannot reach a flashed device and a clamp in the parse would have left
    `layout.lock.json` describing a reader that no longer existed.
 
-5. **A first run on real hardware.** `cable.md`'s six-row table is still
-   unticked, and it is the same bar `exchange-v*` is held to for the same
-   reason: a fixture set that no implementation in its intended environment has
-   ever met is a claim. Row five in particular settles an interface question
-   rather than measuring a nicety — whether a granted port survives the device
-   re-enumerating decides whether the editor's one-press promise holds.
+5. **A first run on real hardware.** ⚠️ **Four of six ticked, 2026-08-27.** A
+   full payload reached a talker and it spoke: 25 tiles at exactly 32768 bytes,
+   `free` down to 131072 of 1572864, and a device that had held stale content
+   updated rather than confused. What is left needs a *deliberate* act rather
+   than another good run — a cable pulled mid-send, and a reconnect. **Row five is the one still blocking**, because it settles an
+   interface question rather than measuring a nicety. `cable.md`'s six-row table
+   is where the results are. It is the same bar `exchange-v*` is held to for the
+   same reason: a fixture set that no implementation in its intended environment
+   has ever met is a claim — and two rows of this one still are. Row five
+   decides whether a granted port survives the device re-enumerating, and so
+   whether the editor's one-press promise holds.
    *Checkable: six ticks, in that document.*
 
 6. **`device-v*` is registered where somebody would look for it.**
