@@ -101,6 +101,10 @@ without that in view and stands better for it.) That is the same argument ADR 00
 fixtures — the expensive half of a split turned out to be worth paying for on
 its own — and `docs/obz-as-device-input.md` recommendation 4 is explicit that
 nothing is being packaged or split. This ADR makes no claim about ADR 0006.
+(Recommendation 4 has since been overtaken on both counts: nothing is packaged,
+and the split was decided the same day —
+[ADR 0012](0012-the-repository-splits-editor-leaves.md). The sentence above is
+kept as written, and this ADR still makes no claim about 0006.)
 
 **Carrying the source rather than a fitted PNG is what keeps the frozen tiles
 frozen.** `bakeImage()` fits a source into 512 through a canvas and says so in

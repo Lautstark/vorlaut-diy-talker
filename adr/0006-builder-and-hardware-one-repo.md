@@ -198,3 +198,28 @@ the pairing survives a split rather than depending on there not being one:
 `tests/run.py` goes on compiling both halves on a single commit either way.
 This decision stands, its status does not change, and condition 2 is retired
 rather than met.
+
+**2026-08-27 — the split was decided, and this decision was not.**
+[ADR 0012](0012-the-repository-splits-editor-leaves.md) records that this
+repository splits into three and that the **editor** is the half that leaves. It
+does not supersede this file and does not change its status, and the reason is
+the whole of the Why above: only one repository can hold two implementations
+against each other, and after [ADR 0011](0011-editor-exports-the-talker-repository-sends.md)
+both implementations of every device format are on the side that keeps this
+repository — the C++ reader in `firmware/`, the TypeScript writer in `loader/`,
+and `tests/run.py` compiling both on one commit. The editor leaves with no
+implementation of any device format.
+
+So this file goes on binding `vorlaut-diy-talker`, unchanged. None of the four
+conditions above fired: 0012 says so explicitly and claims no evidence it does
+not have. What it argues instead is that every condition here asks when the
+argument against splitting stops applying **to this repository**, and that ADR
+0011 made it stop applying **to the seam** — the two implementations that must
+agree stay together on one side of the cut, so the split no longer runs through
+the thing this decision is protecting. That was not among the four because
+nobody had thought of it when they were written.
+
+**If this file is ever proposed for retirement, 0012's last section is the
+answer.** Its argument is what decided which half leaves, and deleting it would
+leave the next proposal to move `loader/` in with the rest of the TypeScript
+with nothing in front of it.
