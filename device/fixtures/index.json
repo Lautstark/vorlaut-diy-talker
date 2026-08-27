@@ -278,6 +278,13 @@
       "expected": "cable/skip-unknown-keyword.expected.json"
     },
     {
+      "fixture": "several-windows",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A file that takes three windows, the last of them short. The browser sends what it was told and waits to be told again.",
+      "expected": "cable/several-windows.expected.json"
+    },
+    {
       "fixture": "checksum-with-a-leading-zero",
       "kind": "cable",
       "outcome": "accepted",

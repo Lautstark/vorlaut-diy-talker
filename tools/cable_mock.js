@@ -27,13 +27,17 @@
 // the loss is. The transfer then fails the way the bench failed before any of
 // this existed: "err short", session shut, nothing stored.
 
-import { crc32, hex8 } from "./cable.js";
+import { CABLE_VERSION, crc32, hex8 } from "./cable.js";
 
-/** The window this mock announces, and the most it will hold at once. Not
- *  CABLE_WINDOW out of the firmware: the browser reads this off the wire, and
- *  a mock that used the same constant could not tell a client that reads it
- *  from a client that assumes it. */
-export const MOCK_WINDOW = 1024;
+/** The window this mock announces, and the most it will hold at once.
+ *
+ * Not CABLE_WINDOW out of the firmware, and deliberately much smaller than it.
+ * The browser reads this off the wire, so a mock carrying the same constant
+ * could not tell a client that reads the number from one that assumes it - and
+ * small enough that the files in tests/cable_node.mjs take two and three
+ * windows each, which is where the cadence is exercised rather than merely
+ * mentioned. */
+export const MOCK_WINDOW = 512;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -50,7 +54,7 @@ const NOISE = [
 export class MockDevice {
   /**
    * @param {{files?: Map<string,Uint8Array>, total?: number, noise?: boolean,
-   *          failAt?: {name: string, how: "short"|"crc"|"nospace"}}} options
+   *          failAt?: {name: string, how: "short"|"crc"|"nospace"|"ack"}}} options
    *   failAt forces one file to go wrong, which is the only way to reach the
    *   paths that matter most and never run when everything works.
    *   stallMs is how long the flash takes, so that a client which does not
@@ -176,7 +180,7 @@ export class MockDevice {
           if (pending.since >= pending.window) {
             await this.flash();
             pending.since = 0;
-            await this.reply(`ack ${pending.at}`);
+            await this.reply(`ack ${this.ackFor(pending)}`);
           }
           break;
         }
@@ -206,7 +210,10 @@ export class MockDevice {
     switch (verb) {
       case "hello":
         this.greeted = true;
-        await this.reply("vorlaut 1");
+        // The client's own constant rather than a literal. A mock that carried
+        // its own copy would go on greeting in a protocol nobody speaks any
+        // more, and the version is precisely the thing a client checks.
+        await this.reply(`vorlaut ${CABLE_VERSION}`);
         await this.reply(`total ${this.total}`);
         await this.reply(`free ${this.free}`);
         await this.reply(`files ${this.files.size}`);
@@ -269,6 +276,16 @@ export class MockDevice {
     }
   }
 
+  /** The running total to acknowledge.
+   *
+   * Its own function only so that failAt can make it wrong. A device whose
+   * acks disagree with what was sent is a stream that has slipped, and the
+   * browser compares rather than assuming - so this is how that comparison is
+   * reached, since nothing that is working can produce it. */
+  ackFor(pending) {
+    return pending.forced === "ack" ? pending.at - 1 : pending.at;
+  }
+
   /** How long the flash takes. Zero by default, because most scenarios are
    *  about what is said rather than when - but a run with a real pause in here
    *  is the only kind that can tell a client which waits from one which does
@@ -293,7 +310,7 @@ export class MockDevice {
     // has run out of file. So a put that is about to be refused for its
     // contents is acknowledged first - the acknowledgement is about the bytes
     // arriving, and says nothing about whether they were the right ones.
-    await this.reply(`ack ${pending.at}`);
+    await this.reply(`ack ${this.ackFor(pending)}`);
     const sum = crc32(pending.got);
     if (pending.forced === "crc" || sum !== pending.crc) {
       await this.reply(`err crc ${pending.name}`);

@@ -22,7 +22,7 @@
 //   language        the table's size, its default, and what an index past it
 //                   falls back to
 //   cable           a whole transcript on stdin, replayed into a device made
-//                   of a std::map
+//                   of a std::map, a window of file content at a time
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -269,7 +269,14 @@ static bool readLine(std::string &out) {
   return !out.empty();
 }
 
-static int cableMode(uint32_t capacity) {
+// The window comes from the fixture rather than from CABLE_WINDOW, and that
+// is deliberate. A transcript pins one conversation, and the number in its
+// "go" is part of that conversation; taking it from the header instead would
+// mean the fixture silently followed the firmware wherever it went, and could
+// never hold a browser to reading a window it was given rather than one it
+// assumed. So a fixture may announce 256 where the firmware announces 4096,
+// and both are conformant.
+static int cableMode(uint32_t capacity, uint32_t window) {
   Fake device;
   device.capacity = capacity;
   char out[CABLE_LINE_MAX];
@@ -371,13 +378,26 @@ static int cableMode(uint32_t capacity) {
           say(out);
           break;
         }
-        cableSayBare(out, sizeof(out), "go");
+        cableSayNumber(out, sizeof(out), "go", window);
         say(out);
 
+        // A window at a time, acknowledged after each. Nothing here waits on
+        // an ack - this replays a transcript rather than talking to anybody -
+        // but the acks have to fall in the right places, because the fixture
+        // says where they are and the browser end of the same fixture waits
+        // for them one by one.
         std::string payload;
         payload.resize(command.size);
-        const size_t got = command.size
-            ? fread(&payload[0], 1, command.size, stdin) : 0;
+        uint32_t got = 0;
+        while (got < command.size) {
+          size_t want = command.size - got;
+          if (want > (size_t)window) want = (size_t)window;
+          const size_t took = fread(&payload[got], 1, want, stdin);
+          got += (uint32_t)took;
+          if (took != want) break;
+          cableSayNumber(out, sizeof(out), "ack", got);
+          say(out);
+        }
         if (got != command.size) {
           device.greeted = false;
           cableSayErr(out, sizeof(out), "short", command.name);
@@ -429,10 +449,12 @@ int main(int argc, char **argv) {
   if (argc >= 3 && strcmp(argv[1], "audio") == 0) return audioMode(argv[2]);
   if (argc >= 2 && strcmp(argv[1], "names") == 0) return namesMode();
   if (argc >= 2 && strcmp(argv[1], "language") == 0) return languageMode();
-  if (argc >= 3 && strcmp(argv[1], "cable") == 0) {
-    return cableMode((uint32_t)strtoul(argv[2], nullptr, 10));
+  if (argc >= 4 && strcmp(argv[1], "cable") == 0) {
+    return cableMode((uint32_t)strtoul(argv[2], nullptr, 10),
+                     (uint32_t)strtoul(argv[3], nullptr, 10));
   }
   fprintf(stderr, "usage: device_host layout <file> | tile <file> | "
-                  "audio <file> | names | language | cable <capacity>\n");
+                  "audio <file> | names | language | "
+                  "cable <capacity> <window>\n");
   return 2;
 }

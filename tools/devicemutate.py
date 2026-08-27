@@ -198,7 +198,7 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      "the browser drops a digit before reading the hash"),
 
     # --- the cable ------------------------------------------------------------
-    (CABLE_H, FIRMWARE, "#define CABLE_VERSION 1", "#define CABLE_VERSION 2",
+    (CABLE_H, FIRMWARE, "#define CABLE_VERSION 2", "#define CABLE_VERSION 3",
      "the protocol version moves"),
     (CABLE_H, FIRMWARE, "#define CABLE_HOST_SIGIL '>'",
      "#define CABLE_HOST_SIGIL '@'", "the host sigil changes"),
@@ -216,6 +216,14 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
     (CABLE_JS, BROWSER, 'await this.send(`put ${name} ${bytes.length} ${hex8(sum)}`);',
      'await this.send(`put ${name} ${hex8(sum)} ${bytes.length}`);',
      "the browser sends the size and the checksum the other way round"),
+    (CABLE_JS, BROWSER,
+     'const window = Number((await this.expectOneOf(["go"])).rest);',
+     "const window = 4096;",
+     "the browser assumes a window instead of reading the one it was given"),
+    (CABLE_JS, BROWSER,
+     '        const acked = Number((await this.expectOneOf(["ack"])).rest);',
+     "        const acked = at;",
+     "the browser stops waiting to be acknowledged"),
 ]
 
 # Real faults that no fixture at this boundary can see, with the reason.
@@ -241,8 +249,13 @@ UNREACHABLE: list[tuple[pathlib.Path, str, str, str]] = [
 # Changes that alter nothing the fixtures can see. These SHOULD survive: a run
 # in which everything fails proves only that the harness is broken.
 CONTROLS: list[tuple[pathlib.Path, str, str, str, str]] = [
-    (CABLE_JS, BROWSER, "chunk = 4096", "chunk = 997",
-     "the write chunk size changes"),
+    # The window a transcript pins is the transcript's, not the firmware's -
+    # device_host takes it from the fixture. So the firmware may announce any
+    # window it likes and these fixtures still hold, which is what lets one of
+    # them announce 256 and hold a browser to reading the number rather than
+    # assuming one.
+    (CABLE_H, FIRMWARE, "#define CABLE_WINDOW 4096", "#define CABLE_WINDOW 2048",
+     "the firmware announces a different window from the fixtures'"),
     (CABLE_H, FIRMWARE, "#define CABLE_QUIET_MS 4000",
      "#define CABLE_QUIET_MS 5000",
      "the device waits longer for bytes that stopped arriving"),

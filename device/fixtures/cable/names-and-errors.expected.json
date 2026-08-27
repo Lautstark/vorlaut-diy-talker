@@ -5,7 +5,8 @@
   "ends": [
     "device"
   ],
-  "protocol_version": 1,
+  "protocol_version": 2,
+  "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
   "steps": [
@@ -15,7 +16,7 @@
     },
     {
       "from": "device",
-      "line": "< vorlaut 1"
+      "line": "< vorlaut 2"
     },
     {
       "from": "device",
@@ -63,12 +64,16 @@
     },
     {
       "from": "device",
-      "line": "< go"
+      "line": "< go 4096"
     },
     {
       "from": "host",
       "raw": "ByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+",
       "bytes": 300
+    },
+    {
+      "from": "device",
+      "line": "< ack 300"
     },
     {
       "from": "device",
@@ -108,6 +113,7 @@
   "client_script": null,
   "notes": [
     "Nothing is left behind by any of these. A refused checksum throws the half-written file away and nothing appears under the real name, which is why the device ends holding nothing at all.",
+    "The bad file is acknowledged and THEN refused, in that order, because the acknowledgement is about the bytes arriving and says nothing about whether they were the right ones. cable.h acks inside the loop that reads the file and only looks at the checksum once that loop has run out of file, so an ack before an err crc is not a contradiction - it is the only order there is.",
     "The no-space refusal comes BEFORE the go, so the browser never starts sending. That is the whole reason go exists as a step of its own.",
     "One word for what went wrong and an optional second for whoever is reading. The first word is what a browser acts on; the second is for a person."
   ]

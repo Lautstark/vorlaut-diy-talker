@@ -6,7 +6,8 @@
     "device",
     "browser"
   ],
-  "protocol_version": 1,
+  "protocol_version": 2,
+  "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
   "steps": [
@@ -16,7 +17,7 @@
     },
     {
       "from": "device",
-      "line": "< vorlaut 1"
+      "line": "< vorlaut 2"
     },
     {
       "from": "device",
@@ -40,12 +41,16 @@
     },
     {
       "from": "device",
-      "line": "< go"
+      "line": "< go 4096"
     },
     {
       "from": "host",
       "raw": "CzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJHbJG22wAlSm+Uud4DKE1yl7zhBitQdZq/5AkuU3idwucMMVZ7oMXqDzRZfqPI7RI3XIGmy/AVOl+Eqc7zGD1ih6zR9htAZYqv1PkeQ2iNstf8IUZrkLXa/yRJbpO43QInTHGWu+AFKk90mb7jCC1Sd5zB5gswVXqfxOkOM1h9osfsETZbgKXK7xQ5XoOozfIXPGGGq9D1Gj9kia7T+B1CZ4yx1vsgRWqPtNn+I0htkrfcASZLcJW63wQpTnOYveIHLFF2m8DlCi9UeZ7D6A0yV3yhxusQNVp/pMnuEzhdgqfM8RY7YIWqz/QZPmOIrdL3HEFmi7DV+h9EaY6z2P0iR2yRttsAJUpvlLneAyhNcpe84QYrUHWav+QJLlN4ncLnDDFWe6DF6g80WX6jyO0SN1yBpsvwFTpfhKnO8xg9Yoes0fYbQGWKr9T5HkNojbLX/CFGa5C12v8kSW6TuN0CJ0xxlrvgBSpPdJm+4wgtUnecweYLMFV6n8TpDjNYfaLH7BE2W4Clyu8UOV6DqM3yFzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVJ3nMHmCzBVep/E6Q4zWH2ix+wRNluApcrvFDleg6jN8hc8YYar0PUaP2SJrtP4HUJnjLHW+yBFao+02f4jSG2St9wBJktwlbrfBClOc5i94gcsUXabwOUKL1R5nsPoDTJXfKHG6xA1Wn+kye4TOF2Cp8zxFjtgharP9Bk+Y4it0vccQWaLsNX6H0RpjrPY/SJHbJG22wAlSm+Uud4DKE1yl7zhBitQdZq/5AkuU3idwucMMVZ7oMXqDzRZfqPI7RI3XIGmy/AVOl+Eqc7zGD1ih6zR9htAZYqv1PkeQ2iNstf8IUZrkLXa/yRJbpO43QInTHGWu+AFKk90mb7jCC1Sd5zB5g==",
       "bytes": 1024
+    },
+    {
+      "from": "device",
+      "line": "< ack 1024"
     },
     {
       "from": "device",
@@ -76,7 +81,7 @@
     {
       "call": "hello",
       "returns": {
-        "version": 1,
+        "version": 2,
         "total": 1441792,
         "free": 1441792,
         "files": 0
@@ -102,6 +107,7 @@
   ],
   "notes": [
     "The bytes follow the go with no newline in front of them and no newline after them. That is why a reader of this stream has to count rather than search: anything looking for the next command at a line start misses it after every file, and anything searching for the text of a command finds one inside a recording sooner or later.",
-    "The checksum is of the file's own bytes and not of its name. The names are hashes of the INPUT that produced a file - the source picture and the pipeline version, the sentence and the voice - so a name proves which content was meant and never which arrived."
+    "The checksum is of the file's own bytes and not of its name. The names are hashes of the INPUT that produced a file - the source picture and the pipeline version, the sentence and the voice - so a name proves which content was meant and never which arrived.",
+    "The go carries a window and the ack carries a running total. The file fits inside one window here, so there is one of each - see several-windows for the cadence when it does not. What the pair is for is that the device writes to flash between them: the ack means the bytes are in the file system, and until it arrives the browser sends nothing, so a slow write costs time instead of the content that would have landed during it."
   ]
 }

@@ -306,6 +306,27 @@ function scriptedDevice(steps: any[]) {
   const walk = (async () => {
     for (const step of steps) {
       if (step.from === "device") {
+        /* Nothing of the host's may be waiting to be read at the moment the
+         * device speaks. Every device line in every transcript is one the host
+         * is waiting for, so a client that is behaving has written nothing
+         * since the last thing this consumed.
+         *
+         * That is the only way a transcript can express the acknowledged
+         * transfer at all. The bytes of a file are the same bytes whether they
+         * were sent a window at a time or all at once, so comparing them says
+         * nothing about the waiting - and the waiting is the whole change. What
+         * distinguishes the two is that one of them has run ahead, and running
+         * ahead is visible right here.
+         *
+         * One-directional, and deliberately: bytes present prove the client ran
+         * ahead, and bytes absent prove nothing, since a write that has not
+         * arrived yet looks the same. It catches the fault without ever
+         * claiming the absence is a pass. */
+        if (held.length > 0) {
+          problems.push(`the client had already written ${held.length} byte(s) `
+                        + `when the device said "${step.line}" - it is not `
+                        + "waiting to be answered");
+        }
         await out.write(encoder.encode(`${step.line}\n`));
         continue;
       }

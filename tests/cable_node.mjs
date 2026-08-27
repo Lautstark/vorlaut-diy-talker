@@ -58,7 +58,7 @@ async function session(device, made, log) {
     timeout: 4000,
   });
   const hello = await cable.hello();
-  if (hello.version !== 1) throw new Error(`protocol ${hello.version}, not 1`);
+  if (hello.version !== 2) throw new Error(`protocol ${hello.version}, not 2`);
   const have = await cable.list();
 
   // Only layout.bin needs asking about; every other name answers by existing.
@@ -182,10 +182,147 @@ const CLIENT_ONLY = {
     if (refused !== "< err session") {
       throw new Error(`a verb before hello was answered "${refused}"`);
     }
-    if (admitted !== "< vorlaut 1") {
+    if (admitted !== "< vorlaut 2") {
       throw new Error(`hello after a refusal was answered "${admitted}"`);
     }
     return { refused, admitted };
+  },
+
+  // The waiting itself, against a mock whose flash takes a moment.
+  //
+  // This is the scenario the protocol was changed for, and the one nothing
+  // else here could ask. Everywhere else the device is a Map that answers
+  // instantly, so a client that never waited for an ack would finish the file
+  // before the mock had a chance to mind - which is precisely the shape of the
+  // fault on real hardware, where "instantly" is a 4 ms flash write and the
+  // bytes that arrive during it are gone without a word.
+  //
+  // So: a small window, a real pause before every ack, and a file that needs
+  // several. The mock throws away anything beyond a window and gives up, the
+  // way a full receive buffer does. A client that sends and hopes fails here.
+  // `outran` next door is the control that says so rather than assuming it.
+  async windows() {
+    const device = new MockDevice({ window: 256, stallMs: 3 });
+    // Not a whole multiple of the window on purpose: the last one is 130
+    // bytes, and the end of the file ends the window whether it is full or not.
+    // 256 rather than the mock's own default, so that a client which had kept
+    // a chunk size of its own would agree with the default and fail here.
+    const content = blob(15, 2178);
+    const name = "t" + hex8(15).repeat(4) + ".bin";
+    const cable = new Cable(device.open(), { onLog: () => {} });
+    await cable.hello();
+
+    const steps = [];
+    const began = Date.now();
+    const stored = await cable.put(name, content,
+                                   { onProgress: (at) => steps.push(at) });
+    const took = Date.now() - began;
+    await cable.close();
+
+    const wanted = Math.ceil(content.length / 256);
+    if (device.overran) throw new Error(`the client outran the device: ${device.overran}`);
+    if (stored.size !== content.length) {
+      throw new Error(`stored ${stored.size} of ${content.length}`);
+    }
+    if (steps.length !== wanted) {
+      throw new Error(`${content.length} bytes in ${steps.length} windows `
+        + `of 256, expected ${wanted}`);
+    }
+    if (steps[steps.length - 1] !== content.length) {
+      throw new Error(`the last window ended at ${steps[steps.length - 1]} of `
+        + `${content.length}`);
+    }
+    // Every window was paid for. Not a measurement of anything - the mock's
+    // pause is a setTimeout - but a client that did not wait could not have
+    // taken this long, and a client that waited once could not either.
+    if (took < wanted * 3) {
+      throw new Error(`${wanted} windows at 3 ms each went by in ${took} ms, `
+        + "which is not long enough to have waited for any of them");
+    }
+    return { windows: steps.length, of: content.length, took };
+  },
+
+  // The control under the one above: a client that sends the whole file the
+  // moment it is told to go.
+  //
+  // Without this, `windows` proves only that the client and the mock agree,
+  // and they would agree just as happily if the mock minded nothing at all.
+  // This is the same wire and the same mock, driven by hand past the window,
+  // and it has to fail - silently discarded bytes, then the timeout, which is
+  // what the bench really did before any of this existed.
+  async outran() {
+    const device = new MockDevice({ window: 256, stallMs: 3 });
+    const content = blob(16, 2178);
+    const name = "t" + hex8(16).repeat(4) + ".bin";
+    const wire = device.open();
+    const writer = wire.writable.getWriter();
+    const reader = wire.readable.getReader();
+    const bytes = new TextEncoder();
+    const text = new TextDecoder();
+    let buffer = "";
+
+    const answer = async () => {
+      for (;;) {
+        const cut = buffer.indexOf("\n");
+        if (cut >= 0) {
+          const line = buffer.slice(0, cut);
+          buffer = buffer.slice(cut + 1);
+          if (line.startsWith("< ")) return line;
+          continue;
+        }
+        const { value, done } = await reader.read();
+        if (done) throw new Error("the mock closed without answering");
+        buffer += text.decode(value, { stream: true });
+      }
+    };
+
+    await writer.write(bytes.encode("> hello\n"));
+    while (await answer() !== "< end hello") { /* the rest of the greeting */ }
+    await writer.write(bytes.encode(
+      `> put ${name} ${content.length} ${hex8(crc32(content))}\n`));
+    const go = await answer();
+    // Everything at once, which is what version 1 of this protocol did.
+    await writer.write(content);
+    const refused = await answer();
+    await writer.close().catch(() => {});
+
+    if (!go.startsWith("< go 256")) throw new Error(`the go was "${go}"`);
+    if (refused !== `< err short ${name}`) {
+      throw new Error(`sending past the window was answered "${refused}"`);
+    }
+    if (!device.overran) throw new Error("the mock did not notice the overrun");
+    if (device.files.has(name)) throw new Error("the file was stored anyway");
+    if (device.greeted) throw new Error("the session stayed open after a loss");
+    return { go, refused, overran: device.overran };
+  },
+
+  // An ack that disagrees with what was sent.
+  //
+  // The reason the acks carry a running total rather than the size of the
+  // piece: a per-piece count agrees with itself all the way down a stream that
+  // has slipped, and a total does not. Nothing that is working can produce
+  // this, which is exactly why it needs forcing - without this scenario the
+  // client could stop comparing and every test here would still pass.
+  async slipped() {
+    const device = new MockDevice({ window: 256 });
+    const content = blob(17, 900);
+    const name = "t" + hex8(17).repeat(4) + ".bin";
+    device.failAt = { name, how: "ack" };
+    const cable = new Cable(device.open(), { onLog: () => {} });
+    await cable.hello();
+    let caught = null;
+    try {
+      await cable.put(name, content);
+    } catch (error) {
+      caught = error.message;
+    }
+    await cable.close();
+    if (!caught) throw new Error("an ack that was one byte out went unnoticed");
+    if (!/acknowledged/.test(caught)) {
+      throw new Error(`it stopped, but for another reason: ${caught}`);
+    }
+    if (device.files.has(name)) throw new Error("and stored it anyway");
+    return { caught };
   },
 
   // A device that stores the file and then finds the checksum wrong.
@@ -231,7 +368,7 @@ const CLIENT_ONLY = {
     await cable.close();
     if (caught?.word !== "short") throw new Error("a lost transfer went unnoticed");
     if (afterwards !== "session") throw new Error("the device kept talking after a lost transfer");
-    if (recovered !== 1) throw new Error("hello did not get the session back");
+    if (recovered !== 2) throw new Error("hello did not get the session back");
     return { caught, afterwards, recovered };
   },
 
