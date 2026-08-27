@@ -1,7 +1,8 @@
 # Releasing, and which tag means what
 
-Three things in this repository are released, on three schedules, by three
-different mechanisms. That is a consequence of keeping the builder and the
+Four tag prefixes are spoken for in this repository, on as many schedules and
+by as many mechanisms — two of them cut today, two reserved against formats
+that are not frozen yet. That is a consequence of keeping the builder and the
 hardware together — see [`adr/0006-builder-and-hardware-one-repo.md`](../adr/0006-builder-and-hardware-one-repo.md)
 — and it works only as long as the tag prefixes stay out of each other's way.
 
@@ -10,6 +11,7 @@ hardware together — see [`adr/0006-builder-and-hardware-one-repo.md`](../adr/0
 | `builder-v*` | the page in `src/` | release-please, on merge of its pull request | release-please, from the commits |
 | `v*` | the firmware image | `git tag v0.2 && git push origin v0.2` | a person, in `release.yml` |
 | `exchange-v*` | `SPEC.md` and its fixtures | by hand, and not yet | a person |
+| `device-v*` | the device interface in `device/` | by hand, and not yet | a person |
 
 **`v*` means the firmware and nothing else.** Until now that was visible only
 by reading the `on: push: tags:` trigger at the top of
@@ -17,6 +19,15 @@ by reading the `on: push: tags:` trigger at the top of
 not where anybody looks before choosing a tag name. It is written here so that
 `v1.0.0` is never used for the builder by somebody who assumed the obvious
 prefix was free.
+
+**The bottom two rows are reserved and have never been cut**, and they are in
+this table for the same reason `v*` is: so that the prefix is taken before
+somebody needs it, rather than discovered afterwards. Each is held to the same
+bar — no tag until the fixtures have run against both implementations *and* a
+mutation run says they bite. For `device-v*` that bar is written out step by
+step in [`format-freeze.md` section 8](format-freeze.md#8-sequencing-what-has-to-be-true-before-device-v1);
+as of 2026-08-27 what it is still waiting on is a first run on real hardware,
+the six-row table in [`cable.md`](cable.md). Pin a commit SHA in the meantime.
 
 They are separate because the things they release have nothing to do with each
 other's cadence. The builder is deployed to Pages from `main` on every push and
@@ -50,11 +61,11 @@ release**: it cuts `builder-vX.Y.Z` and creates the GitHub release.
 
 ### Which commits count: paths, not scopes
 
-`release-please-config.json` excludes `firmware/`, `case/` and `exchange/`. A
-commit whose files all fall inside those is not a builder change and does not
-appear in the builder's changelog. **Everything else counts** — `src/`, but
-also `docs/`, `tests/`, `e2e/`, `adr/`, `dns/`, and the configuration at the
-root.
+`release-please-config.json` excludes `firmware/`, `case/`, `exchange/` and
+`device/`. A commit whose files all fall inside those is not a builder change
+and does not appear in the builder's changelog. **Everything else counts** —
+`src/`, but also `docs/`, `tests/`, `e2e/`, `adr/`, `dns/`, and the
+configuration at the root.
 
 This is deliberately decided by path rather than by the scope written in the
 commit message. A scope is a thing somebody has to remember, and the failure
