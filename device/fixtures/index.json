@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "1.0.0",
+  "device_interface_version": "1.1.0",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -348,6 +348,141 @@
       "outcome": "accepted",
       "summary": "A name the device will not touch, a file that arrived wrong, and a file with no room for it.",
       "expected": "cable/names-and-errors.expected.json"
+    },
+    {
+      "fixture": "one-board",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "One board and a key in each of the four shapes: a word with a picture, a word alone, a picture alone, and a key holding nothing.",
+      "file": "package/one-board.obz",
+      "expected": "package/one-board.expected.json"
+    },
+    {
+      "fixture": "two-sets-and-the-ring",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "Two boards and the ring between them, a crossed-out key sharing one picture with a plain one, a METACOM reference, a name past the 32 bytes layout.bin cuts at, and a reference behind which there is nothing.",
+      "file": "package/two-sets-and-the-ring.obz",
+      "expected": "package/two-sets-and-the-ring.expected.json"
+    },
+    {
+      "fixture": "five-keys-cut-to-four",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "A set with five keys in it. Four reach the package, and the fifth key's picture and recording are not in the archive at all.",
+      "file": "package/five-keys-cut-to-four.obz",
+      "expected": "package/five-keys-cut-to-four.expected.json"
+    },
+    {
+      "fixture": "locale-not-in-the-table",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "A locale of \"de-DE\", which is not a language the device has. The reader takes it as it stands and byte 7 falls back to English.",
+      "file": "package/locale-not-in-the-table.obz",
+      "expected": "package/locale-not-in-the-table.expected.json"
+    },
+    {
+      "fixture": "sleep-on-a-later-board",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "The sleep timeout and the voice on a board that is not the root, saying something different from the root's. Only the root's are read, and the other two are lost without a word.",
+      "file": "package/sleep-on-a-later-board.obz",
+      "expected": "package/sleep-on-a-later-board.expected.json"
+    },
+    {
+      "fixture": "label-and-vocalization-differ",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "A key whose label is a caption and whose vocalization is the sentence. What the device says is the vocalization.",
+      "file": "package/label-and-vocalization-differ.obz",
+      "expected": "package/label-and-vocalization-differ.expected.json"
+    },
+    {
+      "fixture": "no-boards",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A manifest that names no boards, with the boards still in the archive beside it.",
+      "file": "package/no-boards.obz",
+      "expected": "package/no-boards.expected.json"
+    },
+    {
+      "fixture": "board-named-and-not-there",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A manifest naming two boards over an archive holding one.",
+      "file": "package/board-named-and-not-there.obz",
+      "expected": "package/board-named-and-not-there.expected.json"
+    },
+    {
+      "fixture": "ring-misses-a-board",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "Three boards and a ring that closes over two of them. The third is filed, named by the manifest, and never reached.",
+      "file": "package/ring-misses-a-board.obz",
+      "expected": "package/ring-misses-a-board.expected.json"
+    },
+    {
+      "fixture": "pictures-named-and-not-there",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A talker document: references and entries with paths, and not one picture behind them.",
+      "file": "package/pictures-named-and-not-there.obz",
+      "expected": "package/pictures-named-and-not-there.expected.json"
+    },
+    {
+      "fixture": "picture-with-no-reference",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A picture entry with bytes behind it and no reference beside them.",
+      "file": "package/picture-with-no-reference.obz",
+      "expected": "package/picture-with-no-reference.expected.json"
+    },
+    {
+      "fixture": "picture-not-on-the-board",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A key naming a picture its own board does not list.",
+      "file": "package/picture-not-on-the-board.obz",
+      "expected": "package/picture-not-on-the-board.expected.json"
+    },
+    {
+      "fixture": "sound-named-and-not-there",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A recording named by a board and not in the archive.",
+      "file": "package/sound-named-and-not-there.obz",
+      "expected": "package/sound-named-and-not-there.expected.json"
+    },
+    {
+      "fixture": "sound-not-on-the-board",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A key naming a recording its own board does not list.",
+      "file": "package/sound-not-on-the-board.obz",
+      "expected": "package/sound-not-on-the-board.expected.json"
+    },
+    {
+      "fixture": "sound-at-the-wrong-rate",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A recording at 24 kHz. The device does not refuse one - it plays it at 16 - so both halves of this boundary refuse it instead.",
+      "file": "package/sound-at-the-wrong-rate.obz",
+      "expected": "package/sound-at-the-wrong-rate.expected.json"
+    },
+    {
+      "fixture": "sound-named-for-nothing",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A recording under a name layout.bin cannot carry. Refused here, at both ends, rather than at the far end of a build nobody is watching.",
+      "file": "package/sound-named-for-nothing.obz",
+      "expected": "package/sound-named-for-nothing.expected.json"
+    },
+    {
+      "fixture": "nothing-to-export",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A Sammlung with no sets in it. There is no artefact, because there is no package a writer could have written.",
+      "expected": "package/nothing-to-export.expected.json"
     }
   ]
 }

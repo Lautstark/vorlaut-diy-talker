@@ -37,7 +37,8 @@ test.use({ locale: `${PAGE_LANG}-DE` });
  * nowhere in a log line: the same picture on three keys is one member, the
  * same sentence in two sets is synthesised once, a crossed-out key is a flag
  * rather than a second picture, and every recording is the shape the device
- * plays. tests/unit/device_roundtrip.test.ts holds the mapping over data;
+ * plays. device/fixtures/package/ holds the mapping over data, through
+ * tests/unit/device_package_writer.test.ts;
  * what is only reachable from here is a browser, a real synthesis chain, and a
  * zip a file manager could open.
  *

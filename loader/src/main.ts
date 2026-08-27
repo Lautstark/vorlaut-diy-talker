@@ -308,7 +308,7 @@ function checked(read: ReadDevicePackage): Finding[] {
 }
 
 /** Step three: the tiles, the WAVs and layout.bin - exactly the files a talker
- *  holds, which is what tests/unit/device_roundtrip.test.ts holds this to. */
+ *  holds, which is what tests/unit/device_compile.test.ts holds this to. */
 async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<void> {
   steps.compile.begin();
   steps.compile.say(t("load.compiling"));

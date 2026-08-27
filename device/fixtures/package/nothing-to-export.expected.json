@@ -1,0 +1,28 @@
+{
+  "fixture": "nothing-to-export",
+  "kind": "package",
+  "file": null,
+  "summary": "A Sammlung with no sets in it. There is no artefact, because there is no package a writer could have written.",
+  "bytes": null,
+  "conforming": false,
+  "members": null,
+  "manifest": null,
+  "boards": null,
+  "read": null,
+  "write": {
+    "layout": {
+      "language": "de",
+      "voice": "piper:de_DE-thorsten-medium",
+      "sleep_timeout_seconds": 600,
+      "sets": []
+    },
+    "voice": "piper:de_DE-thorsten-medium",
+    "sources": [],
+    "sounds": [],
+    "refuses": "nothing in this Sammlung"
+  },
+  "notes": [
+    "The one refusal in this kind with no read half, because there is nothing to read. A package with no boards is refused at the archive - no-boards is that fixture - and this is the step before it: the writer never gets far enough to make one.",
+    "It is here rather than left to a unit test because it is a statement about the format: a device package holds at least one board, and the ring a device cycles cannot be empty."
+  ]
+}

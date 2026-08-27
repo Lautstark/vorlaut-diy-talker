@@ -35,10 +35,14 @@
 // loader/src/compile.ts, and the claim they make together is unchanged: the
 // file turns back into exactly the bytes a talker holds.
 //
-// tests/unit/device_roundtrip.test.ts is where it is held to it, and that test
-// is now the only thing standing between an editor and a talker that have
-// stopped agreeing - which is why it walks the whole way through the actual
-// bytes of the archive rather than handing objects across.
+// device/fixtures/package/ is where the two halves are held to it, and they
+// are held to it SEPARATELY: the writer must produce a package the fixtures
+// state, the reader must read the fixtures' packages into the fixtures'
+// answers, and neither runner ever sees the other's output. adr/0014 is why.
+// Until 2026-08-27 the two were compared against each other in one process by
+// tests/unit/device_roundtrip.test.ts, which was a better check and is one no
+// repository will have after the split adr/0012 decided - the fixtures are
+// what is left of it, and the reason they carry refusals no writer here emits.
 //
 // ---------------------------------------------------------------------------
 // The four form rules, and what each one is

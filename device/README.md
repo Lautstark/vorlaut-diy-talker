@@ -1,8 +1,17 @@
-# The device interface — conformance fixtures
+# Conformance fixtures for the two formats between a Sammlung and a talker
 
-What passes between the builder in [`src/`](../src/) and the firmware in
-[`firmware/`](../firmware/): `layout.bin`, the cable protocol, the tile and
-audio payloads, the name rule and the language enumeration.
+**The device interface**: what passes between the builder in
+[`src/`](../src/) and the firmware in [`firmware/`](../firmware/) —
+`layout.bin`, the cable protocol, the tile and audio payloads, the name rule
+and the language enumeration.
+
+**The device package**: the `.obz` the editor writes and
+[`loader/`](../loader/README.md) reads, one step upstream, where neither end is
+the device and both are browsers. Added on 2026-08-27 by
+[`adr/0014`](../adr/0014-device-fixtures-cover-the-package-too.md), which is
+where the widening is argued — the short version is that a reader which
+misunderstands a package does not fail on the page, it compiles confidently and
+hands a talker bytes.
 
 | | |
 |---|---|
@@ -66,7 +75,7 @@ Those are a byte in a file and a number on a wire, both currently 2; this is
 `MAJOR.MINOR.PATCH` over the whole interface, and the three of them will drift
 apart on purpose.
 
-It reads **`1.0.0`**, and it carries no word about status. It said
+It reads **`1.1.0`**, and it carries no word about status. It said
 `0.1.0-draft` until 2026-08-27, which put a claim about the interface inside a
 number nothing asserted — both runners printed the string and neither checked
 it, so a `device-v1` cut over it would have contradicted the thing it tagged.
@@ -81,11 +90,17 @@ disagreeing — the second by regenerating rather than by reading the number out
 of the generator's source, which is the shape ADR 0009 removed from
 `test_texts.py`.
 
+The MINOR went up the same day the `-draft` came off, and in that order. `1.0.0`
+described a directory that was silent about the device package; `1.1.0`
+describes one that is not. It is not a MAJOR because MAJOR is *a flashed device
+misreading a payload a conforming builder writes*, and nothing the talker reads
+moved — not a stride, not a byte, not a keyword.
+
 ---
 
 ## Running them
 
-Both ends, and they never meet:
+Four ends in two pairs, and no runner meets another:
 
 ```bash
 npx vitest run tests/unit/device_fixtures.test.ts
@@ -93,6 +108,14 @@ npx vitest run tests/unit/device_fixtures.test.ts
 
 ```bash
 python3 tests/test_device_host.py
+```
+
+```bash
+npx vitest run tests/unit/device_package_writer.test.ts
+```
+
+```bash
+npx vitest run tests/unit/device_package_reader.test.ts
 ```
 
 `cable` mode takes the window from the fixture rather than from `CABLE_WINDOW`,
@@ -111,14 +134,35 @@ The second is the firmware's half: `parseLayout()`, `seekToWavData()`,
 from the headers the sketch includes and run against the same index from the
 other side. It needs a C++ compiler and nothing else.
 
-Neither reads the other. That is the whole point — the two could be in two
-repositories, or in two hands, and still be held to one thing.
+The third and fourth are the device package's two halves, and they are both
+node because both ends of that format are browsers. The writer is given the
+Sammlung a fixture states, with the pictures and the recordings taken out of
+the fixture's own archive, and must produce the manifest and the board
+documents the fixture holds. The reader is given the archive and must come back
+with the fixture's answers, or refuse it at the step the fixture names.
+
+None of the four reads another. That is the whole point — they could be in two
+repositories, or in four hands, and still be held to one thing. Each of the two
+package runners ends with a check that it has not imported the other half,
+because that is the one edit that would quietly turn the pair back into a round
+trip that agrees with itself.
+
+Between the two families there is one step neither of them watches, and
+[`tests/unit/device_compile.test.ts`](../tests/unit/device_compile.test.ts) is
+it: a committed package out of `fixtures/package/`, compiled the whole way into
+what a talker reads. It imports no writer.
 
 The mutation run is the acceptance test for all of it:
 
 ```bash
 python3 tools/devicemutate.py
 ```
+
+Four ends now, and every fault goes to all four rather than to the two of its
+own boundary. That is deliberate: `src/data/device_package.ts` takes
+`SLOTS_PER_SET` and `HASH_BYTES` out of `loader/src/layout_format.ts`, so the
+two boundaries are not disjoint and a run that only asked the near pair would
+never see it.
 
 ### What this does not replace
 
@@ -169,6 +213,13 @@ browser waiting for a reply that never comes looks exactly like a broken cable
 | `names.expected.json` | Which names a builder emits, which the device stores, and that the first is inside the second. |
 | `language.expected.json` | Byte 7's table, its default, and what an index past it means. |
 | `sleep.expected.json` | The timeout range a builder may write, what the device waits for everything else, and that the first is inside the second. |
+| `package/` | The other boundary: whole `.obz` archives, what a reader must make of each, and **eleven refusals**, aimed at the packages that parse. |
+
+`package/` carries two more of its own: a `locale` outside the table, which
+both halves take and which reaches the device as English, and the sleep timeout
+on a board that is not the root, which is dropped without a word. Both are
+`audio/stereo-44k`'s shape — the fixture states that a writer must not emit one
+and that the reader as it stands does not check.
 
 The refusals are the point. `tests/reference/layout.lock.json` has seventeen
 frozen cases and **not one of them is refused**, because every one of them is
@@ -231,11 +282,26 @@ fixture set that overstates itself is worse than a small one.
    then plays it at 16 kHz mono. The fixture states that a writer must not
    emit one and that the reader as it stands does not check. Whether it should
    is a change to the firmware and a decision this directory does not make.
-7. **Nothing here checks that a builder emits only conforming names.** The
-   name rule says 32 lower-case hex digits; `hashBytes()` accepts upper case
-   and accepts fewer than 32, filling the rest with zeroes. Both are recorded
-   in `names.expected.json` as cases a builder must not emit, and neither end
-   enforces it today.
+7. **Nothing at the device interface checks that a builder emits only
+   conforming names.** The name rule says 32 lower-case hex digits;
+   `hashBytes()` accepts upper case and accepts fewer than 32, filling the rest
+   with zeroes. Both are recorded in `names.expected.json` as cases a builder
+   must not emit, and neither end of *that* boundary enforces it. The boundary
+   above it does — `package/sound-named-for-nothing` is a recording under
+   sixteen hex digits, refused by both halves — so the rule is kept one step
+   before the device rather than nowhere.
+8. **The package fixtures say nothing about the archive's compression.** They
+   are stored, because a directory that regenerates byte for byte cannot depend
+   on a deflate implementation, and a conforming writer may deflate; what they
+   state about the container is its framing and its member order. Anything
+   about zip beyond that is `exchange/SPEC.md` §2's.
+9. **They do not compile a package into tiles either.** `package/` stops at
+   what a reader makes of an archive, `layout/` and `tile/` start at bytes that
+   already exist, and the step between the two is watched by
+   `tests/unit/device_compile.test.ts` and by nothing here. Their pictures are
+   BMPs — the one picture format this directory can hold, for the same
+   compressor reason — and they say which way round a file is and nothing about
+   whether a symbol renders.
 
 ---
 
@@ -255,9 +321,11 @@ The generator writes each artefact and its `.expected.json` **from one
 literal**. Splitting them would let an expectation drift from the thing it
 describes, and a drifted expectation passes whatever an implementation does.
 
-The generator **imports nothing from `src/`, `tools/` or `firmware/`, and never
-reads its own output back**. The bytes are laid out by hand from the field
-values, not by calling `renderLayoutBin()` with different arguments. A fixture
+The generator **imports nothing from `src/`, `loader/`, `tools/` or
+`firmware/`, and never reads its own output back**. The bytes are laid out by
+hand from the field values, not by calling `renderLayoutBin()` with different
+arguments — and the manifests and board documents under `package/` are laid out
+the same way, not by calling `buildDevicePackage()`. A fixture
 derived from a writer is a capture of that writer; a generator that parsed its
 own output would be comparing a thing against itself. Both are the failure
 [`../docs/frozen-references.md`](../docs/frozen-references.md) exists to record.

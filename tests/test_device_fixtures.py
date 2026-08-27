@@ -9,10 +9,14 @@ a reviewer stops reading them, and a fixture that changed on purpose looks
 exactly like one that changed because somebody upgraded node.
 
 Reproducibility is cheap here and it is worth saying why, because the reason is
-a rule rather than a piece of luck: this generator imports nothing. No zlib, no
-image codec, no `src/`, no `firmware/`. Every byte is laid out by hand from the
-field values, so there is nothing in it whose output could be a property of the
-toolchain.
+a rule rather than a piece of luck: nothing the generator imports has an opinion
+of its own. No compressor, no image codec, no `src/`, no `loader/`, no
+`firmware/`. Two fixed functions out of node - CRC-32 and SHA-256 - and every
+other byte laid out by hand from the field values, so there is nothing in it
+whose output could be a property of the toolchain. That is also why the `.obz`
+fixtures under `package/` are stored rather than deflated: deflate output *is* a
+property of whichever zlib is installed, and a committed artefact that must
+regenerate byte for byte cannot depend on one.
 
 The regeneration happens in a temporary copy, not in the working tree. Running
 this must never leave anything behind, and a developer with deliberate
@@ -66,7 +70,7 @@ def regenerate(into: Path) -> subprocess.CompletedProcess[str]:
         shutil.copytree(DEVICE / relative, into / relative)
     # The directories it writes into, empty. It creates no directory of its
     # own, so a fixture kind added without one fails here rather than in CI.
-    for kind in ("layout", "tile", "audio", "cable"):
+    for kind in ("layout", "tile", "audio", "cable", "package"):
         (into / "fixtures" / kind).mkdir(parents=True, exist_ok=True)
     return subprocess.run(
         ["node", str(into / "tools" / "make_fixtures.mjs")],
@@ -162,6 +166,21 @@ def main() -> int:
                 problems.append(f"{entry['fixture']}: index.json names "
                                 f"{named}, which is not there")
 
+    # One name per fixture, across every kind. Both runners key their
+    # expectations by name, so a second fixture called one-set does not
+    # collide - it REPLACES, and the first one is then checked against the
+    # second one's expectation. That went green for exactly as long as it took
+    # to add a kind whose author reached for an obvious name.
+    seen: dict[str, str] = {}
+    for entry in listed:
+        already = seen.get(entry["fixture"])
+        if already:
+            problems.append(f"{entry['fixture']}: two fixtures have this name, "
+                            f"one of kind {already!r} and one of kind "
+                            f"{entry['kind']!r}. A runner keying by name reads "
+                            f"one of them twice and the other never")
+        seen[entry["fixture"]] = entry["kind"]
+
     reachable = {entry[key] for entry in listed for key in ("expected", "file")
                  if entry.get(key)}
     on_disk = {n for n in files_under(FIXTURES)
@@ -177,7 +196,8 @@ def main() -> int:
     # a fixture that is silently never run. Stated here rather than in either
     # runner, because a runner can only say what it does not recognise once it
     # has been taught the ones it does.
-    KINDS = {"layout", "tile", "audio", "cable", "names", "language", "sleep"}
+    KINDS = {"layout", "tile", "audio", "cable", "names", "language", "sleep",
+             "package"}
     for entry in listed:
         if entry["kind"] not in KINDS:
             problems.append(f"{entry['fixture']}: kind {entry['kind']!r} is "

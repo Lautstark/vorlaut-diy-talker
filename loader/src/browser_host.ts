@@ -2,14 +2,15 @@
 //
 // DeviceHost is decode and hash, and its own note says why those two and
 // nothing else: everything between them is arithmetic, and the arithmetic runs
-// under node in tests/unit/device_roundtrip.test.ts against a fixture decoder.
-// This is the other implementation of the same two functions, the one that
-// runs on the page - so what the round trip proves about the arithmetic
-// carries straight over, and what it does not cover is exactly these forty
-// lines.
+// under node in tests/unit/device_compile.test.ts against a fixture decoder -
+// a BMP out of device/fixtures/package/, which is the one picture format a
+// directory that has to regenerate byte for byte can hold. This is the other
+// implementation of the same two functions, the one that runs on the page - so
+// what that test proves about the arithmetic carries straight over, and what
+// it does not cover is exactly these forty lines.
 //
 // Which is also why they are forty lines and not four hundred. Anything that
-// grows here is something the round trip stops being able to see.
+// grows here is something no test under node can see.
 import type { DeviceHost } from "./compile.js";
 import type { ReadDevicePackage } from "../../src/data/device_package.js";
 import { HASH_BYTES } from "./layout_format.js";

@@ -1,0 +1,245 @@
+{
+  "fixture": "sound-named-for-nothing",
+  "kind": "package",
+  "file": "package/sound-named-for-nothing.obz",
+  "summary": "A recording under a name layout.bin cannot carry. Refused here, at both ends, rather than at the far end of a build nobody is watching.",
+  "bytes": 4852,
+  "conforming": false,
+  "members": [
+    {
+      "path": "manifest.json",
+      "bytes": 522,
+      "sha256": "9f4eabb1df245cb3ff3c733e9a95b485f439c5ae2d1dad37925edadb1a8d068b"
+    },
+    {
+      "path": "boards/set-1.obf",
+      "bytes": 2238,
+      "sha256": "04c1e98c588b1c3a1038d691f6338f8fb9b7df520c03e9f11a2ca4fc6f31ca51"
+    },
+    {
+      "path": "images/907686e9833c7e5b.bin",
+      "bytes": 310,
+      "sha256": "907686e9833c7e5be4cda8aabd77a0ce0f1c209787e58557638799a4d879275f"
+    },
+    {
+      "path": "images/e121ccc1471f37d4.bin",
+      "bytes": 246,
+      "sha256": "e121ccc1471f37d4aa455272feec6ca2e1f685b12871a6bc8bae6529da653985"
+    },
+    {
+      "path": "images/e83ec571012c0591.jpg",
+      "bytes": 50,
+      "sha256": "e83ec571012c0591ab89a61bd26f921209536791fba6156605a0bc9349df3f6c"
+    },
+    {
+      "path": "sounds/a0123456789abcdef.wav",
+      "bytes": 204,
+      "sha256": "50fe4983f78d423519396ab6d2d08392a44953c40f2c8b83a8dd51f118612cd7"
+    },
+    {
+      "path": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+      "bytes": 364,
+      "sha256": "0606e1cfbeb4d83f8358e04ed2901dd643d9f83ba83646e62b4202fcfeaa56ef"
+    }
+  ],
+  "manifest": {
+    "format": "open-board-0.1",
+    "root": "boards/set-1.obf",
+    "paths": {
+      "boards": {
+        "set-1": "boards/set-1.obf"
+      },
+      "images": {
+        "img-907686e9833c7e5b": "images/907686e9833c7e5b.bin",
+        "img-e121ccc1471f37d4": "images/e121ccc1471f37d4.bin",
+        "img-e83ec571012c0591": "images/e83ec571012c0591.jpg"
+      },
+      "sounds": {
+        "snd-a0123456789abcdef": "sounds/a0123456789abcdef.wav",
+        "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav"
+      }
+    }
+  },
+  "boards": [
+    {
+      "format": "open-board-0.1",
+      "id": "set-1",
+      "locale": "de",
+      "name": "Frühstück",
+      "buttons": [
+        {
+          "id": "set-1-key-1",
+          "label": "Ich habe Hunger",
+          "vocalization": "Ich habe Hunger",
+          "image_id": "img-907686e9833c7e5b",
+          "sound_id": "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+        },
+        {
+          "id": "set-1-key-2",
+          "label": "Ich habe Durst",
+          "vocalization": "Ich habe Durst",
+          "sound_id": "snd-a0123456789abcdef"
+        },
+        {
+          "id": "set-1-key-3",
+          "label": "",
+          "image_id": "img-e121ccc1471f37d4"
+        },
+        {
+          "id": "set-1-key-4",
+          "label": ""
+        },
+        {
+          "id": "set-1-set",
+          "label": "Frühstück",
+          "load_board": {
+            "id": "set-1",
+            "name": "Frühstück",
+            "path": "boards/set-1.obf"
+          },
+          "image_id": "img-e83ec571012c0591"
+        }
+      ],
+      "grid": {
+        "rows": 2,
+        "columns": 3,
+        "order": [
+          [
+            null,
+            "set-1-key-1",
+            "set-1-key-2"
+          ],
+          [
+            "set-1-set",
+            "set-1-key-3",
+            "set-1-key-4"
+          ]
+        ]
+      },
+      "images": [
+        {
+          "id": "img-907686e9833c7e5b",
+          "path": "images/907686e9833c7e5b.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "ja.bmp"
+          }
+        },
+        {
+          "id": "img-e121ccc1471f37d4",
+          "path": "images/e121ccc1471f37d4.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "nein.bmp"
+          }
+        },
+        {
+          "id": "img-e83ec571012c0591",
+          "path": "images/e83ec571012c0591.jpg",
+          "content_type": "image/jpeg",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "foto.png"
+          }
+        }
+      ],
+      "sounds": [
+        {
+          "id": "snd-a0123456789abcdef",
+          "path": "sounds/a0123456789abcdef.wav",
+          "content_type": "audio/wav",
+          "duration": 0.005
+        },
+        {
+          "id": "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "path": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+          "content_type": "audio/wav",
+          "duration": 0.01
+        }
+      ],
+      "ext_vorlaut_sleep_timeout_seconds": 600,
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+    }
+  ],
+  "read": {
+    "result": "refused",
+    "at": "package",
+    "because": "is not a name layout.bin can carry"
+  },
+  "write": {
+    "layout": {
+      "language": "de",
+      "voice": "piper:de_DE-thorsten-medium",
+      "sleep_timeout_seconds": 600,
+      "sets": [
+        {
+          "name": "Frühstück",
+          "symbol": "foto.png",
+          "slots": [
+            {
+              "text": "Ich habe Hunger",
+              "symbol": "ja.bmp",
+              "negated": false
+            },
+            {
+              "text": "Ich habe Durst",
+              "symbol": "",
+              "negated": false
+            },
+            {
+              "text": "",
+              "symbol": "nein.bmp",
+              "negated": false
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false
+            }
+          ]
+        }
+      ]
+    },
+    "voice": "piper:de_DE-thorsten-medium",
+    "sources": [
+      {
+        "reference": "ja.bmp",
+        "key": "907686e9833c7e5b",
+        "content_type": "application/octet-stream",
+        "member": "images/907686e9833c7e5b.bin"
+      },
+      {
+        "reference": "nein.bmp",
+        "key": "e121ccc1471f37d4",
+        "content_type": "application/octet-stream",
+        "member": "images/e121ccc1471f37d4.bin"
+      },
+      {
+        "reference": "foto.png",
+        "key": "e83ec571012c0591",
+        "content_type": "image/jpeg",
+        "member": "images/e83ec571012c0591.jpg"
+      }
+    ],
+    "sounds": [
+      {
+        "text": "Ich habe Hunger",
+        "name": "aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+        "member": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav"
+      },
+      {
+        "text": "Ich habe Durst",
+        "name": "a0123456789abcdef.wav",
+        "member": "sounds/a0123456789abcdef.wav"
+      }
+    ],
+    "refuses": "is not a name layout.bin can carry"
+  },
+  "notes": [
+    "\"a\" and thirty-two hex characters, because that is what a slot in layout.bin holds and what hashBytes() reads back out of it - device/fixtures/names.expected.json is the rule.",
+    "A short name is the case worth authoring, and it is one device/README.md lists under what the fixtures do NOT cover: hashBytes() accepts fewer than thirty-two digits and fills the rest of the hash with zeroes, so neither end of the device interface enforces the length. This boundary does, and this fixture is where that is written down - a package with a name like this one compiles into a layout.bin whose slot addresses a file nobody wrote.",
+    "Both halves refuse it, and that is deliberate: a writer that let one through would have written a package no reader could compile, and a reader that let one through would compile a package into a build with a file the device cannot address."
+  ]
+}

@@ -609,6 +609,17 @@ somebody can check rather than judge. Adding what this survey found, in order:
    which is what says the runners were not simply failing throughout. Nothing
    missed, nothing moved, one fault recorded as unreachable and not run.
 
+   **Run again the same day at 83 of 83**, after
+   [`adr/0014`](../adr/0014-device-fixtures-cover-the-package-too.md) added the
+   `package` kind: 40 firmware, 23 browser, 8 writer, 10 reader, and two caught
+   by more than one end. Those two are worth the sentence, because they are the
+   reason every fault now goes to all four runners rather than to the two of its
+   own boundary — `SLOTS_PER_SET` and `DEVICE_SAMPLE_RATE` are read by
+   `src/data/device_package.ts` as well as by the device's own code, so moving
+   either is visible at both boundaries and a run that only asked the near pair
+   would have reported half of it. Nothing missed, nothing moved, all three
+   controls still surviving.
+
 2. **[C1](#c1-chunk-acknowledgement--in-flight) has landed, or has been
    deferred on the record.** It is the one change already named as belonging
    *before* the device is out of reach of a cable, and freezing the protocol
@@ -662,7 +673,8 @@ somebody can check rather than judge. Adding what this survey found, in order:
    places — the generated `index.json` and `device/tools/make_fixtures.mjs`,
    which writes it — and they have to move together. *Checkable: the version in
    `index.json` has no `-draft` on it, and `make_fixtures.mjs` agrees.*
-   ✅ **Done, 2026-08-27**, and the version is **`1.0.0`**. Reaching 1.0.0 from
+   ✅ **Done, 2026-08-27**, and the version is **`1.0.0`** — `1.1.0` by the end
+   of the same day, for the reason two paragraphs down. Reaching 1.0.0 from
    a 0.x is not a breaking change but the statement that the thing is now
    stable, which is what a freeze is; ADR 0009's MAJOR rule — a flashed device
    *misreading* what a conforming builder writes — governs the increments after
@@ -671,6 +683,23 @@ somebody can check rather than judge. Adding what this survey found, in order:
    statement rather than the string's: `exchange/`'s `spec_version` is a plain
    `1.2.0` while “draft, not ratified” is a sentence in `SPEC.md`, and `device/`
    having no prose by design is exactly how the word got inside the number.
+
+   **And the number moved again the same day, to `1.1.0`.** This item froze a
+   string that describes a directory, and
+   [`adr/0014`](../adr/0014-device-fixtures-cover-the-package-too.md) then
+   widened the directory: `device/fixtures/` gained a `package` kind, covering
+   the `.obz` between the editor and the loader page as well as the bytes
+   between a browser and the talker. Landing that without moving the number
+   would have left `1.0.0` describing a set it had stopped describing, which is
+   the failure this item exists to prevent, one turn later — so the two changes
+   were made in that order on purpose and the second paid for the first.
+   **MINOR and not MAJOR**, because ADR 0009's MAJOR rule is a flashed device
+   *misreading* a payload a conforming builder writes, and nothing the talker
+   reads moved; MINOR and not PATCH, because a consumer pinning `1.0.0` is
+   pinning a set that is silent about the package. The assertion below is
+   unaffected — it refuses a pre-release suffix and has no opinion about which
+   MAJOR.MINOR.PATCH the string is — and so is everything this item says about
+   why the suffix went, which is the half that was about the *tag*.
 
    **The assertion landed somewhere neither runner is**, which was the part
    worth deciding rather than typing.

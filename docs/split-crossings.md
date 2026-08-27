@@ -1,14 +1,21 @@
 # The bill for the split: what crosses `src/` ↔ `loader/`, name by name
 
-**Status: a proposal, with one item of it built.**
+**Status: a proposal, with two items of it built**, both hard cases and both on
+2026-08-27.
 [ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) took the
-recommendation in *"The preview: not dropped, relocated"* below and landed it on
-2026-08-27: the device preview is on the loader page, and `renderSymbol()` and
-`TILE_SIZE` no longer cross. **The counts in this document are the ones that
-were measured when it was written and are not restated;** where a number here
-says ten, the enforced list says eight and
+recommendation in *"The preview: not dropped, relocated"* below and landed it:
+the device preview is on the loader page, and `renderSymbol()` and `TILE_SIZE`
+no longer cross.
+[ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md) took hard case
+one's answer and landed that: there is a `package` kind under
+`device/fixtures/`, and `device_roundtrip.test.ts` is gone. **The counts in this
+document are the ones that were measured when it was written and are not
+restated;** where a number here says ten, the enforced list says eight and
 [`layers.test.ts`](../tests/unit/layers.test.ts) is the one that is checked.
-Nothing else is moved and no migration is written here.
+The recommendation and the paragraphs it was argued in are untouched — what has
+moved is that two of the answers exist, and the places that said they *would
+have to* say where they are. Nothing else is moved and no migration is written
+here.
 [ADR 0012](../adr/0012-the-repository-splits-editor-leaves.md) landed the same
 day this page did and decided the split; the anchors and the two sentences that
 assumed it undecided are corrected below, and the measurement is untouched.
@@ -232,6 +239,11 @@ in whatever lands the move rather than a discovery afterwards.
 **Four unit tests import both sides**, and so do two e2e specs:
 `device_fixtures.test.ts`, `device_roundtrip.test.ts`, `empty_slot.test.ts`,
 `negation.test.ts`, `e2e/loader.spec.ts` and `e2e/device_export.spec.ts`.
+Counted on 2026-08-27 and already one short: `device_roundtrip.test.ts` is gone
+and `device_compile.test.ts` took its place on the list, importing
+`readDevicePackage()` out of `src/` and everything else out of `loader/` — which
+is the *reader's* crossing and moves with it, so it straddles on paper and not
+on the day.
 [`tests/unit/reachable.test.ts`](../tests/unit/reachable.test.ts) walks both
 trees deliberately, and `vite.config.ts` builds both entry points. These are
 [the last section](#what-happens-to-layerstestts-and-to-the-suite-around-it).
@@ -313,6 +325,14 @@ does not govern it."*
 
 ### The answer: a `package` kind under `device/fixtures/`
 
+**Built on 2026-08-27**, by
+[ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md), which is the
+line in an ADR the scope paragraph below asks for. Seventeen fixtures, eleven
+of them refusals, two divergences recorded rather than blessed, two runners
+that never meet, eighteen new faults in `tools/devicemutate.py`, and
+`device_interface_version` at `1.1.0`. The rest of this section is what was
+argued beforehand and is left as it was written.
+
 **Specified and fixtured, implemented twice** — ADR 0009's shape, in the
 directory ADR 0009 built, extended by one kind. Authored from the rule by
 [`device/tools/make_fixtures.mjs`](../device/tools/make_fixtures.mjs) from one literal,
@@ -323,7 +343,8 @@ top-level directory and no fifth tag prefix: `device-v*` is reserved and uncut.
 
 Three arguments for it, in order of weight.
 
-**It is what `device_roundtrip.test.ts` has to become.** That test holds
+**It is what `device_roundtrip.test.ts` has to become.** *(It has: ADR 0014,
+2026-08-27.)* That test holds
 `buildDevicePackage()` against `compileDevice()` in one process, and after the
 split neither repository has both. It is the most valuable check on this page and
 it is the one the move deletes. A fixture family is the only thing that
@@ -350,6 +371,11 @@ directory to the device interface — the bytes between the browser and the talk
 change of meaning and it needs a line in an ADR, not a commit message. It is also
 directly adjacent to what **ADR 0012** is being written to answer. See
 [what is left open](#what-this-does-not-decide) below.
+*Answered:*
+[ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md) draws the line
+and states it as a conjunction rather than as a place — two implementations,
+that have to agree, that cannot be released together — so that the next
+proposal to add a kind has a test to meet rather than a precedent to cite.
 
 ---
 
@@ -576,7 +602,7 @@ undo hard case one's whole answer. The rule should name it.
 
 | test | today | after |
 |---|---|---|
-| `device_roundtrip.test.ts` | writer against reader in one process | **cannot survive as-is.** Becomes the `package` fixture family — the argument in [hard case one](#the-answer-a-package-kind-under-devicefixtures) |
+| ~~`device_roundtrip.test.ts`~~ | ~~writer against reader in one process~~ | **Done, 2026-08-27.** Gone, and three files stand where it stood: `device_package_writer.test.ts` and `device_package_reader.test.ts` against the `package` fixtures, and `device_compile.test.ts` — a committed package compiled the whole way, importing no writer — for the step between the two fixture families. Only the last of the three straddles anything, and it straddles nothing after the move |
 | `device_fixtures.test.ts` | both halves against the fixtures | **divides in two.** Each side keeps the checks for the code it holds; the editor's half runs against the pin |
 | `empty_slot.test.ts` | an empty key on both sides of the seam | divides the same way, and the seam it names is now a file |
 | `negation.test.ts` | the cross, in the tile and in the package | the tile half goes to the talker, the package half to the editor |
@@ -626,10 +652,17 @@ over it, and it answered one of them and declined the other:
   differently, its answer wins and the fixtures need a home of their own — the
   mechanism in this page's recommendation survives the move to a different
   directory; only the address changes.
-  *Not drawn:* ADR 0012 decides where the directory lives and says nothing about
+  ~~*Not drawn:*~~ ADR 0012 decides where the directory lives and says nothing about
   what may be added to it, deliberately. Widening it by a `package` kind is this
   page's proposal to argue on its own merits, and nothing in 0012 blocks or
   blesses it — the address is settled either way.
+  ***Drawn, 2026-08-27, by
+  [ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md)***, which
+  argued it on its own merits and kept the address. The scope is now a rule
+  rather than a place: every format in this toolchain with two implementations
+  that have to agree and cannot be released together, which is two boundaries
+  and one directory, and 0014 says what does not qualify before somebody tries
+  it.
 
 **The three stale counts.** Recorded [above](#first-the-count--because-four-documents-disagree),
 not repaired here.

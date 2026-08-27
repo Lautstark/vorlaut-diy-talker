@@ -87,7 +87,7 @@ const WAV = `a${hash("b")}.wav`;
 /** What compileDevice() answers with, written out by hand.
  *
  * Three files and the shortest possible bytes, because nothing here is about
- * what is in them - device_roundtrip.test.ts is what says the compiler makes
+ * what is in them - device_compile.test.ts is what says the compiler makes
  * the right ones. What this file is about is a directory, and the three names
  * are the three shapes isBuildFile() has to know. */
 const compiled = (): Build => new Map<string, Uint8Array<ArrayBuffer>>([

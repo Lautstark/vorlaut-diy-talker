@@ -563,7 +563,7 @@ export function renderSymbol(source, { resample = "lanczos", negated = false } =
  * canvas: sourcePixels() draws the source to get at its pixels, and the
  * "canvas" resample hands the whole shrink to drawImage. Everything below it
  * is arithmetic over a Uint8ClampedArray, which is why
- * tests/unit/device_roundtrip.test.ts can compile a device build under node
+ * tests/unit/device_compile.test.ts can compile a device build under node
  * and why data/device_package.ts asks its host to decode rather than decoding.
  *
  * `pixels` is anything with `data`, `width` and `height` - an ImageData, or

@@ -77,7 +77,11 @@ Three further things this decides:
   build, on the page that sends one. The round trip is unchanged and is now the
   only thing standing between an editor and a talker that have stopped
   agreeing, which is why that test walks the whole way through the actual bytes
-  of the archive.
+  of the archive. — Since
+  [ADR 0014](0014-device-fixtures-cover-the-package-too.md) that test is gone
+  and the claim is made twice instead of once: the writer against
+  `device/fixtures/package/` and the reader against the same fixtures, in two
+  runners that never meet, because after the split no repository has both.
 
 **No new `ext_vorlaut_*` field, and no change to `exchange/SPEC.md`.** Every
 field this profile needs `obf.ts` was already writing. §1 of SPEC.md puts the

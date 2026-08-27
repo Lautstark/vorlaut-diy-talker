@@ -24,6 +24,7 @@ says what the cleanup will look like when it is proposed.
 | [0011](0011-editor-exports-the-talker-repository-sends.md) | The editor exports a file; the talker's repository compiles it and sends it |
 | [0012](0012-the-repository-splits-editor-leaves.md) | This repository splits into three, and the editor is the half that leaves |
 | [0013](0013-the-device-preview-moves-to-the-loader-page.md) | The device preview moves to the loader page, and stops being a prediction |
+| [0014](0014-device-fixtures-cover-the-package-too.md) | `device/fixtures/` covers the device package as well as the device interface |
 
 ## The shape
 
