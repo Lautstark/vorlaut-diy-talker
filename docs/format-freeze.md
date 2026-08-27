@@ -609,6 +609,17 @@ somebody can check rather than judge. Adding what this survey found, in order:
    which is what says the runners were not simply failing throughout. Nothing
    missed, nothing moved, one fault recorded as unreachable and not run.
 
+   **Run again the same day at 83 of 83**, after
+   [`adr/0013`](../adr/0013-device-fixtures-cover-the-package-too.md) added the
+   `package` kind: 40 firmware, 23 browser, 8 writer, 10 reader, and two caught
+   by more than one end. Those two are worth the sentence, because they are the
+   reason every fault now goes to all four runners rather than to the two of its
+   own boundary — `SLOTS_PER_SET` and `DEVICE_SAMPLE_RATE` are read by
+   `src/data/device_package.ts` as well as by the device's own code, so moving
+   either is visible at both boundaries and a run that only asked the near pair
+   would have reported half of it. Nothing missed, nothing moved, all three
+   controls still surviving.
+
 2. **[C1](#c1-chunk-acknowledgement--in-flight) has landed, or has been
    deferred on the record.** It is the one change already named as belonging
    *before* the device is out of reach of a cable, and freezing the protocol
