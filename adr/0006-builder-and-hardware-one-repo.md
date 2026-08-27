@@ -74,6 +74,20 @@ pinned by release tag, because they are used by more than one product. That is
 the actual criterion, and firmware and builder do not meet it: they are used by
 each other and by nothing else.
 
+**A second consumer is the test for extraction; a second implementation is the
+test for a specification.** The paragraph above runs the two together, and they
+come apart. *Used by more than one product* is a question about deployment: it
+is why the four packages left, and the device format does not meet it, because
+nothing but this firmware reads `layout.bin` and nothing but this builder writes
+it. *Has a second implementation that must agree* is a question about
+specification, and the device format meets it plainly — so the conclusion the
+paragraph above invites, that there is nothing here to share, does not follow.
+There is: the format. What it asks for is not extraction but a written
+format with fixtures both halves are held against, and that is
+[ADR 0009](0009-device-interface-fixtures.md). `exchange/SPEC.md` had the same
+treatment for the same reason, long before anything argued a second product used
+it.
+
 ## Consequences
 
 - CI installs three toolchains for one repository, and a contributor needs Node,
@@ -139,3 +153,14 @@ That last part was acted on rather than only noted.
 closes it, in a directory belonging to neither half. It is not a split and not
 preparation for one; it is the expensive part of a split, which turned out to be
 worth paying for on its own.
+
+**2026-08-27 — the Why gained the distinction it was missing.** The paragraph
+about the four shared packages named one criterion where there are two, and a
+reader who takes "used by each other and by nothing else" at face value
+concludes there is nothing here to share — which is how this question kept
+coming back. The paragraph now beside it separates the two, and the working out
+is in [`docs/obz-as-device-input.md`](../docs/obz-as-device-input.md) §12. This
+is an amendment to the reasoning. The decision is unchanged, condition 2 is
+still unmet, and packaging one implementation of the device format remains the
+thing 0006 refused — a proposal for it would supersede this file rather than
+amend it.
