@@ -443,10 +443,10 @@ refutation:
 The fixtures exist because `layout.lock.json` holds seventeen cases and **refuses
 none** — a capture can only contain what its writer emits, so no amount of
 freezing reaches `parseLayout`'s five refusal branches. That is a fact about lock
-files, not about repository boundaries. The index today holds 39 fixtures across
-six kinds — 18 layout, 8 audio, 7 cable, 4 tile, 1 names, 1 language, at
-`device_interface_version` `0.1.0-draft` — and the refusal cases in it are ones
-no implementation here will ever emit. A package boundary writes none of them.
+files, not about repository boundaries. The index today holds 45 fixtures across
+seven kinds — 20 layout, 10 cable, 8 audio, 4 tile, 1 names, 1 language, 1
+sleep, at `device_interface_version` `1.0.0` — and the refusal cases in it are
+ones no implementation here will ever emit. A package boundary writes none of them.
 
 Two things about them *would* change, and one is a trap:
 
