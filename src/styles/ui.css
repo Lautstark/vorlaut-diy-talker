@@ -1077,21 +1077,41 @@ a.factlinks__line:hover { text-decoration: underline; }
    what a 120px cell and everything above it gets. Nothing here can reach the
    word: it is a flex item at the foot of the cell and this is absolutely
    positioned above it. */
+/* Hearing a button without opening it.
+ *
+ * **It is there whenever there is something to hear, rather than appearing
+ * under the pointer.** It used to be drawn only on hover or focus, and that was
+ * two things at once: quiet, and unreachable. A tablet has no pointer, and a
+ * tap on a cell opens its card rather than focusing it, so on the device this
+ * editor is used on there was no way to reach this control at all.
+ *
+ * The cost is real and is the reason it was hidden: nearly every button says
+ * something, so nearly every cell carries one - where the corner opposite,
+ * which only a `goto` has, is a handful per page. So at rest it is drawn as the
+ * act badge is, a bare glyph in the cell's own ink, and it becomes a button
+ * under the pointer or on focus. The box never changes size, only what is
+ * painted in it: the target stays past the 24px WCAG 2.2 §2.5.8 floor whether
+ * anybody is looking at it or not. */
 .cell__play {
   position: absolute; top: 4px; left: 4px; z-index: 2;
   width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
   padding: 0; line-height: 1;
   display: grid; place-items: center;
   border: 0; border-radius: var(--radius-pill);
-  background: var(--surface); color: var(--text-dim);
-  box-shadow: var(--shadow-sm); cursor: pointer;
+  /* The cell's own ink, like .cell__act - which is what makes it legible over
+     a Fitzgerald fill without this rule having to know what colour that is. */
+  background: none; color: inherit; box-shadow: none; cursor: pointer;
   font: inherit; font-size: clamp(12px, 14cqw, 16px);
-  opacity: 0; transition: opacity .12s ease;
+  opacity: .55; transition: opacity .12s ease, background-color .12s ease;
 }
 .cell:hover .cell__play,
-.cell:focus-within .cell__play { opacity: 1; }
+.cell:focus-within .cell__play,
+.cell__play:focus-visible {
+  opacity: 1; background: var(--surface); color: var(--text-dim);
+  box-shadow: var(--shadow-sm);
+}
 .cell__play:hover { color: var(--text); }
-.cell__play:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
+.cell__play:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* The corner that follows a navigation button. Top right, always.
 
