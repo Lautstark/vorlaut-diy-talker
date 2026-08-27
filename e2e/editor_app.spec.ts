@@ -560,6 +560,18 @@ test("a button puts its word in the sentence and leads onward in one press",
 
     // It speaks, so it can be auditioned from the board - and what goes to the
     // synthesiser is the vocalization, the same as on a word button.
+    /* The one cell that carries both corners: it says its word on the way and
+     * then leads onward, so there is something to audition *and* a page to
+     * follow. Play on the left, follow on the right, and far enough apart that
+     * neither can take the other's press - which is exactly what happened
+     * while the two shared a seat and one of them stepped aside. */
+    const cellBox = (await cells(page).nth(4).boundingBox())!;
+    const playBox = (await cells(page).nth(4).locator(".cell__play").boundingBox())!;
+    const followBox = (await cells(page).nth(4).locator(".cell__follow").boundingBox())!;
+    expect(playBox.x - cellBox.x).toBeLessThan(cellBox.width / 2);
+    expect(followBox.x - cellBox.x).toBeGreaterThan(cellBox.width / 2);
+    expect(followBox.x).toBeGreaterThan(playBox.x + playBox.width);
+
     const said = page.waitForRequest((r) => SYNTHESIS.test(r.url()));
     await cells(page).nth(4).hover();
     await cells(page).nth(4).locator(".cell__play").click();
@@ -1419,14 +1431,17 @@ test("a way onward is marked by its corner and a way back by its edge",
     const essen = cells(page).nth(3);
     await expect(essen.locator(".cell__follow")).toHaveCount(1);
     await expect(essen.locator(".cell__act")).toHaveCount(0);
-    /* And the two corners have seats of their own. Measured against the cell
-     * rather than by class, because the claim is where they are: the follow on
-     * the left, the play - drawn here because this button carries its word
-     * into the sentence - on the right, and no arithmetic keeping them
-     * apart. */
+    /* And the corner is on the right. Measured against the cell rather than by
+     * class, because the claim is where it is.
+     *
+     * No play control on this one: a plain `goto` says nothing when pressed,
+     * so there is nothing to audition. The cell that carries both is in the
+     * test about a button that leads onward *and* speaks, and that is where
+     * the pair is measured. */
     const box = await essen.boundingBox();
-    const corner = await essen.locator(".cell__follow").boundingBox();
-    expect(corner!.x - box!.x).toBeLessThan(box!.width / 2);
+    const follow = await essen.locator(".cell__follow").boundingBox();
+    expect(follow!.x - box!.x).toBeGreaterThan(box!.width / 2);
+    await expect(essen.locator(".cell__play")).toHaveCount(0);
 
     /* And the way back, which build() puts in cell 14. A plain cell for the
      * comparison, so the assertion is a difference rather than a number

@@ -766,15 +766,17 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
    * name of the page it opens, so the way there belongs on the button rather
    * than on a copy of it two centimetres higher.
    *
-   * **Top left, and the play control is top right.** Both seats are fixed, and
+   * **Top right, and the play control is top left.** Both seats are fixed and
    * neither moves for the other: a `goto` button that carries its word into
    * the sentence on the way - §7.3's `ext_lautstark_append_on_navigate` - has
-   * something to audition *and* a page to follow, and the two used to share the
-   * right-hand seat with this one stepping aside. Fixed seats say the same
-   * thing without a rule that has to keep holding.
+   * something to audition *and* a page to follow, and the two used to share one
+   * seat with this one stepping aside.
    *
-   * The left seat is free exactly when this exists: it belongs to the act
-   * badge, and a `goto` has carried none since this corner replaced its arrow.
+   * The act badge shares this seat rather than the play control's, and that is
+   * forced rather than chosen: the play control is the one thing that turns up
+   * beside either of the other two, so it needs the seat nobody else uses. A
+   * `goto` has carried no badge since this corner replaced its arrow, so these
+   * two can never meet. ui.css has the table.
    *
    * The press itself still opens the button's own sheet, for the reason
    * templates/board.ts gives: a `goto` button that navigated when pressed
