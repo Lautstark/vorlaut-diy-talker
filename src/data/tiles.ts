@@ -430,6 +430,28 @@ function crossInto(target, size, pad, width, colour) {
   }
 }
 
+/** Empty field, and nothing on it - a key holding neither word nor picture.
+ *
+ * Not placeholder() below, and the difference is the whole reason this exists.
+ * That grey cross says "no picture yet", which is true of a key that wants one
+ * and false of a key nobody has put anything on. The two were the same tile
+ * until 2026-08-27, and what made the difference visible was the app package:
+ * diyBoards() writes no button at all where slotIsEmpty() holds, so one empty
+ * key was an empty cell on a tablet and a missing-picture cross on the device.
+ * Nothing had ever compared the two paths, because they never meet.
+ *
+ * White, rather than no tile at all. The device has five panels and they are
+ * always lit, so it cannot leave one out the way a grid leaves out a cell -
+ * and not writing a tile is not the same as writing a blank one. A slot whose
+ * hash is sixteen zero bytes names a file that is not there, so drawTile()
+ * clears the panel to black and prints `missing:`, and a dark key in a row of
+ * white ones reads as a device that has broken rather than a key that is free.
+ */
+export function blank(size = TILE_SIZE) {
+  const data = new Uint8ClampedArray(size * size * 4).fill(255);
+  return { data, width: size, height: size };
+}
+
 /** Empty field with a grey cross - a symbol that is still missing. */
 export function placeholder(size = TILE_SIZE) {
   const data = new Uint8ClampedArray(size * size * 4).fill(255);
