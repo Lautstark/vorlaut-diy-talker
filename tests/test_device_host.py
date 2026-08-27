@@ -466,6 +466,17 @@ def main() -> int:
                 check_language(reader, want)
             elif kind == "sleep":
                 check_sleep(reader, want)
+            elif kind == "package":
+                # The other boundary, and neither of its ends is the device:
+                # a device package is the .obz the editor writes and the
+                # loader page reads, and what reaches a talker is what comes
+                # out of compiling one. adr/0013 is why it is in this index at
+                # all, and tests/unit/device_package_{writer,reader}.test.ts
+                # are its two halves. There is nothing here for a C++ reader
+                # to be pointed at, and saying so out loud is the difference
+                # between a kind that is skipped and one that is forgotten.
+                print(f"  --    {one['fixture']}: the device package, which "
+                      f"this end never sees")
             elif kind == "cable":
                 if "device" in want["ends"]:
                     check_cable(reader, one["fixture"], want)

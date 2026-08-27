@@ -1,0 +1,312 @@
+{
+  "fixture": "one-board",
+  "kind": "package",
+  "file": "package/one-board.obz",
+  "summary": "One board and a key in each of the four shapes: a word with a picture, a word alone, a picture alone, and a key holding nothing.",
+  "bytes": 4964,
+  "conforming": true,
+  "members": [
+    {
+      "path": "manifest.json",
+      "bytes": 554,
+      "sha256": "f0c1e95c284d213fdf049bc3a636646724f976afba191c06c002f327c1348b09"
+    },
+    {
+      "path": "boards/set-1.obf",
+      "bytes": 2286,
+      "sha256": "280fc21694079fb21d95e90be4f6bfc2e10ef7f457721aebb2894cdc458cce5a"
+    },
+    {
+      "path": "images/907686e9833c7e5b.bin",
+      "bytes": 310,
+      "sha256": "907686e9833c7e5be4cda8aabd77a0ce0f1c209787e58557638799a4d879275f"
+    },
+    {
+      "path": "images/e121ccc1471f37d4.bin",
+      "bytes": 246,
+      "sha256": "e121ccc1471f37d4aa455272feec6ca2e1f685b12871a6bc8bae6529da653985"
+    },
+    {
+      "path": "images/e83ec571012c0591.jpg",
+      "bytes": 50,
+      "sha256": "e83ec571012c0591ab89a61bd26f921209536791fba6156605a0bc9349df3f6c"
+    },
+    {
+      "path": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+      "bytes": 364,
+      "sha256": "0606e1cfbeb4d83f8358e04ed2901dd643d9f83ba83646e62b4202fcfeaa56ef"
+    },
+    {
+      "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+      "bytes": 204,
+      "sha256": "50fe4983f78d423519396ab6d2d08392a44953c40f2c8b83a8dd51f118612cd7"
+    }
+  ],
+  "manifest": {
+    "format": "open-board-0.1",
+    "root": "boards/set-1.obf",
+    "paths": {
+      "boards": {
+        "set-1": "boards/set-1.obf"
+      },
+      "images": {
+        "img-907686e9833c7e5b": "images/907686e9833c7e5b.bin",
+        "img-e121ccc1471f37d4": "images/e121ccc1471f37d4.bin",
+        "img-e83ec571012c0591": "images/e83ec571012c0591.jpg"
+      },
+      "sounds": {
+        "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+        "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav"
+      }
+    }
+  },
+  "boards": [
+    {
+      "format": "open-board-0.1",
+      "id": "set-1",
+      "locale": "de",
+      "name": "Frühstück",
+      "buttons": [
+        {
+          "id": "set-1-key-1",
+          "label": "Ich habe Hunger",
+          "vocalization": "Ich habe Hunger",
+          "image_id": "img-907686e9833c7e5b",
+          "sound_id": "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+        },
+        {
+          "id": "set-1-key-2",
+          "label": "Ich habe Durst",
+          "vocalization": "Ich habe Durst",
+          "sound_id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+        },
+        {
+          "id": "set-1-key-3",
+          "label": "",
+          "image_id": "img-e121ccc1471f37d4"
+        },
+        {
+          "id": "set-1-key-4",
+          "label": ""
+        },
+        {
+          "id": "set-1-set",
+          "label": "Frühstück",
+          "load_board": {
+            "id": "set-1",
+            "name": "Frühstück",
+            "path": "boards/set-1.obf"
+          },
+          "image_id": "img-e83ec571012c0591"
+        }
+      ],
+      "grid": {
+        "rows": 2,
+        "columns": 3,
+        "order": [
+          [
+            null,
+            "set-1-key-1",
+            "set-1-key-2"
+          ],
+          [
+            "set-1-set",
+            "set-1-key-3",
+            "set-1-key-4"
+          ]
+        ]
+      },
+      "images": [
+        {
+          "id": "img-907686e9833c7e5b",
+          "path": "images/907686e9833c7e5b.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "ja.bmp"
+          }
+        },
+        {
+          "id": "img-e121ccc1471f37d4",
+          "path": "images/e121ccc1471f37d4.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "nein.bmp"
+          }
+        },
+        {
+          "id": "img-e83ec571012c0591",
+          "path": "images/e83ec571012c0591.jpg",
+          "content_type": "image/jpeg",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "foto.png"
+          }
+        }
+      ],
+      "sounds": [
+        {
+          "id": "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "path": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+          "content_type": "audio/wav",
+          "duration": 0.01
+        },
+        {
+          "id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+          "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+          "content_type": "audio/wav",
+          "duration": 0.005
+        }
+      ],
+      "ext_vorlaut_sleep_timeout_seconds": 600,
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+    }
+  ],
+  "read": {
+    "result": "ok",
+    "plan": {
+      "language": "de",
+      "voice": "piper:de_DE-thorsten-medium",
+      "sleep_timeout_seconds": 600,
+      "sets": [
+        {
+          "name": "Frühstück",
+          "symbol": "foto.png",
+          "slots": [
+            {
+              "text": "Ich habe Hunger",
+              "symbol": "ja.bmp",
+              "negated": false,
+              "empty": false
+            },
+            {
+              "text": "Ich habe Durst",
+              "symbol": "",
+              "negated": false,
+              "empty": false
+            },
+            {
+              "text": "",
+              "symbol": "nein.bmp",
+              "negated": false,
+              "empty": false
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false,
+              "empty": true
+            }
+          ]
+        }
+      ]
+    },
+    "sources": [
+      {
+        "reference": "ja.bmp",
+        "key": "907686e9833c7e5b",
+        "content_type": "application/octet-stream",
+        "path": "images/907686e9833c7e5b.bin"
+      },
+      {
+        "reference": "nein.bmp",
+        "key": "e121ccc1471f37d4",
+        "content_type": "application/octet-stream",
+        "path": "images/e121ccc1471f37d4.bin"
+      },
+      {
+        "reference": "foto.png",
+        "key": "e83ec571012c0591",
+        "content_type": "image/jpeg",
+        "path": "images/e83ec571012c0591.jpg"
+      }
+    ],
+    "sounds": [
+      {
+        "text": "Ich habe Hunger",
+        "name": "aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+        "path": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav"
+      },
+      {
+        "text": "Ich habe Durst",
+        "name": "ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+        "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav"
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "de",
+      "voice": "piper:de_DE-thorsten-medium",
+      "sleep_timeout_seconds": 600,
+      "sets": [
+        {
+          "name": "Frühstück",
+          "symbol": "foto.png",
+          "slots": [
+            {
+              "text": "Ich habe Hunger",
+              "symbol": "ja.bmp",
+              "negated": false
+            },
+            {
+              "text": "Ich habe Durst",
+              "symbol": "",
+              "negated": false
+            },
+            {
+              "text": "",
+              "symbol": "nein.bmp",
+              "negated": false
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false
+            }
+          ]
+        }
+      ]
+    },
+    "voice": "piper:de_DE-thorsten-medium",
+    "sources": [
+      {
+        "reference": "ja.bmp",
+        "key": "907686e9833c7e5b",
+        "content_type": "application/octet-stream",
+        "member": "images/907686e9833c7e5b.bin"
+      },
+      {
+        "reference": "nein.bmp",
+        "key": "e121ccc1471f37d4",
+        "content_type": "application/octet-stream",
+        "member": "images/e121ccc1471f37d4.bin"
+      },
+      {
+        "reference": "foto.png",
+        "key": "e83ec571012c0591",
+        "content_type": "image/jpeg",
+        "member": "images/e83ec571012c0591.jpg"
+      }
+    ],
+    "sounds": [
+      {
+        "text": "Ich habe Hunger",
+        "name": "aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+        "member": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav"
+      },
+      {
+        "text": "Ich habe Durst",
+        "name": "ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+        "member": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav"
+      }
+    ],
+    "refuses": null
+  },
+  "notes": [
+    "The fourth key holds nothing and is still a key: it has a cell in the grid, a button in the document and `empty` true in the plan. A tablet grid may leave a cell out; the device has five panels and they are always lit.",
+    "The set key's picture is filed as images/<key>.jpg although the reference says .png. The reference is a store key and an upload keeps its own name, so the magic number is the evidence and content_type is the authority - a writer that believed the reference would file this one under a lie.",
+    "The ring closes after one hop: set-1's key loads set-1. One board is a ring of one, and a reader that special-cased the last board would come back with nothing."
+  ]
+}

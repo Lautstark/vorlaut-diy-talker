@@ -6,5 +6,14 @@
   "feelings": "Gefühle",
 
   "exactly_32_bytes": "Grundwortschatz fuer den Anfang!",
-  "cut_mid_character": "Brot, Butter und Marmelade, süß"
+  "cut_mid_character": "Brot, Butter und Marmelade, süß",
+
+  "_sentences": "Whole sentences, for the package fixtures. A key on a talker says a sentence rather than a word, and the package carries it twice - as the label any other editor shows and as the vocalization the device speaks - so the fixtures need text that is a sentence.",
+
+  "hungry": "Ich habe Hunger",
+  "not_hungry": "Ich habe keinen Hunger",
+  "thirsty": "Ich habe Durst",
+  "go_outside": "Wir gehen nach draußen",
+  "go_home": "Wir gehen nach Hause",
+  "all_done": "Ich bin fertig"
 }

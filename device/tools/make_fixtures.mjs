@@ -24,6 +24,7 @@
 // produces exactly the files that are committed.
 
 import { crc32 } from "node:zlib";
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1579,6 +1580,1068 @@ for (const [name, spoken, verdict, summary, remedy] of [
 }
 
 // =============================================================================
+// The device package - the .obz between the editor and the loader page
+// =============================================================================
+//
+// Everything above this line is bytes between a browser and the talker. This
+// kind is not: it is the file the editor writes and the loader page reads, and
+// neither end of it is the device. adr/0013 is where that widening of this
+// directory is argued, and the short version is that the faults it catches
+// arrive at the party that cannot move, one step further upstream - a reader
+// that misunderstands a package does not fail on the page, it compiles
+// confidently and hands a talker bytes.
+//
+// The two rules at the head of this file hold here and are the whole reason
+// this is a fixture kind rather than a lock file. Nothing below imports
+// src/data/device_package.ts or loader/, and nothing reads its own output
+// back: the manifest, the board documents and the archive framing are laid out
+// from the field values. That is what makes a refusal possible at all -
+// buildDevicePackage() will never emit a package that names a board it does
+// not hold, so no capture of it could ever contain one.
+
+const PACKAGE_FORMAT = "open-board-0.1";
+const OWN_SET = "vorlaut";
+const METACOM_SET = "metacom";
+
+/** The extension a content type gets in the archive. The member says what it
+ *  is twice - in content_type, which is the authority, and in the name, which
+ *  is what somebody running `unzip -l` reads. Anything unrecognised keeps
+ *  .bin, because the extension decides nothing. */
+const MEDIA_EXTENSIONS = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+};
+
+/** Sixteen hex characters of SHA-256: what a source picture is named for in
+ *  the archive. Written out from the rule rather than imported, like every
+ *  other number in this file. Sixteen and not thirty-two, because this is the
+ *  ARCHIVE member's name and never reaches layout.bin, where the device's own
+ *  tile hash goes. */
+const memberKey = (bytes) => sha256(bytes).slice(0, 16);
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+
+/** Sorted keys, indented by two, a newline at the end.
+ *
+ * The shape a manifest and a board document are written in, so that a diff of
+ * two exports is about the Sammlung rather than about object order. A rule of
+ * the format, so it is implemented here rather than borrowed. */
+function packageJson(value) {
+  const sortDeep = (one) =>
+    Array.isArray(one) ? one.map(sortDeep)
+    : one && typeof one === "object"
+      ? Object.fromEntries(Object.keys(one).sort().map((k) => [k, sortDeep(one[k])]))
+      : one;
+  return Buffer.from(JSON.stringify(sortDeep(value), null, 2) + "\n", "utf8");
+}
+
+/**
+ * A zip with every member stored, and no compressor anywhere near it.
+ *
+ * Stored is a property of the FIXTURE and not of the format. A committed
+ * artefact that tests/test_device_fixtures.py has to regenerate byte for byte
+ * must not depend on a deflate implementation, whose output is a property of
+ * whichever zlib happens to be installed - which is the same reason nothing
+ * else in this file compresses anything. A conforming writer may deflate the
+ * JSON, and src/data/zip.ts does.
+ *
+ * So what these fixtures state about the container is its framing and its
+ * member ORDER - manifest, then boards, then media - and never its bytes.
+ * exchange/SPEC.md section 2 is where the framing rules come from: the central
+ * directory is what an importer must read, names are UTF-8 with bit 11 set to
+ * say so, and there is no Zip64 and no encryption.
+ */
+function storedZip(members) {
+  const LOCAL = 0x04034b50;
+  const CENTRAL = 0x02014b50;
+  const END = 0x06054b50;
+  const NEEDED = 20;
+  const STORED = 0;
+  const UTF8 = 0x0800;
+  const MADE_BY = 0x031e;                          // unix
+  const EXTERNAL = (0o100644 << 16) >>> 0;
+  // 1980-01-01, the DOS epoch and the earliest a zip can say. One fixed
+  // timestamp rather than a clock, so two runs of this file are one file.
+  const DOS_TIME = 0;
+  const DOS_DATE = 0x0021;
+
+  const pieces = [];
+  const central = [];
+  let offset = 0;
+  for (const member of members) {
+    const name = Buffer.from(member.path.normalize("NFC"), "utf8");
+    const body = member.bytes;
+    const sum = crc32(body) >>> 0;
+
+    const local = Buffer.alloc(30 + name.length);
+    local.writeUInt32LE(LOCAL, 0);
+    local.writeUInt16LE(NEEDED, 4);
+    local.writeUInt16LE(UTF8, 6);
+    local.writeUInt16LE(STORED, 8);
+    local.writeUInt16LE(DOS_TIME, 10);
+    local.writeUInt16LE(DOS_DATE, 12);
+    local.writeUInt32LE(sum, 14);
+    local.writeUInt32LE(body.length, 18);
+    local.writeUInt32LE(body.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    name.copy(local, 30);
+    pieces.push(local, body);
+
+    const entry = Buffer.alloc(46 + name.length);
+    entry.writeUInt32LE(CENTRAL, 0);
+    entry.writeUInt16LE(MADE_BY, 4);
+    entry.writeUInt16LE(NEEDED, 6);
+    entry.writeUInt16LE(UTF8, 8);
+    entry.writeUInt16LE(STORED, 10);
+    entry.writeUInt16LE(DOS_TIME, 12);
+    entry.writeUInt16LE(DOS_DATE, 14);
+    entry.writeUInt32LE(sum, 16);
+    entry.writeUInt32LE(body.length, 20);
+    entry.writeUInt32LE(body.length, 24);
+    entry.writeUInt16LE(name.length, 28);
+    entry.writeUInt32LE(EXTERNAL, 38);
+    entry.writeUInt32LE(offset, 42);
+    name.copy(entry, 46);
+    central.push(entry);
+    offset += local.length + body.length;
+  }
+
+  const directory = Buffer.concat(central);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(END, 0);
+  end.writeUInt16LE(members.length, 8);
+  end.writeUInt16LE(members.length, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...pieces, directory, end]);
+}
+
+/**
+ * A 24-bit BMP, bottom-up, laid out from the pixel values.
+ *
+ * A picture format with no compressor in it, which is what this file can have.
+ * sniffImageType() has never heard of "BM", so these arrive as
+ * application/octet-stream - deliberately not a refusal, because decoding is
+ * the host's and a browser takes formats that list has never heard of.
+ *
+ * They are also the only pictures here that a reader can actually turn into
+ * pixels, which is what lets tests/unit/device_compile.test.ts compile one of
+ * these packages the whole way into what a talker reads.
+ */
+function bmp(width, height, colourAt) {
+  const stride = (width * 3 + 3) & ~3;
+  const body = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const [r, g, b] = colourAt(x, y);
+      const at = (height - 1 - y) * stride + x * 3;      // rows run bottom-up
+      body[at] = b;
+      body[at + 1] = g;
+      body[at + 2] = r;
+    }
+  }
+  const head = Buffer.alloc(54);
+  head.write("BM", 0, "latin1");
+  head.writeUInt32LE(54 + body.length, 2);
+  head.writeUInt32LE(54, 10);                            // pixels start here
+  head.writeUInt32LE(40, 14);                            // BITMAPINFOHEADER
+  head.writeInt32LE(width, 18);
+  head.writeInt32LE(height, 22);
+  head.writeUInt16LE(1, 26);                             // one plane
+  head.writeUInt16LE(24, 28);                            // bits per pixel
+  head.writeUInt32LE(0, 30);                             // BI_RGB
+  head.writeUInt32LE(body.length, 34);
+  return Buffer.concat([head, body]);
+}
+
+/** One device WAV and the length its own header says it runs for.
+ *
+ * The seconds are worked out here rather than taken from a reader, because
+ * they go into the board document as `sounds[].duration` and a reader is then
+ * held to agreeing with them. A duration nobody checks is the quiet kind of
+ * wrong: OBF has the field and a person at a bench has no other way to see how
+ * long a clip is. */
+function packageWav(count, { rate = WAV_SAMPLE_RATE, channels = WAV_CHANNELS,
+                             bits = WAV_BITS } = {}) {
+  const body = samples(count);
+  const perFrame = channels * (bits / 8);
+  return {
+    bytes: riff(fmtChunk({ rate, channels, bits }), chunk("data", body)),
+    seconds: body.length / perFrame / rate,
+  };
+}
+
+const splitReference = (reference) =>
+  reference.startsWith(`${METACOM_SET}:`)
+    ? { set: METACOM_SET, filename: reference.slice(METACOM_SET.length + 1) }
+    : { set: OWN_SET, filename: reference };
+
+const boardIdAt = (at) => `set-${at + 1}`;
+const boardFile = (id) => `boards/${id}.obf`;
+const memberStem = (path) =>
+  path.slice(path.lastIndexOf("/") + 1).replace(/\.[^.]+$/, "");
+
+/** Whether a key holds nothing at all: no word, and no picture.
+ *
+ * One predicate rather than three walks, because the three walks answering
+ * differently is the divergence this whole boundary was built to close - an
+ * untouched key was an empty cell on a tablet and a missing-picture cross on
+ * the device, and nothing could see it because the two paths never met. Here
+ * it decides which key the compiler draws a blank tile for. */
+const keyIsEmpty = (slot) =>
+  !String(slot.text ?? "").trim() && !String(slot.symbol ?? "");
+
+/** The five keys where they really sit - two rows of three, the top left cell
+ *  empty because that is where the speaker is. Every slot gets a cell,
+ *  including one that holds nothing: the device has five panels and they are
+ *  always lit, so a key holding nothing is still a key. */
+function packageGrid(id, slots) {
+  const key = (at) => (at < slots ? `${id}-key-${at + 1}` : null);
+  return {
+    rows: 2,
+    columns: 3,
+    order: [[null, key(0), key(1)], [`${id}-set`, key(2), key(3)]],
+  };
+}
+
+/**
+ * A Sammlung, its pictures and its recordings, as the package that carries
+ * them - and as the answers a reader must come back with.
+ *
+ * Written from the four form rules rather than from any writer:
+ *
+ *   1. The sources travel as they are stored. No resampling, no re-encoding,
+ *      no fitted PNG - what went in is what is in images/.
+ *   2. A crossed-out key is a FLAG beside the same picture, not a second
+ *      baked one. One member, two buttons, two tiles at the far end.
+ *   3. The recordings are the device's own WAVs under the device's own names,
+ *      so nothing derives one delivered artefact from another.
+ *   4. The language is the Sammlung's own, not one worked out from the voice.
+ *
+ * A reference that resolved to nothing still gets an entry, with no `path`.
+ * Dropping it would lose the reference, the Sammlung would come back with an
+ * empty key where it had a picture nobody could find, and - if that key has no
+ * word either - the key the build drew a grey cross for would compile to a
+ * blank. So the gap travels as a gap.
+ */
+function packageOf({ layout, voice, sources = [], sounds = [] }) {
+  const sourceBy = new Map(sources.map((one) => [one.reference, one]));
+  const soundBy = new Map(sounds.map((one) => [one.text, one]));
+  const members = new Map();
+
+  const plan = {
+    language: layout.language,
+    voice,
+    sleep_timeout_seconds: layout.sleep_timeout_seconds,
+    sets: layout.sets.map((set) => ({
+      name: set.name,
+      symbol: set.symbol ?? "",
+      // Cut at four and deliberately NOT padded up to it: a short set is one
+      // layout.bin writes zero hashes for, which is what the device already
+      // does with one.
+      slots: set.slots.slice(0, SLOTS_PER_SET).map((slot) => ({
+        text: slot.text ?? "",
+        symbol: slot.symbol ?? "",
+        negated: Boolean(slot.negated),
+        empty: keyIsEmpty(slot),
+      })),
+    })),
+  };
+
+  const ids = plan.sets.map((_, at) => boardIdAt(at));
+  const readSources = new Map();
+  const readSounds = new Map();
+  const boards = [];
+
+  for (const [at, set] of plan.sets.entries()) {
+    const id = ids[at];
+    const following = ids[(at + 1) % ids.length];
+    const images = new Map();
+    const soundEntries = new Map();
+    const buttons = [];
+
+    const putImage = (reference) => {
+      if (!reference) return undefined;
+      const source = sourceBy.get(reference);
+      let entry;
+      if (source && source.bytes) {
+        const key = memberKey(source.bytes);
+        const path =
+          `images/${key}.${MEDIA_EXTENSIONS[source.content_type] ?? "bin"}`;
+        entry = {
+          id: `img-${key}`,
+          path,
+          content_type: source.content_type,
+          symbol: splitReference(reference),
+        };
+        members.set(path, source.bytes);
+        readSources.set(reference, {
+          reference, key, content_type: source.content_type, path,
+        });
+      } else {
+        // No bytes, so no content hash to be named for. The reference itself
+        // is what is left, and it names no member of the archive: there is
+        // none.
+        entry = {
+          id: `img-none-${reference.replace(/[^A-Za-z0-9._-]+/g, "-")}`,
+          symbol: splitReference(reference),
+        };
+      }
+      images.set(entry.id, entry);
+      return entry.id;
+    };
+
+    const putSound = (text) => {
+      const sound = text ? soundBy.get(text) : undefined;
+      if (!sound) return undefined;
+      const path = `sounds/${sound.name}`;
+      const entry = {
+        id: `snd-${memberStem(sound.name)}`,
+        path,
+        content_type: "audio/wav",
+        duration: sound.seconds,
+      };
+      soundEntries.set(entry.id, entry);
+      members.set(path, sound.bytes);
+      readSounds.set(text, { text, name: sound.name, path });
+      return entry.id;
+    };
+
+    for (const [key, slot] of set.slots.entries()) {
+      // Both, and the same sentence: the label is what any other editor shows,
+      // the vocalization is what gets spoken. The device writes no caption, so
+      // on this profile they are one sentence - but saying it twice is what
+      // keeps the spoken half right if somebody later shortens the label.
+      const button = { id: `${id}-key-${key + 1}`, label: slot.text };
+      if (slot.text) button.vocalization = slot.text;
+      const picture = putImage(slot.symbol);
+      if (picture) button.image_id = picture;
+      // Written only when true, so a Sammlung with no crossed-out key is the
+      // file it was before this field existed.
+      if (slot.negated) button.ext_vorlaut_negated = true;
+      const recording = putSound(slot.text);
+      if (recording) button.sound_id = recording;
+      buttons.push(button);
+    }
+
+    const switchKey = {
+      id: `${id}-set`,
+      label: set.name,
+      load_board: {
+        id: following,
+        name: plan.sets[(at + 1) % plan.sets.length].name,
+        path: boardFile(following),
+      },
+    };
+    const setPicture = putImage(set.symbol);
+    if (setPicture) switchKey.image_id = setPicture;
+    buttons.push(switchKey);
+
+    const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const board = {
+      format: PACKAGE_FORMAT,
+      id,
+      locale: plan.language,
+      name: set.name,
+      buttons,
+      grid: packageGrid(id, set.slots.length),
+      images: [...images.values()].sort(byId),
+      sounds: [...soundEntries.values()].sort(byId),
+    };
+    // Root board only, both of them. A manifest is an index of a zip and gets
+    // rebuilt by any tool that touches it; a board is the document.
+    if (at === 0) {
+      board.ext_vorlaut_sleep_timeout_seconds = plan.sleep_timeout_seconds;
+      board.ext_vorlaut_voice = plan.voice;
+    }
+    boards.push(board);
+  }
+
+  const listed = (prefix, mark) => {
+    const paths = [...members.keys()].filter((one) => one.startsWith(prefix)).sort();
+    return paths.length
+      ? Object.fromEntries(paths.map((path) => [`${mark}-${memberStem(path)}`, path]))
+      : undefined;
+  };
+  const manifest = {
+    format: PACKAGE_FORMAT,
+    root: boardFile(ids[0]),
+    paths: {
+      boards: Object.fromEntries(boards.map((one) => [one.id, boardFile(one.id)])),
+    },
+  };
+  const images = listed("images/", "img");
+  const recordings = listed("sounds/", "snd");
+  if (images) manifest.paths.images = images;
+  if (recordings) manifest.paths.sounds = recordings;
+
+  return {
+    manifest,
+    boards,
+    members,
+    read: {
+      plan,
+      sources: [...readSources.values()],
+      sounds: [...readSounds.values()],
+    },
+  };
+}
+
+/** The archive, in the order the format describes itself in: manifest, then
+ *  boards, then media sorted by path. */
+function packageArchive(pkg) {
+  return [
+    { path: "manifest.json", bytes: packageJson(pkg.manifest) },
+    ...pkg.boards.map((board) => ({
+      path: boardFile(board.id), bytes: packageJson(board),
+    })),
+    ...[...pkg.members.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([path, bytes]) => ({ path, bytes })),
+  ];
+}
+
+/**
+ * One package fixture: the archive, and what each half is held to.
+ *
+ * The two halves never meet. The writer is given `write` - a Sammlung, the
+ * pictures behind its references and the recordings behind its sentences - and
+ * must produce the `manifest` and `boards` stated here and exactly these
+ * members. The reader is given the archive and must come back with `read`.
+ * Neither one ever sees the other's output, which is the whole reason this
+ * kind exists: after the split no repository holds both.
+ */
+function packageFixture({ name, summary, outcome, conforming, pkg = null,
+                          read, write, notes = [] }) {
+  const archive = pkg ? packageArchive(pkg) : null;
+  const artefact = archive ? storedZip(archive) : null;
+  fixture({
+    kind: "package", name, dir: "package",
+    file: artefact ? `${name}.obz` : undefined,
+    artefact, outcome, summary,
+    expected: {
+      fixture: name, kind: "package",
+      file: artefact ? `package/${name}.obz` : null,
+      summary,
+      bytes: artefact ? artefact.length : null,
+      conforming,
+      members: archive
+        ? archive.map((one) => ({
+            path: one.path, bytes: one.bytes.length, sha256: sha256(one.bytes),
+          }))
+        : null,
+      manifest: pkg ? pkg.manifest : null,
+      boards: pkg ? pkg.boards : null,
+      read, write, notes,
+    },
+  });
+}
+
+// --- What the packages are made of ------------------------------------------
+
+/* One voice for all of them. What every WAV is named for, and a field the
+ * device never reads - it is here so that a Sammlung comes back out of the
+ * file as the Sammlung it was, which is what makes the export something
+ * somebody can archive rather than a build artefact. */
+const PACKAGE_VOICE = "piper:de_DE-thorsten-medium";
+
+/* Two pictures that really are pictures, one that really is an SVG, and one
+ * that is a magic number and nothing behind it.
+ *
+ * The BMPs are the only ones anything here can turn into pixels, and that is
+ * on purpose: a fixture directory that must regenerate byte for byte cannot
+ * hold a PNG, because writing one needs a compressor. What the JPEG states is
+ * what the sniffer answers and where the bytes land, which is all this kind
+ * claims about it - nothing in a device package decodes a picture. */
+const PICTURE_JA = bmp(10, 8, (x, y) => [250 - x * 20, 40 + y * 12, 60]);
+const PICTURE_NEIN = bmp(8, 8, (x, y) => [30, 200 - y * 14, 90 + x * 16]);
+const PICTURE_HILFE = Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+  + '<circle cx="12" cy="12" r="10"/></svg>\n', "utf8");
+const PICTURE_FOTO = Buffer.concat([
+  Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+  Buffer.from("a JFIF magic number and no picture behind it", "utf8"),
+  Buffer.from([0xff, 0xd9]),
+]);
+
+/* Sources by the reference a key carries.
+ *
+ * "foto.png" holds JPEG bytes on purpose. A reference is a store key and an
+ * upload keeps whatever name its file had, so the extension is not evidence -
+ * the magic number is, and the member is filed under .jpg because content_type
+ * is what a compiler decodes by. A writer that believed the reference would
+ * file this one wrong and say so in the document. */
+const SOURCES = {
+  ja: { reference: "ja.bmp", bytes: PICTURE_JA,
+        content_type: "application/octet-stream" },
+  nein: { reference: "nein.bmp", bytes: PICTURE_NEIN,
+          content_type: "application/octet-stream" },
+  hilfe: { reference: "metacom:hilfe.svg", bytes: PICTURE_HILFE,
+           content_type: "image/svg+xml" },
+  foto: { reference: "foto.png", bytes: PICTURE_FOTO,
+          content_type: "image/jpeg" },
+};
+
+/** A reference behind which there is nothing: the picture went, or the METACOM
+ *  folder was never picked. The entry travels with no path and the compiler
+ *  draws the same grey cross the build drew. */
+const MISSING_REFERENCE = "metacom:nicht-da.png";
+
+const soundNamed = (fill, count, options) => ({
+  name: `a${fill.repeat(32).slice(0, 32)}.wav`,
+  ...packageWav(count, options),
+});
+
+/* The recordings, under the names a build gave them. The name travels rather
+ * than being worked out here: what it hashes is the sentence, the voice, the
+ * pipeline version and every option that changes how a sentence sounds, and
+ * that rule lives beside the synthesis. Carrying the name keeps it in one
+ * place; re-deriving it here would be a second copy of it. */
+const SOUND_HUNGRY = { text: de.hungry, ...soundNamed("a1", 160) };
+const SOUND_NOT_HUNGRY = { text: de.not_hungry, ...soundNamed("b2", 240) };
+const SOUND_THIRSTY = { text: de.thirsty, ...soundNamed("c3", 80) };
+const SOUND_OUTSIDE = { text: de.go_outside, ...soundNamed("d4", 320) };
+const SOUND_HOME = { text: de.go_home, ...soundNamed("e5", 160) };
+
+const imagePathOf = (source) =>
+  `images/${memberKey(source.bytes)}.`
+  + `${MEDIA_EXTENSIONS[source.content_type] ?? "bin"}`;
+
+/** The `write` half: the Sammlung a conforming writer is given, and where the
+ *  bytes behind it are to be found in this fixture's own archive. */
+function writeHalf({ layout, sources = [], sounds = [], refuses = null,
+                     bytesFrom = {} }) {
+  return {
+    layout: {
+      language: layout.language,
+      voice: PACKAGE_VOICE,
+      sleep_timeout_seconds: layout.sleep_timeout_seconds,
+      sets: layout.sets.map((set) => ({
+        name: set.name,
+        symbol: set.symbol ?? "",
+        slots: set.slots.map((slot) => ({
+          text: slot.text ?? "",
+          symbol: slot.symbol ?? "",
+          negated: Boolean(slot.negated),
+        })),
+      })),
+    },
+    voice: PACKAGE_VOICE,
+    sources: sources.map((one) => ({
+      reference: one.reference,
+      key: memberKey(one.bytes),
+      content_type: one.content_type,
+      member: imagePathOf(one),
+    })),
+    sounds: sounds.map((one) => ({
+      text: one.text,
+      name: one.name,
+      member: bytesFrom[one.name] ?? `sounds/${one.name}`,
+    })),
+    refuses,
+  };
+}
+
+const cloned = (pkg) => ({
+  manifest: JSON.parse(JSON.stringify(pkg.manifest)),
+  boards: JSON.parse(JSON.stringify(pkg.boards)),
+  members: new Map(pkg.members),
+  read: JSON.parse(JSON.stringify(pkg.read)),
+});
+
+const readOk = (pkg) => ({ result: "ok", ...pkg.read });
+const refused = (at, because) => ({ result: "refused", at, because });
+
+// --- The packages that are packages ------------------------------------------
+
+/* The smallest thing that is a package: one board, and a key in each of the
+ * four shapes a key comes in. A fixture where every key is filled would let a
+ * whole runner pass while proving one case. */
+const ONE_SET_LAYOUT = {
+  language: "de",
+  sleep_timeout_seconds: 600,
+  sets: [{
+    name: de.breakfast,
+    symbol: SOURCES.foto.reference,
+    slots: [
+      { text: de.hungry, symbol: SOURCES.ja.reference },      // word and picture
+      { text: de.thirsty, symbol: "" },                       // a word alone
+      { text: "", symbol: SOURCES.nein.reference },           // a picture alone
+      { text: "", symbol: "" },                               // nothing at all
+    ],
+  }],
+};
+const ONE_SET_SOURCES = [SOURCES.ja, SOURCES.nein, SOURCES.foto];
+const ONE_SET_SOUNDS = [SOUND_HUNGRY, SOUND_THIRSTY];
+
+{
+  const pkg = packageOf({
+    layout: ONE_SET_LAYOUT, voice: PACKAGE_VOICE,
+    sources: ONE_SET_SOURCES, sounds: ONE_SET_SOUNDS,
+  });
+  packageFixture({
+    name: "one-board",
+    summary: "One board and a key in each of the four shapes: a word with a picture, a word alone, a picture alone, and a key holding nothing.",
+    outcome: "accepted",
+    conforming: true,
+    pkg,
+    read: readOk(pkg),
+    write: writeHalf({ layout: ONE_SET_LAYOUT, sources: ONE_SET_SOURCES,
+                       sounds: ONE_SET_SOUNDS }),
+    notes: [
+      "The fourth key holds nothing and is still a key: it has a cell in the grid, a button in the document and `empty` true in the plan. A tablet grid may leave a cell out; the device has five panels and they are always lit.",
+      "The set key's picture is filed as images/<key>.jpg although the reference says .png. The reference is a store key and an upload keeps its own name, so the magic number is the evidence and content_type is the authority - a writer that believed the reference would file this one under a lie.",
+      "The ring closes after one hop: set-1's key loads set-1. One board is a ring of one, and a reader that special-cased the last board would come back with nothing.",
+    ],
+  });
+}
+
+/* Two boards, and everything about a package that only appears once there is
+ * more than one of them. */
+const TWO_SET_LAYOUT = {
+  language: "de",
+  sleep_timeout_seconds: 1800,
+  sets: [
+    {
+      name: de.breakfast,
+      symbol: SOURCES.hilfe.reference,
+      slots: [
+        { text: de.hungry, symbol: SOURCES.ja.reference },
+        // The same reference crossed out. One member, two buttons, two tiles
+        // at the far end: form rule 2, and the thing that goes wrong silently
+        // if a writer bakes the cross instead of flagging it.
+        { text: de.not_hungry, symbol: SOURCES.ja.reference, negated: true },
+        { text: de.thirsty, symbol: "" },
+        { text: "", symbol: SOURCES.nein.reference },
+      ],
+    },
+    {
+      // Longer than the 32 bytes layout.bin cuts a name at, with a two-byte
+      // character landing across the cut. Nothing in the package cuts it - the
+      // document carries the whole name - which is the point: a writer that
+      // shortened it here would hand the device a name it had already decided
+      // about.
+      name: de.cut_mid_character,
+      symbol: "",
+      slots: [
+        { text: de.go_outside, symbol: SOURCES.nein.reference },
+        { text: "", symbol: "" },
+        // Spaces and nothing else. Empty by the predicate and not by the
+        // field, which is the difference that used to be answered two ways.
+        { text: "   ", symbol: "" },
+        // A reference nothing resolves to: the entry travels with no path.
+        { text: de.go_home, symbol: MISSING_REFERENCE },
+      ],
+    },
+  ],
+};
+const TWO_SET_SOURCES = [SOURCES.ja, SOURCES.nein, SOURCES.hilfe];
+const TWO_SET_SOUNDS = [SOUND_HUNGRY, SOUND_NOT_HUNGRY, SOUND_THIRSTY,
+                        SOUND_OUTSIDE, SOUND_HOME];
+
+const TWO_SETS = packageOf({
+  layout: TWO_SET_LAYOUT, voice: PACKAGE_VOICE,
+  sources: TWO_SET_SOURCES, sounds: TWO_SET_SOUNDS,
+});
+
+packageFixture({
+  name: "two-sets-and-the-ring",
+  summary: "Two boards and the ring between them, a crossed-out key sharing one picture with a plain one, a METACOM reference, a name past the 32 bytes layout.bin cuts at, and a reference behind which there is nothing.",
+  outcome: "accepted",
+  conforming: true,
+  pkg: TWO_SETS,
+  read: readOk(TWO_SETS),
+  write: writeHalf({ layout: TWO_SET_LAYOUT, sources: TWO_SET_SOURCES,
+                     sounds: TWO_SET_SOUNDS }),
+  notes: [
+    "The crossed-out key and the plain one carry the same image_id, so images/ holds one member for the two of them and the flag is what tells them apart. Baking the cross would make the archive hold a second picture; dropping the flag would make layout.bin hold the same tile hash twice.",
+    "The missing reference is listed in images[] with a `symbol` and no `path`. Dropping the entry would lose the reference, and the key would come back as a key that never had a picture - which, on a key with no word either, is a blank tile where the build drew the grey cross.",
+    "The sleep timeout and the voice are on the root board only. They are the document's, not the manifest's: a manifest is an index of a zip and any tool that touches the archive rebuilds it.",
+    "The set names are the boards' `name`, uncut. What cuts a name at 32 bytes is layout.bin, four steps further on - device/fixtures/layout/name-cut-mid-character is where that rule lives, and it is the reader's business rather than this file's.",
+  ],
+});
+
+/* A Sammlung with five keys in a set, which the device has no room for. */
+const FIVE_KEY_LAYOUT = {
+  language: "de",
+  sleep_timeout_seconds: 600,
+  sets: [{
+    name: de.outside,
+    symbol: "",
+    slots: [
+      { text: de.hungry, symbol: SOURCES.ja.reference },
+      { text: de.thirsty, symbol: "" },
+      { text: "", symbol: SOURCES.nein.reference },
+      { text: de.go_home, symbol: "" },
+      // The fifth. Everything about it - its sentence, its recording, its
+      // place in the grid - is gone by the time the package is written.
+      { text: de.all_done, symbol: "" },
+    ],
+  }],
+};
+const SOUND_ALL_DONE = { text: de.all_done, ...soundNamed("f6", 160) };
+const FIVE_KEY_SOUNDS = [SOUND_HUNGRY, SOUND_THIRSTY, SOUND_HOME,
+                         SOUND_ALL_DONE];
+
+{
+  const pkg = packageOf({
+    layout: FIVE_KEY_LAYOUT, voice: PACKAGE_VOICE,
+    sources: [SOURCES.ja, SOURCES.nein],
+    sounds: FIVE_KEY_SOUNDS,
+  });
+  packageFixture({
+    name: "five-keys-cut-to-four",
+    summary: "A set with five keys in it. Four reach the package, and the fifth key's picture and recording are not in the archive at all.",
+    outcome: "accepted",
+    conforming: true,
+    pkg,
+    read: readOk(pkg),
+    write: writeHalf({
+      layout: FIVE_KEY_LAYOUT,
+      sources: [SOURCES.ja, SOURCES.nein],
+      sounds: FIVE_KEY_SOUNDS,
+      // The fifth key's recording is in what the writer is given and in
+      // nothing it writes, so this fixture has no member of its own for it.
+      // The bytes are borrowed from a member that is here; what is being
+      // stated is that a recording handed in under this name comes back out
+      // of nothing.
+      bytesFrom: { [SOUND_ALL_DONE.name]: `sounds/${SOUND_HUNGRY.name}` },
+    }),
+    notes: [
+      "Four keys, because that is what a set holds. Cut and deliberately not padded: a short set is one layout.bin writes zero hashes for, which is what the device already does with one.",
+      "The fifth key's recording is listed in what the writer was given and is in nothing it wrote. That is the half of the cut a member list can show: a package carrying a recording no button names would be one that had kept a key it cannot deliver.",
+      "A package carrying a fifth key would be a package of something that cannot reach the device, which is worse than one that carries four: it would import as a Sammlung nobody could build.",
+    ],
+  });
+}
+
+// --- Two packages that are taken, and should not have been written -----------
+
+/* The audio kind has stereo-44k, which records a divergence without blessing
+ * it. These two are the same thing at this boundary: a reader takes them, the
+ * far end is wrong, and stating so is what makes the gap visible instead of
+ * leaving it to be discovered. */
+
+{
+  const layout = { ...ONE_SET_LAYOUT, language: "de-DE" };
+  const pkg = packageOf({
+    layout, voice: PACKAGE_VOICE,
+    sources: ONE_SET_SOURCES, sounds: ONE_SET_SOUNDS,
+  });
+  packageFixture({
+    name: "locale-not-in-the-table",
+    summary: "A locale of \"de-DE\", which is not a language the device has. The reader takes it as it stands and byte 7 falls back to English.",
+    outcome: "accepted",
+    conforming: false,
+    pkg,
+    read: readOk(pkg),
+    write: writeHalf({ layout, sources: ONE_SET_SOURCES,
+                       sounds: ONE_SET_SOUNDS }),
+    notes: [
+      "The language travels as the Sammlung's own and is not worked out from the voice - form rule 4. \"de-DE\" is what localeFor() would answer off this voice, and it is not what the device wants: LANGUAGE_CODES has \"de\", the two are close enough to look interchangeable, and the difference is a device whose own menu is in English.",
+      "Neither half refuses it. The plan comes back saying \"de-DE\" and renderLayoutBin() writes the default index for a language it has no code for, which is device/fixtures/language.expected.json's rule working exactly as stated.",
+      "What stands between this and a talker is loader/src/validate.ts, which says load.unknown_language on the page before anything is sent. That is a sentence somebody reads, not a refusal, and it is the reason this is recorded here rather than closed here: a writer MUST NOT emit a locale outside the table, and the reader as it stands does not check.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  // The two root-only fields, on the second board as well, saying something
+  // else.
+  pkg.boards[1].ext_vorlaut_sleep_timeout_seconds = 30;
+  pkg.boards[1].ext_vorlaut_voice = "piper:de_DE-eva_k-x_low";
+  packageFixture({
+    name: "sleep-on-a-later-board",
+    summary: "The sleep timeout and the voice on a board that is not the root, saying something different from the root's. Only the root's are read, and the other two are lost without a word.",
+    outcome: "accepted",
+    conforming: false,
+    pkg,
+    read: readOk(pkg),
+    write: null,
+    notes: [
+      "A conforming writer emits these two fields on the root board and nowhere else, so there is no write half here: this package is one nothing in the editor produces.",
+      "The reader takes the first board the ring reaches and never looks at the others, so a package written this way loses whichever of the two a person actually meant. Thirty seconds is a talker that sleeps while a child is still looking at it, and nothing anywhere says the field was seen and dropped.",
+      "Stated rather than closed, the way audio/stereo-44k is. Refusing a second copy of a root-only field is a change to the reader and a decision this fixture set does not make - what it makes is the silence visible.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  // A file that has been through another editor: a short caption on the key
+  // and the whole sentence to be spoken.
+  const button = pkg.boards[0].buttons[0];
+  button.label = de.breakfast;
+  pkg.read.plan.sets[0].slots[0].text = button.vocalization;
+  packageFixture({
+    name: "label-and-vocalization-differ",
+    summary: "A key whose label is a caption and whose vocalization is the sentence. What the device says is the vocalization.",
+    outcome: "accepted",
+    conforming: false,
+    pkg,
+    read: readOk(pkg),
+    write: null,
+    notes: [
+      "A writer here emits the two the same, so this package is not one the editor produces and there is no write half. It is a package somebody could hand the loader page all the same: OBF has both fields, other editors use them for different things, and a device that read the wrong one would say a caption out loud.",
+      "The device writes no caption, so on this profile the two collapse into one sentence - which is exactly why a reader that quietly took the label would look right on every package this repository writes and be wrong on the first one it did not.",
+      "The recording is still filed under the sentence it says, so the key that speaks it is found by its vocalization and not by what is printed on it.",
+    ],
+  });
+}
+
+// --- What a reader must refuse ------------------------------------------------
+
+/* Eleven of them, and they exist for the reason ADR 0009 built this directory:
+ * a capture of a writer contains none of these, because no writer here emits
+ * one. What they aim at is the quiet failures - a package that parses and is
+ * wrong - rather than the ones that throw on their own.
+ *
+ * Each says WHERE it is refused, and the two places are not interchangeable.
+ * `archive` is loader/src/read.ts, which decides whether there is a package at
+ * all; `package` is readDevicePackage(), which decides whether it is one that
+ * can be compiled. Keeping them apart is what lets each say something specific
+ * instead of "this file is broken". */
+
+{
+  const pkg = cloned(TWO_SETS);
+  pkg.manifest.paths.boards = {};
+  packageFixture({
+    name: "no-boards",
+    summary: "A manifest that names no boards, with the boards still in the archive beside it.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("archive", "names no boards"),
+    write: null,
+    notes: [
+      "The boards are there. The manifest is what is wrong, and the manifest is what is believed: its order is the order the device cycles its sets in, so falling back to \"every .obf in the archive\" would be guessing at that order. The editor's own importer does fall back, on purpose, and the two doors want opposite things - src/data/obf.ts is tolerant because a hand-written manifest is usually the half that is wrong and the boards are still all there.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  // The manifest goes on naming both; the archive holds one.
+  pkg.boards = [pkg.boards[0]];
+  packageFixture({
+    name: "board-named-and-not-there",
+    summary: "A manifest naming two boards over an archive holding one.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("archive", "is named by this package and is not in it"),
+    write: null,
+    notes: [
+      "A truncated archive and a hand-edited manifest look the same from here, and both are refused. The first board's key loads set-2, so a reader that skipped the missing one would come back with a ring pointing at nothing.",
+    ],
+  });
+}
+
+{
+  const layout = {
+    ...TWO_SET_LAYOUT,
+    sets: [...TWO_SET_LAYOUT.sets, {
+      name: de.feelings, symbol: "",
+      slots: [{ text: de.thirsty, symbol: "" }, { text: "", symbol: "" },
+              { text: "", symbol: "" }, { text: "", symbol: "" }],
+    }],
+  };
+  const pkg = packageOf({
+    layout, voice: PACKAGE_VOICE,
+    sources: TWO_SET_SOURCES, sounds: TWO_SET_SOUNDS,
+  });
+  // set-2 loads set-1 instead of set-3, so the ring closes over two of three.
+  const key = pkg.boards[1].buttons.find((one) => one.load_board);
+  key.load_board = { id: "set-1", name: pkg.boards[0].name,
+                     path: "boards/set-1.obf" };
+  packageFixture({
+    name: "ring-misses-a-board",
+    summary: "Three boards and a ring that closes over two of them. The third is filed, named by the manifest, and never reached.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "does not reach every board"),
+    write: null,
+    notes: [
+      "The quiet one. Everything parses, every member is present, and the talker cycles two sets forever while the third sits in the file - a device that works and is wrong, said to somebody who believes it.",
+      "The ring is followed rather than the manifest's key order, because the ring is what the device actually cycles. A reader that walked the manifest instead would find all three boards here and report nothing.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  // Every picture entry keeps its path; the members go.
+  for (const path of [...pkg.members.keys()]) {
+    if (path.startsWith("images/")) pkg.members.delete(path);
+  }
+  packageFixture({
+    name: "pictures-named-and-not-there",
+    summary: "A talker document: references and entries with paths, and not one picture behind them.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "is named by this package and is not in it"),
+    write: null,
+    notes: [
+      "The failure this refusal exists to make impossible. The editor's talker export is also an .obz, also carries ext_vorlaut_negated, also names its boards set-1 and set-2 - and has no bytes behind images[]. Compiling one would draw the grey cross on every single key.",
+      "Not the same thing as a reference that resolved to nothing, and telling the two apart is the point. That one has no `path` and is a gap the writer recorded on purpose; this one declares a path and has no member behind it, which is either a truncated archive or a document that was never a device package.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  pkg.boards[0].images[0].symbol = { set: "vorlaut", filename: "" };
+  packageFixture({
+    name: "picture-with-no-reference",
+    summary: "A picture entry with bytes behind it and no reference beside them.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "carries a picture with no reference behind it"),
+    write: null,
+    notes: [
+      "images[] carries `symbol` as well as `path` so that the file still reads as a Sammlung: the pixels are what a compiler wants, and the reference is what makes the package importable by everything that already reads a talker document.",
+      "Quiet if it were taken: the picture would compile, and the Sammlung would come back with a key whose picture had no name - so re-exporting it would drop the picture and nobody would know which one it had been.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  pkg.boards[0].buttons[0].image_id = "img-nothing-here";
+  packageFixture({
+    name: "picture-not-on-the-board",
+    summary: "A key naming a picture its own board does not list.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "names a picture the board does not list"),
+    write: null,
+    notes: [
+      "The entry is the only place the reference lives, so a key pointing at one that is not there is a key whose picture cannot be named even to say it is missing. Taken quietly it would be a key that silently lost its picture, which is a different thing from a key that never had one.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  for (const path of [...pkg.members.keys()]) {
+    if (path.startsWith("sounds/")) { pkg.members.delete(path); break; }
+  }
+  packageFixture({
+    name: "sound-named-and-not-there",
+    summary: "A recording named by a board and not in the archive.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "is named by this package and is not in it"),
+    write: null,
+    notes: [
+      "A key that says nothing is not the same as a key that was never given a word, and this package cannot tell anybody which one it is. The device would light a panel with a picture on it and stay silent when a child pressed it.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(TWO_SETS);
+  const button = pkg.boards[0].buttons.find((one) => one.sound_id);
+  button.sound_id = "snd-nothing-here";
+  packageFixture({
+    name: "sound-not-on-the-board",
+    summary: "A key naming a recording its own board does not list.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "names a recording the board does not list"),
+    write: null,
+    notes: [
+      "The mirror of picture-not-on-the-board, and refused for the same reason: the entry is where the path lives, so a key pointing past it names a file nothing can find.",
+    ],
+  });
+}
+
+{
+  const wrong = { text: de.thirsty, name: SOUND_THIRSTY.name,
+                  ...packageWav(120, { rate: 24000 }) };
+  const sounds = [SOUND_HUNGRY, wrong];
+  const pkg = packageOf({
+    layout: ONE_SET_LAYOUT, voice: PACKAGE_VOICE,
+    sources: ONE_SET_SOURCES, sounds,
+  });
+  packageFixture({
+    name: "sound-at-the-wrong-rate",
+    summary: "A recording at 24 kHz. The device does not refuse one - it plays it at 16 - so both halves of this boundary refuse it instead.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "is not the WAV the device plays"),
+    write: writeHalf({
+      layout: ONE_SET_LAYOUT, sources: ONE_SET_SOURCES, sounds,
+      refuses: "is not the WAV the device plays",
+    }),
+    notes: [
+      "The quietest failure this whole kind is aimed at. seekToWavData() finds the data chunk and plays whatever is in it at the one rate I2S was started with, so this file is taken and comes out about a third too fast, in a voice nobody chose, on a talker in front of a child. Nothing refuses it and nothing can report it - device/fixtures/audio/stereo-44k is the same divergence one step further down.",
+      "So the rule is kept on both sides of this boundary rather than on either end of the one below it, and this is the one refusal here that both halves make. A reader that took it would be handing bytes to the only party that cannot be made to move.",
+      "The duration in the board document is worked out from this file's own header, so it is right about the file and wrong about what anybody will hear.",
+    ],
+  });
+}
+
+{
+  // Sixteen hex digits where there should be thirty-two: the near miss rather
+  // than the obvious one. hashBytes() takes a short name and fills the rest of
+  // the hash with zeroes, so this is the shape that reaches a device and
+  // addresses a file that is not there.
+  const wrong = { text: de.thirsty, name: "a0123456789abcdef.wav",
+                  ...packageWav(80) };
+  const sounds = [SOUND_HUNGRY, wrong];
+  const pkg = packageOf({
+    layout: ONE_SET_LAYOUT, voice: PACKAGE_VOICE,
+    sources: ONE_SET_SOURCES, sounds,
+  });
+  packageFixture({
+    name: "sound-named-for-nothing",
+    summary: "A recording under a name layout.bin cannot carry. Refused here, at both ends, rather than at the far end of a build nobody is watching.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "is not a name layout.bin can carry"),
+    write: writeHalf({
+      layout: ONE_SET_LAYOUT, sources: ONE_SET_SOURCES, sounds,
+      refuses: "is not a name layout.bin can carry",
+    }),
+    notes: [
+      "\"a\" and thirty-two hex characters, because that is what a slot in layout.bin holds and what hashBytes() reads back out of it - device/fixtures/names.expected.json is the rule.",
+      "A short name is the case worth authoring, and it is one device/README.md lists under what the fixtures do NOT cover: hashBytes() accepts fewer than thirty-two digits and fills the rest of the hash with zeroes, so neither end of the device interface enforces the length. This boundary does, and this fixture is where that is written down - a package with a name like this one compiles into a layout.bin whose slot addresses a file nobody wrote.",
+      "Both halves refuse it, and that is deliberate: a writer that let one through would have written a package no reader could compile, and a reader that let one through would compile a package into a build with a file the device cannot address.",
+    ],
+  });
+}
+
+{
+  packageFixture({
+    name: "nothing-to-export",
+    summary: "A Sammlung with no sets in it. There is no artefact, because there is no package a writer could have written.",
+    outcome: "refused",
+    conforming: false,
+    pkg: null,
+    read: null,
+    write: writeHalf({
+      layout: { language: "de", sleep_timeout_seconds: 600, sets: [] },
+      refuses: "nothing in this Sammlung",
+    }),
+    notes: [
+      "The one refusal in this kind with no read half, because there is nothing to read. A package with no boards is refused at the archive - no-boards is that fixture - and this is the step before it: the writer never gets far enough to make one.",
+      "It is here rather than left to a unit test because it is a statement about the format: a device package holds at least one board, and the ring a device cycles cannot be empty.",
+    ],
+  });
+}
+
+// =============================================================================
 
 // MAJOR.MINOR.PATCH over the whole interface, which ADR 0009 is explicit is
 // neither LAYOUT_VERSION nor CABLE_VERSION - those are a byte in a file and a
@@ -1595,7 +2658,7 @@ for (const [name, spoken, verdict, summary, remedy] of [
 // tests/test_device_fixtures.py refuses a suffix here, and refuses this file
 // and the committed index.json disagreeing about the version at all.
 const INDEX = {
-  device_interface_version: "1.0.0",
+  device_interface_version: "1.1.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };

@@ -1,0 +1,364 @@
+{
+  "fixture": "ring-misses-a-board",
+  "kind": "package",
+  "file": "package/ring-misses-a-board.obz",
+  "summary": "Three boards and a ring that closes over two of them. The third is filed, named by the manifest, and never reached.",
+  "bytes": 11121,
+  "conforming": false,
+  "members": [
+    {
+      "path": "manifest.json",
+      "bytes": 909,
+      "sha256": "57c5faec9cdaa41fc42ae9645c4b9ea22845bad06b22942ded51ea35b6ebd47a"
+    },
+    {
+      "path": "boards/set-1.obf",
+      "bytes": 2706,
+      "sha256": "8ded193a6d579db111fff0e9ddb836b2c9dc20e36f7063618fb9de106849f15f"
+    },
+    {
+      "path": "boards/set-2.obf",
+      "bytes": 1965,
+      "sha256": "13392852c81169aa6a4e418d622915659f88356309e77b79c0363bd0f480fd89"
+    },
+    {
+      "path": "boards/set-3.obf",
+      "bytes": 1088,
+      "sha256": "e2881daea74f122b4c14f4ea48bbda4caf344317595d88d8606cafcce566efa7"
+    },
+    {
+      "path": "images/191ef540c6ba1d78.svg",
+      "bytes": 99,
+      "sha256": "191ef540c6ba1d78e399017bee81cb875ed9da63b7b1cd120718d2ec1654b06c"
+    },
+    {
+      "path": "images/907686e9833c7e5b.bin",
+      "bytes": 310,
+      "sha256": "907686e9833c7e5be4cda8aabd77a0ce0f1c209787e58557638799a4d879275f"
+    },
+    {
+      "path": "images/e121ccc1471f37d4.bin",
+      "bytes": 246,
+      "sha256": "e121ccc1471f37d4aa455272feec6ca2e1f685b12871a6bc8bae6529da653985"
+    },
+    {
+      "path": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+      "bytes": 364,
+      "sha256": "0606e1cfbeb4d83f8358e04ed2901dd643d9f83ba83646e62b4202fcfeaa56ef"
+    },
+    {
+      "path": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+      "bytes": 524,
+      "sha256": "a9a2ae021f191cad80ac57d068ace7ce1b85cb7f25de64955191537eaffdf4e9"
+    },
+    {
+      "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+      "bytes": 204,
+      "sha256": "50fe4983f78d423519396ab6d2d08392a44953c40f2c8b83a8dd51f118612cd7"
+    },
+    {
+      "path": "sounds/ad4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4.wav",
+      "bytes": 684,
+      "sha256": "fb213d380574a15fa8fe50695e211fe909b7255ee5a53e94f29b9ce133ef4153"
+    },
+    {
+      "path": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav",
+      "bytes": 364,
+      "sha256": "0606e1cfbeb4d83f8358e04ed2901dd643d9f83ba83646e62b4202fcfeaa56ef"
+    }
+  ],
+  "manifest": {
+    "format": "open-board-0.1",
+    "root": "boards/set-1.obf",
+    "paths": {
+      "boards": {
+        "set-1": "boards/set-1.obf",
+        "set-2": "boards/set-2.obf",
+        "set-3": "boards/set-3.obf"
+      },
+      "images": {
+        "img-191ef540c6ba1d78": "images/191ef540c6ba1d78.svg",
+        "img-907686e9833c7e5b": "images/907686e9833c7e5b.bin",
+        "img-e121ccc1471f37d4": "images/e121ccc1471f37d4.bin"
+      },
+      "sounds": {
+        "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+        "snd-ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+        "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+        "snd-ad4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4": "sounds/ad4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4.wav",
+        "snd-ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav"
+      }
+    }
+  },
+  "boards": [
+    {
+      "format": "open-board-0.1",
+      "id": "set-1",
+      "locale": "de",
+      "name": "Frühstück",
+      "buttons": [
+        {
+          "id": "set-1-key-1",
+          "label": "Ich habe Hunger",
+          "vocalization": "Ich habe Hunger",
+          "image_id": "img-907686e9833c7e5b",
+          "sound_id": "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"
+        },
+        {
+          "id": "set-1-key-2",
+          "label": "Ich habe keinen Hunger",
+          "vocalization": "Ich habe keinen Hunger",
+          "image_id": "img-907686e9833c7e5b",
+          "ext_vorlaut_negated": true,
+          "sound_id": "snd-ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+        },
+        {
+          "id": "set-1-key-3",
+          "label": "Ich habe Durst",
+          "vocalization": "Ich habe Durst",
+          "sound_id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+        },
+        {
+          "id": "set-1-key-4",
+          "label": "",
+          "image_id": "img-e121ccc1471f37d4"
+        },
+        {
+          "id": "set-1-set",
+          "label": "Frühstück",
+          "load_board": {
+            "id": "set-2",
+            "name": "Brot, Butter und Marmelade, süß",
+            "path": "boards/set-2.obf"
+          },
+          "image_id": "img-191ef540c6ba1d78"
+        }
+      ],
+      "grid": {
+        "rows": 2,
+        "columns": 3,
+        "order": [
+          [
+            null,
+            "set-1-key-1",
+            "set-1-key-2"
+          ],
+          [
+            "set-1-set",
+            "set-1-key-3",
+            "set-1-key-4"
+          ]
+        ]
+      },
+      "images": [
+        {
+          "id": "img-191ef540c6ba1d78",
+          "path": "images/191ef540c6ba1d78.svg",
+          "content_type": "image/svg+xml",
+          "symbol": {
+            "set": "metacom",
+            "filename": "hilfe.svg"
+          }
+        },
+        {
+          "id": "img-907686e9833c7e5b",
+          "path": "images/907686e9833c7e5b.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "ja.bmp"
+          }
+        },
+        {
+          "id": "img-e121ccc1471f37d4",
+          "path": "images/e121ccc1471f37d4.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "nein.bmp"
+          }
+        }
+      ],
+      "sounds": [
+        {
+          "id": "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+          "path": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+          "content_type": "audio/wav",
+          "duration": 0.01
+        },
+        {
+          "id": "snd-ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+          "path": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+          "content_type": "audio/wav",
+          "duration": 0.015
+        },
+        {
+          "id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+          "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+          "content_type": "audio/wav",
+          "duration": 0.005
+        }
+      ],
+      "ext_vorlaut_sleep_timeout_seconds": 1800,
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+    },
+    {
+      "format": "open-board-0.1",
+      "id": "set-2",
+      "locale": "de",
+      "name": "Brot, Butter und Marmelade, süß",
+      "buttons": [
+        {
+          "id": "set-2-key-1",
+          "label": "Wir gehen nach draußen",
+          "vocalization": "Wir gehen nach draußen",
+          "image_id": "img-e121ccc1471f37d4",
+          "sound_id": "snd-ad4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4"
+        },
+        {
+          "id": "set-2-key-2",
+          "label": ""
+        },
+        {
+          "id": "set-2-key-3",
+          "label": "   ",
+          "vocalization": "   "
+        },
+        {
+          "id": "set-2-key-4",
+          "label": "Wir gehen nach Hause",
+          "vocalization": "Wir gehen nach Hause",
+          "image_id": "img-none-metacom-nicht-da.png",
+          "sound_id": "snd-ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5"
+        },
+        {
+          "id": "set-2-set",
+          "label": "Brot, Butter und Marmelade, süß",
+          "load_board": {
+            "id": "set-1",
+            "name": "Frühstück",
+            "path": "boards/set-1.obf"
+          }
+        }
+      ],
+      "grid": {
+        "rows": 2,
+        "columns": 3,
+        "order": [
+          [
+            null,
+            "set-2-key-1",
+            "set-2-key-2"
+          ],
+          [
+            "set-2-set",
+            "set-2-key-3",
+            "set-2-key-4"
+          ]
+        ]
+      },
+      "images": [
+        {
+          "id": "img-e121ccc1471f37d4",
+          "path": "images/e121ccc1471f37d4.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "nein.bmp"
+          }
+        },
+        {
+          "id": "img-none-metacom-nicht-da.png",
+          "symbol": {
+            "set": "metacom",
+            "filename": "nicht-da.png"
+          }
+        }
+      ],
+      "sounds": [
+        {
+          "id": "snd-ad4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+          "path": "sounds/ad4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4.wav",
+          "content_type": "audio/wav",
+          "duration": 0.02
+        },
+        {
+          "id": "snd-ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5",
+          "path": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav",
+          "content_type": "audio/wav",
+          "duration": 0.01
+        }
+      ]
+    },
+    {
+      "format": "open-board-0.1",
+      "id": "set-3",
+      "locale": "de",
+      "name": "Gefühle",
+      "buttons": [
+        {
+          "id": "set-3-key-1",
+          "label": "Ich habe Durst",
+          "vocalization": "Ich habe Durst",
+          "sound_id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+        },
+        {
+          "id": "set-3-key-2",
+          "label": ""
+        },
+        {
+          "id": "set-3-key-3",
+          "label": ""
+        },
+        {
+          "id": "set-3-key-4",
+          "label": ""
+        },
+        {
+          "id": "set-3-set",
+          "label": "Gefühle",
+          "load_board": {
+            "id": "set-1",
+            "name": "Frühstück",
+            "path": "boards/set-1.obf"
+          }
+        }
+      ],
+      "grid": {
+        "rows": 2,
+        "columns": 3,
+        "order": [
+          [
+            null,
+            "set-3-key-1",
+            "set-3-key-2"
+          ],
+          [
+            "set-3-set",
+            "set-3-key-3",
+            "set-3-key-4"
+          ]
+        ]
+      },
+      "images": [],
+      "sounds": [
+        {
+          "id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+          "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
+          "content_type": "audio/wav",
+          "duration": 0.005
+        }
+      ]
+    }
+  ],
+  "read": {
+    "result": "refused",
+    "at": "package",
+    "because": "does not reach every board"
+  },
+  "write": null,
+  "notes": [
+    "The quiet one. Everything parses, every member is present, and the talker cycles two sets forever while the third sits in the file - a device that works and is wrong, said to somebody who believes it.",
+    "The ring is followed rather than the manifest's key order, because the ring is what the device actually cycles. A reader that walked the manifest instead would find all three boards here and report nothing."
+  ]
+}
