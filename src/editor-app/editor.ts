@@ -766,12 +766,15 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
    * name of the page it opens, so the way there belongs on the button rather
    * than on a copy of it two centimetres higher.
    *
-   * **It shares the top right with the play control, and the two do meet.** A
-   * `goto` button that carries its word into the sentence on the way - §7.3's
-   * `ext_lautstark_append_on_navigate` - has something to audition *and* a page
-   * to follow, so the seat is not free. Where both are there the follow moves
-   * one button to the left, which is `.cell--corners` below; the play control
-   * keeps the corner it has always had.
+   * **Top left, and the play control is top right.** Both seats are fixed, and
+   * neither moves for the other: a `goto` button that carries its word into
+   * the sentence on the way - §7.3's `ext_lautstark_append_on_navigate` - has
+   * something to audition *and* a page to follow, and the two used to share the
+   * right-hand seat with this one stepping aside. Fixed seats say the same
+   * thing without a rule that has to keep holding.
+   *
+   * The left seat is free exactly when this exists: it belongs to the act
+   * badge, and a `goto` has carried none since this corner replaced its arrow.
    *
    * The press itself still opens the button's own sheet, for the reason
    * templates/board.ts gives: a `goto` button that navigated when pressed
@@ -790,7 +793,6 @@ function cell(on: AppPage, row: number, col: number): HTMLElement {
         goToPage(to.id);
       };
       box.appendChild(follow);
-      if (box.querySelector(".cell__play")) box.classList.add("cell--corners");
     }
   }
 

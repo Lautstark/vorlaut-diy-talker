@@ -1093,20 +1093,27 @@ a.factlinks__line:hover { text-decoration: underline; }
 .cell__play:hover { color: var(--text); }
 .cell__play:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* The corner that follows a navigation button.
+/* The corner that follows a navigation button. Top left, always, and the play
+   control is top right, always.
+
+   **Fixed seats rather than one of them stepping aside.** These two did share
+   the top right for a while, with the follow shifting a button's width to the
+   left where both were drawn - a `goto` that carries its word into the
+   sentence has something to audition as well as a page to follow. It worked,
+   and it was still the wrong shape: a rule that holds only while a class is
+   applied and an arithmetic offset stays in step with a clamp is a rule that
+   comes apart quietly. Two seats that never move cannot.
+
+   The left seat is free exactly when this control exists: it is where the act
+   badge sits, and a `goto` has carried no badge since the corner took over
+   from it. Nothing else can be there at the same time.
 
    Always drawn rather than appearing under the pointer, which is the one place
-   it differs from the play control. This is now the only way from a page to
-   the page it opens - the row of tiles that used to repeat them is gone - and
-   a tablet has no pointer to hover with.
-
-   **It shares the top right with the play control, and the two do meet.** A
-   `goto` button that carries its word into the sentence has something to
-   audition as well as a page to follow, so where both are drawn the follow
-   steps one button to the left. The play control keeps the corner: it is the
-   older of the two and every test that reaches for it aims at that spot. */
+   it differs from the play control. This is the only way from a page to the
+   page it opens - the row of tiles that used to repeat them is gone - and a
+   tablet has no pointer to hover with. */
 .cell__follow {
-  position: absolute; top: 4px; right: 4px; z-index: 2;
+  position: absolute; top: 4px; left: 4px; z-index: 2;
   width: clamp(26px, 30cqw, 36px); height: clamp(26px, 30cqw, 36px);
   padding: 0; line-height: 1;
   display: grid; place-items: center;
@@ -1116,9 +1123,6 @@ a.factlinks__line:hover { text-decoration: underline; }
   font: inherit; font-size: clamp(14px, 16cqw, 18px);
 }
 .cell__follow:hover { background: var(--surface-2); }
-/* One button width plus the gap, in the same clamp the buttons themselves are
-   sized with, so the pair stays a pair at every cell size. */
-.cell--corners .cell__follow { right: calc(clamp(26px, 30cqw, 36px) + 8px); }
 .cell__follow:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* Where a dragged button would land. The same mark the five-key board uses for
    the same gesture, so one dashed outline means one thing in both editors. */
@@ -1878,3 +1882,20 @@ dialog.sheet--page { max-width: 520px; }
 }
 /* The reserved copy on every other tab: it holds its box and does nothing. */
 .tab__more--idle { visibility: hidden; pointer-events: none; }
+
+/* The status line at rest.
+ *
+ * "Gesichert" is true almost all of the time, and a label that reads the same
+ * whenever anybody looks stops being read - which matters because this is the
+ * one line where a failed write appears. So it says its piece and then steps
+ * back; the words stay, because they stay true, and a reader coming to the
+ * region still hears them.
+ *
+ * Opacity rather than `visibility` or `display`: both of those take the text
+ * out of the accessibility tree, and the whole point is that it is still there
+ * for anybody who asks. Everything else the line says - not written yet, and
+ * the two ways a write can fail - never rests, and shell/dom.ts's status()
+ * wakes the line for each of them. */
+.status { transition: opacity .6s ease; }
+.status--rested { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .status { transition: none; } }

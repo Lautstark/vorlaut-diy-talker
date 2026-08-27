@@ -34,7 +34,42 @@ export const $ = <T extends HTMLElement = HTMLElement>(id: string): T => {
 /* The line in the header, and the one place this page reports anything. The
    element carries role="status" - see templates/header.ts - so writing to it
    is also announcing it, which it was not before. */
-export const status = (text: string): void => { $("status").textContent = text; };
+export const status = (text: string): void => {
+  const line = $("status");
+  line.textContent = text;
+  /* Anything said cancels a pending rest and wakes the line: a failed write
+     arriving while "saved" was fading must not inherit its fade. This is the
+     one writer of that element, which is what makes cancelling here enough. */
+  line.classList.remove("status--rested");
+  clearTimeout(resting);
+};
+
+/** How long a resting status stays lit. Long enough to be read by somebody who
+ *  looked over, short enough to be gone by the next time anything happens. */
+const RESTS_FOR = 4000;
+let resting: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Said, and then allowed to go quiet.
+ *
+ * For the one status that is true almost always: a Sammlung is saved, and stays
+ * saved until the next keystroke says otherwise. A label that reads the same
+ * whenever anybody looks is furniture, and the eye stops reading furniture -
+ * which is the worst thing that can happen to the one line where a *failed*
+ * write would appear.
+ *
+ * **It fades rather than being cleared, and that is the whole of the
+ * difference.** The words stay in the element and stay true, so a reader who
+ * comes to the region still hears where the work stands; what goes is the
+ * claim on somebody's attention. Clearing would have made the line lie by
+ * omission - "nothing to report" and "saved" are not the same - and it would
+ * have made two dozen tests race a timer for a fact that had not changed.
+ */
+export function statusRests(text: string): void {
+  status(text);
+  resting = setTimeout(() => { $("status").classList.add("status--rested"); },
+                       RESTS_FOR);
+}
 
 /**
  * The negation cross, as an element to lay over a picture.
