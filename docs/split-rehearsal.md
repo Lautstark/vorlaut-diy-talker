@@ -117,12 +117,59 @@ makes that consumption rather than ownership.
 
 ---
 
+## 8. Rehearsed a second time, with the bill paid
+
+Run again at `f28a245`, once
+[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) had moved
+the preview and [ADR 0014](../adr/0014-device-fixtures-cover-the-package-too.md)
+had fixtured the package. This time the crossings were **answered rather than
+counted**: the seven constants and `thumbnailSize` were extracted into editor-local
+modules, the five imports rewired, and `loader/`, `firmware/`, `device/` and
+`case/` deleted.
+
+**`src/` → `loader/` went to zero.** Every crossing resolved the way
+[`split-crossings.md`](split-crossings.md) said it would, which is the result
+that matters: the bill was costed by reading and it holds up under doing.
+
+### `thumbnailSize()` does not travel alone
+
+One thing only the doing found:
+
+```
+src/device/thumbnail.ts: error TS2304: Cannot find name 'TILE_SIZE'
+```
+
+`thumbnailSize(width, height, max = TILE_SIZE)` takes `TILE_SIZE` as a **default
+argument**. It is the one name [`layers.test.ts`](../tests/unit/layers.test.ts)
+still allows out of `tiles.ts`, and copying it verbatim does not compile.
+
+Nothing is wrong with the allowed list. The dependency is *inside* the module
+rather than an import, and a rule that reads import statements cannot see it —
+the same blind spot that file already documents about element ids, in its own
+words: *"an element id is a dependency the module graph cannot see."* This is
+the arithmetic version of it.
+
+**The fix is one line and it has to be deliberate.**
+[`src/data/app_assets.ts`](../src/data/app_assets.ts) always passes `IMAGE_SIZE`
+explicitly, so the default never fires in the editor and the copy can simply drop
+it. What must not happen is `TILE_SIZE` being duplicated to satisfy a compiler:
+that is the second copy of the device's tile geometry that
+[ADR 0013](../adr/0013-the-device-preview-moves-to-the-loader-page.md) was
+written to prevent, arriving through the back door with a plausible reason.
+
+**What this run does not prove.** The editor's *suite* was not made to pass. The
+`tsconfig` was edited crudely to drop `loader/`, which pulled test files into the
+app build and produced errors that are artefacts of the rehearsal rather than
+findings. The typecheck of `src/` itself is the result; the rest of that output
+is noise and is not evidence of anything.
+
+---
+
 ## What to do with this
 
 Work it alongside [`split-crossings.md`](split-crossings.md)'s bill rather than
 instead of it. The bill says what each crossing costs; this says which files
 carry them and what the move touches beyond imports.
 
-**Rehearse again once the bill is paid.** A second run against a tree where the
-crossings are answered is what turns this into a green suite rather than a list,
-and it costs under a second.
+Both rehearsals cost under a second. There is no reason for the real move to be
+the first time any of this is attempted.
