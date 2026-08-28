@@ -1172,7 +1172,8 @@ const anyOrder = (line) => ({ from: "device", line, any_order: true });
 
 function cableFixture({ name, summary, ends, start = [], steps, end = null,
                         script = null, notes = [], window = WINDOW,
-                        spoken = CABLE_VERSION, verdict = "ok" }) {
+                        spoken = CABLE_VERSION, verdict = "ok",
+                        firmware = "" }) {
   fixture({
     kind: "cable", name, dir: "cable", outcome: "accepted", summary,
     expected: {
@@ -1187,6 +1188,23 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       // What the client must conclude from that pair before it sends anything
       // else. "ok" on every transcript that gets past hello, by construction.
       version_verdict: verdict,
+      // Which build the device in this transcript says it is carrying, and
+      // empty where it says nothing at all. Unlike the two above, this is not
+      // a number either end may compare: the device names its build, the
+      // browser writes the name down, and nothing in the interface orders two
+      // of them. See firmware/vorlaut/version.h.
+      //
+      // Empty is the common case here on purpose. Every device flashed before
+      // 2026-08-28 says nothing, so eight of these transcripts describe one,
+      // and firmware-named-in-the-hello describes the other. A client that
+      // treated silence as a fault would pass the one and fail the eight.
+      //
+      // The device runner takes this as an argument the way it takes the
+      // capacity and the window, which the note on cableMode() in
+      // tests/device_host.cpp is about: a fixture states the conversation, and
+      // a harness that read this out of a header instead could only ever
+      // produce the one transcript its own build allows.
+      device_firmware: firmware,
       window,
       device_starts_with: start.map((f) => ({
         name: f.name, size: f.bytes.length, crc: hex8(crc32(f.bytes)),
@@ -1195,7 +1213,20 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       capacity: CAPACITY,
       steps,
       device_ends_with: end,
-      client_script: script,
+      // hello's answer carries the firmware word, and it is filled in from
+      // the same argument as the transcript above rather than written out a
+      // second time beside it: the two saying different things is the one
+      // disagreement a fixture cannot usefully state.
+      //
+      // Appended last, and that is load-bearing. The runner in
+      // tests/unit/device_fixtures.test.ts compares what the client returned
+      // against this with JSON.stringify, so the key ORDER here has to be the
+      // order the object literal in tools/cable.js is written in - where
+      // firmware comes after files, for exactly this reason.
+      client_script: script && script.map((step) => (
+        step.call === "hello"
+          ? { ...step, returns: { ...step.returns, firmware } }
+          : step)),
       notes,
     },
   });
@@ -1242,6 +1273,52 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       "The device does no comparing. It says what it holds and the browser works out the difference, because the browser is the end with memory and a language to do it in.",
       "The two file lines are marked any_order, and that is a rule rather than a convenience. The device walks its directory and says what it finds; a file system promises no order, so the format promises none either. A browser must not depend on one - it holds the names in a map the moment it has them.",
       "This is the one place a fixture nearly froze an accident. The first draft listed them in the order they were written, the C harness holds its files in a sorted map and said them alphabetically, and the two disagreed - which is the fixture set doing its job on its first run, three fixtures in.",
+    ],
+  });
+}
+
+// --- The build, which is not the protocol ------------------------------------
+//
+// The first keyword this protocol has ever gained, and the transcript that
+// makes the extension rule something that runs rather than something written
+// down. cable_format.h has said since it was written that unknown keywords are
+// skipped on both sides and cost no version at all; until this fixture, no
+// conversation anywhere exercised a keyword one end had not always known.
+
+{
+  // A tag-shaped example, and an example is all it is. What the interface
+  // fixes is the shape - one word after "firmware", in the greeting - and not
+  // which word: a release says its own tag and a sketch compiled on a desk
+  // says "dev". A fixture naming the newest tag would go stale on the next
+  // one and would be read as a requirement by whoever found it stale.
+  const BUILD = "v0.4";
+  cableFixture({
+    name: "firmware-named-in-the-hello",
+    summary: "A device that says which build it is carrying, as well as which protocol it speaks. Two questions, two words.",
+    ends: ["device", "browser"],
+    firmware: BUILD,
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< firmware ${BUILD}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device("< end hello"),
+      host("> done"),
+      device("< bye 0 0 0"),
+    ],
+    end: { files: [], stored: 0, removed: 0, bytes: 0 },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY, files: 0 } },
+      { call: "done", returns: { stored: 0, removed: 0, bytes: 0 } },
+    ],
+    notes: [
+      "The two words answer different questions and a browser that confused them would be wrong for a year at a time. 'vorlaut 2' is the protocol: it moves only when the two ends can no longer drive each other, so every device across many releases says the same number. 'firmware v0.4' is the build, and it moves with every release without the protocol moving at all. Which firmware a talker is carrying is not answerable from the first line, and that is why there is a second.",
+      "The word is not compared here, and no rule in this interface orders two of them. A release says its tag, a sketch compiled from the Arduino IDE says 'dev', and a client holding one of each has nothing to sort them by. What a client must do is keep the word it was given; what it must not do is invent an ordering the device never promised.",
+      "Every other cable transcript has this line absent, which is the other real device rather than an omission: anything flashed before 2026-08-28 has no such line to say. Silence is 'it did not say', not 'it said nothing useful' and not a fault - a client that refused such a device would refuse every talker already in a drawer.",
+      "This is the extension rule the header has always claimed, running for the first time. The device gained a keyword and CABLE_VERSION did not move, because a browser that has never heard of the word skips it and reaches 'end hello' exactly as before - which is what the eight transcripts that predate the keyword are now also evidence of, from the other side.",
     ],
   });
 }
@@ -2658,7 +2735,11 @@ const FIVE_KEY_SOUNDS = [SOUND_HUNGRY, SOUND_THIRSTY, SOUND_HOME,
 // tests/test_device_fixtures.py refuses a suffix here, and refuses this file
 // and the committed index.json disagreeing about the version at all.
 const INDEX = {
-  device_interface_version: "1.1.0",
+  // 1.2.0 since 2026-08-28: the cable's greeting gained a "firmware" keyword.
+  // MINOR by the rule in docs/device-interface.md section 7 - on the cable it
+  // is the ordinary thing, because both ends skip what they do not know, so a
+  // device already flashed neither misreads the addition nor sees it.
+  device_interface_version: "1.2.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };

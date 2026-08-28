@@ -813,6 +813,14 @@ async function send(go: HTMLButtonElement): Promise<void> {
       // talking and not this page, and it is the most useful thing on the wire
       // when something has gone wrong.
       onLog: (line) => add(`  ${line}`),
+      // Which talker this is, before anything is sent. In the log rather than
+      // beside the step's heading, because it is a fact about this run that is
+      // worth having above the failure when there is one - and because a
+      // device that does not name its firmware is not a fault to be badged,
+      // only one that was flashed before the line existed.
+      onFound: (who) => add(who.firmware
+        ? t("cable.firmware", { version: who.firmware })
+        : t("cable.firmware_unnamed")),
       onPlan: (work: Plan) => {
         cleared = work.tight;
         add(t("cable.plan", {

@@ -23,7 +23,15 @@ jobs:
 
       # The same board setting as in CI - it is written down in one place
       # only, see .github/actions/firmware.
+      #
+      # And the one place a build is named. The tag reaches the sketch as
+      # VORLAUT_VERSION, which is what the device answers "firmware v0.4" with
+      # over the cable; every other compile - CI, an IDE, a desk - leaves this
+      # empty and says "dev" instead. firmware/vorlaut/version.h is why it is
+      # taken from the ref rather than kept in a constant somebody bumps.
       - uses: ./.github/actions/firmware
+        with:
+          version: ${{ github.ref_name }}
 
       # Program only, and no step here builds content.
       #
@@ -39,6 +47,22 @@ jobs:
       # cable. So the release is the program, and the device says "no content"
       # until somebody sends some - which is a true sentence about a talker
       # nobody has filled in yet.
+
+      # The one failure this arrangement can have quietly. A build property
+      # that did not reach the compiler - a quoting rule that changed, a
+      # property name the core stopped honouring - does not fail the compile:
+      # version.h's #ifndef stands, and the image is published claiming to be
+      # `dev`. So the tag is looked for in the bytes that are about to be
+      # uploaded, which is the same check that established the flag works at
+      # all.
+      - name: The image really carries the tag
+        run: |
+          if ! grep -q -- "$GITHUB_REF_NAME" build/vorlaut/vorlaut.ino.bin; then
+            echo "::error::the build does not contain $GITHUB_REF_NAME - the" \
+                 "version was not compiled in, and the device would answer" \
+                 "'firmware dev'"
+            exit 1
+          fi
 
       - name: Create release
         env:
@@ -99,6 +123,14 @@ jobs:
           > esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX \\
           >   write-flash 0x10000 vorlaut.ino.bin
           > \`\`\`
+
+          ## Which build a device says it is carrying
+
+          This image answers \`firmware ${GITHUB_REF_NAME}\` when the loader
+          page greets it, and the page writes that into its log. A talker
+          flashed before 2026-08-28 says nothing there, which is not a fault -
+          the line did not exist yet. Nothing compares two of these words yet;
+          what the greeting gives is a name for the build in front of you.
 
           ## Built from
 

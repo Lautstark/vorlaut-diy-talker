@@ -1,0 +1,86 @@
+{
+  "fixture": "firmware-named-in-the-hello",
+  "kind": "cable",
+  "summary": "A device that says which build it is carrying, as well as which protocol it speaks. Two questions, two words.",
+  "ends": [
+    "device",
+    "browser"
+  ],
+  "protocol_version": 2,
+  "device_speaks": 2,
+  "version_verdict": "ok",
+  "device_firmware": "v0.4",
+  "window": 4096,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 2"
+    },
+    {
+      "from": "device",
+      "line": "< firmware v0.4"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 0 0 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 2,
+        "total": 1441792,
+        "free": 1441792,
+        "files": 0,
+        "firmware": "v0.4"
+      }
+    },
+    {
+      "call": "done",
+      "returns": {
+        "stored": 0,
+        "removed": 0,
+        "bytes": 0
+      }
+    }
+  ],
+  "notes": [
+    "The two words answer different questions and a browser that confused them would be wrong for a year at a time. 'vorlaut 2' is the protocol: it moves only when the two ends can no longer drive each other, so every device across many releases says the same number. 'firmware v0.4' is the build, and it moves with every release without the protocol moving at all. Which firmware a talker is carrying is not answerable from the first line, and that is why there is a second.",
+    "The word is not compared here, and no rule in this interface orders two of them. A release says its tag, a sketch compiled from the Arduino IDE says 'dev', and a client holding one of each has nothing to sort them by. What a client must do is keep the word it was given; what it must not do is invent an ordering the device never promised.",
+    "Every other cable transcript has this line absent, which is the other real device rather than an omission: anything flashed before 2026-08-28 has no such line to say. Silence is 'it did not say', not 'it said nothing useful' and not a fault - a client that refused such a device would refuse every talker already in a drawer.",
+    "This is the extension rule the header has always claimed, running for the first time. The device gained a keyword and CABLE_VERSION did not move, because a browser that has never heard of the word skips it and reaches 'end hello' exactly as before - which is what the eight transcripts that predate the keyword are now also evidence of, from the other side."
+  ]
+}

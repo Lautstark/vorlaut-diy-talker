@@ -61,9 +61,16 @@ export class MockDevice {
    *   wait for an ack really does outrun this rather than merely being able to.
    */
   constructor({ files = new Map(), total = 1441792, noise = false,
-                failAt = null, window = MOCK_WINDOW, stallMs = 0 } = {}) {
+                failAt = null, window = MOCK_WINDOW, stallMs = 0,
+                firmware = "dev" } = {}) {
     this.files = files;
     this.total = total;
+    // What this device would say its build is. "dev" is what a sketch compiled
+    // anywhere but release.yml really says - see firmware/vorlaut/version.h -
+    // so it is what a mock standing in for one on a desk should say too.
+    // Empty imitates a device flashed before the line existed, which is the
+    // other real case and the one a client must not read as a fault.
+    this.firmware = firmware;
     this.noise = noise;
     this.failAt = failAt;
     this.window = window;
@@ -214,6 +221,7 @@ export class MockDevice {
         // its own copy would go on greeting in a protocol nobody speaks any
         // more, and the version is precisely the thing a client checks.
         await this.reply(`vorlaut ${CABLE_VERSION}`);
+        if (this.firmware) await this.reply(`firmware ${this.firmware}`);
         await this.reply(`total ${this.total}`);
         await this.reply(`free ${this.free}`);
         await this.reply(`files ${this.files.size}`);

@@ -101,10 +101,31 @@ export type Plan = {
   put: number; remove: number; keep: number; needed: number; tight: boolean;
 };
 
+/** Which talker answered, in the two words it says about itself.
+ *
+ * `version` is the protocol and `firmware` is the build, and they are two
+ * facts rather than one seen twice: the protocol stands still for releases at
+ * a time, so a page that asked it "which firmware is this" would get the same
+ * answer from every device for a year. See firmware/vorlaut/version.h.
+ *
+ * `firmware` is empty when the device did not say - a talker flashed before
+ * 2026-08-28 has no such line - and that is a state to be named rather than
+ * an error. It is the word the device said, unparsed: a release says its tag
+ * and a sketch off somebody's desk says "dev", and nothing here has a second
+ * version to hold either against. The comparison arrives with whoever ships
+ * an image to compare with.
+ */
+export type Talker = { version: number; firmware: string };
+
 export type Sending = {
   /** Every line on the wire that is not protocol: the device's own serial log,
    *  which is the most useful thing there is when something has gone wrong. */
   onLog?: (line: string) => void;
+  /** Who answered, as soon as one does - before the diff and before anything
+   *  is sent. Early on purpose: which device this is belongs in the log above
+   *  the failure rather than in a summary that a failed transfer never
+   *  reaches. */
+  onFound?: (who: Talker) => void;
   /** What is about to happen, once the diff is known and before it starts. */
   onPlan?: (what: Plan) => void;
   onStep?: (what: "put" | "rm", name: string, done: number, total: number) => void;
@@ -202,12 +223,16 @@ export async function findTalker(
 export async function sendToDevice(
   ports: SerialPort[], build: Build, options: Sending = {},
 ): Promise<Sent> {
-  const { onLog = () => {}, onPlan = () => {}, onStep = () => {}, signal } = options;
+  const {
+    onLog = () => {}, onFound = () => {}, onPlan = () => {}, onStep = () => {},
+    signal,
+  } = options;
   // plan() and push() want {bytes} per name, because the plan may also be made
   // from sizes and checksums alone. One line of shaping rather than a second
   // shape for compileDevice() to answer in.
   const made = new Map([...build].map(([name, bytes]) => [name, { bytes }]));
   const { port, cable, hello } = await findTalker(ports, onLog);
+  onFound({ version: hello.version, firmware: hello.firmware });
   try {
     const have = await cable.list();
     // The one file whose name never changes, so its presence proves nothing
