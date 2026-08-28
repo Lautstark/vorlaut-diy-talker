@@ -125,6 +125,17 @@ jobs:
           BASE_PATH: /
         run: npm run build
 
+      # The firmware the deployed page offers to write, from the newest v*
+      # release. adr/0017 is why it is here rather than fetched by the browser:
+      # the page makes no cross-origin request, so the image has to be an asset
+      # of this deploy. With no release cut - which is this repository today -
+      # it writes a manifest saying so and the page's firmware section is
+      # absent rather than broken.
+      - name: The firmware the page carries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/firmware_for_pages.mjs dist
+
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

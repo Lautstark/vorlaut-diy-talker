@@ -107,6 +107,22 @@ h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
   padding: 1rem 0 0.5rem;
 }
 
+/* The one section that is not a step: the firmware, adr/0017. Set apart rather
+   than numbered, because it belongs to the device and not to the flow -
+   somebody does the five every time and touches this one about never. A wider
+   gap above and a heavier rule are the whole of the difference; it is still a
+   section with the same lines, buttons and log inside it. */
+.step--aside {
+  margin-top: 1.6rem;
+  border-top-width: 2px;
+}
+
+/* And no marker, because there is no number to put in one. `hidden` alone does
+   not do it: the attribute's display:none is a rule of the browser's own
+   stylesheet, and .step__mark sets display:grid, which beats it. A circle with
+   nothing in it is exactly what that mistake looks like. */
+.step--aside .step__mark { display: none; }
+
 .step__head {
   display: flex;
   align-items: center;
@@ -180,6 +196,23 @@ h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
 .step[data-state="waiting"] h2 { color: var(--text-dim); }
 .step[data-state="waiting"] .step__mark { border-style: dashed; }
 .step[data-state="waiting"] .body { display: none; }
+
+/* And "waiting" means something else in it, so it does not look or behave like
+   waiting. For the five, waiting is *not yet*: the heading dims and the body is
+   display:none, because a step nobody can reach yet has nothing worth reading
+   in it. Here it is the ordinary state - lit, and with its body showing, which
+   is where the section says which build this page carries and offers the
+   button that asks the device.
+
+   The body rule is the load-bearing half and it cost an afternoon: without it
+   the section rendered, `textContent` found every sentence, and every one of
+   them was invisible - so the page looked like a heading with nothing under
+   it, and a test that asserted the text passed while the button underneath was
+   not in the accessibility tree at all. It also has to stand *after* the two
+   rules above rather than beside .step--aside where it began: the selectors
+   weigh the same, so the one written last is the one that applies. */
+.step--aside[data-state="waiting"] h2 { color: var(--text); }
+.step--aside[data-state="waiting"] .body { display: block; }
 
 /* Not coming. The state a step is left in when this browser cannot do it at
    all - a dashed marker with nothing behind it says "not here" rather than

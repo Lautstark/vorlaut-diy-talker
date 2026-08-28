@@ -99,20 +99,25 @@ const stateOf = (page: Page, key: string) =>
  *  The two modules are served into the page rather than bundled with it. The
  *  page has no business importing a mock, and a route is the whole of what it
  *  takes to let one arrive as a module the way any other would. */
-async function withDevice(page: Page, { granted = true } = {}) {
+async function withDevice(page: Page, { granted = true, firmware = "dev" } = {}) {
   for (const name of ["cable.js", "cable_mock.js"]) {
     await page.route(`**/__cable/${name}`, (route) => route.fulfill({
       contentType: "text/javascript",
       body: readFileSync(join(HERE, "..", "loader", "tools", name), "utf8"),
     }));
   }
-  await page.addInitScript(({ granted }) => {
+  await page.addInitScript(({ granted, firmware }) => {
     const ready = import(new URL("__cable/cable_mock.js", location.href).href)
       .then(({ MockDevice }) => {
         /* Chattering on purpose: a real device prints its own serial log
            straight through a transfer, and a client that only works on a
-           silent wire does not work. */
-        const device = new MockDevice({ noise: true });
+           silent wire does not work.
+
+           The firmware word is what this device answers when it is asked which
+           build it carries - "dev" for a sketch off a desk, a tag for a
+           release, and empty for a talker flashed before the greeting named
+           one at all. */
+        const device = new MockDevice({ noise: true, firmware });
         (globalThis as Record<string, unknown>).__device = device;
         let streams: { readable: ReadableStream; writable: WritableStream } | null = null;
         return {
@@ -139,7 +144,7 @@ async function withDevice(page: Page, { granted = true } = {}) {
         addEventListener: () => {},
       },
     });
-  }, { granted });
+  }, { granted, firmware });
 }
 
 /** What the device is holding. The counters are not read: the device clears
@@ -538,6 +543,130 @@ test("a port that answers nothing gets the chooser offered again, and says so",
   // looking for a settings panel.
   await expect(step(page, "load.step_connect")
     .getByRole("button", { name: SPEAKS["load.connect"], exact: true })).toBeVisible();
+});
+
+/* ---------------------------------------------------------- the firmware --- */
+
+/** The manifest tools/firmware_for_pages.mjs writes into the deploy, served
+ *  into the page the way the cable modules are.
+ *
+ *  Routed rather than built, because the real one is only ever written by a
+ *  workflow that has a release to download - and this repository has cut none,
+ *  so a test that waited for a real manifest would be a test that never runs.
+ *  What the page does with one is the whole of what is asserted here; whether
+ *  the deploy step writes a correct one is that script's own business. */
+async function withFirmware(page: Page, release = "v0.4") {
+  await page.route("**/firmware/firmware.json", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      release, url: `https://example.invalid/releases/tag/${release}`,
+      chip: "esp32s3", flashSize: "8MB", flashMode: "dio", flashFreq: "80m",
+      whole: { file: "whole.bin", address: 0, bytes: 4, sha256: "00" },
+      program: { file: "program.bin", address: 0x10000, bytes: 4, sha256: "00" },
+    }),
+  }));
+}
+
+const firmwareSection = (page: Page) =>
+  page.locator("section.step").filter({
+    has: page.getByRole("heading", {
+      name: SPEAKS["load.firmware_title"], exact: true,
+    }),
+  });
+
+const check = (page: Page) => firmwareSection(page)
+  .getByRole("button", { name: SPEAKS["flash.check"], exact: true });
+
+test("a deploy that carries no image has no firmware section at all",
+     async ({ page }) => {
+  /* Which is every deploy so far: no `v*` release has been cut, so
+     firmware_for_pages.mjs writes a manifest that says so and the section is
+     never built. Absent rather than present and empty - a section offering
+     nothing is worse than no section, and this is the state a reader of the
+     deployed page meets today. */
+  await withDevice(page);
+  await page.goto("./loader/");
+  await expect(step(page, "load.step_file")).toBeVisible();
+  await expect(firmwareSection(page)).toHaveCount(0);
+});
+
+test("the firmware section names both builds and offers the program",
+     async ({ page }) => {
+  await withDevice(page, { firmware: "v0.3" });
+  await withFirmware(page, "v0.4");
+  await page.goto("./loader/");
+
+  /* What the page carries is said before anything is asked of the device: it
+     is the fact that does not need a cable, and it is what makes the section
+     worth reading on a machine with no talker plugged in. */
+  await expect(firmwareSection(page))
+    .toContainText(filled("flash.carries", { release: "v0.4" }));
+
+  await check(page).click();
+
+  await expect(firmwareSection(page))
+    .toContainText(filled("flash.device_says", { version: "v0.3" }),
+                   { timeout: 30_000 });
+  await expect(firmwareSection(page))
+    .toContainText(filled("flash.older", { release: "v0.4" }));
+  /* The program alone, so the content stays - and the instruction, because
+     the port the browser is about to ask for is not the one it is holding. */
+  await expect(firmwareSection(page)).toContainText(SPEAKS["flash.program_warning"]);
+  await expect(firmwareSection(page)).toContainText(SPEAKS["flash.download_mode"]);
+  await expect(firmwareSection(page).getByRole("button", {
+    name: SPEAKS["flash.choose_and_write"], exact: true,
+  })).toBeVisible();
+});
+
+test("a device that already carries the page's build is offered nothing",
+     async ({ page }) => {
+  await withDevice(page, { firmware: "v0.4" });
+  await withFirmware(page, "v0.4");
+  await page.goto("./loader/");
+  await check(page).click();
+
+  await expect(firmwareSection(page)).toContainText(SPEAKS["flash.same"],
+                                                    { timeout: 30_000 });
+  /* No write button, and that is the assertion. Offering one here would be
+     offering somebody the chance to overwrite firmware for no reason, and it
+     is exactly the button a refactor adds back by drawing the section one way
+     for every outcome. */
+  await expect(firmwareSection(page).getByRole("button", {
+    name: SPEAKS["flash.choose_and_write"], exact: true,
+  })).toHaveCount(0);
+});
+
+test("a port that answers nothing is offered a first flash", async ({ page }) => {
+  /* The case the whole section exists for: a board that has never been
+     flashed answers nothing, because there is nothing on it to answer with.
+     It looks exactly like a talker that is asleep and exactly like a dongle,
+     which is why the sentence names all three and the offer says what it will
+     cost. */
+  await page.addInitScript(() => {
+    const silent = {
+      async open() {},
+      async close() {},
+      readable: new ReadableStream({ start() { /* never a byte */ } }),
+      writable: new WritableStream({ write() {} }),
+      getInfo: () => ({}),
+      async setSignals() {},
+    };
+    Object.defineProperty(navigator, "serial", {
+      configurable: true,
+      value: {
+        getPorts: async () => [silent],
+        requestPort: async () => silent,
+        addEventListener: () => {},
+      },
+    });
+  });
+  await withFirmware(page, "v0.4");
+  await page.goto("./loader/");
+  await check(page).click();
+
+  await expect(firmwareSection(page))
+    .toContainText(opening("flash.nothing_answered"), { timeout: 60_000 });
+  await expect(firmwareSection(page)).toContainText(SPEAKS["flash.whole_warning"]);
 });
 
 /* ------------------------------------------------------------ the folder --- */
