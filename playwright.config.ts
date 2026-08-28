@@ -7,7 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
  * dev server resolves things Vite's output does not, and serving from the root
  * would let an absolute path pass here and 404 once published.
  */
-const BASE = "/vorlaut-diy-talker/";
+const BASE = "/";
 
 /* The port, overridable, because reuseExistingServer is a trap between two
  * checkouts of this repository.

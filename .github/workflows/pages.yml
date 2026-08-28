@@ -9,9 +9,11 @@ name: Deploy the loader page to GitHub Pages
 # What is published is one page: loader/, which takes a board exported from
 # vorlaut-editor and sends it to a talker down a USB-C cable. It was published
 # at <base>loader/ beside the editor until adr/0012, and took the root when the
-# editor left. BASE_PATH below follows the repository name, and the repository
-# name did not change - which is why the address somebody opens with a cable in
-# their hand is the one thing the split did not move.
+# editor left. Since the move to talker.lautstark.tech the address no longer
+# contains a repository name at all, which is the point: the page somebody
+# opens with a cable in their hand can now survive the repository moving.
+# lautstark.github.io/vorlaut-diy-talker/ redirects there, so nothing anybody
+# bookmarked before is lost.
 
 on:
   push:
@@ -115,10 +117,12 @@ jobs:
         run: npm run preflight
 
       - name: Build
-        # A project site is served from /<repo>/, so the bundle needs that base.
-        # For a user site (<user>.github.io) set BASE_PATH to "/" instead.
+        # Served from a subdomain of lautstark.tech, so the bundle sits at the
+        # root rather than under /<repo>/. The CNAME file in public/ is what
+        # holds that domain across deploys: GitHub reads it out of the
+        # published artifact, and a deploy without it drops the domain.
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          BASE_PATH: /
         run: npm run build
 
       - uses: actions/configure-pages@v6
