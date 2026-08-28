@@ -40,6 +40,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include "cable_format.h"
+#include "version.h"
 
 // Read from the file system in pieces of this size. Small enough that a
 // buffer this size on the stack is not a problem, large enough that a WAV is
@@ -254,9 +255,18 @@ class Cable {
   // How the browser tells a vorlaut from whatever else the person picked in
   // the port dialog - and how it finds out whether what it wants to send will
   // fit before it starts sending it.
+  //
+  // The second line is which firmware this is, and it answers a different
+  // question from the first: `vorlaut` is the protocol, which stands still for
+  // releases at a time, and `firmware` is the build. See version.h for where
+  // the word comes from and why a device that was built on somebody's desk
+  // says `dev` rather than a number. A browser that has never heard of the
+  // keyword skips it, which is what makes this a line the firmware may gain
+  // without the protocol version moving.
   static void sayHello() {
     char out[CABLE_LINE_MAX];
     put(cableSayNumber(out, sizeof(out), "vorlaut", CABLE_VERSION), out);
+    put(cableSayWord(out, sizeof(out), "firmware", VORLAUT_VERSION), out);
     put(cableSayNumber(out, sizeof(out), "total",
                        (uint32_t)LittleFS.totalBytes()), out);
     put(cableSayNumber(out, sizeof(out), "free",

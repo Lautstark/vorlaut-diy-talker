@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "1.1.0",
+  "device_interface_version": "1.2.0",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -285,6 +285,13 @@
       "outcome": "accepted",
       "summary": "Hello, list, done. The whole of what a browser learns before it decides anything.",
       "expected": "cable/greet-and-list.expected.json"
+    },
+    {
+      "fixture": "firmware-named-in-the-hello",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A device that says which build it is carrying, as well as which protocol it speaks. Two questions, two words.",
+      "expected": "cable/firmware-named-in-the-hello.expected.json"
     },
     {
       "fixture": "put-one-file",

@@ -90,6 +90,7 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 
 ```
 < vorlaut 2                  it is one of ours, and 2 is the protocol version
+< firmware v0.4              and this is the build it is carrying
 < total 1441792              the partition
 < free 1146880               what is left of it
 < files 37
@@ -114,6 +115,29 @@ another dev board. A port that does not answer `vorlaut` within a moment is
 not the talker, and saying so is nicer than timing out later mid-transfer.
 `free` earns its place in the same answer: it is what lets the browser refuse a
 payload that will not fit *before* it starts sending one.
+
+**`firmware` is a different question from `vorlaut`, and that is why it is a
+different word.** The protocol version moves only when the two ends can no
+longer drive each other, so every talker says the same number for releases at a
+time; asking it which build a device is carrying gets an answer that was true
+of a dozen firmwares. So the greeting names the build as well: a release says
+its own tag, because `release.yml` compiles with `-DVORLAUT_VERSION` out of
+`GITHUB_REF_NAME`, and anything compiled anywhere else says `dev`. Nobody edits
+a constant to cut a release — see
+[`firmware/vorlaut/version.h`](../firmware/vorlaut/version.h) for why a number
+somebody has to remember to move is worse than no number at all.
+
+Nothing on either side orders two of these words. The device names its build,
+the browser writes the name down, and a page that wants to say "two releases
+behind" has to hold it against a version it brought itself. **A device that
+says nothing here is not a fault**: it is any talker flashed before
+2026-08-28, and refusing one would refuse every device already in a drawer.
+`fixtures/cable/firmware-named-in-the-hello` is the transcript that names a
+build, and the eight beside it are the ones that do not.
+
+That keyword is also the first this protocol has ever gained, and it is the
+extension rule the header has claimed since it was written actually running:
+the device says a word older browsers skip, and `CABLE_VERSION` did not move.
 
 **A verb the device does not know is answered, not ignored.** `err verb` comes
 back. A browser waiting for a reply that never arrives looks exactly like a
@@ -846,6 +870,7 @@ amount of code to remove and deserves to say so in its own commit.
 |---|---|
 | [`firmware/vorlaut/cable_format.h`](../firmware/vorlaut/cable_format.h) | the wire format, with no Arduino in it |
 | [`firmware/vorlaut/cable.h`](../firmware/vorlaut/cable.h) | the session: Serial, LittleFS, the half-written file |
+| [`firmware/vorlaut/version.h`](../firmware/vorlaut/version.h) | what the build calls itself in the greeting, and why nobody edits it |
 | [`loader/tools/cable.js`](../loader/tools/cable.js) | the browser's half, and the diff |
 | [`loader/tools/cable_mock.js`](../loader/tools/cable_mock.js) | a device made of a `Map`, for when there is no board |
 | [`tools/serialcheck.html`](../tools/serialcheck.html) | the bench, standalone |

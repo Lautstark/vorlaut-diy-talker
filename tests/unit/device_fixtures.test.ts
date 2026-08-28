@@ -583,6 +583,19 @@ for (const { listed: one, want } of ofKind("cable")) {
         [...verdicts].join(", "));
 }
 
+/* The other word in the greeting, and the same argument one keyword along.
+ * What the client returns is already held to each transcript by the comparison
+ * above; what that comparison cannot say is that the set contains both kinds of
+ * device. A client that dropped the word on the floor would satisfy the eight
+ * transcripts where it is absent, and one that refused a device without it
+ * would satisfy the one where it is there. */
+{
+  const said = ofKind("cable").map(({ want }) => want.device_firmware);
+  check("the transcripts cover a device that names its build and one that does not",
+        said.includes("") && said.some((word: string) => word !== ""),
+        said.map((word: string) => word || "(silent)").join(", "));
+}
+
 /* The transcripts' checksums came from node's zlib and the client computes
  * its own from a table it builds at load. Two implementations of CRC-32 that
  * agree on every payload in the fixture set, which is what lets a device say

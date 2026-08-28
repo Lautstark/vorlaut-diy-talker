@@ -9,6 +9,7 @@
   "protocol_version": 2,
   "device_speaks": 2,
   "version_verdict": "ok",
+  "device_firmware": "",
   "window": 256,
   "device_starts_with": [],
   "capacity": 1441792,
@@ -104,7 +105,8 @@
         "version": 2,
         "total": 1441792,
         "free": 1441792,
-        "files": 0
+        "files": 0,
+        "firmware": ""
       }
     },
     {

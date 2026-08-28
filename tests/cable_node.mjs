@@ -519,7 +519,8 @@ const CLIENT_ONLY = {
 async function readback(text) {
   const lines = text.split("\n").filter((l) => l.length);
   const groups = {
-    hello: lines.filter((l) => /^< (vorlaut|total|free|files|end hello)/.test(l)),
+    hello: lines.filter(
+      (l) => /^< (vorlaut|firmware|total|free|files|end hello)/.test(l)),
     list: lines.filter((l) => /^< (file|end list)/.test(l)),
     crc: [lines.find((l) => l.startsWith("< crc layout.bin 1a2b3c4d"))],
     big: [lines.find((l) => l.startsWith("< crc layout.bin deadbeef"))],

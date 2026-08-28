@@ -430,6 +430,15 @@ test("one press puts the compiled file on the talker", async ({ page }) => {
      table is meant to be filled in from a run and this is where a run says
      them. */
   await expect(step(page, "load.step_send")).toContainText(opening("cable.timings"));
+
+  /* And which talker this was. The mock says what a sketch compiled anywhere
+     but release.yml says - see firmware/vorlaut/version.h - so the word here is
+     the same "dev" a device on a desk would answer with. Asserted because the
+     page reading the greeting's new keyword is the only reader it has: without
+     this line the firmware could stop saying it and everything would stay
+     green. */
+  await expect(step(page, "load.step_send"))
+    .toContainText(filled("cable.firmware", { version: "dev" }));
 });
 
 test("a second press sends nothing, because the device already has it",

@@ -21,6 +21,7 @@
 #include <string>
 #include <map>
 #include "../firmware/vorlaut/cable_format.h"
+#include "../firmware/vorlaut/version.h"
 
 static const char *verbName(CableVerb verb) {
   switch (verb) {
@@ -101,6 +102,12 @@ static void say(const char *text) { fputs(text, stdout); }
 static int sayAll(void) {
   char out[CABLE_LINE_MAX];
   cableSayNumber(out, sizeof(out), "vorlaut", CABLE_VERSION); say(out);
+  // Whatever this build is called, which on a computer is always "dev" - the
+  // tag only reaches a compile that release.yml started. The catalogue says
+  // the word the formatter would really put there rather than an invented
+  // one, which is the whole arrangement here: the Python side checks the
+  // text, and then hands it to the browser client.
+  cableSayWord(out, sizeof(out), "firmware", VORLAUT_VERSION); say(out);
   cableSayNumber(out, sizeof(out), "total", 1441792u); say(out);
   cableSayNumber(out, sizeof(out), "free", 1146880u); say(out);
   cableSayNumber(out, sizeof(out), "files", 37u); say(out);

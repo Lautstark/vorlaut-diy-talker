@@ -318,6 +318,7 @@ def check_commands(reader: Path, problems: list[str]) -> int:
 # a change on either side should have to be made twice on purpose.
 ANSWERS = """\
 < vorlaut 2
+< firmware dev
 < total 1441792
 < free 1146880
 < files 37
@@ -361,7 +362,12 @@ def check_readback(node: str, problems: list[str], answers: str) -> None:
         return
     seen = report["detail"]
     expected = {
-        "hello": {"version": 2, "total": 1441792, "free": 1146880, "files": 37},
+        # "dev" rather than a tag: nothing compiled on this computer is a
+        # release, and version.h's default is what says so. A day when this
+        # reads v-something is a day the host compile picked up a flag it
+        # should not have.
+        "hello": {"version": 2, "total": 1441792, "free": 1146880, "files": 37,
+                  "firmware": "dev"},
         "list": [{"name": "t3bd7a1c045e29f8b6d0a4e17c93f5028.bin", "size": 26912}],
         "crc": "1a2b3c4d",
         # The one where a signed shift would turn eight digits into eleven.

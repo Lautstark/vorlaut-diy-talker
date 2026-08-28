@@ -77,7 +77,7 @@ Those are a byte in a file and a number on a wire, both currently 2; this is
 `MAJOR.MINOR.PATCH` over the whole interface, and the three of them will drift
 apart on purpose.
 
-It reads **`1.1.0`**, and it carries no word about status. It said
+It reads **`1.2.0`**, and it carries no word about status. It said
 `0.1.0-draft` until 2026-08-27, which put a claim about the interface inside a
 number nothing asserted — both runners printed the string and neither checked
 it, so a `device-v1` cut over it would have contradicted the thing it tagged.
@@ -97,6 +97,14 @@ described a directory that was silent about the device package; `1.1.0`
 describes one that is not. It is not a MAJOR because MAJOR is *a flashed device
 misreading a payload a conforming builder writes*, and nothing the talker reads
 moved — not a stride, not a byte, not a keyword.
+
+`1.2.0` is 2026-08-28, and it is the first MINOR that adds something to the
+wire rather than to this directory: the greeting gained a `firmware` keyword,
+which names the build a device is carrying as opposed to the protocol it
+speaks. MINOR by the same rule read the other way round — a device already
+flashed neither misreads the addition nor ever sees it, because both ends skip
+what they do not know, and a device that says nothing there is a conformant
+older one rather than a broken one.
 
 ---
 
@@ -197,7 +205,11 @@ comment. A version byte the reader does not know is refused outright —
 
 **The cable does the reverse.** Unknown keywords are skipped in both
 directions, on purpose, so a browser can gain a field without a device in a
-drawer falling over — `fixtures/cable/skip-unknown-keyword`. An unknown *verb*
+drawer falling over — `fixtures/cable/skip-unknown-keyword`, and, since
+2026-08-28, a keyword that was really added rather than imagined:
+`fixtures/cable/firmware-named-in-the-hello` is the device end doing it, with
+the eight transcripts beside it standing for every talker flashed before the
+word existed. An unknown *verb*
 is the exception and is answered with an error rather than ignored, because a
 browser waiting for a reply that never comes looks exactly like a broken cable
 — `fixtures/cable/unknown-verb`.
@@ -211,7 +223,7 @@ browser waiting for a reply that never comes looks exactly like a broken cable
 | `layout/` | Every field, every stride, and **every one of the five refusal codes**. |
 | `tile/` | 128 by 128 RGB565 big-endian, and what a reader does with a file of the wrong length. |
 | `audio/` | 16 kHz mono 16-bit, chunk walking with its pad byte, and four refusals. |
-| `cable/` | Whole transcripts, both extension rules, every error word, the window a file crosses in, and a protocol-version mismatch in each direction. |
+| `cable/` | Whole transcripts, both extension rules, every error word, the window a file crosses in, a protocol-version mismatch in each direction, and a device that names its build beside eight that do not. |
 | `names.expected.json` | Which names a builder emits, which the device stores, and that the first is inside the second. |
 | `language.expected.json` | Byte 7's table, its default, and what an index past it means. |
 | `sleep.expected.json` | The timeout range a builder may write, what the device waits for everything else, and that the first is inside the second. |

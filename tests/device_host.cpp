@@ -306,7 +306,15 @@ static bool readLine(std::string &out) {
 // never hold a browser to reading a window it was given rather than one it
 // assumed. So a fixture may announce 256 where the firmware announces 4096,
 // and both are conformant.
-static int cableMode(uint32_t capacity, uint32_t window) {
+//
+// The firmware word arrives the same way and for a sharper version of the same
+// reason. VORLAUT_VERSION is not a constant of the interface at all - it is
+// whatever the build was named, "dev" unless release.yml named it - so a
+// harness that said its own would be able to produce exactly one transcript,
+// and the two that matter are a device that names a build and a device from
+// before the keyword existed. An empty word is the second of those, and it is
+// said by saying nothing.
+static int cableMode(uint32_t capacity, uint32_t window, const char *firmware) {
   Fake device;
   device.capacity = capacity;
   char out[CABLE_LINE_MAX];
@@ -355,6 +363,9 @@ static int cableMode(uint32_t capacity, uint32_t window) {
         size_t used = 0;
         for (const auto &f : device.files) used += f.second.size();
         cableSayNumber(out, sizeof(out), "vorlaut", CABLE_VERSION); say(out);
+        if (firmware && *firmware) {
+          cableSayWord(out, sizeof(out), "firmware", firmware); say(out);
+        }
         cableSayNumber(out, sizeof(out), "total", (uint32_t)device.capacity); say(out);
         cableSayNumber(out, sizeof(out), "free", (uint32_t)(device.capacity - used)); say(out);
         cableSayNumber(out, sizeof(out), "files", (uint32_t)device.files.size()); say(out);
@@ -481,11 +492,16 @@ int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "language") == 0) return languageMode();
   if (argc >= 2 && strcmp(argv[1], "sleep") == 0) return sleepMode();
   if (argc >= 4 && strcmp(argv[1], "cable") == 0) {
+    // The firmware word is optional at the command line and required of the
+    // runner: a fixture always states it, and states it empty where the device
+    // says nothing. Defaulted here so that driving this by hand is one
+    // argument shorter than driving it from the transcripts.
     return cableMode((uint32_t)strtoul(argv[2], nullptr, 10),
-                     (uint32_t)strtoul(argv[3], nullptr, 10));
+                     (uint32_t)strtoul(argv[3], nullptr, 10),
+                     argc >= 5 ? argv[4] : "");
   }
   fprintf(stderr, "usage: device_host layout <file> | tile <file> | "
                   "audio <file> | names | language | sleep | "
-                  "cable <capacity> <window>\n");
+                  "cable <capacity> <window> [firmware]\n");
   return 2;
 }

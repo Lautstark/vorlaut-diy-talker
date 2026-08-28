@@ -17,6 +17,14 @@ inputs:
     description: Board setting, partition scheme included.
     required: false
     default: esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB
+  version:
+    description: >
+      What the build should call itself in the cable's greeting - the tag, for
+      a release. Left empty everywhere else, and then version.h's own default
+      stands: a build that is not a release says `dev` rather than claiming a
+      number nobody cut.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -55,13 +63,25 @@ runs:
       env:
         SKETCHES: ${{ inputs.sketches }}
         FQBN: ${{ inputs.fqbn }}
+        VERSION: ${{ inputs.version }}
       run: |
+        # The version reaches the sketch as a macro rather than as an edit to
+        # a checked-in file, so that the tag stays the only place a release is
+        # named - see firmware/vorlaut/version.h. compiler.cpp.extra_flags is
+        # the property to hang it on: build.extra_flags already carries the
+        # board's own defines, and overriding that would take them away.
+        properties=()
+        if [ -n "$VERSION" ]; then
+          properties+=(--build-property
+                       "compiler.cpp.extra_flags=-DVORLAUT_VERSION=\"$VERSION\"")
+        fi
         while IFS= read -r sketch; do
           [ -n "$sketch" ] || continue
           echo "::group::$sketch"
           arduino-cli compile \
             --fqbn "$FQBN" \
             --warnings all \
+            "${properties[@]}" \
             --output-dir "build/$(basename "$sketch")" \
             "$sketch" < /dev/null
           echo "::endgroup::"

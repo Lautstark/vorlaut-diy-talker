@@ -9,6 +9,7 @@
   "protocol_version": 2,
   "device_speaks": 2,
   "version_verdict": "ok",
+  "device_firmware": "",
   "window": 4096,
   "device_starts_with": [
     {
@@ -72,7 +73,8 @@
         "version": 2,
         "total": 1441792,
         "free": 1441728,
-        "files": 1
+        "files": 1,
+        "firmware": ""
       }
     },
     {

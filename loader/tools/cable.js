@@ -68,7 +68,8 @@ export function versionVerdict(theirs) {
  * compiled, and tests/test_cable_format.py remains what actually holds this
  * client to the device's own reader.
  *
- * @typedef {{version: number, total: number, free: number, files: number}} Greeting
+ * @typedef {{version: number, total: number, free: number, files: number,
+ *            firmware: string}} Greeting
  * @typedef {{name: string, size: number}} Held
  * @typedef {{stored: number, removed: number, bytes: number}} Farewell
  * @typedef {{put: {name: string, size: number, crc: number}[], remove: string[],
@@ -302,7 +303,13 @@ export class Cable {
   async #greet() {
     await this.send("hello");
     {
-      const answer = { version: 0, total: 0, free: 0, files: 0 };
+      // firmware starts empty rather than at some placeholder version, and
+      // empty is a real answer rather than a missing one: it is what a device
+      // flashed before 2026-08-28 says, because it has no such line to say.
+      // Whatever reads this has to be able to write the sentence "it did not
+      // say", and giving that state a name here is cheaper than every reader
+      // inventing one.
+      const answer = { version: 0, total: 0, free: 0, files: 0, firmware: "" };
       for (;;) {
         const { key, rest } = await this.expect();
         if (key === "end") return answer;              // "end hello"
@@ -310,6 +317,13 @@ export class Cable {
         else if (key === "total") answer.total = Number(rest);
         else if (key === "free") answer.free = Number(rest);
         else if (key === "files") answer.files = Number(rest);
+        // Which build is on the device, as opposed to which protocol it
+        // speaks. Kept as the word the device said, and not parsed here: a
+        // release says its tag and a sketch somebody compiled says "dev", and
+        // this file has nothing to compare either against. Ordering two of
+        // these is the business of whoever holds a second version to hold it
+        // beside.
+        else if (key === "firmware") answer.firmware = rest;
         // Anything else is skipped: a newer device may say more than this
         // one knows how to ask about.
       }
