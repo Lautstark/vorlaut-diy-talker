@@ -10,7 +10,7 @@ continuously to Pages rather than a thing anybody releases.
 
 | Prefix | What it releases | Cut by | Notes written by |
 |---|---|---|---|
-| `v*` | the firmware image | `git tag v0.2 && git push origin v0.2` | a person, in `release.yml` |
+| `v*` | the firmware image | `git tag v0.5 && git push origin v0.5` | a person, in `release.yml` |
 | `device-v*` | the device interface in `device/` | by hand, and not yet | a person |
 | ~~`builder-v*`~~ | ~~the page in `src/`~~ | **retired** — [ADR 0016](../adr/0016-the-browser-half-stops-being-released.md). `builder-v0.1.0` stays published and valid; nothing is re-cut. | |
 | ~~`exchange-v*`~~ | ~~`SPEC.md` and its fixtures~~ | **gone with `exchange/`** — it is `vorlaut-editor`'s to cut, and the Android viewer's pin is what waits on it. | |
@@ -64,8 +64,19 @@ and somebody needs to name which they mean.
 
 ## The firmware: a tag, by hand
 
+**`v0.4` is the first one, cut on 2026-08-28**, and the three numbers below it
+were never tags here: this repository published nothing but `builder-v0.1.0`
+until then, while the firmware was flashed straight from a checkout. The number
+starts at four rather than at one so that the prose and the fixtures already
+naming `v0.4` — `docs/cable.md`, `device/fixtures/cable/firmware-named-in-the-hello`
+— stop describing a release nobody could find. It is also the first tag that
+does anything beyond publishing an image: `release.yml` compiles it into the
+firmware, so a device flashed from it answers `firmware v0.4` when the loader
+page greets it ([ADR 0017](../adr/0017-the-loader-page-writes-the-firmware.md)),
+and the deployed page takes its image from the newest `v*` release.
+
 ```bash
-git tag v0.2 && git push origin v0.2
+git tag v0.5 && git push origin v0.5
 ```
 
 `release.yml` compiles the sketch, and writes the release notes in the

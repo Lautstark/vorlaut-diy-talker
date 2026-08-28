@@ -106,7 +106,7 @@ jobs:
           content arrives afterwards from the editor, down the USB-C cable, in
           one press - see [docs/cable.md](${docs}/docs/cable.md).
 
-          Earlier releases carried four example sentences so that a first
+          The image used to carry four example sentences so that a first
           flash could be checked on its own. That went with the Python build:
           the build runs in a browser now, and a workflow cannot press a
           button in one. What the first flash still shows without any content
