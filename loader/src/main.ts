@@ -51,9 +51,16 @@ import {
   readDevicePackage, type ReadDevicePackage,
 } from "./device_package.js";
 import { browserHost } from "./browser_host.js";
-import { type Build, cableSupported, sendToDevice, type Plan } from "./cable.js";
+import {
+  askForDevice, askTalker, type Build, cableSupported, sendToDevice,
+  type Plan, type Talker,
+} from "./cable.js";
 import { compileDevice, type DeviceBuild } from "./compile.js";
 import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js";
+import {
+  type Carried, carriedFirmware, firmwareBytes, firmwareVerdict,
+} from "./firmware.js";
+import { writeFirmware } from "./flash.js";
 import { LANGUAGE_CODES } from "./layout_format.js";
 import { chooseBuildFolder, folderExportSupported, writeBuildTo } from "./folder.js";
 import { previewBoards } from "./preview.js";
@@ -75,6 +82,13 @@ const KIB = (bytes: number) => Math.round(bytes / 1024);
  * five instances of it. The editor's templates/ exist because its markup is
  * large and belongs beside the modules that wire it; four methods do not need
  * that arrangement and would only make this flow readable in two files.
+ *
+ * Six instances now, and the sixth has no number - the firmware section, which
+ * adr/0017 added. It is not a step of the flow and must not read as one: a
+ * person with a talker in front of them does the five, in order, every time,
+ * and touches the firmware once ever. So it is the same object with the same
+ * lines and buttons and log, drawn without the marker that says where in a
+ * sequence something is.
  */
 class Step {
   readonly root = document.createElement("section");
@@ -82,8 +96,8 @@ class Step {
   private readonly mark = document.createElement("span");
   private readonly badge = document.createElement("span");
 
-  constructor(private readonly n: number, titleKey: string) {
-    this.root.className = "step";
+  constructor(private readonly n: number | null, titleKey: string) {
+    this.root.className = n === null ? "step step--aside" : "step";
     this.root.dataset.state = "waiting";
 
     const head = document.createElement("div");
@@ -94,7 +108,8 @@ class Step {
        purpose: the sections are named by their headings and read in their own
        order, and an ordinal announced in front of each of five is noise. */
     this.mark.className = "step__mark";
-    this.mark.textContent = String(n);
+    this.mark.textContent = n === null ? "" : String(n);
+    this.mark.hidden = n === null;
     this.mark.setAttribute("aria-hidden", "true");
 
     const heading = document.createElement("h2");
@@ -127,14 +142,14 @@ class Step {
    *  page cannot leave a line from the first one standing. */
   begin(): void {
     this.root.dataset.state = "doing";
-    this.mark.textContent = String(this.n);
+    this.mark.textContent = this.n === null ? "" : String(this.n);
     this.chip(null);
     this.body.replaceChildren();
   }
 
   waiting(): void {
     this.root.dataset.state = "waiting";
-    this.mark.textContent = String(this.n);
+    this.mark.textContent = this.n === null ? "" : String(this.n);
     this.chip(null);
     this.body.replaceChildren();
   }
@@ -144,12 +159,12 @@ class Step {
    *  cannot do it at all. */
   blocked(): void {
     this.root.dataset.state = "blocked";
-    this.mark.textContent = String(this.n);
+    this.mark.textContent = this.n === null ? "" : String(this.n);
   }
 
   done(): void {
     this.root.dataset.state = "done";
-    this.mark.textContent = "✓";
+    this.mark.textContent = this.n === null ? "" : "✓";
   }
 
   say(text: string, className = ""): HTMLParagraphElement {
@@ -881,8 +896,198 @@ async function send(go: HTMLButtonElement): Promise<void> {
   }
 }
 
+/* ------------------------------------------------------------ firmware --- */
+
+/* The program on the device, as opposed to the content on it - adr/0017.
+ *
+ * Set apart from the five and drawn last, because that is what it is: the five
+ * steps are what somebody does every time there is a new board to send, and
+ * this is what they do once, when a talker is new or when a release has
+ * happened. It is also the only part of this page that fetches anything, and
+ * the only part that can leave a device worse than it found it, which is why
+ * every write here is two presses with a sentence between them.
+ *
+ * It is absent, not empty, when this deploy carries no image. No `v*` release
+ * has ever been cut in this repository, so that is every deploy so far. */
+const firmware = new Step(null, "load.firmware_title");
+
+/** What the deploy carries, once. Null until the manifest has been read, and
+ *  null for ever on a deploy that has no image - see carriedFirmware(). */
+let carried: Carried | null = null;
+
+/** The last thing the device said about itself, or null for "not asked yet".
+ *  Kept because the offer under it depends on it and because a press that
+ *  writes must not have to ask again - the port it would ask on is about to
+ *  stop existing. */
+let deviceSays: Talker | null = null;
+
+/** True once a probe has run and found nothing. Told apart from "not asked"
+ *  because the two lead to opposite offers: a device that has not been asked
+ *  gets a check button, and one that answered nothing gets the offer of a
+ *  first flash. */
+let nothingAnswered = false;
+
+/** Draws the section for whatever is known, and answers with what it said.
+ *
+ * The sentences come back rather than only going onto the screen, so that the
+ * one line a probe announces is the outcome and not the whole section read
+ * out. announcer is a polite live region: what belongs in it is "the device
+ * carries v0.3, this page carries v0.4", and what does not is a heading, a
+ * warning and two buttons. */
+function firmwareSection(): string[] {
+  const said: string[] = [];
+  const say = (text: string, className = "") => {
+    said.push(text);
+    return firmware.say(text, className);
+  };
+  if (!carried) return said;
+  firmware.waiting();
+  say(t("flash.carries", { release: carried.release }));
+
+  if (!deviceSays && !nothingAnswered) {
+    say(t("flash.check_lead"), "aside");
+    const button = firmware.button(t("flash.check"), () => void probe(button));
+    firmware.row(button);
+    return said;
+  }
+
+  if (nothingAnswered) {
+    say(t("flash.nothing_answered"));
+    offerWrite("whole");
+    return said;
+  }
+
+  const word = deviceSays!.firmware;
+  say(word
+    ? t("flash.device_says", { version: word })
+    : t("flash.device_unnamed"));
+
+  /* An empty word is not a version, so it does not go through the comparison -
+     it goes straight to the answer the comparison would have given it anyway,
+     with a sentence of its own above. */
+  const verdict = word ? firmwareVerdict(word, carried.release) : "unorderable";
+  if (verdict === "same" || verdict === "device_newer") {
+    say(t(verdict === "same" ? "flash.same" : "flash.newer"));
+    firmware.row(firmware.button(t("flash.check"), () => void probe()));
+    return said;
+  }
+  say(verdict === "device_older"
+    ? t("flash.older", { release: carried.release })
+    : t("flash.unorderable", { device: word, release: carried.release }));
+  offerWrite("program");
+  return said;
+}
+
+/** Ask the talker who it is. One session, opened and closed, and no package
+ *  anywhere near it. */
+async function probe(button?: HTMLButtonElement): Promise<void> {
+  if (button) button.disabled = true;
+  firmware.begin();
+  firmware.say(t("flash.carries", { release: carried!.release }));
+  const said = firmware.say(t("flash.checking"), "aside");
+  try {
+    if (!haveDevice()) {
+      /* From the click, before anything that awaits for long - the same rule
+         the connect step is built around. A dismissed picker leaves the
+         section exactly as it was. */
+      if (!await connectDevice()) { firmwareSection(); return; }
+    }
+    deviceSays = await askTalker(devices());
+    nothingAnswered = false;
+  } catch (error) {
+    deviceSays = null;
+    if (error instanceof Trouble && error.word === "cable_no_device") {
+      nothingAnswered = true;
+    } else {
+      said.textContent = error instanceof Trouble
+        ? t(`err.${error.word}`, {})
+        : t("flash.failed", { error: reason(error) });
+      return;
+    }
+  }
+  announce(firmwareSection().join(" "));
+}
+
+/** The instruction, and the button that spends the gesture.
+ *
+ * Two presses on purpose, and the sentence between them is the whole reason:
+ * the board has to be in download mode before the port picker opens, because
+ * entering download mode is what makes the old port disappear and a new one
+ * appear. A single button would have to ask for a port that does not exist
+ * yet. */
+function offerWrite(which: "whole" | "program"): void {
+  firmware.say(t(which === "whole" ? "flash.whole_warning"
+                                   : "flash.program_warning"));
+  firmware.say(t("flash.download_mode"));
+  const go = firmware.button(t("flash.choose_and_write"),
+                             () => void write(which, go), "btn primary");
+  firmware.row(go, firmware.button(t("flash.check"), () => void probe()));
+}
+
+async function write(which: "whole" | "program",
+                     go: HTMLButtonElement): Promise<void> {
+  go.disabled = true;
+  /* The picker first, from this click and before the fetch: transient
+     activation is spent by the time an image has been downloaded, which is the
+     lesson release.ts learned twice and cable.ts's header records. */
+  const port = await askForDevice();
+  if (!port) { go.disabled = false; return; }
+
+  firmware.begin();
+  firmware.say(t("flash.carries", { release: carried!.release }));
+  const { now, add, far } = firmware.logging();
+  now(t("flash.fetching"));
+  add(t("flash.fetching"));
+  try {
+    const piece = carried![which];
+    const bytes = await firmwareBytes(piece);
+    add(t("flash.fetched", { size: KIB(bytes.length) }));
+    await writeFirmware(port, [{ piece, bytes }], carried!, {
+      onLog: (line) => add(`  ${line}`),
+      onStep: (written, total) => {
+        now(t("flash.writing", { done: KIB(written), total: KIB(total) }));
+        far(written, total);
+      },
+    });
+    add(t("flash.written"));
+    now(t("flash.written_short"));
+    far(1, 1);
+    firmware.done();
+    announce(t("flash.written_short"));
+    /* What the device says about itself is the proof that the write took, and
+       it is a press away rather than automatic: the talker has just rebooted,
+       its port is a third handle nobody has granted yet, and asking for one
+       without being asked to would open a dialog nobody pressed a button
+       for. */
+    deviceSays = null;
+    nothingAnswered = false;
+    firmware.row(firmware.button(t("flash.check"), () => void probe()));
+  } catch (error) {
+    now(t("flash.failed_short"));
+    add(error instanceof Trouble
+      ? t(`err.${error.word}`, {})
+      : t("flash.failed", { error: reason(error) }));
+    firmware.row(firmware.button(t("flash.choose_and_write"),
+                                 () => void write(which, go), "btn primary"));
+  }
+}
+
 /* Asked on load, and again whenever a cable is plugged in or pulled out - so a
  * page opened before the talker was does not need reloading. It costs nothing
  * and no gesture, and knowing the answer before the press is the whole reason
  * one press is enough later. */
 watchForDevices();
+
+/* And what this deploy carries, also on load and also without a gesture. A
+ * manifest that says there is no image leaves the section unbuilt, which is
+ * why it is appended here rather than with the five - a section that appears
+ * when a fetch comes back is honest about a page that sometimes has one and
+ * sometimes does not. */
+if (cableSupported()) {
+  void carriedFirmware().then((found) => {
+    if (!found) return;
+    carried = found;
+    page.append(firmware.root);
+    firmwareSection();
+  });
+}

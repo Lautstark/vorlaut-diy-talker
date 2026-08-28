@@ -48,6 +48,7 @@ have named the firmware's business rather than this one's.
 | `src/tiles.ts`, `src/layout_format.ts` | the device's own formats: a tile, and the table the firmware reads |
 | `src/cable.ts`, `src/device.ts`, `src/serial.d.ts` | WebSerial: which port, and the transfer |
 | `src/folder.ts` | the same files on a disk, for the bench and for `mklittlefs` |
+| `src/firmware.ts`, `src/flash.ts` | the program on the device rather than the content: which image this deploy carries, whether it arrived whole, and esptool-js writing it — [ADR 0017](../adr/0017-the-loader-page-writes-the-firmware.md) |
 | `src/device_package.ts` | the reader half of the exported format: the shapes, the WAV rules and `readDevicePackage()` — [`docs/split-crossings.md`](../docs/split-crossings.md) hard case one is where this cut was costed |
 | `src/boot.ts`, `src/boot_data.ts` | the label table and `t()`, in both languages |
 | `src/errors.ts` | `Trouble`, which carries a word rather than a sentence |

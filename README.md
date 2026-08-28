@@ -50,6 +50,15 @@ them is served from the repository that kept its name. What moved is the
 editor's address, which is now
 <https://lautstark.github.io/vorlaut-editor/>.
 
+**It writes the firmware too, once a release exists**
+([ADR 0017](adr/0017-the-loader-page-writes-the-firmware.md)). The deploy
+carries the image from the newest `v*` release; the page says which build it
+has, asks the talker which build it has, and offers either the whole image for
+a device that answers nothing or the program alone for one that is behind. No
+`v*` release has been cut yet, so today that section is not there at all - and
+[docs/firmware.md](docs/firmware.md) keeps the `esptool` route, which works in
+every browser and for every board.
+
 To run it from a checkout:
 
 ```bash

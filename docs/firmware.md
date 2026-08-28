@@ -18,6 +18,29 @@ looks for `data/` right next to it. Both point at the same structure.
 
 Board setting: USB CDC On Boot **enabled**.
 
+## The loader page can do it, if a release exists
+
+[The loader page](https://talker.lautstark.tech/) writes the firmware as well
+as the content — [ADR 0017](../adr/0017-the-loader-page-writes-the-firmware.md).
+Under *The firmware on the device* it says which build it carries, asks the
+talker which build **it** carries, and offers to write one of two things: the
+whole image for a device that answers nothing, or the program alone for one
+that is only behind, which leaves the content where it is.
+
+Three things it needs, and the first is the one that decides: **there has to be
+a `v*` release**, because the deploy takes the image from the newest one and
+this repository has cut none yet — until then the section is not there at all.
+Then Chrome or Edge, because it is WebSerial like the cable. And the board has
+to be put into write mode by hand: **hold BOOT, tap RESET, release BOOT**, and
+then choose the port that has just appeared. That last one is not a rough edge
+waiting to be smoothed — the Feather's USB is the S3's own, so entering the
+bootloader makes the old port disappear and a new one appear, and the ADR's
+last section is about why a page that promised one press would be worse.
+
+What follows is the command line, which is the general answer: it works in
+every browser, on a machine with no network, and for a board that is not this
+one.
+
 ## Getting it onto the device
 
 These are two separate things that go into separate flash areas: the

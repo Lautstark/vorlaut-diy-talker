@@ -204,6 +204,37 @@ export async function findTalker(
 }
 
 /**
+ * Who is there, and nothing else.
+ *
+ * A session that opens, greets and closes. Everything else on this page asks
+ * about a device on the way to sending it something; this asks because
+ * somebody pressed a button that only wants the answer - which firmware is on
+ * the talker, before there is any package to send it. adr/0017 is why that
+ * button exists.
+ *
+ * Not free at the device, and worth knowing rather than hiding: `cable.h`
+ * calls `progress("hello")`, so the talker stops what it is doing and draws
+ * something. That is fine for a press somebody made on purpose and would not
+ * be fine on a timer, which is why there is no timer.
+ *
+ * Throws the same Trouble as a transfer would when nothing answers, because it
+ * is the same fact and deserves the same sentence - with one difference in
+ * what the caller does with it: here, "nothing answered" is also what a device
+ * with no firmware at all looks like.
+ */
+export async function askTalker(
+  ports: SerialPort[], onLog: (line: string) => void = () => {},
+): Promise<Talker> {
+  const { port, cable, hello } = await findTalker(ports, onLog);
+  try {
+    return { version: hello.version, firmware: hello.firmware };
+  } finally {
+    await cable.close().catch(() => {});
+    await port.close().catch(() => {});
+  }
+}
+
+/**
  * The whole of it: find the talker, work out what it is missing, send that.
  *
  * Takes the granted ports rather than fetching them, because the caller is the

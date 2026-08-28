@@ -26,6 +26,8 @@ says what the cleanup will look like when it is proposed.
 | [0013](0013-the-device-preview-moves-to-the-loader-page.md) | The device preview moves to the loader page, and stops being a prediction |
 | [0014](0014-device-fixtures-cover-the-package-too.md) | `device/fixtures/` covers the device package as well as the device interface |
 | [0015](0015-a-schema-change-carries-the-boards-across.md) | A schema change migrates one step per version inside the upgrade transaction, or aborts and changes nothing |
+| [0016](0016-the-browser-half-stops-being-released.md) | The browser half stops being released, and `builder-v*` is retired |
+| [0017](0017-the-loader-page-writes-the-firmware.md) | The loader page writes the firmware, from an image its own deploy carries |
 
 ## The shape
 
