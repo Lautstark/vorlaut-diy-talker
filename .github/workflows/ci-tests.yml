@@ -73,7 +73,6 @@ on:
       - vitest.config.ts
       - playwright.config.ts
       - renovate.json5
-      - .github/renovate-shared.json5
       - .github/workflows/ci-tests.yml
   pull_request:
     paths: *paths

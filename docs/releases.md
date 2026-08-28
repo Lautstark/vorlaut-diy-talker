@@ -184,7 +184,8 @@ twice gets relaxed once, and then the two disagree about what landed.
 
 ### Renovate agrees with all of this
 
-`.github/renovate-shared.json5` extends `:semanticPrefixFixDepsChoreOthers`, so
+The shared preset in `Lautstark/.github`, which `renovate.json5` extends,
+itself extends `:semanticPrefixFixDepsChoreOthers`, so
 a runtime dependency bump arrives as `fix(deps):` and a dev dependency bump as
 `chore(deps):`. That distinction was about which reached the changelog; with no
 changelog it is about which a person skimming `git log` should stop at, and the

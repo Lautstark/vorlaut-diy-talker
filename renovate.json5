@@ -1,16 +1,18 @@
 // Renovate, for this repository.
 //
-// Everything general lives in .github/renovate-shared.json5, which is written
-// to be copied into Lautstark/.github unchanged; that file's header says how.
-// What is left here is the part that is true of this repository and of no
-// other, and that is the whole point of the split.
+// Everything general lives in Lautstark/.github, which is where the preset
+// moved on 2026-08-28. This repository and vorlaut-editor each held a
+// byte-identical copy of it, which is the drift the move removes. What is left
+// here is the part that is true of this repository and of no other, and that
+// is the whole point of the split.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
 
   // The .json5 is spelled out on purpose: the //path/to/file syntax implies
   // a .json extension, so omitting it looks for a file that is not there
-  // and Renovate stops before it does anything.
-  extends: ["local>Lautstark/vorlaut-diy-talker//.github/renovate-shared.json5"],
+  // and Renovate stops before it does anything. The shorter "owner/repo:name"
+  // form implies it too.
+  extends: ["github>Lautstark/.github//renovate-shared.json5"],
 
   packageRules: [
     // -----------------------------------------------------------------------
