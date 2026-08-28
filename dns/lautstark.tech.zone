@@ -16,35 +16,58 @@ $TTL 3600
 
 
 ; --------------------------------------------------------------------------
-; Mail: there is none, and nothing may claim otherwise
+; Mail: a real mailbox, at STRATO
 ; --------------------------------------------------------------------------
 ;
-; These four go in first, before anything else, and they are the reason not to
-; leave a freshly registered domain sitting empty. A domain with no SPF and no
-; DMARC is a free "From:" address for anyone who wants one, and a domain whose
-; name contains a small charitable-looking project is a more attractive one
-; than most. None of this depends on the website existing.
+; This block said "there is none" until 2026-08-28. There is now: the public
+; address is steffi@lautstark.tech, and it is what the Impressum and the
+; privacy notice of every Lautstark app point at. A null MX next to a
+; published contact address is not the stricter setting - it is a contact
+; address that silently refuses mail, which for an Impressum is a legal
+; problem as much as a practical one.
+;
+; The panel led the file here rather than the other way round: the mailbox was
+; ordered at STRATO and the order set MX and DKIM by itself. Per README, "the
+; panel is right, the file drifted -> fix the file and say why". This is why.
 
-; RFC 7505: this domain accepts no mail, and a sender should stop rather than
-; retry for five days. If the panel refuses "0 ." as a target, see README.
-@                   IN  MX     0 .
+; STRATO's inbound host, as the mailbox order set it. Checked live 2026-08-28.
+@                   IN  MX     5 smtpin.rzone.de.
 
-; No host is authorised to send mail as lautstark.tech. "-all", not "~all":
-; a softfail is an invitation to deliver it to the spam folder instead of
-; refusing it.
-@                   IN  TXT    "v=spf1 -all"
+; STRATO's outbound ranges, by include rather than by copying addresses that
+; are STRATO's to change. "-all" and not "~all": a softfail asks the receiver
+; to file the forgery under spam instead of refusing it.
+;
+; NOT IN THE PANEL YET as of 2026-08-28. The mailbox order added MX and DKIM
+; and left the apex TXT empty, so the domain currently sends with no SPF at
+; all and DMARC alignment rests on the DKIM signature alone. verify.py reports
+; this record as missing, and that report is correct until it is typed in.
+@                   IN  TXT    "v=spf1 include:spf.rzone.de -all"
 
-; Reject on failure, and the same for every subdomain (sp=reject), with strict
-; alignment on both. No rua= address: aggregate reports are worth having when
-; you send mail and have something to learn from them, and this domain sends
-; none - a personal address published in a public repository is the larger
-; cost.
-_dmarc              IN  TXT    "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s"
+; Reject on failure. This is what the mailbox order published, and it is
+; matched here rather than quietly tightened, so that verify.py compares
+; against what is actually live.
+;
+; Worth one deliberate panel edit later: adding "sp=reject; adkim=s; aspf=s"
+; extends the rule to every subdomain and demands strict alignment on both.
+; Do it after confirming that a real message from the mailbox passes DMARC -
+; strict alignment on a domain whose SPF is not published yet is a way to
+; reject your own mail.
+_dmarc              IN  TXT    "v=DMARC1;p=reject;"
 
-; An empty p= revokes every DKIM selector. Without this a receiver that finds
-; no key simply concludes it cannot check; with it, the answer is that no key
-; is valid.
-*._domainkey        IN  TXT    "v=DKIM1; p="
+; DKIM is STRATO's to publish and STRATO's to rotate. The live selectors are
+;
+;   strato-dkim-0002._domainkey   RSA
+;   strato-dkim-0003._domainkey   ed25519
+;
+; and they are deliberately not transcribed as records to verify: a routine
+; rotation would then surface here as a failure rather than as normal.
+;
+; The wildcard "v=DKIM1; p=" that used to sit here revoked every selector, and
+; was correct while the domain sent nothing. It is gone. It was not in fact
+; breaking the mailbox - a wildcard does not shadow a name that exists, and
+; both selectors above are published explicitly - but a revoke-everything
+; record next to a signing mailbox is a trap laid for the first rotation that
+; lands on a selector nobody published by hand.
 
 
 ; --------------------------------------------------------------------------

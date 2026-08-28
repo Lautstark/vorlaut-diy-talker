@@ -38,46 +38,55 @@ If that stops being an acceptable trade, the escape hatch is to
 [delegate the zone](#if-typing-it-in-becomes-a-burden) to a host that has an
 API, keeping the domain registered where it is.
 
-## Before anything: the domain is not delegated yet
+## The domain is delegated, and there is a mailbox
 
-As of **2026-08-24**, `lautstark.tech` does not resolve, has no NS records, and
-`whois` at the `.tech` registry reports it as available. A freshly bought
-domain can lag its registry entry by a few hours, so this is most likely just
-that — but until it clears, **nothing typed into any panel can take effect.**
+Settled since this was first written. As of **2026-08-28** `lautstark.tech`
+resolves, and its nameservers are STRATO's:
 
-`verify.py` checks this first and says so in one line, rather than reporting
-every record as broken for the same single reason:
-
-```bash
-python3 dns/verify.py
+```
+shades20.rzone.de.
+docks02.rzone.de.
 ```
 
-> `lautstark.tech has no NS records: the domain is not in the registry yet, or
-> is registered and not delegated.`
+A mailbox has been ordered on it, and **`steffi@lautstark.tech` is the public
+address of the project** — the one in the Impressum and the privacy notice of
+every Lautstark app. That is a change of purpose for this zone, not just a
+change of records: it was written for a domain that would never send or
+receive mail, and the mail block has been rewritten accordingly.
 
-When that line goes away and a set of nameservers appears instead, check that
-they are STRATO's. If the domain was bought at STRATO they will be, and they
-look like `ns-strato.ui-dns.com` / `.de` / `.org` / `.biz`, or on older
-accounts `docks01.rzone.de` and friends. If they are somebody else's, the
-panel you are typing into is not the one serving the zone, and the records
-will appear to do nothing.
+Ordering the mailbox set two things in the panel by itself — the `MX`, and
+STRATO's DKIM selectors — and removed the null MX and the `v=spf1 -all` that
+were there before. **One record still has to be typed in by hand:** the SPF
+above is in the file and not in the panel, so the domain currently sends with
+no SPF at all. See *Applying it* below; `verify.py` reports it as missing
+until it is there.
 
 ## Applying it
 
 1. Log in at <https://www.strato.de/apps/CustomerService>.
 2. **Domains** → `lautstark.tech` → **DNS-Einstellungen** (DNS settings).
-3. Type in the records from the **mail block** of the zone file — the four at
-   the top. Not the Pages block; see below.
+3. Add the **SPF record**, which is the one thing in the mail block that is not
+   live yet. Record type TXT, name `@` (or blank, depending on the form),
+   value — without the quotes:
+   ```
+   v=spf1 include:spf.rzone.de -all
+   ```
 4. Save, wait for the TTL, and run `python3 dns/verify.py`.
 
-Notes on the four mail records, because STRATO's form is not a zone file:
+That is the whole of the outstanding work. The rest of the mail block is
+already live because the mailbox order put it there, and is written down so
+that a later change to the panel shows up as a diff rather than as a surprise:
 
-| In the file | In the panel |
-|---|---|
-| `@ IN MX 0 .` | Record type MX, priority `0`, target `.` |
-| `@ IN TXT "v=spf1 -all"` | Record type TXT (sometimes labelled SPF), value without the quotes |
-| `_dmarc IN TXT "…"` | Record type TXT, name `_dmarc`, value without the quotes |
-| `*._domainkey IN TXT "v=DKIM1; p="` | Record type TXT, name `*._domainkey` |
+| In the file | In the panel | State |
+|---|---|---|
+| `@ IN MX 5 smtpin.rzone.de.` | Record type MX, priority `5`, target `smtpin.rzone.de.` | live, set by the mailbox order |
+| `@ IN TXT "v=spf1 include:spf.rzone.de -all"` | Record type TXT (sometimes labelled SPF), value without the quotes | **not live — step 3** |
+| `_dmarc IN TXT "v=DMARC1;p=reject;"` | Record type TXT, name `_dmarc`, value without the quotes | live, set by the mailbox order |
+| `strato-dkim-000N._domainkey` | STRATO's, not transcribed | live, rotates without notice |
+
+Do not add the SPF as a record type literally called "SPF" if the form offers
+both — the standalone SPF type is deprecated and receivers do not read it. It
+is a TXT record.
 
 **If the panel refuses a record**, the two likely candidates are the null MX
 (some panels will not accept `.` as a mail target) and CAA (not every panel
@@ -154,14 +163,22 @@ whoever is authoritative and writing our own would be writing down a guess.
 This is worth doing the first time a record has to change under time pressure.
 It is not worth doing for eight records that are set once and then left alone.
 
-## Why a domain with no website still gets mail records first
+## Why the mail records still come first
 
-The four records in the mail block do not depend on the website existing, and
-they are the reason not to leave a newly registered domain empty. A domain with
-no SPF and no DMARC is a usable `From:` address for anybody who wants one, and
-this one names a project about disabled children — which makes it a more useful
-address to a certain kind of sender than most.
+They did when there was no mail, and they do now that there is — for the same
+reason, which is that a domain naming a project about disabled children is a
+more attractive `From:` address to a certain kind of sender than most.
 
-`MX 0 .` says no mail is accepted, `v=spf1 -all` says no host may send as this
-domain, `p=reject` says what to do when one tries, and the empty DKIM key says
-no signature is valid. None of that needs a site to point at.
+What changed is only which records say so. The old set refused everything:
+`MX 0 .` accepted no mail, `v=spf1 -all` authorised no sender, and an empty
+DKIM key made every signature invalid. That is the right posture for a domain
+that will never send, and the wrong one the moment an Impressum points at an
+address on it — a legally required contact that bounces is worse than no
+domain at all.
+
+The replacement is narrower rather than weaker: STRATO's hosts may send, by
+`include:`, and nobody else may. `p=reject` still says what to do when someone
+tries. The one gap is that the SPF record is not in the panel yet, so today
+the answer to "may this host send as lautstark.tech?" is *no policy at all*
+rather than *no*. That is the weakest this domain has ever been against
+forgery, and it closes with one TXT record — see *Applying it*.
