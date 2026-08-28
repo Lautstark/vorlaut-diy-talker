@@ -55,10 +55,14 @@ nothing here has to be done for it. What is below is for the case where
 that is not available: a file area written straight from a computer.
 
 **A device flashed from a release comes up empty**, showing *no content* on
-all five displays, and that is correct rather than a fault. Releases used to
+all five displays, and that is correct rather than a fault. The image used to
 carry four example sentences so the very first flash could be checked on its
-own; that went with the Python build, and the reasoning is in the release notes
-of any tag from v0.2 on. What an empty first flash still shows is most of it —
+own — `build.py` rendered them into the file area — and that went with the
+Python build: the build runs in a browser now, and a workflow cannot press a
+button in one. This sentence used to send readers to "the release notes of any
+tag from v0.2 on", which was a place that has never existed: `v0.4` is the
+first firmware release this repository has published, and the numbers below it
+were never cut here. What an empty first flash still shows is most of it —
 the displays, the partition scheme and the file system, the last of these
 through **Info** in the menu.
 

@@ -312,9 +312,9 @@ Only now. The procedure is in [firmware.md](firmware.md).
 
 **Flashed from a release the device comes up empty**, with *no content* on
 all five displays. That is correct: the image is the program and nothing else,
-and it formats its own file area on the first start. Releases used to carry
+and it formats its own file area on the first start. The image used to carry
 four example sentences, which made this stage a check of everything at once;
-they went with the Python build. So the sound and the keys are checked here by
+they went with the Python build that rendered them. So the sound and the keys are checked here by
 sending a board of your own — which is stage 6, and is why it comes first.
 
 Your own content comes afterwards, and it is two steps across two pages: in the
