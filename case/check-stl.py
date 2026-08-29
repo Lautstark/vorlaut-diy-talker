@@ -177,7 +177,8 @@ def main():
         # Which wall, and where up it, both follow from how the board is
         # mounted. Standing, the socket is on a short edge at the -x wall and
         # halfway up the board; flat, it is on the +x wall above the plate.
-        yc = (G('feather_y') + G('feather_pcb_d') / 2 if G('feather_standing')
+        yc = (G('feather_y') + G('feather_pcb_d') / 2 + G('usb_y_shift')
+              if G('feather_standing')
               else G('feather_y') + G('feather_b') / 2)
         # The USB window is in the +x wall - the wall the speaker and the set
         # key are nearest, so the child's left.
@@ -249,11 +250,20 @@ def main():
         # plate below it: the cutout starts at chamber_y - carrier_chamber_gap
         # and the pad reaches sk_pad_d / 2 past the screw, so 2.2 mm up from
         # the screw is inside both.
+        # ... but only while they DO reach into it. Tighten
+        # carrier_chamber_gap enough and the cutout's edge moves past them,
+        # no tab is kept, and this probe would be testing plain plate. The
+        # assert below used to be the guard against that; now it is the
+        # condition for probing at all.
         t = (G('set_mx') - G('sk_hole_dx'), G('set_my') + G('sk_hole_dy'))
         cut_y = G('chamber_y') - G('carrier_chamber_gap')
-        assert t[1] + 2.2 > cut_y, 'the tab probe fell below the cutout'
-        L.probe(c, 'tab under the set key screw', (t[0] + 0.53, t[1] + 2.2,
-                                                   z_plate), True)
+        if t[1] + G('sk_pad_d') / 2 <= cut_y:
+            print('  --   no tab under the set key screw: the cutout edge at '
+                  '%.2f is already past it' % cut_y)
+        else:
+            assert t[1] + 2.2 > cut_y, 'the tab probe fell below the cutout'
+            L.probe(c, 'tab under the set key screw',
+                    (t[0] + 0.53, t[1] + 2.2, z_plate), True)
         # ... and this is the one that would have caught the first build. The
         # horizontal chamber wall sits between chamber_y and chamber_y +
         # chamber_wall. The carrier used to have material right there and

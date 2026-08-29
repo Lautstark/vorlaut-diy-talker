@@ -373,7 +373,9 @@ Three things fall out of it:
   — where the socket is — faces the −x wall, which from the front is the
   child's right. The window turns with it: 10.4 mm tall and 4.6 wide instead of
   the other way round, and low enough (z 13.8) to sit in the thicker wall of
-  the board plane rather than above the carrier ledge.
+  the board plane rather than above the carrier ledge. `usb_y_shift` then moves
+  it 5.00 mm further up that wall — measured on the printed case rather than
+  derived.
 - **One lid screw moves.** The −x top boss would sit in the bay, so it drops
   down the same wall to just below it, and that corner of the lid is held by
   its neighbours.
@@ -393,7 +395,31 @@ bracket-wall below it — cut the bay down to the bracket and the bracket hangs
 off a 1.7 mm tab at one corner, which is neither strong nor 2-manifold. The
 strip of plate below the bay is what it hangs from.
 
-**`feather_br_clip` is 8.00 mm and it is the open question.** The clip has to
+### What the first build changed
+
+Three things came back from the printed parts:
+
+- **The mid plate reaches 2 mm further toward the speaker.**
+  `carrier_chamber_gap` goes 2.80 → 0.80. That is the cutout's edge, so no hole
+  moves — and 0.80 is still four times the 0.20 that made the very first plate
+  run into the chamber wall. A side effect worth knowing: at 0.80 the cutout's
+  edge is already past the set key's upper screws, so the tabs that used to be
+  kept under them are no longer cut or needed.
+- **The USB window moved 5 mm up the wall** — `usb_y_shift`.
+- **The bracket's slot went from 2.00 to 5.00 mm**, below.
+
+**The slot is 5.00 mm, not the board plus a little.** That was the first build's
+mistake and a plain one: the header pin tails stick out of one face of the
+board, and the bracket's long wall is on exactly that face. At 2.00 — board 1.60
+plus 0.40 — the Feather would not go in at all. 5.00 leaves 3.40 mm for the
+tails.
+
+**Widening it loosens where the board sits, and the socket goes with it.** In a
+5.00 mm slot the board can lie anywhere across 3.40 mm. `usb_y_shift` was
+measured against the old 2.00 mm slot — the one nothing fitted into — so that
+5 mm is owed a re-measurement on the first case a Feather actually goes into.
+
+**`feather_br_clip` is 8.00 mm and it is still the open question.** The clip has to
 miss the Feather's header rows, and where those start along the board is the
 one figure here taken from a drawing rather than from the board itself.
 Dry-fit before printing.

@@ -278,6 +278,12 @@ a flat face just as well, and they are now optional rather than structural.
 Both decisions, and everything else needed to print and assemble the three
 parts, are in [case/building.md](../case/building.md).
 
+Corrections from the first printed set, August 2026: the mid plate reaches 2 mm
+further toward the speaker, the USB-C window sits 5 mm further up its wall, and
+the Feather's bracket slot went from 2.0 to 5.0 mm — the header pin tails stick
+out of the very face the bracket's wall is on, and at 2.0 the board would not go
+in at all.
+
 Still to check on the modules: whether the spacer thread is **M2** as assumed
 (`sk_screw_d` and `sk_csink_d` both follow it), and how far into the spacer the
 screw should go (`sk_screw_engage`, assumed 4 of the 8 mm).
