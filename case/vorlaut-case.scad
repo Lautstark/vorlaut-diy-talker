@@ -443,7 +443,11 @@ sk_screw_l   = carrier_d + sk_screw_engage;   // [G] 6.40 -> M2x6
    chamber_y + chamber_wall + 0.2, which is 0.2 mm past the FAR side of that
    wall, so the plate ran through 2 mm of solid wall and the carrier would not
    go in. Measured on the first build; this is the number that fixes it.   */
-carrier_chamber_gap = 2.80;  // [M] air below the horizontal chamber wall
+// 2.80 was generous - the first build showed 2 mm of it doing nothing, and the
+// amplifier's end of the plate wanted the material. 0.80 is still four times
+// the 0.20 that made the plate run into the wall in the very first print.
+// Nothing else moves: this is the cutout's edge, not a hole.
+carrier_chamber_gap = 0.80;  // [M] air below the horizontal chamber wall
 carrier_chamber_x   = 0.80;  // [K] air beside the vertical chamber wall
 
 /* --- Speaker chamber --- */
@@ -494,7 +498,11 @@ battery_y    =   2.50;  // [K]
 feather_br_wall = 1.60;  // [K] each wall of the channel, 4 passes
 feather_br_l    = 19.00;  // [A] how far down it grips - MEASURE against a
                           //     board, it only sets the plate's build height
-feather_br_slot = feather_pcb_d + 0.40;   // [G] 2.00, the board plus a little
+// Not the board plus a little. The header pin tails stick out of one face of
+// it, and the long wall of the bracket is on exactly that face - so the slot
+// has to swallow board and tails together. 2.00 was measured too tight on the
+// first build: the Feather would not go in at all.
+feather_br_slot = 5.00;   // [M] Stefanie, on the printed part
 // Lowest point of the carrier, and so where it meets the print bed. With the
 // bracket hanging under it, that is no longer the plate's underside.
 carrier_z_low = feather_standing ? carrier_z_bottom - feather_br_l
@@ -939,7 +947,11 @@ pole_tabs = [ for (q = sk_pole_pos)
                 if (q[0] + sk_pad_r > carrier_cut_x && q[1] + sk_pad_r > carrier_cut_y)
                   q[1] + sk_pad_r ];
 tab_top = len(pole_tabs) > 0 ? max(pole_tabs) : carrier_cut_y;
-assert(tab_top <= chamber_y - 1.0,
+// Only meaningful when there ARE tabs. With a tight carrier_chamber_gap the
+// cutout's own edge is already past the set key's screws and none are kept -
+// and then this was measuring the edge, which carrier_chamber_gap governs and
+// its own check covers. The floor is the same 0.4 the cutout gets.
+assert(len(pole_tabs) == 0 || tab_top <= chamber_y - 0.4,
   str("A tab under a ScreenKey screw reaches to y = ", tab_top,
       " and the chamber wall starts at ", chamber_y,
       ". That is the collision the carrier was rebuilt to get rid of - the ",
@@ -1007,6 +1019,16 @@ assert(len(poles_off_plate) == 0,
 // It gets that notch for free: the Feather's own cutout reaches the plate edge.
 // Standing, the socket sits on a short edge and therefore halfway up the
 // board; lying flat, it sits just above the board's top face.
+// Measured on the printed case: the socket comes out this much further up the
+// wall than the model put it. "Up" being toward the top of the face - the end
+// the Feather's bay is at, and the end the window is nearest already.
+//
+// Whether all 5.00 survives the next print is worth knowing: it was measured
+// against a bracket slot of 2.00 mm, which is the slot the Feather would not
+// go into at all. That slot is 5.00 now, and where the board can sit inside it
+// moves the socket with it. Re-measure once one actually fits.
+usb_y_shift = 5.00;  // [M] Stefanie, on the printed case
+
 usb_z    = feather_standing
          ? feather_z_bottom + feather_b/2
          : feather_z_bottom + feather_pcb_d + usb_centre_above_pcb;
@@ -1449,7 +1471,7 @@ module usb_window() {
   fb = usb_socket_b + 1.4;
   fh = usb_win_h;
   if (feather_standing) {
-    yc = feather_y + feather_pcb_d/2;
+    yc = feather_y + feather_pcb_d/2 + usb_y_shift;
     translate([-inner_margin - wall - 2, yc, usb_z]) rotate([0,90,0])
       linear_extrude(wall + standoff + 4) rrect(fb, fh, 1.0);
     translate([-inner_margin - standoff - 1.4, yc, usb_z]) rotate([0,90,0])
