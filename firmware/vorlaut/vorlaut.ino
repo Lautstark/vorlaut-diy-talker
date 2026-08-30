@@ -110,6 +110,33 @@ static const uint32_t MENU_IDLE_MS = 30000;
 // what a recording is, rather than as a literal here.
 static const uint32_t SAMPLE_RATE = WAV_SAMPLE_RATE;
 static const size_t AUDIO_CHUNK = 1024;
+
+// How loud, as a percentage of what is in the file.
+//
+// The only volume control this device has, and it is here rather than on the
+// amplifier because there is nowhere else for it: the MAX98357A's GAIN pin is
+// strapped on the board, not wired to a GPIO, so nothing in software can move
+// it. What is left is the samples themselves, scaled on their way past in
+// playWav() - which costs one multiply per sample at 16 kHz and is not
+// measurable beside a read from LittleFS.
+//
+// 50 is half the amplitude, about 6 dB down, and it is a first answer to a
+// finished device being too loud in a room rather than a measured figure. The
+// number to change is this one, and 100 is exactly what the device did before
+// - the scaling is written so that 100 leaves every sample as it was.
+//
+// It is deliberately not settable from a layout. That would put a volume in
+// layout.bin, which means a field in the format, a control in the editor and
+// a version of the device interface - for a value that is set once when a
+// talker is built and then never touched. The cheap version of "a bit
+// quieter" is a build property, the same way FORCE_SLEEP_S is:
+//
+//   arduino-cli compile --build-property \
+//     "compiler.cpp.extra_flags=-DAUDIO_VOLUME_PERCENT=35" ...
+#ifndef AUDIO_VOLUME_PERCENT
+#define AUDIO_VOLUME_PERCENT 50
+#endif
+static const int32_t AUDIO_VOLUME = AUDIO_VOLUME_PERCENT;
 // Chunks of silence pushed after a word, before the amplifier is switched
 // off. 1024 bytes is 512 samples, so at 16 kHz each of these is 32 ms.
 static const uint8_t AUDIO_TAIL_CHUNKS = 3;
@@ -572,9 +599,15 @@ static void playWav(const char *path) {
   // than a fragment she cannot make out.
   // How loud this word actually is, measured on the way past. Nothing in the
   // browser normalises any more - that went with the Python - so one word can
-  // be a fraction of another and there is no volume control to make up for
-  // it. A word that is merely quiet and a word that is silent look identical
-  // from the outside, and this is the difference between them.
+  // be a fraction of another, and AUDIO_VOLUME is one number for all of them
+  // rather than something that could even that out. A word that is merely
+  // quiet and a word that is silent look identical from the outside, and this
+  // is the difference between them.
+  //
+  // Measured before the scaling, so it stays a fact about the file. What
+  // reaches the amplifier is this times AUDIO_VOLUME percent, and a peak that
+  // moved every time somebody turned the volume down would answer a different
+  // question from the one it was put here for.
   int16_t peak = 0;
   const uint32_t sampleBytes = remaining;
   const uint32_t began = millis();
@@ -584,10 +617,23 @@ static void playWav(const char *path) {
     size_t got = file.read(chunk, want);
     if (got == 0) break;
     for (size_t i = 0; i + 1 < got; i += 2) {
-      int16_t sample = (int16_t)((uint16_t)chunk[i] | ((uint16_t)chunk[i + 1] << 8));
-      if (sample == INT16_MIN) sample = INT16_MAX;
-      if (sample < 0) sample = (int16_t)-sample;
-      if (sample > peak) peak = sample;
+      const int16_t sample =
+          (int16_t)((uint16_t)chunk[i] | ((uint16_t)chunk[i + 1] << 8));
+      // INT16_MIN has no positive counterpart, so its size is taken as the
+      // largest one that has. Only the measurement needs this; the sample
+      // itself is scaled below and keeps its sign.
+      int16_t loud = sample == INT16_MIN ? INT16_MAX : sample;
+      if (loud < 0) loud = (int16_t)-loud;
+      if (loud > peak) peak = loud;
+
+      // And the volume, written back into the buffer that is about to be
+      // handed to I2S. In 32 bits because 32767 * 100 does not fit in 16, and
+      // rounded towards zero, which at this size is inaudible and is what
+      // keeps AUDIO_VOLUME_PERCENT of 100 an exact no-op.
+      const int16_t quieter =
+          (int16_t)(((int32_t)sample * AUDIO_VOLUME) / 100);
+      chunk[i] = (uint8_t)((uint16_t)quieter & 0xff);
+      chunk[i + 1] = (uint8_t)(((uint16_t)quieter >> 8) & 0xff);
     }
     i2s.write(chunk, got);
     remaining -= got;
