@@ -8,22 +8,36 @@
 // nothing checks. So this module is the shape of the conversation - a port, an
 // image, progress, and what a failure is called - and none of its bytes.
 //
-// ## Why this does not reset the board
+// ## Getting into the bootloader, and back out again
 //
-// cable.ts refuses to drive DTR and RTS in sequence, deliberately, because
-// that pattern is esptool's way into the bootloader and doing it by accident
-// takes a working talker off the wire mid-session. Here it would be on
-// purpose, and it is still not done, for a reason that outlives the taste
-// argument: the Feather's USB is the S3's own - `USB CDC On Boot` - so a board
-// that enters the ROM bootloader **re-enumerates as a different USB device**.
-// The port this page is holding stops existing at that moment, and Chrome will
-// not hand over the new one without a fresh grant from a fresh gesture, which
-// a press that is already running cannot spend.
+// Both ends of this were written as instructions to a person and both were
+// wrong, in the same way: they assumed a bare Feather on a bench. In an
+// assembled talker **BOOT and RESET are inside the case**, and the first
+// person to try this could not reach either. adr/0017's "Not to be fixed
+// later" argued against driving the reset from the page; what it was arguing
+// against was doing it for convenience, and what the case establishes is that
+// the manual route does not exist at all. So:
 //
-// So the person puts the board into download mode themselves - BOOT held,
-// RESET tapped - and then picks the port that appeared. What arrives here is
-// already a chip waiting to be written, which is why the connect below asks
-// for no reset at all.
+// **In.** intoWriteMode() opens the running talker's port at 1200 baud and
+// closes it again. The Arduino core's USB stack watches for exactly that -
+// line coding of 1200 with DTR dropped - and restarts into the ROM. It is the
+// same touch the Arduino IDE uses, and it needs no pins.
+//
+// **Out.** Not a hard reset. `after("hard_reset")` toggles DTR and RTS, and on
+// this board that does nothing at all: the S3 talks to the host through its
+// own USB-Serial/JTAG, where those lines are a fiction. Measured on the bench
+// on 2026-08-30 - esptool's own hard reset left the chip in the bootloader,
+// and so did unplugging the cable, because the talker has a battery in it and
+// never lost power. What does work is the RTC watchdog, which is a handful of
+// register writes over the same protocol that just wrote the flash. esptool
+// spells them out in targets/esp32s3.py; they are copied below with the
+// addresses beside them.
+//
+// The port changes identity across both of these - Adafruit 239a:8113 while
+// the firmware runs, Espressif 303a:1001 in the ROM - so Chrome hands back a
+// different SerialPort and a second grant is unavoidable. Two presses is the
+// floor here, and the second one is a picker rather than a pair of buttons
+// nobody can reach.
 import { ESPLoader, Transport } from "esptool-js";
 import { Trouble, reason } from "./errors.js";
 import type { Carried, Piece } from "./firmware.js";
@@ -38,6 +52,41 @@ export type Flashing = {
   onLog?: (line: string) => void;
   onStep?: (written: number, total: number) => void;
 };
+
+/** The 1200-baud touch: the way in.
+ *
+ * Nothing is written and nothing is read - the open and the close *are* the
+ * signal. A device that has already restarted, or a port somebody unplugged
+ * between one press and the next, throws here and the caller carries on: the
+ * point of the call is a chip in the bootloader, and one that is there already
+ * needs nothing done to it.
+ */
+export async function intoWriteMode(port: SerialPort): Promise<void> {
+  await port.open({ baudRate: 1200 });
+  // Long enough for the core to see the line coding before DTR drops with the
+  // close. The Arduino IDE waits about this long for the same reason.
+  await new Promise((wait) => setTimeout(wait, 200));
+  await port.close();
+}
+
+/** How long the ROM takes to come up as a USB device of its own.
+ *
+ * Measured at rather under a second on macOS; this is that with room over it.
+ * It is spent inside the press that started the write, and Chrome allows about
+ * five seconds of transient activation, so the port picker that follows still
+ * opens. */
+export const WRITE_MODE_MS = 1600;
+
+// The RTC watchdog, which is how a device that talks over USB-Serial/JTAG is
+// made to restart. Straight out of esptool's targets/esp32s3.py - the same
+// four writes in the same order, and the same 0x50d83aa1 key that unlocks the
+// register and the 0 that locks it again.
+const RTC_WDT_CONFIG0 = 0x60008098;
+const RTC_WDT_CONFIG1 = 0x6000809c;
+const RTC_WDT_WPROTECT = 0x600080b0;
+const RTC_WDT_WKEY = 0x50d83aa1;
+// enable | stage 0 resets the system | length | reset the whole chip
+const RTC_WDT_ENABLE = ((1 << 31) | (5 << 28) | (1 << 8) | 2) >>> 0;
 
 /** The baud the ROM is talked to at.
  *
@@ -123,11 +172,23 @@ export async function writeFirmware(
       throw new Trouble("flash_write_failed");
     }
 
-    // And out of the bootloader, so the talker comes back as a talker. If the
-    // reset does not take - the same native-USB story as everywhere else in
-    // this file - the device is written and a press of RESET finishes it,
-    // which is what the page says next.
-    await loader.after("hard_reset").catch(() => {});
+    // And out of the bootloader, so the talker comes back as a talker. See the
+    // head of this file: on this board the ordinary hard reset is a no-op and
+    // the watchdog is what runs, so this is not a preference between two ways
+    // of doing the same thing - it is the only one that works. It is still
+    // wrapped, because a device that has already restarted is a success rather
+    // than a failure, and the alternative to a reset here is somebody with a
+    // sealed case and a talker that will not come back.
+    try {
+      await loader.writeReg(RTC_WDT_WPROTECT, RTC_WDT_WKEY);
+      await loader.writeReg(RTC_WDT_CONFIG1, 2000);
+      await loader.writeReg(RTC_WDT_CONFIG0, RTC_WDT_ENABLE);
+      await loader.writeReg(RTC_WDT_WPROTECT, 0);
+    } catch {
+      // Whatever is left to try. On a board with real DTR and RTS lines this
+      // is the one that works, so it is a fallback rather than a formality.
+      await loader.after("hard_reset").catch(() => {});
+    }
   } finally {
     await transport.disconnect().catch(() => {});
     await port.close().catch(() => {});

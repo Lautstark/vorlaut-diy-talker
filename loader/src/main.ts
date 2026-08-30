@@ -60,7 +60,7 @@ import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js
 import {
   type Carried, carriedFirmware, firmwareBytes, firmwareVerdict,
 } from "./firmware.js";
-import { writeFirmware } from "./flash.js";
+import { intoWriteMode, WRITE_MODE_MS, writeFirmware } from "./flash.js";
 import { LANGUAGE_CODES } from "./layout_format.js";
 import { chooseBuildFolder, folderExportSupported, writeBuildTo } from "./folder.js";
 import { previewBoards } from "./preview.js";
@@ -919,7 +919,7 @@ let carried: Carried | null = null;
  *  Kept because the offer under it depends on it and because a press that
  *  writes must not have to ask again - the port it would ask on is about to
  *  stop existing. */
-let deviceSays: Talker | null = null;
+let deviceSays: (Talker & { port: SerialPort }) | null = null;
 
 /** True once a probe has run and found nothing. Told apart from "not asked"
  *  because the two lead to opposite offers: a device that has not been asked
@@ -971,9 +971,13 @@ function firmwareSection(): string[] {
     firmware.row(firmware.button(t("flash.check"), () => void probe()));
     return said;
   }
-  say(verdict === "device_older"
-    ? t("flash.older", { release: carried.release })
-    : t("flash.unorderable", { device: word, release: carried.release }));
+  say(verdict === "device_older" ? t("flash.older", { release: carried.release })
+      : word ? t("flash.unorderable", { device: word, release: carried.release })
+      // A device that said nothing has no word to put in that sentence, and
+      // filling the blank with an empty string produced one starting "and
+      // v0.5 cannot be compared" on a real screen. Two sentences rather than
+      // one with a hole in it.
+      : t("flash.unnamed_unorderable", { release: carried.release }));
   offerWrite("program");
   return said;
 }
@@ -1018,7 +1022,12 @@ async function probe(button?: HTMLButtonElement): Promise<void> {
 function offerWrite(which: "whole" | "program"): void {
   firmware.say(t(which === "whole" ? "flash.whole_warning"
                                    : "flash.program_warning"));
-  firmware.say(t("flash.download_mode"));
+  /* Which sentence depends on whether there is a talker to reboot. One that
+     answered can be put into write mode from here; one that answered nothing
+     cannot be told anything at all, and then the buttons on the board are the
+     only way in - which somebody with an assembled talker cannot reach, and
+     the sentence says that too rather than sending them to look for them. */
+  firmware.say(t(deviceSays ? "flash.write_mode_here" : "flash.download_mode"));
   const go = firmware.button(t("flash.choose_and_write"),
                              () => void write(which, go), "btn primary");
   firmware.row(go, firmware.button(t("flash.check"), () => void probe()));
@@ -1027,7 +1036,22 @@ function offerWrite(which: "whole" | "program"): void {
 async function write(which: "whole" | "program",
                      go: HTMLButtonElement): Promise<void> {
   go.disabled = true;
-  /* The picker first, from this click and before the fetch: transient
+  /* Into the bootloader first, and from here rather than from somebody's
+     fingers: BOOT and RESET are inside the case of an assembled talker. Only
+     possible when a talker answered - that is the port it answered on - and
+     failures are ignored, because a device that has already restarted is
+     exactly where this was trying to put it.
+
+     It costs under two seconds, which matters: what follows is the port
+     picker, and a picker needs the activation from the press that is still
+     running. Chrome allows about five. */
+  if (deviceSays) {
+    go.textContent = t("flash.switching");
+    await intoWriteMode(deviceSays.port).catch(() => {});
+    await new Promise((wait) => setTimeout(wait, WRITE_MODE_MS));
+    go.textContent = t("flash.choose_and_write");
+  }
+  /* And the picker from that same click, before the fetch: transient
      activation is spent by the time an image has been downloaded, which is the
      lesson release.ts learned twice and cable.ts's header records. */
   const port = await askForDevice();

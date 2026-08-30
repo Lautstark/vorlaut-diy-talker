@@ -224,10 +224,14 @@ export async function findTalker(
  */
 export async function askTalker(
   ports: SerialPort[], onLog: (line: string) => void = () => {},
-): Promise<Talker> {
+): Promise<Talker & { port: SerialPort }> {
   const { port, cable, hello } = await findTalker(ports, onLog);
   try {
-    return { version: hello.version, firmware: hello.firmware };
+    // The port comes back with the answer, and that is not bookkeeping: it is
+    // the one port on this machine known to have a talker on it, and the
+    // firmware section needs it later to reboot that talker into its
+    // bootloader without anybody opening the case. See flash.ts.
+    return { version: hello.version, firmware: hello.firmware, port };
   } finally {
     await cable.close().catch(() => {});
     await port.close().catch(() => {});

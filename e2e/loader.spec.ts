@@ -612,7 +612,11 @@ test("the firmware section names both builds and offers the program",
   /* The program alone, so the content stays - and the instruction, because
      the port the browser is about to ask for is not the one it is holding. */
   await expect(firmwareSection(page)).toContainText(SPEAKS["flash.program_warning"]);
-  await expect(firmwareSection(page)).toContainText(SPEAKS["flash.download_mode"]);
+  /* And the sentence about how it gets into write mode is the one for a
+     talker that answered: the page reboots it itself, because BOOT and RESET
+     are inside the case of an assembled device. The other sentence - press the
+     buttons - belongs to the transcript below, where nothing answered. */
+  await expect(firmwareSection(page)).toContainText(SPEAKS["flash.write_mode_here"]);
   await expect(firmwareSection(page).getByRole("button", {
     name: SPEAKS["flash.choose_and_write"], exact: true,
   })).toBeVisible();
@@ -667,6 +671,7 @@ test("a port that answers nothing is offered a first flash", async ({ page }) =>
   await expect(firmwareSection(page))
     .toContainText(opening("flash.nothing_answered"), { timeout: 60_000 });
   await expect(firmwareSection(page)).toContainText(SPEAKS["flash.whole_warning"]);
+  await expect(firmwareSection(page)).toContainText(opening("flash.download_mode"));
 });
 
 /* ------------------------------------------------------------ the folder --- */
