@@ -59,9 +59,11 @@ own deploy.**
   bootloader, partition table, OTA selector, program. A talker that answered
   with an older tag gets the program alone at `0x10000`, which leaves its
   content where it is.
-- **The person puts the board into download mode themselves.** Hold **BOOT**,
-  tap **RESET**, release **BOOT**, then choose the port again. The page says so
-  at the moment it matters and does not pretend to do it for them.
+- **The page puts the board into download mode itself**, by opening the
+  running talker's port at 1200 baud and closing it — the touch the Arduino
+  IDE uses — and brings it back out with an RTC-watchdog reset. The person
+  still chooses the port a second time, because the bootloader is a different
+  USB device. **Amended 2026-08-30; see the section below.**
 - **Nothing is ordered that is not a tag.** `dev` — what every build that
   `release.yml` did not compile calls itself — and a device that says nothing
   at all are both answered with a sentence, never with "out of date".
@@ -96,7 +98,31 @@ and the guard makes it safe: if the assumption about the tail ever stops
 holding, the deploy fails loudly instead of publishing an image that boots
 black.
 
-**The manual download-mode step is the honest half of this decision.** The
+**Amendment, 2026-08-30: the manual step was written for a device that does
+not exist.** What stood here said the person holds BOOT, taps RESET and picks
+the port, and that the two presses were the better trade. The first person to
+use it had an assembled talker in front of them and could reach neither button:
+**BOOT and RESET are inside the case.** Every bare Feather this was reasoned
+about is a stage in `bring-up.md`, and the thing this page is for is the device
+after that.
+
+So the reset moves into the page, and the argument below survives with its
+conclusion inverted — the re-enumeration is real, the second grant is
+unavoidable, and what changes is only who does the resetting. Two facts came
+off the bench that evening and both are in `flash.ts`:
+
+- **`after("hard_reset")` does nothing on this board.** It toggles DTR and
+  RTS, and the S3 reaches the host through its own USB-Serial/JTAG where those
+  lines are a fiction. esptool's own hard reset left the chip in the
+  bootloader; so did unplugging the cable, because a talker has a battery in it
+  and never lost power. The RTC watchdog is what works, and it is four register
+  writes over the protocol that just wrote the flash.
+- **A device that answers nothing cannot be rebooted by the page**, because
+  there is nothing to open a port on. That case keeps the old sentence, now
+  saying what it means: the buttons are on the board, and on a closed talker
+  the way in is to switch it over before the case goes on.
+
+**The re-enumeration is the honest half of this decision.** The
 Feather's USB is native — `USB CDC On Boot`, the S3's own USB rather than a
 serial chip — so entering the ROM bootloader re-enumerates the device as a
 *different* USB device. The `SerialPort` the page is holding dies at that
@@ -137,18 +163,22 @@ without a verdict attached.
 
 ## Not to be "fixed" later
 
-**Somebody will make the flash one press**, by driving DTR and RTS the way
-`esptool` does and skipping the BOOT/RESET instruction. It is one call to
-`setSignals()` and it looks like an obvious omission. `loader/src/cable.ts`
-already refuses to drive that pair in sequence, deliberately, because it is
-esptool's way into the bootloader and doing it by accident takes a working
-talker off the wire mid-session. Doing it on purpose is not the problem; what
-follows it is. The device re-enumerates, the granted port is gone, and the
-press that started the flash cannot ask for the new one — transient activation
-expired while the chip was resetting. Whoever tries this will get it working on
-their own machine, where the port comes back fast enough often enough, and will
-ship a first-flash flow that fails for somebody else with a talker that is now
-in download mode and a page that has lost it.
+**Somebody will make the flash one press**, by having the page pick the new
+port itself instead of asking again. It looks like the last piece of
+ceremony left: the page already reboots the board, so why not open what comes
+back? Because what comes back is a *different USB device* — Espressif
+`303a:1001` where the talker was Adafruit `239a:8113` — and Web Serial grants
+are per device. `getPorts()` will not contain it, and `requestPort()` needs a
+gesture that the press which started the reboot has already spent by the time
+the ROM enumerates. The second press is not politeness, it is the only moment
+a browser will hand over the port at all.
+
+What was written here before was the opposite advice — that the *reset* should
+stay manual — and it was wrong for the reason the amendment above gives.
+`loader/src/cable.ts` still refuses to drive DTR and RTS in sequence during a
+transfer, and that rule is untouched: doing it by accident mid-session takes a
+working talker off the wire. Doing it on purpose, once, from the one button
+whose whole job is to reboot the device, is a different act.
 
 **Somebody will point the page at GitHub Releases so it is always newest.** The
 deploy would stop carrying binaries, the artefact would shrink, and a firmware
