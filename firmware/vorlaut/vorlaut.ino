@@ -17,6 +17,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 #include <ESP_I2S.h>
+// Where the volume is kept. The only thing in NVS - see volumeNow below.
+#include <Preferences.h>
 #include <driver/rtc_io.h>
 #include <driver/gpio.h>
 #include <esp_sleep.h>
@@ -120,23 +122,39 @@ static const size_t AUDIO_CHUNK = 1024;
 // playWav() - which costs one multiply per sample at 16 kHz and is not
 // measurable beside a read from LittleFS.
 //
-// 50 is half the amplitude, about 6 dB down, and it is a first answer to a
-// finished device being too loud in a room rather than a measured figure. The
-// number to change is this one, and 100 is exactly what the device did before
-// - the scaling is written so that 100 leaves every sample as it was.
+// 50 is half the amplitude, about 6 dB down. **This is only where a device
+// starts**: the menu has leiser and lauter on it, what they set is kept in
+// NVS, and this is what a device that has never been told anything uses - a
+// fresh flash, or one whose stored setting could not be read. 100 is exactly
+// what the device did before this existed, and the scaling is written so that
+// 100 leaves every sample untouched.
 //
 // It is deliberately not settable from a layout. That would put a volume in
-// layout.bin, which means a field in the format, a control in the editor and
-// a version of the device interface - for a value that is set once when a
-// talker is built and then never touched. The cheap version of "a bit
-// quieter" is a build property, the same way FORCE_SLEEP_S is:
+// layout.bin, which means a field in the format, a control in the editor -
+// which lives in another repository - and a version of the device interface,
+// for something the person holding the talker should be able to change in the
+// room they are in. The menu is where that belongs, and it needs no format at
+// all.
+//
+// The default can still be moved without editing this line, the same way
+// FORCE_SLEEP_S is:
 //
 //   arduino-cli compile --build-property \
 //     "compiler.cpp.extra_flags=-DAUDIO_VOLUME_PERCENT=35" ...
 #ifndef AUDIO_VOLUME_PERCENT
 #define AUDIO_VOLUME_PERCENT 50
 #endif
-static const int32_t AUDIO_VOLUME = AUDIO_VOLUME_PERCENT;
+
+// The range the two menu keys move in, and the step they move by.
+//
+// Ten steps, and the bottom one is not silence. A talker that says nothing is
+// indistinguishable from a broken one - the whole device is five keys that
+// speak - so the quietest setting is still audible in a quiet room, and
+// somebody who wants silence has a device they can put down. 100 is the top
+// because the samples are what they are: there is no headroom above the file.
+static const uint8_t VOLUME_MIN = 10;
+static const uint8_t VOLUME_MAX = 100;
+static const uint8_t VOLUME_STEP = 10;
 // Chunks of silence pushed after a word, before the amplifier is switched
 // off. 1024 bytes is 512 samples, so at 16 kHz each of these is 32 ms.
 static const uint8_t AUDIO_TAIL_CHUNKS = 3;
@@ -212,6 +230,18 @@ static ButtonState button[DISPLAY_COUNT];
 static uint32_t lastActivity = 0;
 static bool filesystemReady = false;
 static bool contentReady = true;
+
+// How loud this device is, right now, as a percentage of the file.
+//
+// In NVS rather than on LittleFS, and that is the whole reason Preferences is
+// back in this sketch after the radio took it away. LittleFS is the browser's
+// half: the cable lists it, diffs it and deletes out of it, and a setting
+// living there would be one more thing to teach that sweep about. NVS is a
+// partition nothing else in this repository touches, it survives a content
+// transfer, and it is wiped by the one thing that should wipe it - the whole
+// image, written at 0, which is what a brand new talker gets.
+static Preferences settings;
+static uint8_t volumeNow = AUDIO_VOLUME_PERCENT;
 
 enum Mode { MODE_NORMAL, MODE_MENU };
 static Mode mode = MODE_NORMAL;
@@ -425,16 +455,25 @@ static void drawMenuKey(Panel *tft, const char *first, const char *second) {
 
 // Only show what actually exists. Entries appear once the function behind
 // them exists - not before.
-// Two live keys out of five, and the three dark ones are not an oversight.
-// Fetching content, setting up Wi-Fi and pairing were keys 1 to 3, and all
-// three went with the radio - content arrives over the cable now, and it needs
-// nothing chosen here. What is left is worth keeping: Info is the only thing
-// on the device that says what it is holding, and Back is the way out.
+//
+// Four live keys out of five now. Fetching content, setting up Wi-Fi and
+// pairing were keys 1 to 3 and went with the radio, which left Info and Back
+// and three dark keys; two of those are the volume, and nothing had to be
+// given up to fit it - the room was already there. Key 2 shows what the
+// setting is, so the pair either side of it are a control somebody can read
+// rather than two keys that do something invisible.
+//
+// The number is on the same screen as the keys that move it on purpose. It
+// was going to be a line on the info page, and that is one press further away
+// from the thing it describes: somebody making a device quieter is listening,
+// not navigating.
 static void drawMenu() {
+  char percent[8];
+  snprintf(percent, sizeof(percent), "%u%%", (unsigned)volumeNow);
   drawMenuKey(display[0], text().info, nullptr);
-  drawMenuKey(display[1], nullptr, nullptr);
-  drawMenuKey(display[2], nullptr, nullptr);
-  drawMenuKey(display[3], nullptr, nullptr);
+  drawMenuKey(display[1], text().volume, percent);
+  drawMenuKey(display[2], text().quieter, nullptr);
+  drawMenuKey(display[3], text().louder, nullptr);
   drawMenuKey(display[SET_BUTTON], text().back, nullptr);
 }
 
@@ -522,6 +561,30 @@ static void drawInfo() {
     Serial.printf("LittleFS: %u of %u bytes used\n",
                   (unsigned)LittleFS.usedBytes(), (unsigned)LittleFS.totalBytes());
   }
+}
+
+/** One step, kept, and heard.
+ *
+ * Three things in that order and none of them optional. The number on the
+ * screen is what somebody is looking at; NVS is what makes the setting outlast
+ * the next sleep, which is minutes away; and the note is the only way to tell
+ * whether the step went far enough, on a device that may be holding no words
+ * at all yet.
+ *
+ * At either end nothing is written and nothing is saved, but the note still
+ * plays: pressing quieter at the quietest setting should sound like the
+ * quietest setting rather than like a key that has stopped working. */
+static void changeVolume(int8_t by) {
+  const int16_t asked = (int16_t)volumeNow + by;
+  const uint8_t next = (uint8_t)(asked < VOLUME_MIN ? VOLUME_MIN
+                                 : asked > VOLUME_MAX ? VOLUME_MAX : asked);
+  if (next != volumeNow) {
+    volumeNow = next;
+    saveVolume();
+    Serial.printf("volume: %u%%\n", (unsigned)volumeNow);
+  }
+  drawMenu();
+  playTone();
 }
 
 static void enterMenu() {
@@ -629,9 +692,9 @@ static void playWav(const char *path) {
       // And the volume, written back into the buffer that is about to be
       // handed to I2S. In 32 bits because 32767 * 100 does not fit in 16, and
       // rounded towards zero, which at this size is inaudible and is what
-      // keeps AUDIO_VOLUME_PERCENT of 100 an exact no-op.
+      // keeps a setting of 100 an exact no-op.
       const int16_t quieter =
-          (int16_t)(((int32_t)sample * AUDIO_VOLUME) / 100);
+          (int16_t)(((int32_t)sample * (int32_t)volumeNow) / 100);
       chunk[i] = (uint8_t)((uint16_t)quieter & 0xff);
       chunk[i + 1] = (uint8_t)(((uint16_t)quieter >> 8) & 0xff);
     }
@@ -664,6 +727,61 @@ static void playWav(const char *path) {
   }
   digitalWrite(PIN_AMP_SD, LOW);
   file.close();
+}
+
+// --- How loud ----------------------------------------------------------------
+
+/** The stored setting, or the compiled-in default if there is none.
+ *
+ * Read once, in setup(). A value from a future firmware with a wider range is
+ * brought inside this one's rather than trusted, the same way
+ * layoutIdleSeconds() treats a sleep timeout: what is on the other side of a
+ * flash is not this build's business to believe. */
+static void loadVolume() {
+  settings.begin("vorlaut", true);          // read-only
+  const uint32_t stored = settings.getUInt("volume", AUDIO_VOLUME_PERCENT);
+  settings.end();
+  volumeNow = (uint8_t)(stored < VOLUME_MIN ? VOLUME_MIN
+                        : stored > VOLUME_MAX ? VOLUME_MAX : stored);
+  Serial.printf("volume: %u%%\n", (unsigned)volumeNow);
+}
+
+static void saveVolume() {
+  settings.begin("vorlaut", false);
+  settings.putUInt("volume", volumeNow);
+  settings.end();
+}
+
+/** A short note at the current volume, so a press can be heard as well as read.
+ *
+ * A volume control nobody can hear is a number on a screen, and the menu is
+ * reachable on a device with no content at all - where there is no word to
+ * play instead. So this is generated: 500 Hz, which at 16 kHz is 32 samples
+ * per period and therefore a whole number of periods in a chunk of 512. That
+ * is not tidiness, it is why the loop below can repeat one buffer without a
+ * step in the waveform at every join, and why the tone starts and ends at a
+ * zero crossing.
+ *
+ * The amplifier is woken and put back to sleep exactly as playWav() does it,
+ * including the silence afterwards: the click that arrangement avoids has
+ * nothing to do with which samples are being sent. */
+static void playTone() {
+  static int16_t wave[512];
+  // A quarter of full scale is about where a normalised word sits, so the
+  // note is a fair sample of what the setting will do to speech rather than
+  // a beep at the top of the range.
+  const float peak = 8192.0f * (float)volumeNow / 100.0f;
+  for (size_t i = 0; i < 512; i++) {
+    wave[i] = (int16_t)(peak * sinf(2.0f * PI * 500.0f * (float)i / SAMPLE_RATE));
+  }
+  digitalWrite(PIN_AMP_SD, HIGH);
+  delay(AMP_WAKE_MS);
+  for (uint8_t i = 0; i < 6; i++) i2s.write((uint8_t *)wave, sizeof(wave));
+  memset(wave, 0, sizeof(wave));
+  for (uint8_t i = 0; i < AUDIO_TAIL_CHUNKS; i++) {
+    i2s.write((uint8_t *)wave, sizeof(wave));
+  }
+  digitalWrite(PIN_AMP_SD, LOW);
 }
 
 // --- Keys ------------------------------------------------------------------
@@ -874,6 +992,10 @@ void setup() {
   setupDisplays(wokeFromSleep);
   t_displays = millis();
   setupAudio();
+  // Before anything can be played, and after every wake: a deep sleep is a
+  // restart, so this is read on the way out of one as well as on the way out
+  // of the box.
+  loadVolume();
   t_audio = millis();
 
   // Formats when there is nothing to mount, and that changed with the release
@@ -1004,6 +1126,14 @@ void loop() {
     } else if (pressed == 0) {
       drawInfo();
       menuSince = millis();
+    } else if (pressed == 2) {
+      // Both of these work from the info page too, and draw the menu back
+      // over it. Volume is the one thing in here somebody presses more than
+      // once, and having to find the way back to the right screen first would
+      // be a worse answer than a screen that changes under them.
+      changeVolume(-(int8_t)VOLUME_STEP);
+    } else if (pressed == 3) {
+      changeVolume((int8_t)VOLUME_STEP);
     }
     if (pressed >= 0) {
       lastActivity = millis();
