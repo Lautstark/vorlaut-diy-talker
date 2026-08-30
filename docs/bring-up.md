@@ -167,6 +167,17 @@ the stage sounds like the device instead of like a test. At the corrected
 level the volume was judged right for a talker a child holds — which means the
 loudness was the test, and the MAX98357A's gain needs nothing done to it.
 
+**And the finished device was still too loud** — 2026-08-30, judged the way
+this stage judges everything, by somebody holding it in a room. That is not a
+contradiction of the paragraph above: what was set right there was the test
+tone, at `AMPLITUDE` 0.22, and what is loud here is normalised speech coming
+out of an assembled talker with its case on. The gain still needs nothing done
+to it, because there is nothing that can be done to it — the MAX98357A's GAIN
+pin is strapped on the board rather than wired to a GPIO. The answer is
+`AUDIO_VOLUME_PERCENT` in the sketch, which scales every sample on its way to
+I2S and is at 50: half the amplitude, about 6 dB down. It is one number, and
+if a room wants it quieter still that is the number to move.
+
 **The click is the I2S stream running dry, not the amplifier.** This is worth
 setting out at length, because the amplifier is the obvious suspect, this
 document used to name it, and it is wrong.
