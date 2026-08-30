@@ -48,6 +48,9 @@ struct Strings {
   const char *empty2;        //                            line 2
   const char *cable;         // ... a browser is pushing content down the cable
   const char *done;          // ... and the transfer finished
+  const char *volume;        // menu: label over how loud the device is
+  const char *quieter;       // menu key 3: one step down
+  const char *louder;        // menu key 4: one step up
 
   // The order of these declarations is the order of the initialisers below,
   // and nothing checks that but the compiler counting. The /* name */ comments
@@ -75,6 +78,9 @@ static const Strings LANGUAGES[] = {
     /* empty2          */ "content",
     /* cable           */ "cable",
     /* done            */ "done",
+    /* volume          */ "Sound",
+    /* quieter         */ "quieter",
+    /* louder          */ "louder",
   },
   {  // 1 - German
     /* back            */ "zurück",
@@ -89,6 +95,9 @@ static const Strings LANGUAGES[] = {
     /* empty2          */ "Inhalte",
     /* cable           */ "Kabel",
     /* done            */ "fertig",
+    /* volume          */ "Ton",
+    /* quieter         */ "leiser",
+    /* louder          */ "lauter",
   },
 };
 

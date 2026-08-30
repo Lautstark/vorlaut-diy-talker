@@ -29,6 +29,9 @@ int main(void) {
     dump(i, "empty2", s.empty2);
     dump(i, "cable", s.cable);
     dump(i, "done", s.done);
+    dump(i, "volume", s.volume);
+    dump(i, "quieter", s.quieter);
+    dump(i, "louder", s.louder);
   }
   printf("max %d\n", MENU_MAX_CHARS);
   printf("count %u\n", (unsigned)LANGUAGE_COUNT);
