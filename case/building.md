@@ -466,10 +466,19 @@ one beneath it.
    four guide ribs — they locate it, nothing is screwed. **First put a strip of
    sealing tape or foam between the driver rim and the front plate** —
    otherwise air whistles around the driver and the closed volume is not one.
-   Then cut a block of **open-cell** foam to roughly 40 × 40 × 8 mm and lay it
-   in behind the magnet: 6.7 mm of chamber depth are free there, so it goes in
-   with a little compression. That block is what holds the driver — the lid
-   presses on it in step 10. Lead the wires out through the passage in the
+   Then cut a block of **open-cell** foam to roughly 40 × 40 × 22 mm and lay it
+   in behind the magnet: **20.7 mm** of chamber depth are free there, so it goes
+   in with a little compression. That block is what holds the driver — the lid
+   presses on it in step 10, and you should feel the lid meet the foam before it
+   seats. Nothing else holds the driver: no block, and it sits loose in its
+   ribs and buzzes on the words that move it, which is how this was found on
+   2026-08-31.
+
+   > This step said **8 mm** against 6.7 mm of depth until then, which was the
+   > shallower case. The depth trebled when the case grew and the corrected
+   > figure was written into *The speaker is not screwed down* above; the step
+   > somebody actually builds from was left behind. A block cut to 8 mm is
+   > 14 mm short of touching the lid, so it holds nothing at all. Lead the wires out through the passage in the
    chamber wall — it goes through on the amplifier's side of that wall.
 
 3. **Seal the chamber passage.** The cable passage is deliberately generous
@@ -602,7 +611,7 @@ figures went in, which is the usual sign that a guess had been drifting.
 | `usb_centre_above_pcb` | 1.60 mm | height of the socket centre above the board |
 | `amp_b`, `amp_h` | 19.4 × 17.8 | dimensions of the MAX98357A breakout |
 | `spk_hole_diagonal` | 46.20 mm | bolt circle of the speaker — only matters with `spk_front_screws = true` |
-| `spk_depth` | 25.30 mm | sets how much foam fits behind the driver (6.7 mm at this figure) |
+| `spk_depth` | 25.30 mm | how deep the driver is; what is left behind it is chamber, and 20.7 mm of that is where the foam block goes |
 
 After measuring, run
 
