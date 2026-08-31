@@ -190,6 +190,14 @@ next to the battery. It has to go above it, so stacked:
 ```
 key 13.4 + spacer 8.0 + plate 2.4 + battery 8.1 = 31.9 mm  <- governs
 speaker + 4 mm of clamping foam                 = 31.7 mm
+                                                   (this stack is what
+                                                    governs the depth, and
+                                                    4 mm is what the speaker
+                                                    column needs to lose to
+                                                    the key column - not the
+                                                    block behind the magnet,
+                                                    which is 22 mm; see "How
+                                                    the speaker is held")
 the Feather, standing on edge                   = 25.2 mm
 ```
 
