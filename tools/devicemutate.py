@@ -19,24 +19,37 @@ applied to ONE end, and the run records which end noticed:
 
     browser   npx vitest run tests/unit/device_fixtures.test.ts
     firmware  python3 tests/test_device_host.py
-    writer    npx vitest run tests/unit/device_package_writer.test.ts
     reader    npx vitest run tests/unit/device_package_reader.test.ts
 
-Four ends and TWO boundaries, which adr/0014 is the decision behind. The first
+Three ends and TWO boundaries, which adr/0014 is the decision behind. The first
 pair is the device interface: the bytes between a browser and the talker. The
 second is the device package - the .obz between the editor and the loader page,
-one step upstream, where neither end is the device and both are browsers. The
-fixtures for both live under device/fixtures/ and belong to none of the four.
+one step upstream - and only its READER is here. The fixtures for both live
+under device/fixtures/ and belong to none of the three.
+
+**There were four.** The package's writer was `src/data/device_package.ts` and
+eight of the faults below were put into it; it left with the editor on
+2026-08-27 (adr/0012), and this file went on naming
+`tests/unit/device_package_writer.test.ts` until 2026-08-31, which meant the
+baseline check below failed and nothing here ran at all. Its mutants went with
+it rather than being pointed at a copy: a vendored writer is the edit
+docs/split-crossings.md forbids, and a mutation run against one would be
+measuring this repository's opinion of somebody else's code.
+
+What that costs is worth stating. Nothing here can break the WRITER and watch
+device/fixtures/package/ notice, so the claim that those fixtures hold both
+ends of the package boundary is now only half checked from this side.
+vorlaut-editor holds the other half and has to make it.
 
 A fault in a header that only the browser runner catches would mean the two
 runners are not independent after all, and a fault in either that NEITHER
 catches is a hole in the fixtures. Both are printed as such rather than
 counted as a pass.
 
-Every fault is put to all four runners rather than to the two of its own
-boundary. That is not free and it is not ceremony: src/data/device_package.ts
-takes SLOTS_PER_SET and HASH_BYTES out of loader/src/layout_format.ts, so the
-two boundaries are not as disjoint as the picture above suggests, and a run
+Every fault is put to all three runners rather than to the ones of its own
+boundary. That is not free and it is not ceremony: loader/src/device_package.ts
+takes HASH_BYTES and the key vocabulary out of loader/src/layout_format.ts, so
+the two boundaries are not as disjoint as the picture above suggests, and a run
 that only asked the near pair would never see it.
 
 **A mutation nothing catches is a finding, not a tidy-up.** What it means is
@@ -71,7 +84,6 @@ PACKAGE_TS = ROOT / "loader" / "src" / "device_package.ts"
 
 FIRMWARE = "firmware"
 BROWSER = "browser"
-WRITER = "writer"
 READER = "reader"
 
 # (file, which end it is, what to find, what to put there, what that would mean)
@@ -232,18 +244,22 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      "  view.setUint32(at, sleep, false);",
      "the sleep timeout is written the wrong way round"),
 
-    # --- the has-audio flag and the reserved byte -----------------------------
-    (LAYOUT_H, FIRMWARE, "e.slots[j].hasAudio = t[2 * HASH_BYTES] != 0;",
-     "e.slots[j].hasAudio = t[2 * HASH_BYTES] == 1;",
+    # --- the has-audio flag and the spare byte --------------------------------
+    #
+    # The byte after the flag used to be the reserved one. Version 3 spent it
+    # on `does` and put a new spare at the end of the key, so the second of
+    # these now swaps the flag for `does` rather than for a byte nobody reads.
+    (LAYOUT_H, FIRMWARE, "  into.hasAudio = p[2 * HASH_BYTES] != 0;",
+     "  into.hasAudio = p[2 * HASH_BYTES] == 1;",
      "a has-audio flag that is not exactly 1 silences the key"),
-    (LAYOUT_H, FIRMWARE, "e.slots[j].hasAudio = t[2 * HASH_BYTES] != 0;",
-     "e.slots[j].hasAudio = t[2 * HASH_BYTES + 1] != 0;",
-     "the reserved byte is read as the has-audio flag"),
-    (LAYOUT_TS, BROWSER, "      view.setUint8(at++, sound ? 1 : 0);\n"
-                         "      view.setUint8(at++, 0);          // reserved",
-     "      view.setUint8(at++, 0);          // reserved\n"
-     "      view.setUint8(at++, sound ? 1 : 0);",
-     "the browser writes the flag and the reserved byte the other way round"),
+    (LAYOUT_H, FIRMWARE, "  into.hasAudio = p[2 * HASH_BYTES] != 0;",
+     "  into.hasAudio = p[2 * HASH_BYTES + 3] != 0;",
+     "the spare byte at the end of a key is read as the has-audio flag"),
+    (LAYOUT_TS, BROWSER, "    view.setUint8(at++, sound ? 1 : 0);\n"
+                         "    view.setUint8(at++, does);",
+     "    view.setUint8(at++, does);\n"
+     "    view.setUint8(at++, sound ? 1 : 0);",
+     "the browser writes the has-audio flag and `does` the other way round"),
 
     # --- the tile -------------------------------------------------------------
     (TILE_H, FIRMWARE, "#define TILE_W 128", "#define TILE_W 116",
@@ -340,36 +356,15 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      "        const acked = at;",
      "the browser stops waiting to be acknowledged"),
 
-    # --- the device package: what a writer must put in the file --------------
+    # --- the device package: what a reader must make of it -------------------
     #
     # The other boundary, and the one adr/0014 added this directory a kind for.
     # Everything below is aimed at a package that PARSES: a talker that says
     # the wrong sentence rather than one that says nothing, which
     # docs/device-interface.md section 6 is a whole section about.
-    (PACKAGE_TS, WRITER, "      if (slot.negated) button.ext_vorlaut_negated = true;",
-     "      if (false) button.ext_vorlaut_negated = true;",
-     "a crossed-out key is written into the package as a plain one"),
-    (PACKAGE_TS, WRITER, "      if (!reference) return undefined;",
-     "      if (!reference || !input.sources.get(reference)) return undefined;",
-     "a reference that resolved to nothing is dropped instead of recorded"),
-    (PACKAGE_TS, WRITER, "      if (slot.text) button.vocalization = slot.text;",
-     "      if (false) button.vocalization = slot.text;",
-     "the sentence a key speaks is not written, only the one printed on it"),
-    (PACKAGE_TS, WRITER, "        duration: wavSeconds(format!),",
-     "        duration: 0,",
-     "every recording is filed as lasting no time at all"),
-    (PACKAGE_TS, WRITER, "      locale: plan.language,", '      locale: "en",',
-     "the language is not the Sammlung's own"),
-    (PACKAGE_TS, WRITER, "      if (!isDeviceWav(format)) {", "      if (false) {",
-     "the writer stops refusing a recording at the wrong sample rate"),
-    (PACKAGE_TS, WRITER, "      if (!AUDIO_NAME.test(sound.name)) {",
-     "      if (false) {",
-     "the writer stops refusing a recording under a name layout.bin cannot carry"),
-    (PACKAGE_TS, WRITER, "    root: boardPath(ids[0]!),",
-     "    root: boardPath(ids[ids.length - 1]!),",
-     "the manifest says the ring starts at the last board"),
-
-    # --- the device package: what a reader must make of it -------------------
+    #
+    # The writer's half of this list is in vorlaut-editor - see the head of
+    # this file, under "There were four".
     (PACKAGE_TS, READER, "        empty: slotIsEmpty({ text, symbol }),",
      "        empty: false,",
      "a key holding nothing comes back as a key holding something"),
@@ -443,7 +438,7 @@ CONTROLS: list[tuple[pathlib.Path, str, str, str, str]] = [
 ]
 
 
-# The four runners, in the order a report reads best. Each one meets the
+# The three runners, in the order a report reads best. Each one meets the
 # fixtures and never another runner: that is the property the whole directory
 # is built on, and a runner added here that imported another end's code would
 # take it away without anything going red.
@@ -458,7 +453,6 @@ RUNNERS = {
     FIRMWARE: lambda: subprocess.run(
         [sys.executable, "tests/test_device_host.py"],
         cwd=ROOT, capture_output=True, text=True).returncode == 0,
-    WRITER: vitest("tests/unit/device_package_writer.test.ts"),
     READER: vitest("tests/unit/device_package_reader.test.ts"),
 }
 
