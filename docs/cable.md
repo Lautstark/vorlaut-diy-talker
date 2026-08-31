@@ -116,6 +116,12 @@ not the talker, and saying so is nicer than timing out later mid-transfer.
 `free` earns its place in the same answer: it is what lets the browser refuse a
 payload that will not fit *before* it starts sending one.
 
+The `total` above is a device on the 1536 KiB table — 1441792 is what LittleFS
+makes of it — because that is the number `device/fixtures/` was frozen with and
+those fixtures are not re-cut for a partition table. A device flashed since
+2026-08-31 answers with the 7040 KiB one instead, and nothing on either end has
+to be told which: that is the point of the number being in the greeting.
+
 **`firmware` is a different question from `vorlaut`, and that is why it is a
 different word.** The protocol version moves only when the two ends can no
 longer drive each other, so every talker says the same number for releases at a
@@ -229,13 +235,20 @@ symbols that have been deleted, and the device comes up with silent keys and no
 explanation.
 
 The cost of the safe order is room. For the length of the transfer both the old
-files and the new ones sit on a partition of **1.5 MB** (`FS_SIZE = 0x180000`
-in the firmware's partition table). A full payload is around 950 KB, so
-replacing *every* symbol and *every* sentence at once does not fit. That is
-rare and it is real, so the browser checks: `free` came back in the `hello`,
-and if the new files will not fit alongside the old ones it falls back to
-clearing out first and says so on the page. If it will not fit even then, the
-payload is simply too big for the partition and nothing is sent at all.
+files and the new ones sit on the same partition — **6.9 MB** since 2026-08-31
+(`spiffs` in [`firmware/vorlaut/partitions.csv`](../firmware/vorlaut/partitions.csv),
+7040 KiB), and **1.5 MB** before it, on every device that has not had a whole
+image written since. A full payload is around 950 KB, so on the old table
+replacing *every* symbol and *every* sentence at once did not fit; on the new
+one it fits several times over.
+
+What the browser does about it has not changed and should not: the size is the
+device's answer, not the page's assumption. `free` came back in the `hello`, and
+if the new files will not fit alongside the old ones it falls back to clearing
+out first and says so on the page. If it will not fit even then, the payload is
+simply too big for the partition and nothing is sent at all. That the fallback
+is now rare on a device with the new table is a property of that device, and
+the page finds it out by asking.
 
 ## Half a file, and the handshake that prevents worse
 
@@ -298,7 +311,8 @@ a damaged file system, a wrong length turns a silent-and-permanent fault into a
 file that is simply sent again.
 
 The bytes are raw rather than base64 or hex. Base64 would cost a third of the
-budget on a 1.5 MB partition and, worse, would make the *device* do work per
+budget — on the 1.5 MB partition of the day, a third of everything there was —
+and, worse, would make the *device* do work per
 byte to undo it. The device reads exactly `size` bytes and then goes back to
 reading lines; it never has to look for a newline inside file content.
 

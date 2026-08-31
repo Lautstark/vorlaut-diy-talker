@@ -366,9 +366,11 @@ after any flash that is correct rather than a fault — a release, the artifact
 from *Actions* and `arduino-cli upload` all carry the program alone. It is only
 worth looking into once a transfer has run and the displays still say it. Then
 **Info** in the menu is the thing to read: it says whether LittleFS is mounted
-at all. If it is not, the partition scheme is the first suspect — the board
-default creates the data area as `ffat`, `LittleFS.begin()` wants one called
-`spiffs`, and formatting cannot invent a partition that is not there.
+at all. If it is not, the partition table is the first suspect — the firmware
+brings its own, [`firmware/vorlaut/partitions.csv`](../firmware/vorlaut/partitions.csv),
+and a build that did not pick it up gets the board default, whose data area is
+called `ffat` where `LittleFS.begin()` wants one called `spiffs`. Formatting
+cannot invent a partition that is not there.
 
 Worth trying, and the whole point of the exercise: transfer at the desk, then
 take the device somewhere else entirely and use it for an afternoon. Nothing it

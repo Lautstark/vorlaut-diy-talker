@@ -28,6 +28,7 @@ says what the cleanup will look like when it is proposed.
 | [0015](0015-a-schema-change-carries-the-boards-across.md) | A schema change migrates one step per version inside the upgrade transaction, or aborts and changes nothing |
 | [0016](0016-the-browser-half-stops-being-released.md) | The browser half stops being released, and `builder-v*` is retired |
 | [0017](0017-the-loader-page-writes-the-firmware.md) | The loader page writes the firmware, from an image its own deploy carries |
+| [0018](0018-the-file-area-takes-the-ota-slot.md) | The device carries its own partition table, and the file area takes the OTA slot |
 
 ## The shape
 

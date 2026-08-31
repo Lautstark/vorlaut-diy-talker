@@ -1,0 +1,44 @@
+# The talker's own flash layout, and the reason it is not the board's.
+#
+# The ESP32 core copies this over whatever PartitionScheme the FQBN names -
+# platform.txt's prebuild hook 3, "{build.source.path}/partitions.csv" wins
+# over the scheme's own file - so this table is what the build gets, and the
+# scheme in the FQBN only still decides what arduino-cli compares the sketch's
+# size against. See docs/firmware.md.
+#
+# What this repository's device needs and what the board's default_8MB gives
+# it differ in one big way: default_8MB is an OTA layout. Two app slots of
+# 3264 KiB each, so that a running program can be replaced by one arriving
+# over the air, plus the otadata that says which of them is current. **This
+# device has no radio** - it went on 2026-08-23, discover.h, networks.h,
+# pairing.h, pair_format.h and sync.h with it - and a program only ever
+# arrives over the cable, into the slot that is not running. So app1 and
+# otadata are 3272 KiB that nothing can ever reach, in a device whose only
+# scarce resource is the file area the content lives on.
+#
+# app0 is 1024 KiB where the program is 482 KiB: the double, as headroom, and
+# the rest goes to the file area. The nvs holds the volume - see loadVolume()
+# in vorlaut.ino - and 20 KiB is what every ESP32 layout gives it.
+#
+# Three things about this table are load-bearing, and each of them fails
+# quietly rather than loudly if it is changed:
+#
+#   - **The name "spiffs".** LittleFS.begin() looks up a partition by that
+#     name, whatever file system is actually on it. A table that calls it
+#     "littlefs" or "data" mounts nothing, and the device comes up with black
+#     displays. docs/bring-up.md says the same thing about the board default,
+#     which calls it "ffat".
+#   - **app0 at 0x10000.** The core's upload and merge-bin recipes write the
+#     program there as a constant, and so do tools/firmware_for_pages.mjs and
+#     the release notes. It is not read from this file by anything.
+#   - **The gap at 0xe000.** otadata is gone from the table, but the core
+#     still writes tools/partitions/boot_app0.bin to 0xe000 on every upload
+#     and into every merged image. It lands in the 8 KiB nvs ends before and
+#     app0 begins at, where nothing reads it. Growing nvs into that gap would
+#     have the upload overwrite the end of it.
+#
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,     0x9000,   0x5000,
+app0,     app,  factory, 0x10000,  0x100000,
+coredump, data, coredump,0x110000, 0x10000,
+spiffs,   data, spiffs,  0x120000, 0x6E0000,

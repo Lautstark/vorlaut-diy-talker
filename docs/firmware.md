@@ -149,11 +149,16 @@ a folder* writes - in the `⋯` beside the Sammlung's name in the editor:
 
 ```bash
 ~/Library/Arduino15/packages/esp32/tools/mklittlefs/*/mklittlefs \
-  -c <the folder> -b 4096 -p 256 -s 1572864 littlefs.bin
+  -c <the folder> -b 4096 -p 256 -s 7208960 littlefs.bin
 ```
 
-`1572864` is 1536 KiB, the size of the `spiffs` partition — the same number as
-`FS_SIZE` in the firmware. The block and page sizes are what the ESP32 core's
+`7208960` is 7040 KiB, the size of the `spiffs` partition. It is written down
+in exactly one place — the `spiffs` line of
+[`firmware/vorlaut/partitions.csv`](../firmware/vorlaut/partitions.csv) — and
+the firmware does not carry a copy of it: it asks `LittleFS.totalBytes()`, and
+the cable's `hello` says what that answered. So this number here is the only
+one that has to be kept in step by hand, and an image built with the wrong one
+does not mount. The block and page sizes are what the ESP32 core's
 LittleFS is built with; with different ones the image mounts as empty.
 `mklittlefs -l` on the result lists what went in, which is worth a look before
 writing it.
@@ -163,12 +168,14 @@ writing it.
 ```bash
 ~/Library/Arduino15/packages/esp32/tools/esptool_py/*/esptool \
   --chip esp32s3 --port /dev/cu.usbmodemXXXX \
-  write-flash 0x670000 littlefs.bin
+  write-flash 0x120000 littlefs.bin
 ```
 
-The address `0x670000` is the start of the `spiffs` partition from
-`default_8MB.csv`. It holds for this partition scheme only — with a different
-one the data lands in the wrong place.
+The address `0x120000` is the start of the `spiffs` partition in
+[`partitions.csv`](../firmware/vorlaut/partitions.csv). It was `0x670000` for
+as long as the board's `default_8MB` scheme was in use, and a device still
+carrying that older table wants the old address — with the wrong one of the two
+the data lands in the wrong place, silently.
 
 **Reading along with what the device says:**
 
@@ -179,15 +186,86 @@ arduino-cli monitor -p /dev/cu.usbmodemXXXX -c baudrate=115200
 At start-up it says which set was loaded, which key was pressed and whether
 LittleFS could be mounted.
 
+## The flash layout, and the one flash that has to be whole
+
+The table is [`firmware/vorlaut/partitions.csv`](../firmware/vorlaut/partitions.csv),
+in the sketch folder, and the ESP32 core prefers it over whatever the FQBN's
+`PartitionScheme` names. 8 MB of flash, divided:
+
+| | at | size | |
+|---|---|---|---|
+| `nvs` | `0x9000` | 20 KiB | the volume, and nothing else — `loadVolume()` |
+| — | `0xe000` | 8 KiB | no partition. `boot_app0.bin` is written here anyway, see below |
+| `app0` | `0x10000` | 1024 KiB | the program, which is 482 KiB of it |
+| `coredump` | `0x110000` | 64 KiB | what the panic handler writes |
+| `spiffs` | `0x120000` | **7040 KiB** | the file area. LittleFS, despite the name |
+
+**It was the board's `default_8MB` until 2026-08-31, and the file area was
+1536 KiB.** That scheme is an OTA layout: two app slots of 3264 KiB so that a
+program arriving over the air can be written into the one that is not running,
+and an `otadata` saying which of the two is current. This device has had no
+radio since 2026-08-23, and a program only ever arrives over the cable in the
+bootloader, which writes `app0` directly. So `app1` and `otadata` were 3272 KiB
+that nothing could reach, and `app0` was 3264 KiB for a 482 KiB program. Both
+went to the file area. [ADR 0018](../adr/0018-the-file-area-takes-the-ota-slot.md)
+is the decision, and what it costs.
+
+**The name `spiffs` is not a leftover to tidy up.** `LittleFS.begin()` looks a
+partition up by that name and does not care what file system is on it; a table
+that called it `littlefs` would mount nothing and the device would come up with
+black displays. The board's own default calls it `ffat`, which is the same
+failure — [bring-up.md](bring-up.md) says so from the other end.
+
+**`boot_app0.bin` still gets written to `0xe000`,** by the core's upload recipe
+and into every merged image, although no partition covers that address any
+more. It is 8 KiB and it lands in the gap between the end of `nvs` and the
+start of `app0`, where nothing reads it. That gap is why `nvs` stays 20 KiB
+rather than growing to fill the space `otadata` left: an upload would write
+over the end of it.
+
+### This one takes a whole flash, once
+
+**A partition table cannot be sent down the cable, and it does not come with a
+program-only update.** It is at `0x8000`, the program is at `0x10000`, and both
+routes that write only the program — `write-flash 0x10000 vorlaut.ino.bin`, and
+the loader page when the talker answers — leave whatever table the device
+already has exactly where it is. A talker flashed before this change and
+updated that way keeps a 1536 KiB file area, keeps `app0` at 3264 KiB, and
+works: the program is the same program and it asks the partition table how big
+the file area is. It simply never gets the room.
+
+To actually get it, the whole image has to go on once, and **this is the
+`esptool` line rather than the page**:
+
+```bash
+esptool --chip esp32s3 --port /dev/cu.usbmodemXXXX write-flash 0x0 vorlaut.ino.merged.bin
+```
+
+The page cannot do this one. It offers the whole image only where nothing
+answered — a board with no firmware on it — and the program alone to a talker
+that answers, which is [ADR 0017](../adr/0017-the-loader-page-writes-the-firmware.md)'s
+design and a good one for every case but this: writing everything is the case
+that costs somebody their content, so it is not what a device that is merely
+behind gets offered. A talker already running this firmware always answers.
+
+**Writing the whole image erases the content**, because the file area is inside
+it and it is erased there — the same as any whole flash, and the content comes
+back by sending the collection again from the editor. It also takes the volume
+setting with it, since `nvs` is inside the image too.
+
+The first start afterwards is slower than usual and the displays stay dark for
+it: `LittleFS.begin(true)` finds an erased partition and formats it, and it is
+now formatting 7040 KiB rather than 1536. Nobody has timed it on hardware.
+
 ## What is in the images, and what is not
 
 `arduino-cli compile --output-dir` produces both of them. `vorlaut.ino.bin` is
 the program; `vorlaut.ino.merged.bin` is the whole flash — bootloader,
-partition table, program, and the file area padded out as 1536 KiB of `0xFF`.
+partition table, program, and the file area padded out as 7040 KiB of `0xFF`.
 
 **Nothing fills that area in.** `build.py --fs-image` and `--merge-into` used
 to, packing `firmware/vorlaut/data/` with `mklittlefs` and writing it into the
-merged image at `0x670000` so a release could ship content. Both went with the
+merged image at the file area's address so a release could ship content. Both went with the
 Python: the build runs in a browser now, and no workflow can press a button in
 one.
 
@@ -195,8 +273,8 @@ So the file area arrives erased, and **the firmware formats it on the first
 start** — `LittleFS.begin(true)` in `vorlaut.ino`. That is what makes a
 program-only image usable at all: a partition that will not mount is a device
 the cable cannot write to either, and the cable is the only way content gets
-on. A wrong partition scheme still fails, because then there is no `spiffs`
-partition to format.
+on. A build that did not pick up `partitions.csv` still fails, because then
+there is no `spiffs` partition to format.
 
 The four example sentences are still in the repo, already spoken, under
 [`example/speech/`](../example/speech/) — see
@@ -210,23 +288,33 @@ Compiling:
 arduino-cli compile --fqbn esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB firmware/vorlaut
 ```
 
-> **The partition scheme is not optional.** The board's default is called
-> *tinyuf2* and creates the data area as `ffat` — but `LittleFS.begin()` looks
-> for a partition named `spiffs` and fails on it. The device then boots with
-> black displays. In the Arduino IDE set *Tools > Partition Scheme* to
-> **"Default (3MB APP/1.5MB SPIFFS)"**, on the command line append
-> `PartitionScheme=default_8MB`.
+> **The partition scheme is still not optional, even though the table is
+> ours.** `firmware/vorlaut/partitions.csv` overrides whatever the FQBN names,
+> but only for a build that reaches the ESP32 core's prebuild hook — and the
+> scheme is still what arduino-cli compares the sketch's size against. Leaving
+> `PartitionScheme=` off picks the board's default, *tinyuf2*, which brings a
+> bootloader of its own and writes it over the file area. In the Arduino IDE
+> set *Tools > Partition Scheme* to **"Default (3MB APP/1.5MB SPIFFS)"**, on
+> the command line append `PartitionScheme=default_8MB`. The name is a
+> leftover either way: what it selects is a `default_8MB.csv` that is copied
+> in and then immediately overwritten by ours.
 
-Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0:
-**467 KB program (14 % of 3 MB), 58 KB RAM (18 %)**.
+Tested with ESP32 core 3.3.11, Adafruit GFX 1.12.0, ST7735 1.11.0, measured
+again on 2026-08-31: **482 KiB program (47 % of `app0`'s 1024 KiB), 107 KiB of
+static RAM (33 %)**.
 
 It was 1304 KB and 82 KB while the Wi-Fi path was compiled in, and this
 document said so, with a note that the radio was what made it big — the sketch
 without it had been measured at 472 KB. Removing it landed almost exactly
-there. The 3 MB app partition now has a great deal of room to spare.
+there. Two of the three numbers have moved since, for different reasons. The
+percentage moved because `app0` did: 3264 KiB under the board's scheme, 1024
+KiB under ours, still a shade over twice what the program needs. **The RAM
+figure moved because the sketch did** — it stood at 58 KB here and the same
+build now measures 107 KiB. That has nothing to do with the partition table;
+it was simply not measured again for a while.
 
-The file area holds 1536 KiB. A full layout with five sets takes around
-630 KiB of that, so a good 40 %.
+The file area holds 7040 KiB. A full layout with five sets takes around
+630 KiB of that, so under a tenth.
 
 > The sketch has **run on real hardware**: flashed, fed a board over the cable
 > and heard, first on 2026-08-27. Check the pin assignment against your own
