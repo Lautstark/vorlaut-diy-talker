@@ -344,6 +344,26 @@ static void setupDisplays(bool stillAwake) {
   digitalWrite(PIN_RST, HIGH);
   delay(150);
 
+  // Every select high before any panel is spoken to, which is what the waking
+  // path above has always done and this one never did.
+  //
+  // A panel's CS becomes an output when its Panel is constructed, and the five
+  // are constructed one at a time inside the loop below - so while display 1
+  // is being initialised, four selects are still inputs. A floating select is
+  // not a deselected one: it reads as whatever the pin happens to sit at, and
+  // a panel that reads it low takes its neighbour's initialisation as its own.
+  //
+  // What that looked like, 2026-08-31, on the assembled talker: keys 2 and 3
+  // came up rotated half a turn after a flash and were right again after the
+  // first sleep and wake. That is the difference between these two paths and
+  // nothing else - the rotation table is the same for both, and the library's
+  // setRotation() and adoptAwake() were held against each other and compute
+  // the same MADCTL, byte for byte, for this panel.
+  for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
+    pinMode(PIN_CS[i], OUTPUT);
+    digitalWrite(PIN_CS[i], HIGH);
+  }
+
   SPI.begin(PIN_SCK, -1, PIN_MOSI, -1);
 
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
