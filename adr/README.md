@@ -30,6 +30,7 @@ says what the cleanup will look like when it is proposed.
 | [0017](0017-the-loader-page-writes-the-firmware.md) | The loader page writes the firmware, from an image its own deploy carries |
 | [0018](0018-the-file-area-takes-the-ota-slot.md) | The device carries its own partition table, and the file area takes the OTA slot |
 | [0019](0019-tiles-travel-compressed.md) | A tile may travel compressed, and the device says whether it can read one |
+| [0020](0020-every-key-says-what-it-does.md) | Every key says what it does and where it goes, and the device holds 64 sets |
 
 ## The shape
 

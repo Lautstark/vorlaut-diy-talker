@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "1.3.0",
+  "device_interface_version": "2.0.0",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -22,9 +22,41 @@
       "fixture": "five-sets",
       "kind": "layout",
       "outcome": "accepted",
-      "summary": "Five sets, which is MAX_SETS. 932 bytes, the largest file that parses.",
+      "summary": "Five sets, each with its own name, its own key and four slots. 1072 bytes.",
       "file": "layout/five-sets.bin",
       "expected": "layout/five-sets.expected.json"
+    },
+    {
+      "fixture": "sets-at-max",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "MAX_SETS sets, which is 64. The largest file that parses.",
+      "file": "layout/sets-at-max.bin",
+      "expected": "layout/sets-at-max.expected.json"
+    },
+    {
+      "fixture": "keys-that-go",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "Two rounds of the joining game: a set key that speaks and stays, one speech key per round that speaks and goes on, and a set key that goes and says nothing.",
+      "file": "layout/keys-that-go.bin",
+      "expected": "layout/keys-that-go.expected.json"
+    },
+    {
+      "fixture": "key-does-past-the-table",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A key whose `does` is 7, a value no version has given a meaning. It speaks and stays where it is.",
+      "file": "layout/key-does-past-the-table.bin",
+      "expected": "layout/key-does-past-the-table.expected.json"
+    },
+    {
+      "fixture": "key-goes-past-the-last-set",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A set key pointing at set 3 in a layout that holds one. It goes nowhere.",
+      "file": "layout/key-goes-past-the-last-set.bin",
+      "expected": "layout/key-goes-past-the-last-set.expected.json"
     },
     {
       "fixture": "name-fills-the-field",
@@ -115,12 +147,20 @@
       "expected": "layout/version-one.expected.json"
     },
     {
-      "fixture": "version-three",
+      "fixture": "version-two",
       "kind": "layout",
       "outcome": "refused",
-      "summary": "Version 3, from a builder newer than the device. Refused, because the reader cannot skip what it does not know.",
-      "file": "layout/version-three.bin",
-      "expected": "layout/version-three.expected.json"
+      "summary": "Version 2, the layout from before every key said what it does. Refused rather than read at the wrong pitch.",
+      "file": "layout/version-two.bin",
+      "expected": "layout/version-two.expected.json"
+    },
+    {
+      "fixture": "version-four",
+      "kind": "layout",
+      "outcome": "refused",
+      "summary": "Version 4, from a builder newer than the device. Refused, because the reader cannot skip what it does not know.",
+      "file": "layout/version-four.bin",
+      "expected": "layout/version-four.expected.json"
     },
     {
       "fixture": "slot-count-three",
@@ -134,7 +174,7 @@
       "fixture": "sets-past-max",
       "kind": "layout",
       "outcome": "refused",
-      "summary": "A header claiming six sets on a device with room for five.",
+      "summary": "A header claiming one set more than the device has room for.",
       "file": "layout/sets-past-max.bin",
       "expected": "layout/sets-past-max.expected.json"
     },
@@ -420,6 +460,22 @@
       "expected": "package/five-keys-cut-to-four.expected.json"
     },
     {
+      "fixture": "a-key-that-goes-on",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "Two rounds of the joining game: a set key that speaks and goes nowhere, and one speech key per board that speaks and then loads the next.",
+      "file": "package/a-key-that-goes-on.obz",
+      "expected": "package/a-key-that-goes-on.expected.json"
+    },
+    {
+      "fixture": "set-key-cell-names-nothing",
+      "kind": "package",
+      "outcome": "refused",
+      "summary": "A grid whose set-key cell names a button the board does not hold.",
+      "file": "package/set-key-cell-names-nothing.obz",
+      "expected": "package/set-key-cell-names-nothing.expected.json"
+    },
+    {
       "fixture": "locale-not-in-the-table",
       "kind": "package",
       "outcome": "accepted",
@@ -460,12 +516,12 @@
       "expected": "package/board-named-and-not-there.expected.json"
     },
     {
-      "fixture": "ring-misses-a-board",
+      "fixture": "a-board-nothing-reaches",
       "kind": "package",
       "outcome": "refused",
-      "summary": "Three boards and a ring that closes over two of them. The third is filed, named by the manifest, and never reached.",
-      "file": "package/ring-misses-a-board.obz",
-      "expected": "package/ring-misses-a-board.expected.json"
+      "summary": "Three boards, and the keys on them lead to only two. The third is filed, named by the manifest, and there is no way to it.",
+      "file": "package/a-board-nothing-reaches.obz",
+      "expected": "package/a-board-nothing-reaches.expected.json"
     },
     {
       "fixture": "pictures-named-and-not-there",

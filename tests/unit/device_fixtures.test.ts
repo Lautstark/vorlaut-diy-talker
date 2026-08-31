@@ -5,8 +5,8 @@ import { check } from "./harness.js";
 
 import {
   renderLayoutBin, hashBytes, LANGUAGE_CODES, DEFAULT_LANGUAGE,
-  LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, SLOT_BYTES, SLOTS_PER_SET,
-  NAME_BYTES, HASH_BYTES, MAX_SETS,
+  LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, KEY_BYTES, KEYS_PER_SET,
+  SLOTS_PER_SET, NAME_BYTES, HASH_BYTES, MAX_SETS, KEY_DOES,
   SLEEP_MIN, SLEEP_MAX, SLEEP_DEFAULT, layoutIdleSeconds,
 } from "../../loader/src/layout_format.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
@@ -75,11 +75,21 @@ const hex = (bytes: Uint8Array | Buffer) => Buffer.from(bytes).toString("hex");
 /* The strides first, because everything below is a consequence of them and a
  * fixture that failed for a stride would otherwise fail 30 times over. */
 check("the browser's strides are the ones the fixtures were laid out from",
-      HEADER_BYTES === 12 && SET_BYTES === 184 && SLOT_BYTES === 34
-      && SLOTS_PER_SET === 4 && NAME_BYTES === 32 && HASH_BYTES === 16
-      && LAYOUT_VERSION === 2,
-      `header ${HEADER_BYTES}, set ${SET_BYTES}, slot ${SLOT_BYTES}, `
+      HEADER_BYTES === 12 && SET_BYTES === 212 && KEY_BYTES === 36
+      && KEYS_PER_SET === 5 && SLOTS_PER_SET === 4 && NAME_BYTES === 32
+      && HASH_BYTES === 16 && LAYOUT_VERSION === 3,
+      `header ${HEADER_BYTES}, set ${SET_BYTES}, key ${KEY_BYTES}, `
       + `version ${LAYOUT_VERSION}`);
+
+/* The three words a key can be given, against the three numbers the fixtures
+ * were laid out from. Written out rather than compared as a table, because a
+ * table compared against itself is the shape this whole directory exists to
+ * avoid - and because the numbers are what cross the boundary, while the words
+ * are only this side's spelling of them. */
+check("the browser's three answers for what a key does are 0, 1 and 2",
+      KEY_DOES.speak === 0 && KEY_DOES["speak-and-go"] === 1
+      && KEY_DOES.go === 2,
+      JSON.stringify(KEY_DOES));
 
 /* How many sets the device has room for, read out of the fixtures rather than
  * written here beside the constant it is checking.
@@ -128,7 +138,8 @@ for (const { listed: one, want } of ofKind("layout")) {
   const w = want.write;
   let made: Uint8Array | string;
   try {
-    made = renderLayoutBin(w.layout, w.label, w.images, w.sounds);
+    made = renderLayoutBin(w.layout, w.label, w.images, w.sounds,
+                           w.label_sounds);
   } catch (error) {
     made = `refused: ${(error as Error).message}`;
   }

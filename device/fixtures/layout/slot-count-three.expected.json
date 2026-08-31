@@ -3,7 +3,7 @@
   "kind": "layout",
   "file": "layout/slot-count-three.bin",
   "summary": "A header claiming three slots per set on a device that has four keys.",
-  "bytes": 196,
+  "bytes": 224,
   "read": {
     "result": "LAYOUT_BAD_SLOT_COUNT"
   },

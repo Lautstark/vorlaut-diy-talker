@@ -72,7 +72,15 @@ export interface Finding {
  * is to find out. */
 export interface Summary {
   sets: number;
-  /** Keys with a word or a picture on them, out of every key there is. */
+  /** Speech keys with a word or a picture on them, out of every speech key
+   *  there is.
+   *
+   *  The four to a set, not the five. The set key is a key like the others in
+   *  layout.bin since version 3 and it is still left out here on purpose: it
+   *  carries the board's name as its word wherever nobody gave it one of its
+   *  own, so counting it would make every set key "filled" and the number
+   *  would stop being about whether somebody has finished filling the
+   *  Sammlung in - which is the only question it is here to answer. */
   filled: number;
   keys: number;
   pictures: number;
@@ -94,7 +102,7 @@ export function setLabel(plan: DevicePlan, at: number): string {
 
 export function summarise(read: ReadDevicePackage): Summary {
   const { plan } = read;
-  const slots = plan.sets.flatMap((set) => set.slots);
+  const slots = plan.sets.flatMap((set) => set.slots);   // the four, see Summary
   return {
     sets: plan.sets.length,
     keys: slots.length,

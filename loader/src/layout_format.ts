@@ -16,46 +16,74 @@
 // Two places deviate from the Python on purpose, both only for input the
 // Python does not survive either - they are marked where they are.
 //
-// One place deviates on purpose and not only for bad input: the set entry no
-// longer opens with a colour, and the version byte says 2 so that a file the
-// Python wrote is refused rather than read two bytes out of step. What the
-// frozen bytes can still say about that is worked out in
-// tests/test_layout_frozen.py, under THE_COLOUR_IS_GONE.
+// Two places deviate on purpose and not only for bad input, and both are a
+// version byte rather than a quirk. Version 2: the set entry no longer opens
+// with a colour. Version 3: every key carries what it does and where it goes,
+// and the set key is a key like the other four. What the frozen bytes can
+// still say about either is worked out in tests/test_layout_frozen.py, under
+// THE_COLOUR_IS_GONE and THE_KEYS_ARE_FIVE.
 
 export const LAYOUT_BIN = "layout.bin";
 export const LAYOUT_MAGIC = "MTRD";
-// 2 since the set entry lost its colour - see the note on the same
-// constant in firmware/vorlaut/layout_format.h for why a shorter entry
-// needs a new version rather than passing as a shorter file.
-export const LAYOUT_VERSION = 2;
+// 3 since every key gained what it does and where it goes - see the note on
+// the same constant in firmware/vorlaut/layout_format.h for why a longer
+// entry needs a new version rather than passing as a longer file.
+export const LAYOUT_VERSION = 3;
 
 export const SLOTS_PER_SET = 4;
+/** The set key beside the four speech keys: the five panels the device
+ *  lights. KEY_COUNT in firmware/vorlaut/layout_format.h. */
+export const KEYS_PER_SET = SLOTS_PER_SET + 1;
 /* How many sets the device has room for, which is MAX_SETS in
  * firmware/vorlaut/layout_format.h and the size of the array it reads them
  * into. Not a limit this writer enforces: renderLayoutBin() below writes as
  * many sets as fit in one byte, because the count and the length are the same
- * refusal at the far end - readLayout() answers LAYOUT_BAD_LENGTH for a sixth
- * set, and device/fixtures/layout/sets-past-max.expected.json is that case
- * written down.
+ * refusal at the far end - readLayout() answers LAYOUT_BAD_LENGTH for a set
+ * past the last one there is room for, and
+ * device/fixtures/layout/sets-past-max.expected.json is that case written
+ * down.
  *
  * It is exported because somebody has to say so before the file gets there.
  * The editor could once be trusted to, since it was the only writer and could
  * not make a sixth set; now that a file arrives from elsewhere it is the
  * loader's to check, and loader/src/validate.ts is where it is checked. A
- * talker that refuses its layout shows nothing and says nothing about why. */
-export const MAX_SETS = 5;
+ * talker that refuses its layout shows nothing and says nothing about why.
+ *
+ * It was 5 until 2026-08-31 and adr/0020 is why it is 64. */
+export const MAX_SETS = 64;
 export const NAME_BYTES = 32;
 export const HASH_BYTES = 16;
 // Fixed strides - the firmware works with the same numbers.
-export const SLOT_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1;                       // 34
-export const SET_BYTES = NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES; // 184
-export const HEADER_BYTES = 4 + 4 + 4;                                           // 12
+export const KEY_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1 + 1 + 1;    // 36
+export const SET_BYTES = NAME_BYTES + KEYS_PER_SET * KEY_BYTES;      // 212
+export const HEADER_BYTES = 4 + 4 + 4;                               // 12
 
 // The index the device labels its own menu by - see
 // device/fixtures/language.expected.json, which states the table, and
 // LANGUAGES in firmware/vorlaut/texts.h.
 export const LANGUAGE_CODES = { en: 0, de: 1 };
 export const DEFAULT_LANGUAGE = "en";
+
+/** What a key does when it is pressed, as the byte spells it.
+ *
+ * The same table LANGUAGE_CODES is: a word on this side, a number in the file,
+ * and LAYOUT_KEY_SPEAK, LAYOUT_KEY_SPEAK_AND_GO and LAYOUT_KEY_GO in
+ * firmware/vorlaut/layout_format.h on the other. The editor's three names for
+ * them are Wort, Wort & weiter and weiter.
+ *
+ * In an `.obz` this is not one field but two: a key that goes somewhere has a
+ * `load_board`, and `ext_lautstark_speak_on_navigate` beside it says whether
+ * it also says its own word. loader/src/device_package.ts is where the two
+ * become one.
+ */
+export const KEY_DOES = { speak: 0, "speak-and-go": 1, go: 2 };
+/** The three words, as a type. The only annotation in this file, and it earns
+ *  its place: `does` travels through four modules as a string, and a typo in
+ *  one of them is a RangeError at compile time on somebody's talker. */
+export type KeyDoes = "speak" | "speak-and-go" | "go";
+/** What a key does when nothing says: it speaks, which is every key of a
+ *  version-2 layout. */
+export const DEFAULT_KEY_DOES = "speak";
 
 // The sleep timeout's range, beside the strides because it is the same kind of
 // thing: a number both halves have to hold. The firmware states it in
@@ -92,6 +120,23 @@ export function layoutIdleSeconds(sleepSeconds) {
   return sleepSeconds;
 }
 
+/** Which set a key really goes to, or -1 where it goes nowhere.
+ *
+ * layoutKeyGoesTo() in firmware/vorlaut/layout_format.h, written a second time
+ * for the same reason layoutIdleSeconds() is: what the field says and what it
+ * means are two answers, and device/fixtures/ holds both ends to both without
+ * either reading the other. A value this version does not know is a key that
+ * speaks and stays put, and a target no set stands behind is the same answer.
+ */
+export function layoutKeyGoesTo(does, target, setCount) {
+  if (does !== KEY_DOES["speak-and-go"] && does !== KEY_DOES.go) return -1;
+  if (!(target >= 0) || target >= setCount) return -1;
+  return target;
+}
+
+/** Whether a key says its own word. Anything but "go" does. */
+export const layoutKeySpeaks = (does) => does !== KEY_DOES.go;
+
 const encoder = new TextEncoder();
 
 /** What Path(name).stem does: the file name without its last suffix. */
@@ -121,15 +166,56 @@ export function hashBytes(filename) {
   return out;
 }
 
+/** The byte for what a key does, out of whatever the layout put there.
+ *
+ * A word out of KEY_DOES, and the default where a layout says nothing. A word
+ * that is not in the table is refused rather than defaulted: an unknown
+ * LANGUAGE falls back because a device with the wrong menu language still
+ * works, and a key doing something other than what its layout meant does not.
+ */
+function keyDoes(said, fallback) {
+  const word = said === undefined || said === null ? fallback : String(said);
+  if (!Object.hasOwn(KEY_DOES, word)) {
+    throw new RangeError(`not something a key can do: ${said}`);
+  }
+  return KEY_DOES[word];
+}
+
+/** The byte for where a key goes. Not checked against the set count here -
+ *  see the note in renderLayoutBin(). */
+function keyTarget(said, fallback) {
+  const at = said === undefined || said === null ? fallback : said;
+  if (!Number.isInteger(at) || at < 0 || at > 0xff) {
+    throw new RangeError(`not a set a key can go to: ${said}`);
+  }
+  return at;
+}
+
 /**
  * The bytes of layout.bin - what build.py used to write, and the frozen answer
  * in tests/reference/layout.lock.json is that writer's.
  *
- * layout is a normalized layout, the three lists are per set and in its order
+ * layout is a normalized layout, the four lists are per set and in its order
  * - exactly what builder.py handed the Python, and what backend/local.ts's
- * build hands this.
+ * build hands this. `labelSounds` is the fifth and the newest: the set key
+ * gained a sound of its own in version 3, and a layout with nothing to say on
+ * that key is a layout that passes four arguments as it always did.
+ *
+ * What each key DOES and where it GOES comes off the layout rather than out of
+ * a fifth and sixth array, because it is a fact about the key and not about a
+ * file the compiler resolved. A layout that says nothing gets what version 2
+ * did: every speech key speaks, and the set key goes to the next set, which is
+ * the ring vorlaut.ino used to do in arithmetic.
+ *
+ * A target is written as it stands, including one that names no set. That is
+ * the same division the sleep timeout is under: the reader decides what an
+ * out-of-range value MEANS - layoutKeyGoesTo() says it goes nowhere - and
+ * loader/src/validate.ts is what tells a person about it before anything is
+ * sent. A writer that quietly repaired it would hand the device a layout
+ * nobody asked for.
  */
-export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles) {
+export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles,
+                                labelSounds = []) {
   // Every set in the layout: a Sammlung is the selection, so there is nothing
   // to filter out here. The file lists are built the same way, and setCount in
   // the header has to match them.
@@ -160,9 +246,22 @@ export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles) {
   view.setUint8(at++, language);
   // Little-endian, spelled out at every call: DataView writes big-endian
   // unless told otherwise, while the firmware assembles its numbers out of
-  // single bytes low one first (layoutU16, layoutU32 in layout_format.h).
+  // single bytes low one first (layoutU32 in layout_format.h).
   view.setUint32(at, sleep, true);
   at += 4;
+
+  /** One key: two hashes, the has-audio flag, the two fields that say what it
+   *  is for, and the spare byte after them. */
+  const key = (tile, sound, does, target) => {
+    bytes.set(hashBytes(tile), at);
+    at += HASH_BYTES;
+    bytes.set(hashBytes(sound), at);
+    at += HASH_BYTES;
+    view.setUint8(at++, sound ? 1 : 0);
+    view.setUint8(at++, does);
+    view.setUint8(at++, target);
+    view.setUint8(at++, 0);          // reserved
+  };
 
   sets.forEach((entry, index) => {
     // Cut after the 32nd byte, not after the 32nd character. A name of
@@ -170,16 +269,20 @@ export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles) {
     // make the two writers disagree the moment one is used.
     bytes.set(encoder.encode(String(entry.name ?? "")).subarray(0, NAME_BYTES), at);
     at += NAME_BYTES;
-    bytes.set(hashBytes(labelFiles[index]), at);
-    at += HASH_BYTES;
+    // The set key. Where a layout says nothing it is the ring: on to the next
+    // set, and round to the first from the last, which is what
+    // `(current + 1) % setCount` did in vorlaut.ino before the file could say
+    // it. A one-set layout therefore points at itself, and pressing the key
+    // does what it did before - nothing anybody can see.
+    const said = entry.key ?? {};
+    key(labelFiles[index], labelSounds[index] ?? "",
+        keyDoes(said.does, "go"),
+        keyTarget(said.target, (index + 1) % (sets.length || 1)));
     for (let slot = 0; slot < SLOTS_PER_SET; slot++) {
-      const sound = audioFiles[index][slot];
-      bytes.set(hashBytes(tileFiles[index][slot]), at);
-      at += HASH_BYTES;
-      bytes.set(hashBytes(sound), at);
-      at += HASH_BYTES;
-      view.setUint8(at++, sound ? 1 : 0);
-      view.setUint8(at++, 0);          // reserved
+      const saidHere = (entry.slots ?? [])[slot] ?? {};
+      key(tileFiles[index][slot], audioFiles[index][slot],
+          keyDoes(saidHere.does, DEFAULT_KEY_DOES),
+          keyTarget(saidHere.target, 0));
     }
   });
   return bytes;

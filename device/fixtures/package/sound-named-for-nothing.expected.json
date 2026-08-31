@@ -176,27 +176,40 @@
       "sets": [
         {
           "name": "Frühstück",
-          "symbol": "foto.png",
+          "key": {
+            "text": "Frühstück",
+            "symbol": "foto.png",
+            "does": "go",
+            "target": 0
+          },
           "slots": [
             {
               "text": "Ich habe Hunger",
               "symbol": "ja.bmp",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich habe Durst",
               "symbol": "",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "nein.bmp",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             }
           ]
         }

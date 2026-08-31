@@ -19,24 +19,37 @@ applied to ONE end, and the run records which end noticed:
 
     browser   npx vitest run tests/unit/device_fixtures.test.ts
     firmware  python3 tests/test_device_host.py
-    writer    npx vitest run tests/unit/device_package_writer.test.ts
     reader    npx vitest run tests/unit/device_package_reader.test.ts
 
-Four ends and TWO boundaries, which adr/0014 is the decision behind. The first
+Three ends and TWO boundaries, which adr/0014 is the decision behind. The first
 pair is the device interface: the bytes between a browser and the talker. The
 second is the device package - the .obz between the editor and the loader page,
-one step upstream, where neither end is the device and both are browsers. The
-fixtures for both live under device/fixtures/ and belong to none of the four.
+one step upstream - and only its READER is here. The fixtures for both live
+under device/fixtures/ and belong to none of the three.
+
+**There were four.** The package's writer was `src/data/device_package.ts` and
+eight of the faults below were put into it; it left with the editor on
+2026-08-27 (adr/0012), and this file went on naming
+`tests/unit/device_package_writer.test.ts` until 2026-08-31, which meant the
+baseline check below failed and nothing here ran at all. Its mutants went with
+it rather than being pointed at a copy: a vendored writer is the edit
+docs/split-crossings.md forbids, and a mutation run against one would be
+measuring this repository's opinion of somebody else's code.
+
+What that costs is worth stating. Nothing here can break the WRITER and watch
+device/fixtures/package/ notice, so the claim that those fixtures hold both
+ends of the package boundary is now only half checked from this side.
+vorlaut-editor holds the other half and has to make it.
 
 A fault in a header that only the browser runner catches would mean the two
 runners are not independent after all, and a fault in either that NEITHER
 catches is a hole in the fixtures. Both are printed as such rather than
 counted as a pass.
 
-Every fault is put to all four runners rather than to the two of its own
-boundary. That is not free and it is not ceremony: src/data/device_package.ts
-takes SLOTS_PER_SET and HASH_BYTES out of loader/src/layout_format.ts, so the
-two boundaries are not as disjoint as the picture above suggests, and a run
+Every fault is put to all three runners rather than to the ones of its own
+boundary. That is not free and it is not ceremony: loader/src/device_package.ts
+takes HASH_BYTES and the key vocabulary out of loader/src/layout_format.ts, so
+the two boundaries are not as disjoint as the picture above suggests, and a run
 that only asked the near pair would never see it.
 
 **A mutation nothing catches is a finding, not a tidy-up.** What it means is
@@ -65,13 +78,12 @@ TEXTS_H = ROOT / "firmware" / "vorlaut" / "texts.h"
 
 LAYOUT_TS = ROOT / "loader" / "src" / "layout_format.ts"
 TILES_TS = ROOT / "loader" / "src" / "tiles.ts"
-AUDIO_TS = ROOT / "src" / "data" / "audio_format.ts"
+AUDIO_TS = ROOT / "loader" / "src" / "audio_format.ts"
 CABLE_JS = ROOT / "loader" / "tools" / "cable.js"
-PACKAGE_TS = ROOT / "src" / "data" / "device_package.ts"
+PACKAGE_TS = ROOT / "loader" / "src" / "device_package.ts"
 
 FIRMWARE = "firmware"
 BROWSER = "browser"
-WRITER = "writer"
 READER = "reader"
 
 # (file, which end it is, what to find, what to put there, what that would mean)
@@ -85,27 +97,34 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      "#define LAYOUT_HEADER_BYTES 10", "the header shrinks"),
     (LAYOUT_H, FIRMWARE, "#define SLOT_COUNT 4", "#define SLOT_COUNT 5",
      "a set gains a fifth slot"),
-    (LAYOUT_H, FIRMWARE, "#define MAX_SETS 5", "#define MAX_SETS 6",
-     "the device claims room for a sixth set"),
+    (LAYOUT_H, FIRMWARE, "#define MAX_SETS 64", "#define MAX_SETS 65",
+     "the device claims room for one set more than there is"),
+    (LAYOUT_H, FIRMWARE, "#define KEY_COUNT (SLOT_COUNT + 1)",
+     "#define KEY_COUNT (SLOT_COUNT + 2)",
+     "a set gains a sixth key nothing draws"),
     (LAYOUT_TS, BROWSER, "export const NAME_BYTES = 32;",
      "export const NAME_BYTES = 30;",
      "the browser cuts names two bytes earlier"),
     (LAYOUT_TS, BROWSER, "export const SLOTS_PER_SET = 4;",
      "export const SLOTS_PER_SET = 5;",
      "the browser writes five slots to a set"),
-    (LAYOUT_TS, BROWSER, "export const MAX_SETS = 5;",
-     "export const MAX_SETS = 6;",
-     "the browser thinks the device has room for a sixth set"),
+    (LAYOUT_TS, BROWSER, "export const MAX_SETS = 64;",
+     "export const MAX_SETS = 65;",
+     "the browser thinks the device has room for one set more than it has"),
+    (LAYOUT_TS, BROWSER, "export const KEYS_PER_SET = SLOTS_PER_SET + 1;",
+     "export const KEYS_PER_SET = SLOTS_PER_SET + 2;",
+     "the browser writes a sixth key into every set"),
     (LAYOUT_TS, BROWSER, "export const HEADER_BYTES = 4 + 4 + 4;",
      "export const HEADER_BYTES = 4 + 4 + 2;",
      "the browser's header shrinks"),
 
     # --- the version, and the refusals ---------------------------------------
-    (LAYOUT_H, FIRMWARE, "#define LAYOUT_VERSION 2", "#define LAYOUT_VERSION 3",
+    (LAYOUT_H, FIRMWARE, "#define LAYOUT_VERSION 3", "#define LAYOUT_VERSION 4",
      "the device wants a version the builder does not write"),
-    (LAYOUT_TS, BROWSER, "export const LAYOUT_VERSION = 2;",
-     "export const LAYOUT_VERSION = 1;",
-     "the builder writes the version from before the colour went"),
+    (LAYOUT_TS, BROWSER, "export const LAYOUT_VERSION = 3;",
+     "export const LAYOUT_VERSION = 2;",
+     "the builder writes the version from before every key said what it "
+     "does"),
     (LAYOUT_H, FIRMWARE, "if (data[4] != LAYOUT_VERSION) return LAYOUT_BAD_VERSION;",
      "if (false) return LAYOUT_BAD_VERSION;",
      "the version is no longer checked at all"),
@@ -120,6 +139,45 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
     (LAYOUT_H, FIRMWARE, "if (length < LAYOUT_HEADER_BYTES) return LAYOUT_TOO_SHORT;",
      "if (false) return LAYOUT_TOO_SHORT;",
      "a file shorter than its own header is read anyway"),
+
+    # --- what a key does, and where it goes ------------------------------------
+    (LAYOUT_H, FIRMWARE, "  into.does = p[2 * HASH_BYTES + 1];",
+     "  into.does = LAYOUT_KEY_SPEAK;",
+     "every key is read as one that speaks and goes nowhere"),
+    (LAYOUT_H, FIRMWARE, "  into.target = p[2 * HASH_BYTES + 2];",
+     "  into.target = 0;",
+     "every key that goes anywhere is read as going to the first set"),
+    (LAYOUT_H, FIRMWARE, "  return does != LAYOUT_KEY_GO;",
+     "  return does == LAYOUT_KEY_SPEAK;",
+     "a key that speaks and then goes on stops saying its word"),
+    (LAYOUT_H, FIRMWARE, "  if (target >= setCount) return -1;",
+     "  if (false) return -1;",
+     "a target naming no set is handed back as one, and sets[] is read "
+     "past its end"),
+    (LAYOUT_H, FIRMWARE,
+     "  if (does != LAYOUT_KEY_SPEAK_AND_GO && does != LAYOUT_KEY_GO) return -1;",
+     "  if (does == LAYOUT_KEY_SPEAK) return -1;",
+     "a value no version has explained becomes a jump rather than a key "
+     "that stays put"),
+    (LAYOUT_H, FIRMWARE, "    layoutReadKey(keys, e.key);",
+     "    layoutReadKey(keys + LAYOUT_KEY_BYTES, e.key);",
+     "the set key is read out of the first speech key"),
+    (LAYOUT_TS, BROWSER,
+     'export const KEY_DOES = { speak: 0, "speak-and-go": 1, go: 2 };',
+     'export const KEY_DOES = { speak: 0, "speak-and-go": 2, go: 1 };',
+     "the browser writes the two answers that go somewhere the wrong way "
+     "round"),
+    (LAYOUT_TS, BROWSER, "    view.setUint8(at++, target);",
+     "    view.setUint8(at++, 0);",
+     "every key is written as going to the first set"),
+    (PACKAGE_TS, READER,
+     '          : button?.ext_lautstark_speak_on_navigate === true ? "speak-and-go"',
+     '          : false ? "speak-and-go"',
+     "a key that speaks and then goes on is read as one that only goes on"),
+    (PACKAGE_TS, READER,
+     "  const named = rows.length ? rows[rows.length - 1]?.[0] : null;",
+     "  const named = rows.length ? rows[0]?.[0] : null;",
+     "the set key is looked for in the cell the speaker sits in"),
 
     # --- byte 7, the one extension point --------------------------------------
     (LAYOUT_H, FIRMWARE, "  out.language = data[7];", "  out.language = 0;",
@@ -186,18 +244,22 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      "  view.setUint32(at, sleep, false);",
      "the sleep timeout is written the wrong way round"),
 
-    # --- the has-audio flag and the reserved byte -----------------------------
-    (LAYOUT_H, FIRMWARE, "e.slots[j].hasAudio = t[2 * HASH_BYTES] != 0;",
-     "e.slots[j].hasAudio = t[2 * HASH_BYTES] == 1;",
+    # --- the has-audio flag and the spare byte --------------------------------
+    #
+    # The byte after the flag used to be the reserved one. Version 3 spent it
+    # on `does` and put a new spare at the end of the key, so the second of
+    # these now swaps the flag for `does` rather than for a byte nobody reads.
+    (LAYOUT_H, FIRMWARE, "  into.hasAudio = p[2 * HASH_BYTES] != 0;",
+     "  into.hasAudio = p[2 * HASH_BYTES] == 1;",
      "a has-audio flag that is not exactly 1 silences the key"),
-    (LAYOUT_H, FIRMWARE, "e.slots[j].hasAudio = t[2 * HASH_BYTES] != 0;",
-     "e.slots[j].hasAudio = t[2 * HASH_BYTES + 1] != 0;",
-     "the reserved byte is read as the has-audio flag"),
-    (LAYOUT_TS, BROWSER, "      view.setUint8(at++, sound ? 1 : 0);\n"
-                         "      view.setUint8(at++, 0);          // reserved",
-     "      view.setUint8(at++, 0);          // reserved\n"
-     "      view.setUint8(at++, sound ? 1 : 0);",
-     "the browser writes the flag and the reserved byte the other way round"),
+    (LAYOUT_H, FIRMWARE, "  into.hasAudio = p[2 * HASH_BYTES] != 0;",
+     "  into.hasAudio = p[2 * HASH_BYTES + 3] != 0;",
+     "the spare byte at the end of a key is read as the has-audio flag"),
+    (LAYOUT_TS, BROWSER, "    view.setUint8(at++, sound ? 1 : 0);\n"
+                         "    view.setUint8(at++, does);",
+     "    view.setUint8(at++, does);\n"
+     "    view.setUint8(at++, sound ? 1 : 0);",
+     "the browser writes the has-audio flag and `does` the other way round"),
 
     # --- the tile -------------------------------------------------------------
     (TILE_H, FIRMWARE, "#define TILE_W 128", "#define TILE_W 116",
@@ -294,57 +356,36 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
      "        const acked = at;",
      "the browser stops waiting to be acknowledged"),
 
-    # --- the device package: what a writer must put in the file --------------
+    # --- the device package: what a reader must make of it -------------------
     #
     # The other boundary, and the one adr/0014 added this directory a kind for.
     # Everything below is aimed at a package that PARSES: a talker that says
     # the wrong sentence rather than one that says nothing, which
     # docs/device-interface.md section 6 is a whole section about.
-    (PACKAGE_TS, WRITER, "      if (slot.negated) button.ext_vorlaut_negated = true;",
-     "      if (false) button.ext_vorlaut_negated = true;",
-     "a crossed-out key is written into the package as a plain one"),
-    (PACKAGE_TS, WRITER, "      if (!reference) return undefined;",
-     "      if (!reference || !input.sources.get(reference)) return undefined;",
-     "a reference that resolved to nothing is dropped instead of recorded"),
-    (PACKAGE_TS, WRITER, "      if (slot.text) button.vocalization = slot.text;",
-     "      if (false) button.vocalization = slot.text;",
-     "the sentence a key speaks is not written, only the one printed on it"),
-    (PACKAGE_TS, WRITER, "        duration: wavSeconds(format!),",
-     "        duration: 0,",
-     "every recording is filed as lasting no time at all"),
-    (PACKAGE_TS, WRITER, "      locale: plan.language,", '      locale: "en",',
-     "the language is not the Sammlung's own"),
-    (PACKAGE_TS, WRITER, "      if (!isDeviceWav(format)) {", "      if (false) {",
-     "the writer stops refusing a recording at the wrong sample rate"),
-    (PACKAGE_TS, WRITER, "      if (!AUDIO_NAME.test(sound.name)) {",
-     "      if (false) {",
-     "the writer stops refusing a recording under a name layout.bin cannot carry"),
-    (PACKAGE_TS, WRITER, "    root: boardPath(ids[0]!),",
-     "    root: boardPath(ids[ids.length - 1]!),",
-     "the manifest says the ring starts at the last board"),
-
-    # --- the device package: what a reader must make of it -------------------
+    #
+    # The writer's half of this list is in vorlaut-editor - see the head of
+    # this file, under "There were four".
     (PACKAGE_TS, READER, "        empty: slotIsEmpty({ text, symbol }),",
      "        empty: false,",
      "a key holding nothing comes back as a key holding something"),
     (PACKAGE_TS, READER, "  if (walked.length !== byBoardId.size) {",
      "  if (false) {",
-     "a ring that reaches some of the boards is taken for one that reaches all"),
+     "a board nothing in the package reaches is taken along with the rest"),
     (PACKAGE_TS, READER,
      "      sleepTimeoutSeconds: root.ext_vorlaut_sleep_timeout_seconds as number,",
      "      sleepTimeoutSeconds: walked[walked.length - 1]!.ext_vorlaut_sleep_timeout_seconds as number,",
      "the sleep timeout is read off the last board rather than the root"),
-    (PACKAGE_TS, READER, "        negated: button.ext_vorlaut_negated === true,",
+    (PACKAGE_TS, READER, "        negated: button?.ext_vorlaut_negated === true,",
      "        negated: false,",
      "a crossed-out key comes back as a plain one"),
-    (PACKAGE_TS, READER, "      if (button.load_board) continue;",
+    (PACKAGE_TS, READER, "      if (button === setKey) continue;",
      "      if (false) continue;",
      "the key that turns the page comes back as a fifth key on the board"),
     (PACKAGE_TS, READER, "      if (!entry.path) {", "      if (false) {",
      "a gap the export recorded on purpose is read as a missing file"),
     (PACKAGE_TS, READER,
-     '      const text = String(button.vocalization ?? button.label ?? "");',
-     '      const text = String(button.label ?? "");',
+     '      const text = String(button?.vocalization ?? button?.label ?? "");',
+     '      const text = String(button?.label ?? "");',
      "the caption printed on a key is taken for the sentence it speaks"),
     (PACKAGE_TS, READER, "        if (!isDeviceWav(heard)) {",
      "        if (false) {",
@@ -397,7 +438,7 @@ CONTROLS: list[tuple[pathlib.Path, str, str, str, str]] = [
 ]
 
 
-# The four runners, in the order a report reads best. Each one meets the
+# The three runners, in the order a report reads best. Each one meets the
 # fixtures and never another runner: that is the property the whole directory
 # is built on, and a runner added here that imported another end's code would
 # take it away without anything going red.
@@ -412,7 +453,6 @@ RUNNERS = {
     FIRMWARE: lambda: subprocess.run(
         [sys.executable, "tests/test_device_host.py"],
         cwd=ROOT, capture_output=True, text=True).returncode == 0,
-    WRITER: vitest("tests/unit/device_package_writer.test.ts"),
     READER: vitest("tests/unit/device_package_reader.test.ts"),
 }
 

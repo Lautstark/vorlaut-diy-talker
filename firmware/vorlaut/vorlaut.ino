@@ -479,7 +479,7 @@ static void drawCurrentSet() {
     hashPath(path, 't', e.slots[i].image, ".bin");
     drawTile(display[i], path);
   }
-  hashPath(path, 't', e.label, ".bin");
+  hashPath(path, 't', e.key.image, ".bin");
   drawTile(display[SET_BUTTON], path);
   Serial.printf("set %u: %s\n", (unsigned)(rtcCurrentSet + 1), e.name);
 }
@@ -1261,7 +1261,12 @@ void loop() {
       rtcCurrentSet = (uint8_t)((rtcCurrentSet + 1) % layout.setCount);
       drawCurrentSet();
     } else {
-      const Slot &slot = layout.sets[rtcCurrentSet].slots[pressed];
+      // What the key DOES is in the file since version 3, and acting on it -
+      // going where it says, and going there without waiting to be pressed
+      // again - is the step after this one. Until then every speech key
+      // speaks, which is what layoutKeySpeaks() answers for every value a
+      // conforming builder writes on one.
+      const Key &slot = layout.sets[rtcCurrentSet].slots[pressed];
       if (slot.hasAudio) {
         char path[2 + HASH_BYTES * 2 + 5];
         hashPath(path, 'a', slot.audio, ".wav");

@@ -1,0 +1,74 @@
+{
+  "fixture": "key-goes-past-the-last-set",
+  "kind": "layout",
+  "file": "layout/key-goes-past-the-last-set.bin",
+  "summary": "A set key pointing at set 3 in a layout that holds one. It goes nowhere.",
+  "bytes": 224,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 3600,
+    "idle_seconds": 3600,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "key": {
+          "image": "11111111111111111111111111111111",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 3,
+          "speaks": false,
+          "goes_to": -1
+        },
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "The target is a uint8 and so is the set count, so the format can say this and the array cannot hold it. Reading past the end of sets[] is the one outcome a parser must never have, and the answer is that the key stays where it is.",
+    "Staying put rather than falling back to set 0. docs/device-interface.md section 6 is the argument: a key that jumps somewhere arbitrary looks like it worked, and what it teaches the person pressing it is untrue. A key that does nothing is visibly broken.",
+    "The field comes back as it stands beside the meaning - target 3, goes_to -1 - which is the pair sleep_seconds and idle_seconds are. A reader that clamped inside the parse would give the right meaning and the wrong field, and nothing checking only the meaning could say so.",
+    "No builder writes it: loader/src/device_package.ts resolves every target out of the boards the package actually holds, and refuses a `load_board` naming one it does not."
+  ]
+}

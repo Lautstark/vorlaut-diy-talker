@@ -3,7 +3,7 @@
   "kind": "layout",
   "file": "layout/bad-magic.bin",
   "summary": "MTRE where MTRD belongs - one bit out in the last letter.",
-  "bytes": 196,
+  "bytes": 224,
   "read": {
     "result": "LAYOUT_BAD_MAGIC"
   },

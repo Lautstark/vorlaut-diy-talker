@@ -17,17 +17,32 @@
 #include <string.h>
 
 #define SLOT_COUNT 4
-#define MAX_SETS 5
+// The set key beside the four speech keys. It became a key like the others in
+// version 3 - see the note on LAYOUT_VERSION - and this is the number of
+// panels the device lights, which is DISPLAY_COUNT in pins.h arrived at from
+// the file rather than from the wiring.
+#define KEY_COUNT (SLOT_COUNT + 1)
+// How much room the reader has for sets. Not a number in the file: a layout
+// naming more than this is refused, and a device flashed with a smaller one
+// cannot be given a larger one afterwards. adr/0020 is where 64 comes from
+// and what it costs; the short version is that the file partition runs out
+// somewhere around forty sets of a game's size while SRAM would hold hundreds,
+// so this is set past the ceiling that actually binds.
+#define MAX_SETS 64
 #define HASH_BYTES 16
 #define NAME_BYTES 32
-// 2 rather than 1: the set entry lost its colour and is two bytes shorter,
-// so a layout.bin written before that is not a shorter file but a
-// differently shaped one. Its length still adds up - 186 per set is more
-// than 184, not less - so without this the reader would take it and hand
-// back names and hashes read two bytes late. Refused here instead, which
-// loadLayout() shows as a device with no content on it and a line on the
-// serial port saying which reason.
-#define LAYOUT_VERSION 2
+// 3 rather than 2: every key of a set now carries what it DOES and where it
+// GOES, and the set key carries a sound of its own, so a set entry is 212
+// bytes where it was 184. A version-2 file is shorter than the length rule
+// asks for rather than longer, so it would be refused for its length even
+// without this - but "refused for the wrong reason" is a check that has
+// stopped running, and a version-2 file with a set count that happened to make
+// the arithmetic work out is not a case worth relying on being impossible.
+// Refused here instead, which loadLayout() shows as a device with no content
+// on it and a line on the serial port saying which reason.
+//
+// 2 was the set entry losing its colour; 1 was before that.
+#define LAYOUT_VERSION 3
 
 // The sleep timeout: the range a builder may write, and what the device does
 // with everything else.
@@ -91,22 +106,88 @@ static inline uint32_t layoutIdleSeconds(uint32_t sleepSeconds) {
   return sleepSeconds;
 }
 
+// What a key does when it is pressed, and where it goes.
+//
+// Three values in one byte, and the same three the editor offers as Wort,
+// Wort & weiter and weiter. They are a field rather than a mode: there is no
+// game in this format and no notion of an answer being right. A key that goes
+// somewhere is a key that goes somewhere, and a round of the joining game is
+// four keys of which one happens to be the only one that does.
+//
+// The byte the file holds is handed back as it stands - the rule byte 7 and
+// the sleep timeout already follow - and what it MEANS is settled in the two
+// functions below, where device/fixtures/ can hold both halves separately.
+// That matters for exactly one reason: a value neither this version nor any
+// later one has to explain must not be able to break a flashed device. So an
+// unknown value is not refused and is not a jump; it is a key that says its
+// own word and stays where it is, which is what every key in version 2 did.
+#define LAYOUT_KEY_SPEAK 0
+#define LAYOUT_KEY_SPEAK_AND_GO 1
+#define LAYOUT_KEY_GO 2
+
+/** Whether the key says its own word. Anything but "go" does. */
+static inline bool layoutKeySpeaks(uint8_t does) {
+  return does != LAYOUT_KEY_GO;
+}
+
+/**
+ * Which set the key really goes to, or -1 where it goes nowhere.
+ *
+ * Two ways to go nowhere, and they are one answer on purpose:
+ *
+ *   the key does not navigate    LAYOUT_KEY_SPEAK, and every value this
+ *                                version does not know.
+ *   the target names no set      A byte between the set count and 255. The
+ *                                field is a uint8 and the count is a uint8,
+ *                                so the format can say it; sets[] cannot
+ *                                hold it, and reading past the array is the
+ *                                one outcome a parser must never have.
+ *
+ * Staying put rather than falling back to set 0. docs/device-interface.md
+ * section 6 is the argument: a key that does the wrong thing is worse than one
+ * that does nothing, because a child pressing it learns something untrue about
+ * their own talker. A key that does nothing is visibly broken; a key that
+ * jumps somewhere arbitrary looks like it worked.
+ */
+static inline int16_t layoutKeyGoesTo(uint8_t does, uint8_t target,
+                                      uint8_t setCount) {
+  if (does != LAYOUT_KEY_SPEAK_AND_GO && does != LAYOUT_KEY_GO) return -1;
+  if (target >= setCount) return -1;
+  return (int16_t)target;
+}
+
 // Fixed strides. Have to agree with loader/src/layout_format.ts.
 #define LAYOUT_HEADER_BYTES 12
-#define LAYOUT_SLOT_BYTES (HASH_BYTES + HASH_BYTES + 1 + 1)          // 34
-#define LAYOUT_SET_BYTES (NAME_BYTES + HASH_BYTES + SLOT_COUNT * LAYOUT_SLOT_BYTES)  // 184
-#define LAYOUT_MAX_BYTES (LAYOUT_HEADER_BYTES + MAX_SETS * LAYOUT_SET_BYTES)         // 932
+// image, audio, has-audio, what it does, where it goes, and one byte spare.
+// The spare byte is what the has-audio flag was followed by in version 2 and
+// it is kept rather than spent: it was the only room this format had left, and
+// spending the room while widening the structure would leave the next change
+// with nowhere to go but another MAJOR. See docs/format-freeze.md section 4.
+#define LAYOUT_KEY_BYTES (HASH_BYTES + HASH_BYTES + 1 + 1 + 1 + 1)            // 36
+#define LAYOUT_SET_BYTES (NAME_BYTES + KEY_COUNT * LAYOUT_KEY_BYTES)          // 212
+#define LAYOUT_MAX_BYTES (LAYOUT_HEADER_BYTES + MAX_SETS * LAYOUT_SET_BYTES)  // 13580
 
-struct Slot {
+struct Key {
   uint8_t image[HASH_BYTES];
   uint8_t audio[HASH_BYTES];
   bool hasAudio;
+  /** LAYOUT_KEY_SPEAK, _SPEAK_AND_GO or _GO - as the file says it, not as it
+   *  is meant. layoutKeySpeaks() and layoutKeyGoesTo() are the meaning. */
+  uint8_t does;
+  /** The set this key goes to, where it goes anywhere. Handed back as it
+   *  stands, including a value no set stands behind. */
+  uint8_t target;
 };
 
 struct SetEntry {
   char name[NAME_BYTES + 1];
-  uint8_t label[HASH_BYTES];
-  Slot slots[SLOT_COUNT];
+  /** The fifth panel. It held a picture and nothing else until version 3 -
+   *  the field was called `label`, the device drew it, and switching sets was
+   *  arithmetic in vorlaut.ino rather than anything the file said. It is a key
+   *  now, and the ring it used to be is what a conforming builder writes into
+   *  it: LAYOUT_KEY_GO, to the next set. */
+  Key key;
+  Key slots[SLOT_COUNT];
 };
 
 struct Layout {
@@ -137,6 +218,15 @@ static inline uint32_t layoutU32(const uint8_t *p) {
        | ((uint32_t)p[3] << 24);
 }
 
+/** One key out of the LAYOUT_KEY_BYTES at `p`. The spare byte is not read. */
+static inline void layoutReadKey(const uint8_t *p, Key &into) {
+  memcpy(into.image, p, HASH_BYTES);
+  memcpy(into.audio, p + HASH_BYTES, HASH_BYTES);
+  into.hasAudio = p[2 * HASH_BYTES] != 0;
+  into.does = p[2 * HASH_BYTES + 1];
+  into.target = p[2 * HASH_BYTES + 2];
+}
+
 static inline LayoutResult parseLayout(const uint8_t *data, uint32_t length,
                                        Layout &out) {
   if (length < LAYOUT_HEADER_BYTES) return LAYOUT_TOO_SHORT;
@@ -163,13 +253,13 @@ static inline LayoutResult parseLayout(const uint8_t *data, uint32_t length,
     SetEntry &e = out.sets[i];
     memcpy(e.name, s, NAME_BYTES);
     e.name[NAME_BYTES] = '\0';
-    memcpy(e.label, s + NAME_BYTES, HASH_BYTES);
-    const uint8_t *slots = s + NAME_BYTES + HASH_BYTES;
+    const uint8_t *keys = s + NAME_BYTES;
+    // The set key first, where the label hash sat in version 2, and then the
+    // four speech keys. Same order the panels are written down in everywhere
+    // else: the set names its own key, and the keys it speaks with follow.
+    layoutReadKey(keys, e.key);
     for (uint8_t j = 0; j < SLOT_COUNT; j++) {
-      const uint8_t *t = slots + (uint32_t)j * LAYOUT_SLOT_BYTES;
-      memcpy(e.slots[j].image, t, HASH_BYTES);
-      memcpy(e.slots[j].audio, t + HASH_BYTES, HASH_BYTES);
-      e.slots[j].hasAudio = t[2 * HASH_BYTES] != 0;
+      layoutReadKey(keys + (uint32_t)(j + 1) * LAYOUT_KEY_BYTES, e.slots[j]);
     }
   }
   return LAYOUT_OK;

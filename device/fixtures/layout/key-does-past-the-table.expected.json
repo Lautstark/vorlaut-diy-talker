@@ -1,0 +1,73 @@
+{
+  "fixture": "key-does-past-the-table",
+  "kind": "layout",
+  "file": "layout/key-does-past-the-table.bin",
+  "summary": "A key whose `does` is 7, a value no version has given a meaning. It speaks and stays where it is.",
+  "bytes": 224,
+  "read": {
+    "result": "ok",
+    "sets": 1,
+    "language": 0,
+    "sleep_seconds": 3600,
+    "idle_seconds": 3600,
+    "entries": [
+      {
+        "name": "4672c3bc687374c3bc636b",
+        "name_text": "Frühstück",
+        "key": {
+          "image": "11111111111111111111111111111111",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 0,
+          "speaks": false,
+          "goes_to": 0
+        },
+        "slots": [
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "31313131313131313131313131313131",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true,
+            "does": 7,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "The same shape as language-past-the-table and the same reason. A reader hands the field back as it stands - what the number means is not the parser's business - and the meaning is settled beside it, where an index past the end of the table gives the old behaviour rather than a read past the end of it.",
+    "The old behaviour is the one a version-2 key had: it says its own word and goes nowhere. So a layout from a builder that knows a fourth value cannot strand a child on a board or send them somewhere arbitrary. It can only make a key quieter than its author meant.",
+    "No builder writes this file. KEY_DOES has three entries and a word that is not in it is refused before the byte is written - which is where this differs from the language, whose unknown value falls back rather than refusing. A device with the wrong menu language still works; a key doing something other than what its layout meant does not."
+  ]
+}
