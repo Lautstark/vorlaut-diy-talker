@@ -17,6 +17,19 @@ inputs:
     description: Board setting, partition scheme included.
     required: false
     default: esp32:esp32:adafruit_feather_esp32s3_nopsram:PartitionScheme=default_8MB
+  maximum_size:
+    description: >
+      How much room the program has, in bytes - `app0` in
+      firmware/vorlaut/partitions.csv. It has to be said here because the FQBN
+      no longer knows: the sketch brings its own partition table and the ESP32
+      core copies it over the scheme's, but `upload.maximum_size` still comes
+      from the scheme, which would report a program of 500 KiB as 15 % of a
+      3264 KiB partition that no device has any more. Without this the check
+      that catches a program outgrowing its partition is checking the wrong
+      number, and the way it fails is a build that overwrites `coredump` and
+      the head of the file area. See adr/0018.
+    required: false
+    default: "1048576"
   version:
     description: >
       What the build should call itself in the cable's greeting - the tag, for
@@ -63,6 +76,7 @@ runs:
       env:
         SKETCHES: ${{ inputs.sketches }}
         FQBN: ${{ inputs.fqbn }}
+        MAXIMUM_SIZE: ${{ inputs.maximum_size }}
         VERSION: ${{ inputs.version }}
       run: |
         # The version reaches the sketch as a macro rather than as an edit to
@@ -70,7 +84,12 @@ runs:
         # named - see firmware/vorlaut/version.h. compiler.cpp.extra_flags is
         # the property to hang it on: build.extra_flags already carries the
         # board's own defines, and overriding that would take them away.
-        properties=()
+        # The size limit goes on every sketch in the list, the bring-up ones
+        # included. They are flashed with the board's own table rather than
+        # this one, so the bound is stricter than they need - and they are
+        # under 400 KiB, so it costs nothing that a per-sketch exception here
+        # would not cost twice over.
+        properties=(--build-property "upload.maximum_size=$MAXIMUM_SIZE")
         if [ -n "$VERSION" ]; then
           properties+=(--build-property
                        "compiler.cpp.extra_flags=-DVORLAUT_VERSION=\"$VERSION\"")

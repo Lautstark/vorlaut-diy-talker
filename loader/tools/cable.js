@@ -514,11 +514,13 @@ export function plan(want, have, room, layoutCrc = null) {
 
   // Sending first and deleting afterwards means the device is never holding a
   // layout that points at a file which is no longer there. It costs room: for
-  // the length of the transfer both the old files and the new ones are on a
-  // partition of 1.5 MB. Replacing every symbol and every sentence at once
-  // does not fit, and then there is no choice but to clear the way first and
-  // accept that a transfer breaking off in the middle leaves the device with
-  // silent keys until it is finished.
+  // the length of the transfer both the old files and the new ones are on the
+  // same partition - 7040 KiB on a device flashed since 2026-08-31, 1536 KiB
+  // on one that still carries the older table. Where everything does not fit
+  // at once there is no choice but to clear the way first and accept that a
+  // transfer breaking off in the middle leaves the device with silent keys
+  // until it is finished. Which of the two it is never appears here: the room
+  // comes from the device's own hello.
   const tight = needed > room.free;
   if (tight && needed > room.free + frees) {
     return { put, remove, keep, needed, tight, fits: false };

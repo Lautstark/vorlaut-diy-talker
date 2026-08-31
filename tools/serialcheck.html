@@ -324,7 +324,7 @@ function describe(what) {
       ({ name, n: f.bytes.length, note: hex8(crc32(f.bytes)) })),
     [{ t: "file" }, { t: "bytes", n: true }, { t: "checksum" }]);
   log(`${what}: ${made.size} file(s), ${(bytes / 1024).toFixed(0)} KB`
-      + (bytes > 1536 * 1024 ? " — that is more than the partition holds" : ""));
+      + (bytes > 7040 * 1024 ? " — that is more than the partition holds" : ""));
   $("#push").disabled = !cable;
 }
 
