@@ -71,6 +71,24 @@ now, and getting it right is most of the work.
 | The language byte | `LANGUAGE_CODES` in `layout_format.ts` | `LANGUAGES` in `texts.h` | `test_texts.py`, by regex over the TypeScript |
 | Pairing codes | — | — | the format no longer exists |
 
+*Three of those cells are dated, and this one is the reason the note is here.*
+**The tile, the audio payload and the name rule said "nothing" on 2026-08-26,
+and they are the measurement recommendation 2 was written out of.** It was
+built — [ADR 0009](../adr/0009-device-interface-fixtures.md) — and each of the
+three is now held from both sides against
+[`device/fixtures/`](../device/README.md): `tests/test_device_host.py` compiles
+the firmware's own readers and replays the fixtures into them,
+`tests/unit/device_fixtures.test.ts` asks the browser's modules the same
+questions. For the tile specifically, both sentences below have been answered
+rather than argued with: `TILE_W` and `TILE_H` left `vorlaut.ino` for
+[`tile_format.h`](../firmware/vorlaut/tile_format.h) on 2026-08-26, so a test
+can include them and `tests/device_host.cpp` does; and the length rule that
+paragraph calls written down nowhere is `device/fixtures/tile/short` and
+`device/fixtures/tile/over-long` — a reader zero-fills what is missing and
+never looks past `TILE_BYTES`, a writer must emit exactly that length. The
+cells are left saying what they said, because the table is the measurement and
+§§1–8 are not rewritten.
+
 ### The three nobody has counted
 
 **The tile payload.** A `t<hash>.bin` is 128 by 128 pixels of RGB565,
