@@ -73,11 +73,11 @@ with the release train
 is cut by hand, when the bar above is met.
 
 The version in `index.json` is not `LAYOUT_VERSION` and not `CABLE_VERSION`.
-Those are a byte in a file and a number on a wire, both currently 2; this is
-`MAJOR.MINOR.PATCH` over the whole interface, and the three of them will drift
-apart on purpose.
+Those are a byte in a file and a number on a wire, currently 3 and 2; this is
+`MAJOR.MINOR.PATCH` over the whole interface, and the three of them drift apart
+on purpose.
 
-It reads **`1.2.0`**, and it carries no word about status. It said
+It reads **`2.0.0`**, and it carries no word about status. It said
 `0.1.0-draft` until 2026-08-27, which put a claim about the interface inside a
 number nothing asserted — both runners printed the string and neither checked
 it, so a `device-v1` cut over it would have contradicted the thing it tagged.
@@ -105,6 +105,30 @@ speaks. MINOR by the same rule read the other way round — a device already
 flashed neither misreads the addition nor ever sees it, because both ends skip
 what they do not know, and a device that says nothing there is a conformant
 older one rather than a broken one.
+
+`1.3.0` is 2026-08-30: a tile may travel compressed, and a browser sends the
+compressed form only to a device that named it in its greeting
+([ADR 0019](../adr/0019-tiles-travel-compressed.md)). MINOR for the same reason
+again — silence means raw, so a device flashed before it neither misreads a
+tile nor is sent one it cannot read.
+
+`2.0.0` is 2026-08-31, and it is the first MAJOR
+([ADR 0020](../adr/0020-every-key-says-what-it-does.md)). `layout.bin` went to
+version 3: every key of a set says what it does and where it goes, the set key
+became a key like the other four, and the reader has room for 64 sets rather
+than 5.
+
+**Read the MAJOR rule carefully here, because this change does not literally
+meet it and is still a MAJOR.** The rule is *a flashed device misreading a
+payload a conforming builder writes* — and no device misreads anything: the
+version byte moved with the strides, so a talker flashed before today refuses a
+version-3 file and a talker flashed after refuses a version-2 one, both with
+`LAYOUT_BAD_VERSION` and both silently. The rule is written about misreading
+because misreading is the outcome worth spending a MAJOR to avoid; it is not a
+licence to call a mutual refusal a MINOR. Two builders neither of which can
+write a file the other's device reads is what a MAJOR means, and what the
+version byte bought is that the break is legible rather than a set of names and
+hashes read at the wrong pitch.
 
 ---
 

@@ -196,8 +196,8 @@ stated input; the firmware must read these fields out of these bytes.
 
 The cases that do not exist today and are the point of the exercise: every
 refusal code; a file one byte short of its own header; `sets` above `MAX_SETS`;
-a `SLOT_COUNT` that is not 4; a version byte of 2; reserved bytes written
-non-zero; a name filling all 32 bytes with a multi-byte character split at the
+a `SLOT_COUNT` that is not 4; a version byte one past the current one; reserved
+bytes written non-zero; a name filling all 32 bytes with a multi-byte character split at the
 boundary. None of those can be captured. All of them can be authored.
 
 ### A conversation
@@ -399,9 +399,11 @@ Two things follow that are easy to miss:
   only version a commit here can move now is `device-v*`, by hand, which is the
   point.
 - **The specification's version is not `LAYOUT_VERSION` and not
-  `CABLE_VERSION`.** Those are a byte in a file and a number on a wire, both
-  currently 1. The document version is `MAJOR.MINOR.PATCH` over the whole device
-  interface, and the three of them will drift apart on purpose.
+  `CABLE_VERSION`.** Those are a byte in a file and a number on a wire; they
+  read 3 and 2 as this is written, and they read 1 and 1 when it was written.
+  The document version is `MAJOR.MINOR.PATCH` over the whole device interface,
+  and the three of them drift apart on purpose — which this line has now
+  demonstrated rather than predicted.
 
 The rule, adjusted for a reader that cannot be updated:
 
@@ -424,7 +426,8 @@ carry its removal as an open question. The removal happened first, on
 right and what it got wrong are both useful to whoever writes the fixtures.
 
 **What went.** The Set sheet's swatches; the two bytes at the front of a
-`SetEntry`, which is 184 bytes now and sits behind `LAYOUT_VERSION 2`;
+`SetEntry`, which was 184 bytes then and is 212 behind `LAYOUT_VERSION 3`
+([ADR 0020](../adr/0020-every-key-says-what-it-does.md));
 `drawTile()`'s frame argument, those six pixels being blacked out with nothing
 in their place; and both fields it reached in an app package —
 `ext_lautstark_board_color` on the board *and* `border_color` on every button,
@@ -451,8 +454,11 @@ The version bump is the other correction. A shorter set entry does not make an
 old file too short — 186 per set is *more* than 184 — so its length still adds
 up and `parseLayout` would have read every name and hash two bytes late. That is
 exactly this document's §6: the dangerous mistakes are the ones that parse.
-`LAYOUT_VERSION 2` turns it into a refusal, which is the silence §6 calls the
-good outcome.
+`LAYOUT_VERSION 2` turned it into a refusal, which is the silence §6 calls the
+good outcome. Version 3 did the same thing in the other direction and did not
+have to — a 212-byte entry makes an old file too *short*, so the length rule
+would have caught it — and moved the byte anyway, because a file refused for
+the right reason today can be one refused by coincidence tomorrow.
 
 *Separately and not in the format's names:* the rename of the talker's *Set* to
 *Seite* on screen has since landed, and it is screen vocabulary. The wire still

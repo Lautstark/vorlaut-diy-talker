@@ -13,7 +13,7 @@ import { TEXTS } from "../loader/src/boot_data.js";
 import { fill } from "../loader/src/fill.js";
 /* Out of the modules that decide them rather than written here: a stride this
  * test spelled out for itself would agree with nothing. */
-import { HEADER_BYTES, MAX_SETS, SET_BYTES } from "../loader/src/layout_format.js";
+import { HEADER_BYTES, SET_BYTES } from "../loader/src/layout_format.js";
 import { TILE_SIZE } from "../loader/src/tiles.js";
 import { LONG, SPOKEN, packageBytes } from "./package.js";
 
@@ -247,24 +247,21 @@ test("a file that is not a package is refused in words, and nothing else runs",
   expect(await stateOf(page, "load.step_send")).toBe("waiting");
 });
 
-test("a Sammlung with more sets than the device has room for is refused",
-     async ({ page }) => {
-  await withDevice(page);
-  /* The check that has no ancestor, and the reason it exists. The editor could
-     not make a sixth set - LIMITS.maxSets is five - so the build never had to
-     ask. A file from anywhere else can, renderLayoutBin() will happily write
-     it, and readLayout() on the device answers LAYOUT_BAD_LENGTH: a talker
-     that takes the transfer and then shows nothing, with no screen anywhere
-     saying why. device/fixtures/layout/sets-past-max.expected.json is that
-     refusal written down. */
-  await choose(page, packageBytes("too-many-sets"));
+/* There was a test here that fed the page a package with more sets than the
+   device has room for and watched the refusal appear. It went on 2026-08-31
+   with MAX_SETS 5, and where it went is
+   tests/unit/validate_limits.test.ts, which asks check() the same question
+   about a plan of 65 sets.
 
-  const refusals = findings(page, "load.step_check").filter({ hasText: "✖" });
-  await expect(refusals).toHaveCount(1);
-  await expect(refusals.first())
-    .toContainText(filled("load.too_many_sets", { sets: MAX_SETS + 1, max: MAX_SETS }));
-  expect(await stateOf(page, "load.step_compile")).toBe("waiting");
-});
+   Not a judgement that the end-to-end version was worth less. The artefact was
+   `too-many-sets.obz` and it had six sets, so MAX_SETS 64 made it an ordinary
+   package - and a package of 65 boards is one nothing in this repository can
+   write, because the writer left with the editor and
+   docs/split-crossings.md forbids a copy of it here. The choice was a fifty-
+   kilobyte binary nobody could regenerate, or the question asked one level
+   down. The refusal PATH is still driven from end to end by the recording at
+   the wrong sample rate below: what a refusal looks like on this page, and
+   that it stops the compile, are still asserted against a real browser. */
 
 test("a recording that is not the WAV the device plays is refused",
      async ({ page }) => {

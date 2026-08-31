@@ -1,0 +1,217 @@
+{
+  "fixture": "keys-that-go",
+  "kind": "layout",
+  "file": "layout/keys-that-go.bin",
+  "summary": "Two rounds of the joining game: a set key that speaks and stays, one speech key per round that speaks and goes on, and a set key that goes and says nothing.",
+  "bytes": 436,
+  "read": {
+    "result": "ok",
+    "sets": 2,
+    "language": 1,
+    "sleep_seconds": 600,
+    "idle_seconds": 600,
+    "entries": [
+      {
+        "name": "5370696567656c202b204569",
+        "name_text": "Spiegel + Ei",
+        "key": {
+          "image": "10101010101010101010101010101010",
+          "audio": "11111111111111111111111111111111",
+          "has_audio": true,
+          "does": 0,
+          "target": 0,
+          "speaks": true,
+          "goes_to": -1
+        },
+        "slots": [
+          {
+            "image": "12121212121212121212121212121212",
+            "audio": "12121212121212121212121212121212",
+            "has_audio": true,
+            "does": 1,
+            "target": 1,
+            "speaks": true,
+            "goes_to": 1
+          },
+          {
+            "image": "13131313131313131313131313131313",
+            "audio": "13131313131313131313131313131313",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "14141414141414141414141414141414",
+            "audio": "14141414141414141414141414141414",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "15151515151515151515151515151515",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536f6e6e65202b20426c756d65",
+        "name_text": "Sonne + Blume",
+        "key": {
+          "image": "20202020202020202020202020202020",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 0,
+          "speaks": false,
+          "goes_to": 0
+        },
+        "slots": [
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "22222222222222222222222222222222",
+            "has_audio": true,
+            "does": 1,
+            "target": 0,
+            "speaks": true,
+            "goes_to": 0
+          },
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "23232323232323232323232323232323",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "24242424242424242424242424242424",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "25252525252525252525252525252525",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "de",
+      "sleep_timeout_seconds": 600,
+      "sets": [
+        {
+          "name": "Spiegel + Ei",
+          "key": {
+            "does": "speak",
+            "target": 0
+          },
+          "slots": [
+            {
+              "does": "speak-and-go",
+              "target": 1
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Sonne + Blume",
+          "key": {
+            "does": "go",
+            "target": 0
+          },
+          "slots": [
+            {
+              "does": "speak-and-go",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        }
+      ]
+    },
+    "label": [
+      "t10101010101010101010101010101010.bin",
+      "t20202020202020202020202020202020.bin"
+    ],
+    "label_sounds": [
+      "a11111111111111111111111111111111.wav",
+      ""
+    ],
+    "images": [
+      [
+        "t12121212121212121212121212121212.bin",
+        "t13131313131313131313131313131313.bin",
+        "t14141414141414141414141414141414.bin",
+        "t15151515151515151515151515151515.bin"
+      ],
+      [
+        "t22222222222222222222222222222222.bin",
+        "t23232323232323232323232323232323.bin",
+        "t24242424242424242424242424242424.bin",
+        "t25252525252525252525252525252525.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "a12121212121212121212121212121212.wav",
+        "a13131313131313131313131313131313.wav",
+        "a14141414141414141414141414141414.wav",
+        ""
+      ],
+      [
+        "a22222222222222222222222222222222.wav",
+        "a23232323232323232323232323232323.wav",
+        "a24242424242424242424242424242424.wav",
+        ""
+      ]
+    ]
+  },
+  "notes": [
+    "All three values of the field, in one file. 0 is speak, 1 is speak and then go, 2 is go without speaking - and the third is what a set key has always done, written down for the first time rather than left to `(current + 1) % setCount` in the firmware.",
+    "The first round's set key carries a recording, which no set key could before: the fifth panel is a key like the other four now, with a picture, a word, a sound and a target of its own.",
+    "Every key that goes nowhere still carries a target byte, and it is zero. The field is written either way and a reader only looks at it when `does` says to - the same 'meaningless rather than absent' the has-audio flag has beside a hash of zeros."
+  ]
+}

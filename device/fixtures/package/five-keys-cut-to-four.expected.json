@@ -170,31 +170,46 @@
       "sets": [
         {
           "name": "Draußen",
-          "symbol": "",
+          "key": {
+            "text": "Draußen",
+            "symbol": "",
+            "negated": false,
+            "empty": false,
+            "does": "go",
+            "target": 0
+          },
           "slots": [
             {
               "text": "Ich habe Hunger",
               "symbol": "ja.bmp",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich habe Durst",
               "symbol": "",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "nein.bmp",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Wir gehen nach Hause",
               "symbol": "",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             }
           ]
         }
@@ -240,32 +255,47 @@
       "sets": [
         {
           "name": "Draußen",
-          "symbol": "",
+          "key": {
+            "text": "Draußen",
+            "symbol": "",
+            "does": "go",
+            "target": 0
+          },
           "slots": [
             {
               "text": "Ich habe Hunger",
               "symbol": "ja.bmp",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich habe Durst",
               "symbol": "",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "nein.bmp",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Wir gehen nach Hause",
               "symbol": "",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich bin fertig",
               "symbol": "",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             }
           ]
         }

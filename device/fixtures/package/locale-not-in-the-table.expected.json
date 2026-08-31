@@ -172,31 +172,46 @@
       "sets": [
         {
           "name": "Frühstück",
-          "symbol": "foto.png",
+          "key": {
+            "text": "Frühstück",
+            "symbol": "foto.png",
+            "negated": false,
+            "empty": false,
+            "does": "go",
+            "target": 0
+          },
           "slots": [
             {
               "text": "Ich habe Hunger",
               "symbol": "ja.bmp",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich habe Durst",
               "symbol": "",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "nein.bmp",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "",
               "negated": false,
-              "empty": true
+              "empty": true,
+              "does": "speak",
+              "target": 0
             }
           ]
         }
@@ -243,27 +258,40 @@
       "sets": [
         {
           "name": "Frühstück",
-          "symbol": "foto.png",
+          "key": {
+            "text": "Frühstück",
+            "symbol": "foto.png",
+            "does": "go",
+            "target": 0
+          },
           "slots": [
             {
               "text": "Ich habe Hunger",
               "symbol": "ja.bmp",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich habe Durst",
               "symbol": "",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "nein.bmp",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "",
-              "negated": false
+              "negated": false,
+              "does": "speak",
+              "target": 0
             }
           ]
         }

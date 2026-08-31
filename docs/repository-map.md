@@ -135,7 +135,7 @@ to three different readers.
 | | |
 |---|---|
 | [`src/shell/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/shell/) | What any board builder needs, and neither editor owns: the list of boards, the symbol picker, the voices, the settings, import and export. |
-| [`src/editor-diy/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/editor-diy/) | The five-key talker, and only it — four slots to a set, five sets on the device. |
+| [`src/editor-diy/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/editor-diy/) | The five-key talker, and only it — four slots to a set, and 64 sets on the device since 2026-08-31 ([ADR 0020](../adr/0020-every-key-says-what-it-does.md)); the editor still caps a Sammlung at five. |
 | [`src/editor-app/`](https://github.com/Lautstark/vorlaut-editor/tree/main/src/editor-app/) | The tablet boards the Android viewer renders — a grid, pages, a first column. |
 
 What it writes, and who reads it:

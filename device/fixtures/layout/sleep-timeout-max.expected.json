@@ -3,7 +3,7 @@
   "kind": "layout",
   "file": "layout/sleep-timeout-max.bin",
   "summary": "A sleep timeout of 0xffffffff, the largest a uint32 holds. It parses, and it is not a length of time the device can wait.",
-  "bytes": 196,
+  "bytes": 224,
   "read": {
     "result": "ok",
     "sets": 1,
@@ -14,27 +14,51 @@
       {
         "name": "4672c3bc687374c3bc636b",
         "name_text": "Frühstück",
-        "label": "11111111111111111111111111111111",
+        "key": {
+          "image": "11111111111111111111111111111111",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 0,
+          "speaks": false,
+          "goes_to": 0
+        },
         "slots": [
           {
             "image": "21212121212121212121212121212121",
             "audio": "31313131313131313131313131313131",
-            "has_audio": true
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
           },
           {
             "image": "22222222222222222222222222222222",
             "audio": "32323232323232323232323232323232",
-            "has_audio": true
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
           },
           {
             "image": "23232323232323232323232323232323",
             "audio": "00000000000000000000000000000000",
-            "has_audio": false
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
           },
           {
             "image": "24242424242424242424242424242424",
             "audio": "34343434343434343434343434343434",
-            "has_audio": true
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
           }
         ]
       }

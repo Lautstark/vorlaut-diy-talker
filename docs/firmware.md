@@ -314,7 +314,11 @@ build now measures 107 KiB. That has nothing to do with the partition table;
 it was simply not measured again for a while.
 
 The file area holds 7040 KiB. A full layout with five sets takes around
-630 KiB of that, so under a tenth.
+630 KiB of that, so under a tenth. The device has room for 64 sets since
+2026-08-31 ([ADR 0020](../adr/0020-every-key-says-what-it-does.md)), and it is
+the file area rather than the set count that runs out first: a set whose keys
+share nothing with any other — a round of the joining game — costs near 190 KiB,
+so the partition holds somewhere between thirty-five and forty of those.
 
 > The sketch has **run on real hardware**: flashed, fed a board over the cable
 > and heard, first on 2026-08-27. Check the pin assignment against your own

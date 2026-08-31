@@ -33,10 +33,14 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 /** The packages, by what is wrong with each. `board` is the plain one.
  *
  *  Named rather than numbered because the name is what a failing spec prints,
- *  and "too-many-sets" is the whole diagnosis where "package 2" is none. */
+ *  and "sound-at-the-wrong-rate" is the whole diagnosis where "package 2" is
+ *  none.
+ *
+ *  There were four. `too-many-sets` went on 2026-08-31 when MAX_SETS became
+ *  64 and its six sets stopped being too many - README.md beside the files has
+ *  what replaced it and why nothing here could write a new one. */
 export type Package =
   | "board"
-  | "too-many-sets"
   | "sound-at-the-wrong-rate"
   | "picture-that-will-not-decode";
 

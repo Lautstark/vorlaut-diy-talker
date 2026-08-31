@@ -180,7 +180,10 @@ for (const { listed: one, want } of packages) {
       // planLayout()'s whole claim: every field the compiler needs is one the
       // plan carries, so handing it back loses nothing. `empty` is the one
       // field that does not travel, and it does not have to - it is a question
-      // about the slot, asked again on the far side.
+      // about the key, asked again on the far side. The set key's own `text`
+      // does not travel either, and for a different reason: renderLayoutBin()
+      // is handed the recording's file name rather than the sentence behind
+      // it, which is compileDevice()'s to resolve.
       const { read } = await opened();
       const back = planLayout(read.plan);
       expect(back.language).toBe(read.plan.language);
@@ -188,9 +191,12 @@ for (const { listed: one, want } of packages) {
       expect(back.sleep_timeout_seconds).toBe(read.plan.sleepTimeoutSeconds);
       expect(back.sets).toEqual(read.plan.sets.map((set) => ({
         name: set.name,
-        symbol: set.symbol,
+        key: {
+          symbol: set.key.symbol, does: set.key.does, target: set.key.target,
+        },
         slots: set.slots.map((slot) => ({
           text: slot.text, symbol: slot.symbol, negated: slot.negated,
+          does: slot.does, target: slot.target,
         })),
       })));
     });

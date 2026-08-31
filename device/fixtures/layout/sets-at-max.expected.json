@@ -1,0 +1,5797 @@
+{
+  "fixture": "sets-at-max",
+  "kind": "layout",
+  "file": "layout/sets-at-max.bin",
+  "summary": "MAX_SETS sets, which is 64. The largest file that parses.",
+  "bytes": 13580,
+  "read": {
+    "result": "ok",
+    "sets": 64,
+    "language": 0,
+    "sleep_seconds": 900,
+    "idle_seconds": 900,
+    "entries": [
+      {
+        "name": "5365742031",
+        "name_text": "Set 1",
+        "key": {
+          "image": "00000000000000000000000000000000",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 1,
+          "speaks": false,
+          "goes_to": 1
+        },
+        "slots": [
+          {
+            "image": "01010101010101010101010101010101",
+            "audio": "01010101010101010101010101010101",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "02020202020202020202020202020202",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "03030303030303030303030303030303",
+            "audio": "03030303030303030303030303030303",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "04040404040404040404040404040404",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742032",
+        "name_text": "Set 2",
+        "key": {
+          "image": "05050505050505050505050505050505",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 2,
+          "speaks": false,
+          "goes_to": 2
+        },
+        "slots": [
+          {
+            "image": "06060606060606060606060606060606",
+            "audio": "06060606060606060606060606060606",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "07070707070707070707070707070707",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "08080808080808080808080808080808",
+            "audio": "08080808080808080808080808080808",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "09090909090909090909090909090909",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742033",
+        "name_text": "Set 3",
+        "key": {
+          "image": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 3,
+          "speaks": false,
+          "goes_to": 3
+        },
+        "slots": [
+          {
+            "image": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "audio": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+            "audio": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742034",
+        "name_text": "Set 4",
+        "key": {
+          "image": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 4,
+          "speaks": false,
+          "goes_to": 4
+        },
+        "slots": [
+          {
+            "image": "10101010101010101010101010101010",
+            "audio": "10101010101010101010101010101010",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "11111111111111111111111111111111",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "12121212121212121212121212121212",
+            "audio": "12121212121212121212121212121212",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "13131313131313131313131313131313",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742035",
+        "name_text": "Set 5",
+        "key": {
+          "image": "14141414141414141414141414141414",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 5,
+          "speaks": false,
+          "goes_to": 5
+        },
+        "slots": [
+          {
+            "image": "15151515151515151515151515151515",
+            "audio": "15151515151515151515151515151515",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "16161616161616161616161616161616",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "17171717171717171717171717171717",
+            "audio": "17171717171717171717171717171717",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "18181818181818181818181818181818",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742036",
+        "name_text": "Set 6",
+        "key": {
+          "image": "19191919191919191919191919191919",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 6,
+          "speaks": false,
+          "goes_to": 6
+        },
+        "slots": [
+          {
+            "image": "1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+            "audio": "1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c",
+            "audio": "1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742037",
+        "name_text": "Set 7",
+        "key": {
+          "image": "1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 7,
+          "speaks": false,
+          "goes_to": 7
+        },
+        "slots": [
+          {
+            "image": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "audio": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "20202020202020202020202020202020",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "21212121212121212121212121212121",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "22222222222222222222222222222222",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742038",
+        "name_text": "Set 8",
+        "key": {
+          "image": "23232323232323232323232323232323",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 8,
+          "speaks": false,
+          "goes_to": 8
+        },
+        "slots": [
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "24242424242424242424242424242424",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "25252525252525252525252525252525",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "26262626262626262626262626262626",
+            "audio": "26262626262626262626262626262626",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "27272727272727272727272727272727",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742039",
+        "name_text": "Set 9",
+        "key": {
+          "image": "28282828282828282828282828282828",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 9,
+          "speaks": false,
+          "goes_to": 9
+        },
+        "slots": [
+          {
+            "image": "29292929292929292929292929292929",
+            "audio": "29292929292929292929292929292929",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
+            "audio": "2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203130",
+        "name_text": "Set 10",
+        "key": {
+          "image": "2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 10,
+          "speaks": false,
+          "goes_to": 10
+        },
+        "slots": [
+          {
+            "image": "2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e",
+            "audio": "2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "30303030303030303030303030303030",
+            "audio": "30303030303030303030303030303030",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "31313131313131313131313131313131",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203131",
+        "name_text": "Set 11",
+        "key": {
+          "image": "32323232323232323232323232323232",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 11,
+          "speaks": false,
+          "goes_to": 11
+        },
+        "slots": [
+          {
+            "image": "33333333333333333333333333333333",
+            "audio": "33333333333333333333333333333333",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "34343434343434343434343434343434",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "35353535353535353535353535353535",
+            "audio": "35353535353535353535353535353535",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "36363636363636363636363636363636",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203132",
+        "name_text": "Set 12",
+        "key": {
+          "image": "37373737373737373737373737373737",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 12,
+          "speaks": false,
+          "goes_to": 12
+        },
+        "slots": [
+          {
+            "image": "38383838383838383838383838383838",
+            "audio": "38383838383838383838383838383838",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "39393939393939393939393939393939",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a",
+            "audio": "3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203133",
+        "name_text": "Set 13",
+        "key": {
+          "image": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 13,
+          "speaks": false,
+          "goes_to": 13
+        },
+        "slots": [
+          {
+            "image": "3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d",
+            "audio": "3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f",
+            "audio": "3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "40404040404040404040404040404040",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203134",
+        "name_text": "Set 14",
+        "key": {
+          "image": "41414141414141414141414141414141",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 14,
+          "speaks": false,
+          "goes_to": 14
+        },
+        "slots": [
+          {
+            "image": "42424242424242424242424242424242",
+            "audio": "42424242424242424242424242424242",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "43434343434343434343434343434343",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "44444444444444444444444444444444",
+            "audio": "44444444444444444444444444444444",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "45454545454545454545454545454545",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203135",
+        "name_text": "Set 15",
+        "key": {
+          "image": "46464646464646464646464646464646",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 15,
+          "speaks": false,
+          "goes_to": 15
+        },
+        "slots": [
+          {
+            "image": "47474747474747474747474747474747",
+            "audio": "47474747474747474747474747474747",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "48484848484848484848484848484848",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "49494949494949494949494949494949",
+            "audio": "49494949494949494949494949494949",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203136",
+        "name_text": "Set 16",
+        "key": {
+          "image": "4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 16,
+          "speaks": false,
+          "goes_to": 16
+        },
+        "slots": [
+          {
+            "image": "4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c",
+            "audio": "4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e",
+            "audio": "4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203137",
+        "name_text": "Set 17",
+        "key": {
+          "image": "50505050505050505050505050505050",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 17,
+          "speaks": false,
+          "goes_to": 17
+        },
+        "slots": [
+          {
+            "image": "51515151515151515151515151515151",
+            "audio": "51515151515151515151515151515151",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "52525252525252525252525252525252",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "53535353535353535353535353535353",
+            "audio": "53535353535353535353535353535353",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "54545454545454545454545454545454",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203138",
+        "name_text": "Set 18",
+        "key": {
+          "image": "55555555555555555555555555555555",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 18,
+          "speaks": false,
+          "goes_to": 18
+        },
+        "slots": [
+          {
+            "image": "56565656565656565656565656565656",
+            "audio": "56565656565656565656565656565656",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "57575757575757575757575757575757",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "58585858585858585858585858585858",
+            "audio": "58585858585858585858585858585858",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "59595959595959595959595959595959",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203139",
+        "name_text": "Set 19",
+        "key": {
+          "image": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 19,
+          "speaks": false,
+          "goes_to": 19
+        },
+        "slots": [
+          {
+            "image": "5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b",
+            "audio": "5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+            "audio": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203230",
+        "name_text": "Set 20",
+        "key": {
+          "image": "5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 20,
+          "speaks": false,
+          "goes_to": 20
+        },
+        "slots": [
+          {
+            "image": "60606060606060606060606060606060",
+            "audio": "60606060606060606060606060606060",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "61616161616161616161616161616161",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "62626262626262626262626262626262",
+            "audio": "62626262626262626262626262626262",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "63636363636363636363636363636363",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203231",
+        "name_text": "Set 21",
+        "key": {
+          "image": "64646464646464646464646464646464",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 21,
+          "speaks": false,
+          "goes_to": 21
+        },
+        "slots": [
+          {
+            "image": "65656565656565656565656565656565",
+            "audio": "65656565656565656565656565656565",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "66666666666666666666666666666666",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "67676767676767676767676767676767",
+            "audio": "67676767676767676767676767676767",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "68686868686868686868686868686868",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203232",
+        "name_text": "Set 22",
+        "key": {
+          "image": "69696969696969696969696969696969",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 22,
+          "speaks": false,
+          "goes_to": 22
+        },
+        "slots": [
+          {
+            "image": "6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a",
+            "audio": "6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c",
+            "audio": "6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203233",
+        "name_text": "Set 23",
+        "key": {
+          "image": "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 23,
+          "speaks": false,
+          "goes_to": 23
+        },
+        "slots": [
+          {
+            "image": "6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f",
+            "audio": "6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "70707070707070707070707070707070",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "71717171717171717171717171717171",
+            "audio": "71717171717171717171717171717171",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "72727272727272727272727272727272",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203234",
+        "name_text": "Set 24",
+        "key": {
+          "image": "73737373737373737373737373737373",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 24,
+          "speaks": false,
+          "goes_to": 24
+        },
+        "slots": [
+          {
+            "image": "74747474747474747474747474747474",
+            "audio": "74747474747474747474747474747474",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "75757575757575757575757575757575",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "76767676767676767676767676767676",
+            "audio": "76767676767676767676767676767676",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "77777777777777777777777777777777",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203235",
+        "name_text": "Set 25",
+        "key": {
+          "image": "78787878787878787878787878787878",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 25,
+          "speaks": false,
+          "goes_to": 25
+        },
+        "slots": [
+          {
+            "image": "79797979797979797979797979797979",
+            "audio": "79797979797979797979797979797979",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b",
+            "audio": "7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203236",
+        "name_text": "Set 26",
+        "key": {
+          "image": "7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 26,
+          "speaks": false,
+          "goes_to": 26
+        },
+        "slots": [
+          {
+            "image": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+            "audio": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "80808080808080808080808080808080",
+            "audio": "80808080808080808080808080808080",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "81818181818181818181818181818181",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203237",
+        "name_text": "Set 27",
+        "key": {
+          "image": "82828282828282828282828282828282",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 27,
+          "speaks": false,
+          "goes_to": 27
+        },
+        "slots": [
+          {
+            "image": "83838383838383838383838383838383",
+            "audio": "83838383838383838383838383838383",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "84848484848484848484848484848484",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "85858585858585858585858585858585",
+            "audio": "85858585858585858585858585858585",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "86868686868686868686868686868686",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203238",
+        "name_text": "Set 28",
+        "key": {
+          "image": "87878787878787878787878787878787",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 28,
+          "speaks": false,
+          "goes_to": 28
+        },
+        "slots": [
+          {
+            "image": "88888888888888888888888888888888",
+            "audio": "88888888888888888888888888888888",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "89898989898989898989898989898989",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a",
+            "audio": "8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203239",
+        "name_text": "Set 29",
+        "key": {
+          "image": "8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 29,
+          "speaks": false,
+          "goes_to": 29
+        },
+        "slots": [
+          {
+            "image": "8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d",
+            "audio": "8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f",
+            "audio": "8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "90909090909090909090909090909090",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203330",
+        "name_text": "Set 30",
+        "key": {
+          "image": "91919191919191919191919191919191",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 30,
+          "speaks": false,
+          "goes_to": 30
+        },
+        "slots": [
+          {
+            "image": "92929292929292929292929292929292",
+            "audio": "92929292929292929292929292929292",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "93939393939393939393939393939393",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "94949494949494949494949494949494",
+            "audio": "94949494949494949494949494949494",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "95959595959595959595959595959595",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203331",
+        "name_text": "Set 31",
+        "key": {
+          "image": "96969696969696969696969696969696",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 31,
+          "speaks": false,
+          "goes_to": 31
+        },
+        "slots": [
+          {
+            "image": "97979797979797979797979797979797",
+            "audio": "97979797979797979797979797979797",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "98989898989898989898989898989898",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "99999999999999999999999999999999",
+            "audio": "99999999999999999999999999999999",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203332",
+        "name_text": "Set 32",
+        "key": {
+          "image": "9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 32,
+          "speaks": false,
+          "goes_to": 32
+        },
+        "slots": [
+          {
+            "image": "9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c",
+            "audio": "9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e",
+            "audio": "9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203333",
+        "name_text": "Set 33",
+        "key": {
+          "image": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 33,
+          "speaks": false,
+          "goes_to": 33
+        },
+        "slots": [
+          {
+            "image": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+            "audio": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3",
+            "audio": "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203334",
+        "name_text": "Set 34",
+        "key": {
+          "image": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 34,
+          "speaks": false,
+          "goes_to": 34
+        },
+        "slots": [
+          {
+            "image": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6",
+            "audio": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8",
+            "audio": "a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203335",
+        "name_text": "Set 35",
+        "key": {
+          "image": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 35,
+          "speaks": false,
+          "goes_to": 35
+        },
+        "slots": [
+          {
+            "image": "abababababababababababababababab",
+            "audio": "abababababababababababababababab",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "acacacacacacacacacacacacacacacac",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "adadadadadadadadadadadadadadadad",
+            "audio": "adadadadadadadadadadadadadadadad",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "aeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203336",
+        "name_text": "Set 36",
+        "key": {
+          "image": "afafafafafafafafafafafafafafafaf",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 36,
+          "speaks": false,
+          "goes_to": 36
+        },
+        "slots": [
+          {
+            "image": "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0",
+            "audio": "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+            "audio": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203337",
+        "name_text": "Set 37",
+        "key": {
+          "image": "b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 37,
+          "speaks": false,
+          "goes_to": 37
+        },
+        "slots": [
+          {
+            "image": "b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5",
+            "audio": "b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "audio": "b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203338",
+        "name_text": "Set 38",
+        "key": {
+          "image": "b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 38,
+          "speaks": false,
+          "goes_to": 38
+        },
+        "slots": [
+          {
+            "image": "babababababababababababababababa",
+            "audio": "babababababababababababababababa",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "bcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc",
+            "audio": "bcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203339",
+        "name_text": "Set 39",
+        "key": {
+          "image": "bebebebebebebebebebebebebebebebe",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 39,
+          "speaks": false,
+          "goes_to": 39
+        },
+        "slots": [
+          {
+            "image": "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf",
+            "audio": "bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+            "audio": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203430",
+        "name_text": "Set 40",
+        "key": {
+          "image": "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 40,
+          "speaks": false,
+          "goes_to": 40
+        },
+        "slots": [
+          {
+            "image": "c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4",
+            "audio": "c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6",
+            "audio": "c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203431",
+        "name_text": "Set 41",
+        "key": {
+          "image": "c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 41,
+          "speaks": false,
+          "goes_to": 41
+        },
+        "slots": [
+          {
+            "image": "c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9",
+            "audio": "c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "cacacacacacacacacacacacacacacaca",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "cbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcb",
+            "audio": "cbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcb",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "cccccccccccccccccccccccccccccccc",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203432",
+        "name_text": "Set 42",
+        "key": {
+          "image": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 42,
+          "speaks": false,
+          "goes_to": 42
+        },
+        "slots": [
+          {
+            "image": "cececececececececececececececece",
+            "audio": "cececececececececececececececece",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "cfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcf",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "audio": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203433",
+        "name_text": "Set 43",
+        "key": {
+          "image": "d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 43,
+          "speaks": false,
+          "goes_to": 43
+        },
+        "slots": [
+          {
+            "image": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
+            "audio": "d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+            "audio": "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203434",
+        "name_text": "Set 44",
+        "key": {
+          "image": "d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 44,
+          "speaks": false,
+          "goes_to": 44
+        },
+        "slots": [
+          {
+            "image": "d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8",
+            "audio": "d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "dadadadadadadadadadadadadadadada",
+            "audio": "dadadadadadadadadadadadadadadada",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "dbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdb",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203435",
+        "name_text": "Set 45",
+        "key": {
+          "image": "dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 45,
+          "speaks": false,
+          "goes_to": 45
+        },
+        "slots": [
+          {
+            "image": "dddddddddddddddddddddddddddddddd",
+            "audio": "dddddddddddddddddddddddddddddddd",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "dededededededededededededededede",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "dfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf",
+            "audio": "dfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203436",
+        "name_text": "Set 46",
+        "key": {
+          "image": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 46,
+          "speaks": false,
+          "goes_to": 46
+        },
+        "slots": [
+          {
+            "image": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2",
+            "audio": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4",
+            "audio": "e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203437",
+        "name_text": "Set 47",
+        "key": {
+          "image": "e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 47,
+          "speaks": false,
+          "goes_to": 47
+        },
+        "slots": [
+          {
+            "image": "e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7",
+            "audio": "e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9",
+            "audio": "e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "eaeaeaeaeaeaeaeaeaeaeaeaeaeaeaea",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203438",
+        "name_text": "Set 48",
+        "key": {
+          "image": "ebebebebebebebebebebebebebebebeb",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 48,
+          "speaks": false,
+          "goes_to": 48
+        },
+        "slots": [
+          {
+            "image": "ecececececececececececececececec",
+            "audio": "ecececececececececececececececec",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "edededededededededededededededed",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "audio": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "efefefefefefefefefefefefefefefef",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203439",
+        "name_text": "Set 49",
+        "key": {
+          "image": "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 49,
+          "speaks": false,
+          "goes_to": 49
+        },
+        "slots": [
+          {
+            "image": "f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1",
+            "audio": "f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3",
+            "audio": "f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203530",
+        "name_text": "Set 50",
+        "key": {
+          "image": "f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 50,
+          "speaks": false,
+          "goes_to": 50
+        },
+        "slots": [
+          {
+            "image": "f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6",
+            "audio": "f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8",
+            "audio": "f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203531",
+        "name_text": "Set 51",
+        "key": {
+          "image": "fafafafafafafafafafafafafafafafa",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 51,
+          "speaks": false,
+          "goes_to": 51
+        },
+        "slots": [
+          {
+            "image": "fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb",
+            "audio": "fbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "fcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "fdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfd",
+            "audio": "fdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfd",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "fefefefefefefefefefefefefefefefe",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203532",
+        "name_text": "Set 52",
+        "key": {
+          "image": "ffffffffffffffffffffffffffffffff",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 52,
+          "speaks": false,
+          "goes_to": 52
+        },
+        "slots": [
+          {
+            "image": "00000000000000000000000000000000",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "01010101010101010101010101010101",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "02020202020202020202020202020202",
+            "audio": "02020202020202020202020202020202",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "03030303030303030303030303030303",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203533",
+        "name_text": "Set 53",
+        "key": {
+          "image": "04040404040404040404040404040404",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 53,
+          "speaks": false,
+          "goes_to": 53
+        },
+        "slots": [
+          {
+            "image": "05050505050505050505050505050505",
+            "audio": "05050505050505050505050505050505",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "06060606060606060606060606060606",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "07070707070707070707070707070707",
+            "audio": "07070707070707070707070707070707",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "08080808080808080808080808080808",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203534",
+        "name_text": "Set 54",
+        "key": {
+          "image": "09090909090909090909090909090909",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 54,
+          "speaks": false,
+          "goes_to": 54
+        },
+        "slots": [
+          {
+            "image": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+            "audio": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+            "audio": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203535",
+        "name_text": "Set 55",
+        "key": {
+          "image": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 55,
+          "speaks": false,
+          "goes_to": 55
+        },
+        "slots": [
+          {
+            "image": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+            "audio": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "10101010101010101010101010101010",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "11111111111111111111111111111111",
+            "audio": "11111111111111111111111111111111",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "12121212121212121212121212121212",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203536",
+        "name_text": "Set 56",
+        "key": {
+          "image": "13131313131313131313131313131313",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 56,
+          "speaks": false,
+          "goes_to": 56
+        },
+        "slots": [
+          {
+            "image": "14141414141414141414141414141414",
+            "audio": "14141414141414141414141414141414",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "15151515151515151515151515151515",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "16161616161616161616161616161616",
+            "audio": "16161616161616161616161616161616",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "17171717171717171717171717171717",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203537",
+        "name_text": "Set 57",
+        "key": {
+          "image": "18181818181818181818181818181818",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 57,
+          "speaks": false,
+          "goes_to": 57
+        },
+        "slots": [
+          {
+            "image": "19191919191919191919191919191919",
+            "audio": "19191919191919191919191919191919",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+            "audio": "1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203538",
+        "name_text": "Set 58",
+        "key": {
+          "image": "1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 58,
+          "speaks": false,
+          "goes_to": 58
+        },
+        "slots": [
+          {
+            "image": "1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e",
+            "audio": "1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "20202020202020202020202020202020",
+            "audio": "20202020202020202020202020202020",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "21212121212121212121212121212121",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203539",
+        "name_text": "Set 59",
+        "key": {
+          "image": "22222222222222222222222222222222",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 59,
+          "speaks": false,
+          "goes_to": 59
+        },
+        "slots": [
+          {
+            "image": "23232323232323232323232323232323",
+            "audio": "23232323232323232323232323232323",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "24242424242424242424242424242424",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "25252525252525252525252525252525",
+            "audio": "25252525252525252525252525252525",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "26262626262626262626262626262626",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203630",
+        "name_text": "Set 60",
+        "key": {
+          "image": "27272727272727272727272727272727",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 60,
+          "speaks": false,
+          "goes_to": 60
+        },
+        "slots": [
+          {
+            "image": "28282828282828282828282828282828",
+            "audio": "28282828282828282828282828282828",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "29292929292929292929292929292929",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+            "audio": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203631",
+        "name_text": "Set 61",
+        "key": {
+          "image": "2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 61,
+          "speaks": false,
+          "goes_to": 61
+        },
+        "slots": [
+          {
+            "image": "2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d",
+            "audio": "2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f",
+            "audio": "2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "30303030303030303030303030303030",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203632",
+        "name_text": "Set 62",
+        "key": {
+          "image": "31313131313131313131313131313131",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 62,
+          "speaks": false,
+          "goes_to": 62
+        },
+        "slots": [
+          {
+            "image": "32323232323232323232323232323232",
+            "audio": "32323232323232323232323232323232",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "33333333333333333333333333333333",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "34343434343434343434343434343434",
+            "audio": "34343434343434343434343434343434",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "35353535353535353535353535353535",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203633",
+        "name_text": "Set 63",
+        "key": {
+          "image": "36363636363636363636363636363636",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 63,
+          "speaks": false,
+          "goes_to": 63
+        },
+        "slots": [
+          {
+            "image": "37373737373737373737373737373737",
+            "audio": "37373737373737373737373737373737",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "38383838383838383838383838383838",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "39393939393939393939393939393939",
+            "audio": "39393939393939393939393939393939",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "536574203634",
+        "name_text": "Set 64",
+        "key": {
+          "image": "3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b",
+          "audio": "00000000000000000000000000000000",
+          "has_audio": false,
+          "does": 2,
+          "target": 0,
+          "speaks": false,
+          "goes_to": 0
+        },
+        "slots": [
+          {
+            "image": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+            "audio": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e",
+            "audio": "3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "en",
+      "sleep_timeout_seconds": 900,
+      "sets": [
+        {
+          "name": "Set 1",
+          "key": {
+            "does": "go",
+            "target": 1
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 2",
+          "key": {
+            "does": "go",
+            "target": 2
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 3",
+          "key": {
+            "does": "go",
+            "target": 3
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 4",
+          "key": {
+            "does": "go",
+            "target": 4
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 5",
+          "key": {
+            "does": "go",
+            "target": 5
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 6",
+          "key": {
+            "does": "go",
+            "target": 6
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 7",
+          "key": {
+            "does": "go",
+            "target": 7
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 8",
+          "key": {
+            "does": "go",
+            "target": 8
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 9",
+          "key": {
+            "does": "go",
+            "target": 9
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 10",
+          "key": {
+            "does": "go",
+            "target": 10
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 11",
+          "key": {
+            "does": "go",
+            "target": 11
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 12",
+          "key": {
+            "does": "go",
+            "target": 12
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 13",
+          "key": {
+            "does": "go",
+            "target": 13
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 14",
+          "key": {
+            "does": "go",
+            "target": 14
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 15",
+          "key": {
+            "does": "go",
+            "target": 15
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 16",
+          "key": {
+            "does": "go",
+            "target": 16
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 17",
+          "key": {
+            "does": "go",
+            "target": 17
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 18",
+          "key": {
+            "does": "go",
+            "target": 18
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 19",
+          "key": {
+            "does": "go",
+            "target": 19
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 20",
+          "key": {
+            "does": "go",
+            "target": 20
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 21",
+          "key": {
+            "does": "go",
+            "target": 21
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 22",
+          "key": {
+            "does": "go",
+            "target": 22
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 23",
+          "key": {
+            "does": "go",
+            "target": 23
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 24",
+          "key": {
+            "does": "go",
+            "target": 24
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 25",
+          "key": {
+            "does": "go",
+            "target": 25
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 26",
+          "key": {
+            "does": "go",
+            "target": 26
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 27",
+          "key": {
+            "does": "go",
+            "target": 27
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 28",
+          "key": {
+            "does": "go",
+            "target": 28
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 29",
+          "key": {
+            "does": "go",
+            "target": 29
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 30",
+          "key": {
+            "does": "go",
+            "target": 30
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 31",
+          "key": {
+            "does": "go",
+            "target": 31
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 32",
+          "key": {
+            "does": "go",
+            "target": 32
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 33",
+          "key": {
+            "does": "go",
+            "target": 33
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 34",
+          "key": {
+            "does": "go",
+            "target": 34
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 35",
+          "key": {
+            "does": "go",
+            "target": 35
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 36",
+          "key": {
+            "does": "go",
+            "target": 36
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 37",
+          "key": {
+            "does": "go",
+            "target": 37
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 38",
+          "key": {
+            "does": "go",
+            "target": 38
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 39",
+          "key": {
+            "does": "go",
+            "target": 39
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 40",
+          "key": {
+            "does": "go",
+            "target": 40
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 41",
+          "key": {
+            "does": "go",
+            "target": 41
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 42",
+          "key": {
+            "does": "go",
+            "target": 42
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 43",
+          "key": {
+            "does": "go",
+            "target": 43
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 44",
+          "key": {
+            "does": "go",
+            "target": 44
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 45",
+          "key": {
+            "does": "go",
+            "target": 45
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 46",
+          "key": {
+            "does": "go",
+            "target": 46
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 47",
+          "key": {
+            "does": "go",
+            "target": 47
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 48",
+          "key": {
+            "does": "go",
+            "target": 48
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 49",
+          "key": {
+            "does": "go",
+            "target": 49
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 50",
+          "key": {
+            "does": "go",
+            "target": 50
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 51",
+          "key": {
+            "does": "go",
+            "target": 51
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 52",
+          "key": {
+            "does": "go",
+            "target": 52
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 53",
+          "key": {
+            "does": "go",
+            "target": 53
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 54",
+          "key": {
+            "does": "go",
+            "target": 54
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 55",
+          "key": {
+            "does": "go",
+            "target": 55
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 56",
+          "key": {
+            "does": "go",
+            "target": 56
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 57",
+          "key": {
+            "does": "go",
+            "target": 57
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 58",
+          "key": {
+            "does": "go",
+            "target": 58
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 59",
+          "key": {
+            "does": "go",
+            "target": 59
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 60",
+          "key": {
+            "does": "go",
+            "target": 60
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 61",
+          "key": {
+            "does": "go",
+            "target": 61
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 62",
+          "key": {
+            "does": "go",
+            "target": 62
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 63",
+          "key": {
+            "does": "go",
+            "target": 63
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 64",
+          "key": {
+            "does": "go",
+            "target": 0
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        }
+      ]
+    },
+    "label": [
+      "t00000000000000000000000000000000.bin",
+      "t05050505050505050505050505050505.bin",
+      "t0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a.bin",
+      "t0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f.bin",
+      "t14141414141414141414141414141414.bin",
+      "t19191919191919191919191919191919.bin",
+      "t1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e.bin",
+      "t23232323232323232323232323232323.bin",
+      "t28282828282828282828282828282828.bin",
+      "t2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d.bin",
+      "t32323232323232323232323232323232.bin",
+      "t37373737373737373737373737373737.bin",
+      "t3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c.bin",
+      "t41414141414141414141414141414141.bin",
+      "t46464646464646464646464646464646.bin",
+      "t4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b.bin",
+      "t50505050505050505050505050505050.bin",
+      "t55555555555555555555555555555555.bin",
+      "t5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a.bin",
+      "t5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f.bin",
+      "t64646464646464646464646464646464.bin",
+      "t69696969696969696969696969696969.bin",
+      "t6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e.bin",
+      "t73737373737373737373737373737373.bin",
+      "t78787878787878787878787878787878.bin",
+      "t7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d.bin",
+      "t82828282828282828282828282828282.bin",
+      "t87878787878787878787878787878787.bin",
+      "t8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c.bin",
+      "t91919191919191919191919191919191.bin",
+      "t96969696969696969696969696969696.bin",
+      "t9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b.bin",
+      "ta0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0.bin",
+      "ta5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5.bin",
+      "taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bin",
+      "tafafafafafafafafafafafafafafafaf.bin",
+      "tb4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4.bin",
+      "tb9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9.bin",
+      "tbebebebebebebebebebebebebebebebe.bin",
+      "tc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.bin",
+      "tc8c8c8c8c8c8c8c8c8c8c8c8c8c8c8c8.bin",
+      "tcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd.bin",
+      "td2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2.bin",
+      "td7d7d7d7d7d7d7d7d7d7d7d7d7d7d7d7.bin",
+      "tdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc.bin",
+      "te1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1.bin",
+      "te6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6.bin",
+      "tebebebebebebebebebebebebebebebeb.bin",
+      "tf0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0.bin",
+      "tf5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5.bin",
+      "tfafafafafafafafafafafafafafafafa.bin",
+      "tffffffffffffffffffffffffffffffff.bin",
+      "t04040404040404040404040404040404.bin",
+      "t09090909090909090909090909090909.bin",
+      "t0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e.bin",
+      "t13131313131313131313131313131313.bin",
+      "t18181818181818181818181818181818.bin",
+      "t1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d.bin",
+      "t22222222222222222222222222222222.bin",
+      "t27272727272727272727272727272727.bin",
+      "t2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c.bin",
+      "t31313131313131313131313131313131.bin",
+      "t36363636363636363636363636363636.bin",
+      "t3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b.bin"
+    ],
+    "label_sounds": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "images": [
+      [
+        "t01010101010101010101010101010101.bin",
+        "t02020202020202020202020202020202.bin",
+        "t03030303030303030303030303030303.bin",
+        "t04040404040404040404040404040404.bin"
+      ],
+      [
+        "t06060606060606060606060606060606.bin",
+        "t07070707070707070707070707070707.bin",
+        "t08080808080808080808080808080808.bin",
+        "t09090909090909090909090909090909.bin"
+      ],
+      [
+        "t0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b.bin",
+        "t0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c.bin",
+        "t0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d.bin",
+        "t0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e.bin"
+      ],
+      [
+        "t10101010101010101010101010101010.bin",
+        "t11111111111111111111111111111111.bin",
+        "t12121212121212121212121212121212.bin",
+        "t13131313131313131313131313131313.bin"
+      ],
+      [
+        "t15151515151515151515151515151515.bin",
+        "t16161616161616161616161616161616.bin",
+        "t17171717171717171717171717171717.bin",
+        "t18181818181818181818181818181818.bin"
+      ],
+      [
+        "t1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a.bin",
+        "t1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b.bin",
+        "t1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c.bin",
+        "t1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d.bin"
+      ],
+      [
+        "t1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f.bin",
+        "t20202020202020202020202020202020.bin",
+        "t21212121212121212121212121212121.bin",
+        "t22222222222222222222222222222222.bin"
+      ],
+      [
+        "t24242424242424242424242424242424.bin",
+        "t25252525252525252525252525252525.bin",
+        "t26262626262626262626262626262626.bin",
+        "t27272727272727272727272727272727.bin"
+      ],
+      [
+        "t29292929292929292929292929292929.bin",
+        "t2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a.bin",
+        "t2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b.bin",
+        "t2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c.bin"
+      ],
+      [
+        "t2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e.bin",
+        "t2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f.bin",
+        "t30303030303030303030303030303030.bin",
+        "t31313131313131313131313131313131.bin"
+      ],
+      [
+        "t33333333333333333333333333333333.bin",
+        "t34343434343434343434343434343434.bin",
+        "t35353535353535353535353535353535.bin",
+        "t36363636363636363636363636363636.bin"
+      ],
+      [
+        "t38383838383838383838383838383838.bin",
+        "t39393939393939393939393939393939.bin",
+        "t3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a.bin",
+        "t3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b.bin"
+      ],
+      [
+        "t3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d.bin",
+        "t3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e.bin",
+        "t3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f.bin",
+        "t40404040404040404040404040404040.bin"
+      ],
+      [
+        "t42424242424242424242424242424242.bin",
+        "t43434343434343434343434343434343.bin",
+        "t44444444444444444444444444444444.bin",
+        "t45454545454545454545454545454545.bin"
+      ],
+      [
+        "t47474747474747474747474747474747.bin",
+        "t48484848484848484848484848484848.bin",
+        "t49494949494949494949494949494949.bin",
+        "t4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a.bin"
+      ],
+      [
+        "t4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c.bin",
+        "t4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d.bin",
+        "t4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e.bin",
+        "t4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f.bin"
+      ],
+      [
+        "t51515151515151515151515151515151.bin",
+        "t52525252525252525252525252525252.bin",
+        "t53535353535353535353535353535353.bin",
+        "t54545454545454545454545454545454.bin"
+      ],
+      [
+        "t56565656565656565656565656565656.bin",
+        "t57575757575757575757575757575757.bin",
+        "t58585858585858585858585858585858.bin",
+        "t59595959595959595959595959595959.bin"
+      ],
+      [
+        "t5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b.bin",
+        "t5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c.bin",
+        "t5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d.bin",
+        "t5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e.bin"
+      ],
+      [
+        "t60606060606060606060606060606060.bin",
+        "t61616161616161616161616161616161.bin",
+        "t62626262626262626262626262626262.bin",
+        "t63636363636363636363636363636363.bin"
+      ],
+      [
+        "t65656565656565656565656565656565.bin",
+        "t66666666666666666666666666666666.bin",
+        "t67676767676767676767676767676767.bin",
+        "t68686868686868686868686868686868.bin"
+      ],
+      [
+        "t6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a.bin",
+        "t6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b.bin",
+        "t6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c.bin",
+        "t6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d.bin"
+      ],
+      [
+        "t6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f.bin",
+        "t70707070707070707070707070707070.bin",
+        "t71717171717171717171717171717171.bin",
+        "t72727272727272727272727272727272.bin"
+      ],
+      [
+        "t74747474747474747474747474747474.bin",
+        "t75757575757575757575757575757575.bin",
+        "t76767676767676767676767676767676.bin",
+        "t77777777777777777777777777777777.bin"
+      ],
+      [
+        "t79797979797979797979797979797979.bin",
+        "t7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a.bin",
+        "t7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b.bin",
+        "t7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c.bin"
+      ],
+      [
+        "t7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e.bin",
+        "t7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f.bin",
+        "t80808080808080808080808080808080.bin",
+        "t81818181818181818181818181818181.bin"
+      ],
+      [
+        "t83838383838383838383838383838383.bin",
+        "t84848484848484848484848484848484.bin",
+        "t85858585858585858585858585858585.bin",
+        "t86868686868686868686868686868686.bin"
+      ],
+      [
+        "t88888888888888888888888888888888.bin",
+        "t89898989898989898989898989898989.bin",
+        "t8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a.bin",
+        "t8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b.bin"
+      ],
+      [
+        "t8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d.bin",
+        "t8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e.bin",
+        "t8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f.bin",
+        "t90909090909090909090909090909090.bin"
+      ],
+      [
+        "t92929292929292929292929292929292.bin",
+        "t93939393939393939393939393939393.bin",
+        "t94949494949494949494949494949494.bin",
+        "t95959595959595959595959595959595.bin"
+      ],
+      [
+        "t97979797979797979797979797979797.bin",
+        "t98989898989898989898989898989898.bin",
+        "t99999999999999999999999999999999.bin",
+        "t9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a.bin"
+      ],
+      [
+        "t9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c.bin",
+        "t9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d.bin",
+        "t9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e.bin",
+        "t9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f.bin"
+      ],
+      [
+        "ta1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.bin",
+        "ta2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2.bin",
+        "ta3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3.bin",
+        "ta4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4.bin"
+      ],
+      [
+        "ta6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6.bin",
+        "ta7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7.bin",
+        "ta8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8.bin",
+        "ta9a9a9a9a9a9a9a9a9a9a9a9a9a9a9a9.bin"
+      ],
+      [
+        "tabababababababababababababababab.bin",
+        "tacacacacacacacacacacacacacacacac.bin",
+        "tadadadadadadadadadadadadadadadad.bin",
+        "taeaeaeaeaeaeaeaeaeaeaeaeaeaeaeae.bin"
+      ],
+      [
+        "tb0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0.bin",
+        "tb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1.bin",
+        "tb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.bin",
+        "tb3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3.bin"
+      ],
+      [
+        "tb5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5.bin",
+        "tb6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6.bin",
+        "tb7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7.bin",
+        "tb8b8b8b8b8b8b8b8b8b8b8b8b8b8b8b8.bin"
+      ],
+      [
+        "tbabababababababababababababababa.bin",
+        "tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.bin",
+        "tbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc.bin",
+        "tbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd.bin"
+      ],
+      [
+        "tbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf.bin",
+        "tc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0.bin",
+        "tc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1.bin",
+        "tc2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2.bin"
+      ],
+      [
+        "tc4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4.bin",
+        "tc5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5.bin",
+        "tc6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6.bin",
+        "tc7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7.bin"
+      ],
+      [
+        "tc9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9.bin",
+        "tcacacacacacacacacacacacacacacaca.bin",
+        "tcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcb.bin",
+        "tcccccccccccccccccccccccccccccccc.bin"
+      ],
+      [
+        "tcececececececececececececececece.bin",
+        "tcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcf.bin",
+        "td0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0.bin",
+        "td1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1.bin"
+      ],
+      [
+        "td3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3.bin",
+        "td4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4.bin",
+        "td5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5.bin",
+        "td6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6.bin"
+      ],
+      [
+        "td8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8.bin",
+        "td9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9.bin",
+        "tdadadadadadadadadadadadadadadada.bin",
+        "tdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdb.bin"
+      ],
+      [
+        "tdddddddddddddddddddddddddddddddd.bin",
+        "tdededededededededededededededede.bin",
+        "tdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf.bin",
+        "te0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0.bin"
+      ],
+      [
+        "te2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2.bin",
+        "te3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3.bin",
+        "te4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4.bin",
+        "te5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.bin"
+      ],
+      [
+        "te7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7.bin",
+        "te8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8.bin",
+        "te9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9.bin",
+        "teaeaeaeaeaeaeaeaeaeaeaeaeaeaeaea.bin"
+      ],
+      [
+        "tecececececececececececececececec.bin",
+        "tedededededededededededededededed.bin",
+        "teeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.bin",
+        "tefefefefefefefefefefefefefefefef.bin"
+      ],
+      [
+        "tf1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1.bin",
+        "tf2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2.bin",
+        "tf3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3.bin",
+        "tf4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4.bin"
+      ],
+      [
+        "tf6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6.bin",
+        "tf7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7.bin",
+        "tf8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8.bin",
+        "tf9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9.bin"
+      ],
+      [
+        "tfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb.bin",
+        "tfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfc.bin",
+        "tfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfd.bin",
+        "tfefefefefefefefefefefefefefefefe.bin"
+      ],
+      [
+        "t00000000000000000000000000000000.bin",
+        "t01010101010101010101010101010101.bin",
+        "t02020202020202020202020202020202.bin",
+        "t03030303030303030303030303030303.bin"
+      ],
+      [
+        "t05050505050505050505050505050505.bin",
+        "t06060606060606060606060606060606.bin",
+        "t07070707070707070707070707070707.bin",
+        "t08080808080808080808080808080808.bin"
+      ],
+      [
+        "t0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a.bin",
+        "t0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b.bin",
+        "t0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c.bin",
+        "t0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d.bin"
+      ],
+      [
+        "t0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f.bin",
+        "t10101010101010101010101010101010.bin",
+        "t11111111111111111111111111111111.bin",
+        "t12121212121212121212121212121212.bin"
+      ],
+      [
+        "t14141414141414141414141414141414.bin",
+        "t15151515151515151515151515151515.bin",
+        "t16161616161616161616161616161616.bin",
+        "t17171717171717171717171717171717.bin"
+      ],
+      [
+        "t19191919191919191919191919191919.bin",
+        "t1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a.bin",
+        "t1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b.bin",
+        "t1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c.bin"
+      ],
+      [
+        "t1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e.bin",
+        "t1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f.bin",
+        "t20202020202020202020202020202020.bin",
+        "t21212121212121212121212121212121.bin"
+      ],
+      [
+        "t23232323232323232323232323232323.bin",
+        "t24242424242424242424242424242424.bin",
+        "t25252525252525252525252525252525.bin",
+        "t26262626262626262626262626262626.bin"
+      ],
+      [
+        "t28282828282828282828282828282828.bin",
+        "t29292929292929292929292929292929.bin",
+        "t2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a.bin",
+        "t2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b.bin"
+      ],
+      [
+        "t2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d.bin",
+        "t2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e.bin",
+        "t2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f.bin",
+        "t30303030303030303030303030303030.bin"
+      ],
+      [
+        "t32323232323232323232323232323232.bin",
+        "t33333333333333333333333333333333.bin",
+        "t34343434343434343434343434343434.bin",
+        "t35353535353535353535353535353535.bin"
+      ],
+      [
+        "t37373737373737373737373737373737.bin",
+        "t38383838383838383838383838383838.bin",
+        "t39393939393939393939393939393939.bin",
+        "t3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a.bin"
+      ],
+      [
+        "t3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c.bin",
+        "t3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d.bin",
+        "t3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e.bin",
+        "t3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "a01010101010101010101010101010101.wav",
+        "",
+        "a03030303030303030303030303030303.wav",
+        ""
+      ],
+      [
+        "a06060606060606060606060606060606.wav",
+        "",
+        "a08080808080808080808080808080808.wav",
+        ""
+      ],
+      [
+        "a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b.wav",
+        "",
+        "a0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d.wav",
+        ""
+      ],
+      [
+        "a10101010101010101010101010101010.wav",
+        "",
+        "a12121212121212121212121212121212.wav",
+        ""
+      ],
+      [
+        "a15151515151515151515151515151515.wav",
+        "",
+        "a17171717171717171717171717171717.wav",
+        ""
+      ],
+      [
+        "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a.wav",
+        "",
+        "a1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c.wav",
+        ""
+      ],
+      [
+        "a1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f.wav",
+        "",
+        "a21212121212121212121212121212121.wav",
+        ""
+      ],
+      [
+        "a24242424242424242424242424242424.wav",
+        "",
+        "a26262626262626262626262626262626.wav",
+        ""
+      ],
+      [
+        "a29292929292929292929292929292929.wav",
+        "",
+        "a2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b.wav",
+        ""
+      ],
+      [
+        "a2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e.wav",
+        "",
+        "a30303030303030303030303030303030.wav",
+        ""
+      ],
+      [
+        "a33333333333333333333333333333333.wav",
+        "",
+        "a35353535353535353535353535353535.wav",
+        ""
+      ],
+      [
+        "a38383838383838383838383838383838.wav",
+        "",
+        "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a.wav",
+        ""
+      ],
+      [
+        "a3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d.wav",
+        "",
+        "a3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f.wav",
+        ""
+      ],
+      [
+        "a42424242424242424242424242424242.wav",
+        "",
+        "a44444444444444444444444444444444.wav",
+        ""
+      ],
+      [
+        "a47474747474747474747474747474747.wav",
+        "",
+        "a49494949494949494949494949494949.wav",
+        ""
+      ],
+      [
+        "a4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c.wav",
+        "",
+        "a4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e.wav",
+        ""
+      ],
+      [
+        "a51515151515151515151515151515151.wav",
+        "",
+        "a53535353535353535353535353535353.wav",
+        ""
+      ],
+      [
+        "a56565656565656565656565656565656.wav",
+        "",
+        "a58585858585858585858585858585858.wav",
+        ""
+      ],
+      [
+        "a5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b.wav",
+        "",
+        "a5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d.wav",
+        ""
+      ],
+      [
+        "a60606060606060606060606060606060.wav",
+        "",
+        "a62626262626262626262626262626262.wav",
+        ""
+      ],
+      [
+        "a65656565656565656565656565656565.wav",
+        "",
+        "a67676767676767676767676767676767.wav",
+        ""
+      ],
+      [
+        "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a.wav",
+        "",
+        "a6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c.wav",
+        ""
+      ],
+      [
+        "a6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f.wav",
+        "",
+        "a71717171717171717171717171717171.wav",
+        ""
+      ],
+      [
+        "a74747474747474747474747474747474.wav",
+        "",
+        "a76767676767676767676767676767676.wav",
+        ""
+      ],
+      [
+        "a79797979797979797979797979797979.wav",
+        "",
+        "a7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b.wav",
+        ""
+      ],
+      [
+        "a7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e.wav",
+        "",
+        "a80808080808080808080808080808080.wav",
+        ""
+      ],
+      [
+        "a83838383838383838383838383838383.wav",
+        "",
+        "a85858585858585858585858585858585.wav",
+        ""
+      ],
+      [
+        "a88888888888888888888888888888888.wav",
+        "",
+        "a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a.wav",
+        ""
+      ],
+      [
+        "a8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d.wav",
+        "",
+        "a8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f.wav",
+        ""
+      ],
+      [
+        "a92929292929292929292929292929292.wav",
+        "",
+        "a94949494949494949494949494949494.wav",
+        ""
+      ],
+      [
+        "a97979797979797979797979797979797.wav",
+        "",
+        "a99999999999999999999999999999999.wav",
+        ""
+      ],
+      [
+        "a9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c.wav",
+        "",
+        "a9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e.wav",
+        ""
+      ],
+      [
+        "aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
+        "",
+        "aa3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3.wav",
+        ""
+      ],
+      [
+        "aa6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6.wav",
+        "",
+        "aa8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8.wav",
+        ""
+      ],
+      [
+        "aabababababababababababababababab.wav",
+        "",
+        "aadadadadadadadadadadadadadadadad.wav",
+        ""
+      ],
+      [
+        "ab0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0.wav",
+        "",
+        "ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+        ""
+      ],
+      [
+        "ab5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5.wav",
+        "",
+        "ab7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7.wav",
+        ""
+      ],
+      [
+        "ababababababababababababababababa.wav",
+        "",
+        "abcbcbcbcbcbcbcbcbcbcbcbcbcbcbcbc.wav",
+        ""
+      ],
+      [
+        "abfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf.wav",
+        "",
+        "ac1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1.wav",
+        ""
+      ],
+      [
+        "ac4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4.wav",
+        "",
+        "ac6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6.wav",
+        ""
+      ],
+      [
+        "ac9c9c9c9c9c9c9c9c9c9c9c9c9c9c9c9.wav",
+        "",
+        "acbcbcbcbcbcbcbcbcbcbcbcbcbcbcbcb.wav",
+        ""
+      ],
+      [
+        "acececececececececececececececece.wav",
+        "",
+        "ad0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0.wav",
+        ""
+      ],
+      [
+        "ad3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3.wav",
+        "",
+        "ad5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5.wav",
+        ""
+      ],
+      [
+        "ad8d8d8d8d8d8d8d8d8d8d8d8d8d8d8d8.wav",
+        "",
+        "adadadadadadadadadadadadadadadada.wav",
+        ""
+      ],
+      [
+        "adddddddddddddddddddddddddddddddd.wav",
+        "",
+        "adfdfdfdfdfdfdfdfdfdfdfdfdfdfdfdf.wav",
+        ""
+      ],
+      [
+        "ae2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2.wav",
+        "",
+        "ae4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4.wav",
+        ""
+      ],
+      [
+        "ae7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7.wav",
+        "",
+        "ae9e9e9e9e9e9e9e9e9e9e9e9e9e9e9e9.wav",
+        ""
+      ],
+      [
+        "aecececececececececececececececec.wav",
+        "",
+        "aeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.wav",
+        ""
+      ],
+      [
+        "af1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1.wav",
+        "",
+        "af3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3.wav",
+        ""
+      ],
+      [
+        "af6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6.wav",
+        "",
+        "af8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8.wav",
+        ""
+      ],
+      [
+        "afbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfb.wav",
+        "",
+        "afdfdfdfdfdfdfdfdfdfdfdfdfdfdfdfd.wav",
+        ""
+      ],
+      [
+        "a00000000000000000000000000000000.wav",
+        "",
+        "a02020202020202020202020202020202.wav",
+        ""
+      ],
+      [
+        "a05050505050505050505050505050505.wav",
+        "",
+        "a07070707070707070707070707070707.wav",
+        ""
+      ],
+      [
+        "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a.wav",
+        "",
+        "a0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c.wav",
+        ""
+      ],
+      [
+        "a0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f.wav",
+        "",
+        "a11111111111111111111111111111111.wav",
+        ""
+      ],
+      [
+        "a14141414141414141414141414141414.wav",
+        "",
+        "a16161616161616161616161616161616.wav",
+        ""
+      ],
+      [
+        "a19191919191919191919191919191919.wav",
+        "",
+        "a1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b.wav",
+        ""
+      ],
+      [
+        "a1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e.wav",
+        "",
+        "a20202020202020202020202020202020.wav",
+        ""
+      ],
+      [
+        "a23232323232323232323232323232323.wav",
+        "",
+        "a25252525252525252525252525252525.wav",
+        ""
+      ],
+      [
+        "a28282828282828282828282828282828.wav",
+        "",
+        "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a.wav",
+        ""
+      ],
+      [
+        "a2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d.wav",
+        "",
+        "a2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f.wav",
+        ""
+      ],
+      [
+        "a32323232323232323232323232323232.wav",
+        "",
+        "a34343434343434343434343434343434.wav",
+        ""
+      ],
+      [
+        "a37373737373737373737373737373737.wav",
+        "",
+        "a39393939393939393939393939393939.wav",
+        ""
+      ],
+      [
+        "a3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c.wav",
+        "",
+        "a3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e.wav",
+        ""
+      ]
+    ]
+  },
+  "notes": [
+    "12 + 64 * 212 = 13580 bytes. One set more is refused rather than truncated - see sets-past-max, which is this file plus one entry.",
+    "MAX_SETS is not in the file. It is how much room the reader has, and a reader with less of it than this refuses a layout a conforming builder wrote - so the number is not a detail of one implementation but a thing both ends have to know. This fixture and sets-past-max are how it is stated without either end reading the other.",
+    "It was five until 2026-08-31 and adr/0020 is why it is 64: a set is a round of the joining game, twenty rounds is a session, and the file partition runs out somewhere near forty rounds while SRAM would hold hundreds."
+  ]
+}

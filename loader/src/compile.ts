@@ -135,34 +135,45 @@ export async function compileDevice(
     return blankName;
   };
 
+  /** The recording behind a key's word, filed and named, or "" for none.
+   *
+   *  No recording is a silent key rather than a failure - a Sammlung with no
+   *  voice set is a normal one, and layout.bin's per-key flag is what says so.
+   *  The zeros hashBytes() writes for an empty name are the firmware's own
+   *  "nothing to play". */
+  const soundFor = (text: string): string => {
+    const sound = text ? read.sounds.get(text) : undefined;
+    if (!sound) return "";
+    files.set(sound.name, sound.bytes);
+    return sound.name;
+  };
+
   const labelFiles: string[] = [];
+  const labelSounds: string[] = [];
   const tileFiles: string[][] = [];
   const audioFiles: string[][] = [];
 
   for (const set of plan.sets) {
-    labelFiles.push(await tileFor(set.symbol, false));
+    // The set key's tile is drawn whether or not the key holds anything, where
+    // a speech key that holds nothing gets the blank. That is not an oversight
+    // on either side: the fifth panel is the set, it is lit on every screen the
+    // device shows, and a set nobody gave a picture is the grey cross saying
+    // exactly that. A blank there would look like a set that was not there.
+    labelFiles.push(await tileFor(set.key.symbol, set.key.negated));
+    labelSounds.push(soundFor(set.key.text));
     const tileNames: string[] = [];
     const audioNames: string[] = [];
     for (const slot of set.slots) {
       tileNames.push(slot.empty ? await blank() : await tileFor(slot.symbol, slot.negated));
-      const sound = slot.text ? read.sounds.get(slot.text) : undefined;
-      if (sound) {
-        files.set(sound.name, sound.bytes);
-        audioNames.push(sound.name);
-      } else {
-        // No recording is a silent key rather than a failure - a Sammlung with
-        // no voice set is a normal one, and layout.bin's per-slot flag is what
-        // says so. The zeros hashBytes() writes for an empty name are the
-        // firmware's own "nothing to play".
-        audioNames.push("");
-      }
+      audioNames.push(soundFor(slot.text));
     }
     tileFiles.push(tileNames);
     audioFiles.push(audioNames);
   }
 
   files.set(LAYOUT_BIN,
-    renderLayoutBin(planLayout(plan), labelFiles, tileFiles, audioFiles));
+    renderLayoutBin(planLayout(plan), labelFiles, tileFiles, audioFiles,
+                    labelSounds));
   return {
     files,
     screens: labelFiles.map((label, at) => ({ label, slots: tileFiles[at]! })),

@@ -35,9 +35,9 @@ The two extension namespaces are separated for the same kind of reason —
 
 ## What a DIY Sammlung turns into
 
-The device is five keys and up to five sets, which is a small corner of what
-the format allows. The mapping keeps the device's own shape rather than
-inventing a tablet layout:
+The device is five keys and up to 64 sets, which is a small corner of what the
+format allows. The mapping keeps the device's own shape rather than inventing a
+tablet layout:
 
 - one set becomes one board, carrying the set's name; a set has no colour any
   more, so neither `ext_lautstark_board_color` nor a `border_color` per button
@@ -47,7 +47,9 @@ inventing a tablet layout:
   case**, with the top-left cell left empty because that is where the speaker
   is ([docs/hardware.md](hardware.md));
 - the set key becomes a `load_board` button, cycling the same ring the device
-  cycles;
+  cycles — and since layout.bin version 3 a *speech* key may carry one too, so
+  which button is the set key is read off the grid rather than off the presence
+  of a `load_board` ([ADR 0020](../adr/0020-every-key-says-what-it-does.md));
 - a slot with neither text nor picture becomes an empty cell rather than an
   empty button.
 

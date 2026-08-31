@@ -1,0 +1,690 @@
+{
+  "fixture": "a-key-that-goes-on",
+  "kind": "package",
+  "file": "package/a-key-that-goes-on.obz",
+  "summary": "Two rounds of the joining game: a set key that speaks and goes nowhere, and one speech key per board that speaks and then loads the next.",
+  "bytes": 12739,
+  "conforming": true,
+  "members": [
+    {
+      "path": "manifest.json",
+      "bytes": 1220,
+      "sha256": "6dd9c959dd02b4b54ca0670b570683ec115e4df695b528f02e14ebf136196c7f"
+    },
+    {
+      "path": "boards/set-1.obf",
+      "bytes": 2981,
+      "sha256": "703548281741cd97e487891c1d5b6452588a8e8b6d196e4cc89cdb928f1aa283"
+    },
+    {
+      "path": "boards/set-2.obf",
+      "bytes": 3069,
+      "sha256": "65abfd9e8ea625f7be1f8004ccef383ee1c13387ce06e9b87c6eae1c157b4ed6"
+    },
+    {
+      "path": "images/191ef540c6ba1d78.svg",
+      "bytes": 99,
+      "sha256": "191ef540c6ba1d78e399017bee81cb875ed9da63b7b1cd120718d2ec1654b06c"
+    },
+    {
+      "path": "images/907686e9833c7e5b.bin",
+      "bytes": 310,
+      "sha256": "907686e9833c7e5be4cda8aabd77a0ce0f1c209787e58557638799a4d879275f"
+    },
+    {
+      "path": "images/e121ccc1471f37d4.bin",
+      "bytes": 246,
+      "sha256": "e121ccc1471f37d4aa455272feec6ca2e1f685b12871a6bc8bae6529da653985"
+    },
+    {
+      "path": "images/e83ec571012c0591.jpg",
+      "bytes": 50,
+      "sha256": "e83ec571012c0591ab89a61bd26f921209536791fba6156605a0bc9349df3f6c"
+    },
+    {
+      "path": "sounds/a11111111111111111111111111111111.wav",
+      "bytes": 444,
+      "sha256": "9af1b57ba7126bf0ac9d83a7d5a7976f9ce680c926bb1bb57c532071e631d000"
+    },
+    {
+      "path": "sounds/a12121212121212121212121212121212.wav",
+      "bytes": 284,
+      "sha256": "cee2aa7e68c406f97f0308dc2d676954a9580e320c87158c5e243629ac447aef"
+    },
+    {
+      "path": "sounds/a13131313131313131313131313131313.wav",
+      "bytes": 284,
+      "sha256": "cee2aa7e68c406f97f0308dc2d676954a9580e320c87158c5e243629ac447aef"
+    },
+    {
+      "path": "sounds/a14141414141414141414141414141414.wav",
+      "bytes": 284,
+      "sha256": "cee2aa7e68c406f97f0308dc2d676954a9580e320c87158c5e243629ac447aef"
+    },
+    {
+      "path": "sounds/a21212121212121212121212121212121.wav",
+      "bytes": 444,
+      "sha256": "9af1b57ba7126bf0ac9d83a7d5a7976f9ce680c926bb1bb57c532071e631d000"
+    },
+    {
+      "path": "sounds/a22222222222222222222222222222222.wav",
+      "bytes": 284,
+      "sha256": "cee2aa7e68c406f97f0308dc2d676954a9580e320c87158c5e243629ac447aef"
+    },
+    {
+      "path": "sounds/a23232323232323232323232323232323.wav",
+      "bytes": 284,
+      "sha256": "cee2aa7e68c406f97f0308dc2d676954a9580e320c87158c5e243629ac447aef"
+    },
+    {
+      "path": "sounds/a24242424242424242424242424242424.wav",
+      "bytes": 284,
+      "sha256": "cee2aa7e68c406f97f0308dc2d676954a9580e320c87158c5e243629ac447aef"
+    }
+  ],
+  "manifest": {
+    "format": "open-board-0.1",
+    "root": "boards/set-1.obf",
+    "paths": {
+      "boards": {
+        "set-1": "boards/set-1.obf",
+        "set-2": "boards/set-2.obf"
+      },
+      "images": {
+        "img-191ef540c6ba1d78": "images/191ef540c6ba1d78.svg",
+        "img-907686e9833c7e5b": "images/907686e9833c7e5b.bin",
+        "img-e121ccc1471f37d4": "images/e121ccc1471f37d4.bin",
+        "img-e83ec571012c0591": "images/e83ec571012c0591.jpg"
+      },
+      "sounds": {
+        "snd-a11111111111111111111111111111111": "sounds/a11111111111111111111111111111111.wav",
+        "snd-a12121212121212121212121212121212": "sounds/a12121212121212121212121212121212.wav",
+        "snd-a13131313131313131313131313131313": "sounds/a13131313131313131313131313131313.wav",
+        "snd-a14141414141414141414141414141414": "sounds/a14141414141414141414141414141414.wav",
+        "snd-a21212121212121212121212121212121": "sounds/a21212121212121212121212121212121.wav",
+        "snd-a22222222222222222222222222222222": "sounds/a22222222222222222222222222222222.wav",
+        "snd-a23232323232323232323232323232323": "sounds/a23232323232323232323232323232323.wav",
+        "snd-a24242424242424242424242424242424": "sounds/a24242424242424242424242424242424.wav"
+      }
+    }
+  },
+  "boards": [
+    {
+      "format": "open-board-0.1",
+      "id": "set-1",
+      "locale": "de",
+      "name": "Spiegel + Ei",
+      "buttons": [
+        {
+          "id": "set-1-key-1",
+          "label": "Eierbecher",
+          "vocalization": "Eierbecher",
+          "image_id": "img-e121ccc1471f37d4",
+          "sound_id": "snd-a13131313131313131313131313131313"
+        },
+        {
+          "id": "set-1-key-2",
+          "label": "Spiegelei",
+          "vocalization": "Spiegelei",
+          "image_id": "img-191ef540c6ba1d78",
+          "sound_id": "snd-a12121212121212121212121212121212",
+          "load_board": {
+            "id": "set-2",
+            "name": "Sonne + Blume",
+            "path": "boards/set-2.obf"
+          },
+          "ext_lautstark_speak_on_navigate": true
+        },
+        {
+          "id": "set-1-key-3",
+          "label": "Spiegelbild",
+          "vocalization": "Spiegelbild",
+          "image_id": "img-e121ccc1471f37d4",
+          "ext_vorlaut_negated": true,
+          "sound_id": "snd-a14141414141414141414141414141414"
+        },
+        {
+          "id": "set-1-key-4",
+          "label": ""
+        },
+        {
+          "id": "set-1-set",
+          "label": "Spiegel + Ei",
+          "image_id": "img-907686e9833c7e5b",
+          "vocalization": "Spiegel + Ei",
+          "sound_id": "snd-a11111111111111111111111111111111"
+        }
+      ],
+      "grid": {
+        "rows": 2,
+        "columns": 3,
+        "order": [
+          [
+            null,
+            "set-1-key-1",
+            "set-1-key-2"
+          ],
+          [
+            "set-1-set",
+            "set-1-key-3",
+            "set-1-key-4"
+          ]
+        ]
+      },
+      "images": [
+        {
+          "id": "img-191ef540c6ba1d78",
+          "path": "images/191ef540c6ba1d78.svg",
+          "content_type": "image/svg+xml",
+          "symbol": {
+            "set": "metacom",
+            "filename": "hilfe.svg"
+          }
+        },
+        {
+          "id": "img-907686e9833c7e5b",
+          "path": "images/907686e9833c7e5b.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "ja.bmp"
+          }
+        },
+        {
+          "id": "img-e121ccc1471f37d4",
+          "path": "images/e121ccc1471f37d4.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "nein.bmp"
+          }
+        }
+      ],
+      "sounds": [
+        {
+          "id": "snd-a11111111111111111111111111111111",
+          "path": "sounds/a11111111111111111111111111111111.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0125
+        },
+        {
+          "id": "snd-a12121212121212121212121212121212",
+          "path": "sounds/a12121212121212121212121212121212.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0075
+        },
+        {
+          "id": "snd-a13131313131313131313131313131313",
+          "path": "sounds/a13131313131313131313131313131313.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0075
+        },
+        {
+          "id": "snd-a14141414141414141414141414141414",
+          "path": "sounds/a14141414141414141414141414141414.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0075
+        }
+      ],
+      "ext_vorlaut_sleep_timeout_seconds": 600,
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+    },
+    {
+      "format": "open-board-0.1",
+      "id": "set-2",
+      "locale": "de",
+      "name": "Sonne + Blume",
+      "buttons": [
+        {
+          "id": "set-2-key-1",
+          "label": "Sonnenblume",
+          "vocalization": "Sonnenblume",
+          "image_id": "img-907686e9833c7e5b",
+          "sound_id": "snd-a22222222222222222222222222222222",
+          "load_board": {
+            "id": "set-1",
+            "name": "Spiegel + Ei",
+            "path": "boards/set-1.obf"
+          },
+          "ext_lautstark_speak_on_navigate": true
+        },
+        {
+          "id": "set-2-key-2",
+          "label": "Blumentopf",
+          "vocalization": "Blumentopf",
+          "image_id": "img-e121ccc1471f37d4",
+          "sound_id": "snd-a23232323232323232323232323232323"
+        },
+        {
+          "id": "set-2-key-3",
+          "label": "Sonnenschein",
+          "vocalization": "Sonnenschein",
+          "image_id": "img-191ef540c6ba1d78",
+          "sound_id": "snd-a24242424242424242424242424242424"
+        },
+        {
+          "id": "set-2-key-4",
+          "label": ""
+        },
+        {
+          "id": "set-2-set",
+          "label": "Sonne + Blume",
+          "image_id": "img-e83ec571012c0591",
+          "vocalization": "Sonne + Blume",
+          "sound_id": "snd-a21212121212121212121212121212121"
+        }
+      ],
+      "grid": {
+        "rows": 2,
+        "columns": 3,
+        "order": [
+          [
+            null,
+            "set-2-key-1",
+            "set-2-key-2"
+          ],
+          [
+            "set-2-set",
+            "set-2-key-3",
+            "set-2-key-4"
+          ]
+        ]
+      },
+      "images": [
+        {
+          "id": "img-191ef540c6ba1d78",
+          "path": "images/191ef540c6ba1d78.svg",
+          "content_type": "image/svg+xml",
+          "symbol": {
+            "set": "metacom",
+            "filename": "hilfe.svg"
+          }
+        },
+        {
+          "id": "img-907686e9833c7e5b",
+          "path": "images/907686e9833c7e5b.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "ja.bmp"
+          }
+        },
+        {
+          "id": "img-e121ccc1471f37d4",
+          "path": "images/e121ccc1471f37d4.bin",
+          "content_type": "application/octet-stream",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "nein.bmp"
+          }
+        },
+        {
+          "id": "img-e83ec571012c0591",
+          "path": "images/e83ec571012c0591.jpg",
+          "content_type": "image/jpeg",
+          "symbol": {
+            "set": "vorlaut",
+            "filename": "foto.png"
+          }
+        }
+      ],
+      "sounds": [
+        {
+          "id": "snd-a21212121212121212121212121212121",
+          "path": "sounds/a21212121212121212121212121212121.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0125
+        },
+        {
+          "id": "snd-a22222222222222222222222222222222",
+          "path": "sounds/a22222222222222222222222222222222.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0075
+        },
+        {
+          "id": "snd-a23232323232323232323232323232323",
+          "path": "sounds/a23232323232323232323232323232323.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0075
+        },
+        {
+          "id": "snd-a24242424242424242424242424242424",
+          "path": "sounds/a24242424242424242424242424242424.wav",
+          "content_type": "audio/wav",
+          "duration": 0.0075
+        }
+      ]
+    }
+  ],
+  "read": {
+    "result": "ok",
+    "plan": {
+      "language": "de",
+      "voice": "piper:de_DE-thorsten-medium",
+      "sleep_timeout_seconds": 600,
+      "sets": [
+        {
+          "name": "Spiegel + Ei",
+          "key": {
+            "text": "Spiegel + Ei",
+            "symbol": "ja.bmp",
+            "negated": false,
+            "empty": false,
+            "does": "speak",
+            "target": 0
+          },
+          "slots": [
+            {
+              "text": "Eierbecher",
+              "symbol": "nein.bmp",
+              "negated": false,
+              "empty": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "Spiegelei",
+              "symbol": "metacom:hilfe.svg",
+              "negated": false,
+              "empty": false,
+              "does": "speak-and-go",
+              "target": 1
+            },
+            {
+              "text": "Spiegelbild",
+              "symbol": "nein.bmp",
+              "negated": true,
+              "empty": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false,
+              "empty": true,
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Sonne + Blume",
+          "key": {
+            "text": "Sonne + Blume",
+            "symbol": "foto.png",
+            "negated": false,
+            "empty": false,
+            "does": "speak",
+            "target": 0
+          },
+          "slots": [
+            {
+              "text": "Sonnenblume",
+              "symbol": "ja.bmp",
+              "negated": false,
+              "empty": false,
+              "does": "speak-and-go",
+              "target": 0
+            },
+            {
+              "text": "Blumentopf",
+              "symbol": "nein.bmp",
+              "negated": false,
+              "empty": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "Sonnenschein",
+              "symbol": "metacom:hilfe.svg",
+              "negated": false,
+              "empty": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false,
+              "empty": true,
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        }
+      ]
+    },
+    "sources": [
+      {
+        "reference": "nein.bmp",
+        "key": "e121ccc1471f37d4",
+        "content_type": "application/octet-stream",
+        "path": "images/e121ccc1471f37d4.bin"
+      },
+      {
+        "reference": "metacom:hilfe.svg",
+        "key": "191ef540c6ba1d78",
+        "content_type": "image/svg+xml",
+        "path": "images/191ef540c6ba1d78.svg"
+      },
+      {
+        "reference": "ja.bmp",
+        "key": "907686e9833c7e5b",
+        "content_type": "application/octet-stream",
+        "path": "images/907686e9833c7e5b.bin"
+      },
+      {
+        "reference": "foto.png",
+        "key": "e83ec571012c0591",
+        "content_type": "image/jpeg",
+        "path": "images/e83ec571012c0591.jpg"
+      }
+    ],
+    "sounds": [
+      {
+        "text": "Eierbecher",
+        "name": "a13131313131313131313131313131313.wav",
+        "path": "sounds/a13131313131313131313131313131313.wav"
+      },
+      {
+        "text": "Spiegelei",
+        "name": "a12121212121212121212121212121212.wav",
+        "path": "sounds/a12121212121212121212121212121212.wav"
+      },
+      {
+        "text": "Spiegelbild",
+        "name": "a14141414141414141414141414141414.wav",
+        "path": "sounds/a14141414141414141414141414141414.wav"
+      },
+      {
+        "text": "Spiegel + Ei",
+        "name": "a11111111111111111111111111111111.wav",
+        "path": "sounds/a11111111111111111111111111111111.wav"
+      },
+      {
+        "text": "Sonnenblume",
+        "name": "a22222222222222222222222222222222.wav",
+        "path": "sounds/a22222222222222222222222222222222.wav"
+      },
+      {
+        "text": "Blumentopf",
+        "name": "a23232323232323232323232323232323.wav",
+        "path": "sounds/a23232323232323232323232323232323.wav"
+      },
+      {
+        "text": "Sonnenschein",
+        "name": "a24242424242424242424242424242424.wav",
+        "path": "sounds/a24242424242424242424242424242424.wav"
+      },
+      {
+        "text": "Sonne + Blume",
+        "name": "a21212121212121212121212121212121.wav",
+        "path": "sounds/a21212121212121212121212121212121.wav"
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "de",
+      "voice": "piper:de_DE-thorsten-medium",
+      "sleep_timeout_seconds": 600,
+      "sets": [
+        {
+          "name": "Spiegel + Ei",
+          "key": {
+            "text": "Spiegel + Ei",
+            "symbol": "ja.bmp",
+            "does": "speak",
+            "target": 0
+          },
+          "slots": [
+            {
+              "text": "Eierbecher",
+              "symbol": "nein.bmp",
+              "negated": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "Spiegelei",
+              "symbol": "metacom:hilfe.svg",
+              "negated": false,
+              "does": "speak-and-go",
+              "target": 1
+            },
+            {
+              "text": "Spiegelbild",
+              "symbol": "nein.bmp",
+              "negated": true,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false,
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Sonne + Blume",
+          "key": {
+            "text": "Sonne + Blume",
+            "symbol": "foto.png",
+            "does": "speak",
+            "target": 0
+          },
+          "slots": [
+            {
+              "text": "Sonnenblume",
+              "symbol": "ja.bmp",
+              "negated": false,
+              "does": "speak-and-go",
+              "target": 0
+            },
+            {
+              "text": "Blumentopf",
+              "symbol": "nein.bmp",
+              "negated": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "Sonnenschein",
+              "symbol": "metacom:hilfe.svg",
+              "negated": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false,
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        }
+      ]
+    },
+    "voice": "piper:de_DE-thorsten-medium",
+    "sources": [
+      {
+        "reference": "ja.bmp",
+        "key": "907686e9833c7e5b",
+        "content_type": "application/octet-stream",
+        "member": "images/907686e9833c7e5b.bin"
+      },
+      {
+        "reference": "nein.bmp",
+        "key": "e121ccc1471f37d4",
+        "content_type": "application/octet-stream",
+        "member": "images/e121ccc1471f37d4.bin"
+      },
+      {
+        "reference": "metacom:hilfe.svg",
+        "key": "191ef540c6ba1d78",
+        "content_type": "image/svg+xml",
+        "member": "images/191ef540c6ba1d78.svg"
+      },
+      {
+        "reference": "foto.png",
+        "key": "e83ec571012c0591",
+        "content_type": "image/jpeg",
+        "member": "images/e83ec571012c0591.jpg"
+      }
+    ],
+    "sounds": [
+      {
+        "text": "Spiegel + Ei",
+        "name": "a11111111111111111111111111111111.wav",
+        "member": "sounds/a11111111111111111111111111111111.wav"
+      },
+      {
+        "text": "Spiegelei",
+        "name": "a12121212121212121212121212121212.wav",
+        "member": "sounds/a12121212121212121212121212121212.wav"
+      },
+      {
+        "text": "Eierbecher",
+        "name": "a13131313131313131313131313131313.wav",
+        "member": "sounds/a13131313131313131313131313131313.wav"
+      },
+      {
+        "text": "Spiegelbild",
+        "name": "a14141414141414141414141414141414.wav",
+        "member": "sounds/a14141414141414141414141414141414.wav"
+      },
+      {
+        "text": "Sonne + Blume",
+        "name": "a21212121212121212121212121212121.wav",
+        "member": "sounds/a21212121212121212121212121212121.wav"
+      },
+      {
+        "text": "Sonnenblume",
+        "name": "a22222222222222222222222222222222.wav",
+        "member": "sounds/a22222222222222222222222222222222.wav"
+      },
+      {
+        "text": "Blumentopf",
+        "name": "a23232323232323232323232323232323.wav",
+        "member": "sounds/a23232323232323232323232323232323.wav"
+      },
+      {
+        "text": "Sonnenschein",
+        "name": "a24242424242424242424242424242424.wav",
+        "member": "sounds/a24242424242424242424242424242424.wav"
+      }
+    ],
+    "refuses": null
+  },
+  "notes": [
+    "`ext_lautstark_speak_on_navigate` is the only field in this file from the other extension namespace, and it is written only where it is true - so a Sammlung whose keys all speak is the file it was before the field existed. adr/0001 keeps the namespaces apart and adr/0020 is why this one crosses.",
+    "The boards are reached through a speech key rather than a set key, which is the whole reason the walk over this package is a graph and not a ring. The order the sets come back in is the order they are first reached from the root, and it is that order the `target` in every key counts in.",
+    "The set keys carry a vocalization and a recording. That is new: a set key was a picture and nothing else until layout.bin version 3, and there was no field in the format for the sentence the fifth panel says.",
+    "One key is crossed out and one holds nothing at all, so this package is not only about navigation - a fixture whose every key was the same shape would let a runner pass on one case."
+  ]
+}

@@ -3,7 +3,7 @@
   "kind": "layout",
   "file": "layout/one-set-short.bin",
   "summary": "A header claiming two sets on a file holding one and a half.",
-  "bytes": 379,
+  "bytes": 435,
   "read": {
     "result": "LAYOUT_BAD_LENGTH"
   },

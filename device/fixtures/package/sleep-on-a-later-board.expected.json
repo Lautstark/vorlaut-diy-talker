@@ -296,61 +296,91 @@
       "sets": [
         {
           "name": "Frühstück",
-          "symbol": "metacom:hilfe.svg",
+          "key": {
+            "text": "Frühstück",
+            "symbol": "metacom:hilfe.svg",
+            "negated": false,
+            "empty": false,
+            "does": "go",
+            "target": 1
+          },
           "slots": [
             {
               "text": "Ich habe Hunger",
               "symbol": "ja.bmp",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich habe keinen Hunger",
               "symbol": "ja.bmp",
               "negated": true,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Ich habe Durst",
               "symbol": "",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "nein.bmp",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             }
           ]
         },
         {
           "name": "Brot, Butter und Marmelade, süß",
-          "symbol": "",
+          "key": {
+            "text": "Brot, Butter und Marmelade, süß",
+            "symbol": "",
+            "negated": false,
+            "empty": false,
+            "does": "go",
+            "target": 0
+          },
           "slots": [
             {
               "text": "Wir gehen nach draußen",
               "symbol": "nein.bmp",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "",
               "symbol": "",
               "negated": false,
-              "empty": true
+              "empty": true,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "   ",
               "symbol": "",
               "negated": false,
-              "empty": true
+              "empty": true,
+              "does": "speak",
+              "target": 0
             },
             {
               "text": "Wir gehen nach Hause",
               "symbol": "metacom:nicht-da.png",
               "negated": false,
-              "empty": false
+              "empty": false,
+              "does": "speak",
+              "target": 0
             }
           ]
         }

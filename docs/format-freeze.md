@@ -34,10 +34,21 @@ is where a change to them would land.
 
 ## The short answer
 
-**Six pending items, of which three have since landed.** Everything that had to
-land before a device freeze has; the three that are left can wait behind a
-version. Three whole categories the brief asked about came back empty, and
-saying so is the point of §7.
+**Six pending items, of which four have since landed — and a seventh that was
+not on the list at all and is the largest of them.** Everything that had to land
+before a device freeze has; the two that are left can wait behind a version.
+Three whole categories the brief asked about came back empty, and saying so is
+the point of §7.
+
+The seventh is [L3](#l3-a-key-cannot-say-what-it-does-and-a-set-key-cannot-speak),
+on 2026-08-31: every key of a set says what it does and where it goes, and the
+set key became a key. **It was not a pending change when this was written
+because nothing wanted it**, which is the most useful thing this survey has
+found out about itself — a list of what is still moving is a list of what is
+already known to be wrong, and the change that costs the most is the one a
+product decision asks for the week after. It cost a lock derivation and a MAJOR
+on the interface version, and it was still cheap, because no tag had been cut.
+That was the whole point of writing this down.
 
 All three landings were on 2026-08-27.
 [C1](#c1-chunk-acknowledgement--in-flight) was in flight when this was written
@@ -67,7 +78,8 @@ thing to carry to [N1](#n1-the-builder-emits-names-the-name-rule-forbids), whose
 | | Format | Before a freeze? | Lock |
 |---|---|---|---|
 | [L1](#l1-the-sleep-timeout-has-two-values-the-format-allows-and-the-reader-cannot-use) | `layout.bin` | **landed 2026-08-27** | held |
-| [L2](#l2-the-set-count-cap-is-a-device-rule-the-writer-does-not-hold-itself-to) | `layout.bin` | No | no |
+| [L2](#l2-the-set-count-cap-is-a-device-rule-the-writer-does-not-hold-itself-to) | `layout.bin` | **landed 2026-08-31** | no |
+| [L3](#l3-a-key-cannot-say-what-it-does-and-a-set-key-cannot-speak) | `layout.bin` | **landed 2026-08-31** | invalidated, derived |
 | [C1](#c1-chunk-acknowledgement--in-flight) | cable | **landed 2026-08-27** | no |
 | [C2](#c2-cable-version-is-compared-by-a-test-and-by-nothing-that-runs) | cable | **landed 2026-08-27** | no |
 | [N1](#n1-the-builder-emits-names-the-name-rule-forbids) | name rule | No | at risk |
@@ -197,6 +209,60 @@ dangerous one.
 
 **Before or behind a version.** Behind. The device already refuses correctly;
 what is missing is a statement and a check, not a byte.
+
+**Status: landed**, on 2026-08-31, and as a side effect of
+[L3](#l3-a-key-cannot-say-what-it-does-and-a-set-key-cannot-speak) rather than
+on its own account. The statement is
+[`layout/sets-at-max`](../device/fixtures/layout/sets-at-max.expected.json)
+beside `sets-past-max`: the most sets any accepted fixture is read with is the
+room there is, and the file with one more is the refusal. Both runners ask it —
+[`device_fixtures.test.ts`](../tests/unit/device_fixtures.test.ts) checks
+`MAX_SETS` against the fixtures rather than against the header. The cap in
+`renderLayoutBin()` was *not* added, and that half of the entry stands: the
+writer still refuses only above 255, because the count and the length are the
+same refusal at the far end and `loader/src/validate.ts` is what says so before
+anything is sent. The number itself moved from 5 to 64 —
+[ADR 0020](../adr/0020-every-key-says-what-it-does.md).
+
+---
+
+### L3. A key cannot say what it does, and a set key cannot speak
+
+**Status: landed**, on 2026-08-31, and it is the entry this survey did not
+have. It was not a pending change when this was written because nothing wanted
+it; a joining game on the talker did, and wanting it made two absences visible
+at once.
+
+`layout.bin` had no field for what a key is FOR. A speech key spoke, always. The
+set key switched sets, always, in `(rtcCurrentSet + 1) % layout.setCount` in
+[`vorlaut.ino`](../firmware/vorlaut/vorlaut.ino) — arithmetic in the one file no
+test can include, describing a ring the file said nothing about. And `SetEntry`
+carried a `label` hash with no sound beside it, so the fifth panel could show a
+picture and could not say a word.
+
+**What changed.** Version 3. A set entry is a name and five keys of 36 bytes;
+each key carries `does` — speak, speak and then go, or go — and `target`, the
+set it goes to. 212 bytes a set where it was 184.
+
+**Which side breaks.** Both, and in the good direction: every talker flashed
+before 2026-08-31 refuses a version-3 file with `LAYOUT_BAD_VERSION`, and a
+version-3 device refuses a version-2 file the same way.
+[`layout/version-two`](../device/fixtures/layout/version-two.expected.json) and
+`layout/version-four` are the pair. This is the change the whole survey was
+about being able to make cheaply, and it was made while no tag had been cut.
+
+**Lock.** Invalidated, and answered by derivation rather than by refreezing —
+the second time, after the colour. `THE_KEYS_ARE_FIVE` in
+[`test_layout_frozen.py`](../tests/test_layout_frozen.py) puts twenty-eight
+bytes back into each entry where `THE_COLOUR_IS_GONE` took two out. **An
+insertion is the harder of the two**: a deletion needs nothing the lock does not
+already hold, and an insertion needs somebody to say what goes in the gap. What
+goes in is a zero or a number the set count decides, because version 3 wrote
+down what version 2 did in arithmetic — and the nine new bytes a set are the
+part the lock can say nothing about, checked instead by three authored fixtures
+the two runners meet from opposite sides. That is the general form of
+[the L1 finding](#the-short-answer) applied on purpose: where a lock cannot go
+red, the fixture set has to.
 
 ---
 
@@ -407,15 +473,24 @@ are now stated rules rather than comments:
 | | State | Stated by |
 |---|---|---|
 | Header byte 7 | **spent.** Reserved, written zero, zero later made to mean English | `language.expected.json`, `layout/language-past-the-table` |
-| The byte after each slot's has-audio flag | **unspent.** A writer writes zero, a reader ignores it | `layout/slot-reserved-byte-set` |
+| The byte after each key's has-audio flag | **spent**, on 2026-08-31: it is `does` | `layout/keys-that-go`, `layout/key-does-past-the-table` |
+| The byte after `target` | **unspent.** A writer writes zero, a reader ignores it | `layout/slot-reserved-byte-set` |
 
-Neither is a pending change. The second is the only room `layout.bin` has left,
-and the fixture's note is explicit that it works the same way byte 7 did — *a
-later MINOR version may give a meaning to a value whose zero is the old
-behaviour*. **That is the format's entire forward compatibility**, and the two
-fixtures that could be mistaken for more of it say so themselves:
-`layout/trailing-bytes` — *"That is NOT a way to extend the format"* — and
-`tile/over-long`, for the same reason.
+None is a pending change. The third is the only room `layout.bin` has left, and
+the fixture's note is explicit that it works the same way byte 7 did — *a later
+MINOR version may give a meaning to a value whose zero is the old behaviour*.
+**That is the format's entire forward compatibility**, and the two fixtures that
+could be mistaken for more of it say so themselves: `layout/trailing-bytes` —
+*"That is NOT a way to extend the format"* — and `tile/over-long`, for the same
+reason.
+
+The second row is worth reading as a worked example rather than as a fact. The
+byte was the format's last room, and version 3 spent it — but version 3 was
+MAJOR anyway, so it did not have to: it could have taken a byte from anywhere.
+It spent the reserved one *and put a new one back*, five bytes a set, because
+what is valuable is not that particular byte but that there is always one. A
+MAJOR that left the format with nowhere to grow would have made the next MINOR
+impossible.
 
 The cable's extension space is stated too, and in the opposite direction:
 unknown keywords skipped both ways, a fourth word on `put` ignored, and

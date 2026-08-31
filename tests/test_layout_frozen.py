@@ -40,9 +40,10 @@ machine running the test, and it is the reason a frozen byte string means
 something rather than merely being self-consistent.
 
 One case is set aside rather than compared - see THE_FILTER_IS_GONE. Every
-remaining case has two bytes per set taken out of it before it is compared -
-see THE_COLOUR_IS_GONE. The lock is not touched and is not refrozen in either
-case; what changes is what gets compared.
+remaining case is then put through two transformations before it is compared:
+two bytes per set come out (THE_COLOUR_IS_GONE) and twenty-eight go back in
+(THE_KEYS_ARE_FIVE). The lock is not touched and is not refrozen in any of the
+three cases; what changes is what gets compared.
 """
 
 from __future__ import annotations
@@ -138,8 +139,63 @@ LAYOUT_VERSION in the header - so what it is held to now is the opposite and
 the check is written that way below: it must be refused, and refused for the
 version rather than for its length."""
 
+THE_KEYS_ARE_FIVE = """the twenty-eight bytes a set entry gained.
+
+Version 3, on 2026-08-31. A set held a name, a label hash and four slots of 34
+bytes; it holds a name and five KEYS of 36 now. Every key carries what it does
+- speak, speak and go, or go - and which set it goes to, and the set key is a
+key like the other four rather than a picture with nothing behind it. adr/0020
+is the decision and docs/format-freeze.md is where it was priced.
+
+**The lock is not refrozen**, for the reason THE_COLOUR_IS_GONE gives at
+length: there is nothing left to freeze from. What is done instead is the same
+thing done there and it is worth being exact about the difference, because it
+runs the other way.
+
+The colour was a DELETION from a stated offset: every byte of the new answer
+was already in the lock. This is an INSERTION, and an insertion cannot be
+derived from the lock alone - somebody has to say what goes in the gap. So
+what is inserted is stated here, in one place, and every one of the inserted
+bytes is either a zero or a number the set count decides:
+
+    the set key      the label hash, which the lock holds; sixteen zero bytes
+                     where a sound would be, because no set key had one; the
+                     has-audio flag as 0; LAYOUT_KEY_GO; and the next set,
+                     round to the first from the last.
+    each speech key  its 34 bytes unchanged, and two more: LAYOUT_KEY_SPEAK,
+                     which is zero, and a target of zero.
+
+That is not a guess about what the writer does. It is the statement that
+version 3 wrote down what version 2 did in arithmetic: `(current + 1) %
+setCount` in vorlaut.ino is where the ring lived, and a speech key spoke
+because there was nothing else it could do. If the writer ever stops agreeing
+with that, this file goes red - which is the point.
+
+**What is lost, and it is worth naming.** The lock cannot say anything about
+the bytes it never held. Nine of the inserted bytes per set are the new
+fields, and their only independent check is elsewhere: device/fixtures/layout/
+holds keys-that-go, key-does-past-the-table and key-goes-past-the-last-set,
+authored from the strides rather than captured from either end, and the two
+runners meet them from opposite sides. What this file still holds to the
+Python is every byte that was already there - the name, the label, the four
+slots, sixteen hashes, the language and the sleep timeout - and that the
+firmware's own reader, compiled here, finds all of them in the same places
+after the entry grew by 28 bytes. A wrong offset moves every one of them."""
+
 # The colour sat at the front of a set entry, two bytes, little-endian.
 COLOUR_BYTES = 2
+
+# What version 3 inserted. Stated here rather than imported: this file is one
+# of the two ends, and reading the strides out of the module under test is the
+# thing docs/frozen-references.md is about.
+NAME_BYTES = 32
+HASH_BYTES = 16
+SLOTS_PER_SET = 4
+V2_SLOT_BYTES = 34
+V3_KEY_BYTES = 36
+V3_SET_BYTES = NAME_BYTES + (SLOTS_PER_SET + 1) * V3_KEY_BYTES   # 212
+LAYOUT_KEY_SPEAK = 0
+LAYOUT_KEY_GO = 2
 
 
 def without_the_colour(frozen: bytes, header_bytes: int, set_bytes: int) -> bytes:
@@ -164,6 +220,73 @@ def fields_without_the_colour(fields: list[str]) -> list[str]:
     """The C reader's frozen output, without the field it no longer prints."""
     return [re.sub(r"^(set \d+) color [0-9a-f]{4} ", r"\1 ", line)
             for line in fields]
+
+
+def with_the_five_keys(frozen: bytes, header_bytes: int,
+                       set_bytes: int) -> bytes:
+    """The version-2 bytes as the writer produces them now - THE_KEYS_ARE_FIVE.
+
+    Takes what without_the_colour() answered, so `set_bytes` is 184. The header
+    keeps its length and gains a version; each set entry keeps its name and
+    every hash exactly where it had them, and grows by 28 bytes: the label
+    becomes a whole key, and each of the four slots gains the two fields that
+    say what it does and where it goes.
+    """
+    sets = frozen[5]
+    assert len(frozen) == header_bytes + sets * set_bytes, frozen[:8].hex()
+    out = bytearray(frozen[:header_bytes])
+    out[4] = 3
+    for i in range(sets):
+        at = header_bytes + i * set_bytes
+        entry = frozen[at:at + set_bytes]
+        out += entry[:NAME_BYTES]
+        # The set key: the label hash it always had, no sound because no set
+        # key could have one, and the ring vorlaut.ino used to do in
+        # arithmetic - on to the next set, round to the first from the last.
+        out += entry[NAME_BYTES:NAME_BYTES + HASH_BYTES]
+        out += bytes(HASH_BYTES)
+        out += bytes([0, LAYOUT_KEY_GO, (i + 1) % sets, 0])
+        slots = entry[NAME_BYTES + HASH_BYTES:]
+        for j in range(SLOTS_PER_SET):
+            # The 34 bytes as they stand - image, audio, has-audio and the
+            # spare byte - then the two that are new. A speech key that says
+            # nothing about what it does speaks, which is zero, and goes to a
+            # set it will never be asked about, which is zero too.
+            out += slots[j * V2_SLOT_BYTES:(j + 1) * V2_SLOT_BYTES]
+            out += bytes([LAYOUT_KEY_SPEAK, 0])
+    assert len(out) == header_bytes + sets * V3_SET_BYTES
+    return bytes(out)
+
+
+def fields_with_the_five_keys(fields: list[str], sets: int) -> list[str]:
+    """The C reader's frozen output as the reader prints it now.
+
+    The set line loses its label to a key line of its own, and every slot line
+    becomes a key line with the two new fields and the two answers they mean.
+    Both halves of both, which is what layout_dump.cpp prints - a reader that
+    repaired an unknown value would give the right meaning and the wrong field.
+    """
+    out: list[str] = []
+    for line in fields:
+        head = re.fullmatch(r"set (\d+) name (.*) label ([0-9a-f]{32})", line)
+        if head:
+            at, name, label = int(head[1]), head[2], head[3]
+            goes = (at + 1) % sets
+            out.append(f"set {at} name {name}")
+            out.append(f"key {at} set image {label} audio {'00' * HASH_BYTES} "
+                       f"has 0 does {LAYOUT_KEY_GO} target {goes} speaks 0 "
+                       f"to {goes}")
+            continue
+        slot = re.fullmatch(
+            r"slot (\d+) (\d+) image ([0-9a-f]{32}) audio ([0-9a-f]{32}) "
+            r"has ([01])", line)
+        if slot:
+            out.append(f"key {slot[1]} {slot[2]} image {slot[3]} "
+                       f"audio {slot[4]} has {slot[5]} "
+                       f"does {LAYOUT_KEY_SPEAK} target 0 speaks 1 to -1")
+            continue
+        out.append(line)
+    return out
 
 
 def about_the_filter(case: dict) -> bool:
@@ -319,9 +442,13 @@ def main() -> int:
     # THE_COLOUR_IS_GONE, and after the hash check above for the same reason:
     # what is derived here is derived from bytes that have been shown to be
     # the ones that were frozen.
-    print(f"  --    every case: two bytes per set struck out and the version "
-          f"raised, the colour having gone (THE_COLOUR_IS_GONE)")
-    set_bytes = lock["set_bytes"] - COLOUR_BYTES
+    print(f"  --    every case: two bytes per set struck out, the colour "
+          f"having gone (THE_COLOUR_IS_GONE)")
+    print(f"  --    every case: twenty-eight bytes per set put back and the "
+          f"version raised, the set key having become a key "
+          f"(THE_KEYS_ARE_FIVE)")
+    v2_set_bytes = lock["set_bytes"] - COLOUR_BYTES
+    set_bytes = V3_SET_BYTES
 
     from_js = render_with_node(cases)
     if from_js is None:
@@ -340,8 +467,10 @@ def main() -> int:
                   "nothing independent confirmed what they mean.")
 
         for index, case in enumerate(cases):
-            frozen = without_the_colour(bytes.fromhex(case["bytes"]),
-                                        lock["header_bytes"], lock["set_bytes"])
+            frozen = with_the_five_keys(
+                without_the_colour(bytes.fromhex(case["bytes"]),
+                                   lock["header_bytes"], lock["set_bytes"]),
+                lock["header_bytes"], v2_set_bytes)
 
             if from_js:
                 problem = difference(frozen, from_js[index])
@@ -362,7 +491,9 @@ def main() -> int:
                 check(f"{case['name']}: the firmware accepts them", False, got)
                 continue
             if case["kind"] == "fields":
-                want = fields_without_the_colour(case["fields"])
+                want = fields_with_the_five_keys(
+                    fields_without_the_colour(case["fields"]),
+                    len(case["label"]))
                 check(f"{case['name']}: and reads them into the same "
                       f"{len(want)} fields",
                       got == want,
@@ -398,13 +529,14 @@ def main() -> int:
                 continue
             sets = len(case["label"])
             want = lock["header_bytes"] + sets * set_bytes
-            got_length = case["length"] - sets * COLOUR_BYTES
+            grew = V3_SET_BYTES - lock["set_bytes"] + COLOUR_BYTES
+            got_length = case["length"] - sets * COLOUR_BYTES + sets * grew
             if got_length != want:
                 check(f"{case['name']}: {sets} sets is {want} bytes", False,
-                      f"frozen at {case['length']}, {got_length} without the "
-                      f"colour")
+                      f"frozen at {case['length']}, {got_length} once the "
+                      f"colour is out and the keys are in")
         check(f"every frozen length is {lock['header_bytes']} + sets * "
-              f"{set_bytes} once the colour is out of it", True)
+              f"{set_bytes} once the colour is out and the keys are in", True)
 
     if failures:
         print(f"\n  {len(failures)} problem(s): {', '.join(failures)}")

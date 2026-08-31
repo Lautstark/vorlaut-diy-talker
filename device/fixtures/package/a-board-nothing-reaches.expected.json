@@ -1,8 +1,8 @@
 {
-  "fixture": "ring-misses-a-board",
+  "fixture": "a-board-nothing-reaches",
   "kind": "package",
-  "file": "package/ring-misses-a-board.obz",
-  "summary": "Three boards and a ring that closes over two of them. The third is filed, named by the manifest, and never reached.",
+  "file": "package/a-board-nothing-reaches.obz",
+  "summary": "Three boards, and the keys on them lead to only two. The third is filed, named by the manifest, and there is no way to it.",
   "bytes": 11121,
   "conforming": false,
   "members": [
@@ -354,11 +354,12 @@
   "read": {
     "result": "refused",
     "at": "package",
-    "because": "does not reach every board"
+    "because": "holds a board that nothing in it reaches"
   },
   "write": null,
   "notes": [
     "The quiet one. Everything parses, every member is present, and the talker cycles two sets forever while the third sits in the file - a device that works and is wrong, said to somebody who believes it.",
-    "The ring is followed rather than the manifest's key order, because the ring is what the device actually cycles. A reader that walked the manifest instead would find all three boards here and report nothing."
+    "The keys are followed rather than the manifest's key order, because a manifest is an index any tool may rewrite and the keys are what a person can actually press. A reader that walked the manifest instead would find all three boards here and report nothing.",
+    "It was called ring-misses-a-board until 2026-08-31, when the walk stopped being a ring: a speech key can carry a `load_board` since layout.bin version 3, so the boards a package can be navigated between are a graph rather than a cycle. What is refused is unchanged, and so is why - a board nothing reaches is a set nobody can get to."
   ]
 }

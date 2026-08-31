@@ -92,6 +92,26 @@ static const char *layoutResultName(LayoutResult r) {
   return "unknown";
 }
 
+/** One key, as the reader made of it.
+ *
+ * The two hashes and the has-audio flag, then the field that says what the key
+ * does - as it stands - and the two answers that field MEANS: whether the key
+ * speaks, and which set it really goes to. Three lines' worth on one line, and
+ * the pair is there for the reason sleep_seconds and idle_seconds are two
+ * fields: a reader that quietly repaired a value this version does not know
+ * would print the right meaning and the wrong field, and nothing would say so.
+ */
+static void printLayoutKey(const char *at, const Key &key, uint8_t setCount) {
+  printf("key %s image ", at);
+  hex(key.image, HASH_BYTES);
+  printf(" audio ");
+  hex(key.audio, HASH_BYTES);
+  printf(" has %d does %u target %u speaks %d to %d\n",
+         key.hasAudio ? 1 : 0, (unsigned)key.does, (unsigned)key.target,
+         layoutKeySpeaks(key.does) ? 1 : 0,
+         (int)layoutKeyGoesTo(key.does, key.target, setCount));
+}
+
 static int layoutMode(const char *path) {
   const std::string file = slurp(path);
   // Not LAYOUT_MAX_BYTES: a fixture may be longer than the device has room
@@ -117,15 +137,13 @@ static int layoutMode(const char *path) {
     // in half, and what a reader hands back is the bytes up to the first zero.
     printf("set %u name ", i);
     hex((const uint8_t *)e.name, (int)strlen(e.name));
-    printf(" label ");
-    hex(e.label, HASH_BYTES);
     printf("\n");
+    char at[16];
+    snprintf(at, sizeof(at), "%u set", i);
+    printLayoutKey(at, e.key, layout.setCount);
     for (uint8_t j = 0; j < SLOT_COUNT; j++) {
-      printf("slot %u %u image ", i, j);
-      hex(e.slots[j].image, HASH_BYTES);
-      printf(" audio ");
-      hex(e.slots[j].audio, HASH_BYTES);
-      printf(" has %d\n", e.slots[j].hasAudio ? 1 : 0);
+      snprintf(at, sizeof(at), "%u %u", i, j);
+      printLayoutKey(at, e.slots[j], layout.setCount);
     }
   }
   return 0;

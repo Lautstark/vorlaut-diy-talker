@@ -66,13 +66,36 @@ const hex4 = (value) => (value & 0xffff).toString(16).padStart(4, "0");
 // fixture that moves with it.
 
 const LAYOUT_MAGIC = "MTRD";
-const LAYOUT_VERSION = 2;
+const LAYOUT_VERSION = 3;
 const LAYOUT_HEADER_BYTES = 12;
 const NAME_BYTES = 32;
 const HASH_BYTES = 16;
 const SLOTS_PER_SET = 4;
-const SLOT_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1;                      // 34
-const SET_BYTES = NAME_BYTES + HASH_BYTES + SLOTS_PER_SET * SLOT_BYTES;  // 184
+/** The set key beside the four speech keys - the five panels the device
+ *  lights. It was a picture and nothing else until version 3. */
+const KEYS_PER_SET = SLOTS_PER_SET + 1;
+const KEY_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1 + 1 + 1;   // 36
+const SET_BYTES = NAME_BYTES + KEYS_PER_SET * KEY_BYTES;     // 212
+
+/** How much room a conforming reader has. Stated here from the rule rather
+ *  than read out of either implementation, which is what makes the pair
+ *  sets-at-max / sets-past-max say something about both. */
+const MAX_SETS = 64;
+
+/** What a key does, as the byte spells it. The editor's three names for these
+ *  are Wort, Wort & weiter and weiter. */
+const SPEAK = 0;
+const SPEAK_AND_GO = 1;
+const GO = 2;
+
+/** Whether a key says its own word: anything but "go" does. */
+const keySpeaks = (does) => does !== GO;
+
+/** Which set a key really goes to, or -1 for none. Two ways to go nowhere and
+ *  one answer: a key that does not navigate, and a target no set stands
+ *  behind. */
+const keyGoesTo = (does, target, sets) =>
+  (does !== SPEAK_AND_GO && does !== GO) || target >= sets ? -1 : target;
 
 // The sleep timeout's range, stated here the same way the strides are: from
 // the rule, not from either implementation. The field is a uint32 and holds
@@ -112,19 +135,36 @@ function nameAsRead(field) {
 }
 
 /**
- * One set entry, 184 bytes.
+ * One key, 36 bytes: two hashes, the has-audio flag, what the key does, where
+ * it goes, and one byte spare.
  *
- * `reserved` is the byte after each slot's has-audio flag. A writer puts zero
- * there; what a reader does with anything else is exactly the kind of thing
- * that is written down nowhere, so one fixture below sets it.
+ * `reserved` is that spare byte. A writer puts zero there; what a reader does
+ * with anything else is exactly the kind of thing that is written down
+ * nowhere, so one fixture below sets it.
  */
-function setEntry({ name, label, slots }) {
-  const parts = [nameField(name), label];
-  for (const one of slots) {
-    parts.push(one.image, one.audio,
-               Buffer.from([one.hasAudio ?? 0, one.reserved ?? 0]));
+function keyBytes(one) {
+  const bytes = Buffer.concat([
+    one.image, one.audio,
+    Buffer.from([one.hasAudio ?? 0, one.does ?? SPEAK, one.target ?? 0,
+                 one.reserved ?? 0]),
+  ]);
+  if (bytes.length !== KEY_BYTES) {
+    throw new Error(`key is ${bytes.length} bytes, not ${KEY_BYTES}`);
   }
-  const entry = Buffer.concat(parts);
+  return bytes;
+}
+
+/**
+ * One set entry, 212 bytes: the name, the set key, and the four speech keys.
+ *
+ * The set key comes first, where the label hash sat in version 2 - so a
+ * version-2 entry is this one with twenty bytes taken out of the middle of it
+ * and two off the end of every speech key, which is what
+ * tests/test_layout_frozen.py has to derive in the other direction.
+ */
+function setEntry({ name, key, slots }) {
+  const entry = Buffer.concat(
+    [nameField(name), keyBytes(key), ...slots.map(keyBytes)]);
   if (entry.length !== SET_BYTES) {
     throw new Error(`set entry is ${entry.length} bytes, not ${SET_BYTES}`);
   }
@@ -160,6 +200,23 @@ function layoutBytes({ magic = LAYOUT_MAGIC, version = LAYOUT_VERSION,
 const tileName = (h) => `t${hex(h)}.bin`;
 const audioName = (h) => `a${hex(h)}.wav`;
 
+/** One key as a reader must hand it back.
+ *
+ * The two fields the file holds, then the two answers they mean. Both halves,
+ * the way sleep_seconds and idle_seconds are both halves: a reader that
+ * quietly repaired a value it did not know would give the right meaning and
+ * the wrong field, and no fixture holding only one of them could say so.
+ */
+const keyAsRead = (one, sets) => ({
+  image: hex(one.image),
+  audio: hex(one.audio),
+  has_audio: Boolean(one.hasAudio),
+  does: one.does ?? SPEAK,
+  target: one.target ?? 0,
+  speaks: keySpeaks(one.does ?? SPEAK),
+  goes_to: keyGoesTo(one.does ?? SPEAK, one.target ?? 0, sets),
+});
+
 /** The reader's answer for a layout that parses. */
 function readsAs({ sets, language, sleep, entries }) {
   return {
@@ -174,30 +231,46 @@ function readsAs({ sets, language, sleep, entries }) {
     entries: entries.map((entry) => ({
       name: nameAsRead(nameField(entry.name)),
       name_text: entry.nameText ?? null,
-      label: hex(entry.label),
-      slots: entry.slots.map((one) => ({
-        image: hex(one.image),
-        audio: hex(one.audio),
-        has_audio: Boolean(one.hasAudio),
-      })),
+      key: keyAsRead(entry.key, sets),
+      slots: entry.slots.map((one) => keyAsRead(one, sets)),
     })),
   };
 }
 
-/** The builder input, in the shape renderLayoutBin() takes it. */
+/** The builder input, in the shape renderLayoutBin() takes it.
+ *
+ * What each key DOES and where it GOES rides on the layout rather than on a
+ * list of file names, because it is a fact about the key and not about a file
+ * a compiler resolved. The two lists beside it are the set key's tile and the
+ * set key's recording - `label` and `label_sounds`, one entry per set.
+ */
 function writtenFrom({ language, sleep, entries }) {
   return {
     layout: {
       language,
       sleep_timeout_seconds: sleep,
-      sets: entries.map((entry) => ({ name: entry.name })),
+      sets: entries.map((entry) => ({
+        name: entry.name,
+        key: { does: doesWord(entry.key.does ?? SPEAK),
+               target: entry.key.target ?? 0 },
+        slots: entry.slots.map((one) => ({
+          does: doesWord(one.does ?? SPEAK), target: one.target ?? 0,
+        })),
+      })),
     },
-    label: entries.map((entry) => tileName(entry.label)),
+    label: entries.map((entry) => tileName(entry.key.image)),
+    label_sounds: entries.map((entry) =>
+      (entry.key.hasAudio ? audioName(entry.key.audio) : "")),
     images: entries.map((entry) => entry.slots.map((s) => tileName(s.image))),
     sounds: entries.map((entry) =>
       entry.slots.map((s) => (s.hasAudio ? audioName(s.audio) : ""))),
   };
 }
+
+/** The word a builder says for a byte. KEY_DOES in
+ *  loader/src/layout_format.ts is the same table from the other side. */
+const doesWord = (does) =>
+  does === GO ? "go" : does === SPEAK_AND_GO ? "speak-and-go" : "speak";
 
 /**
  * The layout fixture, both directions at once.
@@ -225,6 +298,18 @@ const slot = (image, audio) => ({
   hasAudio: audio ? 1 : 0,
 });
 
+/** The set key of set `at`, in a layout of `sets`, doing what set keys did
+ *  before the file could say it: no word of its own, and on to the next set,
+ *  round to the first from the last. A one-set layout points at itself, which
+ *  is `(current + 1) % 1` and is a key that visibly does nothing. */
+const ringKey = (image, at, sets) => ({
+  image: hash(image),
+  audio: NO_HASH,
+  hasAudio: 0,
+  does: GO,
+  target: (at + 1) % sets,
+});
+
 // --- The accepted shapes -----------------------------------------------------
 
 layoutFixture({
@@ -242,7 +327,7 @@ layoutFixture({
 const ONE_SET = [{
   name: de.breakfast,
   nameText: de.breakfast,
-  label: hash("11"),
+  key: ringKey("11", 0, 1),
   slots: [slot("21", "31"), slot("22", "32"), slot("23", null), slot("24", "34")],
 }];
 
@@ -263,18 +348,137 @@ layoutFixture({
   const entries = names.map((name, i) => ({
     name,
     nameText: name,
-    label: hash(`4${i}`),
+    key: ringKey(`4${i}`, i, names.length),
     slots: [slot(`5${i}`, `6${i}`), slot(`7${i}`, null),
             slot(`8${i}`, `9${i}`), slot(`a${i}`, `b${i}`)],
   }));
   layoutFixture({
     name: "five-sets",
-    summary: "Five sets, which is MAX_SETS. 932 bytes, the largest file that parses.",
+    summary: "Five sets, each with its own name, its own key and four slots. 1072 bytes.",
     bytes: layoutBytes({ entries: entries.map(setEntry), language: 1, sleep: 900 }),
     read: readsAs({ sets: 5, language: 1, sleep: 900, entries }),
     write: writtenFrom({ language: "de", sleep: 900, entries }),
     notes: [
-      "12 + 5 * 184. A sixth set is refused rather than truncated - see sets-past-max.",
+      "12 + 5 * 212. Five was MAX_SETS until 2026-08-31 and this fixture was the largest file that parses; it is now an ordinary layout of five sets, and sets-at-max is the one at the edge.",
+      "The five set keys are the ring: each goes to the next and the last comes back round to the first. That was arithmetic in the device before version 3 and it is a field now, so it is a thing a fixture can be wrong about.",
+    ],
+  });
+}
+
+{
+  // Every set the reader has room for. The bytes are dull on purpose - what
+  // this fixture is about is the count and the length, and a name or a hash
+  // worth looking at would only make the diff harder to read.
+  const entries = Array.from({ length: MAX_SETS }, (_, i) => {
+    const at = (n) => ((i * 5 + n) & 0xff).toString(16).padStart(2, "0");
+    return {
+      name: `Set ${i + 1}`,
+      nameText: `Set ${i + 1}`,
+      key: ringKey(at(0), i, MAX_SETS),
+      slots: [slot(at(1), at(1)), slot(at(2), null),
+              slot(at(3), at(3)), slot(at(4), null)],
+    };
+  });
+  layoutFixture({
+    name: "sets-at-max",
+    summary: "MAX_SETS sets, which is 64. The largest file that parses.",
+    bytes: layoutBytes({ entries: entries.map(setEntry), sleep: 900 }),
+    read: readsAs({ sets: MAX_SETS, language: 0, sleep: 900, entries }),
+    write: writtenFrom({ language: "en", sleep: 900, entries }),
+    notes: [
+      "12 + 64 * 212 = 13580 bytes. One set more is refused rather than truncated - see sets-past-max, which is this file plus one entry.",
+      "MAX_SETS is not in the file. It is how much room the reader has, and a reader with less of it than this refuses a layout a conforming builder wrote - so the number is not a detail of one implementation but a thing both ends have to know. This fixture and sets-past-max are how it is stated without either end reading the other.",
+      "It was five until 2026-08-31 and adr/0020 is why it is 64: a set is a round of the joining game, twenty rounds is a session, and the file partition runs out somewhere near forty rounds while SRAM would hold hundreds.",
+    ],
+  });
+}
+
+// --- What a key does, and where it goes --------------------------------------
+
+{
+  // Two rounds of the joining game, which is the thing version 3 exists for.
+  // The set key shows the two halves and says them; one of the four speech
+  // keys carries the word they make and is the only key on the board that
+  // goes anywhere. There is no notion of "right" here and there must not be:
+  // what the file says is that one key goes to the next round, and being the
+  // only one that does is what makes it the answer.
+  const round = (at, halves, sets) => ({
+    name: halves,
+    nameText: halves,
+    key: {
+      image: hash(`${at}0`), audio: hash(`${at}1`), hasAudio: 1,
+      // The set key SPEAKS and goes nowhere, where a talker's set key goes to
+      // the next set. That is the whole of "it only goes on with the right
+      // key": if this key still cycled, every round would have a way out of it
+      // that has nothing to do with the word.
+      does: SPEAK, target: 0,
+    },
+    slots: [
+      // `at` is the round, counted from one, so the set it sits in is at - 1
+      // and the round after it is at % sets.
+      { ...slot(`${at}2`, `${at}2`), does: SPEAK_AND_GO, target: at % sets },
+      slot(`${at}3`, `${at}3`),
+      slot(`${at}4`, `${at}4`),
+      slot(`${at}5`, null),
+    ],
+  });
+  // The words themselves are in the package fixture next door, where a key has
+  // text on it. What reaches layout.bin is hashes, so what this file can say
+  // about a round is its shape.
+  const entries = [round(1, de.mirror_egg, 2), round(2, de.sun_flower, 2)];
+  // The second round's set key is the ring key a talker writes, so all three
+  // values of the field are in one file: SPEAK on a set key that says a word,
+  // SPEAK_AND_GO on the key that carries the answer, and GO on a key that
+  // switches sets and says nothing.
+  entries[1].key = ringKey("20", 1, 2);
+  layoutFixture({
+    name: "keys-that-go",
+    summary: "Two rounds of the joining game: a set key that speaks and stays, one speech key per round that speaks and goes on, and a set key that goes and says nothing.",
+    bytes: layoutBytes({ entries: entries.map(setEntry), language: 1, sleep: 600 }),
+    read: readsAs({ sets: 2, language: 1, sleep: 600, entries }),
+    write: writtenFrom({ language: "de", sleep: 600, entries }),
+    notes: [
+      "All three values of the field, in one file. 0 is speak, 1 is speak and then go, 2 is go without speaking - and the third is what a set key has always done, written down for the first time rather than left to `(current + 1) % setCount` in the firmware.",
+      "The first round's set key carries a recording, which no set key could before: the fifth panel is a key like the other four now, with a picture, a word, a sound and a target of its own.",
+      "Every key that goes nowhere still carries a target byte, and it is zero. The field is written either way and a reader only looks at it when `does` says to - the same 'meaningless rather than absent' the has-audio flag has beside a hash of zeros.",
+    ],
+  });
+}
+
+{
+  const entries = ONE_SET.map((entry) => ({
+    ...entry,
+    slots: entry.slots.map((one, at) =>
+      (at === 1 ? { ...one, does: 7, target: 0 } : one)),
+  }));
+  layoutFixture({
+    name: "key-does-past-the-table",
+    summary: "A key whose `does` is 7, a value no version has given a meaning. It speaks and stays where it is.",
+    bytes: layoutBytes({ entries: entries.map(setEntry), sleep: 3600 }),
+    read: readsAs({ sets: 1, language: 0, sleep: 3600, entries }),
+    notes: [
+      "The same shape as language-past-the-table and the same reason. A reader hands the field back as it stands - what the number means is not the parser's business - and the meaning is settled beside it, where an index past the end of the table gives the old behaviour rather than a read past the end of it.",
+      "The old behaviour is the one a version-2 key had: it says its own word and goes nowhere. So a layout from a builder that knows a fourth value cannot strand a child on a board or send them somewhere arbitrary. It can only make a key quieter than its author meant.",
+      "No builder writes this file. KEY_DOES has three entries and a word that is not in it is refused before the byte is written - which is where this differs from the language, whose unknown value falls back rather than refusing. A device with the wrong menu language still works; a key doing something other than what its layout meant does not.",
+    ],
+  });
+}
+
+{
+  const entries = ONE_SET.map((entry) => ({
+    ...entry,
+    key: { ...entry.key, does: GO, target: 3 },
+  }));
+  layoutFixture({
+    name: "key-goes-past-the-last-set",
+    summary: "A set key pointing at set 3 in a layout that holds one. It goes nowhere.",
+    bytes: layoutBytes({ entries: entries.map(setEntry), sleep: 3600 }),
+    read: readsAs({ sets: 1, language: 0, sleep: 3600, entries }),
+    notes: [
+      "The target is a uint8 and so is the set count, so the format can say this and the array cannot hold it. Reading past the end of sets[] is the one outcome a parser must never have, and the answer is that the key stays where it is.",
+      "Staying put rather than falling back to set 0. docs/device-interface.md section 6 is the argument: a key that jumps somewhere arbitrary looks like it worked, and what it teaches the person pressing it is untrue. A key that does nothing is visibly broken.",
+      "The field comes back as it stands beside the meaning - target 3, goes_to -1 - which is the pair sleep_seconds and idle_seconds are. A reader that clamped inside the parse would give the right meaning and the wrong field, and nothing checking only the meaning could say so.",
+      "No builder writes it: loader/src/device_package.ts resolves every target out of the boards the package actually holds, and refuses a `load_board` naming one it does not.",
     ],
   });
 }
@@ -283,7 +487,7 @@ layoutFixture({
   const entries = [{
     name: de.exactly_32_bytes,
     nameText: de.exactly_32_bytes,
-    label: hash("c1"),
+    key: ringKey("c1", 0, 1),
     slots: [slot("c2", "c3"), slot("c4", null), slot("c5", null), slot("c6", null)],
   }];
   if (Buffer.from(de.exactly_32_bytes, "utf8").length !== NAME_BYTES) {
@@ -305,7 +509,7 @@ layoutFixture({
   const entries = [{
     name: de.cut_mid_character,
     nameText: null,
-    label: hash("d1"),
+    key: ringKey("d1", 0, 1),
     slots: [slot("d2", "d3"), slot("d4", "d5"), slot("d6", null), slot("d7", null)],
   }];
   const field = nameField(de.cut_mid_character);
@@ -369,6 +573,7 @@ layoutFixture({
 {
   const entries = ONE_SET.map((entry) => ({
     ...entry,
+    key: { ...entry.key, reserved: 0xff },
     slots: entry.slots.map((s) => ({ ...s, reserved: 0xff })),
   }));
   layoutFixture({
@@ -445,19 +650,29 @@ const REFUSALS = [
     summary: "Version 1, the layout from before the set colour went. Refused rather than read two bytes out of step.",
     bytes: layoutBytes({ version: 1, entries: ONE_SET.map(setEntry) }),
     notes: [
-      "A version-1 set entry was 186 bytes, not 184, so a version-1 file is LONGER than the length rule asks for rather than shorter. Its length adds up, and without the version byte a reader would take it and hand back every name and hash two bytes late.",
-      "That is docs/device-interface.md section 6 exactly: the dangerous mistakes are the ones that parse. The version byte turns this one into a refusal, which is the silence section 6 calls the good outcome.",
+      "A version-1 set entry was 186 bytes, not 212, so a version-1 file is SHORTER than the length rule asks for and would be refused for its length even without the version byte. That was not true when this fixture was written: the entry was 184 bytes then, one byte less than a version-1 entry, and the length adding up was the whole reason the version byte had to catch it.",
+      "That is docs/device-interface.md section 6 exactly: the dangerous mistakes are the ones that parse. Refusing for the version rather than for the length is what keeps the check honest - a file refused for the right reason today may be one refused for a coincidence tomorrow.",
     ],
   },
   {
-    name: "version-three",
+    name: "version-two",
     result: "LAYOUT_BAD_VERSION",
-    summary: "Version 3, from a builder newer than the device. Refused, because the reader cannot skip what it does not know.",
-    bytes: layoutBytes({ version: 3, entries: ONE_SET.map(setEntry) }),
+    summary: "Version 2, the layout from before every key said what it does. Refused rather than read at the wrong pitch.",
+    bytes: layoutBytes({ version: 2, entries: ONE_SET.map(setEntry) }),
+    notes: [
+      "A version-2 set entry was 184 bytes and a version-3 one is 212, so a file with the same set count is 28 bytes short per set and would be refused for its length. That coincidence is not what this fixture rests on: the set count is a byte a writer chooses, and there is nothing stopping a file whose count and length happen to add up.",
+      "The talkers that were flashed before 2026-08-31 refuse a version-3 file the same way - the mirror of this fixture, from the other side, and the reason the version byte moved rather than the strides quietly growing. adr/0020 is that decision.",
+    ],
+  },
+  {
+    name: "version-four",
+    result: "LAYOUT_BAD_VERSION",
+    summary: "Version 4, from a builder newer than the device. Refused, because the reader cannot skip what it does not know.",
+    bytes: layoutBytes({ version: 4, entries: ONE_SET.map(setEntry) }),
     notes: [
       "This is the rule the cable does the opposite of. parseLayout reads fixed strides, has no room for an unknown field and no way to step over one, so a version it does not know is refused outright rather than read as far as it goes.",
       "A flashed device cannot be updated, so this refusal is permanent for that device: a MAJOR change to this format strands every talker already in a house. That asymmetry is why the MAJOR rule is written about a flashed device misreading a payload rather than about the builder.",
-      "docs/device-interface.md section 3 asks for 'a version byte of 2' here. It was written on the morning of the day the set colour went, when LAYOUT_VERSION was still 1; by the afternoon 2 was the valid version and the refusable one had moved up to 3. The fixture follows the code, and the disagreement is recorded rather than smoothed over - it is what a specification kept as prose does within a week, and the argument for writing the fixtures first.",
+      "docs/device-interface.md section 3 asks for 'a version byte of 2' here, and this fixture has now been version 3 and version 4. It was written on the morning of the day the set colour went, when LAYOUT_VERSION was still 1. The fixture follows the code and the disagreement is recorded rather than smoothed over - it is what a specification kept as prose does within a week, and the argument for writing the fixtures first.",
     ],
   },
   {
@@ -472,16 +687,17 @@ const REFUSALS = [
   {
     name: "sets-past-max",
     result: "LAYOUT_BAD_LENGTH",
-    summary: "A header claiming six sets on a device with room for five.",
+    summary: "A header claiming one set more than the device has room for.",
     bytes: layoutBytes({
-      setCountByte: 6,
-      entries: Array.from({ length: 6 }, (_, i) => setEntry({
-        name: `Set ${i}`, label: hash("11"),
+      setCountByte: MAX_SETS + 1,
+      entries: Array.from({ length: MAX_SETS + 1 }, (_, i) => setEntry({
+        name: `Set ${i}`, key: ringKey("11", i, MAX_SETS + 1),
         slots: [slot("21", "31"), slot("22", null), slot("23", null), slot("24", null)],
       })),
     }),
     notes: [
       "Refused for its length rather than for its count, and those are the same enum value: MAX_SETS is how much room the reader has, and a file naming more of them has no answer that fits.",
+      "The pair with sets-at-max, and neither says anything on its own. Together they state the number: the most sets a fixture is accepted with is the room there is, and this is the file with one more.",
     ],
   },
   {
@@ -492,7 +708,7 @@ const REFUSALS = [
       setCountByte: 2,
       entries: [
         setEntry({
-          name: de.breakfast, label: hash("11"),
+          name: de.breakfast, key: ringKey("11", 0, 2),
           slots: [slot("21", "31"), slot("22", null), slot("23", null),
                   slot("24", null)],
         }),
@@ -2131,13 +2347,35 @@ function packageOf({ layout, voice, sources = [], sounds = [] }) {
   const soundBy = new Map(sounds.map((one) => [one.text, one]));
   const members = new Map();
 
+  /** What a key does and where it goes, out of what the Sammlung said.
+   *
+   *  `goesTo` is a set index, or null for a key that goes nowhere. Absent on
+   *  a speech key means nowhere; absent on a set key means the ring, which is
+   *  what every set key did before the file could say anything else. */
+  const goingOf = (key, ring) => {
+    const at = key.goesTo === undefined ? ring : key.goesTo;
+    if (at === null || at === undefined) return { does: "speak", target: 0 };
+    return { does: key.speakOnGo ? "speak-and-go" : "go", target: at };
+  };
+
   const plan = {
     language: layout.language,
     voice,
     sleep_timeout_seconds: layout.sleep_timeout_seconds,
-    sets: layout.sets.map((set) => ({
+    sets: layout.sets.map((set, at) => ({
       name: set.name,
-      symbol: set.symbol ?? "",
+      // The set key - the fifth panel. Its word is its `vocalization` where it
+      // has one and the board's name otherwise, which is what a reader taking
+      // `vocalization ?? label` finds: the switch key has always carried the
+      // set's name as its label.
+      key: {
+        text: (set.key?.text ?? "") || set.name,
+        symbol: set.symbol ?? "",
+        negated: false,
+        empty: keyIsEmpty({ text: (set.key?.text ?? "") || set.name,
+                            symbol: set.symbol ?? "" }),
+        ...goingOf(set.key ?? {}, (at + 1) % layout.sets.length),
+      },
       // Cut at four and deliberately NOT padded up to it: a short set is one
       // layout.bin writes zero hashes for, which is what the device already
       // does with one.
@@ -2146,6 +2384,7 @@ function packageOf({ layout, voice, sources = [], sounds = [] }) {
         symbol: slot.symbol ?? "",
         negated: Boolean(slot.negated),
         empty: keyIsEmpty(slot),
+        ...goingOf(slot, null),
       })),
     })),
   };
@@ -2157,7 +2396,11 @@ function packageOf({ layout, voice, sources = [], sounds = [] }) {
 
   for (const [at, set] of plan.sets.entries()) {
     const id = ids[at];
-    const following = ids[(at + 1) % ids.length];
+    // What the Sammlung said, beside what a reader must come back with. Only
+    // one thing is needed from it: whether the set key was given a word of its
+    // own, which a reader cannot tell from the plan because a set key with no
+    // word of its own comes back carrying the board's name.
+    const said = layout.sets[at];
     const images = new Map();
     const soundEntries = new Map();
     const buttons = [];
@@ -2209,6 +2452,24 @@ function packageOf({ layout, voice, sources = [], sounds = [] }) {
       return entry.id;
     };
 
+    /** A key's `load_board`, and the flag that rides on it.
+     *
+     *  Two fields in the document for one field in layout.bin: a key that goes
+     *  somewhere has a `load_board`, and `ext_lautstark_speak_on_navigate`
+     *  beside it says whether it also says its own word first. Written only
+     *  where each is true, so a Sammlung whose keys all speak is the file it
+     *  was before either field existed. */
+    const goingInto = (button, key) => {
+      if (key.does === "speak") return;
+      const board = ids[key.target];
+      button.load_board = {
+        id: board, name: plan.sets[key.target].name, path: boardFile(board),
+      };
+      if (key.does === "speak-and-go") {
+        button.ext_lautstark_speak_on_navigate = true;
+      }
+    };
+
     for (const [key, slot] of set.slots.entries()) {
       // Both, and the same sentence: the label is what any other editor shows,
       // the vocalization is what gets spoken. The device writes no caption, so
@@ -2223,20 +2484,21 @@ function packageOf({ layout, voice, sources = [], sounds = [] }) {
       if (slot.negated) button.ext_vorlaut_negated = true;
       const recording = putSound(slot.text);
       if (recording) button.sound_id = recording;
+      goingInto(button, slot);
       buttons.push(button);
     }
 
-    const switchKey = {
-      id: `${id}-set`,
-      label: set.name,
-      load_board: {
-        id: following,
-        name: plan.sets[(at + 1) % plan.sets.length].name,
-        path: boardFile(following),
-      },
-    };
-    const setPicture = putImage(set.symbol);
+    const switchKey = { id: `${id}-set`, label: set.name };
+    goingInto(switchKey, set.key);
+    const setPicture = putImage(set.key.symbol);
     if (setPicture) switchKey.image_id = setPicture;
+    // A vocalization only where the set key was given a word of its own.
+    // Without one the label IS the word - a reader takes
+    // `vocalization ?? label` - and writing it twice would say nothing the
+    // file does not already say.
+    if (said.key?.text) switchKey.vocalization = said.key.text;
+    const setRecording = putSound(said.key?.text ?? "");
+    if (setRecording) switchKey.sound_id = setRecording;
     buttons.push(switchKey);
 
     const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
@@ -2408,6 +2670,16 @@ const imagePathOf = (source) =>
   `images/${memberKey(source.bytes)}.`
   + `${MEDIA_EXTENSIONS[source.content_type] ?? "bin"}`;
 
+/** What a key does and where it goes, said the way the plan says it. The same
+ *  rule packageOf()'s goingOf() applies, and deliberately written twice: this
+ *  is what a WRITER is handed, that is what a READER must come back with, and
+ *  a fixture whose two halves shared a function would be one half. */
+const goesAs = (key, ring) => {
+  const at = key.goesTo === undefined ? ring : key.goesTo;
+  if (at === null || at === undefined) return { does: "speak", target: 0 };
+  return { does: key.speakOnGo ? "speak-and-go" : "go", target: at };
+};
+
 /** The `write` half: the Sammlung a conforming writer is given, and where the
  *  bytes behind it are to be found in this fixture's own archive. */
 function writeHalf({ layout, sources = [], sounds = [], refuses = null,
@@ -2417,13 +2689,18 @@ function writeHalf({ layout, sources = [], sounds = [], refuses = null,
       language: layout.language,
       voice: PACKAGE_VOICE,
       sleep_timeout_seconds: layout.sleep_timeout_seconds,
-      sets: layout.sets.map((set) => ({
+      sets: layout.sets.map((set, at) => ({
         name: set.name,
-        symbol: set.symbol ?? "",
+        key: {
+          text: (set.key?.text ?? "") || set.name,
+          symbol: set.symbol ?? "",
+          ...goesAs(set.key ?? {}, (at + 1) % layout.sets.length),
+        },
         slots: set.slots.map((slot) => ({
           text: slot.text ?? "",
           symbol: slot.symbol ?? "",
           negated: Boolean(slot.negated),
+          ...goesAs(slot, null),
         })),
       })),
     },
@@ -2616,6 +2893,112 @@ const FIVE_KEY_SOUNDS = [SOUND_HUNGRY, SOUND_THIRSTY, SOUND_HOME,
   });
 }
 
+/* A round of the joining game, twice over: what layout.bin version 3 exists
+ * for, said in the format one step upstream.
+ *
+ * The set key shows a tile split down the diagonal with the two halves of a
+ * compound word on it and says them out loud - so it carries a vocalization
+ * and a recording, which no set key did before - and it goes NOWHERE. One of
+ * the four speech keys carries the word those halves make, and it is the only
+ * key on the board that leads anywhere at all. That is the whole game: there
+ * is no mode, no round counter and no notion of "right" in any of this, and
+ * the answer is simply the key that is the only way on.
+ *
+ * Both boards therefore hang off each other by a SPEECH key. A reader that
+ * followed only the set keys would find one board and refuse the package for
+ * the other; a reader that took the first `load_board` it found on a board as
+ * the set key would put a word on the fifth panel and a set on a speech key. */
+const JOINING_LAYOUT = {
+  language: "de",
+  sleep_timeout_seconds: 600,
+  sets: [
+    {
+      name: de.mirror_egg,
+      symbol: SOURCES.ja.reference,
+      key: { text: de.mirror_egg, goesTo: null },
+      slots: [
+        { text: de.egg_cup, symbol: SOURCES.nein.reference },
+        // The answer, and the only key that goes anywhere.
+        { text: de.fried_egg, symbol: SOURCES.hilfe.reference,
+          goesTo: 1, speakOnGo: true },
+        { text: de.mirror_image, symbol: SOURCES.nein.reference,
+          negated: true },
+        { text: "", symbol: "" },
+      ],
+    },
+    {
+      name: de.sun_flower,
+      symbol: SOURCES.foto.reference,
+      key: { text: de.sun_flower, goesTo: null },
+      slots: [
+        { text: de.sunflower, symbol: SOURCES.ja.reference,
+          goesTo: 0, speakOnGo: true },
+        { text: de.flower_pot, symbol: SOURCES.nein.reference },
+        { text: de.sunshine, symbol: SOURCES.hilfe.reference },
+        { text: "", symbol: "" },
+      ],
+    },
+  ],
+};
+const JOINING_SOURCES = [SOURCES.ja, SOURCES.nein, SOURCES.hilfe, SOURCES.foto];
+const JOINING_SOUNDS = [
+  { text: de.mirror_egg, ...soundNamed("11", 200) },
+  { text: de.fried_egg, ...soundNamed("12", 120) },
+  { text: de.egg_cup, ...soundNamed("13", 120) },
+  { text: de.mirror_image, ...soundNamed("14", 120) },
+  { text: de.sun_flower, ...soundNamed("21", 200) },
+  { text: de.sunflower, ...soundNamed("22", 120) },
+  { text: de.flower_pot, ...soundNamed("23", 120) },
+  { text: de.sunshine, ...soundNamed("24", 120) },
+];
+
+{
+  const pkg = packageOf({
+    layout: JOINING_LAYOUT, voice: PACKAGE_VOICE,
+    sources: JOINING_SOURCES, sounds: JOINING_SOUNDS,
+  });
+  packageFixture({
+    name: "a-key-that-goes-on",
+    summary: "Two rounds of the joining game: a set key that speaks and goes nowhere, and one speech key per board that speaks and then loads the next.",
+    outcome: "accepted",
+    conforming: true,
+    pkg,
+    read: readOk(pkg),
+    write: writeHalf({ layout: JOINING_LAYOUT, sources: JOINING_SOURCES,
+                       sounds: JOINING_SOUNDS }),
+    notes: [
+      "`ext_lautstark_speak_on_navigate` is the only field in this file from the other extension namespace, and it is written only where it is true - so a Sammlung whose keys all speak is the file it was before the field existed. adr/0001 keeps the namespaces apart and adr/0020 is why this one crosses.",
+      "The boards are reached through a speech key rather than a set key, which is the whole reason the walk over this package is a graph and not a ring. The order the sets come back in is the order they are first reached from the root, and it is that order the `target` in every key counts in.",
+      "The set keys carry a vocalization and a recording. That is new: a set key was a picture and nothing else until layout.bin version 3, and there was no field in the format for the sentence the fifth panel says.",
+      "One key is crossed out and one holds nothing at all, so this package is not only about navigation - a fixture whose every key was the same shape would let a runner pass on one case.",
+    ],
+  });
+}
+
+{
+  const pkg = cloned(packageOf({
+    layout: ONE_SET_LAYOUT, voice: PACKAGE_VOICE,
+    sources: ONE_SET_SOURCES, sounds: ONE_SET_SOUNDS,
+  }));
+  // The cell keeps a name; the button it names goes.
+  const grid = pkg.boards[0].grid.order;
+  grid[grid.length - 1][0] = "set-1-nowhere";
+  packageFixture({
+    name: "set-key-cell-names-nothing",
+    summary: "A grid whose set-key cell names a button the board does not hold.",
+    outcome: "refused",
+    conforming: false,
+    pkg,
+    read: refused("package", "puts a button in the set key's cell"),
+    write: null,
+    notes: [
+      "Which button is the set key is a question only the grid answers. It used to be answered by `load_board` - the set key was the one button on a board that went anywhere - and layout.bin version 3 ended that, because a speech key can go somewhere now too.",
+      "Refused rather than guessed at. A reader that shrugged here would read all five buttons as speech keys, put four of them on the panels and drop the fifth, and light the set panel with nothing on it: a talker that parses and is wrong, which docs/device-interface.md section 6 is a section about.",
+      "No writer produces this file. The grid and the buttons are written from one list, so a cell naming a button that is not there is a package somebody hand-edited or a tool wrote badly - which is exactly who this rule is for.",
+    ],
+  });
+}
+
 // --- Two packages that are taken, and should not have been written -----------
 
 /* The audio kind has stereo-44k, which records a divergence without blessing
@@ -2757,16 +3140,17 @@ const FIVE_KEY_SOUNDS = [SOUND_HUNGRY, SOUND_THIRSTY, SOUND_HOME,
   key.load_board = { id: "set-1", name: pkg.boards[0].name,
                      path: "boards/set-1.obf" };
   packageFixture({
-    name: "ring-misses-a-board",
-    summary: "Three boards and a ring that closes over two of them. The third is filed, named by the manifest, and never reached.",
+    name: "a-board-nothing-reaches",
+    summary: "Three boards, and the keys on them lead to only two. The third is filed, named by the manifest, and there is no way to it.",
     outcome: "refused",
     conforming: false,
     pkg,
-    read: refused("package", "does not reach every board"),
+    read: refused("package", "holds a board that nothing in it reaches"),
     write: null,
     notes: [
       "The quiet one. Everything parses, every member is present, and the talker cycles two sets forever while the third sits in the file - a device that works and is wrong, said to somebody who believes it.",
-      "The ring is followed rather than the manifest's key order, because the ring is what the device actually cycles. A reader that walked the manifest instead would find all three boards here and report nothing.",
+      "The keys are followed rather than the manifest's key order, because a manifest is an index any tool may rewrite and the keys are what a person can actually press. A reader that walked the manifest instead would find all three boards here and report nothing.",
+      "It was called ring-misses-a-board until 2026-08-31, when the walk stopped being a ring: a speech key can carry a `load_board` since layout.bin version 3, so the boards a package can be navigated between are a graph rather than a cycle. What is refused is unchanged, and so is why - a board nothing reaches is a set nobody can get to.",
     ],
   });
 }
@@ -2958,11 +3342,26 @@ const FIVE_KEY_SOUNDS = [SOUND_HUNGRY, SOUND_THIRSTY, SOUND_HOME,
 // tests/test_device_fixtures.py refuses a suffix here, and refuses this file
 // and the committed index.json disagreeing about the version at all.
 const INDEX = {
-  // 1.2.0 since 2026-08-28: the cable's greeting gained a "firmware" keyword.
-  // MINOR by the rule in docs/device-interface.md section 7 - on the cable it
-  // is the ordinary thing, because both ends skip what they do not know, so a
-  // device already flashed neither misreads the addition nor sees it.
-  device_interface_version: "1.3.0",
+  // 2.0.0 since 2026-08-31: layout.bin version 3. Every key of a set now says
+  // what it does and where it goes, the set key is a key like the other four,
+  // and the reader has room for 64 sets rather than 5.
+  //
+  // MAJOR, and the rule in docs/device-interface.md section 7 is written about
+  // MISREADING rather than about rejecting - which this is not, because the
+  // version byte moved with the strides. The rule is still satisfied and the
+  // number still has to be MAJOR: a conforming builder at 1.3.0 writes a file
+  // a 2.0.0 device refuses, and a 2.0.0 builder writes one every talker
+  // flashed before today refuses. Neither can read the other, which is what a
+  // MAJOR says. What the version byte buys is that both refusals are silent
+  // and legible instead of a set of names and hashes read at the wrong pitch,
+  // and that is the difference between an expensive change and a dangerous
+  // one - adr/0020.
+  //
+  // 1.3.0 was 2026-08-30: a tile may travel compressed. 1.2.0 was 2026-08-28:
+  // the cable's greeting gained a "firmware" keyword. Both MINOR, because on
+  // the cable both ends skip what they do not know, so a device already
+  // flashed neither misreads the addition nor sees it.
+  device_interface_version: "2.0.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };

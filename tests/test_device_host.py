@@ -97,6 +97,22 @@ def fields(output: str) -> dict[str, str]:
 
 # --- layout.bin --------------------------------------------------------------
 
+def key_line(at: str, one: dict) -> str:
+    """One key as the firmware's reader prints it.
+
+    Six things, and the last two are the first two read: `does` and `target`
+    are the bytes the file holds, `speaks` and `to` are what they mean. Both
+    halves for the reason sleep_seconds and idle_seconds are both halves - a
+    reader that quietly repaired a value it did not know would give the right
+    meaning and the wrong field, and a fixture holding only the meaning could
+    not tell anybody.
+    """
+    return (f"key {at} image {one['image']} audio {one['audio']} "
+            f"has {1 if one['has_audio'] else 0} does {one['does']} "
+            f"target {one['target']} speaks {1 if one['speaks'] else 0} "
+            f"to {one['goes_to']}")
+
+
 def check_layout(reader: Path, name: str, path: Path, want: dict) -> None:
     got = run(reader, ["layout", str(path)])
     lines = got.strip().split("\n")
@@ -133,11 +149,11 @@ def check_layout(reader: Path, name: str, path: Path, want: dict) -> None:
 
     wanted: list[str] = []
     for i, entry in enumerate(want["entries"]):
-        wanted.append(f"set {i} name {entry['name']} label {entry['label']}")
+        wanted.append(f"set {i} name {entry['name']}")
+        wanted.append(key_line(f"{i} set", entry["key"]))
         for j, one in enumerate(entry["slots"]):
-            wanted.append(f"slot {i} {j} image {one['image']} audio "
-                          f"{one['audio']} has {1 if one['has_audio'] else 0}")
-    body = [l for l in lines if l.startswith(("set ", "slot "))]
+            wanted.append(key_line(f"{i} {j}", one))
+    body = [l for l in lines if l.startswith(("set ", "key "))]
     check(f"{name}: and reads it into the same {len(wanted)} fields",
           body == wanted,
           "" if body == wanted else
