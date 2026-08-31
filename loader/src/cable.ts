@@ -18,6 +18,7 @@
 // What is left for here, then, is three things the wire format has no opinion
 // about: which port out of the several a laptop has, where the files come
 // from, and what the page is told while it happens.
+import { forDevice } from "./tile_encode.js";
 import {
   Cable, CABLE_VERSION, LAYOUT_FILE, plan, push, versionVerdict,
 } from "../tools/cable.js";
@@ -262,11 +263,19 @@ export async function sendToDevice(
     onLog = () => {}, onFound = () => {}, onPlan = () => {}, onStep = () => {},
     signal,
   } = options;
+  const { port, cable, hello } = await findTalker(ports, onLog);
   // plan() and push() want {bytes} per name, because the plan may also be made
   // from sizes and checksums alone. One line of shaping rather than a second
   // shape for compileDevice() to answer in.
-  const made = new Map([...build].map(([name, bytes]) => [name, { bytes }]));
-  const { port, cable, hello } = await findTalker(ports, onLog);
+  //
+  // The tiles are compressed here and nowhere earlier, because here is the
+  // first place that knows who is listening: the device says in its hello
+  // which forms it can draw, and one that says nothing gets exactly the raw
+  // bytes it got yesterday. The compile stays raw for the same reason - it
+  // also feeds the preview and the folder export, and neither of those has a
+  // talker to ask.
+  const made = new Map([...forDevice(build, hello.tiles)].map(
+    ([name, bytes]) => [name, { bytes }]));
   onFound({ version: hello.version, firmware: hello.firmware });
   try {
     const have = await cable.list();

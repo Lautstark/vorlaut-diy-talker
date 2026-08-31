@@ -1,0 +1,59 @@
+{
+  "fixture": "compressed-short",
+  "kind": "tile",
+  "file": "tile/compressed-short.bin",
+  "summary": "A compressed tile whose stream ends after four rows. The rest is black and the device says nothing, exactly as for a truncated raw one.",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 14,
+  "conforming": false,
+  "form": "vt1",
+  "palette": {
+    "colours": 1,
+    "entries": [
+      "07e0"
+    ]
+  },
+  "read": {
+    "accepts": true,
+    "complete_rows": 4,
+    "blank_rows_from": 4,
+    "probes": [
+      {
+        "x": 0,
+        "y": 0,
+        "byte": 0,
+        "value": "07e0"
+      },
+      {
+        "x": 127,
+        "y": 3,
+        "byte": 1022,
+        "value": "07e0"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "byte": 1024,
+        "value": "0000"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "0000"
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "One rule for both forms, which is the point of stating it twice. A writer MUST emit a stream that covers all 16384 pixels; a reader draws what arrived and blacks out the rest, and neither form reports anything.",
+    "A stream that stops is not the same as a file that lies about its palette - see compressed-lying-palette, which is refused. The difference is that this one is readable to its last opcode and that one is not readable at all."
+  ]
+}

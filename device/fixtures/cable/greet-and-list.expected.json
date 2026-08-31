@@ -10,6 +10,7 @@
   "device_speaks": 2,
   "version_verdict": "ok",
   "device_firmware": "",
+  "device_tiles": "",
   "window": 4096,
   "device_starts_with": [
     {
@@ -103,7 +104,8 @@
         "total": 1441792,
         "free": 1440956,
         "files": 2,
-        "firmware": ""
+        "firmware": "",
+        "tiles": ""
       }
     },
     {

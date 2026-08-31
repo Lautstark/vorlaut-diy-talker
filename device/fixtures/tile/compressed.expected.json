@@ -1,0 +1,84 @@
+{
+  "fixture": "compressed",
+  "kind": "tile",
+  "file": "tile/compressed.bin",
+  "summary": "A palette of three and all three opcodes: runs of red, sixty-four white as palette indices, sixty-four of a colour the palette does not hold.",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 458,
+  "conforming": true,
+  "form": "vt1",
+  "palette": {
+    "colours": 3,
+    "entries": [
+      "0000",
+      "f800",
+      "ffff"
+    ]
+  },
+  "read": {
+    "accepts": true,
+    "probes": [
+      {
+        "x": 0,
+        "y": 0,
+        "byte": 0,
+        "value": "f800"
+      },
+      {
+        "x": 127,
+        "y": 1,
+        "byte": 510,
+        "value": "f800"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "byte": 512,
+        "value": "ffff"
+      },
+      {
+        "x": 63,
+        "y": 2,
+        "byte": 638,
+        "value": "ffff"
+      },
+      {
+        "x": 64,
+        "y": 2,
+        "byte": 640,
+        "value": "1234"
+      },
+      {
+        "x": 127,
+        "y": 2,
+        "byte": 766,
+        "value": "1234"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "byte": 768,
+        "value": "0000"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "0000"
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "The three opcodes are three different bargains and a reader that muddles two of them draws something plausible rather than nothing. A run misread as a literal stretch eats the pixels after it; a palette literal misread as a raw one halves the row and shifts everything following.",
+    "Runs cross rows on purpose. The stream is one sequence of pixels and the rows are only where the panel wants them, so a reader that restarts its decoder at each row would draw the first row correctly and nothing else.",
+    "The third opcode is what makes the palette optional rather than a ceiling. Five of the fourteen tiles in tests/reference/tiles/ hold more than 256 colours after anti-aliasing, and without an escape every one of them would have had to travel raw."
+  ]
+}

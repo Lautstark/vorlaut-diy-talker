@@ -29,6 +29,7 @@ says what the cleanup will look like when it is proposed.
 | [0016](0016-the-browser-half-stops-being-released.md) | The browser half stops being released, and `builder-v*` is retired |
 | [0017](0017-the-loader-page-writes-the-firmware.md) | The loader page writes the firmware, from an image its own deploy carries |
 | [0018](0018-the-file-area-takes-the-ota-slot.md) | The device carries its own partition table, and the file area takes the OTA slot |
+| [0019](0019-tiles-travel-compressed.md) | A tile may travel compressed, and the device says whether it can read one |
 
 ## The shape
 

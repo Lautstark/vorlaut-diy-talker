@@ -16,7 +16,9 @@
 // Modes, one per kind of thing in the index:
 //
 //   layout <file>   parse it and print every field, or the refusal
-//   tile <file>     read it row by row the way drawTile() does
+//   tile <file> [decoded]
+//                   read it row by row the way drawTile() does, in either
+//                   form, and write the pixels out if asked
 //   audio <file>    walk to the data chunk the way playWav() does
 //   names           cableNameOk() and hashPath(), one name per line on stdin
 //   language        the table's size, its default, and what an index past it
@@ -131,7 +133,7 @@ static int layoutMode(const char *path) {
 
 // --- t<hash>.bin -------------------------------------------------------------
 
-static int tileMode(const char *path) {
+static int tileMode(const char *path, const char *into) {
   const std::string file = slurp(path);
   Bytes reader{ (const uint8_t *)file.data(), (uint32_t)file.size() };
 
@@ -139,6 +141,16 @@ static int tileMode(const char *path) {
   printf("height %d\n", TILE_H);
   printf("row_bytes %d\n", TILE_W * 2);
   printf("conforming_bytes %u\n", (unsigned)TILE_BYTES);
+
+  // Which form the file is in, decided by its length exactly the way
+  // drawTile() decides it. A file that is neither is refused here and drawn
+  // black there, and that is the only answer this mode gives for one.
+  static TileStream stream;
+  const bool accepts = tileBegin(reader, (uint32_t)file.size(), stream);
+  printf("accepts %d\n", accepts ? 1 : 0);
+  if (!accepts) return 0;
+  printf("form %s\n", stream.compressed ? "vt1" : "raw");
+  if (stream.compressed) printf("colours %u\n", stream.colours);
 
   std::vector<uint8_t> row((size_t)TILE_W * 2);
   uint32_t completeRows = 0, partialAt = TILE_H, partialBytes = 0,
@@ -148,7 +160,7 @@ static int tileMode(const char *path) {
   // here is that nothing is thrown away.
   std::vector<uint8_t> drawn;
   for (uint16_t y = 0; y < TILE_H; y++) {
-    const uint32_t got = tileReadRow(reader, row.data());
+    const uint32_t got = tileNextRow(reader, stream, row.data());
     drawn.insert(drawn.end(), row.begin(), row.end());
     if (got == (uint32_t)TILE_W * 2) {
       completeRows++;
@@ -164,6 +176,18 @@ static int tileMode(const char *path) {
   printf("bytes_in_partial_row %u\n", partialBytes);
   printf("blank_rows_from %u\n", blankFrom);
   printf("bytes_read %u\n", reader.position());
+
+  // Every decoded byte, written out, when the caller asks for it by naming a
+  // file. That is what tests/test_tile_compression.py compares against the
+  // frozen raw tile: the browser encodes, this decodes, and the frozen bytes
+  // say whether the picture survived the round trip. The probes below stay
+  // for the fixtures, which name a handful of pixels rather than all of them.
+  if (into) {
+    FILE *out = fopen(into, "wb");
+    if (!out) { fprintf(stderr, "cannot write: %s\n", into); return 2; }
+    fwrite(drawn.data(), 1, drawn.size(), out);
+    fclose(out);
+  }
 
   // Probe pixels, asked for on stdin as "x y" pairs so that the fixture
   // decides which ones matter rather than this file.
@@ -314,7 +338,8 @@ static bool readLine(std::string &out) {
 // and the two that matter are a device that names a build and a device from
 // before the keyword existed. An empty word is the second of those, and it is
 // said by saying nothing.
-static int cableMode(uint32_t capacity, uint32_t window, const char *firmware) {
+static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
+                     const char *tiles) {
   Fake device;
   device.capacity = capacity;
   char out[CABLE_LINE_MAX];
@@ -369,6 +394,14 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware) {
         cableSayNumber(out, sizeof(out), "total", (uint32_t)device.capacity); say(out);
         cableSayNumber(out, sizeof(out), "free", (uint32_t)(device.capacity - used)); say(out);
         cableSayNumber(out, sizeof(out), "files", (uint32_t)device.files.size()); say(out);
+        // Which tile forms this device says it draws, from the fixture rather
+        // than from CABLE_TILE_FORMS - a harness that read the constant could
+        // only ever produce the one transcript its own build allows, and the
+        // eight transcripts of a device that says nothing are the ones that
+        // matter most. Same argument as the firmware word above.
+        if (tiles && *tiles) {
+          cableSayWord(out, sizeof(out), "tiles", tiles); say(out);
+        }
         cableSayWord(out, sizeof(out), "end", "hello"); say(out);
         break;
       }
@@ -486,22 +519,25 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware) {
 
 int main(int argc, char **argv) {
   if (argc >= 3 && strcmp(argv[1], "layout") == 0) return layoutMode(argv[2]);
-  if (argc >= 3 && strcmp(argv[1], "tile") == 0) return tileMode(argv[2]);
+  if (argc >= 3 && strcmp(argv[1], "tile") == 0)
+    return tileMode(argv[2], argc >= 4 ? argv[3] : nullptr);
   if (argc >= 3 && strcmp(argv[1], "audio") == 0) return audioMode(argv[2]);
   if (argc >= 2 && strcmp(argv[1], "names") == 0) return namesMode();
   if (argc >= 2 && strcmp(argv[1], "language") == 0) return languageMode();
   if (argc >= 2 && strcmp(argv[1], "sleep") == 0) return sleepMode();
   if (argc >= 4 && strcmp(argv[1], "cable") == 0) {
-    // The firmware word is optional at the command line and required of the
-    // runner: a fixture always states it, and states it empty where the device
-    // says nothing. Defaulted here so that driving this by hand is one
-    // argument shorter than driving it from the transcripts.
+    // The firmware word and the tile forms are optional at the command line
+    // and required of the runner: a fixture always states them, and states
+    // them empty where the device says nothing. Defaulted here so that driving
+    // this by hand is two arguments shorter than driving it from the
+    // transcripts.
     return cableMode((uint32_t)strtoul(argv[2], nullptr, 10),
                      (uint32_t)strtoul(argv[3], nullptr, 10),
-                     argc >= 5 ? argv[4] : "");
+                     argc >= 5 ? argv[4] : "",
+                     argc >= 6 ? argv[5] : "");
   }
-  fprintf(stderr, "usage: device_host layout <file> | tile <file> | "
+  fprintf(stderr, "usage: device_host layout <file> | tile <file> [decoded] | "
                   "audio <file> | names | language | sleep | "
-                  "cable <capacity> <window> [firmware]\n");
+                  "cable <capacity> <window> [firmware] [tiles]\n");
   return 2;
 }

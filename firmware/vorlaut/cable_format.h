@@ -47,6 +47,13 @@
 #define CABLE_DEVICE_SIGIL '<'
 
 // "put <34 characters> <7 digits> <8 hex>" is 56. Generous on purpose.
+// The tile forms this firmware reads, as the hello says them. One word, and a
+// browser matches it whole rather than parsing it: "vt1" is the compressed
+// form of tile_format.h, and a firmware that could read a second one would say
+// a different word here rather than a list, so that the two ends can never
+// half-agree. A device that says nothing reads raw tiles only.
+#define CABLE_TILE_FORMS "vt1"
+
 #define CABLE_LINE_MAX 128
 
 // A content name is 34 characters ("t" + 32 hex + ".bin"). This leaves room

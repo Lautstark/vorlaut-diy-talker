@@ -111,6 +111,7 @@ static int sayAll(void) {
   cableSayNumber(out, sizeof(out), "total", 1441792u); say(out);
   cableSayNumber(out, sizeof(out), "free", 1146880u); say(out);
   cableSayNumber(out, sizeof(out), "files", 37u); say(out);
+  cableSayWord(out, sizeof(out), "tiles", CABLE_TILE_FORMS); say(out);
   cableSayWord(out, sizeof(out), "end", "hello"); say(out);
   cableSayNameNumber(out, sizeof(out), "file",
                      "t3bd7a1c045e29f8b6d0a4e17c93f5028.bin", 26912u); say(out);

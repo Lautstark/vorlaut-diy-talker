@@ -166,6 +166,24 @@ def check_tile(reader: Path, name: str, path: Path, want: dict) -> None:
           said.get("conforming_bytes", "-"))
 
     r = want["read"]
+    # Which form the firmware took it for, and whether it took it at all.
+    # Both matter and they are two questions: a compressed file read as a raw
+    # one draws a palette as though it were pixels, which is a full panel of
+    # plausible noise rather than an error.
+    check(f"{name}: the firmware {'accepts' if r['accepts'] else 'refuses'} it",
+          said.get("accepts") == ("1" if r["accepts"] else "0"),
+          said.get("accepts", "-"))
+    if not r["accepts"]:
+        counted("tile")
+        return
+    if "form" in want:
+        check(f"{name}: as the {want['form']} form",
+              said.get("form") == want["form"], said.get("form", "-"))
+    if "palette" in want:
+        check(f"{name}: with {want['palette']['colours']} colour(s) in the "
+              f"palette",
+              said.get("colours") == str(want["palette"]["colours"]),
+              said.get("colours", "-"))
     for key in ("complete_rows", "partial_row", "bytes_in_partial_row",
                 "blank_rows_from", "bytes_read"):
         if key in r:
@@ -381,7 +399,7 @@ def device_groups(steps: list[dict]) -> list[list[str]]:
 
 def check_cable(reader: Path, name: str, want: dict) -> None:
     got = run(reader, ["cable", str(want["capacity"]), str(want["window"]),
-                       want["device_firmware"]],
+                       want["device_firmware"], want["device_tiles"]],
               wire(want))
     spoken = [l for l in got.split("\n") if l.startswith("< ")]
     groups = device_groups(want["steps"])

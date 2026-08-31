@@ -1,0 +1,25 @@
+{
+  "fixture": "compressed-lying-palette",
+  "kind": "tile",
+  "file": "tile/compressed-lying-palette.bin",
+  "summary": "The magic, a claim of 256 colours, and four bytes of palette. Refused rather than drawn.",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 7,
+  "conforming": false,
+  "form": "vt1",
+  "read": {
+    "accepts": false
+  },
+  "write": null,
+  "notes": [
+    "The only refusal at this boundary, and it is deliberately narrow: everything else that is the wrong length is read as a raw tile of the wrong length, because that is what it was before there was a second form. A reader that refused more than this would start refusing files the device has always drawn.",
+    "Refused means black, which is also what a missing file draws and what a truncated one mostly draws. Nothing on the device distinguishes them, and that is the argument for the length rules living on the writer's side rather than the reader's."
+  ]
+}

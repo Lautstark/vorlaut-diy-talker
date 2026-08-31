@@ -1,0 +1,87 @@
+{
+  "fixture": "tiles-named-in-the-hello",
+  "kind": "cable",
+  "summary": "A device that says which tile forms it can draw. Silence means raw, and silence is what every talker flashed before 2026-08-31 says.",
+  "ends": [
+    "device",
+    "browser"
+  ],
+  "protocol_version": 2,
+  "device_speaks": 2,
+  "version_verdict": "ok",
+  "device_firmware": "",
+  "device_tiles": "vt1",
+  "window": 4096,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 2"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< tiles vt1"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 0 0 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 2,
+        "total": 1441792,
+        "free": 1441792,
+        "files": 0,
+        "firmware": "",
+        "tiles": "vt1"
+      }
+    },
+    {
+      "call": "done",
+      "returns": {
+        "stored": 0,
+        "removed": 0,
+        "bytes": 0
+      }
+    }
+  ],
+  "notes": [
+    "The word is matched whole rather than parsed. A firmware that could draw a second form would say a different word here, not a list, so that two ends can never half-agree about what a tile is - and half-agreeing is the failure that puts a palette on a panel as though it were pixels.",
+    "A browser that treated the absence of this line as a fault would refuse every talker in the field. Absence means raw, raw is what those devices have always been sent, and that is the whole of why a compressed tile format did not have to move CABLE_VERSION: an older device is not broken by it, it is simply not offered it.",
+    "It sits after 'files' and before 'end hello' because that is where the firmware puts it, and the browser skips keywords it does not know in any position - see skip-unknown-keyword. The order is stated here so that a device which moved it would be noticed, not because a reader may depend on it."
+  ]
+}

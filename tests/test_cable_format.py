@@ -322,6 +322,7 @@ ANSWERS = """\
 < total 1441792
 < free 1146880
 < files 37
+< tiles vt1
 < end hello
 < file t3bd7a1c045e29f8b6d0a4e17c93f5028.bin 26912
 < end list 37
@@ -367,7 +368,13 @@ def check_readback(node: str, problems: list[str], answers: str) -> None:
         # reads v-something is a day the host compile picked up a flag it
         # should not have.
         "hello": {"version": 2, "total": 1441792, "free": 1146880, "files": 37,
-                  "firmware": "dev"},
+                  "firmware": "dev",
+                  # The word that decides whether this browser may send a
+                  # compressed tile, and it is matched whole rather than
+                  # ordered - adr/0019. Written out here for the same reason
+                  # every other line is: a change on either side has to be
+                  # made twice, on purpose.
+                  "tiles": "vt1"},
         "list": [{"name": "t3bd7a1c045e29f8b6d0a4e17c93f5028.bin", "size": 26912}],
         "crc": "1a2b3c4d",
         # The one where a signed shift would turn eight digits into eleven.

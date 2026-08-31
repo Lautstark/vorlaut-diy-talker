@@ -27,6 +27,15 @@ a green set be one file on the device, and it is what lets the sync fetch only
 what it does not already have — see
 [software.md](software.md#building).
 
+> **A tile may now also travel compressed, and that does not bump this
+> number.** [ADR 0019](../adr/0019-tiles-travel-compressed.md) added a second
+> file form on 2026-08-31; both forms decode to the same pixels, so one picture
+> is one name in either, and the hazard below is untouched. What that number
+> exists for is two renderers producing different *pixels* under one name.
+> Two encodings of identical pixels is the opposite case, and it is what lets a
+> talker holding raw tiles and a browser sending compressed ones agree about
+> what is already there.
+
 The hash covers the input, not the output. So two renderers that disagree
 produce **different bytes under the same name**, and nothing anywhere notices:
 a device that synced before the rewrite keeps its old tiles, a device that

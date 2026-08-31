@@ -1,0 +1,46 @@
+{
+  "fixture": "raw-that-spells-the-magic",
+  "kind": "tile",
+  "file": "tile/raw-that-spells-the-magic.bin",
+  "summary": "A raw tile whose first pixels happen to read 'vt1'. It is 32768 bytes long, so it is a picture and not a header.",
+  "geometry": {
+    "width": 128,
+    "height": 128,
+    "encoding": "rgb565-be",
+    "bytes_per_pixel": 2,
+    "row_bytes": 256,
+    "conforming_bytes": 32768
+  },
+  "bytes": 32768,
+  "conforming": true,
+  "form": "raw",
+  "read": {
+    "accepts": true,
+    "bytes_read": 32768,
+    "probes": [
+      {
+        "x": 0,
+        "y": 0,
+        "byte": 0,
+        "value": "7674"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "byte": 2,
+        "value": "3101"
+      },
+      {
+        "x": 127,
+        "y": 127,
+        "byte": 32766,
+        "value": "7f7f"
+      }
+    ]
+  },
+  "write": null,
+  "notes": [
+    "This is why the length is tested before the magic and not after. 0x7674 is a green a real symbol can contain, and a reader that sniffed the first three bytes first would draw one picture in sixteen million as a palette followed by noise.",
+    "It is also why a compressed file must never come out at exactly 32768 bytes: it would be read as this. encodeTile() returns the raw bytes whenever the encoding is not smaller, so a conforming writer cannot produce one."
+  ]
+}

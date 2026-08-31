@@ -403,14 +403,28 @@ static void drawTile(Panel *tft, const char *path) {
     return;
   }
 
+  // Which of the two forms this is, and the palette if it is the compressed
+  // one. Static because it holds a 256-colour palette and a read buffer, and
+  // one tile is drawn at a time.
+  static TileStream stream;
+  if (!tileBegin(file, (uint32_t)file.size(), stream)) {
+    // Neither form: not TILE_BYTES long and not carrying the magic. Black,
+    // which is what a file that will not open draws - see tile_format.h.
+    Serial.printf("not a tile: %s\n", path);
+    tft->fillScreen(ST77XX_BLACK);
+    file.close();
+    return;
+  }
+
   tft->startWrite();
   tft->setAddrWindow(0, 0, TILE_W, TILE_H);
   for (uint16_t y = 0; y < TILE_H; y++) {
     // Short rows come back filled with black, and nothing is said about it -
-    // see tileReadRow() in tile_format.h and device/fixtures/tile/short.
-    tileReadRow(file, (uint8_t *)line);
+    // see tileNextRow() in tile_format.h and device/fixtures/tile/short.
+    tileNextRow(file, stream, (uint8_t *)line);
     // bigEndian = true: the bytes go out exactly as they stand in the file.
-    // The build already writes them in panel order.
+    // The build already writes them in panel order, and the decoder puts the
+    // compressed form back into that same order.
     tft->writePixels(line, TILE_W, true, true);
   }
   tft->endWrite();

@@ -9,6 +9,7 @@
   "device_speaks": 3,
   "version_verdict": "device_newer",
   "device_firmware": "",
+  "device_tiles": "",
   "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
@@ -47,7 +48,8 @@
         "total": 1441792,
         "free": 1441792,
         "files": 0,
-        "firmware": ""
+        "firmware": "",
+        "tiles": ""
       }
     }
   ],
