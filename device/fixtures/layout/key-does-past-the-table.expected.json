@@ -65,6 +65,20 @@
     ]
   },
   "write": null,
+  "walk": {
+    "starts_at": 0,
+    "presses": [
+      {
+        "press": 0,
+        "what": "the key whose `does` is 7. It says its own word and stays put, which is what every key of a version-2 layout did",
+        "on_set": 0,
+        "key": 1,
+        "plays": "/a32323232323232323232323232323232.wav",
+        "goes_to": -1,
+        "now_on_set": 0
+      }
+    ]
+  },
   "notes": [
     "The same shape as language-past-the-table and the same reason. A reader hands the field back as it stands - what the number means is not the parser's business - and the meaning is settled beside it, where an index past the end of the table gives the old behaviour rather than a read past the end of it.",
     "The old behaviour is the one a version-2 key had: it says its own word and goes nowhere. So a layout from a builder that knows a fourth value cannot strand a child on a board or send them somewhere arbitrary. It can only make a key quieter than its author meant.",

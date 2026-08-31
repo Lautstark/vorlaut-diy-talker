@@ -73,6 +73,7 @@ LAYOUT_H = ROOT / "firmware" / "vorlaut" / "layout_format.h"
 TILE_H = ROOT / "firmware" / "vorlaut" / "tile_format.h"
 WAV_H = ROOT / "firmware" / "vorlaut" / "wav_format.h"
 NAME_H = ROOT / "firmware" / "vorlaut" / "name_format.h"
+PRESS_H = ROOT / "firmware" / "vorlaut" / "key_press.h"
 CABLE_H = ROOT / "firmware" / "vorlaut" / "cable_format.h"
 TEXTS_H = ROOT / "firmware" / "vorlaut" / "texts.h"
 
@@ -170,6 +171,57 @@ MUTANTS: list[tuple[pathlib.Path, str, str, str, str]] = [
     (LAYOUT_TS, BROWSER, "    view.setUint8(at++, target);",
      "    view.setUint8(at++, 0);",
      "every key is written as going to the first set"),
+    # The browser's copies of the two rules. They had nothing pointed at them
+    # until the layout fixtures gained walks: renderLayoutBin() never calls
+    # either, so a browser that read `does` and `target` the wrong way round
+    # went on writing perfectly correct bytes.
+    (LAYOUT_TS, BROWSER,
+     "  if (!(target >= 0) || target >= setCount) return -1;",
+     "  if (!(target >= 0)) return -1;",
+     "the browser thinks a target naming no set is a set to go to"),
+    (LAYOUT_TS, BROWSER,
+     "export const layoutKeySpeaks = (does) => does !== KEY_DOES.go;",
+     "export const layoutKeySpeaks = () => true;",
+     "the browser thinks a key that only navigates says a word as well"),
+
+    # --- and what the device does with it -------------------------------------
+    #
+    # key_press.h is the firmware's alone: not a byte of it crosses, so every
+    # one of these must be caught by the firmware runner and by nothing else.
+    # What catches them is the walks in device/fixtures/layout/ and
+    # press.expected.json, which is why both exist - the fields the layout
+    # fixtures state key by key survive all of these untouched.
+    (PRESS_H, FIRMWARE,
+     "  out.goesTo = layoutKeyGoesTo(out.key->does, out.key->target,\n"
+     "                               layout.setCount);",
+     "  out.goesTo = -1;",
+     "the key that carries the answer stops going anywhere, so every round of "
+     "the game is the last one"),
+    (PRESS_H, FIRMWARE,
+     "  out.key = index == SET_KEY_INDEX ? &entry.key : &entry.slots[index];",
+     "  out.key = index == SET_KEY_INDEX ? &entry.slots[0] : &entry.slots[index];",
+     "the set key answers with the first speech key's word and target"),
+    (PRESS_H, FIRMWARE, "#define SET_KEY_INDEX SLOT_COUNT",
+     "#define SET_KEY_INDEX (SLOT_COUNT - 1)",
+     "the fourth speech key is taken for the set key"),
+    (PRESS_H, FIRMWARE,
+     "  out.plays = layoutKeySpeaks(out.key->does) && out.key->hasAudio;",
+     "  out.plays = out.key->hasAudio;",
+     "a key that says nothing by instruction says a word anyway"),
+    (PRESS_H, FIRMWARE,
+     "  return index == SET_KEY_INDEX ? SET_HOLD_MS : DEBOUNCE_MS;",
+     "  return DEBOUNCE_MS;",
+     "the set key stops needing to be held longer than the others"),
+    (PRESS_H, FIRMWARE, "static const uint32_t KEY_WORD_PAUSE_MS = 1000;",
+     "static const uint32_t KEY_WORD_PAUSE_MS = 200;",
+     "the next round arrives before she has worked out that she was right"),
+    (PRESS_H, FIRMWARE, "static const uint32_t KEY_SETTLE_MS = SET_HOLD_MS;",
+     "static const uint32_t KEY_SETTLE_MS = 0;",
+     "the new board answers a finger that is still bouncing off the old one"),
+    (PRESS_H, FIRMWARE,
+     "  CHANGE_PAUSE = 0,\n  CHANGE_RELEASE,\n  CHANGE_SHOW,",
+     "  CHANGE_PAUSE = 0,\n  CHANGE_SHOW,\n  CHANGE_RELEASE,",
+     "the board changes under a finger that has not come off the key yet"),
     (PACKAGE_TS, READER,
      '          : button?.ext_lautstark_speak_on_navigate === true ? "speak-and-go"',
      '          : false ? "speak-and-go"',

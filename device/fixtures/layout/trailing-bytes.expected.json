@@ -65,6 +65,7 @@
     ]
   },
   "write": null,
+  "walk": null,
   "notes": [
     "The length rule is a floor and not an equality: the file holds at least 12 + sets * 184 bytes, and anything past that is not read.",
     "That is NOT a way to extend the format. The header carries no length of its own, so a reader has no way to tell a trailing field from a file something was appended to by accident, and nothing would tell it what the field means. Byte 7 remains the only forward compatibility this format has.",

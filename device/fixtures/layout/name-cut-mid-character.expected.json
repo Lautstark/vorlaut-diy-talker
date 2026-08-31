@@ -119,6 +119,7 @@
       ]
     ]
   },
+  "walk": null,
   "notes": [
     "The cut is after the 32nd BYTE, not after the 32nd character. A writer that cuts the string first disagrees with one that cuts the bytes the moment a name has an umlaut in it, and both look right in the editor.",
     "What is left is not text. A reader hands the bytes back as they stand rather than repairing them or refusing the file: the device draws them, and a panel showing one broken glyph is better than a set with no name."

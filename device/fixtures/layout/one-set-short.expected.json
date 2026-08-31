@@ -8,6 +8,7 @@
     "result": "LAYOUT_BAD_LENGTH"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "One byte short of what the header promises. The first set is complete and would read perfectly, and a reader parsing as far as it could would come up with one good set and no complaint - a device that works and is wrong about how much it is holding."
   ]

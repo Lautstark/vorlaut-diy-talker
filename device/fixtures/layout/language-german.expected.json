@@ -119,6 +119,7 @@
       ]
     ]
   },
+  "walk": null,
   "notes": [
     "The language rides in the content and not in the program, which is why a translation needs no cable."
   ]

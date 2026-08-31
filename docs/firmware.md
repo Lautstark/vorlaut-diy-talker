@@ -330,10 +330,51 @@ so the partition holds somewhere between thirty-five and forty of those.
 
 - **Awake:** all five displays are on continuously. She has to be able to see
   what is on offer.
-- **Keys 1-4:** the corresponding WAV is played.
-- **Key 5:** next set (1→2→3→4→5→1), all displays are redrawn. The current set
-  survives sleep.
+- **Every key, all five:** what it does is in `layout.bin` — it says its own
+  word, or says it and then goes to another set, or goes without saying
+  anything. The current set survives sleep.
 - **After `sleep_timeout_seconds` without input:** displays off, deep sleep.
+
+### What a key does, and where it goes
+
+There is no fifth key that is special any more. Since `layout.bin` version 3
+every key of a set carries two things — what it **does** and which set it
+**goes to** — and the set key is a key like the other four, with a picture, a
+word and a target of its own. The ring the firmware used to compute (1→2→3→4→5→1)
+is what a talker's builder writes into those targets; nothing in the sketch
+adds one.
+
+That matters because of what the device is for. A **joining game** is a set per
+round: the set key shows a tile split down the diagonal with the two halves of
+a compound word on it and says them out loud, and one of the four keys below
+carries the word those halves make. The right key is not marked as right
+anywhere — **it is simply the only key on the board that goes anywhere.** The
+other three say their own word and the board stays put, and there is no round
+counter, no score and no way to be stuck: whatever is pressed, the device is
+still on a board with a way out of it.
+
+Between the word and the next board, three things in this order:
+
+1. **A whole second** after the word has finished. The moment a child works out
+   that she was right happens in it, and it is the only thing this device gives
+   back for getting it right. 200 ms would be enough to look smooth and would
+   land the next board while she is still listening.
+2. **Wait until she has let go.** Her finger is still on the key that did it,
+   and drawing the next round underneath it puts a different picture beneath a
+   finger that has not moved.
+3. **Then 400 ms in which nothing is heard at all** — a press made in it is
+   thrown away rather than answered late. A finger bouncing back, or a second
+   press meant for the board that has gone, must not answer the new one.
+
+The numbers and that order are in
+[`key_press.h`](../firmware/vorlaut/key_press.h) rather than in the sketch, so
+that `device/fixtures/press.expected.json` can hold the device to them —
+`vorlaut.ino` is the one file no test can include. `device/fixtures/layout/four-rounds`
+is a whole small game walked press by press from both ends.
+
+**There is deliberately no gesture to skip a round.** With four answers on the
+board, trying is what gets a child through, and the only hidden gesture this
+device has is the menu.
 
 ## Menu
 
@@ -411,7 +452,10 @@ released before reacting to input again. Otherwise the device would speak a
 word she never meant to say: with dark displays she is pressing blind.
 
 Debouncing works through a minimum press duration: **80 ms** for the speech
-keys, **400 ms** for the set key (`DEBOUNCE_MS` and `SET_HOLD_MS` in the
-sketch). The set key needs longer because an accidental switch takes away the
-word she was about to say — she then has to find her way back first. That is
-more annoying than hitting the wrong word.
+keys, **400 ms** for the set key (`DEBOUNCE_MS` and `SET_HOLD_MS` in
+[`key_press.h`](../firmware/vorlaut/key_press.h), which is where they moved
+from the sketch so that a test could read them). The set key needs longer
+because an accidental switch takes away the word she was about to say — she
+then has to find her way back first. That is more annoying than hitting the
+wrong word, and it is the same worry the 400 ms of deafness after a board
+change answers from the other side.

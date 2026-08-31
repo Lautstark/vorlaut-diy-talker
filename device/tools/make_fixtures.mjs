@@ -217,6 +217,50 @@ const keyAsRead = (one, sets) => ({
   goes_to: keyGoesTo(one.does ?? SPEAK, one.target ?? 0, sets),
 });
 
+/**
+ * A layout, pressed - the joining game played with no display and no clock.
+ *
+ * `presses` is a list of key indices with a word about each: 0 to 3 are the
+ * speech keys and SLOTS_PER_SET is the set key, which is the fifth key of a
+ * set and the fifth panel on the device. What comes out is what any conforming
+ * device must do with them, one line per press.
+ *
+ * Derived here from the two rules above - keySpeaks and keyGoesTo - and from
+ * the key's own has-audio flag, and from nothing else. There is no model of a
+ * device in this file and there must not be one: the walk is the fixture's
+ * arithmetic over the fields it already states, which is why it can be put to
+ * a firmware and to a browser without either being what produced it.
+ *
+ * Where a walk cannot go is time. The pause after a word and the deafness
+ * after a board change have no place in a list of presses - they are
+ * press.expected.json, and this is the half about which board you end up on.
+ */
+function walkOf(entries, sets, presses) {
+  let at = 0;
+  return {
+    starts_at: 0,
+    presses: presses.map((one, nth) => {
+      const key = one.key === SLOTS_PER_SET ? entries[at].key
+                                            : entries[at].slots[one.key];
+      const does = key.does ?? SPEAK;
+      const plays = keySpeaks(does) && Boolean(key.hasAudio)
+        ? `/${audioName(key.audio)}` : null;
+      const goes = keyGoesTo(does, key.target ?? 0, sets);
+      const from = at;
+      if (goes >= 0) at = goes;
+      return {
+        press: nth,
+        what: one.what,
+        on_set: from,
+        key: one.key,
+        plays,
+        goes_to: goes,
+        now_on_set: at,
+      };
+    }),
+  };
+}
+
 /** The reader's answer for a layout that parses. */
 function readsAs({ sets, language, sleep, entries }) {
   return {
@@ -280,14 +324,15 @@ const doesWord = (does) =>
  * bytes, and it is null wherever no writer can produce the file: every
  * refusal, and every case that lies about a reserved byte.
  */
-function layoutFixture({ name, summary, bytes, read, write = null, notes = [] }) {
+function layoutFixture({ name, summary, bytes, read, write = null, walk = null,
+                        notes = [] }) {
   fixture({
     kind: "layout", name, dir: "layout", file: `${name}.bin`, artefact: bytes,
     outcome: read.result === "ok" ? "accepted" : "refused",
     summary,
     expected: {
       fixture: name, kind: "layout", file: `layout/${name}.bin`,
-      summary, bytes: bytes.length, read, write, notes,
+      summary, bytes: bytes.length, read, write, walk, notes,
     },
   });
 }
@@ -437,10 +482,135 @@ layoutFixture({
     bytes: layoutBytes({ entries: entries.map(setEntry), language: 1, sleep: 600 }),
     read: readsAs({ sets: 2, language: 1, sleep: 600, entries }),
     write: writtenFrom({ language: "de", sleep: 600, entries }),
+    walk: walkOf(entries, 2, [
+      { key: SLOTS_PER_SET, what: "the set key of the first round, which says the two halves and stays where it is" },
+      { key: 2, what: "a key that is not the answer: it says its own word and the board does not move" },
+      { key: 0, what: "the key that carries the word the halves make - the only one on this board that goes anywhere" },
+      { key: 3, what: "a key with no recording behind it. Nothing is played and nothing moves, which is a key that is visibly doing nothing rather than one that quietly did something" },
+      { key: SLOTS_PER_SET, what: "the second round's set key, which is a ring key: it says nothing at all and goes back to the first round" },
+      { key: 0, what: "and the first round's answer again, so the chain is walked twice rather than once" },
+    ]),
     notes: [
       "All three values of the field, in one file. 0 is speak, 1 is speak and then go, 2 is go without speaking - and the third is what a set key has always done, written down for the first time rather than left to `(current + 1) % setCount` in the firmware.",
       "The first round's set key carries a recording, which no set key could before: the fifth panel is a key like the other four now, with a picture, a word, a sound and a target of its own.",
       "Every key that goes nowhere still carries a target byte, and it is zero. The field is written either way and a reader only looks at it when `does` says to - the same 'meaningless rather than absent' the has-audio flag has beside a hash of zeros.",
+    ],
+  });
+}
+
+{
+  // A key that goes somewhere AND carries a recording. `does` says go, so the
+  // recording is never played - and the file holds it anyway.
+  //
+  // The two fields are independent and this is the only file where they
+  // disagree in this direction. The other direction is everywhere: a key that
+  // means to speak and has no sound behind it is one-set's third slot, and a
+  // silent distractor in four-rounds. What was missing is a sound that is on
+  // the device, named by a key, and correctly never heard.
+  const entries = [0, 1].map((i) => ({
+    name: `Set ${i + 1}`,
+    nameText: `Set ${i + 1}`,
+    key: {
+      image: hash(`e${i}`), audio: hash(`f${i}`), hasAudio: 1,
+      does: GO, target: (i + 1) % 2,
+    },
+    slots: [slot(`e${i}`, `f${i}`), slot(`c${i}`, null),
+            slot(`d${i}`, `d${i}`), slot(`b${i}`, null)],
+  }));
+  layoutFixture({
+    name: "a-sound-behind-a-key-that-goes",
+    summary: "A set key whose `does` is go and which carries a recording all the same. The sound is on the device, named by the key, and never played.",
+    bytes: layoutBytes({ entries: entries.map(setEntry), sleep: 600 }),
+    read: readsAs({ sets: 2, language: 0, sleep: 600, entries }),
+    write: writtenFrom({ language: "en", sleep: 600, entries }),
+    walk: walkOf(entries, 2, [
+      { key: SLOTS_PER_SET, what: "the set key. It goes to the other set and says nothing, though there is a recording behind it - `does` decides, not the has-audio flag" },
+      { key: 0, what: "a speech key on the set it arrived at, which is the walk saying which board that was" },
+      { key: SLOTS_PER_SET, what: "and back again, silently, the same way" },
+    ]),
+    notes: [
+      "Whether a word comes out is two fields and one answer, and the two can disagree. `does` is the one that decides: a key that goes without speaking stays silent however much sound is named beside it. A device that played it would say a word at a moment nobody asked for one, in the half-second before the board changes.",
+      "It is not refused, and must not be. A spare recording is a file that costs space and nothing else; refusing the layout over it would take away the whole board. The device stores the file, never opens it, and says nothing about either - which is the same treatment a picture nothing references gets.",
+      "The pair this completes: one-set's third slot is a key that means to speak with no sound behind it, and this is a key with a sound behind it that means not to speak. Both come out silent, by two different routes, and a reader that collapsed the two fields into one would get exactly one of them right.",
+    ],
+  });
+}
+
+{
+  // Four rounds that lead into one another and come back round to the first -
+  // a whole small game rather than a file with the three field values in it.
+  //
+  // keys-that-go above says what one key does. This says what a device does,
+  // and they are not the same claim: a chain is where being off by one, or
+  // moving before the finger came off, or reading the answer off the set the
+  // press started on rather than the set it ended on, all stop being invisible.
+  // Four rounds because three would let a device that always went to set 0
+  // pass two of the four hops, and because the answer sits at a different one
+  // of the four keys in every round - a device that had quietly decided the
+  // first key is the answer gets one round right and then stops.
+  //
+  // Nothing here is a game mode. Every round is a set, every set key says its
+  // halves and stays, and the only way on is the one key of the four that goes
+  // anywhere. There is no counter, no memory of the round before, and no way
+  // to be stuck: whatever is pressed, the device is on a board with a way out
+  // of it.
+  const ROUNDS = [de.mirror_egg, de.sun_flower, de.hand_shoe, de.fire_defence];
+  // Eight hash seeds per round, of which six are used: the set key's picture
+  // and sound, and one for each of the four keys below it. Spaced so that a
+  // fixture diff shows at a glance which round a byte belongs to.
+  const seed = (round, nth) =>
+    (0x30 + round * 8 + nth).toString(16).padStart(2, "0");
+  const entries = ROUNDS.map((halves, i) => ({
+    name: halves,
+    nameText: halves,
+    // The set key speaks and stays, the way the first round of keys-that-go
+    // does. A set key that switched anyway would be a way past every round
+    // that has nothing to do with the word, which is the one gesture this
+    // device deliberately does not have.
+    key: {
+      image: hash(seed(i, 0)), audio: hash(seed(i, 1)), hasAudio: 1,
+      does: SPEAK, target: 0,
+    },
+    slots: [0, 1, 2, 3].map((j) => {
+      // The answer moves round the board: key 1 in the first round, key 2 in
+      // the second, and so on. Nothing in the format says it has to, and a
+      // device is not allowed to notice that it usually does.
+      if (j === i) {
+        return {
+          image: hash(seed(i, 2 + j)), audio: hash(seed(i, 2 + j)), hasAudio: 1,
+          does: SPEAK_AND_GO, target: (i + 1) % ROUNDS.length,
+        };
+      }
+      // One key in the third round has no recording: a distractor that is
+      // silent because there is nothing to play, not because its `does` said
+      // so. The two are one answer on the device and two fields in the file.
+      const silent = i === 2 && j === 0;
+      return slot(seed(i, 2 + j), silent ? null : seed(i, 2 + j));
+    }),
+  }));
+  layoutFixture({
+    name: "four-rounds",
+    summary: "Four rounds of the joining game, chained: every round's answer key leads to the next and the last leads back to the first. The answer sits at a different key in each round.",
+    bytes: layoutBytes({ entries: entries.map(setEntry), language: 1, sleep: 600 }),
+    read: readsAs({ sets: 4, language: 1, sleep: 600, entries }),
+    write: writtenFrom({ language: "de", sleep: 600, entries }),
+    walk: walkOf(entries, ROUNDS.length, [
+      { key: SLOTS_PER_SET, what: "the halves of the first round, said out loud. The set key is a key like the others and this is the one thing it does" },
+      { key: 1, what: "a wrong key in the first round. It says its own word, which is the whole of what happens" },
+      { key: 0, what: "the first round's answer, which is its first key" },
+      { key: 3, what: "a wrong key in the second round, to say that arriving somewhere new did not make the next press special" },
+      { key: 1, what: "the second round's answer, which is its second key - a device that had decided the answer is key 0 stops here" },
+      { key: 0, what: "the third round's silent distractor: nothing is played and the board does not move" },
+      { key: SLOTS_PER_SET, what: "the third round's halves, said again. Pressing the set key mid-round is the thing a child does when she has forgotten the question" },
+      { key: 2, what: "the third round's answer, which is its third key" },
+      { key: 3, what: "the fourth round's answer, which leads back to the first - the ring closed by four keys rather than by a modulo in the firmware" },
+      { key: SLOTS_PER_SET, what: "and the first round's halves again, which is how a walk says it really came back to where it started rather than to somewhere that looks like it" },
+    ]),
+    notes: [
+      "A round is a set and the game is the chain between them. Nothing in layout.bin says 'round', 'answer' or 'right' - the answer key is the only key on the board whose `does` is speak-and-go, and everything the device does with that is in this walk.",
+      "The last round leads back to the first, so this file has no end and needs none. A round nothing leads out of would be a device a child cannot get off without the menu, and the format allows one - keys-that-go's first round is exactly that until its ring key is pressed. What makes this file the one to walk is that it never puts the device anywhere it cannot leave.",
+      "The answer is at key 1 in the first round, key 2 in the second, key 3 in the third and key 4 in the fourth. That is not a rule of the format and no builder has to do it: it is here so that a device deciding for itself which key is the answer fails on the second hop rather than never.",
+      "One key in the third round has no recording, and it is a distractor rather than the answer. Its `does` says speak and its has-audio flag says there is nothing to speak, so the device plays nothing and stays - which is the same outcome as a key that says nothing by instruction, reached the other way round.",
     ],
   });
 }
@@ -456,6 +626,9 @@ layoutFixture({
     summary: "A key whose `does` is 7, a value no version has given a meaning. It speaks and stays where it is.",
     bytes: layoutBytes({ entries: entries.map(setEntry), sleep: 3600 }),
     read: readsAs({ sets: 1, language: 0, sleep: 3600, entries }),
+    walk: walkOf(entries, 1, [
+      { key: 1, what: "the key whose `does` is 7. It says its own word and stays put, which is what every key of a version-2 layout did" },
+    ]),
     notes: [
       "The same shape as language-past-the-table and the same reason. A reader hands the field back as it stands - what the number means is not the parser's business - and the meaning is settled beside it, where an index past the end of the table gives the old behaviour rather than a read past the end of it.",
       "The old behaviour is the one a version-2 key had: it says its own word and goes nowhere. So a layout from a builder that knows a fourth value cannot strand a child on a board or send them somewhere arbitrary. It can only make a key quieter than its author meant.",
@@ -474,6 +647,10 @@ layoutFixture({
     summary: "A set key pointing at set 3 in a layout that holds one. It goes nowhere.",
     bytes: layoutBytes({ entries: entries.map(setEntry), sleep: 3600 }),
     read: readsAs({ sets: 1, language: 0, sleep: 3600, entries }),
+    walk: walkOf(entries, 1, [
+      { key: SLOTS_PER_SET, what: "the set key that names a set which is not there. Nothing is said, because its `does` is go, and nothing moves - the one press in this directory that a reader could answer by reading past the end of an array" },
+      { key: 0, what: "and a speech key afterwards, to say which board the device is still on: the same one" },
+    ]),
     notes: [
       "The target is a uint8 and so is the set count, so the format can say this and the array cannot hold it. Reading past the end of sets[] is the one outcome a parser must never have, and the answer is that the key stays where it is.",
       "Staying put rather than falling back to set 0. docs/device-interface.md section 6 is the argument: a key that jumps somewhere arbitrary looks like it worked, and what it teaches the person pressing it is untrue. A key that does nothing is visibly broken.",
@@ -1489,6 +1666,83 @@ fixture({
     notes: [
       "The zero case is why this is a range with a hole in it rather than a plain clamp. Zero is below the floor and does not clamp to the floor - it means the default, which is sixty times larger. A reader that treated the field as a simple clamp would put a device to sleep ten minutes early on every file that leaves the field unset.",
       "Nothing here reaches a clock. That the device waits this long is not checked by any fixture and cannot be; what is checked is that both halves compute the same number of seconds from the same field.",
+    ],
+  },
+});
+
+// =============================================================================
+// What a press does
+// =============================================================================
+//
+// The other half of the layout walks, and the half a list of presses cannot
+// hold: how long a key has to be held, how long the device waits between the
+// word and the next board, how long it hears nothing afterwards, and the order
+// those things happen in.
+//
+// Stated as its own fixture for the reason sleep.expected.json is: it is a
+// rule rather than a file. Nothing about it is in layout.bin and nothing about
+// it crosses the cable - but a builder is entitled to know it, the same way it
+// is entitled to know that a timeout of zero means ten minutes, and until
+// 2026-08-31 the numbers lived in vorlaut.ino where no test could read them.
+//
+// Written here from the reasons rather than from firmware/vorlaut/key_press.h.
+// A fixture that took the numbers out of the header would agree with the
+// header by construction and say nothing.
+
+/** The four steps between a key that goes somewhere and the board it goes to.
+ *
+ * An ordered list rather than four sentences, because the order is the part
+ * that goes wrong: showing the new board before the finger came off it is a
+ * different picture under a finger that has not moved, and hearing again
+ * before the bounce has died out is a press meant for the old board answering
+ * the new one. */
+const CHANGE_STEPS = [
+  { step: "pause",
+    what: "A whole second after the word has finished, before anything moves.",
+    why: "The moment a child works out that she was right happens in it. There is no cheer, no score and no second panel on this device, so this second is the whole of what it gives back - it is the point of the second rather than slack at the end of one. 200 ms would be enough to look smooth and would land the next board while she is still listening." },
+  { step: "release",
+    what: "Wait until no key is down.",
+    why: "Her finger is still on the key that did this. Drawing the next round under it puts a different picture beneath a finger that has not moved, and whatever she does next lands on something she never chose." },
+  { step: "show",
+    what: "The new set on the panels.",
+    why: "Everything before it is about not doing this too early." },
+  { step: "deaf",
+    what: "A stretch in which no press is heard at all, and a press made during it is thrown away rather than answered afterwards.",
+    why: "A finger bouncing back, or a second press meant for the board that has gone, must not answer the new one. Thrown away rather than queued: a press that arrives late on the wrong board is the same fault as a press that arrives early on it." },
+];
+
+fixture({
+  kind: "press", name: "press", outcome: "accepted",
+  summary: "How long a key has to be held, what happens between a key that goes somewhere and the board it goes to, and in which order.",
+  expected: {
+    fixture: "press", kind: "press",
+    summary: "How long a key has to be held, what happens between a key that goes somewhere and the board it goes to, and in which order.",
+    /** Which key is which. The set key is the fifth of the five, in the file
+     *  and on the device, and it is the only index with a rule of its own. */
+    set_key_index: SLOTS_PER_SET,
+    holds: [
+      { key: 0, ms: 80, what: "a speech key" },
+      { key: 1, ms: 80, what: "a speech key" },
+      { key: 2, ms: 80, what: "a speech key" },
+      { key: 3, ms: 80, what: "a speech key" },
+      { key: SLOTS_PER_SET, ms: 400, what: "the set key" },
+    ],
+    after_a_key_that_goes: {
+      pause_ms: 1000,
+      deaf_ms: 400,
+      order: CHANGE_STEPS.map((one) => one.step),
+      steps: CHANGE_STEPS,
+    },
+    rules: [
+      "Every key of a set is read the same way, and what it does is the byte the file carries. A device that switched sets by arithmetic - the next set, round to the first from the last - is a device with a way past every round of the joining game that has nothing to do with the word, whatever the file said.",
+      "A key that goes somewhere goes there by itself. There is no second press to confirm it and no gesture to skip a round: with four answers on the board, trying is what gets a child through, and a device whose only hidden gesture is the menu is one whose behaviour a parent can describe in a sentence.",
+      "The set key is held four times as long as a speech key, and that has not changed. An accidental switch takes away the word she was about to say and she has to find her way back, which is worse than hitting the wrong word - the same sentence the deaf stretch below is another answer to.",
+      "The pause and the deaf stretch are lengths of time and no fixture reaches a clock, exactly as the sleep timeout's are. What is stated here is the numbers and their order, which is what two implementations can be held to.",
+      "Nothing is remembered across a board change. The device does not know which round it is on, how it got there or whether the last press was right - so there is no state for it to be stuck in, and a walk through a layout is the whole of what it does.",
+    ],
+    notes: [
+      "80 and 400 were in vorlaut.ino from the beginning and are unchanged; 1000 and the four steps are 2026-08-31, when the device first acted on what a key says it does. The deaf stretch is SET_HOLD_MS rather than a number of its own, because 'how much accidental switching is too much' is one question and this repository has already answered it once.",
+      "This is the only fixture here about the device alone. layout.bin says nothing about any of it and the cable never mentions it, so a browser has nothing to be held to - which is why device/fixtures/ says so out loud rather than leaving the kind unlisted. A kind that is skipped is visible; a kind that was forgotten is not.",
     ],
   },
 });
@@ -3342,7 +3596,18 @@ const JOINING_SOUNDS = [
 // tests/test_device_fixtures.py refuses a suffix here, and refuses this file
 // and the committed index.json disagreeing about the version at all.
 const INDEX = {
-  // 2.0.0 since 2026-08-31: layout.bin version 3. Every key of a set now says
+  // 2.1.0 is 2026-08-31, later the same day, and it is what 2.0.0 left out.
+  // The bytes of version 3 arrived without anything saying what a device does
+  // with them: layout/ stated `does` and `target` key by key, and no fixture
+  // anywhere walked a device from one set to the next. There is a kind for
+  // that now - press - and the layout fixtures carry walks.
+  //
+  // MINOR, and by the plainest reading of the rule: nothing the talker reads
+  // moved. Not a stride, not a byte, not a keyword. This directory described
+  // an interface it was silent about half of, and now it is not - which is
+  // the same shape as 1.1.0, where the silence was about the device package.
+  //
+  // 2.0.0 was earlier on 2026-08-31: layout.bin version 3. Every key of a set now says
   // what it does and where it goes, the set key is a key like the other four,
   // and the reader has room for 64 sets rather than 5.
   //
@@ -3361,7 +3626,7 @@ const INDEX = {
   // the cable's greeting gained a "firmware" keyword. Both MINOR, because on
   // the cable both ends skip what they do not know, so a device already
   // flashed neither misreads the addition nor sees it.
-  device_interface_version: "2.0.0",
+  device_interface_version: "2.1.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };

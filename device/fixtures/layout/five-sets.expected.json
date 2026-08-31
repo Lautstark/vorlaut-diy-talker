@@ -479,6 +479,7 @@
       ]
     ]
   },
+  "walk": null,
   "notes": [
     "12 + 5 * 212. Five was MAX_SETS until 2026-08-31 and this fixture was the largest file that parses; it is now an ordinary layout of five sets, and sets-at-max is the one at the edge.",
     "The five set keys are the ring: each goes to the next and the last comes back round to the first. That was arithmetic in the device before version 3 and it is a field now, so it is a thing a fixture can be wrong about."

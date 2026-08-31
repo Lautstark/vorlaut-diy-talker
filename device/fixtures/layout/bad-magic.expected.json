@@ -8,6 +8,7 @@
     "result": "LAYOUT_BAD_MAGIC"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "Everything after the magic is a perfectly good layout, which is the point: the magic is what stops some other file on the device being read as one."
   ]

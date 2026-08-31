@@ -65,6 +65,7 @@
     ]
   },
   "write": null,
+  "walk": null,
   "notes": [
     "A writer writes 1. A reader tests for non-zero, and a reader testing for equality with 1 would silence three keys out of four on a file it otherwise read perfectly."
   ]

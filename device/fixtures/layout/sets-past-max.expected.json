@@ -8,6 +8,7 @@
     "result": "LAYOUT_BAD_LENGTH"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "Refused for its length rather than for its count, and those are the same enum value: MAX_SETS is how much room the reader has, and a file naming more of them has no answer that fits.",
     "The pair with sets-at-max, and neither says anything on its own. Together they state the number: the most sets a fixture is accepted with is the room there is, and this is the file with one more."

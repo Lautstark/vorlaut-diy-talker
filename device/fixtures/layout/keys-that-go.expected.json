@@ -209,6 +209,65 @@
       ]
     ]
   },
+  "walk": {
+    "starts_at": 0,
+    "presses": [
+      {
+        "press": 0,
+        "what": "the set key of the first round, which says the two halves and stays where it is",
+        "on_set": 0,
+        "key": 4,
+        "plays": "/a11111111111111111111111111111111.wav",
+        "goes_to": -1,
+        "now_on_set": 0
+      },
+      {
+        "press": 1,
+        "what": "a key that is not the answer: it says its own word and the board does not move",
+        "on_set": 0,
+        "key": 2,
+        "plays": "/a14141414141414141414141414141414.wav",
+        "goes_to": -1,
+        "now_on_set": 0
+      },
+      {
+        "press": 2,
+        "what": "the key that carries the word the halves make - the only one on this board that goes anywhere",
+        "on_set": 0,
+        "key": 0,
+        "plays": "/a12121212121212121212121212121212.wav",
+        "goes_to": 1,
+        "now_on_set": 1
+      },
+      {
+        "press": 3,
+        "what": "a key with no recording behind it. Nothing is played and nothing moves, which is a key that is visibly doing nothing rather than one that quietly did something",
+        "on_set": 1,
+        "key": 3,
+        "plays": null,
+        "goes_to": -1,
+        "now_on_set": 1
+      },
+      {
+        "press": 4,
+        "what": "the second round's set key, which is a ring key: it says nothing at all and goes back to the first round",
+        "on_set": 1,
+        "key": 4,
+        "plays": null,
+        "goes_to": 0,
+        "now_on_set": 0
+      },
+      {
+        "press": 5,
+        "what": "and the first round's answer again, so the chain is walked twice rather than once",
+        "on_set": 0,
+        "key": 0,
+        "plays": "/a12121212121212121212121212121212.wav",
+        "goes_to": 1,
+        "now_on_set": 1
+      }
+    ]
+  },
   "notes": [
     "All three values of the field, in one file. 0 is speak, 1 is speak and then go, 2 is go without speaking - and the third is what a set key has always done, written down for the first time rather than left to `(current + 1) % setCount` in the firmware.",
     "The first round's set key carries a recording, which no set key could before: the fifth panel is a key like the other four now, with a picture, a word, a sound and a target of its own.",

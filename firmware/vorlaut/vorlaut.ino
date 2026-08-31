@@ -54,12 +54,28 @@ static_assert(TILE_W == DISPLAY_W && TILE_H == DISPLAY_H,
 #include "layout_format.h"
 #define LAYOUT_FILE "/layout.bin"
 
+// And what the device DOES with a key, which is the other half of version 3
+// and was missing until 2026-08-31: keyPress(), the hold times, and the
+// ordered steps between a key that goes somewhere and the board it goes to.
+// In a header for the reason the strides are - a number in a .ino is a number
+// no test can include - and held by device/fixtures/ from both ends.
+#include "key_press.h"
+
 // hashPath(), which turns a slot's sixteen bytes into the file to open. It
 // was here as a static function, which is why the one rule stated in three
 // places had nothing holding the three together.
 #include "name_format.h"
 
 #include "pins.h"
+
+// The file's five keys and the device's five buttons are the same five, in the
+// same order. Two headers say so separately - SLOT_COUNT + 1 in the format,
+// five wired panels in pins.h - and nothing was holding them together.
+static_assert(DISPLAY_COUNT == KEY_COUNT,
+              "one panel per key of a set - see layout_format.h");
+static_assert(SET_BUTTON == SET_KEY_INDEX,
+              "the set key is the fifth in the file and the fifth on the "
+              "board - see key_press.h");
 
 // Everything the device shows in words, and the way it gets onto a panel
 // that only knows code page 437.
@@ -94,11 +110,11 @@ static_assert(TILE_W == DISPLAY_W && TILE_H == DISPLAY_H,
 // well past its settling time.
 static const uint32_t AMP_WAKE_MS = 50;
 
-static const uint32_t DEBOUNCE_MS = 80;    // this long a key has to stay down
-// The set key needs longer. An accidental switch takes away the word she was
-// about to say, and she first has to find her way back - that is more annoying
-// than hitting the wrong word.
-static const uint32_t SET_HOLD_MS = 400;
+// DEBOUNCE_MS and SET_HOLD_MS were two more numbers here. They are in
+// key_press.h with the two that were added beside them - the pause after a
+// word and the stretch of deafness after a board change - because all four are
+// one question ("how much accidental switching is too much") and one of them
+// having a test while the other three did not is how they would drift apart.
 // The menu is reached only by two keys at once, held for five seconds. Those
 // two sit diagonally furthest apart - hard to hit with a child's hand. While
 // holding, a countdown runs; letting go cancels it.
@@ -927,11 +943,6 @@ static void waitForRelease() {
   clearButtonStates();
 }
 
-// How long this key has to be held before it triggers.
-static uint32_t holdTime(uint8_t index) {
-  return index == SET_BUTTON ? SET_HOLD_MS : DEBOUNCE_MS;
-}
-
 // Both menu keys held? Shows the countdown and reports once the five
 // seconds are full. Letting go cancels, and nothing happens.
 static bool menuComboReady() {
@@ -970,7 +981,7 @@ static int8_t pollButtons() {
   for (uint8_t i = 0; i < DISPLAY_COUNT; i++) {
     if (isDown(i)) {
       if (button[i].downSince == 0) button[i].downSince = now;
-      if (!button[i].reported && now - button[i].downSince >= holdTime(i)) {
+      if (!button[i].reported && now - button[i].downSince >= keyHoldMs(i)) {
         button[i].reported = true;
         return (int8_t)i;
       }
@@ -980,6 +991,51 @@ static int8_t pollButtons() {
     }
   }
   return -1;
+}
+
+/**
+ * On to the set a key names.
+ *
+ * The four steps are ChangeStep in key_press.h and this walks them in the
+ * order that enumeration gives them, rather than doing four things in a row
+ * and describing the order in a comment. The order is the part that goes
+ * wrong, it is the part no test can read out of this file, and both of those
+ * stop being true when it is data - device/fixtures/press.expected.json states
+ * it from outside, and reordering the enumeration reorders what happens here.
+ *
+ * Not a mode and not a game. Nothing is remembered about how the device got
+ * here, so there is no state to be stuck in: the next press is read off the
+ * new set exactly the way the last one was read off the old.
+ */
+static void goToSet(uint8_t to) {
+  Serial.printf("  on to set %u\n", (unsigned)(to + 1));
+  for (uint8_t step = 0; step < KEY_CHANGE_STEPS; step++) {
+    switch ((ChangeStep)step) {
+      case CHANGE_PAUSE:
+        // Deliberately long. See CHANGE_PAUSE in key_press.h - this second is
+        // the whole of what the device gives back for getting it right.
+        delay(KEY_WORD_PAUSE_MS);
+        break;
+      case CHANGE_RELEASE:
+        // Her finger is still on the key that did this.
+        waitForRelease();
+        break;
+      case CHANGE_SHOW:
+        rtcCurrentSet = to;
+        drawCurrentSet();
+        break;
+      case CHANGE_DEAF:
+        // Deaf, not queued: clearButtonStates() afterwards throws away a key
+        // held through the wait rather than reporting it the moment the wait
+        // ends. pendingKey goes with it - a press caught during the word was
+        // meant for the board that is no longer up.
+        delay(KEY_SETTLE_MS);
+        clearButtonStates();
+        pendingKey = -1;
+        break;
+    }
+  }
+  lastActivity = millis();
 }
 
 // --- Sleep ----------------------------------------------------------------
@@ -1257,25 +1313,29 @@ void loop() {
       showNoContent();
       return;
     }
-    if (pressed == SET_BUTTON) {
-      rtcCurrentSet = (uint8_t)((rtcCurrentSet + 1) % layout.setCount);
-      drawCurrentSet();
+    // What the key does is in the file, and this is where the device does it.
+    // All five keys go through the same two lines, because since version 3 the
+    // set key is a key like the other four: it has a picture, a word and a
+    // target of its own, and a talker's ring - on to the next set, round to
+    // the first from the last - is what a builder writes into that target
+    // rather than something this file works out with a modulo.
+    //
+    // Which means a set nothing leads out of is a set the device stays in, and
+    // that is right rather than a hole to be plugged. A set key that switched
+    // anyway would be a way past every round of the joining game that has
+    // nothing to do with the word - the skip gesture this device deliberately
+    // does not have - and layoutKeyGoesTo() already refuses to invent a
+    // destination for the same reason.
+    const KeyPress press = keyPress(layout, rtcCurrentSet, (uint8_t)pressed);
+    if (press.plays) {
+      char path[2 + HASH_BYTES * 2 + 5];
+      hashPath(path, 'a', press.key->audio, ".wav");
+      Serial.printf("key %d: %s\n", pressed + 1, path);
+      playWav(path);
     } else {
-      // What the key DOES is in the file since version 3, and acting on it -
-      // going where it says, and going there without waiting to be pressed
-      // again - is the step after this one. Until then every speech key
-      // speaks, which is what layoutKeySpeaks() answers for every value a
-      // conforming builder writes on one.
-      const Key &slot = layout.sets[rtcCurrentSet].slots[pressed];
-      if (slot.hasAudio) {
-        char path[2 + HASH_BYTES * 2 + 5];
-        hashPath(path, 'a', slot.audio, ".wav");
-        Serial.printf("key %d: %s\n", pressed + 1, path);
-        playWav(path);
-      } else {
-        Serial.printf("key %d: nothing to say\n", pressed + 1);
-      }
+      Serial.printf("key %d: nothing to say\n", pressed + 1);
     }
+    if (press.goesTo >= 0) goToSet((uint8_t)press.goesTo);
     lastActivity = millis();  // do not count playing time against the timeout
   }
 

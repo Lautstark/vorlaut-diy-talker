@@ -119,6 +119,7 @@
       ]
     ]
   },
+  "walk": null,
   "notes": [
     "The name a reader hands back is the bytes up to the first zero, or all 32 where there is none. A reader looking for a terminator inside the field finds none here and must not read past it."
   ]

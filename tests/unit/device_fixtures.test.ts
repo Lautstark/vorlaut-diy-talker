@@ -8,6 +8,7 @@ import {
   LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, KEY_BYTES, KEYS_PER_SET,
   SLOTS_PER_SET, NAME_BYTES, HASH_BYTES, MAX_SETS, KEY_DOES,
   SLEEP_MIN, SLEEP_MAX, SLEEP_DEFAULT, layoutIdleSeconds,
+  layoutKeyGoesTo, layoutKeySpeaks,
 } from "../../loader/src/layout_format.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
 import { decodeTile } from "../../loader/src/tile_encode.js";
@@ -41,6 +42,11 @@ import {
  *   sleep    the range, and that every wait layoutIdleSeconds() settles on is
  *            inside it and settled. What the editor's normalizer emitted was
  *            asked here until the split took that function to vorlaut-editor.
+ *   press    nothing, and it says so. The hold times, the pause after a word
+ *            and the deafness after a board change are the device's alone -
+ *            no byte of them crosses, so there is nothing on this side to
+ *            hold to them. A kind that is skipped out loud is visible; one
+ *            that is unlisted has been forgotten.
  *   cable    the client, driven through the transcript from the browser end:
  *            given these device lines it must write exactly these host lines.
  *
@@ -165,6 +171,118 @@ function firstDifference(want: Buffer, got: Uint8Array | string): string {
     }
   }
   return "no difference found, which should not be reachable";
+}
+
+// --- a layout, pressed -------------------------------------------------------
+
+/* The walks, from the browser's end.
+ *
+ * Nothing here plays a device and there is no model of one: what the browser
+ * has is the two functions that say what a key MEANS - layoutKeySpeaks() and
+ * layoutKeyGoesTo(), which are its copies of the rules the same-named
+ * functions in firmware/vorlaut/layout_format.h state - and the name rule that
+ * turns sixteen bytes into a file to play. A walk is those three applied to
+ * the fields the fixture already carries, press by press, with the current set
+ * carried along.
+ *
+ * That is the whole of what this side can be held to, and it is not nothing:
+ * the firmware runner walks the same presses through keyPress() out of
+ * key_press.h and never reads this, so a rule the two copies disagree about is
+ * a fixture that fails on one side and passes on the other. What no browser
+ * can be asked is when any of it happens - see press.expected.json, which is
+ * the device's alone.
+ */
+{
+  let pressed = 0;
+  const moved: number[] = [];
+  const stayed: number[] = [];
+
+  for (const { listed: one, want } of ofKind("layout")) {
+    if (!want.walk) continue;
+    const entries = want.read.entries;
+    const sets = want.read.sets;
+    const problems: string[] = [];
+    let at = want.walk.starts_at;
+
+    for (const press of want.walk.presses) {
+      const where = `press ${press.press} (key ${press.key})`;
+      if (press.on_set !== at) {
+        problems.push(`${where} is made on set ${press.on_set}, and the press `
+                      + `before it left the device on set ${at}`);
+        at = press.on_set;
+      }
+      const entry = entries[at];
+      const key = press.key === SLOTS_PER_SET ? entry.key
+                                              : entry.slots[press.key];
+
+      const goes = layoutKeyGoesTo(key.does, key.target, sets);
+      if (goes !== press.goes_to) {
+        problems.push(`${where} goes to ${press.goes_to} in the fixture and `
+                      + `to ${goes} by this side's rule`);
+      }
+      /* Whether a word comes out, which is two fields and one answer: what
+         `does` says, and whether the key carries a recording at all. */
+      const speaks = layoutKeySpeaks(key.does) && key.has_audio;
+      if (speaks !== (press.plays !== null)) {
+        problems.push(`${where} ${press.plays ? "plays" : "plays nothing"} in `
+                      + `the fixture, and this side makes it ${speaks
+                        ? "speak" : "silent"}`);
+      }
+      /* And that it is the pressed key's own recording. Read back out of the
+         name with hashBytes() rather than spelled out here: the spelling is
+         names.expected.json's rule and restating it would be a second
+         opinion about it. */
+      if (press.plays !== null && hex(hashBytes(press.plays)) !== key.audio) {
+        problems.push(`${where} plays ${press.plays}, which is not the `
+                      + `sixteen bytes the key carries`);
+      }
+
+      at = goes >= 0 ? goes : at;
+      if (at !== press.now_on_set) {
+        problems.push(`${where} leaves the fixture on set ${press.now_on_set} `
+                      + `and this side on set ${at}`);
+      }
+      at = press.now_on_set;
+      (press.goes_to >= 0 ? moved : stayed).push(press.goes_to);
+      pressed++;
+    }
+
+    check(`${one.fixture}: the browser's two rules walk the fixture's `
+          + `${want.walk.presses.length} presses the same way`,
+          problems.length === 0, problems.slice(0, 3).join("; "));
+  }
+
+  check("every layout fixture with a walk was walked", pressed > 0,
+        `${pressed} press(es)`);
+  /* And that the walks are worth walking. A set of them where nothing ever
+     moved would be satisfied by an end that ignores `target` altogether, and
+     one where everything moved by an end that moves on any press at all. Said
+     here rather than left to whoever writes the next walk - the same argument
+     the cable transcripts make about a verdict that is not constant. */
+  check("and the walks contain presses that move and presses that do not",
+        moved.length > 0 && stayed.length > 0,
+        `${moved.length} moved, ${stayed.length} stayed`);
+}
+
+// --- what a press does -------------------------------------------------------
+
+/* The one kind with nothing on this side, acknowledged rather than omitted.
+ *
+ * The same shape tests/test_device_host.py has for the package kind, and for
+ * the same reason: a runner can only say what it does not check once it has
+ * been taught which kinds it does. Everything in press.expected.json is a
+ * length of time or an order of events inside the firmware; no byte of it
+ * crosses to a browser, and a check here would be this file inventing an
+ * opinion it has no way to hold. */
+{
+  const press = ofKind("press");
+  check("the press rule is listed, and is the device's own half",
+        press.length === 1
+        && press[0]!.want.after_a_key_that_goes?.order?.length > 0,
+        press.length === 1
+          ? `${press[0]!.want.holds.length} hold time(s), `
+            + `${press[0]!.want.after_a_key_that_goes.order.join(" then ")}`
+          : `${press.length} press fixture(s)`);
 }
 
 // --- t<hash>.bin -------------------------------------------------------------

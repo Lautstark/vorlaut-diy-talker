@@ -8,6 +8,7 @@
     "result": "LAYOUT_TOO_SHORT"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "Refused before the magic is looked at, because looking at it would read past the end of the file."
   ]

@@ -65,6 +65,7 @@
     ]
   },
   "write": null,
+  "walk": null,
   "notes": [
     "This is the layout's second piece of reserved space, beside byte 7 of the header, and it works the same way: a reader ignores it, a writer writes zero, and a later MINOR version may give a meaning to a value whose zero is the old behaviour.",
     "No writer produces this file, which is why it has no write half. That is the whole argument for authoring fixtures rather than freezing them - a capture of a correct writer can never contain a byte the writer does not emit."

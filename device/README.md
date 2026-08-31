@@ -77,7 +77,7 @@ Those are a byte in a file and a number on a wire, currently 3 and 2; this is
 `MAJOR.MINOR.PATCH` over the whole interface, and the three of them drift apart
 on purpose.
 
-It reads **`2.0.0`**, and it carries no word about status. It said
+It reads **`2.1.0`**, and it carries no word about status. It said
 `0.1.0-draft` until 2026-08-27, which put a claim about the interface inside a
 number nothing asserted — both runners printed the string and neither checked
 it, so a `device-v1` cut over it would have contradicted the thing it tagged.
@@ -129,6 +129,25 @@ licence to call a mutual refusal a MINOR. Two builders neither of which can
 write a file the other's device reads is what a MAJOR means, and what the
 version byte bought is that the break is legible rather than a set of names and
 hashes read at the wrong pitch.
+
+`2.1.0` is later the same day, and it is what `2.0.0` left out. The bytes of
+version 3 arrived with nothing anywhere saying what a device *does* with them:
+`layout/` stated `does` and `target` key by key, `layoutKeyGoesTo()` said what
+they mean, and no fixture walked a talker from one set to the next. There is a
+kind for that now — `press`, which is the hold times, the second between a word
+and the next board, the stretch of deafness after it, and the order those
+happen in — and the layout fixtures carry walks: a list of presses and the
+board each one leaves the device on.
+[`layout/four-rounds`](fixtures/layout/four-rounds.expected.json) is a whole
+small game, four rounds that lead into one another and back to the first.
+
+MINOR by the plainest reading of the rule: nothing the talker reads moved — not
+a stride, not a byte, not a keyword. This directory described an interface it
+was silent about half of, and now it is not, which is the same shape as
+`1.1.0`. `press` is also the first kind with **no browser half at all**, and
+`tests/unit/device_fixtures.test.ts` says so out loud rather than leaving it
+unlisted: no byte of a hold time crosses, so there is nothing on that side to
+hold to it.
 
 ---
 

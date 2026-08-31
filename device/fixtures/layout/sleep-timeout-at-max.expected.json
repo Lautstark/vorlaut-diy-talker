@@ -119,6 +119,7 @@
       ]
     ]
   },
+  "walk": null,
   "notes": [
     "The top of the range, and the case that says the clamp is a clamp rather than a ceiling one lower. A reader that brought 86400 back to something smaller would pass sleep-timeout-max and fail here.",
     "It has a write half where sleep-timeout-max no longer does, which is the line between the two: this is the largest timeout a builder may emit."

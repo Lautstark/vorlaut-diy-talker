@@ -1,0 +1,76 @@
+{
+  "fixture": "press",
+  "kind": "press",
+  "summary": "How long a key has to be held, what happens between a key that goes somewhere and the board it goes to, and in which order.",
+  "set_key_index": 4,
+  "holds": [
+    {
+      "key": 0,
+      "ms": 80,
+      "what": "a speech key"
+    },
+    {
+      "key": 1,
+      "ms": 80,
+      "what": "a speech key"
+    },
+    {
+      "key": 2,
+      "ms": 80,
+      "what": "a speech key"
+    },
+    {
+      "key": 3,
+      "ms": 80,
+      "what": "a speech key"
+    },
+    {
+      "key": 4,
+      "ms": 400,
+      "what": "the set key"
+    }
+  ],
+  "after_a_key_that_goes": {
+    "pause_ms": 1000,
+    "deaf_ms": 400,
+    "order": [
+      "pause",
+      "release",
+      "show",
+      "deaf"
+    ],
+    "steps": [
+      {
+        "step": "pause",
+        "what": "A whole second after the word has finished, before anything moves.",
+        "why": "The moment a child works out that she was right happens in it. There is no cheer, no score and no second panel on this device, so this second is the whole of what it gives back - it is the point of the second rather than slack at the end of one. 200 ms would be enough to look smooth and would land the next board while she is still listening."
+      },
+      {
+        "step": "release",
+        "what": "Wait until no key is down.",
+        "why": "Her finger is still on the key that did this. Drawing the next round under it puts a different picture beneath a finger that has not moved, and whatever she does next lands on something she never chose."
+      },
+      {
+        "step": "show",
+        "what": "The new set on the panels.",
+        "why": "Everything before it is about not doing this too early."
+      },
+      {
+        "step": "deaf",
+        "what": "A stretch in which no press is heard at all, and a press made during it is thrown away rather than answered afterwards.",
+        "why": "A finger bouncing back, or a second press meant for the board that has gone, must not answer the new one. Thrown away rather than queued: a press that arrives late on the wrong board is the same fault as a press that arrives early on it."
+      }
+    ]
+  },
+  "rules": [
+    "Every key of a set is read the same way, and what it does is the byte the file carries. A device that switched sets by arithmetic - the next set, round to the first from the last - is a device with a way past every round of the joining game that has nothing to do with the word, whatever the file said.",
+    "A key that goes somewhere goes there by itself. There is no second press to confirm it and no gesture to skip a round: with four answers on the board, trying is what gets a child through, and a device whose only hidden gesture is the menu is one whose behaviour a parent can describe in a sentence.",
+    "The set key is held four times as long as a speech key, and that has not changed. An accidental switch takes away the word she was about to say and she has to find her way back, which is worse than hitting the wrong word - the same sentence the deaf stretch below is another answer to.",
+    "The pause and the deaf stretch are lengths of time and no fixture reaches a clock, exactly as the sleep timeout's are. What is stated here is the numbers and their order, which is what two implementations can be held to.",
+    "Nothing is remembered across a board change. The device does not know which round it is on, how it got there or whether the last press was right - so there is no state for it to be stuck in, and a walk through a layout is the whole of what it does."
+  ],
+  "notes": [
+    "80 and 400 were in vorlaut.ino from the beginning and are unchanged; 1000 and the four steps are 2026-08-31, when the device first acted on what a key says it does. The deaf stretch is SET_HOLD_MS rather than a number of its own, because 'how much accidental switching is too much' is one question and this repository has already answered it once.",
+    "This is the only fixture here about the device alone. layout.bin says nothing about any of it and the cable never mentions it, so a browser has nothing to be held to - which is why device/fixtures/ says so out loud rather than leaving the kind unlisted. A kind that is skipped is visible; a kind that was forgotten is not."
+  ]
+}

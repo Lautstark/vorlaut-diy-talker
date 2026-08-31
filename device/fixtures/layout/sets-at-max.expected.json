@@ -5789,6 +5789,7 @@
       ]
     ]
   },
+  "walk": null,
   "notes": [
     "12 + 64 * 212 = 13580 bytes. One set more is refused rather than truncated - see sets-past-max, which is this file plus one entry.",
     "MAX_SETS is not in the file. It is how much room the reader has, and a reader with less of it than this refuses a layout a conforming builder wrote - so the number is not a detail of one implementation but a thing both ends have to know. This fixture and sets-past-max are how it is stated without either end reading the other.",

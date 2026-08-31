@@ -8,6 +8,7 @@
     "result": "LAYOUT_BAD_VERSION"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "A version-2 set entry was 184 bytes and a version-3 one is 212, so a file with the same set count is 28 bytes short per set and would be refused for its length. That coincidence is not what this fixture rests on: the set count is a byte a writer chooses, and there is nothing stopping a file whose count and length happen to add up.",
     "The talkers that were flashed before 2026-08-31 refuse a version-3 file the same way - the mirror of this fixture, from the other side, and the reason the version byte moved rather than the strides quietly growing. adr/0020 is that decision."

@@ -17,7 +17,7 @@
   "go_home": "Wir gehen nach Hause",
   "all_done": "Ich bin fertig",
 
-  "_joining": "The joining game, which is what layout.bin version 3 is for: a set key shows a tile split down the diagonal with the two halves of a compound word on it and says them out loud, and one of the four speech keys carries the word those halves make. Two rounds' worth, because a single round cannot show a key going anywhere.",
+  "_joining": "The joining game, which is what layout.bin version 3 is for: a set key shows a tile split down the diagonal with the two halves of a compound word on it and says them out loud, and one of the four speech keys carries the word those halves make. Two rounds' worth of words, because a single round cannot show a key going anywhere - and two more set names after them, because a chain that comes back round to where it started needs more rounds than it has ends.",
 
   "mirror_egg": "Spiegel + Ei",
   "fried_egg": "Spiegelei",
@@ -26,5 +26,7 @@
   "sun_flower": "Sonne + Blume",
   "sunflower": "Sonnenblume",
   "flower_pot": "Blumentopf",
-  "sunshine": "Sonnenschein"
+  "sunshine": "Sonnenschein",
+  "hand_shoe": "Hand + Schuh",
+  "fire_defence": "Feuer + Wehr"
 }

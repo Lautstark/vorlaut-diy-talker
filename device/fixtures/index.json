@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "2.0.0",
+  "device_interface_version": "2.1.0",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -41,6 +41,22 @@
       "summary": "Two rounds of the joining game: a set key that speaks and stays, one speech key per round that speaks and goes on, and a set key that goes and says nothing.",
       "file": "layout/keys-that-go.bin",
       "expected": "layout/keys-that-go.expected.json"
+    },
+    {
+      "fixture": "a-sound-behind-a-key-that-goes",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "A set key whose `does` is go and which carries a recording all the same. The sound is on the device, named by the key, and never played.",
+      "file": "layout/a-sound-behind-a-key-that-goes.bin",
+      "expected": "layout/a-sound-behind-a-key-that-goes.expected.json"
+    },
+    {
+      "fixture": "four-rounds",
+      "kind": "layout",
+      "outcome": "accepted",
+      "summary": "Four rounds of the joining game, chained: every round's answer key leads to the next and the last leads back to the first. The answer sits at a different key in each round.",
+      "file": "layout/four-rounds.bin",
+      "expected": "layout/four-rounds.expected.json"
     },
     {
       "fixture": "key-does-past-the-table",
@@ -350,6 +366,13 @@
       "outcome": "accepted",
       "summary": "The range of sleep timeouts a builder may write, what the device waits for everything else, and the fact that the first is inside the second.",
       "expected": "sleep.expected.json"
+    },
+    {
+      "fixture": "press",
+      "kind": "press",
+      "outcome": "accepted",
+      "summary": "How long a key has to be held, what happens between a key that goes somewhere and the board it goes to, and in which order.",
+      "expected": "press.expected.json"
     },
     {
       "fixture": "greet-and-list",
