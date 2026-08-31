@@ -113,6 +113,28 @@ static const uint32_t MENU_IDLE_MS = 30000;
 static const uint32_t SAMPLE_RATE = WAV_SAMPLE_RATE;
 static const size_t AUDIO_CHUNK = 1024;
 
+// A whole word, held in RAM before a single sample of it is played.
+//
+// The reason is timing, not tidiness. Streaming a word meant one LittleFS read
+// of AUDIO_CHUNK every 32 ms for the length of the word, with nothing read
+// ahead; a read that takes longer than that leaves the I2S DMA with nothing to
+// send, and a starved stream is the crackle this repository has already
+// written down once - "the click is the I2S stream running dry", bring-up
+// stage 5. Streaming worked on a fresh file system and turned the same key
+// into a lottery on a full one: 92% full when this was noticed, where LittleFS
+// does markedly more work per read and how much varies with where the blocks
+// sit.
+//
+// So the read happens once, up front, and it costs nothing in latency because
+// it happens inside the wait the amplifier needs anyway - see playWav().
+//
+// 48 KiB is 1.5 seconds at 16 kHz, against the longest word in the collection
+// this was measured on at 1058 ms. Anything longer still plays, streamed the
+// old way: a rule that silently refused to say a long sentence would be far
+// worse than one that says it with the old timing.
+static const size_t AUDIO_PRELOAD = 49152;
+static uint8_t spoken[AUDIO_PRELOAD];
+
 // How loud, as a percentage of what is in the file.
 //
 // The only volume control this device has, and it is here rather than on the
@@ -636,6 +658,24 @@ static void playWav(const char *path) {
 
   static uint8_t chunk[AUDIO_CHUNK];
   digitalWrite(PIN_AMP_SD, HIGH);
+
+  // The whole word, read while the amplifier is coming up rather than while it
+  // is playing. Both of these happen inside the wait below, so a word that
+  // fits costs nothing extra to start - and once it is in RAM, nothing the
+  // file system does can interrupt it.
+  const uint32_t readBegan = millis();
+  uint32_t held = 0;
+  if (remaining <= AUDIO_PRELOAD) {
+    held = (uint32_t)file.read(spoken, remaining);
+    if (held != remaining) {
+      // Short of what the header promised. Not fatal and not silently ignored:
+      // what was read is played, and the number says how much was missing.
+      Serial.printf("  short read: %u of %u bytes\n",
+                    (unsigned)held, (unsigned)remaining);
+      remaining = held;
+    }
+  }
+  const uint32_t readMs = millis() - readBegan;
   // AMP_WAKE_MS and not the 5 ms this had: the MAX98357A is nowhere near full
   // gain that quickly, so every word began quiet and a word cut short by the
   // next key was mostly ramp - which is what made the loudness differ between
@@ -647,7 +687,11 @@ static void playWav(const char *path) {
   // the pair of them - SD high AND silence written through the gaps was the
   // combination that was clean - and keeping I2S fed everywhere needs loop()
   // restructured or an audio task of its own, not a line moved.
-  delay(AMP_WAKE_MS);
+  // Whatever is left of the wake time after the read. On a file system that
+  // answered quickly this is still the full 50 ms; on one that took 30 ms to
+  // hand the word over, the amplifier has been coming up throughout and only
+  // the remainder is spent waiting.
+  if (readMs < AMP_WAKE_MS) delay(AMP_WAKE_MS - readMs);
 
   // A word is not interrupted, and that is a decision rather than an
   // omission. Letting the next key cut this one off was tried on real
@@ -675,9 +719,22 @@ static void playWav(const char *path) {
   const uint32_t sampleBytes = remaining;
   const uint32_t began = millis();
 
+  // Where the next chunk comes from: out of RAM for a word that fitted, and
+  // straight off the file system for one that did not. One loop rather than
+  // two, because everything after the read - the peak, the volume, the writing
+  // and the button poll - is the same work either way, and two copies of it
+  // would drift.
+  uint32_t at = 0;
   while (remaining > 0) {
     size_t want = remaining < AUDIO_CHUNK ? remaining : AUDIO_CHUNK;
-    size_t got = file.read(chunk, want);
+    size_t got;
+    if (held) {
+      memcpy(chunk, spoken + at, want);
+      at += want;
+      got = want;
+    } else {
+      got = file.read(chunk, want);
+    }
     if (got == 0) break;
     for (size_t i = 0; i + 1 < got; i += 2) {
       const int16_t sample =
@@ -705,9 +762,19 @@ static void playWav(const char *path) {
     if (caught >= 0) pendingKey = caught;
   }
 
-  Serial.printf("  %u bytes, %u ms, peak %d of 32767 (%d%%)\n",
-                (unsigned)sampleBytes,
+  // The read and the playing, side by side, because they answer different
+  // questions. The playing should be the length of the word and no more; a
+  // number well above that is the DMA having been starved, which is what
+  // preloading is here to prevent and what the log has to be able to show if
+  // it ever happens anyway. The read is the file system's own time, and it is
+  // interesting when it approaches AMP_WAKE_MS - that is the point where a
+  // word starts costing latency rather than hiding inside the wake.
+  Serial.printf("  %u bytes, read %u ms, played %u ms (%u expected)%s, "
+                "peak %d of 32767 (%d%%)\n",
+                (unsigned)sampleBytes, (unsigned)readMs,
                 (unsigned)(millis() - began),
+                (unsigned)(sampleBytes / (SAMPLE_RATE / 500)),
+                held ? "" : " streamed",
                 (int)peak, (int)((int32_t)peak * 100 / 32767));
 
   // Silence before the amplifier is switched off, or it clicks. Three chunks

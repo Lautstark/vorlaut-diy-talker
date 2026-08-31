@@ -181,6 +181,24 @@ audible — a talker that says nothing looks broken.
 `AUDIO_VOLUME_PERCENT` in the sketch is only where a device with nothing
 stored starts, at 50: half the amplitude, about 6 dB down.
 
+**And the same thing came back on a full device, 2026-08-31.** The same key
+sounded metallic on one press and clean on the next - not louder-dependent, so
+not the enclosure, and not word-dependent, so not the recordings, which measure
+clean anyway: no clipping, peaks between -1.5 and -6.7 dBFS, every file topped
+and tailed with silence. What was left is the one thing that differs between
+two presses of the same file, and it is the file system. Playback streamed one
+1 KiB read every 32 ms with nothing read ahead, and the device was **92% full**,
+where LittleFS does markedly more work per read and how much depends on where
+the blocks sit. A read that overruns its 32 ms leaves the DMA with nothing to
+send.
+
+A word is now read whole into RAM before a sample of it plays, inside the wake
+the amplifier needs anyway, so nothing the file system does can interrupt it -
+48 KiB, 1.5 s at 16 kHz, and anything longer still streams. The log says which
+of the two happened and prints the read time beside the play time, so this is
+falsifiable on the next device rather than a story: a played time well above
+the expected one is a starved stream whatever else changed.
+
 **The click is the I2S stream running dry, not the amplifier.** This is worth
 setting out at length, because the amplifier is the obvious suspect, this
 document used to name it, and it is wrong.
