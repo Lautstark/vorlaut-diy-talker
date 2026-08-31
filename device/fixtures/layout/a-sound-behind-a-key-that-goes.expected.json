@@ -1,0 +1,249 @@
+{
+  "fixture": "a-sound-behind-a-key-that-goes",
+  "kind": "layout",
+  "file": "layout/a-sound-behind-a-key-that-goes.bin",
+  "summary": "A set key whose `does` is go and which carries a recording all the same. The sound is on the device, named by the key, and never played.",
+  "bytes": 436,
+  "read": {
+    "result": "ok",
+    "sets": 2,
+    "language": 0,
+    "sleep_seconds": 600,
+    "idle_seconds": 600,
+    "entries": [
+      {
+        "name": "5365742031",
+        "name_text": "Set 1",
+        "key": {
+          "image": "e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0",
+          "audio": "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
+          "has_audio": true,
+          "does": 2,
+          "target": 1,
+          "speaks": false,
+          "goes_to": 1
+        },
+        "slots": [
+          {
+            "image": "e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0",
+            "audio": "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "audio": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      },
+      {
+        "name": "5365742032",
+        "name_text": "Set 2",
+        "key": {
+          "image": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+          "audio": "f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1",
+          "has_audio": true,
+          "does": 2,
+          "target": 0,
+          "speaks": false,
+          "goes_to": 0
+        },
+        "slots": [
+          {
+            "image": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+            "audio": "f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+            "audio": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+            "has_audio": true,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          },
+          {
+            "image": "b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1",
+            "audio": "00000000000000000000000000000000",
+            "has_audio": false,
+            "does": 0,
+            "target": 0,
+            "speaks": true,
+            "goes_to": -1
+          }
+        ]
+      }
+    ]
+  },
+  "write": {
+    "layout": {
+      "language": "en",
+      "sleep_timeout_seconds": 600,
+      "sets": [
+        {
+          "name": "Set 1",
+          "key": {
+            "does": "go",
+            "target": 1
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        },
+        {
+          "name": "Set 2",
+          "key": {
+            "does": "go",
+            "target": 0
+          },
+          "slots": [
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "does": "speak",
+              "target": 0
+            }
+          ]
+        }
+      ]
+    },
+    "label": [
+      "te0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0.bin",
+      "te1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1.bin"
+    ],
+    "label_sounds": [
+      "af0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0.wav",
+      "af1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1.wav"
+    ],
+    "images": [
+      [
+        "te0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0.bin",
+        "tc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0.bin",
+        "td0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0.bin",
+        "tb0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0.bin"
+      ],
+      [
+        "te1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1.bin",
+        "tc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1.bin",
+        "td1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1.bin",
+        "tb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1.bin"
+      ]
+    ],
+    "sounds": [
+      [
+        "af0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0.wav",
+        "",
+        "ad0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0.wav",
+        ""
+      ],
+      [
+        "af1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1.wav",
+        "",
+        "ad1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1.wav",
+        ""
+      ]
+    ]
+  },
+  "walk": {
+    "starts_at": 0,
+    "presses": [
+      {
+        "press": 0,
+        "what": "the set key. It goes to the other set and says nothing, though there is a recording behind it - `does` decides, not the has-audio flag",
+        "on_set": 0,
+        "key": 4,
+        "plays": null,
+        "goes_to": 1,
+        "now_on_set": 1
+      },
+      {
+        "press": 1,
+        "what": "a speech key on the set it arrived at, which is the walk saying which board that was",
+        "on_set": 1,
+        "key": 0,
+        "plays": "/af1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1.wav",
+        "goes_to": -1,
+        "now_on_set": 1
+      },
+      {
+        "press": 2,
+        "what": "and back again, silently, the same way",
+        "on_set": 1,
+        "key": 4,
+        "plays": null,
+        "goes_to": 0,
+        "now_on_set": 0
+      }
+    ]
+  },
+  "notes": [
+    "Whether a word comes out is two fields and one answer, and the two can disagree. `does` is the one that decides: a key that goes without speaking stays silent however much sound is named beside it. A device that played it would say a word at a moment nobody asked for one, in the half-second before the board changes.",
+    "It is not refused, and must not be. A spare recording is a file that costs space and nothing else; refusing the layout over it would take away the whole board. The device stores the file, never opens it, and says nothing about either - which is the same treatment a picture nothing references gets.",
+    "The pair this completes: one-set's third slot is a key that means to speak with no sound behind it, and this is a key with a sound behind it that means not to speak. Both come out silent, by two different routes, and a reader that collapsed the two fields into one would get exactly one of them right."
+  ]
+}

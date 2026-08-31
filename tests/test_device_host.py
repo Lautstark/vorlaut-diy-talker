@@ -39,6 +39,9 @@ FIXTURES = ROOT / "device" / "fixtures"
 
 failures: list[str] = []
 counts: dict[str, int] = {}
+# Every walk that ran, so that the set of them can be asked at the end whether
+# it says anything. See the check under main().
+walked: list[tuple[str, list[dict]]] = []
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -161,6 +164,104 @@ def check_layout(reader: Path, name: str, path: Path, want: dict) -> None:
                     for a, b in zip(wanted, body) if a != b)
           or f"{len(body)} lines for {len(wanted)}")
     counted("layout")
+
+
+# --- A layout, pressed -------------------------------------------------------
+
+def check_walk(reader: Path, name: str, path: Path, want: dict) -> None:
+    """The joining game played into the firmware's own reader.
+
+    The fixture's presses go in as key indices and what comes back is one line
+    per press: which set it was made on, whether a recording was really played
+    and which one, where the key led, and which set the device is on
+    afterwards. Compared as a block for the same reason the layout fields are -
+    a walk that agreed on eight lines out of ten and diverged on the ninth is a
+    device that goes somewhere plausible, and the first line that differs is
+    the one worth printing.
+
+    The last two of those - where it led and where it ended up - are the whole
+    of why this exists beside the key-by-key fields above. Those say what one
+    key means; this says what a device does with several in a row, which is
+    where being off by one, or reading the answer off the set the press started
+    on, or quietly falling back to set 0 all stop being invisible.
+    """
+    presses = want["presses"]
+    asked = "".join(f"{one['key']}\n" for one in presses).encode()
+    got = run(reader, ["walk", str(path)], asked)
+    said = fields(got)
+
+    check(f"{name}: the walk starts on set {want['starts_at']}",
+          said.get("starts_at") == str(want["starts_at"]),
+          said.get("starts_at", "-"))
+
+    wanted = [
+        f"press {one['press']} set {one['on_set']} key {one['key']} "
+        f"plays {one['plays'] or '-'} goes {one['goes_to']} "
+        f"now {one['now_on_set']}"
+        for one in presses
+    ]
+    body = [l for l in got.strip().split("\n") if l.startswith("press ")]
+    same = body == wanted
+    check(f"{name}: and the firmware answers all {len(wanted)} presses the "
+          f"same way", same,
+          "" if same else
+          "\n".join(f"      fixture:  {a}\n      firmware: {b}"
+                     for a, b in zip(wanted, body) if a != b)
+          or f"{len(body)} lines for {len(wanted)}")
+    counted("walk")
+    walked.append((name, presses))
+
+
+# --- What a press does -------------------------------------------------------
+
+def check_press(reader: Path, want: dict) -> None:
+    """The timings, and the order of the steps after a board change.
+
+    No file and no layout, the same way the sleep timeout has none: this is a
+    rule the device applies, and the fixture states it from the reasons rather
+    than from the header.
+    """
+    got = run(reader, ["press"])
+    said = fields(got)
+
+    check(f"the set key is key {want['set_key_index']} of a set",
+          said.get("set_key_index") == str(want["set_key_index"]),
+          said.get("set_key_index", "-"))
+    counted("press")
+
+    holds = {}
+    for line in got.strip().split("\n"):
+        parts = line.split(" ")
+        if parts[0] == "hold":
+            holds[int(parts[1])] = int(parts[2])
+    for one in want["holds"]:
+        check(f"{one['what']} has to be held for {one['ms']} ms",
+              holds.get(one["key"]) == one["ms"], str(holds.get(one["key"])))
+        counted("press")
+
+    after = want["after_a_key_that_goes"]
+    check(f"a key that goes somewhere waits {after['pause_ms']} ms after the "
+          f"word before anything moves",
+          said.get("pause_ms") == str(after["pause_ms"]),
+          said.get("pause_ms", "-"))
+    check(f"and hears nothing for {after['deaf_ms']} ms once the board has "
+          f"changed",
+          said.get("deaf_ms") == str(after["deaf_ms"]),
+          said.get("deaf_ms", "-"))
+    counted("press")
+    counted("press")
+
+    # The order, which is the half that is not a number. It is an enumeration
+    # in key_press.h that vorlaut.ino walks rather than four statements in a
+    # row, which is what lets this be checked at all: a .ino is the one file no
+    # test can include, and the order is exactly the thing that goes wrong in
+    # it.
+    order = [l.split(" ")[2] for l in got.strip().split("\n")
+             if l.startswith("step ")]
+    check("and it pauses, waits for her finger, shows the new board and only "
+          "then listens again - in that order",
+          order == after["order"], " then ".join(order) or "-")
+    counted("press")
 
 
 # --- t<hash>.bin -------------------------------------------------------------
@@ -491,6 +592,9 @@ def main() -> int:
             if kind == "layout":
                 check_layout(reader, one["fixture"], FIXTURES / one["file"],
                              want["read"])
+                if want.get("walk"):
+                    check_walk(reader, one["fixture"],
+                               FIXTURES / one["file"], want["walk"])
             elif kind == "tile":
                 check_tile(reader, one["fixture"], FIXTURES / one["file"], want)
             elif kind == "audio":
@@ -501,6 +605,8 @@ def main() -> int:
                 check_language(reader, want)
             elif kind == "sleep":
                 check_sleep(reader, want)
+            elif kind == "press":
+                check_press(reader, want)
             elif kind == "package":
                 # The other boundary, and neither of its ends is the device:
                 # a device package is the .obz the editor writes and the
@@ -524,6 +630,33 @@ def main() -> int:
             else:
                 check(f"{one['fixture']}: this runner knows the kind "
                       f"{kind!r}", False)
+
+    # What the walks are worth, asked of all of them at once.
+    #
+    # A single walk proves less than it looks. One whose presses never left the
+    # set they started on would be satisfied by a device that ignores `target`
+    # altogether; one where every press moved would be satisfied by a device
+    # that moves on any press at all; and one that only ever went forwards
+    # would be satisfied by the arithmetic ring the firmware used to do. So the
+    # set of walks has to contain all three, and this says so out loud rather
+    # than leaving it to whoever writes the next one - the same argument the
+    # cable transcripts make about a verdict that is not constant.
+    moved = [(name, one) for name, presses in walked for one in presses
+             if one["goes_to"] >= 0]
+    stayed = [one for _, presses in walked for one in presses
+              if one["goes_to"] < 0]
+    reached = {(name, one["now_on_set"]) for name, one in moved}
+    backwards = [one for _, one in moved if one["now_on_set"] <= one["on_set"]]
+    check("the walks contain presses that move and presses that do not",
+          bool(moved) and bool(stayed),
+          f"{len(moved)} moved, {len(stayed)} stayed")
+    check("they reach more than two sets between them",
+          len({at for _, at in reached}) > 2,
+          f"sets {sorted({at for _, at in reached})}")
+    check("and at least one of them goes somewhere that is not the next set "
+          "along, which the ring the firmware used to compute never did",
+          bool(backwards),
+          f"{len(backwards)} press(es) that go back or stay level")
 
     if failures:
         print(f"\n  {len(failures)} problem(s):")

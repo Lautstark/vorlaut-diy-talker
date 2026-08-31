@@ -25,6 +25,11 @@
 //                   falls back to
 //   sleep           the timeout range, and what layoutIdleSeconds() makes of a
 //                   field outside it - one number per line on stdin
+//   press           the hold times, the two waits either side of a board
+//                   change, and the order the steps happen in
+//   walk <file>     a layout, pressed. One key index per line on stdin, and
+//                   what the device does with each - the joining game played
+//                   with no display and no clock
 //   cable           a whole transcript on stdin, replayed into a device made
 //                   of a std::map, a window of file content at a time
 
@@ -36,6 +41,7 @@
 #include <vector>
 
 #include "../firmware/vorlaut/layout_format.h"
+#include "../firmware/vorlaut/key_press.h"
 #include "../firmware/vorlaut/tile_format.h"
 #include "../firmware/vorlaut/wav_format.h"
 #include "../firmware/vorlaut/name_format.h"
@@ -533,6 +539,75 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
   return 0;
 }
 
+// --- What a press does -------------------------------------------------------
+//
+// keyPress() out of key_press.h, and the four constants beside it. Nothing
+// restated: the numbers are printed, the walk below runs the same function
+// vorlaut.ino runs, and tests/test_device_host.py is what compares.
+
+/** The rule half: how long a key is held, and what happens after one that
+ *  goes somewhere. No file and no layout, the same way `sleep` has none. */
+static int pressMode() {
+  for (uint8_t i = 0; i < KEY_COUNT; i++) {
+    printf("hold %u %u\n", i, (unsigned)keyHoldMs(i));
+  }
+  printf("set_key_index %d\n", SET_KEY_INDEX);
+  printf("pause_ms %u\n", (unsigned)KEY_WORD_PAUSE_MS);
+  printf("deaf_ms %u\n", (unsigned)KEY_SETTLE_MS);
+  // The order, walked the way vorlaut.ino walks it. A fixture can hold the
+  // device to doing these four things in this sequence without compiling the
+  // .ino, which is the whole reason the sequence is an enumeration.
+  for (uint8_t step = 0; step < KEY_CHANGE_STEPS; step++) {
+    printf("step %u %s\n", step, changeStepName((ChangeStep)step));
+  }
+  return 0;
+}
+
+/** The game half: a layout, and a list of presses played into it.
+ *
+ * The loop is deliberately three lines - ask keyPress(), print, move - because
+ * everything worth being wrong about is inside keyPress(). A harness that
+ * decided for itself which key a press lands on, or when a word is played,
+ * would be a second implementation agreeing with itself.
+ *
+ * What it cannot say is anything about time: there is no clock here, so the
+ * pause and the deaf stretch are `press` above and not this. What it can say
+ * is the thing a device is really wrong about - that a chain of sets leads
+ * where the file says, that a wrong key stays put, and that a set nothing
+ * leads out of is entered rather than escaped.
+ */
+static int walkMode(const char *path) {
+  const std::string file = slurp(path);
+  Layout layout;
+  const LayoutResult r = parseLayout((const uint8_t *)file.data(),
+                                     (uint32_t)file.size(), layout);
+  printf("result %s\n", layoutResultName(r));
+  if (r != LAYOUT_OK) return 0;
+  printf("sets %u\n", layout.setCount);
+
+  // Where a device that has never been given a set comes up, and where one
+  // comes back after a deep sleep it went into on set 0. RTC memory is the
+  // device's business and not the layout's, so a walk begins at the first set.
+  uint8_t at = 0;
+  printf("starts_at %u\n", at);
+
+  char line[64];
+  unsigned nth = 0;
+  while (fgets(line, sizeof(line), stdin)) {
+    if (line[0] == '\n' || line[0] == '\0') continue;
+    const uint8_t index = (uint8_t)strtoul(line, nullptr, 10);
+    const KeyPress press = keyPress(layout, at, index);
+    char said[2 + HASH_BYTES * 2 + 5] = "-";
+    if (press.plays) hashPath(said, 'a', press.key->audio, ".wav");
+    const uint8_t from = at;
+    if (press.goesTo >= 0) at = (uint8_t)press.goesTo;
+    printf("press %u set %u key %u plays %s goes %d now %u\n",
+           nth, from, index, said, (int)press.goesTo, at);
+    nth++;
+  }
+  return 0;
+}
+
 // -----------------------------------------------------------------------------
 
 int main(int argc, char **argv) {
@@ -543,6 +618,8 @@ int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "names") == 0) return namesMode();
   if (argc >= 2 && strcmp(argv[1], "language") == 0) return languageMode();
   if (argc >= 2 && strcmp(argv[1], "sleep") == 0) return sleepMode();
+  if (argc >= 2 && strcmp(argv[1], "press") == 0) return pressMode();
+  if (argc >= 3 && strcmp(argv[1], "walk") == 0) return walkMode(argv[2]);
   if (argc >= 4 && strcmp(argv[1], "cable") == 0) {
     // The firmware word and the tile forms are optional at the command line
     // and required of the runner: a fixture always states them, and states
@@ -555,7 +632,8 @@ int main(int argc, char **argv) {
                      argc >= 6 ? argv[5] : "");
   }
   fprintf(stderr, "usage: device_host layout <file> | tile <file> [decoded] | "
-                  "audio <file> | names | language | sleep | "
+                  "audio <file> | names | language | sleep | press | "
+                  "walk <file> | "
                   "cable <capacity> <window> [firmware] [tiles]\n");
   return 2;
 }

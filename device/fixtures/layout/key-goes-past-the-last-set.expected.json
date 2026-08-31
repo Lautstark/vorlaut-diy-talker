@@ -65,6 +65,29 @@
     ]
   },
   "write": null,
+  "walk": {
+    "starts_at": 0,
+    "presses": [
+      {
+        "press": 0,
+        "what": "the set key that names a set which is not there. Nothing is said, because its `does` is go, and nothing moves - the one press in this directory that a reader could answer by reading past the end of an array",
+        "on_set": 0,
+        "key": 4,
+        "plays": null,
+        "goes_to": -1,
+        "now_on_set": 0
+      },
+      {
+        "press": 1,
+        "what": "and a speech key afterwards, to say which board the device is still on: the same one",
+        "on_set": 0,
+        "key": 0,
+        "plays": "/a31313131313131313131313131313131.wav",
+        "goes_to": -1,
+        "now_on_set": 0
+      }
+    ]
+  },
   "notes": [
     "The target is a uint8 and so is the set count, so the format can say this and the array cannot hold it. Reading past the end of sets[] is the one outcome a parser must never have, and the answer is that the key stays where it is.",
     "Staying put rather than falling back to set 0. docs/device-interface.md section 6 is the argument: a key that jumps somewhere arbitrary looks like it worked, and what it teaches the person pressing it is untrue. A key that does nothing is visibly broken.",

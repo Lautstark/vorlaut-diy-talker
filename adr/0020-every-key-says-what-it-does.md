@@ -152,10 +152,19 @@ because a speech key can now carry a `load_board`:
   called the byte after the has-audio flag the only room `layout.bin` had left.
   It is spent on `does`, and a new one is put back — five bytes a set — so the
   format still has the one trick it has ever had for growing without a MAJOR.
-- **The firmware does not act on any of it yet.** `drawCurrentSet()` draws the
-  set key's picture and the set key still cycles. Acting on the field — going
-  where it says, switching after the key is let go, and being deaf for a moment
-  afterwards — is the next change, and it needs this one under it.
+- **The firmware acted on none of it when this was written, and does now** —
+  later the same day, 2026-08-31. `drawCurrentSet()` drew the set key's picture
+  and the set key still cycled; what was named here as the next change is
+  [`key_press.h`](../firmware/vorlaut/key_press.h), where `keyPress()` finally
+  calls `layoutKeyGoesTo()` and the four steps after a key that goes somewhere —
+  a second's pause, wait until she has let go, show the new board, then 400 ms
+  of hearing nothing — are an enumeration `vorlaut.ino` walks rather than four
+  statements in a row. The set key's cycle went with it: the ring is what a
+  builder writes into the targets, not what the sketch computes, so a round the
+  file gives no way out of is a round the device stays in.
+  `device/fixtures/layout/four-rounds` is a whole small game walked press by
+  press from both ends, and `device/fixtures/press.expected.json` — the first
+  kind with no browser half at all — is the timings and their order.
 
 ## When somebody proposes tidying this up
 

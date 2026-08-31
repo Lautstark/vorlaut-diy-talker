@@ -66,6 +66,7 @@
     "renders_language_index": 0
   },
   "write": null,
+  "walk": null,
   "notes": [
     "Two rules, separate on purpose. The layout reader takes byte 7 as it stands - what the number means is not its business. The text layer is where the fallback happens, and an index past the end of the table gives the default rather than a read past the end of it.",
     "A layout.bin from a newer builder must not be able to crash a device. This is the only field in the format where a newer builder can say anything at all, and it is possible because the byte was reserved and written as zero long before it meant anything, and zero was then made to mean the old behaviour. That trick is the format's whole forward compatibility, and here it is a stated rule rather than a comment in a header.",

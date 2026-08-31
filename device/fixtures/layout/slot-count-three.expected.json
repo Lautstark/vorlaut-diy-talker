@@ -8,6 +8,7 @@
     "result": "LAYOUT_BAD_SLOT_COUNT"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "The slot count is in the file although it can only ever be 4, and this is what it is for: it is the stride of everything after it, so a file written for a different device is refused rather than read at the wrong pitch."
   ]

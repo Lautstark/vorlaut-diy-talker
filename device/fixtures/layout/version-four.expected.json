@@ -8,6 +8,7 @@
     "result": "LAYOUT_BAD_VERSION"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "This is the rule the cable does the opposite of. parseLayout reads fixed strides, has no room for an unknown field and no way to step over one, so a version it does not know is refused outright rather than read as far as it goes.",
     "A flashed device cannot be updated, so this refusal is permanent for that device: a MAJOR change to this format strands every talker already in a house. That asymmetry is why the MAJOR rule is written about a flashed device misreading a payload rather than about the builder.",

@@ -23,6 +23,7 @@
     "images": [],
     "sounds": []
   },
+  "walk": null,
   "notes": [
     "A layout with no sets is not an error. The device shows its 'no content' panel, which is a true sentence.",
     "Its sleep timeout is zero, which is the unset field rather than a timeout of nothing: the reader hands back 0 and the device waits the default of 600 seconds. This is the one accepted fixture where sleep_seconds and idle_seconds differ by more than a clamp, and it is the case a reader treating the field as a plain clamp would get wrong - see sleep.expected.json."

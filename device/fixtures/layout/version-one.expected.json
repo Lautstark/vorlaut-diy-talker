@@ -8,6 +8,7 @@
     "result": "LAYOUT_BAD_VERSION"
   },
   "write": null,
+  "walk": null,
   "notes": [
     "A version-1 set entry was 186 bytes, not 212, so a version-1 file is SHORTER than the length rule asks for and would be refused for its length even without the version byte. That was not true when this fixture was written: the entry was 184 bytes then, one byte less than a version-1 entry, and the length adding up was the whole reason the version byte had to catch it.",
     "That is docs/device-interface.md section 6 exactly: the dangerous mistakes are the ones that parse. Refusing for the version rather than for the length is what keeps the check honest - a file refused for the right reason today may be one refused for a coincidence tomorrow."

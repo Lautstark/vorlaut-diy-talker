@@ -119,6 +119,7 @@
       ]
     ]
   },
+  "walk": null,
   "notes": [
     "3600 is 0x00000E10. Read the wrong way round it is 269352960 - a device that sleeps in eighty years rather than in an hour, and a device that works and is wrong.",
     "The third slot has no sound: its audio hash is sixteen zero bytes and its has-audio flag is 0. A hash of zeros is not a file name, it is the absence of one."

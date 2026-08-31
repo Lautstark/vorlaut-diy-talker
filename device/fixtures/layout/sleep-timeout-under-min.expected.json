@@ -65,6 +65,7 @@
     ]
   },
   "write": null,
+  "walk": null,
   "notes": [
     "The other end of the same rule. Five seconds is a device that goes back to sleep between one key press and the next, which is a device that cannot be used - so the floor is 10 and a field below it means 10.",
     "Zero is not this case and does not clamp to 10: it is the unset field and means the default of 600. no-sets is where that is pinned.",
