@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "1.2.0",
+  "device_interface_version": "1.3.0",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -195,6 +195,38 @@
       "expected": "tile/over-long.expected.json"
     },
     {
+      "fixture": "compressed",
+      "kind": "tile",
+      "outcome": "accepted",
+      "summary": "A palette of three and all three opcodes: runs of red, sixty-four white as palette indices, sixty-four of a colour the palette does not hold.",
+      "file": "tile/compressed.bin",
+      "expected": "tile/compressed.expected.json"
+    },
+    {
+      "fixture": "compressed-short",
+      "kind": "tile",
+      "outcome": "accepted",
+      "summary": "A compressed tile whose stream ends after four rows. The rest is black and the device says nothing, exactly as for a truncated raw one.",
+      "file": "tile/compressed-short.bin",
+      "expected": "tile/compressed-short.expected.json"
+    },
+    {
+      "fixture": "compressed-lying-palette",
+      "kind": "tile",
+      "outcome": "refused",
+      "summary": "The magic, a claim of 256 colours, and four bytes of palette. Refused rather than drawn.",
+      "file": "tile/compressed-lying-palette.bin",
+      "expected": "tile/compressed-lying-palette.expected.json"
+    },
+    {
+      "fixture": "raw-that-spells-the-magic",
+      "kind": "tile",
+      "outcome": "accepted",
+      "summary": "A raw tile whose first pixels happen to read 'vt1'. It is 32768 bytes long, so it is a picture and not a header.",
+      "file": "tile/raw-that-spells-the-magic.bin",
+      "expected": "tile/raw-that-spells-the-magic.expected.json"
+    },
+    {
       "fixture": "spoken",
       "kind": "audio",
       "outcome": "accepted",
@@ -285,6 +317,13 @@
       "outcome": "accepted",
       "summary": "Hello, list, done. The whole of what a browser learns before it decides anything.",
       "expected": "cable/greet-and-list.expected.json"
+    },
+    {
+      "fixture": "tiles-named-in-the-hello",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A device that says which tile forms it can draw. Silence means raw, and silence is what every talker flashed before 2026-08-31 says.",
+      "expected": "cable/tiles-named-in-the-hello.expected.json"
     },
     {
       "fixture": "firmware-named-in-the-hello",

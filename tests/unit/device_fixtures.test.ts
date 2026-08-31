@@ -10,6 +10,7 @@ import {
   SLEEP_MIN, SLEEP_MAX, SLEEP_DEFAULT, layoutIdleSeconds,
 } from "../../loader/src/layout_format.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
+import { decodeTile } from "../../loader/src/tile_encode.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
 } from "../../loader/src/audio_format.js";
@@ -167,7 +168,14 @@ for (const { listed: one, want } of ofKind("tile")) {
         TILE_SIZE * TILE_SIZE * g.bytes_per_pixel === g.conforming_bytes,
         `${TILE_SIZE * TILE_SIZE * g.bytes_per_pixel}`);
 
-  if (want.conforming) {
+  if (want.form === "vt1") {
+    /* The rule that keeps the two forms apart, from this side. A compressed
+     * file of exactly the raw length would be read as a raw one by every
+     * device there is, so it is the one length this form may never have -
+     * and being smaller than raw is the only reason to send it at all. */
+    check(`${one.fixture}: is shorter than the ${g.conforming_bytes} raw bytes`,
+          bytes.length < g.conforming_bytes, `${bytes.length} bytes`);
+  } else if (want.conforming) {
     check(`${one.fixture}: and the fixture is exactly that long`,
           bytes.length === g.conforming_bytes, `${bytes.length} bytes`);
   } else {
@@ -179,6 +187,42 @@ for (const { listed: one, want } of ofKind("tile")) {
     const at = (probe.y * g.width + probe.x) * g.bytes_per_pixel;
     check(`${one.fixture}: pixel (${probe.x}, ${probe.y}) is at byte ${probe.byte}`,
           at === probe.byte, `${at}`);
+  }
+
+  /* The compressed form, read by the browser's own decoder.
+   *
+   * The firmware's half of these same fixtures is tests/test_device_host.py,
+   * and the two are asked the same questions on purpose: which form the file
+   * is in, whether it is readable at all, and what stands at the pixels the
+   * fixture names. A decoder that disagrees with the other one about any of
+   * those puts a wrong picture on a talker with nothing red anywhere. */
+  const decoded = decodeTile(bytes);
+  if (want.form) {
+    check(`${one.fixture}: the browser reads it as the ${want.form} form`,
+          want.form === "raw"
+            ? bytes.length === g.conforming_bytes
+            : bytes.length !== g.conforming_bytes,
+          `${bytes.length} bytes`);
+  }
+  if (want.read?.accepts === false) {
+    check(`${one.fixture}: and refuses it`, decoded === null,
+          decoded === null ? "" : "it was read");
+  } else if (want.form === "vt1") {
+    check(`${one.fixture}: and takes it`, decoded !== null,
+          decoded === null ? "refused" : "");
+    for (const probe of want.read?.probes ?? []) {
+      const at = probe.byte;
+      const got = decoded
+        ? `${decoded[at]!.toString(16).padStart(2, "0")}` +
+          `${decoded[at + 1]!.toString(16).padStart(2, "0")}`
+        : "-";
+      check(`${one.fixture}: (${probe.x}, ${probe.y}) decodes to ${probe.value}`,
+            got === probe.value, got);
+    }
+  }
+  if (want.palette) {
+    check(`${one.fixture}: the palette holds ${want.palette.colours}`,
+          bytes[3]! + 1 === want.palette.colours, `${bytes[3]! + 1}`);
   }
 
   for (const { rgb, value } of want.write?.rgb565_of ?? []) {

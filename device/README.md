@@ -221,7 +221,7 @@ browser waiting for a reply that never comes looks exactly like a broken cable
 | | |
 |---|---|
 | `layout/` | Every field, every stride, and **every one of the five refusal codes**. |
-| `tile/` | 128 by 128 RGB565 big-endian, and what a reader does with a file of the wrong length. |
+| `tile/` | 128 by 128 RGB565 big-endian, both forms a tile may be in, and what a reader does with a file of the wrong length. |
 | `audio/` | 16 kHz mono 16-bit, chunk walking with its pad byte, and four refusals. |
 | `cable/` | Whole transcripts, both extension rules, every error word, the window a file crosses in, a protocol-version mismatch in each direction, and a device that names its build beside eight that do not. |
 | `names.expected.json` | Which names a builder emits, which the device stores, and that the first is inside the second. |
@@ -284,6 +284,14 @@ fixture set that overstates itself is worse than a small one.
    colours, which say which way round a file is and nothing about whether a
    symbol renders. That is `tests/reference/tiles.lock.json`'s business, and
    that lock never crossed this boundary.
+
+   The compressed ones are hand-laid opcodes for the same reason and it counts
+   for more there: an encoder's output is a statement about that encoder, and
+   what a conformance fixture has to state is the format. Whether a real
+   picture survives being compressed is a different question with a different
+   oracle — `tests/test_tile_compression.py` puts the browser's encoder and the
+   firmware's decoder on either side of the fourteen frozen tiles, and neither
+   of them is compared against itself.
 4. **The audio fixtures are not speech.** Ramps. They exercise the container
    and the chunk walk; whether a voice sounds right is not a question a fixture
    can answer.

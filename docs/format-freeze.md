@@ -560,7 +560,7 @@ described.** All four, checked one at a time:
 
 | Gap | Closed by |
 |---|---|
-| The tile payload — two constants, no check | `TILE_W` in [`tile_format.h`](../firmware/vorlaut/tile_format.h), `TILE_SIZE` held to the fixture's geometry in `device_fixtures.test.ts`, `tileReadRow()` held from the host side. The zero-fill is stated in `tile/short`. |
+| The tile payload — two constants, no check | `TILE_W` in [`tile_format.h`](../firmware/vorlaut/tile_format.h), `TILE_SIZE` held to the fixture's geometry in `device_fixtures.test.ts`, `tileReadRow()` held from the host side. The zero-fill is stated in `tile/short`. Since 2026-08-31 the file has a second form and the same treatment covers it — [ADR 0019](../adr/0019-tiles-travel-compressed.md), four more fixtures, and `test_tile_compression.py` for the round trip. |
 | The audio payload — whatever `seekToWavData()` walked past | [`wav_format.h`](../firmware/vorlaut/wav_format.h) and [`audio_format.ts`](../loader/src/audio_format.ts), six fixtures, four of them refusals. |
 | The name rule — stated three times, related nowhere | `names.expected.json`, and `test_device_host.py` checks emitted ⊆ stored. What is left is [N1](#n1-the-builder-emits-names-the-name-rule-forbids), which is enforcement rather than statement. |
 | The language enumeration — read by a regex | `language.expected.json`. `test_texts.py` reads the fixture now, and the regex over `layout_format.ts` is gone. |

@@ -273,6 +273,12 @@ class Cable {
                        (uint32_t)(LittleFS.totalBytes() - LittleFS.usedBytes())),
         out);
     put(cableSayNumber(out, sizeof(out), "files", count()), out);
+    // Which tile forms this firmware can draw. A browser that has never heard
+    // of the keyword skips it, and a device that never says it gets raw tiles
+    // - which is every talker flashed before 2026-08-31 and is exactly what
+    // they were being sent anyway. That is why compression costs no protocol
+    // version: the older device is not broken by it, it is not offered it.
+    put(cableSayWord(out, sizeof(out), "tiles", CABLE_TILE_FORMS), out);
     put(cableSayWord(out, sizeof(out), "end", "hello"), out);
   }
 

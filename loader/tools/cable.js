@@ -18,6 +18,17 @@
 // work out what is missing. That is done below, where there is memory and a
 // language to do it in.
 
+/** The tile form this client can write, matched whole against what the device
+ *  says in its hello. The mirror of CABLE_TILE_FORMS in
+ *  firmware/vorlaut/cable_format.h, and device/fixtures/cable/tiles-named-in-
+ *  the-hello is where the two are held together.
+ *
+ *  Unlike the version below this is not a number and is not compared as one.
+ *  There is no "newer": a browser sends the compressed form to a device that
+ *  named this exact word and the raw form to every other device, so the two
+ *  ends either agree completely or do not try. */
+export const CABLE_TILE_FORM = "vt1";
+
 /** The protocol version this client speaks. See CABLE_VERSION in
  *  firmware/vorlaut/cable_format.h. */
 export const CABLE_VERSION = 2;
@@ -69,7 +80,7 @@ export function versionVerdict(theirs) {
  * client to the device's own reader.
  *
  * @typedef {{version: number, total: number, free: number, files: number,
- *            firmware: string}} Greeting
+ *            firmware: string, tiles: string}} Greeting
  * @typedef {{name: string, size: number}} Held
  * @typedef {{stored: number, removed: number, bytes: number}} Farewell
  * @typedef {{put: {name: string, size: number, crc: number}[], remove: string[],
@@ -309,7 +320,8 @@ export class Cable {
       // Whatever reads this has to be able to write the sentence "it did not
       // say", and giving that state a name here is cheaper than every reader
       // inventing one.
-      const answer = { version: 0, total: 0, free: 0, files: 0, firmware: "" };
+      const answer = { version: 0, total: 0, free: 0, files: 0, firmware: "",
+                       tiles: "" };
       for (;;) {
         const { key, rest } = await this.expect();
         if (key === "end") return answer;              // "end hello"
@@ -324,6 +336,13 @@ export class Cable {
         // these is the business of whoever holds a second version to hold it
         // beside.
         else if (key === "firmware") answer.firmware = rest;
+        // Which tile form the device can draw, empty when it did not say -
+        // and empty is the answer for every talker flashed before
+        // 2026-08-31, which reads raw tiles and nothing else. Kept as the word
+        // the device said and compared whole by whoever sends a tile: a
+        // browser that guessed at a form the device did not name would be
+        // sending it a file it draws as noise, and nothing would say so.
+        else if (key === "tiles") answer.tiles = rest;
         // Anything else is skipped: a newer device may say more than this
         // one knows how to ask about.
       }

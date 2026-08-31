@@ -94,6 +94,7 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 < total 1441792              the partition
 < free 1146880               what is left of it
 < files 37
+< tiles vt1                  and which tile forms it can draw
 < end hello
 
 < file t3bd7….bin 26912
@@ -144,6 +145,20 @@ build, and the eight beside it are the ones that do not.
 That keyword is also the first this protocol has ever gained, and it is the
 extension rule the header has claimed since it was written actually running:
 the device says a word older browsers skip, and `CABLE_VERSION` did not move.
+
+**`tiles` is the second, on 2026-08-31, and it is the rule paying for itself.**
+A tile may now travel compressed ([ADR 0019](../adr/0019-tiles-travel-compressed.md)),
+and a device flashed before that day would draw a compressed one as a palette
+followed by noise — a full panel of it, silently, in a house nobody here knows
+about. So the browser sends the compressed form only to a device that named it,
+and every device that says nothing keeps getting exactly the bytes it got
+yesterday. `fixtures/cable/tiles-named-in-the-hello` is the transcript that
+names a form; the nine beside it are devices that do not.
+
+The word is matched whole and never ordered. There is no "newer" here: a
+browser that read an unknown form as probably-compatible would be sending a
+file it cannot know the other end can read, and neither end would say anything
+when it was wrong.
 
 **A verb the device does not know is answered, not ignored.** `err verb` comes
 back. A browser waiting for a reply that never arrives looks exactly like a

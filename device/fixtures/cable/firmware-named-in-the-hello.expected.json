@@ -10,6 +10,7 @@
   "device_speaks": 2,
   "version_verdict": "ok",
   "device_firmware": "v0.4",
+  "device_tiles": "",
   "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
@@ -65,7 +66,8 @@
         "total": 1441792,
         "free": 1441792,
         "files": 0,
-        "firmware": "v0.4"
+        "firmware": "v0.4",
+        "tiles": ""
       }
     },
     {

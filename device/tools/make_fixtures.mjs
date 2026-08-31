@@ -724,6 +724,186 @@ tileFixture({
   },
 });
 
+// --- the compressed form -----------------------------------------------------
+//
+// Laid out by hand, opcode by opcode, and not by calling an encoder. That is
+// the rule this whole directory runs on and it matters more here than
+// anywhere else in it: an encoder's output is a statement about that encoder,
+// and what a conformance fixture has to state is the format. The bytes below
+// are readable as a sentence - this many of that colour, then these pixels
+// literally - and a reader that disagrees with them is wrong even if every
+// encoder in the repository agrees with it.
+
+const TILE_MAGIC = [0x76, 0x74, 0x31];        // "vt1"
+
+/** A compressed tile, written out from its palette and its opcodes. */
+const compressed = (palette, stream) => Buffer.from([
+  ...TILE_MAGIC, palette.length - 1,
+  ...palette.flatMap((value) => [value >> 8, value & 0xff]),
+  ...stream,
+]);
+
+/** A run of `count` pixels of palette entry `index`. 2..129 per opcode. */
+const run = (count, index) => [count - 2, index];
+/** `values` palette entries, one byte each. 1..64 per opcode. */
+const indices = (values) => [0x80 | (values.length - 1), ...values];
+/** `values` RGB565 pixels, two bytes each, that the palette does not hold. */
+const literals = (values) =>
+  [0xc0 | (values.length - 1), ...values.flatMap((v) => [v >> 8, v & 0xff])];
+
+/** Whole rows of one colour, as few opcodes as the run length allows. */
+function rowsOf(count, index) {
+  const out = [];
+  for (let left = count; left > 0;) {
+    const take = Math.min(left, 129);
+    out.push(...run(take, index));
+    left -= take;
+  }
+  return out;
+}
+
+{
+  // Every one of the three opcodes, in one file, with a picture simple enough
+  // to write the expectation for by hand: two rows of red, one row that is
+  // half white and half a colour the palette does not hold, and black to the
+  // bottom.
+  const RED = rgb565(255, 0, 0);          // f800
+  const WHITE = rgb565(255, 255, 255);    // ffff
+  const BLACK = 0x0000;
+  const STRANGER = 0x1234;                // in no palette entry, so a literal
+  const palette = [BLACK, RED, WHITE];    // black first, so index 0 is black
+
+  const third = [
+    ...indices(Array.from({ length: 64 }, () => 2)),   // 64 white, as indices
+    ...literals(Array.from({ length: 64 }, () => STRANGER)),
+  ];
+  const artefact = compressed(palette, [
+    ...rowsOf(TILE_W * 2, 1),                          // two rows of red
+    ...third,                                          // the third row
+    ...rowsOf(TILE_W * (TILE_H - 3), 0),               // black to the bottom
+  ]);
+
+  tileFixture({
+    name: "compressed",
+    summary: "A palette of three and all three opcodes: runs of red, sixty-four white as palette indices, sixty-four of a colour the palette does not hold.",
+    artefact,
+    expected: {
+      conforming: true,
+      form: "vt1",
+      palette: { colours: 3, entries: palette.map((v) => hex4(v)) },
+      read: {
+        accepts: true,
+        probes: [
+          { x: 0, y: 0, byte: 0, value: hex4(RED) },
+          { x: 127, y: 1, byte: (1 * TILE_W + 127) * 2, value: hex4(RED) },
+          { x: 0, y: 2, byte: (2 * TILE_W) * 2, value: hex4(WHITE) },
+          { x: 63, y: 2, byte: (2 * TILE_W + 63) * 2, value: hex4(WHITE) },
+          { x: 64, y: 2, byte: (2 * TILE_W + 64) * 2, value: hex4(STRANGER) },
+          { x: 127, y: 2, byte: (2 * TILE_W + 127) * 2, value: hex4(STRANGER) },
+          { x: 0, y: 3, byte: (3 * TILE_W) * 2, value: hex4(BLACK) },
+          { x: 127, y: 127, byte: TILE_BYTES - 2, value: hex4(BLACK) },
+        ],
+      },
+      write: null,
+      notes: [
+        "The three opcodes are three different bargains and a reader that muddles two of them draws something plausible rather than nothing. A run misread as a literal stretch eats the pixels after it; a palette literal misread as a raw one halves the row and shifts everything following.",
+        "Runs cross rows on purpose. The stream is one sequence of pixels and the rows are only where the panel wants them, so a reader that restarts its decoder at each row would draw the first row correctly and nothing else.",
+        "The third opcode is what makes the palette optional rather than a ceiling. Five of the fourteen tiles in tests/reference/tiles/ hold more than 256 colours after anti-aliasing, and without an escape every one of them would have had to travel raw.",
+      ],
+    },
+  });
+}
+
+{
+  // The same forgiveness the raw form has, in the compressed one: a stream
+  // that stops mid-tile leaves the rest black and nobody is told.
+  const GREEN = rgb565(0, 255, 0);
+  const artefact = compressed([GREEN], rowsOf(TILE_W * 4, 0));
+
+  tileFixture({
+    name: "compressed-short",
+    summary: "A compressed tile whose stream ends after four rows. The rest is black and the device says nothing, exactly as for a truncated raw one.",
+    artefact,
+    expected: {
+      conforming: false,
+      form: "vt1",
+      palette: { colours: 1, entries: [hex4(GREEN)] },
+      read: {
+        accepts: true,
+        complete_rows: 4,
+        blank_rows_from: 4,
+        probes: [
+          { x: 0, y: 0, byte: 0, value: hex4(GREEN) },
+          { x: 127, y: 3, byte: (3 * TILE_W + 127) * 2, value: hex4(GREEN) },
+          { x: 0, y: 4, byte: (4 * TILE_W) * 2, value: "0000" },
+          { x: 127, y: 127, byte: TILE_BYTES - 2, value: "0000" },
+        ],
+      },
+      write: null,
+      notes: [
+        "One rule for both forms, which is the point of stating it twice. A writer MUST emit a stream that covers all 16384 pixels; a reader draws what arrived and blacks out the rest, and neither form reports anything.",
+        "A stream that stops is not the same as a file that lies about its palette - see compressed-lying-palette, which is refused. The difference is that this one is readable to its last opcode and that one is not readable at all.",
+      ],
+    },
+  });
+}
+
+{
+  // The one way a tile can be refused: it says it is compressed and then the
+  // palette it claims is not there.
+  const artefact = Buffer.from([...TILE_MAGIC, 0xff, 0x00, 0x00, 0x01]);
+
+  tileFixture({
+    name: "compressed-lying-palette",
+    summary: "The magic, a claim of 256 colours, and four bytes of palette. Refused rather than drawn.",
+    artefact,
+    outcome: "refused",
+    expected: {
+      conforming: false,
+      form: "vt1",
+      read: {
+        accepts: false,
+      },
+      write: null,
+      notes: [
+        "The only refusal at this boundary, and it is deliberately narrow: everything else that is the wrong length is read as a raw tile of the wrong length, because that is what it was before there was a second form. A reader that refused more than this would start refusing files the device has always drawn.",
+        "Refused means black, which is also what a missing file draws and what a truncated one mostly draws. Nothing on the device distinguishes them, and that is the argument for the length rules living on the writer's side rather than the reader's.",
+      ],
+    },
+  });
+}
+
+{
+  // A raw tile whose first three bytes spell the magic. It is exactly
+  // TILE_BYTES long, so the length decides before the bytes are looked at.
+  const raw = addressTile();
+  raw[0] = 0x76; raw[1] = 0x74; raw[2] = 0x31;
+
+  tileFixture({
+    name: "raw-that-spells-the-magic",
+    summary: "A raw tile whose first pixels happen to read 'vt1'. It is 32768 bytes long, so it is a picture and not a header.",
+    artefact: raw,
+    expected: {
+      conforming: true,
+      form: "raw",
+      read: {
+        accepts: true,
+        bytes_read: TILE_BYTES,
+        probes: [
+          { x: 0, y: 0, byte: 0, value: "7674" },
+          { x: 1, y: 0, byte: 2, value: "3101" },
+          ...tileProbes([[127, 127]]),
+        ],
+      },
+      write: null,
+      notes: [
+        "This is why the length is tested before the magic and not after. 0x7674 is a green a real symbol can contain, and a reader that sniffed the first three bytes first would draw one picture in sixteen million as a palette followed by noise.",
+        "It is also why a compressed file must never come out at exactly 32768 bytes: it would be read as this. encodeTile() returns the raw bytes whenever the encoding is not smaller, so a conforming writer cannot produce one.",
+      ],
+    },
+  });
+}
+
 // =============================================================================
 // a<hash>.wav - the audio payload
 // =============================================================================
@@ -1173,7 +1353,7 @@ const anyOrder = (line) => ({ from: "device", line, any_order: true });
 function cableFixture({ name, summary, ends, start = [], steps, end = null,
                         script = null, notes = [], window = WINDOW,
                         spoken = CABLE_VERSION, verdict = "ok",
-                        firmware = "" }) {
+                        firmware = "", tiles = "" }) {
   fixture({
     kind: "cable", name, dir: "cable", outcome: "accepted", summary,
     expected: {
@@ -1205,6 +1385,13 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       // a harness that read this out of a header instead could only ever
       // produce the one transcript its own build allows.
       device_firmware: firmware,
+      // Which tile forms the device in this transcript says it can draw, and
+      // empty where it says nothing. Empty is the common case here for the
+      // same reason it is for the firmware word above: every talker flashed
+      // before 2026-08-31 says nothing, and a browser that read silence as a
+      // fault would fail on all of them. What silence means is raw tiles, and
+      // raw tiles are what those devices were being sent anyway.
+      device_tiles: tiles,
       window,
       device_starts_with: start.map((f) => ({
         name: f.name, size: f.bytes.length, crc: hex8(crc32(f.bytes)),
@@ -1225,7 +1412,7 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       // firmware comes after files, for exactly this reason.
       client_script: script && script.map((step) => (
         step.call === "hello"
-          ? { ...step, returns: { ...step.returns, firmware } }
+          ? { ...step, returns: { ...step.returns, firmware, tiles } }
           : step)),
       notes,
     },
@@ -1292,6 +1479,42 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
   // says "dev". A fixture naming the newest tag would go stale on the next
   // one and would be read as a requirement by whoever found it stale.
   const BUILD = "v0.4";
+{
+  // The keyword a browser has to see before it may send a compressed tile,
+  // and the reason compression cost no protocol version. A device that says
+  // nothing here gets raw tiles - which is what it was getting anyway, and is
+  // why the eight transcripts beside this one are the important ones.
+  const FORMS = "vt1";
+  cableFixture({
+    name: "tiles-named-in-the-hello",
+    summary: "A device that says which tile forms it can draw. Silence means raw, and silence is what every talker flashed before 2026-08-31 says.",
+    ends: ["device", "browser"],
+    tiles: FORMS,
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device(`< tiles ${FORMS}`),
+      device("< end hello"),
+      host("> done"),
+      device("< bye 0 0 0"),
+    ],
+    end: { files: [], stored: 0, removed: 0, bytes: 0 },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY, files: 0 } },
+      { call: "done", returns: { stored: 0, removed: 0, bytes: 0 } },
+    ],
+    notes: [
+      "The word is matched whole rather than parsed. A firmware that could draw a second form would say a different word here, not a list, so that two ends can never half-agree about what a tile is - and half-agreeing is the failure that puts a palette on a panel as though it were pixels.",
+      "A browser that treated the absence of this line as a fault would refuse every talker in the field. Absence means raw, raw is what those devices have always been sent, and that is the whole of why a compressed tile format did not have to move CABLE_VERSION: an older device is not broken by it, it is simply not offered it.",
+      "It sits after 'files' and before 'end hello' because that is where the firmware puts it, and the browser skips keywords it does not know in any position - see skip-unknown-keyword. The order is stated here so that a device which moved it would be noticed, not because a reader may depend on it.",
+    ],
+  });
+}
+
   cableFixture({
     name: "firmware-named-in-the-hello",
     summary: "A device that says which build it is carrying, as well as which protocol it speaks. Two questions, two words.",
@@ -2739,7 +2962,7 @@ const INDEX = {
   // MINOR by the rule in docs/device-interface.md section 7 - on the cable it
   // is the ordinary thing, because both ends skip what they do not know, so a
   // device already flashed neither misreads the addition nor sees it.
-  device_interface_version: "1.2.0",
+  device_interface_version: "1.3.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };
