@@ -569,14 +569,21 @@ function checked(read: ReadDevicePackage): Finding[] {
     sets: held.sets, filled: held.filled, keys: held.keys,
     pictures: held.pictures, sounds: held.sounds,
   }));
-  /* What the device's own menu will call this collection. It is the first
-     set's name, because a `.obz` carries no name for a Sammlung and the header
-     has no field for one - see collectionHeadName() in
-     firmware/vorlaut/collections.h, which is where that is argued. Worth
-     saying here rather than leaving somebody to discover it on the talker:
-     a first page called "Runde 1" makes a poor entry in a menu, and the way to
-     fix it is in the editor, before the file is written. */
-  const first = read.plan.sets[0]?.name;
+  /* What the device's own menu will call this collection. It is read off the
+     head of the file, in the first set's name slot, because there is no field
+     of its own - adr/0021 decision 2 refused one, and collectionHeadName() in
+     firmware/vorlaut/collections.h is the other end of it.
+
+     **The same fallback compileDevice() uses, and it has to be.** What goes
+     into that slot is the Sammlung's name where the package carries one and
+     the first set's where it does not; a line here that read the plan alone
+     would name one thing while the talker showed another, silently, for every
+     package written since the name started travelling.
+
+     Worth saying at all rather than leaving somebody to find it on the device,
+     because this is the name they will be choosing between games by - and the
+     way to change it is in the editor, before the file is written. */
+  const first = read.packageName || read.plan.sets[0]?.name;
   if (first) steps.check.say(t("load.holds_collection", { name: first }));
   if (held.language) {
     steps.check.say(t("load.holds_language", { name: languageName(held.language) }));
@@ -826,6 +833,17 @@ function costSaid(work: Plan): string[] {
   said.push(work.room > 1
     ? t("cable.cost_collections", { on: work.collections, room: work.room })
     : t("cable.cost_one"));
+  /* And the one line in here that is not a number: a name the device's menu
+     would be showing twice once this has landed. It rides with the cost rather
+     than standing on its own because it is wanted at the same moment and by
+     the same person - somebody with a finger over Send, deciding - and because
+     the only remedy is upstream of that press. Nothing is broken by two
+     entries with one name, so this is prose and not a refusal; adr/0021 is
+     where that is argued and sameNameOnDevice() in cable.ts is what finds it.
+
+     Last, after the numbers, so that a step somebody is reading for the size
+     still leads with the size. */
+  if (work.sameName) said.push(t("cable.same_name", { name: work.sameName }));
   return said;
 }
 

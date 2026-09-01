@@ -183,7 +183,22 @@ each, against 13580 for the one that is showing.
   collections and neither replaces the other; what is lost is only the ability
   to choose between them by reading. The remedy is a rename in the editor, and
   a page that warned when a payload would land a second collection under a name
-  already on the device would close it properly.
+  already on the device would close it properly. **It is built.**
+  `sameNameOnDevice()` in [`loader/src/cable.ts`](../loader/src/cable.ts) reads
+  the head of every other collection during the session the diff already opens,
+  and what it finds travels in the `Plan` beside the numbers — so the sentence
+  is said by both presses that ask what a transfer would do, the cost button
+  and the transfer itself, before the first file crosses. It warns and does not
+  refuse, for the reason the bullet gives: nothing is broken and both
+  collections stay. What the timing buys is the size of the remedy — before the
+  transfer it is a rename, after it a rename, a re-export and a second
+  transfer. Three things it deliberately does not call a clash: a collection
+  replacing itself, which lands on its own file both times because the name is
+  a hash of the Sammlung's id; a device that says it holds one, which has
+  nothing to collide with and no `get` to be asked with; and a collection this
+  page cannot read, which is passed over rather than guessed at, exactly as the
+  listing passes over it. `tests/unit/cable_same_name.test.ts` is what holds
+  all four.
 - **The set a talker is on resets when the collection changes.** Set 4 of one
   collection is not set 4 of another.
 - **About 1.2 KiB of RAM**, static: sixteen names and file names.
