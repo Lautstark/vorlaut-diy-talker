@@ -180,18 +180,18 @@ static uint8_t spoken[AUDIO_PRELOAD];
 // measurable beside a read from LittleFS.
 //
 // 50 is half the amplitude, about 6 dB down. **This is only where a device
-// starts**: the menu has leiser and lauter on it, what they set is kept in
-// NVS, and this is what a device that has never been told anything uses - a
-// fresh flash, or one whose stored setting could not be read. 100 is exactly
-// what the device did before this existed, and the scaling is written so that
-// 100 leaves every sample untouched.
+// starts**: the menu has leiser and lauter on a screen of its own, what they
+// set is kept in NVS, and this is what a device that has never been told
+// anything uses - a fresh flash, or one whose stored setting could not be
+// read. 100 is exactly what the device did before this existed, and the
+// scaling is written so that 100 leaves every sample untouched.
 //
 // It is deliberately not settable from a layout. That would put a volume in
 // layout.bin, which means a field in the format, a control in the editor -
 // which lives in another repository - and a version of the device interface,
 // for something the person holding the talker should be able to change in the
-// room they are in. The menu is where that belongs, and it needs no format at
-// all.
+// room they are in. The menu is where that belongs - one screen down from the
+// screen it opens on, see drawVolume() - and it needs no format at all.
 //
 // The default can still be moved without editing this line, the same way
 // FORCE_SLEEP_S is:
@@ -202,7 +202,7 @@ static uint8_t spoken[AUDIO_PRELOAD];
 #define AUDIO_VOLUME_PERCENT 50
 #endif
 
-// The range the two menu keys move in, and the step they move by.
+// The range the two volume keys move in, and the step they move by.
 //
 // Ten steps, and the bottom one is not silence. A talker that says nothing is
 // indistinguishable from a broken one - the whole device is five keys that
@@ -313,7 +313,8 @@ static char activeFile[COLLECTION_FILE_CHARS + 1] = "";
 
 enum Mode {
   MODE_NORMAL,
-  MODE_MENU,        // volume, and the way to the collections
+  MODE_MENU,        // the way to the two below it, and nothing else
+  MODE_VOLUME,      // how loud, on a screen of its own
   MODE_COLLECTIONS, // which collection - and, on an empty device, why not
 };
 static Mode mode = MODE_NORMAL;
@@ -633,33 +634,52 @@ static void drawMenuKey(Panel *tft, const char *first, const char *second,
 // Only show what actually exists. Entries appear once the function behind
 // them exists - not before.
 //
-// Four live keys out of five. Fetching content, setting up Wi-Fi and pairing
-// were keys 1 to 3 and went with the radio, which left Info and Back and three
-// dark keys; two of those became the volume, and nothing had to be given up to
-// fit it - the room was already there.
+// **Nothing on this screen changes anything. Every live key on it leads
+// somewhere.** The volume and the collections, one key each, a screen apiece
+// below - and two keys standing dark, because there is no third thing yet.
+// Fetching content, setting up Wi-Fi and pairing were keys 1 to 3 once, and
+// all three went with the radio.
 //
-// **Quieter, the reading, louder, and the way to the collections.** The pair
-// either side of the number are a control somebody can read rather than two
-// keys that do something invisible, and the number is on the same screen as the
-// keys that move it on purpose: somebody making a device quieter is listening,
-// not navigating.
-//
-// The fourth key is where the second thing this menu is for begins, and it is
-// the only thing below this screen. Volume stays here because it is the one
-// thing in the menu somebody presses more than once, and having to find the way
-// back to the right screen first would be a worse answer than a screen that
-// changes under them. Two things and four keys need no tree.
+// The volume used to be right here, three keys of it, and the reason written
+// down beside it was that it is the one thing in the menu somebody presses
+// more than once. That reason is still true and the decision is reversed
+// anyway, because it was the wrong thing to weigh. **A first screen that
+// carries controls of its own does not grow.** This one was already full at
+// two things, so whatever came third would have had to go a level down, and
+// then some of what the menu does would sit above and some below with no rule
+// anybody could see from the outside. A screen per thing scales. One more
+// press for the volume is what that costs, and two dark keys are what it looks
+// like until the third thing arrives.
 //
 // Info was key 1 and is not a key any more. Its job was to tell a device with
 // no content from a device with no file system, and that is exactly what the
 // collection screen says when it has no names to show - see drawCollections().
 static void drawMenu() {
+  drawMenuKey(display[0], text().volume, nullptr);
+  drawMenuKey(display[1], text().collections, nullptr);
+  drawMenuKey(display[2], nullptr, nullptr);
+  drawMenuKey(display[3], nullptr, nullptr);
+  drawMenuKey(display[SET_BUTTON], text().back, nullptr);
+}
+
+/** How loud, and the two keys that move it.
+ *
+ * **The pair either side of the number are a control somebody can read** rather
+ * than two keys that do something invisible, and the number is on the same
+ * screen as the keys that move it on purpose: somebody making a device quieter
+ * is listening, not navigating. None of that changed when this stopped being
+ * the screen the menu opens on - only the way in did.
+ *
+ * The fourth key stays dark. There is no fourth thing the volume needs, and a
+ * key borrowed from the screen above to fill the gap would put one thing in two
+ * places. */
+static void drawVolume() {
   char percent[8];
   snprintf(percent, sizeof(percent), "%u%%", (unsigned)volumeNow);
   drawMenuKey(display[0], text().quieter, nullptr);
   drawMenuKey(display[1], text().volume, percent);
   drawMenuKey(display[2], text().louder, nullptr);
-  drawMenuKey(display[3], text().collections, nullptr);
+  drawMenuKey(display[3], nullptr, nullptr);
   drawMenuKey(display[SET_BUTTON], text().back, nullptr);
 }
 
@@ -815,7 +835,7 @@ static void changeVolume(int8_t by) {
     saveVolume();
     Serial.printf("volume: %u%%\n", (unsigned)volumeNow);
   }
-  drawMenu();
+  drawVolume();
   playTone();
 }
 
@@ -824,10 +844,12 @@ static void changeVolume(int8_t by) {
  * One function rather than the `mode == MODE_MENU ? drawMenu() : drawCurrentSet()`
  * that stood in four places. It was already the sort of line that gets forgotten
  * in the fifth place, and a second menu screen would have made every one of the
- * four wrong instead of merely repetitive. */
+ * four wrong instead of merely repetitive. There are three of them now, which
+ * is the same argument again with a bigger number. */
 static void redraw() {
   switch (mode) {
     case MODE_MENU: drawMenu(); break;
+    case MODE_VOLUME: drawVolume(); break;
     case MODE_COLLECTIONS: drawCollections(); break;
     default: drawCurrentSet(); break;
   }
@@ -846,6 +868,19 @@ static void leaveMenu() {
   countdownShown = -1;
   Serial.println("menu left");
   drawCurrentSet();
+}
+
+/** One level down, to the volume.
+ *
+ * Deliberately the same shape as enterCollections() below - the mode, the idle
+ * clock, a word to the log, draw. Two screens under the menu and one way of
+ * getting into either; a second mechanism for the second one would be two
+ * things to keep in step for no gain. */
+static void enterVolume() {
+  mode = MODE_VOLUME;
+  menuSince = millis();
+  Serial.println("volume opened");
+  drawVolume();
 }
 
 // Both defined further down, with the settings and the key handling. Needed up
@@ -1590,9 +1625,10 @@ void loop() {
   // The gesture takes precedence - otherwise letting go would count as a press.
   if (menuComboReady()) {
     // Out of the menu from wherever in it the device is, and that is the one
-    // place the second screen is NOT one level deeper: the gesture that opens
-    // the menu closes it, and having to climb back up a level first before the
-    // way out worked would be the tree this menu deliberately is not.
+    // place the screens below are NOT one level deeper: the gesture that opens
+    // the menu closes it, and having to climb back up first before the way out
+    // worked would make the gesture depend on where somebody happens to be
+    // standing. The set key is the one that counts levels.
     if (mode == MODE_NORMAL) enterMenu(); else leaveMenu();
     // Both keys are still being held. Without the wait, the set key would
     // switch again 400 ms later.
@@ -1616,17 +1652,19 @@ void loop() {
 
   if (mode == MODE_MENU) {
     if (pressed == SET_BUTTON) {
+      // **The set key is back on every screen it appears on, and this is the
+      // top one, so back is out.** One word, one key, one rule; the two screens
+      // below go up a level with the same key and the same label, and neither
+      // of them has to say anything else.
       leaveMenu();
     } else if (pressed == 0) {
-      // Volume is on the screen the menu opens on, and stays there. It is the
-      // one thing in here somebody presses more than once, and having to find
-      // the way back to the right screen first would be a worse answer than a
-      // screen that changes under them - which is the same sentence that used
-      // to be about the info page and is now about the level below.
-      changeVolume(-(int8_t)VOLUME_STEP);
-    } else if (pressed == 2) {
-      changeVolume((int8_t)VOLUME_STEP);
-    } else if (pressed == 3) {
+      enterVolume();
+    } else if (pressed == 1) {
+      // Which is also MENU_KEY_B. Someone leaving the menu by the gesture whose
+      // finger lands here a few milliseconds before the set key opens the
+      // collections on the way, and the gesture then still closes the menu from
+      // where it now is - so this costs a flicker and never a wrong screen. The
+      // set key has had exactly this property since the menu existed.
       enterCollections();
     }
     if (pressed >= 0) {
@@ -1634,6 +1672,31 @@ void loop() {
       menuSince = millis();
     }
     // Do not get stuck in the menu: back after a while without input.
+    if (millis() - menuSince >= MENU_IDLE_MS) leaveMenu();
+    delay(5);
+    return;
+  }
+
+  if (mode == MODE_VOLUME) {
+    if (pressed == SET_BUTTON) {
+      // Back up one, not out - the same two lines the collection screen has
+      // below, because it is the same key doing the same thing.
+      mode = MODE_MENU;
+      Serial.println("volume closed");
+      drawMenu();
+    } else if (pressed == 0) {
+      changeVolume(-(int8_t)VOLUME_STEP);
+    } else if (pressed == 2) {
+      changeVolume((int8_t)VOLUME_STEP);
+    }
+    if (pressed >= 0) {
+      lastActivity = millis();
+      menuSince = millis();
+    }
+    // **Out of the menu altogether, not up one level.** Word for word the
+    // reason the collection screen gives below, and it has to be said again
+    // here rather than borrowed: the depth is what a device stuck in the menu
+    // does not care about.
     if (millis() - menuSince >= MENU_IDLE_MS) leaveMenu();
     delay(5);
     return;

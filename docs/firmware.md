@@ -383,17 +383,37 @@ diagonally furthest apart — hard to hit at the same time with a child's hand.
 While holding, all displays count down; letting go cancels without anything
 happening.
 
-In the menu the keys label themselves. Currently:
+In the menu the keys label themselves. **The first screen only points**, and
+everything the menu can do has a screen of its own below it:
 
-| Key | |
-|---|---|
-| 1 | **Info** — number of sets, is the file system there |
-| Set | **back** to normal operation |
+| Key | Menu | Sound | Content |
+|---|---|---|---|
+| 1 | **Sound** | **quieter** | a collection |
+| 2 | **Content** | how loud, in percent | a collection |
+| 3 | — | **louder** | a collection |
+| 4 | — | — | a collection, or **next** past four of them |
+| Set | **back** — out of the menu | **back** — up one | **back** — up one |
 
-The other three stay dark. They were *Fetch content*, *new Wi-Fi* and *Pair*,
-and all three went with the radio: content arrives over the cable now, and
-nothing about that is chosen here. A transfer can start while the menu is open
-or closed — the device answers a browser either way.
+**The set key means *back* on all three, and back from the top is out.** That is
+the whole of the navigation, and it is the same gesture that means *on to the
+next set* in normal operation — giving it a second meaning inside the menu
+would cost more than the two keys standing empty on the first screen.
+
+The first screen carried the volume itself until 2026-09-01, three keys of it,
+on the argument that the volume is the one thing in here anybody presses more
+than once. It moved because a first screen that carries controls of its own
+does not grow: it was full at two things, and the third would have had to go a
+level down, leaving some of the menu above and some below with no rule visible
+from the outside. One more press for the volume is the price.
+
+Keys 1 to 3 of the first screen were *Fetch content*, *new Wi-Fi* and *Pair*
+once, and all three went with the radio: content arrives over the cable now,
+and nothing about that is chosen here. A transfer can start while the menu is
+open or closed — the device answers a browser either way.
+
+**Thirty seconds without a press leaves the menu altogether, from any depth**
+(`MENU_IDLE_MS`). Not up one level: a device sitting in the menu is a device
+that is not speaking, and how deep it is makes no difference to that.
 
 ## Fetching content
 
