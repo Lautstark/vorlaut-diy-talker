@@ -372,8 +372,14 @@ const steps = {
   file: new Step(1, "load.step_file"),
   check: new Step(2, "load.step_check", "load.step_check_ahead"),
   compile: new Step(3, "load.step_compile", "load.step_compile_ahead"),
-  connect: new Step(4, "load.step_connect", "load.step_connect_ahead"),
-  send: new Step(5, "load.step_send", "load.step_send_ahead"),
+  /* Not a number any more, and that is the whole of what the door changed.
+     Connecting happens before a file is chosen now, so it is not a rung on the
+     ladder - it is the thing that was already true when the ladder started.
+     What is left here is the recovery surface: a talker that went to sleep
+     mid-flow, or a browser that never had a port to grant. It joins the send
+     view only when it has something to ask for. */
+  connect: new Step(null, "load.step_connect"),
+  send: new Step(4, "load.step_send", "load.step_send_ahead"),
 };
 
 /** Whether this browser can reach the device at all, said above the first step
@@ -429,9 +435,14 @@ lead.textContent = t("load.lead");
 const here = document.createElement("p");
 here.className = "here";
 here.textContent = t("load.here");
+/* What the page is showing. Everything above this line is on every view -
+   the name of the page, what it does, where the file stays - and everything
+   below it is swapped. */
+const viewRoot = document.createElement("div");
+
 page.append(heading, lead, here);
 if (!cableSupported()) page.append(gate());
-page.append(announcer, ...Object.values(steps).map((one) => one.root));
+page.append(announcer, viewRoot);
 document.body.append(page);
 
 /** The step somebody is now meant to be standing on, brought to where they can
@@ -741,7 +752,17 @@ async function compile(read: ReadDevicePackage, findings: Finding[]): Promise<vo
   announce(t("load.compiled", { files: made.files.size, size: KIB(bytes) }));
 
   offerFolder();
-  connectStep();
+  /* The steps are attached first and filled second, because connectStep() ends
+     by scrolling to whichever step somebody is now standing on, and a node
+     that is not in the document yet cannot be scrolled to. */
+  sendView();
+  if (connectionWanting()) {
+    connectStep({ andSend: false });
+    bringIntoView(steps.connect);
+  } else {
+    sendStep();
+    bringIntoView(steps.send);
+  }
 }
 
 /* ---------------------------------------------------------- the folder --- */
@@ -892,6 +913,9 @@ async function grant(button?: HTMLButtonElement): Promise<void> {
     if (await connectDevice()) askAgain = false;
   } finally {
     connectStep();
+    /* The step may have just stopped being wanted, and a satisfied recovery
+       surface should not stay on screen saying so. */
+    if (view === "send") sendView();
   }
 }
 
@@ -1011,6 +1035,12 @@ async function cost(ask: HTMLButtonElement): Promise<void> {
         on: error.facts.on || 0, room: error.facts.room || 0,
       });
       connectStep({ andSend: false });
+      /* And back into the view. connectStep() fills the step; what decides
+         whether it is on screen is sendView(), because the step joins the send
+         view only when the connection wants something - which is exactly what
+         has just become true. Filling a detached node was a recovery path that
+         worked and could not be seen. */
+      if (view === "send") sendView();
     } else {
       line.textContent = saying(error);
     }
@@ -1125,6 +1155,12 @@ async function send(go: HTMLButtonElement): Promise<void> {
     const again = steps.send.button(t("load.send"), () => void send(again), "btn primary");
     steps.send.row(again);
     connectStep({ andSend: false });
+    /* And back into the view. connectStep() fills the step; what decides
+       whether it is on screen is sendView(), because the step joins the send
+       view only when the connection wants something - which is exactly what
+       has just become true. Filling a detached node was a recovery path that
+       worked and could not be seen. */
+    if (view === "send") sendView();
     go.disabled = false;
   }
 }
@@ -1224,17 +1260,23 @@ function collectionsSection(): void {
                                      () => void look()));
 }
 
+/** Whether a look is in flight, and what the last one came to. Both are read
+ *  by talkerView(), which is the only thing that draws either. */
+let looking = false;
+let lookFailed: string | null = null;
+
 async function look(button?: HTMLButtonElement): Promise<void> {
   if (button) button.disabled = true;
   removing = null;
-  collections.begin();
-  const line = collections.say(t("cable.looking"), "aside");
+  looking = true;
+  lookFailed = null;
+  if (view === "talker") talkerView();
   try {
     /* From the click, before anything that awaits for long - the same rule the
-       connect step is built around. A dismissed picker leaves the section
-       exactly as it was. */
+       connect step is built around. A dismissed picker leaves the view exactly
+       as it was. */
     if (!haveDevice()) {
-      if (!await connectDevice()) { collectionsSection(); return; }
+      if (!await connectDevice()) { looking = false; talkerView(); return; }
     }
     onDevice = await readCollections(devices());
   } catch (error) {
@@ -1242,17 +1284,20 @@ async function look(button?: HTMLButtonElement): Promise<void> {
     if (error instanceof Trouble && error.word === "cable_no_device") {
       askAgain = true;
     }
-    line.textContent = saying(error);
-    /* And the way back in. begin() took the button out of the body on the way
-       past, and collectionsSection() would redraw over the sentence that has
-       just been written - so it goes back beside the failure rather than
-       instead of it, which is what drop()'s own failure path does. Without
-       this the only way to ask a second time is to reload the page. */
-    collections.row(collections.button(t("load.collections_check"),
-                                       () => void look()));
+    lookFailed = saying(error);
+    /* Which is also what a board that has never been flashed looks like: there
+       is no firmware on it to answer with. So the failure is recorded the way
+       the firmware section reads it, rather than only as a sentence - see the
+       note in talkerView() about why that section is drawn under a failure. */
+    if (error instanceof Trouble && error.word === "cable_no_device") {
+      deviceSays = null;
+      nothingAnswered = true;
+    }
     return;
   } finally {
+    looking = false;
     if (button) button.disabled = false;
+    if (view === "talker") talkerView();
   }
   collectionsSection();
 
@@ -1302,13 +1347,14 @@ async function drop(one: OnDevice, go: HTMLButtonElement): Promise<void> {
        edited in memory would be this page's opinion of it. */
     removing = null;
     onDevice = null;
-    collections.row(collections.button(t("load.collections_check"),
-                                       () => void look()));
+    void look();
   } catch (error) {
     add(saying(error));
     now(t("cable.failed_short"));
     removing = null;
     onDevice = null;
+    /* Not a look this time. The transcript above says what went wrong and
+       reading it is the point; asking the device again would wipe it. */
     collections.row(collections.button(t("load.collections_check"),
                                        () => void look()));
   }
@@ -1520,36 +1566,303 @@ async function write(which: "whole" | "program",
  * one press is enough later. */
 watchForDevices();
 
-/* And what this deploy carries, also on load and also without a gesture. A
- * manifest that says there is no image leaves the section unbuilt, which is
- * why it is appended here rather than with the five - a section that appears
- * when a fetch comes back is honest about a page that sometimes has one and
- * sometimes does not. */
-/* The collections section is on the page from the start, and unlike the
- * firmware one it is drawn whether or not this browser can reach a cable: on
- * Firefox it says so, which is a truer page than one where a whole section is
- * silently missing.
- *
- * **The firmware section goes above it**, which is the other way round from
- * how these two arrived. The old order followed the five steps - content after
- * content - and that is a reason about this page rather than about the thing
- * on the desk. What somebody who has just connected a talker wants first is
- * what the talker *is*, and only then what is on it; and the one of these two
- * that can be out of date without anybody noticing is the program, not the
- * collections.
- *
- * insertBefore() rather than appending it first, because *when* it appears
- * still has to be honest: a deploy carrying no image leaves the section
- * unbuilt, so it arrives with the manifest and takes its place above rather
- * than holding an empty one from the start. */
-page.append(collections.root);
-collectionsSection();
+/* ----------------------------------------------------------- the views --- */
 
+/**
+ * Three things, one at a time: the door, the talker, and sending.
+ *
+ * **The door comes first because the cable does.** Every fact worth showing
+ * about a talker - which build it runs, what it is holding, how much room is
+ * left - is on the far end of a connection, and a page that asks for a file
+ * before asking for the device spends four steps before it can say any of
+ * them. adr/0017 already put the program and the content below the flow for
+ * being "what somebody does once" rather than every time; this goes further
+ * and says the flow is one of the things you do *to* a talker, not the page
+ * itself.
+ *
+ * **The door is not a gate, and that distinction is the whole risk here.**
+ * Web Serial is Chrome and Edge; so is showDirectoryPicker(). There is a
+ * comment above gate() about a version of this page that let a Firefox reader
+ * spend the whole thing to learn the one fact that decided whether it was any
+ * use to them, and a door saying "connect the talker" and nothing else is that
+ * same page in a better shape. So the door carries a second way in, and in a
+ * browser with no cable that way in is the primary button.
+ *
+ * Swapped rather than hidden. A view that is not showing is not in the
+ * document, so nothing in it can be found by a query, focused by a tab, or
+ * read aloud - the same rule the step preview arrived at, applied to the page.
+ */
+type View = "door" | "talker" | "send";
+let view: View = "door";
+
+/** Whether the connection wants a press before anything can cross the cable.
+ *
+ * Asked rather than remembered: a port can be revoked, a talker can be
+ * unplugged, and askAgain is set by every failure that turned out to be
+ * nothing on the other end. */
+function connectionWanting(): boolean {
+  return !cableSupported() || !haveDevice() || askAgain;
+}
+
+function goTo(next: View): void {
+  view = next;
+  render();
+}
+
+function render(): void {
+  if (view === "door") doorView();
+  else if (view === "talker") talkerView();
+  else sendView();
+}
+
+/* -------------------------------------------------------------- door --- */
+
+function doorView(): void {
+  const card = document.createElement("section");
+  card.className = "door";
+
+  const title = document.createElement("h2");
+  title.textContent = t("door.wake_title");
+  const lead = document.createElement("p");
+  lead.textContent = t("door.wake_lead");
+  card.append(title, lead);
+
+  if (cableSupported()) {
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn primary";
+    go.textContent = t("door.connect");
+    go.onclick = () => void enterTalker(go);
+    card.append(go);
+  }
+
+  /* The way past, and in a browser that cannot reach a cable it is the only
+     way on - so there it is the primary button rather than a line under one. */
+  const past = document.createElement("p");
+  past.className = "door__past";
+  const anyway = document.createElement("button");
+  anyway.type = "button";
+  anyway.className = cableSupported() ? "linklike" : "btn primary";
+  anyway.textContent = t("door.without");
+  anyway.onclick = () => goTo("send");
+  past.append(anyway);
+  card.append(past);
+
+  const browsers = document.createElement("p");
+  browsers.className = "door__browsers";
+  browsers.textContent = t("door.browsers");
+  card.append(browsers);
+
+  viewRoot.replaceChildren(card);
+}
+
+/** The picker, from this click and with nothing waiting behind it.
+ *
+ * device.ts spells out why that matters: requestPort() needs transient
+ * activation and Chrome expires it in about five seconds, so a picker opened
+ * behind a build costs a build nobody asked for. At the door there is nothing
+ * behind it at all, which is the shape that rule always wanted. */
+async function enterTalker(button: HTMLButtonElement): Promise<void> {
+  button.disabled = true;
+  try {
+    if (connectionWanting()) {
+      if (!await connectDevice()) return;   // dismissed: the door, unchanged
+      askAgain = false;
+    }
+    onDevice = null;
+    view = "talker";
+    void look();                            // which draws the view as it goes
+  } finally {
+    button.disabled = false;
+  }
+}
+
+/* ------------------------------------------------------------ talker --- */
+
+/** Whether the page carries a newer build than the one the talker answered
+ *  with. The one state that earns a mark on the fact strip. */
+function firmwareBehind(): boolean {
+  const word = deviceSays?.firmware || onDevice?.talker.firmware || "";
+  if (!carried || !word) return false;
+  return firmwareVerdict(word, carried.release) === "device_older";
+}
+
+/** What the talker is, in the three facts its greeting already carried.
+ *
+ * Always the same three and always in this order, so that after the first
+ * reading they are found by position. Firmware first: it is the one of the
+ * three that can be wrong without anything looking wrong. */
+function factsStrip(on: NonNullable<typeof onDevice>): HTMLElement {
+  const list = document.createElement("dl");
+  list.className = "facts";
+  const add = (label: string, value: string, small?: string, mark = false) => {
+    const box = document.createElement("div");
+    box.className = "fact";
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const said = document.createElement("dd");
+    said.textContent = value;
+    if (small) {
+      const quiet = document.createElement("small");
+      quiet.textContent = ` ${small}`;
+      said.append(quiet);
+    }
+    if (mark) {
+      const dot = document.createElement("span");
+      dot.className = "fact__dot";
+      dot.setAttribute("aria-hidden", "true");
+      said.append(dot);
+    }
+    box.append(term, said);
+    list.append(box);
+  };
+  /* A build that names itself, or a dash. flash.device_unnamed is the sentence
+     for the other case and it belongs in the panel below, where there is room
+     to say what it means; a strip read at a glance gets the dash. */
+  add(t("talker.fact_firmware"), on.talker.firmware || "-", undefined,
+      firmwareBehind());
+  add(t("talker.fact_collections"), String(on.on.length),
+      t("talker.of", { n: on.talker.collections }));
+  add(t("talker.fact_room"), String(KIB(on.free)), "KiB");
+  return list;
+}
+
+function roomBar(on: NonNullable<typeof onDevice>): HTMLElement[] {
+  const used = Math.max(0, on.total - on.free);
+  const bar = document.createElement("div");
+  bar.className = "meter";
+  bar.setAttribute("aria-hidden", "true");
+  const fill = document.createElement("i");
+  fill.style.width = `${on.total ? Math.round((used / on.total) * 100) : 0}%`;
+  bar.append(fill);
+  const line = document.createElement("p");
+  line.className = "aside";
+  line.textContent = t("talker.used", { used: KIB(used), total: KIB(on.total) });
+  return [bar, line];
+}
+
+function talkerView(): void {
+  const parts: HTMLElement[] = [];
+  const title = document.createElement("h2");
+  title.className = "view__title";
+  title.textContent = t("talker.title");
+  parts.push(title);
+
+  if (looking) {
+    const line = document.createElement("p");
+    line.className = "aside";
+    line.textContent = t("cable.looking");
+    viewRoot.replaceChildren(...parts, line);
+    return;
+  }
+
+  if (lookFailed) {
+    const line = document.createElement("p");
+    line.className = "refuses";
+    line.textContent = lookFailed;
+    const row = document.createElement("div");
+    row.className = "row";
+    const again = document.createElement("button");
+    again.type = "button";
+    again.className = "btn primary";
+    again.textContent = t("talker.reconnect");
+    again.onclick = () => void look();
+    /* And the door, because "try again" is the wrong answer when the talker
+       on the other end is not the one that was meant. */
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "btn quiet";
+    back.textContent = t("door.connect");
+    back.onclick = () => goTo("door");
+    row.append(again, back);
+
+    /* And the firmware section under it, which is not a consolation prize.
+       A board with no program on it cannot answer - that is what having no
+       program means - so "nothing answered" is the normal state of exactly the
+       device the first flash exists for. A view that showed only the failure
+       would put the one thing that helps behind a door that cannot open. */
+    const under: HTMLElement[] = [];
+    if (carried) {
+      firmwareSection();
+      under.push(firmware.root);
+    }
+    viewRoot.replaceChildren(...parts, line, row, ...under);
+    return;
+  }
+
+  if (onDevice) parts.push(factsStrip(onDevice), ...roomBar(onDevice));
+
+  /* The program above the content, which is the order the sections settled
+     into before the views existed and for the same reason: what the talker is
+     comes before what is on it. */
+  if (carried) {
+    firmwareSection();
+    parts.push(firmware.root);
+  }
+  collectionsSection();
+  parts.push(collections.root);
+
+  const row = document.createElement("div");
+  row.className = "row";
+  const go = document.createElement("button");
+  go.type = "button";
+  go.className = "btn primary";
+  go.textContent = t("talker.send");
+  go.onclick = () => goTo("send");
+  row.append(go);
+  parts.push(row);
+
+  viewRoot.replaceChildren(...parts);
+}
+
+/* ------------------------------------------------------------ sending --- */
+
+/** Where you are and the way back. A button rather than a link, because it
+ *  goes nowhere - it swaps the view - which is the same reason .linklike
+ *  exists at all. */
+function crumb(): HTMLElement {
+  const line = document.createElement("p");
+  line.className = "crumb";
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "linklike";
+  back.textContent = t("talker.back");
+  back.onclick = () => goTo("talker");
+  const arrow = document.createElement("span");
+  arrow.textContent = "\u203A";
+  arrow.setAttribute("aria-hidden", "true");
+  const now = document.createElement("b");
+  now.textContent = t("talker.sending");
+  line.append(back, arrow, now);
+  return line;
+}
+
+function sendView(): void {
+  const parts: HTMLElement[] = [];
+  /* Only where there is a talker to go back to. Somebody who came through the
+     second door has no device and no view behind this one. */
+  if (onDevice) parts.push(crumb(), factsStrip(onDevice));
+  parts.push(steps.file.root, steps.check.root, steps.compile.root);
+  /* The recovery surface, and only when it has something to ask for. */
+  if (connectionWanting()) parts.push(steps.connect.root);
+  parts.push(steps.send.root);
+  viewRoot.replaceChildren(...parts);
+}
+
+/* --------------------------------------------------------------- boot --- */
+
+watchForDevices();
+render();
+
+/* What this deploy carries, on load and without a gesture. A manifest that
+ * says there is no image leaves the section unbuilt, and then the talker view
+ * simply has no firmware panel in it - absent rather than present and empty,
+ * which is what it has always been. */
 if (cableSupported()) {
   void carriedFirmware().then((found) => {
     if (!found) return;
     carried = found;
-    page.insertBefore(firmware.root, collections.root);
     firmwareSection();
+    if (view === "talker") talkerView();
   });
 }

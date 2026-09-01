@@ -185,8 +185,24 @@ async function onDevice(page: Page) {
  * setInputFiles rather than a click on the button: the button opens the
  * browser's own picker, which no test can answer, and the input behind it is
  * the thing the page actually reads. The bytes are the real article. */
+/** Past the door without a talker, which is the route every spec about a file
+ *  takes: the flow is a task you enter now, and this is the entrance that
+ *  needs no device and works in every browser. */
+async function toFile(page: Page) {
+  await page.getByRole("button", { name: SPEAKS["door.without"], exact: true })
+    .click();
+}
+
+/** Through the door to the talker. The port is already granted by
+ *  withDevice(), so this opens no picker - it connects and looks. */
+async function toTalker(page: Page) {
+  await page.getByRole("button", { name: SPEAKS["door.connect"], exact: true })
+    .click();
+}
+
 async function choose(page: Page, bytes: Buffer, name = "kitchen-device.obz") {
   await page.goto("./loader/");
+  await toFile(page);
   await expect(page.getByRole("heading", { name: SPEAKS["load.title"] }))
     .toBeVisible();
   await page.setInputFiles("input[type=file]", {
@@ -243,7 +259,10 @@ test("it names every key that will not be what the Sammlung says it is",
   expect(said.some((line) => line.includes(LONG.toFixed(1)))).toBe(true);
 
   /* Notes, not refusals - so the flow went on and the device step is open. */
-  expect(await stateOf(page, "load.step_connect")).not.toBe("waiting");
+  /* Absent, which is stronger than "not waiting" and is what the door
+     changed: a port is granted, so connecting is not a rung on this ladder.
+     The step comes back only when the connection wants something. */
+  await expect(step(page, "load.step_connect")).toHaveCount(0);
 });
 
 test("a file that is not a package is refused in words, and nothing else runs",
@@ -485,7 +504,10 @@ test("a picture that will not decode is a grey cross and a line, not a failure",
   await expect(findings(page, "load.step_compile").filter({ hasText: "wide.png" }))
     .toHaveCount(1);
   /* It is a note: the file still goes, and the rest of the Sammlung with it. */
-  expect(await stateOf(page, "load.step_connect")).not.toBe("waiting");
+  /* Absent, which is stronger than "not waiting" and is what the door
+     changed: a port is granted, so connecting is not a rung on this ladder.
+     The step comes back only when the connection wants something. */
+  await expect(step(page, "load.step_connect")).toHaveCount(0);
 });
 
 /* ------------------------------------------------------------- the cable --- */
@@ -671,7 +693,10 @@ test("a deploy that carries no image has no firmware section at all",
      deployed page meets today. */
   await withDevice(page);
   await page.goto("./loader/");
-  await expect(step(page, "load.step_file")).toBeVisible();
+  await toTalker(page);
+  await expect(page.getByRole("heading", {
+    name: SPEAKS["talker.title"], exact: true,
+  })).toBeVisible();
   await expect(firmwareSection(page)).toHaveCount(0);
 });
 
@@ -680,14 +705,14 @@ test("the firmware section names both builds and offers the program",
   await withDevice(page, { firmware: "v0.3" });
   await withFirmware(page, "v0.4");
   await page.goto("./loader/");
+  await toTalker(page);
 
-  /* What the page carries is said before anything is asked of the device: it
-     is the fact that does not need a cable, and it is what makes the section
-     worth reading on a machine with no talker plugged in. */
+  /* No press. Arriving at the talker is what asks, and the greeting that
+     answered carries both the build and the room left - so the comparison is
+     made once, on the way in. */
   await expect(firmwareSection(page))
-    .toContainText(filled("flash.carries", { release: "v0.4" }));
-
-  await check(page).click();
+    .toContainText(filled("flash.carries", { release: "v0.4" }),
+                   { timeout: 30_000 });
 
   await expect(firmwareSection(page))
     .toContainText(filled("flash.device_says", { version: "v0.3" }),
@@ -712,7 +737,7 @@ test("a device that already carries the page's build is offered nothing",
   await withDevice(page, { firmware: "v0.4" });
   await withFirmware(page, "v0.4");
   await page.goto("./loader/");
-  await check(page).click();
+  await toTalker(page);
 
   await expect(firmwareSection(page)).toContainText(SPEAKS["flash.same"],
                                                     { timeout: 30_000 });
@@ -732,24 +757,20 @@ const collectionsSection = (page: Page) =>
     }),
   });
 
-test("one look answers the firmware question too, and answers it first",
+test("the talker view says what the talker is before what is on it",
      async ({ page }) => {
-  /* Two facts, one greeting. The talker names its build in the same line that
-     says how much room it has, so a look at the collections already holds what
-     the firmware section used to open a second connection to ask for.
+  /* The three facts come out of one greeting - which build, how many
+     collections, how much room - so arriving is what asks, and nothing here
+     presses "Check the device" at all. It is still there for somebody who
+     reaches the section another way; it stops being the only way in.
 
-     The assertion is that "Check the device" is never pressed. It is still
-     there and still works - somebody who has not looked at the collections has
-     to have a way in - but it stops being the only way in. */
+     The order is the other half. What a talker *is* comes before what is on
+     it, and of the two the one that can be wrong without anything looking
+     wrong is the program. */
   await withDevice(page, { firmware: "v0.3" });
   await withFirmware(page, "v0.4");
   await page.goto("./loader/");
-
-  await expect(check(page)).toBeVisible();
-
-  await collectionsSection(page).getByRole("button", {
-    name: SPEAKS["load.collections_check"], exact: true,
-  }).click();
+  await toTalker(page);
 
   await expect(firmwareSection(page))
     .toContainText(filled("flash.device_says", { version: "v0.3" }),
@@ -757,8 +778,16 @@ test("one look answers the firmware question too, and answers it first",
   await expect(firmwareSection(page))
     .toContainText(filled("flash.older", { release: "v0.4" }));
 
-  /* And it is above the collections, which is where somebody who has just
-     connected a talker looks for what the talker *is* before what is on it. */
+  /* The strip, by the labels rather than by the numbers: what the numbers say
+     depends on the fixture, and that they are all three present and named does
+     not. */
+  const facts = page.locator(".facts .fact dt");
+  await expect(facts).toHaveText([
+    SPEAKS["talker.fact_firmware"],
+    SPEAKS["talker.fact_collections"],
+    SPEAKS["talker.fact_room"],
+  ]);
+
   const firmwareComesFirst = await page.evaluate(([fw, coll]) => {
     const heads = [...document.querySelectorAll("section.step h2")]
       .map((h) => h.textContent);
@@ -794,7 +823,11 @@ test("a port that answers nothing is offered a first flash", async ({ page }) =>
   });
   await withFirmware(page, "v0.4");
   await page.goto("./loader/");
-  await check(page).click();
+  /* Through the door, which fails to find anything - and that is the point.
+     A board with no program cannot answer, so this is the ordinary state of
+     exactly the device a first flash is for, and the section has to be
+     reachable from the failure rather than behind it. */
+  await toTalker(page);
 
   await expect(firmwareSection(page))
     .toContainText(opening("flash.nothing_answered"), { timeout: 60_000 });
