@@ -525,7 +525,8 @@ export type OnDevice = {
  */
 export async function readCollections(
   ports: SerialPort[], onLog: (line: string) => void = () => {},
-): Promise<{ talker: Talker; free: number; total: number; on: OnDevice[] }> {
+): Promise<{ talker: Talker; free: number; total: number; on: OnDevice[];
+             port: SerialPort }> {
   const { port, cable, hello } = await findTalker(ports, onLog);
   try {
     const have = await cable.list();
@@ -573,6 +574,13 @@ export async function readCollections(
       talker: { version: hello.version, firmware: hello.firmware,
                 collections: hello.collections, audio: hello.audio },
       free: hello.free, total: hello.total, on,
+      // The same handle askTalker() hands back, for the same reason and with
+      // the same caveat: closed by the time anybody reads it, and kept because
+      // it is the one port on this machine known to have a talker on it. The
+      // firmware section needs it to reboot that talker into its bootloader
+      // without anybody opening the case - see flash.ts. Returning it here is
+      // what lets one press answer both questions.
+      port,
     };
   } finally {
     await cable.close().catch(() => {});

@@ -725,6 +725,49 @@ test("a device that already carries the page's build is offered nothing",
   })).toHaveCount(0);
 });
 
+const collectionsSection = (page: Page) =>
+  page.locator("section.step").filter({
+    has: page.getByRole("heading", {
+      name: SPEAKS["load.collections_title"], exact: true,
+    }),
+  });
+
+test("one look answers the firmware question too, and answers it first",
+     async ({ page }) => {
+  /* Two facts, one greeting. The talker names its build in the same line that
+     says how much room it has, so a look at the collections already holds what
+     the firmware section used to open a second connection to ask for.
+
+     The assertion is that "Check the device" is never pressed. It is still
+     there and still works - somebody who has not looked at the collections has
+     to have a way in - but it stops being the only way in. */
+  await withDevice(page, { firmware: "v0.3" });
+  await withFirmware(page, "v0.4");
+  await page.goto("./loader/");
+
+  await expect(check(page)).toBeVisible();
+
+  await collectionsSection(page).getByRole("button", {
+    name: SPEAKS["load.collections_check"], exact: true,
+  }).click();
+
+  await expect(firmwareSection(page))
+    .toContainText(filled("flash.device_says", { version: "v0.3" }),
+                   { timeout: 30_000 });
+  await expect(firmwareSection(page))
+    .toContainText(filled("flash.older", { release: "v0.4" }));
+
+  /* And it is above the collections, which is where somebody who has just
+     connected a talker looks for what the talker *is* before what is on it. */
+  const firmwareComesFirst = await page.evaluate(([fw, coll]) => {
+    const heads = [...document.querySelectorAll("section.step h2")]
+      .map((h) => h.textContent);
+    const a = heads.indexOf(fw!), b = heads.indexOf(coll!);
+    return a >= 0 && b >= 0 && a < b;
+  }, [SPEAKS["load.firmware_title"], SPEAKS["load.collections_title"]]);
+  expect(firmwareComesFirst).toBe(true);
+});
+
 test("a port that answers nothing is offered a first flash", async ({ page }) => {
   /* The case the whole section exists for: a board that has never been
      flashed answers nothing, because there is nothing on it to answer with.
