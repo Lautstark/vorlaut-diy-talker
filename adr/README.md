@@ -31,6 +31,7 @@ says what the cleanup will look like when it is proposed.
 | [0018](0018-the-file-area-takes-the-ota-slot.md) | The device carries its own partition table, and the file area takes the OTA slot |
 | [0019](0019-tiles-travel-compressed.md) | A tile may travel compressed, and the device says whether it can read one |
 | [0020](0020-every-key-says-what-it-does.md) | Every key says what it does and where it goes, and the device holds 64 sets |
+| [0021](0021-the-device-holds-several-collections.md) | The device holds several collections, and a collection is one file |
 
 ## The shape
 

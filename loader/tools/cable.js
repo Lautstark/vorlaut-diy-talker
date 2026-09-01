@@ -14,9 +14,9 @@
 // device to say the bytes are in its file system.
 //
 // The device is deliberately stupid here. It can list what it holds, hand
-// back a checksum, take a file, delete a file, and say goodbye - it does not
-// work out what is missing. That is done below, where there is memory and a
-// language to do it in.
+// back a checksum, hand back a file, take a file, delete a file, and say
+// goodbye - it does not work out what is missing. That is done below, where
+// there is memory and a language to do it in.
 
 /** The tile form this client can write, matched whole against what the device
  *  says in its hello. The mirror of CABLE_TILE_FORMS in
@@ -80,11 +80,13 @@ export function versionVerdict(theirs) {
  * client to the device's own reader.
  *
  * @typedef {{version: number, total: number, free: number, files: number,
- *            firmware: string, tiles: string}} Greeting
+ *            firmware: string, tiles: string, collections: number}} Greeting
  * @typedef {{name: string, size: number}} Held
  * @typedef {{stored: number, removed: number, bytes: number}} Farewell
  * @typedef {{put: {name: string, size: number, crc: number}[], remove: string[],
- *            keep: string[], needed: number, tight: boolean, fits: boolean}} Plan
+ *            keep: string[], needed: number, total: number, already: number,
+ *            tight: boolean, fits: boolean, collections: number, room: number,
+ *            full: boolean}} Plan
  */
 
 const encoder = new TextEncoder();
@@ -156,7 +158,19 @@ export class Cable {
     this.timeout = timeout;
     this.lines = [];          // protocol lines that have arrived, unread
     this.waiting = null;      // a readLine() that is waiting for one
-    this.rest = "";           // a line that has not finished arriving
+    // What has arrived and not been read yet, as BYTES rather than as text.
+    //
+    // It was a string, decoded as each chunk landed, and that was fine while
+    // everything coming this way was lines. `get` hands a file back the way a
+    // `put` sends one - a head line, then that many raw bytes with no newline
+    // anywhere - and decoding those as UTF-8 would turn every byte above 0x7f
+    // into a replacement character on the way past. So the bytes are kept as
+    // bytes and only a whole line is ever decoded, which also happens to fix a
+    // thing the streaming decoder was papering over: a line is now decoded in
+    // one piece rather than across two chunks.
+    this.rest = new Uint8Array(0);
+    // A read of raw bytes in flight, or null. See #readRaw().
+    this.raw = null;
     this.closed = false;
     this.failure = null;
     // The longest the device waited for bytes, and the longest a single write
@@ -177,23 +191,94 @@ export class Cable {
       for (;;) {
         const { value, done } = await this.reader.read();
         if (done) break;
-        this.rest += decoder.decode(value, { stream: true });
-        let cut;
-        while ((cut = this.rest.indexOf("\n")) >= 0) {
-          const line = this.rest.slice(0, cut).replace(/\r$/, "");
-          this.rest = this.rest.slice(cut + 1);
-          // Everything that is not marked is the device's own log. Keeping
-          // the two apart in one stream is what the sigils are for.
-          if (line.startsWith("< ")) this.#deliver(line.slice(2));
-          else if (line.length) this.onLog(line);
-        }
+        const merged = new Uint8Array(this.rest.length + value.length);
+        merged.set(this.rest);
+        merged.set(value, this.rest.length);
+        this.rest = merged;
+        this.#chew();
       }
     } catch (error) {
       this.failure = error;
     } finally {
       this.closed = true;
       if (this.waiting) this.#deliver(null);
+      if (this.raw) {
+        const stopped = this.raw;
+        this.raw = null;
+        clearTimeout(stopped.timer);
+        stopped.reject(this.failure || new Error("the cable was unplugged"));
+      }
     }
+  }
+
+  /** What has arrived, turned into whoever is waiting for it.
+   *
+   * Raw bytes first and lines second, and never both at once: while a `get` is
+   * in flight the stream is a file and not a conversation, which is the same
+   * rule a `put` follows in the other direction. Anything left over after the
+   * count is met is a line again, immediately, in this same pass - the "sent"
+   * that closes a `get` usually arrives in the very chunk the last bytes did.
+   */
+  #chew() {
+    for (;;) {
+      if (this.raw) {
+        const take = Math.min(this.raw.want - this.raw.at, this.rest.length);
+        if (take > 0) {
+          this.raw.into.set(this.rest.subarray(0, take), this.raw.at);
+          this.raw.at += take;
+          this.rest = this.rest.subarray(take);
+          this.#rawTick();
+        }
+        if (this.raw.at < this.raw.want) return;
+        const whole = this.raw;
+        this.raw = null;
+        clearTimeout(whole.timer);
+        whole.resolve(whole.into);
+        continue;
+      }
+      const cut = this.rest.indexOf(10);
+      if (cut < 0) return;
+      const line = decoder.decode(this.rest.subarray(0, cut)).replace(/\r$/, "");
+      this.rest = this.rest.subarray(cut + 1);
+      // Everything that is not marked is the device's own log. Keeping
+      // the two apart in one stream is what the sigils are for.
+      if (line.startsWith("< ")) this.#deliver(line.slice(2));
+      else if (line.length) this.onLog(line);
+    }
+  }
+
+  /** The watchdog on a raw read: this long with nothing arriving, not this
+   *  long altogether. A file is as long as it is, and a timeout measured
+   *  against its whole length would either refuse a big one or forgive a
+   *  device that had stopped talking halfway through a small one. */
+  #rawTick() {
+    if (!this.raw) return;
+    clearTimeout(this.raw.timer);
+    this.raw.timer = setTimeout(() => {
+      const stalled = this.raw;
+      this.raw = null;
+      stalled.reject(new Error(
+        `the device sent ${stalled.at} of ${stalled.want} bytes and stopped`));
+    }, this.timeout);
+  }
+
+  /** Exactly `want` bytes, counted rather than searched for.
+   *
+   * Set up before the bytes can be read out of the buffer, and then the buffer
+   * is chewed again - because on a fast device the whole file is already
+   * sitting in `rest` by the time the head line has been parsed. */
+  #readRaw(want) {
+    if (want === 0) return Promise.resolve(new Uint8Array(0));
+    return new Promise((resolve, reject) => {
+      if (this.closed) {
+        reject(this.failure || new Error("the cable was unplugged"));
+        return;
+      }
+      this.raw = { want, into: new Uint8Array(want), at: 0, resolve, reject,
+                   timer: null };
+      this.#rawTick();
+      this.#chew();
+    });
   }
 
   #deliver(line) {
@@ -321,7 +406,7 @@ export class Cable {
       // say", and giving that state a name here is cheaper than every reader
       // inventing one.
       const answer = { version: 0, total: 0, free: 0, files: 0, firmware: "",
-                       tiles: "" };
+                       tiles: "", collections: 1 };
       for (;;) {
         const { key, rest } = await this.expect();
         if (key === "end") return answer;              // "end hello"
@@ -336,6 +421,12 @@ export class Cable {
         // these is the business of whoever holds a second version to hold it
         // beside.
         else if (key === "firmware") answer.firmware = rest;
+        // How many collections this device holds. One, where it does not say -
+        // which is every talker flashed before 2026-08-31, and one is exactly
+        // what those hold: a single layout.bin, swept and replaced whole. A
+        // browser that assumed more would fill such a device's partition with
+        // a file it will never read.
+        else if (key === "collections") answer.collections = Number(rest);
         // Which tile form the device can draw, empty when it did not say -
         // and empty is the answer for every talker flashed before
         // 2026-08-31, which reads raw tiles and nothing else. Kept as the word
@@ -375,6 +466,56 @@ export class Cable {
       await this.send(`crc ${name}`);
       const { rest } = await this.expectOneOf(["crc"]);
       return parseInt(rest.slice(rest.lastIndexOf(" ") + 1), 16) >>> 0;
+    });
+  }
+
+  /**
+   * One file back off the device, as bytes.
+   *
+   * The seventh verb, and the one that lets the browser go on doing the
+   * thinking now that a talker holds more than one collection. Working out
+   * which tiles and recordings a removed collection leaves behind means
+   * knowing what the collections that stay still name, and a collection file
+   * IS that list - so the answer was either this or a device that walks its own
+   * layouts. adr/0021 took this.
+   *
+   * The framing is a `put` read from the other side: a head line with the
+   * length and the checksum, then exactly that many bytes with no newline in
+   * front of them and none after, then a line saying how many really went. Two
+   * things are compared and both of them have been silent failures on this wire
+   * before - the count, which catches a stream that stopped, and the checksum,
+   * which catches one that slipped.
+   *
+   * Only ever sent to a device that named a number above one in its greeting.
+   * A talker flashed before 2026-08-31 answers "err verb", and nothing asks it:
+   * it holds one collection, under one name, and there is nothing to work out.
+   */
+  get(name) {
+    return this.#serial(async () => {
+      await this.send(`get ${name}`);
+      const { rest } = await this.expectOneOf(["data"]);
+      // From the right: a name can hold neither a space nor the two numbers
+      // after it, so the last two words are the length and the checksum
+      // whatever the name turns out to be.
+      const words = rest.split(" ");
+      const sum = parseInt(words.pop(), 16) >>> 0;
+      const size = Number(words.pop());
+      const said = words.join(" ");
+      if (!Number.isInteger(size) || size < 0) {
+        throw new Error(`the device offered ${name} as ${size} bytes`);
+      }
+      const bytes = await this.#readRaw(size);
+      const { rest: tail } = await this.expectOneOf(["sent"]);
+      const sent = Number(tail.slice(tail.lastIndexOf(" ") + 1));
+      if (sent !== size) {
+        throw new Error(`the device offered ${size} bytes of ${said} `
+                        + `and sent ${sent}`);
+      }
+      if (crc32(bytes) !== sum) {
+        throw new Error(`${said} did not survive the way back: `
+                        + `${hex8(crc32(bytes))} against ${hex8(sum)}`);
+      }
+      return bytes;
     });
   }
 
@@ -468,16 +609,34 @@ export class Cable {
 
 // --- Working out what to send ------------------------------------------------
 
-/** The one name that does not change with its content. */
+/** The one name a collection had while a device could only hold one.
+ *
+ * Still a name a device may be carrying, and therefore still a name this
+ * client has to compare by checksum. What changed on 2026-08-31 is that it is
+ * no longer the ONLY such name - see isCollection() below. */
 export const LAYOUT_FILE = "layout.bin";
+
+/** Whether a name is a collection's, and therefore one whose content this
+ *  client cannot infer from the fact that it is there.
+ *
+ *  isCollectionFile() in loader/src/layout_format.ts, written a second time -
+ *  this file deliberately imports nothing, because it is the half that runs
+ *  under node against a mock as well as in a tab. The pair are held to
+ *  device/fixtures/collections.expected.json from either side. */
+export function isCollection(name) {
+  return name === LAYOUT_FILE || /^c[0-9a-f]{32}\.bin$/.test(String(name ?? ""));
+}
 
 /**
  * What to send and what to throw away.
  *
  * @param want  Map name -> {bytes} or {size, crc}: what the build produced.
  * @param have  [{name, size}] as the device reported them.
- * @param room  {total, free} out of hello().
- * @param layoutCrc  the device's checksum of layout.bin, or null if it has none.
+ * @param room  {total, free, collections} out of hello(). `collections` is how
+ *   many the device holds; one - the default - means every transfer is a
+ *   replacement, which is what a talker flashed before 2026-08-31 is.
+ * @param collectionCrc  the device's checksum of the collection file this
+ *   payload carries, or null if it is not holding one under that name.
  *
  * A name is a hash of the input that produced the file, so a name that is
  * already there is already the right content and needs no transfer. That is
@@ -497,14 +656,17 @@ export const LAYOUT_FILE = "layout.bin";
  * that is simply sent again, and it costs nothing - list already reports the
  * sizes.
  *
- * layout.bin is the exception at both ends: its name never changes, so it has
- * to be compared by checksum, and it is sent last because it is the file that
- * decides what everything else means. Until it lands the device still reads
- * the old one, and the old one still points at files that are all still there.
+ * A collection file is the exception at both ends: its name is a hash of what
+ * the collection IS rather than of what is in it, so it has to be compared by
+ * checksum, and it is sent last because it is the file that decides what
+ * everything else means. Until it lands the device still reads the old one, and
+ * the old one still points at files that are all still there. That used to be a
+ * sentence about layout.bin and one file; it is the same sentence about a
+ * family of names now, which is the whole of what isCollection() is for.
  *
  * @returns {Plan}
  */
-export function plan(want, have, room, layoutCrc = null) {
+export function plan(want, have, room, collectionCrc = null) {
   const present = new Map(have.map((f) => [f.name, f]));
   const put = [];
   const keep = [];
@@ -512,8 +674,8 @@ export function plan(want, have, room, layoutCrc = null) {
   for (const [name, file] of want) {
     const sum = file.crc !== undefined ? file.crc : crc32(file.bytes);
     const size = file.size !== undefined ? file.size : file.bytes.length;
-    if (name === LAYOUT_FILE) {
-      if (present.has(name) && layoutCrc === sum) keep.push(name);
+    if (isCollection(name)) {
+      if (present.has(name) && collectionCrc === sum) keep.push(name);
       else put.push({ name, size, crc: sum });
     } else if (present.has(name) && present.get(name).size === size) {
       keep.push(name);
@@ -522,12 +684,46 @@ export function plan(want, have, room, layoutCrc = null) {
     }
   }
 
-  const remove = have.map((f) => f.name).filter((name) => !want.has(name));
+  // **Everything the device holds and this payload does not name, or nothing
+  // at all**, and which of the two is what a device says about itself in its
+  // greeting rather than a mode this page chooses.
+  //
+  // A talker that holds one collection holds it under one name, and a transfer
+  // is a replacement: what is not in the new state is stale and goes. A talker
+  // that holds several has no way to tell "stale" from "belongs to the other
+  // game", because every tile and recording is named for its content and two
+  // collections that use the same picture use the same file. So the sweep is
+  // not merely wrong there, it is the one edit that would silently break a
+  // collection nobody touched.
+  //
+  // Removing a collection is therefore a separate act with a subtraction of its
+  // own, and it is not here: it needs the collections that STAY, which this
+  // function is not given and loader/src/cable.ts reads off the device.
+  const additive = (room.collections || 1) > 1;
+  const remove = additive
+    ? []
+    : have.map((f) => f.name).filter((name) => !want.has(name));
 
   // Last, always. It is the commit.
-  put.sort((a, b) => (a.name === LAYOUT_FILE) - (b.name === LAYOUT_FILE));
+  put.sort((a, b) => isCollection(a.name) - isCollection(b.name));
 
   const needed = put.reduce((sum, f) => sum + f.size, 0);
+  // What this collection comes to altogether, and how much of it is already
+  // there. Neither is what gets sent - `needed` is - and both are what somebody
+  // deciding whether to press Send is actually asking: a page that says only
+  // "1230 KiB to send" cannot say whether that is most of the collection or the
+  // last tile of it.
+  const total = [...want.values()].reduce(
+    (sum, f) => sum + (f.size !== undefined ? f.size : f.bytes.length), 0);
+  const already = total - needed;
+  // How many collections the device would be holding afterwards, against how
+  // many it says it can. The number comes off the wire and is not a constant
+  // here, deliberately, for the same reason the window is not: the device is
+  // the end that knows.
+  const holds = have.filter((f) => isCollection(f.name)).length;
+  const adding = put.filter((f) => isCollection(f.name))
+    .filter((f) => !present.has(f.name)).length;
+  const full = additive && holds + adding > (room.collections || 1);
   const frees = remove.reduce(
     (sum, name) => sum + (present.get(name)?.size || 0), 0);
 
@@ -541,10 +737,52 @@ export function plan(want, have, room, layoutCrc = null) {
   // until it is finished. Which of the two it is never appears here: the room
   // comes from the device's own hello.
   const tight = needed > room.free;
-  if (tight && needed > room.free + frees) {
-    return { put, remove, keep, needed, tight, fits: false };
+  const shape = { put, remove, keep, needed, total, already, tight,
+                  collections: holds + adding, room: room.collections || 1,
+                  full };
+  if (tight && needed > room.free + frees) return { ...shape, fits: false };
+  return { ...shape, fits: true };
+}
+
+/**
+ * What goes with a collection when it is removed.
+ *
+ * The same subtraction plan() makes, from the other end and with the arithmetic
+ * turned round: there, what the device holds and the payload does not name is
+ * stale; here, what the device holds and the collections that STAY do not name
+ * is stale. It is one function rather than two because it is one idea, and it
+ * is separate from plan() because the inputs are genuinely different - this one
+ * needs the collections that remain, which only a `get` can produce.
+ *
+ * `keeping` is every tile and recording named by every collection that is not
+ * going, and every collection file that is not going. A collection this page
+ * could not read contributes nothing to it and must therefore be handled by the
+ * caller: sweeping on behalf of a collection whose contents are unknown would
+ * take the files it needs with it.
+ *
+ * @param have  [{name, size}] as the device reported them.
+ * @param going  the collection file being removed.
+ * @param keeping  Set of every name that must survive.
+ * @returns {{remove: string[], frees: number}}
+ */
+export function planRemoval(have, going, keeping) {
+  const remove = [];
+  let frees = 0;
+  for (const file of have) {
+    if (file.name !== going && keeping.has(file.name)) continue;
+    remove.push(file.name);
+    frees += file.size || 0;
   }
-  return { put, remove, keep, needed, tight, fits: true };
+  // **The collection first**, which is the opposite of a put's order and the
+  // same reasoning read backwards. There, the collection file is the commit and
+  // goes last so that nothing is half-replaced. Here it is the commit again and
+  // therefore goes FIRST: the moment it is gone the device holds no collection
+  // that names any of the rest, so a session that breaks off halfway leaves a
+  // talker that has lost exactly what it was asked to lose and some files
+  // nobody names. The other order would leave a collection still listed in the
+  // menu whose keys have gone black.
+  remove.sort((a, b) => (b === going) - (a === going));
+  return { remove, frees };
 }
 
 /**

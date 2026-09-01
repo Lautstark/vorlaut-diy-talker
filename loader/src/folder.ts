@@ -44,16 +44,22 @@ export function folderExportSupported(): boolean {
  * The rule is the device's own naming rather than a list of what was written
  * last time, because there is no last time to consult - nothing here is
  * remembered between runs. A tile is `t` and a hash, a recording is `a` and a
- * hash, and `layout.bin` is the one fixed name. Anything else in the chosen
- * folder belongs to whoever put it there and is left alone: somebody who picks
- * their Documents folder by mistake should lose nothing.
+ * hash, a collection is `c` and a hash, and `layout.bin` is the one fixed name
+ * a collection used to go under. Anything else in the chosen folder belongs to
+ * whoever put it there and is left alone: somebody who picks their Documents
+ * folder by mistake should lose nothing.
+ *
+ * `layout.bin` is still here although nothing writes it, and that is the point:
+ * this is what a tidy-up may REMOVE, and a folder written before 2026-08-31 has
+ * one in it. Leaving it would put a second collection into an image built with
+ * mklittlefs, holding whatever was exported last time.
  *
  * Built out of HASH_BYTES rather than written as a literal, so a change to the
  * hash length cannot leave this quietly matching nothing - which would show up
  * as an export that stops tidying up rather than as a failure.
  */
 const HEX = `[0-9a-f]{${HASH_BYTES * 2}}`;
-const OURS = new RegExp(`^(t${HEX}\\.bin|a${HEX}\\.wav)$`);
+const OURS = new RegExp(`^(t${HEX}\\.bin|a${HEX}\\.wav|c${HEX}\\.bin)$`);
 
 export function isBuildFile(name: string): boolean {
   return name === LAYOUT_BIN || OURS.test(name);

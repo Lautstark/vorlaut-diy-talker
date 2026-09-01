@@ -32,6 +32,18 @@
 // waiting to be asked, and a version 1 device would never answer the window
 // the browser is waiting for - so this is a break in both directions, made on
 // purpose while every device was still on the desk.
+//
+// **Adding a verb is not a bump either, and 2026-08-31 is when that stopped
+// being a hypothetical.** `get` arrived with the collections, and the rule
+// reads the same in both directions: an older browser never sends the word, so
+// a newer device is never asked something it cannot answer; and an older
+// device would answer "err verb", which is a word to act on rather than a
+// silence to guess at. What makes it safe in practice is that no browser has
+// to guess at all - the greeting says how many collections a device can hold,
+// a device that says nothing holds one, and only a device that named a number
+// above one is ever sent a `get`. The capability and the verb arrived in the
+// same firmware and there is no version of this protocol where one exists
+// without the other.
 #define CABLE_VERSION 2
 
 // Every protocol line is marked, in both directions, because this stream is
@@ -139,6 +151,7 @@ enum CableVerb {
   CABLE_HELLO,   // who are you
   CABLE_LIST,    // what have you got
   CABLE_CRC,     // checksum of one file
+  CABLE_GET,     // hand one back, as raw bytes
   CABLE_PUT,     // one file follows as raw bytes, a window at a time
   CABLE_RM,      // throw one away
   CABLE_DONE,    // that is all
@@ -302,12 +315,21 @@ static inline CableVerb cableParse(const char *line, CableCommand *command) {
   const char *space = (const char *)memchr(verb, ' ', (size_t)(stop - verb));
   const size_t verbLength = (size_t)((space ? space : stop) - verb);
 
-  // The whole vocabulary. Six words, because each of them is one thing the
+  // The whole vocabulary. Seven words, because each of them is one thing the
   // device can do - the deciding is all on the browser's side, which is the
   // side that has the memory and the language to do it in.
+  //
+  // `get` is the seventh and the newest, 2026-08-31, and it is there so that
+  // the deciding can STAY on the browser's side now that a device holds more
+  // than one collection. Working out which tiles and recordings a collection
+  // no longer needs means reading the collections that remain, and the two
+  // ways to do that were this verb or a device that walks its own layouts.
+  // adr/0021 chose the verb: it is one more thing the device does and no more
+  // thinking, which is the same shape `crc` already had.
   if (verbLength == 5 && memcmp(verb, "hello", 5) == 0) command->verb = CABLE_HELLO;
   else if (verbLength == 4 && memcmp(verb, "list", 4) == 0) command->verb = CABLE_LIST;
   else if (verbLength == 3 && memcmp(verb, "crc", 3) == 0) command->verb = CABLE_CRC;
+  else if (verbLength == 3 && memcmp(verb, "get", 3) == 0) command->verb = CABLE_GET;
   else if (verbLength == 3 && memcmp(verb, "put", 3) == 0) command->verb = CABLE_PUT;
   else if (verbLength == 2 && memcmp(verb, "rm", 2) == 0) command->verb = CABLE_RM;
   else if (verbLength == 4 && memcmp(verb, "done", 4) == 0) command->verb = CABLE_DONE;
@@ -345,6 +367,7 @@ static inline CableVerb cableParse(const char *line, CableCommand *command) {
       command->complete = true;
       break;
     case CABLE_CRC:
+    case CABLE_GET:
     case CABLE_RM:
       // Exactly one. See the note above on why a second word is refused
       // rather than ignored.
@@ -427,6 +450,21 @@ static inline int cableSayNameHex(char *out, size_t cap, const char *key,
                                   const char *name, uint32_t value) {
   return cableFits(snprintf(out, cap, "%c %s %s %08lx\n", CABLE_DEVICE_SIGIL,
                             key, name, (unsigned long)value), cap);
+}
+
+// "< data c3bd7....bin 5104 1a2b3c4d" - the head of a file coming back, with
+// its length and its checksum, and then that many raw bytes.
+//
+// The checksum is here for the same reason it is on a `put` and not for a
+// different one: the name is a hash of what went INTO the file rather than of
+// its bytes, so nothing else on this wire says whether what arrived is what
+// was stored. The browser reads the length, counts, and compares.
+static inline int cableSayNameNumberHex(char *out, size_t cap, const char *key,
+                                        const char *name, uint32_t number,
+                                        uint32_t value) {
+  return cableFits(snprintf(out, cap, "%c %s %s %lu %08lx\n",
+                            CABLE_DEVICE_SIGIL, key, name,
+                            (unsigned long)number, (unsigned long)value), cap);
 }
 
 // "< err nospace", "< err crc a8c1....wav". One word for what went wrong, so

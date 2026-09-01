@@ -1,7 +1,7 @@
 {
-  "fixture": "tiles-named-in-the-hello",
+  "fixture": "collections-named-in-the-hello",
   "kind": "cable",
-  "summary": "A device that says which tile forms it can draw. Silence means raw, and silence is what every talker flashed before 2026-08-31 says.",
+  "summary": "A device that says how many collections it holds. Silence means one, and silence is what every talker flashed before 2026-08-31 says.",
   "ends": [
     "device",
     "browser"
@@ -10,8 +10,8 @@
   "device_speaks": 2,
   "version_verdict": "ok",
   "device_firmware": "",
-  "device_tiles": "vt1",
-  "device_collections": 0,
+  "device_tiles": "",
+  "device_collections": 16,
   "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
@@ -38,7 +38,7 @@
     },
     {
       "from": "device",
-      "line": "< tiles vt1"
+      "line": "< collections 16"
     },
     {
       "from": "device",
@@ -68,8 +68,8 @@
         "free": 1441792,
         "files": 0,
         "firmware": "",
-        "tiles": "vt1",
-        "collections": 1
+        "tiles": "",
+        "collections": 16
       }
     },
     {
@@ -82,8 +82,8 @@
     }
   ],
   "notes": [
-    "The word is matched whole rather than parsed. A firmware that could draw a second form would say a different word here, not a list, so that two ends can never half-agree about what a tile is - and half-agreeing is the failure that puts a palette on a panel as though it were pixels.",
-    "A browser that treated the absence of this line as a fault would refuse every talker in the field. Absence means raw, raw is what those devices have always been sent, and that is the whole of why a compressed tile format did not have to move CABLE_VERSION: an older device is not broken by it, it is simply not offered it.",
-    "It sits after 'files' and before 'end hello' because that is where the firmware puts it, and the browser skips keywords it does not know in any position - see skip-unknown-keyword. The order is stated here so that a device which moved it would be noticed, not because a reader may depend on it."
+    "A number and not a flag, because the browser has to refuse a payload that would push a device past it - and a browser that assumed a number would be back to guessing at a constant it was never told, which is exactly what the window stopped doing.",
+    "Absence means one. That is not a default chosen for tidiness: a talker flashed before this keyword existed really does hold exactly one collection, under the one name layout.bin, and a transfer to it really is a replacement. A browser that read silence as 'unknown' and sent additively would fill such a device's partition with a file it will never read.",
+    "This is also what says whether the `get` below may be sent at all. The verb and the capability arrived in the same firmware, so a device that names a number above one has both; nothing has to probe for a verb."
   ]
 }

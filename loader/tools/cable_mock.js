@@ -62,7 +62,7 @@ export class MockDevice {
    */
   constructor({ files = new Map(), total = 1441792, noise = false,
                 failAt = null, window = MOCK_WINDOW, stallMs = 0,
-                firmware = "dev" } = {}) {
+                firmware = "dev", collections = 16 } = {}) {
     this.files = files;
     this.total = total;
     // What this device would say its build is. "dev" is what a sketch compiled
@@ -71,6 +71,7 @@ export class MockDevice {
     // Empty imitates a device flashed before the line existed, which is the
     // other real case and the one a client must not read as a fault.
     this.firmware = firmware;
+    this.collections = collections;
     this.noise = noise;
     this.failAt = failAt;
     this.window = window;
@@ -122,6 +123,11 @@ export class MockDevice {
 
   async say(text) { await this.out.write(encoder.encode(text)); }
   async reply(line) { await this.say(`< ${line}\n`); }
+
+  /** A file coming back: bytes, with no sigil and no newline. The one thing
+   *  this device says that is not a line, and the reason a client's reader has
+   *  to count rather than search. */
+  async raw(bytes) { await this.out.write(bytes); }
 
   /** An unmarked line, the way the firmware's own Serial.printf output looks. */
   async chatter() {
@@ -225,6 +231,13 @@ export class MockDevice {
         await this.reply(`total ${this.total}`);
         await this.reply(`free ${this.free}`);
         await this.reply(`files ${this.files.size}`);
+        // How many collections this device holds. Zero means it does not say,
+        // which is a talker flashed before 2026-08-31 and means one - the case
+        // a mock has to be able to be, because a client that only works
+        // against a device with the newest greeting does not work.
+        if (this.collections) {
+          await this.reply(`collections ${this.collections}`);
+        }
         await this.reply("end hello");
         return null;
 
@@ -240,6 +253,22 @@ export class MockDevice {
         const bytes = this.files.get(args[0]);
         if (!bytes) await this.reply(`err missing ${args[0]}`);
         else await this.reply(`crc ${args[0]} ${hex8(crc32(bytes))}`);
+        return null;
+      }
+
+      case "get": {
+        const bytes = this.files.get(args[0]);
+        if (!bytes) {
+          await this.reply(`err missing ${args[0]}`);
+          return null;
+        }
+        // The head, then the bytes with no newline anywhere near them, then
+        // what really went - cable.h's sayFile(), from the other side. Written
+        // through the raw writer rather than through reply(), which is what
+        // makes this a test of the framing rather than of a line format.
+        await this.reply(`data ${args[0]} ${bytes.length} ${hex8(crc32(bytes))}`);
+        await this.raw(bytes);
+        await this.reply(`sent ${args[0]} ${bytes.length}`);
         return null;
       }
 

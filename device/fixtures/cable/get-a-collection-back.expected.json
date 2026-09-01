@@ -1,0 +1,125 @@
+{
+  "fixture": "get-a-collection-back",
+  "kind": "cable",
+  "summary": "One file the other way. The head line carries the length and the checksum, then that many raw bytes, then what really went.",
+  "ends": [
+    "device",
+    "browser"
+  ],
+  "protocol_version": 2,
+  "device_speaks": 2,
+  "version_verdict": "ok",
+  "device_firmware": "",
+  "device_tiles": "",
+  "device_collections": 16,
+  "window": 4096,
+  "device_starts_with": [
+    {
+      "name": "c0123456789abcdef0123456789abcdef.bin",
+      "size": 224,
+      "crc": "351921f6",
+      "content": "FzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVI="
+    }
+  ],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 2"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441568"
+    },
+    {
+      "from": "device",
+      "line": "< files 1"
+    },
+    {
+      "from": "device",
+      "line": "< collections 16"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> get c0123456789abcdef0123456789abcdef.bin"
+    },
+    {
+      "from": "device",
+      "line": "< data c0123456789abcdef0123456789abcdef.bin 224 351921f6"
+    },
+    {
+      "from": "device",
+      "raw": "FzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVI=",
+      "bytes": 224
+    },
+    {
+      "from": "device",
+      "line": "< sent c0123456789abcdef0123456789abcdef.bin 224"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 0 0 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [
+      {
+        "name": "c0123456789abcdef0123456789abcdef.bin",
+        "size": 224,
+        "crc": "351921f6"
+      }
+    ],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": [
+    {
+      "call": "hello",
+      "returns": {
+        "version": 2,
+        "total": 1441792,
+        "free": 1441568,
+        "files": 1,
+        "firmware": "",
+        "tiles": "",
+        "collections": 16
+      }
+    },
+    {
+      "call": "get",
+      "name": "c0123456789abcdef0123456789abcdef.bin",
+      "returns": "FzxhhqvQ9Ro/ZImu0/gdQmeMsdb7IEVqj7TZ/iNIbZK33AEmS3CVut8EKU5zmL3iByxRdpvA5QovVHmew+gNMld8ocbrEDVaf6TJ7hM4XYKnzPEWO2CFqs/0GT5jiK3S9xxBZouw1fofRGmOs9j9IkdskbbbACVKb5S53gMoTXKXvOEGK1B1mr/kCS5TeJ3C5wwxVnugxeoPNFl+o8jtEjdcgabL8BU6X4SpzvMYPWKHrNH2G0Bliq/U+R5DaI2y1/whRmuQtdr/JEluk7jdAidMcZa74AUqT3SZvuMILVI="
+    },
+    {
+      "call": "done",
+      "returns": {
+        "stored": 0,
+        "removed": 0,
+        "bytes": 0
+      }
+    }
+  ],
+  "notes": [
+    "The bytes come from the DEVICE here, which is the first time anything in this fixture set does. A transcript's raw step has a direction like every other step, and a runner that assumed raw meant host would walk this one backwards.",
+    "Two things are compared and both have been silent failures on this wire before: the count, which catches a stream that stopped partway, and the checksum, which catches one that slipped. The name catches neither - it is a hash of what went INTO the file and says nothing about the bytes.",
+    "No window and no acknowledgement, and that is not an oversight. The window exists because the device is the slow end when it is the one writing into flash; here the browser is reading, and a browser drains a stream as fast as it arrives.",
+    "What this verb is FOR is keeping the deciding on the browser's side. A collection file lists every tile and recording it names, so reading the collections that stay is how a page works out what a removed one leaves behind. The alternative was a device that walks its own layouts, and the device is deliberately stupid."
+  ]
+}

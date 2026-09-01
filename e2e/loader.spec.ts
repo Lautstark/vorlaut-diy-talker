@@ -295,10 +295,18 @@ test("it compiles the file into exactly what a talker holds", async ({ page }) =
   const held = await onDevice(page);
 
   /* The table is both sets, and every tile is a whole frame. Two facts the
-     compiler cannot get wrong quietly: a layout.bin of the wrong length is
+     compiler cannot get wrong quietly: a collection of the wrong length is
      refused by the device outright, and a tile of the wrong length is drawn
-     as whatever the next file's bytes happen to be. */
-  expect(held.sizes["layout.bin"]).toBe(HEADER_BYTES + 2 * SET_BYTES);
+     as whatever the next file's bytes happen to be.
+
+     Found by its shape rather than named, because the name is a hash of the
+     root board's id - c<hash>.bin since 2026-09-01, where it was layout.bin
+     while a device could hold only one. Exactly one of them, which is the
+     other half of the claim: a build that wrote two collections would be two
+     entries in a talker's menu for one file somebody chose. */
+  const collections = held.names.filter((n) => /^c[0-9a-f]{32}\.bin$/.test(n));
+  expect(collections).toHaveLength(1);
+  expect(held.sizes[collections[0]!]).toBe(HEADER_BYTES + 2 * SET_BYTES);
   const tiles = held.names.filter((n) => /^t[0-9a-f]{32}\.bin$/.test(n));
   for (const tile of tiles) {
     expect(held.sizes[tile]).toBe(TILE_SIZE * TILE_SIZE * 2);
@@ -739,6 +747,12 @@ test("the compiled files can be written into a folder instead", async ({ page })
     const files = globalThis.__folder;
     return Object.fromEntries([...files].map(([name, bytes]) => [name, bytes.length]));
   })()`) as Record<string, number>;
-  expect(Object.keys(held)).toContain("layout.bin");
-  expect(held["layout.bin"]).toBe(HEADER_BYTES + 2 * SET_BYTES);
+  const written = Object.keys(held).filter(
+    (n) => /^c[0-9a-f]{32}\.bin$/.test(n));
+  expect(written).toHaveLength(1);
+  expect(held[written[0]!]).toBe(HEADER_BYTES + 2 * SET_BYTES);
+  /* And not under the name it used to go under. The folder export has no
+     talker to ask, so it writes the current name and sweeps the old one -
+     adr/0021, "Consequences". */
+  expect(Object.keys(held)).not.toContain("layout.bin");
 });

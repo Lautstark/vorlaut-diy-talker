@@ -52,7 +52,8 @@ import {
 } from "./device_package.js";
 import { browserHost } from "./browser_host.js";
 import {
-  askForDevice, askTalker, type Build, cableSupported, sendToDevice,
+  askForDevice, askTalker, type Build, cableSupported, costOnDevice,
+  type OnDevice, readCollections, removeCollection, sendToDevice,
   type Plan, type Talker,
 } from "./cable.js";
 import { compileDevice, type DeviceBuild } from "./compile.js";
@@ -568,6 +569,15 @@ function checked(read: ReadDevicePackage): Finding[] {
     sets: held.sets, filled: held.filled, keys: held.keys,
     pictures: held.pictures, sounds: held.sounds,
   }));
+  /* What the device's own menu will call this collection. It is the first
+     set's name, because a `.obz` carries no name for a Sammlung and the header
+     has no field for one - see collectionHeadName() in
+     firmware/vorlaut/collections.h, which is where that is argued. Worth
+     saying here rather than leaving somebody to discover it on the talker:
+     a first page called "Runde 1" makes a poor entry in a menu, and the way to
+     fix it is in the editor, before the file is written. */
+  const first = read.plan.sets[0]?.name;
+  if (first) steps.check.say(t("load.holds_collection", { name: first }));
   if (held.language) {
     steps.check.say(t("load.holds_language", { name: languageName(held.language) }));
   }
@@ -797,11 +807,66 @@ async function grant(button?: HTMLButtonElement): Promise<void> {
 
 /* ------------------------------------------------------------- sending --- */
 
+/** What a transfer would cost, in the words somebody deciding needs.
+ *
+ * Three numbers and not one, because "1230 KiB to send" does not say whether
+ * that is most of a game or the last tile of it. What the collection comes to,
+ * how much of it is already on the device, and what is left over afterwards -
+ * and the device is the only end that can answer the middle one, which is why
+ * this needs a session at all.
+ *
+ * One function because two callers say it: the button that asks before
+ * anything is sent, and the transfer itself on its way past. Two copies of a
+ * sentence is two chances for the numbers to be assembled differently. */
+function costSaid(work: Plan): string[] {
+  const said = [t("cable.cost", {
+    total: KIB(work.total), already: KIB(work.already),
+    needed: KIB(work.needed), free: KIB(work.freeAfter),
+  })];
+  said.push(work.room > 1
+    ? t("cable.cost_collections", { on: work.collections, room: work.room })
+    : t("cable.cost_one"));
+  return said;
+}
+
 function sendStep(): void {
   steps.send.begin();
   steps.send.say(t("load.send_lead"));
   const go = steps.send.button(t("load.send"), () => void send(go), "btn primary");
-  steps.send.row(go);
+  /* Asking first is a press of its own, and it is the quiet one. Nothing about
+     the cost can be known without talking to the device - which files it
+     already holds IS the answer - and asking is not free at the far end: the
+     talker draws "cable" on all five displays for it. So it happens because
+     somebody pressed a button, never on a timer, and pressing Send straight
+     away says the same sentence on the way past rather than making this a
+     step. */
+  const ask = steps.send.button(t("load.cost"), () => void cost(ask), "btn quiet");
+  steps.send.row(go, ask);
+}
+
+/** The sentence, without sending anything. */
+async function cost(ask: HTMLButtonElement): Promise<void> {
+  if (!build) return;
+  ask.disabled = true;
+  const line = steps.send.say(t("cable.looking"), "aside");
+  try {
+    const work = await costOnDevice(devices(), build);
+    line.textContent = costSaid(work).join(" ");
+    announce(line.textContent);
+  } catch (error) {
+    if (error instanceof Trouble) {
+      if (error.word === "cable_no_device") askAgain = true;
+      line.textContent = t(`err.${error.word}`, {
+        size: KIB(error.facts.needed || 0), free: KIB(error.facts.free || 0),
+        on: error.facts.on || 0, room: error.facts.room || 0,
+      });
+      connectStep({ andSend: false });
+    } else {
+      line.textContent = t("cable.failed", { error: reason(error) });
+    }
+  } finally {
+    ask.disabled = false;
+  }
 }
 
 async function send(go: HTMLButtonElement): Promise<void> {
@@ -842,6 +907,10 @@ async function send(go: HTMLButtonElement): Promise<void> {
           put: work.put, remove: work.remove, keep: work.keep,
           size: KIB(work.needed),
         }));
+        // And what it costs, in the same words the button above says it in -
+        // said here too because a transfer somebody started without asking
+        // first should still have the numbers above its outcome.
+        for (const line of costSaid(work)) add(line);
         if (work.tight) add(t("cable.tight"));
         if (!work.put && !work.remove) add(t("cable.nothing"));
       },
@@ -878,6 +947,8 @@ async function send(go: HTMLButtonElement): Promise<void> {
       if (error.word === "cable_no_device") askAgain = true;
       add(t(`err.${error.word}`, {
         size: KIB(error.facts.needed || 0), free: KIB(error.facts.free || 0),
+        on: error.facts.on || 0, room: error.facts.room || 0,
+        name: String(error.facts.name || ""),
       }));
     } else {
       add(t("cable.failed", { error: reason(error) }));
@@ -893,6 +964,173 @@ async function send(go: HTMLButtonElement): Promise<void> {
     steps.send.row(again);
     connectStep({ andSend: false });
     go.disabled = false;
+  }
+}
+
+/* --------------------------------------------- what is already on it --- */
+/*
+ * The collections a talker is holding, and the one press that removes one.
+ *
+ * Set apart from the five, like the firmware section and for a related reason:
+ * the five steps are what somebody does when there is a new board to send, and
+ * this is what they do when the device is getting full or a game is finished
+ * with. It needs no file, which is why it is drawn whether or not one has been
+ * chosen.
+ *
+ * **Removing is here and not in the device's own menu**, and that is the whole
+ * argument for the section existing. An irreversible action on five keys that a
+ * child is holding has nowhere to put a "are you sure" - and nowhere to say
+ * what it would cost either. Here there is room for both, and the press that
+ * does it is a second press with a sentence between them, exactly as the
+ * firmware section's writes are.
+ */
+const collections = new Step(null, "load.collections_title");
+
+/** What the device said last time it was asked, or null for "not asked yet". */
+let onDevice: Awaited<ReturnType<typeof readCollections>> | null = null;
+
+/** The collection a press has offered to remove, waiting for the second press.
+ *  Cleared by anything that redraws, which is what makes walking away from the
+ *  question cost nothing. */
+let removing: string | null = null;
+
+function collectionsSection(): void {
+  collections.begin();
+  if (!cableSupported()) {
+    collections.say(t("cable.no_serial"), "aside");
+    collections.blocked();
+    return;
+  }
+  if (!onDevice) {
+    collections.say(t("load.collections_lead"), "aside");
+    const button = collections.button(t("load.collections_check"),
+                                      () => void look(button));
+    collections.row(button);
+    return;
+  }
+
+  const room = onDevice.talker.collections;
+  collections.say(t("load.collections_room", {
+    on: onDevice.on.length, room, free: KIB(onDevice.free),
+  }));
+  if (room <= 1) {
+    /* A talker from before this existed. It holds one collection under one
+       name, this page cannot read that name back out of it, and sending a
+       second would be a file it never looks at. Saying so beats a list of one
+       nameless row with no explanation over it. */
+    collections.say(t("load.collections_older"));
+  }
+  if (!onDevice.on.length) collections.say(t("load.collections_none"));
+
+  for (const one of onDevice.on) {
+    const row = document.createElement("p");
+    row.className = "file";
+    const named = document.createElement("span");
+    named.className = "file__name";
+    /* The name the DEVICE shows, which is the first set's. A collection this
+       page could not read has none, and then the file name is the only true
+       thing there is to call it. */
+    named.textContent = one.name || one.file;
+    const sized = document.createElement("span");
+    sized.className = "file__size";
+    sized.textContent = t("load.chip_size", { size: KIB(one.size) });
+    row.append(named, sized);
+    collections.show(row);
+    if (one.unreadable) {
+      collections.say(t("load.collections_unreadable", { file: one.file }),
+                      "aside");
+      continue;
+    }
+    if (removing === one.file) {
+      collections.say(t("load.collections_warning", {
+        name: one.name || one.file, frees: KIB(one.frees),
+      }), "refusal");
+      const go = collections.button(t("load.collections_really"),
+                                    () => void drop(one, go), "btn primary");
+      collections.row(go, collections.button(t("load.collections_keep"), () => {
+        removing = null;
+        collectionsSection();
+      }, "btn quiet"));
+    } else {
+      collections.row(collections.button(t("load.collections_remove"), () => {
+        removing = one.file;
+        collectionsSection();
+      }));
+    }
+  }
+  collections.row(collections.button(t("load.collections_check"),
+                                     () => void look()));
+}
+
+async function look(button?: HTMLButtonElement): Promise<void> {
+  if (button) button.disabled = true;
+  removing = null;
+  collections.begin();
+  const line = collections.say(t("cable.looking"), "aside");
+  try {
+    /* From the click, before anything that awaits for long - the same rule the
+       connect step is built around. A dismissed picker leaves the section
+       exactly as it was. */
+    if (!haveDevice()) {
+      if (!await connectDevice()) { collectionsSection(); return; }
+    }
+    onDevice = await readCollections(devices());
+  } catch (error) {
+    onDevice = null;
+    if (error instanceof Trouble && error.word === "cable_no_device") {
+      askAgain = true;
+    }
+    line.textContent = error instanceof Trouble
+      ? t(`err.${error.word}`, { name: String(error.facts.name || "") })
+      : t("cable.failed", { error: reason(error) });
+    return;
+  } finally {
+    if (button) button.disabled = false;
+  }
+  collectionsSection();
+  announce(t("load.collections_room", {
+    on: onDevice.on.length, room: onDevice.talker.collections,
+    free: KIB(onDevice.free),
+  }));
+}
+
+async function drop(one: OnDevice, go: HTMLButtonElement): Promise<void> {
+  go.disabled = true;
+  collections.begin();
+  const { now, add, far } = collections.logging();
+  now(t("cable.looking"));
+  add(t("cable.looking"));
+  try {
+    const gone = await removeCollection(devices(), one.file, {
+      onLog: (line) => add(`  ${line}`),
+      onStep: (_what, name, done, total) => {
+        now(t("cable.removing", { done, total, name }));
+        far(done, total);
+      },
+    });
+    add(t("load.collections_removed", {
+      name: one.name || one.file, files: gone.removed, size: KIB(gone.freed),
+    }));
+    now(t("load.collections_removed_short"));
+    far(1, 1);
+    announce(t("load.collections_removed_short"));
+    /* And the list again, from the device rather than from what this page
+       thinks it just did. It is one more session and it is worth it: what the
+       talker holds afterwards is the only thing worth showing, and a list
+       edited in memory would be this page's opinion of it. */
+    removing = null;
+    onDevice = null;
+    collections.row(collections.button(t("load.collections_check"),
+                                       () => void look()));
+  } catch (error) {
+    add(error instanceof Trouble
+      ? t(`err.${error.word}`, { name: String(error.facts.name || "") })
+      : t("cable.failed", { error: reason(error) }));
+    now(t("cable.failed_short"));
+    removing = null;
+    onDevice = null;
+    collections.row(collections.button(t("load.collections_check"),
+                                       () => void look()));
   }
 }
 
@@ -1107,6 +1345,14 @@ watchForDevices();
  * why it is appended here rather than with the five - a section that appears
  * when a fetch comes back is honest about a page that sometimes has one and
  * sometimes does not. */
+/* The collections section is on the page from the start, and unlike the
+ * firmware one it is drawn whether or not this browser can reach a cable: on
+ * Firefox it says so, which is a truer page than one where a whole section is
+ * silently missing. It comes before the firmware section because it is about
+ * content, which is what the five steps above it are about. */
+page.append(collections.root);
+collectionsSection();
+
 if (cableSupported()) {
   void carriedFirmware().then((found) => {
     if (!found) return;

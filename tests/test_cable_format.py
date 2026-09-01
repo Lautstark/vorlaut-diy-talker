@@ -238,6 +238,7 @@ COMMANDS = [
     ("a file on its way", "> put layout.bin 942 1a2b3c4d",
      ("put", "1", "layout.bin", "942")),
     ("a checksum asked for", "> crc layout.bin", ("crc", "1", "layout.bin", "0")),
+    ("a file asked for", "> get layout.bin", ("get", "1", "layout.bin", "0")),
     ("a file thrown away", "> rm layout.bin", ("rm", "1", "layout.bin", "0")),
     ("an empty file is still a file", "> put layout.bin 0 00000000",
      ("put", "1", "layout.bin", "0")),
@@ -250,6 +251,8 @@ COMMANDS = [
 
     ("a verb from a newer browser is refused, not ignored",
      "> reboot", ("unknown", "0", "-", "0")),
+    ("get with a second word", "> get layout.bin now", ("get", "0", "-", "0")),
+    ("get with nothing after it", "> get", ("get", "0", "-", "0")),
     ("put without a checksum", "> put layout.bin 942", ("put", "0", "-", "0")),
     ("put without a size", "> put layout.bin", ("put", "0", "-", "0")),
     ("put with no arguments at all", "> put", ("put", "0", "-", "0")),
@@ -322,6 +325,7 @@ ANSWERS = """\
 < total 1441792
 < free 1146880
 < files 37
+< collections 16
 < tiles vt1
 < end hello
 < file t3bd7a1c045e29f8b6d0a4e17c93f5028.bin 26912
@@ -369,6 +373,12 @@ def check_readback(node: str, problems: list[str], answers: str) -> None:
         # should not have.
         "hello": {"version": 2, "total": 1441792, "free": 1146880, "files": 37,
                   "firmware": "dev",
+                  # How many collections the device holds, which is what
+                  # decides whether a transfer adds or replaces. The number is
+                  # MAX_COLLECTIONS out of the firmware and is written out here
+                  # for the same reason every other line is - a change on
+                  # either side has to be made twice, on purpose.
+                  "collections": 16,
                   # The word that decides whether this browser may send a
                   # compressed tile, and it is matched whole rather than
                   # ordered - adr/0019. Written out here for the same reason

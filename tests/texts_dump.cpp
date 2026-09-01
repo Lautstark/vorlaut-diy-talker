@@ -18,13 +18,15 @@ int main(void) {
   for (unsigned i = 0; i < LANGUAGE_COUNT; i++) {
     const Strings &s = LANGUAGES[i];
     dump(i, "back", s.back);
-    dump(i, "info", s.info);
+    dump(i, "collections", s.collections);
+    dump(i, "next", s.next);
     dump(i, "menu", s.menu);
-    dump(i, "sets", s.sets);
     dump(i, "storage1", s.storage1);
     dump(i, "storage2", s.storage2);
     dump(i, "storagePresent", s.storagePresent);
     dump(i, "storageMissing", s.storageMissing);
+    dump(i, "free1", s.free1);
+    dump(i, "free2", s.free2);
     dump(i, "empty1", s.empty1);
     dump(i, "empty2", s.empty2);
     dump(i, "cable", s.cable);

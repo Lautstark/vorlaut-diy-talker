@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "2.1.0",
+  "device_interface_version": "2.2.0",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -375,6 +375,13 @@
       "expected": "press.expected.json"
     },
     {
+      "fixture": "collections",
+      "kind": "collections",
+      "outcome": "accepted",
+      "summary": "Which files on a device are collections, what each is called, in what order the menu lists them, which one is showing, and how four keys hold more than four names.",
+      "expected": "collections.expected.json"
+    },
+    {
       "fixture": "greet-and-list",
       "kind": "cable",
       "outcome": "accepted",
@@ -457,6 +464,27 @@
       "outcome": "accepted",
       "summary": "A name the device will not touch, a file that arrived wrong, and a file with no room for it.",
       "expected": "cable/names-and-errors.expected.json"
+    },
+    {
+      "fixture": "collections-named-in-the-hello",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A device that says how many collections it holds. Silence means one, and silence is what every talker flashed before 2026-08-31 says.",
+      "expected": "cable/collections-named-in-the-hello.expected.json"
+    },
+    {
+      "fixture": "get-a-collection-back",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "One file the other way. The head line carries the length and the checksum, then that many raw bytes, then what really went.",
+      "expected": "cable/get-a-collection-back.expected.json"
+    },
+    {
+      "fixture": "get-what-is-not-there",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "Asking for a file the device does not hold. The same word a checksum of one gets.",
+      "expected": "cable/get-what-is-not-there.expected.json"
     },
     {
       "fixture": "one-board",

@@ -5,11 +5,18 @@
 // sleep and wakes on any of the five keys - that first press deliberately
 // triggers nothing.
 //
-// /layout.bin and the content files beside it are produced in the browser -
-// renderLayoutBin() in loader/src/layout_format.ts writes the table, and either
-// the cable or the folder export puts the lot on the file system. They were
-// layout.h and data/, written by build.py, until the Python half went on
+// The collection files and the content beside them are produced in the browser
+// - renderLayoutBin() in loader/src/layout_format.ts writes the table, and
+// either the cable or the folder export puts the lot on the file system. They
+// were layout.h and data/, written by build.py, until the Python half went on
 // 2026-08-22.
+//
+// There may be several collections and the menu switches between them, which
+// is 2026-08-31 and adr/0021. A device holds one file per collection, reads
+// the name out of the head of each and parses only the one it is showing, so
+// what it costs to hold a second game is disk and not RAM. A talker carrying a
+// single /layout.bin from before that day goes on working, as the one
+// collection it has always been.
 
 #include <Arduino.h>
 #include <SPI.h>
@@ -42,9 +49,9 @@ static_assert(TILE_W == DISPLAY_W && TILE_H == DISPLAY_H,
               "a tile file is the whole panel - see tile_format.h");
 
 // --- Structure of the content ------------------------------------------------
-// How many sets there are, which colours and which file belongs to which key
-// is NOT in the firmware but in /layout.bin on the file system. Otherwise a
-// new set would have to be flashed over a cable.
+// How many sets there are and which file belongs to which key is NOT in the
+// firmware but in a collection file on the file system. Otherwise a new set
+// would have to be flashed over a cable.
 //
 // Structure and read logic live in layout_format.h - the same file gets
 // compiled on the computer by tests/test_layout_frozen.py and checked against
@@ -52,7 +59,14 @@ static_assert(TILE_W == DISPLAY_W && TILE_H == DISPLAY_H,
 // 2026-08-22; what changed with it is what the bytes are compared against, not
 // that this reader parses them.
 #include "layout_format.h"
-#define LAYOUT_FILE "/layout.bin"
+
+// And which of the files on the device are collections, what each of them is
+// called, and which one is showing. A collection is one layout.bin under a
+// name of its own, so nothing about the FORMAT changed for this - what arrived
+// is the three questions that only exist once there is more than one of them.
+// In a header for the same reason the strides are, and adr/0021 is the
+// decision.
+#include "collections.h"
 
 // And what the device DOES with a key, which is the other half of version 3
 // and was missing until 2026-08-31: keyPress(), the hold times, and the
@@ -281,39 +295,117 @@ static bool contentReady = true;
 static Preferences settings;
 static uint8_t volumeNow = AUDIO_VOLUME_PERCENT;
 
-enum Mode { MODE_NORMAL, MODE_MENU };
+// What the device holds, and which of it is showing.
+//
+// The names and the file names only - collections.h is where the economy of
+// that is written down. Which one is active is kept in NVS beside the volume
+// and for the same reason the comment on AUDIO_VOLUME_PERCENT gives: it is
+// something the person in the room should be able to change, and therefore not
+// a field in a format. A collection that says which collection is showing
+// would be a file that has to be rewritten to answer a key press.
+static Collections held;
+static char activeFile[COLLECTION_FILE_CHARS + 1] = "";
+
+enum Mode {
+  MODE_NORMAL,
+  MODE_MENU,        // volume, and the way to the collections
+  MODE_COLLECTIONS, // which collection - and, on an empty device, why not
+};
 static Mode mode = MODE_NORMAL;
 static uint32_t menuSince = 0;
 static uint32_t comboSince = 0;   // since when both menu keys have been held
 static int8_t countdownShown = -1;
+// Which screenful of collection names is up. Only ever non-zero where there
+// are more than four of them - see collectionsPerPage().
+static uint8_t collectionPage = 0;
 
 // --- Loading the content -----------------------------------------------------------
 
-// Reads /layout.bin and hands it to parseLayout from layout_format.h. If the
-// file is missing or does not fit, there simply is no content yet - that is
+// Reads one collection file and hands it to parseLayout from layout_format.h.
+// If the file is missing or does not fit, there simply is no content - that is
 // not an error but the state after the first flash.
-static bool loadLayout() {
-  if (!filesystemReady) return false;
-  File file = LittleFS.open(LAYOUT_FILE, "r");
-  if (!file) {
-    Serial.println("layout.bin missing - no content on the device yet.");
+//
+// **One at a time, and that is the whole reason a device can hold sixteen.**
+// The buffer below is LAYOUT_MAX_BYTES and there is one of it; what holding
+// another collection costs is a name and a file name in `held`, not a second
+// 13580 bytes. Parsing every collection at boot would have put the count into
+// SRAM, where 64 sets already sit.
+static bool loadLayout(const char *file) {
+  if (!filesystemReady || !file || !*file) return false;
+  char path[1 + COLLECTION_FILE_CHARS + 1];
+  snprintf(path, sizeof(path), "/%s", file);
+  File handle = LittleFS.open(path, "r");
+  if (!handle) {
+    Serial.printf("%s missing - no content on the device yet.\n", path);
     return false;
   }
   static uint8_t buffer[LAYOUT_MAX_BYTES];
-  const size_t got = file.read(buffer, sizeof(buffer));
-  file.close();
+  const size_t got = handle.read(buffer, sizeof(buffer));
+  handle.close();
 
   const LayoutResult result = parseLayout(buffer, (uint32_t)got, layout);
   if (result != LAYOUT_OK) {
-    Serial.printf("layout.bin unusable (reason %d, %u bytes)\n",
-                  (int)result, (unsigned)got);
+    Serial.printf("%s unusable (reason %d, %u bytes)\n",
+                  path, (int)result, (unsigned)got);
     return false;
   }
   // From here on the device talks in the language the content asks for.
   setLanguage(layout.language);
-  Serial.printf("layout.bin: %u set(s), language %u, sleep %u s\n",
-                layout.setCount, layout.language, layout.sleepSeconds);
+  Serial.printf("%s: %u set(s), language %u, sleep %u s\n",
+                path, layout.setCount, layout.language, layout.sleepSeconds);
   return layout.setCount > 0;
+}
+
+/** Every collection on the file system, in the order the menu lists them.
+ *
+ * The head of each file and nothing more - COLLECTION_HEAD_BYTES is 44 bytes,
+ * which is the twelve of the header and the first set's name after it. What a
+ * collection is CALLED is a question the whole file does not have to be read to
+ * answer, and that is what keeps this a directory walk.
+ *
+ * Every decision here is in collections.h so that a test can make the same
+ * ones: which names are collections, which heads are readable, and what order
+ * they come out in. This function is the part that needs LittleFS. */
+static void scanCollections() {
+  collectionsClear(held);
+  if (!filesystemReady) return;
+  File dir = LittleFS.open("/");
+  if (!dir) return;
+  for (File entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+    if (entry.isDirectory()) continue;
+    const char *name = entry.name();
+    if (name && name[0] == '/') name++;   // LittleFS is not consistent about it
+    if (collectionKind(name) == COLLECTION_NOT) continue;
+    uint8_t head[COLLECTION_HEAD_BYTES];
+    const int got = entry.read(head, sizeof(head));
+    collectionsOffer(held, name, head, got > 0 ? (uint32_t)got : 0);
+  }
+  dir.close();
+  Serial.printf("collections: %u found", (unsigned)held.count);
+  if (held.refused) Serial.printf(", %u not readable", (unsigned)held.refused);
+  Serial.println();
+  for (uint8_t i = 0; i < held.count; i++) {
+    Serial.printf("  %s  %s\n", held.at[i].file, held.at[i].name);
+  }
+}
+
+/** The collection the device shows, and the content read in from it.
+ *
+ * The one that was asked for where it is still there, the first one where it
+ * is not, and nothing at all where there are none. Falling back is said out
+ * loud on the serial port and is deliberately not written back to NVS - see
+ * collectionsChoose(). */
+static bool openActive() {
+  const CollectionChoice choice = collectionsChoose(held, activeFile);
+  if (choice == COLLECTION_NOTHING) {
+    Serial.println("no collection on the device.");
+    return false;
+  }
+  if (choice == COLLECTION_FELL_BACK && activeFile[0]) {
+    Serial.printf("%s is not here any more - showing %s instead\n",
+                  activeFile, held.at[held.active].file);
+  }
+  return loadLayout(held.at[held.active].file);
 }
 
 // --- Displays ----------------------------------------------------------------
@@ -511,13 +603,21 @@ static void drawCurrentSet() {
 // distinction is if anything plainer now - a frame against no frame.
 static const uint16_t MENU_FRAME = 0x8410;   // mid grey in RGB565
 
-static void drawMenuKey(Panel *tft, const char *first, const char *second) {
+// The one that is showing, marked as quietly as anything on this device is
+// marked. A brighter frame and not a character in front of the name: the menu
+// already tells itself apart from the talker by a frame against no frame, so a
+// frame against a duller frame is the same language said again, and a name has
+// nine characters to be recognised in without one of them being a dot.
+static const uint16_t MENU_FRAME_ACTIVE = ST77XX_WHITE;
+
+static void drawMenuKey(Panel *tft, const char *first, const char *second,
+                        uint16_t frame = MENU_FRAME) {
   const int16_t inner = DISPLAY_H - 2 * MENU_BORDER;
-  tft->fillRect(0, 0, DISPLAY_W, MENU_BORDER, MENU_FRAME);
-  tft->fillRect(0, DISPLAY_H - MENU_BORDER, DISPLAY_W, MENU_BORDER, MENU_FRAME);
-  tft->fillRect(0, MENU_BORDER, MENU_BORDER, inner, MENU_FRAME);
+  tft->fillRect(0, 0, DISPLAY_W, MENU_BORDER, frame);
+  tft->fillRect(0, DISPLAY_H - MENU_BORDER, DISPLAY_W, MENU_BORDER, frame);
+  tft->fillRect(0, MENU_BORDER, MENU_BORDER, inner, frame);
   tft->fillRect(DISPLAY_W - MENU_BORDER, MENU_BORDER, MENU_BORDER, inner,
-                MENU_FRAME);
+                frame);
   tft->fillRect(MENU_BORDER, MENU_BORDER, DISPLAY_W - 2 * MENU_BORDER, inner,
                 ST77XX_BLACK);
   if (!first && !second) return;   // a key with nothing behind it stays dark
@@ -528,24 +628,33 @@ static void drawMenuKey(Panel *tft, const char *first, const char *second) {
 // Only show what actually exists. Entries appear once the function behind
 // them exists - not before.
 //
-// Four live keys out of five now. Fetching content, setting up Wi-Fi and
-// pairing were keys 1 to 3 and went with the radio, which left Info and Back
-// and three dark keys; two of those are the volume, and nothing had to be
-// given up to fit it - the room was already there. Key 2 shows what the
-// setting is, so the pair either side of it are a control somebody can read
-// rather than two keys that do something invisible.
+// Four live keys out of five. Fetching content, setting up Wi-Fi and pairing
+// were keys 1 to 3 and went with the radio, which left Info and Back and three
+// dark keys; two of those became the volume, and nothing had to be given up to
+// fit it - the room was already there.
 //
-// The number is on the same screen as the keys that move it on purpose. It
-// was going to be a line on the info page, and that is one press further away
-// from the thing it describes: somebody making a device quieter is listening,
+// **Quieter, the reading, louder, and the way to the collections.** The pair
+// either side of the number are a control somebody can read rather than two
+// keys that do something invisible, and the number is on the same screen as the
+// keys that move it on purpose: somebody making a device quieter is listening,
 // not navigating.
+//
+// The fourth key is where the second thing this menu is for begins, and it is
+// the only thing below this screen. Volume stays here because it is the one
+// thing in the menu somebody presses more than once, and having to find the way
+// back to the right screen first would be a worse answer than a screen that
+// changes under them. Two things and four keys need no tree.
+//
+// Info was key 1 and is not a key any more. Its job was to tell a device with
+// no content from a device with no file system, and that is exactly what the
+// collection screen says when it has no names to show - see drawCollections().
 static void drawMenu() {
   char percent[8];
   snprintf(percent, sizeof(percent), "%u%%", (unsigned)volumeNow);
-  drawMenuKey(display[0], text().info, nullptr);
+  drawMenuKey(display[0], text().quieter, nullptr);
   drawMenuKey(display[1], text().volume, percent);
-  drawMenuKey(display[2], text().quieter, nullptr);
-  drawMenuKey(display[3], text().louder, nullptr);
+  drawMenuKey(display[2], text().louder, nullptr);
+  drawMenuKey(display[3], text().collections, nullptr);
   drawMenuKey(display[SET_BUTTON], text().back, nullptr);
 }
 
@@ -617,22 +726,68 @@ static bool cableAbort() {
   return isDown(SET_BUTTON);
 }
 
-static void drawInfo() {
-  char count[8];
-  drawMenuKey(display[0], text().sets, nullptr);
-  snprintf(count, sizeof(count), "%u", (unsigned)(contentReady ? layout.setCount : 0));
-  drawMenuKey(display[1], count, nullptr);
-
-  drawMenuKey(display[2], text().storage1, text().storage2);
-  drawMenuKey(display[3],
-              filesystemReady ? text().storagePresent : text().storageMissing,
-              nullptr);
-  drawMenuKey(display[SET_BUTTON], text().back, nullptr);
-
-  if (filesystemReady) {
-    Serial.printf("LittleFS: %u of %u bytes used\n",
-                  (unsigned)LittleFS.usedBytes(), (unsigned)LittleFS.totalBytes());
+/**
+ * Which collection, and - on a device that has none - why not.
+ *
+ * **The diagnosis is this screen's empty state rather than a screen of its
+ * own.** Info used to be a key here, and what it was for is written down in
+ * docs/bring-up.md, stage 7: a talker with five black keys is either a device
+ * with no content on it or a device whose file system will not mount, and those
+ * two look identical from the outside and are answered completely differently.
+ * A device with no collections has no names to draw and four keys standing
+ * empty, which is exactly the room that sentence needs - so the screen that
+ * lists collections is also the screen that says there are none and what the
+ * file system is doing. One screen, one press, and nothing lost.
+ *
+ * Free space is on it because a person looking at this is deciding whether
+ * something will fit, and because the number was already being fetched and
+ * written only to Serial.
+ */
+static void drawCollections() {
+  if (held.count == 0) {
+    char free[12];
+    snprintf(free, sizeof(free), "%u",
+             (unsigned)(filesystemReady
+                            ? (LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024
+                            : 0));
+    drawMenuKey(display[0], text().storage1, text().storage2);
+    drawMenuKey(display[1],
+                filesystemReady ? text().storagePresent : text().storageMissing,
+                nullptr);
+    drawMenuKey(display[2], text().free1, text().free2);
+    drawMenuKey(display[3], free, nullptr);
+    drawMenuKey(display[SET_BUTTON], text().back, nullptr);
+    if (filesystemReady) {
+      Serial.printf("LittleFS: %u of %u bytes used, no collection on it\n",
+                    (unsigned)LittleFS.usedBytes(),
+                    (unsigned)LittleFS.totalBytes());
+    } else {
+      Serial.println("LittleFS is not mounted - see docs/bring-up.md stage 7.");
+    }
+    return;
   }
+
+  const bool paging = collectionsPaging(held.count);
+  for (uint8_t key = 0; key < COLLECTION_KEYS; key++) {
+    if (paging && key == COLLECTION_KEYS - 1) {
+      drawMenuKey(display[key], text().next, nullptr);
+      continue;
+    }
+    const int8_t at = collectionsOnPage(held.count, collectionPage, key);
+    if (at < 0) {
+      drawMenuKey(display[key], nullptr, nullptr);
+      continue;
+    }
+    char first[MENU_LINE_BYTES], second[MENU_LINE_BYTES];
+    collectionMenuLines(held.at[at].name, first, second);
+    drawMenuKey(display[key], first, second,
+                (uint8_t)at == held.active ? MENU_FRAME_ACTIVE : MENU_FRAME);
+  }
+  drawMenuKey(display[SET_BUTTON], text().back, nullptr);
+  Serial.printf("collections: page %u of %u, showing %s\n",
+                (unsigned)(collectionPage + 1),
+                (unsigned)collectionsPages(held.count),
+                held.at[held.active].file);
 }
 
 /** One step, kept, and heard.
@@ -659,6 +814,20 @@ static void changeVolume(int8_t by) {
   playTone();
 }
 
+/** Whatever mode the device is in, on the panels.
+ *
+ * One function rather than the `mode == MODE_MENU ? drawMenu() : drawCurrentSet()`
+ * that stood in four places. It was already the sort of line that gets forgotten
+ * in the fifth place, and a second menu screen would have made every one of the
+ * four wrong instead of merely repetitive. */
+static void redraw() {
+  switch (mode) {
+    case MODE_MENU: drawMenu(); break;
+    case MODE_COLLECTIONS: drawCollections(); break;
+    default: drawCurrentSet(); break;
+  }
+}
+
 static void enterMenu() {
   mode = MODE_MENU;
   menuSince = millis();
@@ -672,6 +841,51 @@ static void leaveMenu() {
   countdownShown = -1;
   Serial.println("menu left");
   drawCurrentSet();
+}
+
+// Both defined further down, with the settings and the key handling. Needed up
+// here because choosing a collection writes one and waits on the other.
+static void saveCollection();
+static void waitForRelease();
+
+/** One level down, to the collections - and to the diagnosis where there are
+ *  none. */
+static void enterCollections() {
+  mode = MODE_COLLECTIONS;
+  menuSince = millis();
+  // From the page the active collection is on, so that the one that is showing
+  // is the one somebody sees first. On a device with four or fewer this is
+  // always zero and the arithmetic says so.
+  collectionPage = held.count
+      ? (uint8_t)(held.active / collectionsPerPage(held.count)) : 0;
+  Serial.println("collections opened");
+  drawCollections();
+}
+
+/**
+ * On to the collection at `at`, and out of the menu with it.
+ *
+ * Out, because choosing a collection is not a setting somebody adjusts twice -
+ * it is the answer to "show me the other game", and the answer is the other
+ * game on the screen rather than a menu that now looks slightly different.
+ *
+ * rtcCurrentSet goes back to nothing, and that is not tidiness: a set index
+ * means something different in every collection, and set 4 of the one that was
+ * showing is not set 4 of the one being asked for.
+ */
+static void goToCollection(uint8_t at) {
+  if (at >= held.count) return;
+  held.active = at;
+  strncpy(activeFile, held.at[at].file, sizeof(activeFile) - 1);
+  activeFile[sizeof(activeFile) - 1] = '\0';
+  saveCollection();
+  Serial.printf("collection: %s (%s)\n", held.at[at].file, held.at[at].name);
+  contentReady = loadLayout(activeFile);
+  rtcCurrentSet = 0;
+  // Her finger is still on the key that did this - CHANGE_RELEASE in
+  // key_press.h, and the same worry for the same reason.
+  waitForRelease();
+  leaveMenu();
 }
 
 static void backlight(bool on) {
@@ -869,6 +1083,40 @@ static void saveVolume() {
   settings.end();
 }
 
+// --- Which collection ---------------------------------------------------------
+
+/** The collection last chosen, by file name, or empty for none.
+ *
+ * Beside the volume and in NVS for the same reason, said once in the comment
+ * on AUDIO_VOLUME_PERCENT and not repeated here: it is something the person in
+ * the room changes, so it is not a field in a format. It also must not be on
+ * LittleFS - that is the browser's half, swept and diffed by the cable, and a
+ * setting living there would be one more name to teach that sweep about.
+ *
+ * The FILE name and not an index. An index would mean something different the
+ * moment a collection is added or removed, and adding and removing is the whole
+ * of what this change is for. The name is checked against what is really there
+ * before it is used - collectionsChoose() - so a name left over from a
+ * collection that has since gone is a fallback rather than a fault. */
+static void loadCollection() {
+  settings.begin("vorlaut", true);          // read-only
+  const size_t got = settings.getString("collection", activeFile,
+                                        sizeof(activeFile));
+  settings.end();
+  if (got == 0) activeFile[0] = '\0';
+  // A name from a future firmware with a longer one is not trusted, the same
+  // way the volume is brought inside this build's range: what is on the other
+  // side of a flash is not this build's business to believe.
+  if (collectionKind(activeFile) == COLLECTION_NOT) activeFile[0] = '\0';
+  if (activeFile[0]) Serial.printf("collection: %s was showing\n", activeFile);
+}
+
+static void saveCollection() {
+  settings.begin("vorlaut", false);
+  settings.putString("collection", activeFile);
+  settings.end();
+}
+
 /** A short note at the current volume, so a press can be heard as well as read.
  *
  * A volume control nobody can hear is a number on a screen, and the menu is
@@ -951,7 +1199,7 @@ static bool menuComboReady() {
     if (comboSince != 0 && countdownShown >= 0) {
       // Cancelled: back to whatever was on screen before.
       countdownShown = -1;
-      if (mode == MODE_MENU) drawMenu(); else drawCurrentSet();
+      redraw();
     }
     comboSince = 0;
     return false;
@@ -1153,6 +1401,7 @@ void setup() {
   // restart, so this is read on the way out of one as well as on the way out
   // of the box.
   loadVolume();
+  loadCollection();
   t_audio = millis();
 
   // Formats when there is nothing to mount, and that changed with the release
@@ -1182,8 +1431,9 @@ void setup() {
     Serial.println("  2. if that is right, the flash itself is the suspect.");
   }
 
-  // Only here, because the file system has to be up for it.
-  contentReady = loadLayout();
+  // Only here, because the file system has to be up for them.
+  scanCollections();
+  contentReady = openActive();
   t_layout = millis();
   if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
 
@@ -1244,12 +1494,33 @@ void loop() {
         // Read the new content in straight away. Otherwise the device would
         // go on showing yesterday until somebody restarts it, which is a bad
         // way to find out whether the transfer worked.
-        contentReady = loadLayout();
+        //
+        // And show the collection that was just sent, where one was. Sending a
+        // second game to a talker that goes on showing the first is a transfer
+        // that looks from the outside exactly like a transfer that failed, and
+        // the person who would find out otherwise is standing at the desk with
+        // the cable in their hand. Where nothing was sent - a session that only
+        // removed things - whatever was showing stays showing, unless it is the
+        // thing that went, and then openActive() falls back.
+        if (cable.collection[0]) {
+          strncpy(activeFile, cable.collection, sizeof(activeFile) - 1);
+          activeFile[sizeof(activeFile) - 1] = '\0';
+          saveCollection();
+          rtcCurrentSet = 0;
+        }
+        scanCollections();
+        contentReady = openActive();
         if (contentReady && rtcCurrentSet >= layout.setCount) rtcCurrentSet = 0;
+        // The screen below may be listing a collection that has just gone, or
+        // missing one that has just arrived.
+        if (mode == MODE_COLLECTIONS) {
+          collectionPage = held.count
+              ? (uint8_t)(held.active / collectionsPerPage(held.count)) : 0;
+        }
       }
       delay(1500);            // long enough to read the count on the displays
       waitForRelease();
-      if (mode == MODE_MENU) drawMenu(); else drawCurrentSet();
+      redraw();
       lastActivity = millis();
       menuSince = millis();
       return;
@@ -1258,7 +1529,11 @@ void loop() {
 
   // The gesture takes precedence - otherwise letting go would count as a press.
   if (menuComboReady()) {
-    if (mode == MODE_MENU) leaveMenu(); else enterMenu();
+    // Out of the menu from wherever in it the device is, and that is the one
+    // place the second screen is NOT one level deeper: the gesture that opens
+    // the menu closes it, and having to climb back up a level first before the
+    // way out worked would be the tree this menu deliberately is not.
+    if (mode == MODE_NORMAL) enterMenu(); else leaveMenu();
     // Both keys are still being held. Without the wait, the set key would
     // switch again 400 ms later.
     waitForRelease();
@@ -1283,22 +1558,59 @@ void loop() {
     if (pressed == SET_BUTTON) {
       leaveMenu();
     } else if (pressed == 0) {
-      drawInfo();
-      menuSince = millis();
-    } else if (pressed == 2) {
-      // Both of these work from the info page too, and draw the menu back
-      // over it. Volume is the one thing in here somebody presses more than
-      // once, and having to find the way back to the right screen first would
-      // be a worse answer than a screen that changes under them.
+      // Volume is on the screen the menu opens on, and stays there. It is the
+      // one thing in here somebody presses more than once, and having to find
+      // the way back to the right screen first would be a worse answer than a
+      // screen that changes under them - which is the same sentence that used
+      // to be about the info page and is now about the level below.
       changeVolume(-(int8_t)VOLUME_STEP);
-    } else if (pressed == 3) {
+    } else if (pressed == 2) {
       changeVolume((int8_t)VOLUME_STEP);
+    } else if (pressed == 3) {
+      enterCollections();
     }
     if (pressed >= 0) {
       lastActivity = millis();
       menuSince = millis();
     }
     // Do not get stuck in the menu: back after a while without input.
+    if (millis() - menuSince >= MENU_IDLE_MS) leaveMenu();
+    delay(5);
+    return;
+  }
+
+  if (mode == MODE_COLLECTIONS) {
+    if (pressed == SET_BUTTON) {
+      // Back up one, not out. The set key is the way back on every screen it
+      // appears on, and on the screen above it is the way out - which is the
+      // whole of the navigation, said in one key.
+      mode = MODE_MENU;
+      Serial.println("collections closed");
+      drawMenu();
+    } else if (pressed >= 0 && pressed < COLLECTION_KEYS) {
+      if (collectionsPaging(held.count) && pressed == COLLECTION_KEYS - 1) {
+        // Round rather than stopping at the last page. There is no "back a
+        // page" key to be had and no room for one, so the only way to reach a
+        // page you have gone past is to keep going.
+        collectionPage = (uint8_t)((collectionPage + 1)
+                                   % collectionsPages(held.count));
+        drawCollections();
+      } else {
+        const int8_t at = collectionsOnPage(held.count, collectionPage,
+                                            (uint8_t)pressed);
+        // A dark key, and the diagnosis screen's keys, do nothing. Neither is
+        // a name, and a key that did something anyway would be a device
+        // answering a press nobody made.
+        if (at >= 0) goToCollection((uint8_t)at);
+      }
+    }
+    if (pressed >= 0) {
+      lastActivity = millis();
+      menuSince = millis();
+    }
+    // **Out of the menu altogether, not up one level.** A device that is in
+    // here is a device that is not speaking, and how deep in it is makes no
+    // difference to that. leaveMenu() is the same call the screen above makes.
     if (millis() - menuSince >= MENU_IDLE_MS) leaveMenu();
     delay(5);
     return;
