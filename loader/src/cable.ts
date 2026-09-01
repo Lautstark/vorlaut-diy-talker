@@ -21,9 +21,17 @@
 import { recordingsForDevice } from "./audio_encode.js";
 import { forDevice } from "./tile_encode.js";
 import {
-  Cable, CABLE_VERSION, isCollection, LAYOUT_FILE, plan, planRemoval, push,
-  versionVerdict,
+  Cable, CABLE_VERSION, CableError, isCollection, LAYOUT_FILE, plan,
+  planRemoval, push, versionVerdict,
 } from "../tools/cable.js";
+
+/* Through here rather than straight from tools/cable.js, which is the
+   direction every other name from the wire already travels: main.ts talks to
+   this module and this module owns the protocol. It is re-exported at all
+   because the page now has a sentence for each word the device can answer
+   with, and routing to those sentences means being able to ask whether a
+   caught thing is one of them. */
+export { CableError };
 import { readLayoutBin } from "./layout_format.js";
 import { Trouble } from "./errors.js";
 
