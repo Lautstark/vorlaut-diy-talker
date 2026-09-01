@@ -1503,8 +1503,13 @@ const NAMES = [
     hash: NAME_HASH, path: `/t${NAME_HASH}.bin` },
   { what: "a recording", name: `a${AUDIO_HASH}.wav`, emitted: true, stored: true,
     hash: AUDIO_HASH, path: `/a${AUDIO_HASH}.wav` },
-  { what: "the layout, the one name that is not a hash", name: "layout.bin",
-    emitted: true, stored: true, hash: null, path: "/layout.bin" },
+  { what: "a collection", name: `c${NAME_HASH}.bin`, emitted: true, stored: true,
+    hash: NAME_HASH, path: `/c${NAME_HASH}.bin`,
+    note: "The third letter, 2026-08-31. What goes into the hash is the collection's IDENTITY - the root board's id out of the package - and not the file's bytes, so a collection edited and sent again lands on the same name and a device replaces it rather than holding two. Which means this is a name whose content it does not promise, and therefore one the cable compares by checksum: exactly the exception layout.bin was, now a family of names." },
+  { what: "the layout, under the one name a device used to hold it by",
+    name: "layout.bin",
+    emitted: false, stored: true, hash: null, path: "/layout.bin",
+    note: "Not emitted any more and still stored, which is the one case in this table where those two come apart in that direction and is not a fault. A talker flashed before 2026-08-31 is carrying one and its firmware reads it as the one collection it has always been, so the device must go on storing, checksumming and deleting the name - a page that could not remove it could not tidy such a device up at all." },
 
   { what: "upper-case hex", name: `t${NAME_HASH.toUpperCase()}.bin`,
     emitted: false, stored: true, hash: null, path: null,
@@ -1538,7 +1543,7 @@ fixture({
     fixture: "names", kind: "names",
     summary: "Which names a builder may emit, which names the device will store, and the fact that the first set is inside the second.",
     rule: {
-      emitted: "A slash, then t or a, then exactly 32 lower-case hex digits, then .bin or .wav - or the literal name layout.bin. The 32 digits are the first sixteen bytes of a hash OF THE INPUT that produced the file, not of the file's own bytes.",
+      emitted: "A slash, then t, a or c, then exactly 32 lower-case hex digits, then .bin for a tile or a collection and .wav for a recording. The 32 digits are the first sixteen bytes of a hash OF THE INPUT that produced the file, not of the file's own bytes. layout.bin was a fourth shape until 2026-08-31 and is no longer emitted; it is still stored, because devices are carrying it.",
       stored: "One to 63 bytes, no leading dot, and every byte strictly between space and 0x7f, slash excluded.",
       superset: "Every name a builder emits must be a name the device will store. The two rules are written in different files, in different languages, by different hands, and a name that satisfies the first and not the second is a file that silently never arrives - no error anywhere, one black key.",
       path: "The device opens a stored name with a leading slash in front of it. Everything it holds lies flat in the root, which is why the slash may not appear inside a name.",
@@ -1748,6 +1753,247 @@ fixture({
 });
 
 // =============================================================================
+// Several collections on one device
+// =============================================================================
+//
+// A collection is one file, so the list of collections on a talker is what
+// lies in its directory. That single sentence is what this kind states, and
+// everything in it is a consequence: which names count, what each is called,
+// what order they come out in, which one is showing after a removal, and how
+// four keys hold more than four names.
+//
+// **Nothing here is a byte of layout.bin.** The format did not move for this -
+// a collection file holds exactly the bytes version 3 has always held - so
+// there is no artefact under `collections/` and no refusal code to cover. What
+// there is instead is a set of decisions the firmware makes about files, and
+// the reason they are stated here rather than left in vorlaut.ino is the reason
+// `press` is: a decision in the one file no test can include is a decision
+// nothing holds.
+//
+// Like `press`, this kind has **almost no browser half**. What crosses is the
+// name rule - the loader has to agree about which names are collections, or it
+// offers to remove a file the device never lists, or sweeps up the one the
+// device is showing - and that is one predicate. The wrapping, the ordering
+// and the fallback are the device's alone and are checked from the C side only.
+
+/** The letter, and what a name has to look like to be a collection at all. */
+const COLLECTION_PREFIX = "c";
+const COLLECTION_LEGACY = "layout.bin";
+const MAX_COLLECTIONS = 16;
+/** The header, and the first set's name after it - all a device reads to put a
+ *  name in its menu. */
+const COLLECTION_HEAD_BYTES = LAYOUT_HEADER_BYTES + NAME_BYTES;   // 44
+/** Nine characters a line, twice. MENU_MAX_CHARS in firmware/vorlaut/texts.h,
+ *  which is 116 pixels inside the frame divided by the twelve a glyph takes at
+ *  text size 2. Written here from the arithmetic rather than taken from that
+ *  header, like every other number in this file. */
+const MENU_MAX_CHARS = 9;
+
+const COLLECTION_NAMES = [
+  { what: "a collection the loader wrote", name: `c${NAME_HASH}.bin`,
+    kind: "named" },
+  { what: "the one name a device used to hold its only collection under",
+    name: COLLECTION_LEGACY, kind: "legacy" },
+  { what: "a tile", name: `t${NAME_HASH}.bin`, kind: "not" },
+  { what: "a recording", name: `a${AUDIO_HASH}.wav`, kind: "not" },
+  { what: "upper-case hex", name: `c${NAME_HASH.toUpperCase()}.bin`,
+    kind: "not",
+    note: "Lower case only, and refused rather than folded. The device opens the name it was given; a name it read one way and opened another would be a collection in the menu that shows nothing." },
+  { what: "half a hash", name: `c${NAME_HASH.slice(0, 16)}.bin`, kind: "not",
+    note: "Exactly 32 digits. A short name is a name no builder writes, so a file under one is a file whose bytes nobody here wrote - and listing it as a collection would put a name in the menu on the strength of a guess." },
+  { what: "the right length and the wrong suffix", name: `c${NAME_HASH}.wav`,
+    kind: "not" },
+  { what: "nothing at all", name: "", kind: "not" },
+];
+
+/** A collection file's first 44 bytes, from the fields. */
+const collectionHead = ({ magic = LAYOUT_MAGIC, version = LAYOUT_VERSION,
+                          sets = 1, slots = SLOTS_PER_SET, language = 0,
+                          sleep = 0, name = "", cut = 0 }) => {
+  const head = Buffer.concat([
+    layoutBytes({ magic, version, setCountByte: sets, slotCountByte: slots,
+                  language, sleep, entries: [] }),
+    nameField(name),
+  ]);
+  return cut ? Buffer.from(head.subarray(0, cut)) : head;
+};
+
+const COLLECTION_HEADS = [
+  { what: "an ordinary collection", head: collectionHead({ name: de.at_home }),
+    name: de.at_home },
+  { what: "a name that fills the field",
+    head: collectionHead({ name: de.exactly_32_bytes }),
+    name: de.exactly_32_bytes },
+  { what: "sixty-four sets", head: collectionHead({ sets: MAX_SETS, name: de.shadow_game }),
+    name: de.shadow_game },
+  { what: "no sets at all", head: collectionHead({ sets: 0, name: de.at_home }),
+    name: null,
+    note: "Parsed happily by parseLayout and still not a collection anybody can choose: there is nothing behind the name to show. A device holding only this one has no collections, which is the same state as an empty device and is drawn the same way." },
+  { what: "a version this build does not read",
+    head: collectionHead({ version: LAYOUT_VERSION + 1, name: de.at_home }),
+    name: null,
+    note: "A name in the menu leading to a talker with nothing on it is the failure docs/device-interface.md section 6 is a whole section about. So a file whose head this build cannot read is not named and not listed - it is simply not there, as far as the menu is concerned." },
+  { what: "the wrong magic",
+    head: collectionHead({ magic: "MTRE", name: de.at_home }), name: null },
+  { what: "the wrong slot count",
+    head: collectionHead({ slots: SLOTS_PER_SET + 1, name: de.at_home }),
+    name: null },
+  { what: "a file shorter than the head",
+    head: collectionHead({ name: de.at_home, cut: COLLECTION_HEAD_BYTES - 1 }),
+    name: null,
+    note: "Forty-four bytes or it is not readable. That is the whole of what a device reads to build its menu, and it is why holding sixteen collections costs a directory walk instead of sixteen parses." },
+];
+
+/** A name broken over the two lines a key has. */
+const COLLECTION_MENU = [
+  { name: de.mirror_and_egg_game, lines: de.mirror_and_egg_game_on_a_key,
+    note: "Two words and a bit, broken at a space, which is why there is a wrap at all rather than a cut at eighteen characters. Breaking mid-word here would be the same letters and a different thing to read." },
+  { name: de.shadow_game, lines: de.shadow_game_on_a_key,
+    note: "One word longer than a line, cut where the line ends and not where the syllable does. The two lines read down as the word, which is what makes it legible; hyphenating properly needs a dictionary per language, and the failure of a wrong guess at one is a name that reads as a different word." },
+  { name: de.question_game, lines: de.question_game_on_a_key,
+    note: "Ten characters, and the tenth is on a line of its own. The panel is nine glyphs wide at text size 2 and this is what the edge of it looks like." },
+  { name: de.at_home, lines: de.at_home_on_a_key },
+  { name: de.greetings, lines: de.greetings_on_a_key,
+    note: "Five glyphs and seven bytes. Counted in glyphs, through the same walk toPanelText() draws with - a wrapper counting bytes puts every name with an umlaut in it two characters short of where it belongs." },
+  { name: de.morning_with_mum, lines: de.morning_with_mum_on_a_key,
+    note: "Two lines and no more. The last two words are dropped rather than shrunk: a smaller font would fit them and would be unreadable across a room, which is the only distance this is ever looked at from." },
+  { name: de.leading_space, lines: de.leading_space_on_a_key,
+    note: "A leading space is nothing. It would otherwise be a glyph of the nine, spent on air." },
+  { name: "", lines: ["", ""] },
+];
+
+/** Files as a directory hands them over, and the order the menu puts them in.
+ *
+ * Deliberately not in the order they come out in, and deliberately with two
+ * called the same thing: a file system promises no order, and the case where
+ * the names tie is the one a person really meets - the same collection exported
+ * twice under two identities. */
+const COLLECTION_LISTING = [
+  { file: `c${"11".repeat(HASH_BYTES)}.bin`, name: de.shadow_game },
+  { file: COLLECTION_LEGACY, name: de.at_home },
+  { file: `c${"22".repeat(HASH_BYTES)}.bin`, name: de.mirror_and_egg_game },
+  { file: `c${"00".repeat(HASH_BYTES)}.bin`, name: de.mirror_and_egg_game },
+].map((one) => ({ ...one, head: hex(collectionHead({ name: one.name })) }));
+
+/** What offering a file to the list comes to, one file at a time. */
+const COLLECTION_OFFERS = [
+  { what: "a collection", file: `c${NAME_HASH}.bin`,
+    head: hex(collectionHead({ name: de.at_home })), taken: "taken" },
+  { what: "a tile", file: `t${NAME_HASH}.bin`,
+    head: hex(collectionHead({ name: de.at_home })), taken: "not_one",
+    note: "Refused on the name alone, before the head is looked at. Everything on the partition goes past this - every tile and every recording of every collection - so the cheap question is asked first and the read only happens for the handful that pass it." },
+  { what: "a collection this build cannot read",
+    file: `c${AUDIO_HASH}.bin`,
+    head: hex(collectionHead({ version: LAYOUT_VERSION + 1, name: de.at_home })),
+    taken: "unreadable",
+    note: "Counted rather than merely dropped. A device that quietly showed one name fewer than there are files would be indistinguishable from one that had lost a file, and the serial log is where the difference is said." },
+];
+
+/** Seventeen files where there is room for sixteen. */
+const COLLECTION_TOO_MANY = Array.from(
+  { length: MAX_COLLECTIONS + 1 },
+  (_, at) => `c${String(at).padStart(2, "0").repeat(HASH_BYTES)}.bin`);
+
+/** What choosing comes to, given what NVS was holding. */
+const COLLECTION_CHOICES = [
+  { what: "the one that was showing is still there",
+    asked: COLLECTION_LEGACY, chose: COLLECTION_LEGACY, outcome: "asked" },
+  { what: "it has been removed since",
+    asked: `c${"99".repeat(HASH_BYTES)}.bin`,
+    chose: `c${"11".repeat(HASH_BYTES)}.bin`, outcome: "fell_back",
+    note: "The ordinary case rather than a corruption: removing a collection from the loader page is one press and the name in NVS survives it. A device that answered that with a black screen would be a device somebody broke by tidying up." },
+  { what: "nothing was ever chosen", asked: "",
+    chose: `c${"11".repeat(HASH_BYTES)}.bin`, outcome: "fell_back",
+    note: "A device out of the box, and a device whose stored name this build refuses to believe. Both are the first collection in the order." },
+];
+
+/** Four keys, and more than four names. */
+const COLLECTION_PAGING = [
+  { count: 0, per_page: 4, pages: 1, keys: [[-1, -1, -1, -1]] },
+  { count: 1, per_page: 4, pages: 1, keys: [[0, -1, -1, -1]] },
+  { count: 4, per_page: 4, pages: 1, keys: [[0, 1, 2, 3]] },
+  { count: 5, per_page: 3, pages: 2, keys: [[0, 1, 2, -1], [3, 4, -1, -1]] },
+  { count: 7, per_page: 3, pages: 3, keys: [[0, 1, 2, -1], [3, 4, 5, -1],
+                                            [6, -1, -1, -1]] },
+];
+
+fixture({
+  kind: "collections", name: "collections", outcome: "accepted",
+  summary: "Which files on a device are collections, what each is called, in what order the menu lists them, which one is showing, and how four keys hold more than four names.",
+  expected: {
+    fixture: "collections", kind: "collections",
+    summary: "Which files on a device are collections, what each is called, in what order the menu lists them, which one is showing, and how four keys hold more than four names.",
+    name_rule: {
+      prefix: COLLECTION_PREFIX,
+      digits: HASH_BYTES * 2,
+      suffix: ".bin",
+      legacy: COLLECTION_LEGACY,
+      what_is_hashed: "The collection's identity - the root board's id out of the package - and never its bytes. A collection edited and exported again keeps its name, which is what makes a device replace it rather than hold two of it.",
+    },
+    max: MAX_COLLECTIONS,
+    head_bytes: COLLECTION_HEAD_BYTES,
+    names: COLLECTION_NAMES.map((one) => ({
+      what: one.what, name: one.name, kind: one.kind, note: one.note ?? null,
+    })),
+    heads: COLLECTION_HEADS.map((one) => ({
+      what: one.what, head: hex(one.head), name: one.name, note: one.note ?? null,
+    })),
+    menu_max_chars: MENU_MAX_CHARS,
+    menu: COLLECTION_MENU.map((one) => ({
+      name: one.name, first: one.lines[0], second: one.lines[1],
+      note: one.note ?? null,
+    })),
+    offering: COLLECTION_OFFERS.map((one) => ({
+      what: one.what, file: one.file, head: one.head, taken: one.taken,
+      note: one.note ?? null,
+    })),
+    over_the_limit: {
+      files: COLLECTION_TOO_MANY,
+      head: hex(collectionHead({ name: de.at_home })),
+      taken: MAX_COLLECTIONS,
+      refused: COLLECTION_TOO_MANY.length - MAX_COLLECTIONS,
+      note: "The seventeenth is refused and counted. Nothing writes seventeen collection files - the loader refuses to send past the number the device names in its greeting - so this is the case where something else has: a folder export, an image built by hand, a device that was flashed with a smaller limit than the one that wrote it.",
+    },
+    listing: {
+      given: COLLECTION_LISTING,
+      // By the name a person reads, and by the file where two are called the
+      // same. Written out rather than computed, because a fixture that sorted
+      // its own expectation would agree with whatever it sorted by.
+      order: [
+        `c${"11".repeat(HASH_BYTES)}.bin`,   // shadow_game
+        `c${"00".repeat(HASH_BYTES)}.bin`,   // mirror_and_egg_game
+        `c${"22".repeat(HASH_BYTES)}.bin`,   // mirror_and_egg_game, later file
+        COLLECTION_LEGACY,                    // at_home
+      ],
+      note: "Two of them are called the same thing, which is the case the tie-break exists for and the one a person really meets: the same collection exported twice under two identities. The file name decides, and the pair sit next to each other in the menu rather than swapping places between one start and the next.",
+    },
+    choosing: COLLECTION_CHOICES.map((one) => ({
+      what: one.what, asked: one.asked, chose: one.chose, outcome: one.outcome,
+      note: one.note ?? null,
+    })),
+    keys: 4,
+    paging: COLLECTION_PAGING,
+    rules: [
+      "A collection is one file. The list of collections on a device is what lies in its directory - there is no index, nothing to keep in step, and adding one is `put` while removing one is `rm`.",
+      "A collection file holds exactly the bytes of layout.bin version 3. Nothing about the format moved for this, which is why a talker flashed before 2026-08-31 can still be sent a collection: what changed is the name it goes under and how many of them a device will hold.",
+      "The name a person reads in the menu is the FIRST SET'S name. The header has no field for one and a `.obz` carries no name for a Sammlung; the root board is the first set, and its name is already in the file at a fixed offset. A builder should therefore name the first page of a collection after the collection.",
+      "A device reads the head of each collection file and parses only the one it is showing. That is what keeps the cost of holding a second game disk rather than SRAM, and it is why the head is 44 bytes and not the whole file.",
+      "A file whose head this build cannot read is not a collection. It is not named, not listed and not choosable - a name in a menu leading to a talker with nothing on it is worse than a name that is not there.",
+      "layout.bin is a collection. A device carrying one from before this existed shows it as the one collection it has always been, with a name of its own like any other.",
+      "The order is by the name shown and then by the file name. A file system promises no order, so a menu that took the directory's would move between one morning and the next - and a menu nobody can learn is worse than an order nobody chose.",
+      "Which collection is showing is kept outside the format, beside the volume. It is something the person in the room changes, so it is not a field in a file; and it is the FILE NAME rather than a position, because a position means something different the moment a collection is added or removed.",
+      "The collection that was showing can be gone. Then the first in the order is shown instead, and the name that was asked for is left where it is - a collection that comes back should be showing again without anybody asking for it twice.",
+      "Four names to a screen, and three once there are more than four, because the fourth key has to become the way to the rest.",
+    ],
+    notes: [
+      "There is no artefact for this kind and no refusal code. Nothing here is a byte of layout.bin - it is what a device does with files that hold those bytes, which is a different question and one that had no fixture at all.",
+      "Only the name rule crosses. The loader has to agree about which names are collections, because a name it says yes to and the device says no to is a file the page offers to remove and the device never shows, and the other way round is the page sweeping up the file the talker is reading. Everything else here - the wrapping, the order, the fallback, the paging - is the device's alone and has no browser half, which is the shape `press` already has.",
+      "Nothing here reaches a clock or a display. That the two lines are legible on a real panel is not a question a fixture can answer; what it can say is how many glyphs of a name reach it and where the break falls.",
+    ],
+  },
+});
+
+// =============================================================================
 // The cable
 // =============================================================================
 //
@@ -1823,7 +2069,7 @@ const anyOrder = (line) => ({ from: "device", line, any_order: true });
 function cableFixture({ name, summary, ends, start = [], steps, end = null,
                         script = null, notes = [], window = WINDOW,
                         spoken = CABLE_VERSION, verdict = "ok",
-                        firmware = "", tiles = "" }) {
+                        firmware = "", tiles = "", collections = 0 }) {
   fixture({
     kind: "cable", name, dir: "cable", outcome: "accepted", summary,
     expected: {
@@ -1862,6 +2108,14 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       // fault would fail on all of them. What silence means is raw tiles, and
       // raw tiles are what those devices were being sent anyway.
       device_tiles: tiles,
+      // How many collections the device in this transcript says it holds, and
+      // zero where it says nothing at all. Zero is not one: it is the ABSENCE
+      // of the line, and what a client must make of the absence is one - which
+      // is what a talker flashed before 2026-08-31 really holds and is exactly
+      // why the keyword cost no protocol version. The two are separate fields
+      // for the same reason `firmware` is, and the eight transcripts that say
+      // nothing are again the ones that matter.
+      device_collections: collections,
       window,
       device_starts_with: start.map((f) => ({
         name: f.name, size: f.bytes.length, crc: hex8(crc32(f.bytes)),
@@ -1882,7 +2136,8 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       // firmware comes after files, for exactly this reason.
       client_script: script && script.map((step) => (
         step.call === "hello"
-          ? { ...step, returns: { ...step.returns, firmware, tiles } }
+          ? { ...step, returns: { ...step.returns, firmware, tiles,
+                                  collections: collections || 1 } }
           : step)),
       notes,
     },
@@ -2345,6 +2600,118 @@ for (const [name, spoken, verdict, summary, remedy] of [
       "The bad file is acknowledged and THEN refused, in that order, because the acknowledgement is about the bytes arriving and says nothing about whether they were the right ones. cable.h acks inside the loop that reads the file and only looks at the checksum once that loop has run out of file, so an ack before an err crc is not a contradiction - it is the only order there is.",
       "The no-space refusal comes BEFORE the go, so the browser never starts sending. That is the whole reason go exists as a step of its own.",
       "One word for what went wrong and an optional second for whoever is reading. The first word is what a browser acts on; the second is for a person.",
+    ],
+  });
+}
+
+// --- Several collections, and the verb that arrived with them ---------------
+//
+// Two things landed on 2026-08-31 and the transcripts below are the pair of
+// them: a keyword saying how many collections a device holds, and a verb that
+// hands a file back. Neither moved CABLE_VERSION - one is a keyword, which
+// both ends skip, and the other is a word an older device answers with an
+// error nobody has to send it. adr/0021 is the argument for both.
+
+{
+  const HOLDS = 16;
+  cableFixture({
+    name: "collections-named-in-the-hello",
+    summary: "A device that says how many collections it holds. Silence means one, and silence is what every talker flashed before 2026-08-31 says.",
+    ends: ["device", "browser"],
+    collections: HOLDS,
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device(`< collections ${HOLDS}`),
+      device("< end hello"),
+      host("> done"),
+      device("< bye 0 0 0"),
+    ],
+    end: { files: [], stored: 0, removed: 0, bytes: 0 },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY, files: 0 } },
+      { call: "done", returns: { stored: 0, removed: 0, bytes: 0 } },
+    ],
+    notes: [
+      "A number and not a flag, because the browser has to refuse a payload that would push a device past it - and a browser that assumed a number would be back to guessing at a constant it was never told, which is exactly what the window stopped doing.",
+      "Absence means one. That is not a default chosen for tidiness: a talker flashed before this keyword existed really does hold exactly one collection, under the one name layout.bin, and a transfer to it really is a replacement. A browser that read silence as 'unknown' and sent additively would fill such a device's partition with a file it will never read.",
+      "This is also what says whether the `get` below may be sent at all. The verb and the capability arrived in the same firmware, so a device that names a number above one has both; nothing has to probe for a verb.",
+    ],
+  });
+}
+
+{
+  const COLLECTION = `c${NAME_HASH}.bin`;
+  const payload = content(23, 224);
+  const sum = crc32(payload);
+  cableFixture({
+    name: "get-a-collection-back",
+    summary: "One file the other way. The head line carries the length and the checksum, then that many raw bytes, then what really went.",
+    ends: ["device", "browser"],
+    collections: 16,
+    start: [{ name: COLLECTION, bytes: payload }],
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY - payload.length}`),
+      device("< files 1"),
+      device("< collections 16"),
+      device("< end hello"),
+      host(`> get ${COLLECTION}`),
+      device(`< data ${COLLECTION} ${payload.length} ${hex8(sum)}`),
+      { from: "device", raw: b64(payload), bytes: payload.length },
+      device(`< sent ${COLLECTION} ${payload.length}`),
+      host("> done"),
+      device("< bye 0 0 0"),
+    ],
+    end: {
+      files: [{ name: COLLECTION, size: payload.length, crc: hex8(sum) }],
+      stored: 0, removed: 0, bytes: 0,
+    },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY - payload.length, files: 1 } },
+      { call: "get", name: COLLECTION, returns: b64(payload) },
+      { call: "done", returns: { stored: 0, removed: 0, bytes: 0 } },
+    ],
+    notes: [
+      "The bytes come from the DEVICE here, which is the first time anything in this fixture set does. A transcript's raw step has a direction like every other step, and a runner that assumed raw meant host would walk this one backwards.",
+      "Two things are compared and both have been silent failures on this wire before: the count, which catches a stream that stopped partway, and the checksum, which catches one that slipped. The name catches neither - it is a hash of what went INTO the file and says nothing about the bytes.",
+      "No window and no acknowledgement, and that is not an oversight. The window exists because the device is the slow end when it is the one writing into flash; here the browser is reading, and a browser drains a stream as fast as it arrives.",
+      "What this verb is FOR is keeping the deciding on the browser's side. A collection file lists every tile and recording it names, so reading the collections that stay is how a page works out what a removed one leaves behind. The alternative was a device that walks its own layouts, and the device is deliberately stupid.",
+    ],
+  });
+
+  cableFixture({
+    name: "get-what-is-not-there",
+    summary: "Asking for a file the device does not hold. The same word a checksum of one gets.",
+    // The device's end only. What a client does with an "err" is not a line it
+    // writes, so a transcript cannot state it - the same reason the transcripts
+    // full of refusals beside this one are one-ended.
+    ends: ["device"],
+    collections: 16,
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device("< collections 16"),
+      device("< end hello"),
+      host(`> get ${COLLECTION}`),
+      device(`< err missing ${COLLECTION}`),
+      host("> done"),
+      device("< bye 0 0 0"),
+    ],
+    end: { files: [], stored: 0, removed: 0, bytes: 0 },
+    notes: [
+      "An error rather than a head line saying zero bytes. A zero-length answer would be indistinguishable from an empty file, and an empty collection file and a missing one are different things to a page deciding what may be removed.",
+      "It arrives before any raw bytes, so there is nothing to drain and the session carries on - the same shape a refused put has.",
     ],
   });
 }
@@ -3596,6 +3963,18 @@ const JOINING_SOUNDS = [
 // tests/test_device_fixtures.py refuses a suffix here, and refuses this file
 // and the committed index.json disagreeing about the version at all.
 const INDEX = {
+  // 2.2.0 is 2026-09-01: the device holds several collections. The greeting
+  // gained a "collections" keyword, the cable gained a `get`, and a collection
+  // travels as c<hash>.bin instead of layout.bin.
+  //
+  // MINOR, by the same reading 1.2.0 and 1.3.0 took: on the cable both ends
+  // skip what they do not know, so a talker already flashed neither misreads
+  // the addition nor sees it. Nothing the device reads out of a file moved -
+  // a collection is the bytes layout_format.h has always parsed, under a
+  // different name - so LAYOUT_VERSION did not move either, and neither did
+  // CABLE_VERSION, because gaining a verb is not two ends failing to drive
+  // each other. adr/0021.
+  //
   // 2.1.0 is 2026-08-31, later the same day, and it is what 2.0.0 left out.
   // The bytes of version 3 arrived without anything saying what a device does
   // with them: layout/ stated `does` and `target` key by key, and no fixture
@@ -3626,7 +4005,7 @@ const INDEX = {
   // the cable's greeting gained a "firmware" keyword. Both MINOR, because on
   // the cable both ends skip what they do not know, so a device already
   // flashed neither misreads the addition nor sees it.
-  device_interface_version: "2.1.0",
+  device_interface_version: "2.2.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };

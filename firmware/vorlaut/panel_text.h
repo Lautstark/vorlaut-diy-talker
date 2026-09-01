@@ -56,27 +56,41 @@ static inline uint8_t cp437Byte(uint16_t code) {
 // outSize counts the terminating zero. Anything that does not fit is dropped;
 // a label too long is a mistake to catch in the test, not something to crash
 // over here.
+// One character out of a UTF-8 string: the code point it means, and how many
+// bytes it took.
+//
+// Split out of toPanelText() below rather than written twice, because a second
+// caller arrived: collections.h has to break a name over two lines, and where
+// a line may be broken is a question about glyphs. A wrapper counting bytes
+// puts a name with an umlaut in it a character short of where it belongs, and
+// a wrapper with a walk of its own would drift from the one that draws.
+//
+// `bytes` comes back as at least 1 for any non-empty input, so a walk over
+// this always terminates.
+static inline uint16_t utf8Step(const char *in, uint8_t *bytes) {
+  const uint8_t c = (uint8_t)*in;
+  if (c < 0x80) { *bytes = 1; return c; }
+  if ((c & 0xE0) == 0xC0 && (in[1] & 0xC0) == 0x80) {
+    *bytes = 2;
+    return (uint16_t)(((c & 0x1F) << 6) | (in[1] & 0x3F));
+  }
+  // Three bytes or more, or a broken sequence: one placeholder, and skip
+  // every continuation byte that follows.
+  uint8_t took = 1;
+  while ((in[took] & 0xC0) == 0x80) took++;
+  *bytes = took;
+  return CP437_UNKNOWN;
+}
+
 static inline uint8_t toPanelText(const char *in, char *out, uint8_t outSize) {
   uint8_t n = 0;
   if (!out || outSize == 0) return 0;
   if (!in) { out[0] = '\0'; return 0; }
 
   while (*in && n + 1 < outSize) {
-    const uint8_t c = (uint8_t)*in;
-    uint16_t code;
-    if (c < 0x80) {
-      code = c;
-      in += 1;
-    } else if ((c & 0xE0) == 0xC0 && (in[1] & 0xC0) == 0x80) {
-      code = (uint16_t)((c & 0x1F) << 6) | (in[1] & 0x3F);
-      in += 2;
-    } else {
-      // Three bytes or more, or a broken sequence: one placeholder, and skip
-      // every continuation byte that follows.
-      code = CP437_UNKNOWN;
-      in += 1;
-      while ((*in & 0xC0) == 0x80) in++;
-    }
+    uint8_t took = 0;
+    const uint16_t code = utf8Step(in, &took);
+    in += took;
     out[n++] = (char)cp437Byte(code);
   }
   out[n] = '\0';

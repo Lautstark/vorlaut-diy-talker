@@ -23,7 +23,14 @@
 // still say about either is worked out in tests/test_layout_frozen.py, under
 // THE_COLOUR_IS_GONE and THE_KEYS_ARE_FIVE.
 
+/** The one name a collection had while a device could only hold one.
+ *
+ * Nothing writes it any more - see COLLECTION_PREFIX below - and it is still
+ * here because a talker flashed before 2026-08-31 is carrying one, the firmware
+ * still reads it as the one collection it has always been, and this page has to
+ * be able to name it, checksum it and remove it like any other. */
 export const LAYOUT_BIN = "layout.bin";
+
 export const LAYOUT_MAGIC = "MTRD";
 // 3 since every key gained what it does and where it goes - see the note on
 // the same constant in firmware/vorlaut/layout_format.h for why a longer
@@ -53,6 +60,39 @@ export const KEYS_PER_SET = SLOTS_PER_SET + 1;
 export const MAX_SETS = 64;
 export const NAME_BYTES = 32;
 export const HASH_BYTES = 16;
+
+/** The letter a collection file's name begins with, beside `t` for a tile and
+ *  `a` for a recording. COLLECTION_PREFIX in firmware/vorlaut/collections.h. */
+export const COLLECTION_PREFIX = "c";
+
+/** Whether this is a file the device reads as a collection.
+ *
+ * The same question collectionKind() answers in the firmware, and it has to
+ * come out the same: a name this says yes to and the device says no to is a
+ * collection the page offers to remove and the device never lists, and the
+ * other way round is a file this page sweeps up as content when it is the
+ * thing the talker is showing. device/fixtures/collections.expected.json is
+ * where the two are held together. */
+export function isCollectionFile(name) {
+  if (name === LAYOUT_BIN) return true;
+  return new RegExp(`^${COLLECTION_PREFIX}[0-9a-f]{${HASH_BYTES * 2}}\\.bin$`)
+    .test(String(name ?? ""));
+}
+
+/** The file one collection goes under, from the hash of what identifies it.
+ *
+ * `hash` is the same sixteen bytes as hex that a tile or a recording is named
+ * for, and what goes INTO it is the collection's identity rather than its
+ * content - the root board's id out of the package. That is the difference
+ * that makes this work: a collection edited and sent again lands on the file it
+ * landed on last time, so the device replaces it instead of collecting two.
+ *
+ * Which means the name proves nothing about the bytes, and this is therefore
+ * the file the cable has to compare by checksum - exactly the exception
+ * layout.bin already was. loader/tools/cable.js's plan() is where that is. */
+export const collectionFile = (hash) =>
+  `${COLLECTION_PREFIX}${hash}${".bin"}`;
+
 // Fixed strides - the firmware works with the same numbers.
 export const KEY_BYTES = HASH_BYTES + HASH_BYTES + 1 + 1 + 1 + 1;    // 36
 export const SET_BYTES = NAME_BYTES + KEYS_PER_SET * KEY_BYTES;      // 212
@@ -286,4 +326,84 @@ export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles,
     }
   });
   return bytes;
+}
+
+/**
+ * The other direction: what a collection already on a device is made of.
+ *
+ * **A third reader of this format, and it is here on purpose rather than by
+ * accident.** Two existed - `parseLayout()` in the firmware and the C harness
+ * that compiles it - and this file has only ever written. What made a reader
+ * necessary is removing a collection: to know which tiles and recordings a
+ * removed one leaves behind, the page has to know what the collections that
+ * stay still name, and the only way to know that is to read them. The
+ * alternative was a device that walks its own layouts, which is the device
+ * doing the thinking, and adr/0021 chose this instead.
+ *
+ * It is held to `device/fixtures/layout/` from this side the way
+ * `renderLayoutBin()` is held to it from the other, so the two readers answer
+ * a common set of files rather than each other.
+ *
+ * Answers null rather than throwing for anything it cannot make sense of. What
+ * a caller does with an unreadable collection is leave it alone, and that is a
+ * value rather than an exception: a file on a talker that this page does not
+ * understand is the one thing it must not decide to delete.
+ *
+ * `files` holds every tile and recording the collection names, by the name the
+ * device holds it under. A hash of nothing but zeroes is left out - that is
+ * what a key with no recording carries, and it is not a file anybody wrote.
+ */
+export function readLayoutBin(bytes) {
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes ?? []);
+  if (data.length < HEADER_BYTES) return null;
+  for (let i = 0; i < LAYOUT_MAGIC.length; i++) {
+    if (data[i] !== LAYOUT_MAGIC.charCodeAt(i)) return null;
+  }
+  if (data[4] !== LAYOUT_VERSION) return null;
+  const sets = data[5];
+  if (data[6] !== SLOTS_PER_SET) return null;
+  if (data.length < HEADER_BYTES + sets * SET_BYTES) return null;
+
+  const hexOf = (at) => {
+    let out = "";
+    let any = false;
+    for (let i = 0; i < HASH_BYTES; i++) {
+      if (data[at + i]) any = true;
+      out += data[at + i].toString(16).padStart(2, "0");
+    }
+    return any ? out : "";
+  };
+
+  // Collected as a list and made a set at the end rather than added to a set
+  // as they are found. It reads the same and it types better: a set built from
+  // an array of names is a set OF names, where an empty one started from
+  // nothing is a set of anything - and this file carries no annotations to say
+  // otherwise.
+  const files = [];
+  let name = "";
+  for (let set = 0; set < sets; set++) {
+    const at = HEADER_BYTES + set * SET_BYTES;
+    if (set === 0) {
+      // The first set's name, which is what the device shows in its menu - see
+      // collectionHeadName() in firmware/vorlaut/collections.h for why a
+      // collection has no name of its own. Cut at the first zero: the field is
+      // padding after the name, and a name that fills it has no zero at all.
+      const field = data.subarray(at, at + NAME_BYTES);
+      const end = field.indexOf(0);
+      name = new TextDecoder().decode(end < 0 ? field : field.subarray(0, end));
+    }
+    for (let key = 0; key < KEYS_PER_SET; key++) {
+      const k = at + NAME_BYTES + key * KEY_BYTES;
+      const image = hexOf(k);
+      if (image) files.push(`t${image}.bin`);
+      // hasAudio and not merely a hash that is not zero. A key that goes
+      // somewhere may carry a recording it never plays - the device stores it
+      // and the flag is what says whether it is meant - and a file on the
+      // device that no collection admits to naming is a file the next removal
+      // sweeps up. See device/fixtures/layout/a-sound-behind-a-key-that-goes.
+      const sound = hexOf(k + HASH_BYTES);
+      if (sound && data[k + 2 * HASH_BYTES]) files.push(`a${sound}.wav`);
+    }
+  }
+  return { sets, name, files: new Set(files) };
 }

@@ -8,7 +8,7 @@ import {
   LAYOUT_VERSION, HEADER_BYTES, SET_BYTES, KEY_BYTES, KEYS_PER_SET,
   SLOTS_PER_SET, NAME_BYTES, HASH_BYTES, MAX_SETS, KEY_DOES,
   SLEEP_MIN, SLEEP_MAX, SLEEP_DEFAULT, layoutIdleSeconds,
-  layoutKeyGoesTo, layoutKeySpeaks,
+  layoutKeyGoesTo, layoutKeySpeaks, isCollectionFile, readLayoutBin,
 } from "../../loader/src/layout_format.js";
 import { TILE_SIZE, rgbTo565, toRgb565Be } from "../../loader/src/tiles.js";
 import { decodeTile } from "../../loader/src/tile_encode.js";
@@ -16,7 +16,7 @@ import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
 } from "../../loader/src/audio_format.js";
 import {
-  Cable, CABLE_VERSION, crc32, hex8, versionVerdict,
+  Cable, CABLE_VERSION, crc32, hex8, isCollection, versionVerdict,
 } from "../../loader/tools/cable.js";
 
 /* The builder's half of device/fixtures/.
@@ -47,6 +47,13 @@ import {
  *            no byte of them crosses, so there is nothing on this side to
  *            hold to them. A kind that is skipped out loud is visible; one
  *            that is unlisted has been forgotten.
+ *   collections
+ *            one thing, and the rest of it is said to be the device's. Which
+ *            names are collections crosses, because a name this side says yes
+ *            to and the device says no to is a file the page offers to remove
+ *            and the talker never lists - and the other way round is the page
+ *            sweeping up the file the talker is reading. The wrapping, the
+ *            order and the fallback are the device's alone.
  *   cable    the client, driven through the transcript from the browser end:
  *            given these device lines it must write exactly these host lines.
  *
@@ -607,6 +614,14 @@ function scriptedDevice(steps: any[]) {
 
   const walk = (async () => {
     for (const step of steps) {
+      if (step.from === "device" && step.raw !== undefined) {
+        /* A file coming back. Written as bytes with no newline anywhere near
+         * them - if this were sent as a line the client would read the first
+         * 0x0a inside the file as the end of one. */
+        await settleWrites();
+        await out.write(new Uint8Array(Buffer.from(step.raw, "base64")));
+        continue;
+      }
       if (step.from === "device") {
         /* Nothing of the host's may be waiting to be read at the moment the
          * device speaks. Every device line in every transcript is one the host
@@ -704,6 +719,12 @@ for (const { listed: one, want } of ofKind("cable")) {
           seen.push(await cable.put(
             step.name, new Uint8Array(Buffer.from(step.content, "base64"))));
           break;
+        /* The one call whose answer is bytes. Compared as base64 because that
+           is how the fixture holds it, and because a Uint8Array does not
+           survive the JSON.stringify the answers are compared with. */
+        case "get":
+          seen.push(Buffer.from(await cable.get(step.name)).toString("base64"));
+          break;
         default:
           failure = `the fixture asks for a call this runner has no name for: `
             + `${step.call}`;
@@ -726,6 +747,34 @@ for (const { listed: one, want } of ofKind("cable")) {
           JSON.stringify(seen) === JSON.stringify(wanted),
           JSON.stringify(seen));
   }
+}
+
+/* The keyword that says how many collections a device holds, and the same
+ * argument the firmware word above gets. What the client returns is already
+ * held to each transcript by the comparison above; what that comparison cannot
+ * say is that the set contains both kinds of device. A client that dropped the
+ * number would satisfy every transcript where the line is absent, and one that
+ * refused a device without it would satisfy only the ones where it is there. */
+{
+  const said = ofKind("cable").map(({ want }) => want.device_collections);
+  check("the transcripts cover a device that says how many collections it "
+        + "holds and one that does not",
+        said.includes(0) && said.some((n: number) => n > 1),
+        said.map((n: number) => n || "(silent)").join(", "));
+}
+
+/* And what silence means, which is the whole of why the keyword cost no
+ * protocol version. A client reading the absence as zero, or as unknown, would
+ * send a second collection to a talker that holds one - a file that fills the
+ * partition and is never read. */
+for (const { listed: one, want } of ofKind("cable")) {
+  if (!want.ends.includes("browser") || !want.client_script) continue;
+  const hello = want.client_script.find((step: any) => step.call === "hello");
+  if (!hello) continue;
+  check(`${one.fixture}: a device that says ${want.device_collections || "nothing"}`
+        + ` holds ${hello.returns.collections}`,
+        hello.returns.collections === (want.device_collections || 1),
+        `${hello.returns.collections}`);
 }
 
 check("the browser client speaks the fixtures' protocol version",
@@ -783,4 +832,90 @@ for (const { listed: one, want } of ofKind("cable")) {
     Buffer.from(payload.raw, "base64"))));
   check("the client checksums the fixture's file to the value it carries",
         computed === stated, `${computed} against ${stated}`);
+}
+
+// --- several collections -----------------------------------------------------
+//
+// One question of this kind crosses and the rest of it does not, and saying
+// which is which out loud is the point of the section rather than a preamble to
+// it: the wrapping, the order and the fallback are decisions a device makes
+// about its own menu, and no byte of them reaches a browser.
+//
+// What does cross is which names are collections. There are two of those
+// predicates - collectionKind() in the firmware and isCollectionFile() here,
+// with a third in loader/tools/cable.js because that file imports nothing - and
+// they have to agree in both directions. A name this side calls a collection
+// and the device does not is a file the page offers to remove and the talker
+// never lists; a name the device calls one and this side does not is the page
+// sweeping up the very file the talker is reading.
+
+for (const { want } of ofKind("collections")) {
+  for (const one of want.names) {
+    const wanted = one.kind !== "not";
+    check(`${one.what} ${wanted ? "is" : "is not"} a collection to the browser`,
+          isCollectionFile(one.name) === wanted,
+          `${isCollectionFile(one.name)}`);
+    /* And the copy inside the cable client, which cannot import the one above.
+       Two files with one rule, held to the same list rather than to each
+       other. */
+    check(`${one.what}: the cable client agrees`,
+          isCollection(one.name) === wanted, `${isCollection(one.name)}`);
+  }
+
+  /* Said out loud, the way `press` is: everything else in this fixture is the
+     device's own and there is nothing on this side to hold to it.
+
+     The heads in particular, which look at first as though they ought to
+     cross. They do not, and the reason is what the head is FOR: a device reads
+     44 bytes because it has sixteen files to name a menu from and no room to
+     parse them all. A browser has the whole file - `get` hands it over - so it
+     has no use for a reader that works on the first 44 bytes, and writing one
+     to satisfy a fixture would be a second reader on this side that nothing
+     else calls. What both ends do have to agree about is the NAME that comes
+     out, and that is checked below against the whole collections. */
+  check("the heads, the wrapping, the order and the fallback have no browser "
+        + "half, and this runner says so rather than leaving them unlisted",
+        Array.isArray(want.heads) && Array.isArray(want.menu)
+        && Array.isArray(want.listing.order) && Array.isArray(want.choosing),
+        `${want.heads.length} heads, ${want.menu.length} names wrapped, `
+        + `${want.listing.order.length} ordered, ${want.choosing.length} `
+        + "choices - all of them the device's");
+}
+
+/* And what the whole collection file is for on this side: every tile and
+ * recording it names, which is what a removal subtracts against. Asked of the
+ * layout fixtures rather than of a head, because a head has no keys in it -
+ * the same files the firmware runner reads hash by hash out of the same
+ * bytes. */
+for (const { listed: one, want } of ofKind("layout")) {
+  if (want.read.result !== "ok" || !want.read.sets?.length) continue;
+  const got = readLayoutBin(new Uint8Array(read(one.file)));
+  if (!got) {
+    check(`${one.fixture}: the browser reads it back as a collection`, false);
+    continue;
+  }
+  /* The name the device's menu will show, which is the first set's - the same
+     answer collectionHeadName() gives on the other side, out of the same
+     bytes. This page says it in the check step so that somebody sees it before
+     the file is sent, and a page that named a collection differently from the
+     talker would be a page nobody could act on.
+
+     Through the field's bytes rather than against a string in the fixture,
+     because a name may be cut in the middle of a character - the field is 32
+     BYTES - and what a reader hands back for one of those is not text. */
+  const named = Buffer.from(want.read.sets[0].name, "hex").toString("utf8");
+  check(`${one.fixture}: and calls it what the first set is called`,
+        got.name === named, `${got.name} against ${named}`);
+
+  const wanted = new Set<string>();
+  for (const set of want.read.sets) {
+    for (const key of [set.key, ...set.slots]) {
+      if (/[^0]/.test(key.image)) wanted.add(`t${key.image}.bin`);
+      if (key.has_audio && /[^0]/.test(key.audio)) wanted.add(`a${key.audio}.wav`);
+    }
+  }
+  check(`${one.fixture}: and names the ${wanted.size} file(s) the fixture says `
+        + "it does",
+        [...got.files].sort().join(" ") === [...wanted].sort().join(" "),
+        [...got.files].sort().join(" "));
 }

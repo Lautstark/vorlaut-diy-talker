@@ -21,11 +21,17 @@
 //
 // Three things are worth knowing before reading on:
 //
-//   * The device is deliberately stupid. It lists, checksums, stores, deletes
-//     and says goodbye. It does not work out what is missing - the browser
-//     does that, because the browser is the end with the memory and the
-//     language for it. Over Wi-Fi it was the other way round only because the
-//     server could not push.
+//   * The device is deliberately stupid. It lists, checksums, hands back,
+//     stores, deletes and says goodbye. It does not work out what is missing -
+//     the browser does that, because the browser is the end with the memory
+//     and the language for it. Over Wi-Fi it was the other way round only
+//     because the server could not push.
+//
+//     Handing back is the newest of those and it is here to KEEP that true.
+//     With several collections on one device, deciding which tiles a removed
+//     one leaves behind means reading the collections that stay; the choice
+//     was a verb that hands a file over or a device that walks its own
+//     layouts, and adr/0021 took the verb.
 //
 //   * There is no pairing and no key. Over the network, five digits on the
 //     displays proved somebody was standing in front of the device. Whoever
@@ -40,6 +46,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include "cable_format.h"
+#include "collections.h"
 #include "version.h"
 
 // Read from the file system in pieces of this size. Small enough that a
@@ -56,6 +63,19 @@ struct CableResult {
   uint16_t removed;
   uint32_t bytes;
   const char *error;     // nullptr unless it ended badly
+  /** The last collection file this session stored, or empty.
+   *
+   * The one thing in here that is not a tally, and it is here because the
+   * alternative is a transfer that looks from the outside like nothing
+   * happened: somebody sends a second collection, the talker goes on showing
+   * the first, and the only way to see that it arrived is to go into the menu
+   * and look. So the device shows what it was just given - see
+   * adr/0021 - and this is how vorlaut.ino finds out which that was.
+   *
+   * The name, not a flag: a session may carry several, and the last one is the
+   * one the person was working on. Kept as an array rather than a pointer into
+   * the command, which dies with the loop. */
+  char collection[CABLE_NAME_MAX + 1];
 };
 
 // Called as the session goes along, so the caller can draw something. All five
@@ -92,7 +112,7 @@ class Cable {
   // is to introduce yourself again.
   static CableResult serve(CableProgress progress = nullptr,
                            CableAbort abort = nullptr) {
-    CableResult result = {false, false, 0, 0, 0, nullptr};
+    CableResult result = {false, false, 0, 0, 0, nullptr, {0}};
     bool open = false;                     // a hello has been answered
     const uint32_t began = millis();
     uint32_t lastLine = millis();
@@ -149,6 +169,10 @@ class Cable {
           sayCrc(command.name);
           break;
 
+        case CABLE_GET:
+          sayFile(command.name);
+          break;
+
         case CABLE_RM:
           if (!LittleFS.exists(path(command.name))) {
             say("err", "missing", command.name);
@@ -179,6 +203,16 @@ class Cable {
           } else {
             result.stored++;
             result.bytes += command.size;
+            // Which of them was a collection, so that the device can come back
+            // showing the one it was just handed. Asked of the name rather
+            // than assumed from the order: the browser sends the collection
+            // last because it is the commit, and a rule that depended on that
+            // would be this file believing something it was never told.
+            if (collectionKind(command.name) != COLLECTION_NOT) {
+              strncpy(result.collection, command.name,
+                      sizeof(result.collection) - 1);
+              result.collection[sizeof(result.collection) - 1] = '\0';
+            }
             // Before the "ok", and skippable: a browser that does not know
             // these keywords steps over them, which is the rule this protocol
             // states everywhere else and is worth actually exercising.
@@ -247,6 +281,12 @@ class Cable {
     put(cableSayNameNumber(out, sizeof(out), key, name, n), out);
   }
 
+  static void sayNameNumberHex(const char *key, const char *name, uint32_t n,
+                               uint32_t value) {
+    char out[CABLE_LINE_MAX];
+    put(cableSayNameNumberHex(out, sizeof(out), key, name, n, value), out);
+  }
+
   static void sayBye(uint16_t stored, uint16_t removed, uint32_t bytes) {
     char out[CABLE_LINE_MAX];
     put(cableSayBye(out, sizeof(out), stored, removed, bytes), out);
@@ -273,6 +313,14 @@ class Cable {
                        (uint32_t)(LittleFS.totalBytes() - LittleFS.usedBytes())),
         out);
     put(cableSayNumber(out, sizeof(out), "files", count()), out);
+    // How many collections this device will hold, which is the one thing a
+    // browser cannot work out from the file list: a talker flashed before
+    // 2026-08-31 holds exactly one, under the name layout.bin, and sending it
+    // a second would be a file that fills the partition and is never read. A
+    // browser that has never heard of the keyword skips it, and silence means
+    // one - which is true of every device already in a drawer. That is the
+    // whole of why several collections cost no protocol version.
+    put(cableSayNumber(out, sizeof(out), "collections", MAX_COLLECTIONS), out);
     // Which tile forms this firmware can draw. A browser that has never heard
     // of the keyword skips it, and a device that never says it gets raw tiles
     // - which is every talker flashed before 2026-08-31 and is exactly what
@@ -321,6 +369,58 @@ class Cable {
     }
     file.close();
     put(cableSayNameHex(out, sizeof(out), "crc", name, value), out);
+  }
+
+  // One file back the way it came, so that the browser can work out what a
+  // collection still needs.
+  //
+  // The head line carries the length and the checksum, and then exactly that
+  // many bytes follow with no newline in front of them and none after - the
+  // same framing a `put` has, read from the other side, and for the same
+  // reason: a reader that searched for the next command at a line start would
+  // find one inside a recording sooner or later.
+  //
+  // There is no flow control here and none is needed. It is the browser that
+  // is reading, and a browser drains a stream as fast as it arrives; the
+  // window exists because the DEVICE is the slow end when it is the one
+  // writing into flash.
+  //
+  // Any name, not only a collection's. Deciding which files a browser is
+  // entitled to read back would be the device having an opinion about content,
+  // and it has none - it lists what it holds and hands over what it is asked
+  // for. What the browser actually asks for is collections, which are a few
+  // kilobytes; a `get` of a recording is slow and harmless.
+  static void sayFile(const char *name) {
+    File file = LittleFS.open(path(name), "r");
+    if (!file) { say("err", "missing", name); return; }
+    const uint32_t size = (uint32_t)file.size();
+
+    // Twice through the file: once for the checksum, once for the bytes. The
+    // head has to carry the checksum and the head goes first, and holding a
+    // whole file in RAM to avoid a second read is exactly the thing this
+    // device does not have the RAM for.
+    uint32_t value = CABLE_CRC_INIT;
+    uint8_t buffer[CABLE_CHUNK];
+    for (;;) {
+      const int got = file.read(buffer, sizeof(buffer));
+      if (got <= 0) break;
+      value = cableCrc32(value, buffer, (size_t)got);
+    }
+    file.seek(0);
+    sayNameNumberHex("data", name, size, value);
+    uint32_t sent = 0;
+    while (sent < size) {
+      const int got = file.read(buffer, sizeof(buffer));
+      if (got <= 0) break;
+      Serial.write(buffer, (size_t)got);
+      sent += (uint32_t)got;
+    }
+    file.close();
+    // The count the device really sent, which is the head's number on a file
+    // system that behaved and a smaller one on a file that shrank underneath
+    // it. The browser compares the two: a short answer is loud here, where a
+    // stream that simply stopped would look like the next line being late.
+    sayNameNumber("sent", name, sent);
   }
 
   static uint32_t count() {

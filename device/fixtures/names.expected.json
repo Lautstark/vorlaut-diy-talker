@@ -3,7 +3,7 @@
   "kind": "names",
   "summary": "Which names a builder may emit, which names the device will store, and the fact that the first set is inside the second.",
   "rule": {
-    "emitted": "A slash, then t or a, then exactly 32 lower-case hex digits, then .bin or .wav - or the literal name layout.bin. The 32 digits are the first sixteen bytes of a hash OF THE INPUT that produced the file, not of the file's own bytes.",
+    "emitted": "A slash, then t, a or c, then exactly 32 lower-case hex digits, then .bin for a tile or a collection and .wav for a recording. The 32 digits are the first sixteen bytes of a hash OF THE INPUT that produced the file, not of the file's own bytes. layout.bin was a fourth shape until 2026-08-31 and is no longer emitted; it is still stored, because devices are carrying it.",
     "stored": "One to 63 bytes, no leading dot, and every byte strictly between space and 0x7f, slash excluded.",
     "superset": "Every name a builder emits must be a name the device will store. The two rules are written in different files, in different languages, by different hands, and a name that satisfies the first and not the second is a file that silently never arrives - no error anywhere, one black key.",
     "path": "The device opens a stored name with a leading slash in front of it. Everything it holds lies flat in the root, which is why the slash may not appear inside a name."
@@ -31,14 +31,24 @@
       "note": null
     },
     {
-      "what": "the layout, the one name that is not a hash",
-      "name": "layout.bin",
+      "what": "a collection",
+      "name": "c0123456789abcdef0123456789abcdef.bin",
       "emitted": true,
+      "stored": true,
+      "hash": "0123456789abcdef0123456789abcdef",
+      "path": "/c0123456789abcdef0123456789abcdef.bin",
+      "hash_read_refused": false,
+      "note": "The third letter, 2026-08-31. What goes into the hash is the collection's IDENTITY - the root board's id out of the package - and not the file's bytes, so a collection edited and sent again lands on the same name and a device replaces it rather than holding two. Which means this is a name whose content it does not promise, and therefore one the cable compares by checksum: exactly the exception layout.bin was, now a family of names."
+    },
+    {
+      "what": "the layout, under the one name a device used to hold it by",
+      "name": "layout.bin",
+      "emitted": false,
       "stored": true,
       "hash": null,
       "path": "/layout.bin",
       "hash_read_refused": false,
-      "note": null
+      "note": "Not emitted any more and still stored, which is the one case in this table where those two come apart in that direction and is not a fault. A talker flashed before 2026-08-31 is carrying one and its firmware reads it as the one collection it has always been, so the device must go on storing, checksumming and deleting the name - a page that could not remove it could not tidy such a device up at all."
     },
     {
       "what": "upper-case hex",

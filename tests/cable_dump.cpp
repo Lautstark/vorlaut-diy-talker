@@ -21,6 +21,8 @@
 #include <string>
 #include <map>
 #include "../firmware/vorlaut/cable_format.h"
+// MAX_COLLECTIONS, which the greeting announces. Nothing else here reads it.
+#include "../firmware/vorlaut/collections.h"
 #include "../firmware/vorlaut/version.h"
 
 static const char *verbName(CableVerb verb) {
@@ -28,6 +30,7 @@ static const char *verbName(CableVerb verb) {
     case CABLE_HELLO:   return "hello";
     case CABLE_LIST:    return "list";
     case CABLE_CRC:     return "crc";
+    case CABLE_GET:     return "get";
     case CABLE_PUT:     return "put";
     case CABLE_RM:      return "rm";
     case CABLE_DONE:    return "done";
@@ -111,6 +114,11 @@ static int sayAll(void) {
   cableSayNumber(out, sizeof(out), "total", 1441792u); say(out);
   cableSayNumber(out, sizeof(out), "free", 1146880u); say(out);
   cableSayNumber(out, sizeof(out), "files", 37u); say(out);
+  // How many collections this device holds, out of the constant the firmware
+  // really announces. A browser reads it to decide whether a transfer adds or
+  // replaces, which is the difference between a second game arriving and the
+  // first one being swept off.
+  cableSayNumber(out, sizeof(out), "collections", MAX_COLLECTIONS); say(out);
   cableSayWord(out, sizeof(out), "tiles", CABLE_TILE_FORMS); say(out);
   cableSayWord(out, sizeof(out), "end", "hello"); say(out);
   cableSayNameNumber(out, sizeof(out), "file",
@@ -195,7 +203,33 @@ static int session(void) {
         cableSayNumber(out, sizeof(out), "total", (uint32_t)device.free_); say(out);
         cableSayNumber(out, sizeof(out), "free", (uint32_t)(device.free_ - used)); say(out);
         cableSayNumber(out, sizeof(out), "files", (uint32_t)device.files.size()); say(out);
+        cableSayNumber(out, sizeof(out), "collections", MAX_COLLECTIONS); say(out);
         cableSayWord(out, sizeof(out), "end", "hello"); say(out);
+        break;
+      }
+      case CABLE_GET: {
+        // Handing a file back, the way cable.h does it: the head, the bytes
+        // with no newline near them, and what really went. Nothing in the
+        // scenarios replayed through this mode asks for one - working out what
+        // a removal leaves behind is the browser's own arithmetic and needs no
+        // firmware - and it is here so that a stream containing one replays
+        // rather than falling out of step.
+        auto it = device.files.find(command.name);
+        if (it == device.files.end()) {
+          cableSayErr(out, sizeof(out), "missing", command.name);
+          say(out);
+          break;
+        }
+        cableSayNameNumberHex(out, sizeof(out), "data", command.name,
+                              (uint32_t)it->second.size(),
+                              cableCrc32(CABLE_CRC_INIT,
+                                         (const uint8_t *)it->second.data(),
+                                         it->second.size()));
+        say(out);
+        fwrite(it->second.data(), 1, it->second.size(), stdout);
+        cableSayNameNumber(out, sizeof(out), "sent", command.name,
+                           (uint32_t)it->second.size());
+        say(out);
         break;
       }
       case CABLE_LIST: {

@@ -11,7 +11,9 @@
 // that the C reader - which also starts empty and can only be reached through
 // the wire - goes through the same states. Nothing is set up behind its back.
 
-import { Cable, plan, push, crc32, hex8, LAYOUT_FILE } from "../loader/tools/cable.js";
+import {
+  Cable, isCollection, plan, planRemoval, push, crc32, hex8, LAYOUT_FILE,
+} from "../loader/tools/cable.js";
 import { MockDevice } from "../loader/tools/cable_mock.js";
 
 // --- Content that is the same every run --------------------------------------
@@ -34,7 +36,13 @@ function blob(seed, length) {
   return bytes;
 }
 
-/** Names shaped like the real ones: "t" or "a" plus 32 hex, plus layout.bin. */
+/** Every scenario below whose device says `collections: 0` is a talker flashed
+ *  before 2026-08-31, and that is deliberate rather than left over: such a
+ *  device holds one collection under one name, so a transfer to it is a
+ *  replacement and the sweep is what has to be got right. The additive ones say
+ *  so where they are.
+ *
+ *  Names shaped like the real ones: "t" or "a" plus 32 hex, plus layout.bin. */
 function payload(seed, count, { layout = seed } = {}) {
   const made = new Map();
   for (let i = 0; i < count; i++) {
@@ -47,6 +55,19 @@ function payload(seed, count, { layout = seed } = {}) {
   // The one whose name never changes. Its content does, which is why the
   // device is asked for its checksum rather than for its presence.
   made.set(LAYOUT_FILE, { bytes: blob(layout, 942) });
+  return made;
+}
+
+/** The same, for a device that holds several: the collection under a name of
+ *  its own rather than under layout.bin.
+ *
+ *  `id` is two hex characters repeated into a hash, which is all a name needs
+ *  to be - what really goes into it is the root board's id, and that is the
+ *  compiler's business rather than this file's. */
+function collection(id, seed, count, { layout = seed } = {}) {
+  const made = payload(seed, count);
+  made.delete(LAYOUT_FILE);
+  made.set(`c${id.repeat(16)}.bin`, { bytes: blob(layout, 942) });
   return made;
 }
 
@@ -82,7 +103,7 @@ async function session(device, made, log) {
 const SCENARIOS = {
   // Nothing on the device, everything has to go across.
   async fresh() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const made = payload(1, 6);
     const run = await session(device, made, this.log);
     return { device, runs: [run], made: [made] };
@@ -91,7 +112,7 @@ const SCENARIOS = {
   // The one that matters in daily use: one symbol and one sentence changed,
   // so almost nothing should move.
   async incremental() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const before = payload(1, 6);
     const first = await session(device, before, this.log);
 
@@ -106,7 +127,7 @@ const SCENARIOS = {
 
   // The same, with the device chattering into the same wire the whole time.
   async noise() {
-    const device = new MockDevice({ noise: true });
+    const device = new MockDevice({ noise: true, collections: 0 });
     const made = payload(3, 5);
     const run = await session(device, made, this.log);
     return { device, runs: [run], made: [made] };
@@ -115,7 +136,7 @@ const SCENARIOS = {
   // A partition too small to hold the old content and the new at once, which
   // forces the order that clears out first.
   async tight() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const before = payload(4, 5);
     const first = await session(device, before, this.log);
 
@@ -146,7 +167,7 @@ const CLIENT_ONLY = {
   // same direction, each modelling only the lost-transfer half, which is
   // exactly why neither caught the other.
   async ungreeted() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const wire = device.open();
     const writer = wire.writable.getWriter();
     const reader = wire.readable.getReader();
@@ -202,7 +223,7 @@ const CLIENT_ONLY = {
   // way a full receive buffer does. A client that sends and hopes fails here.
   // `outran` next door is the control that says so rather than assuming it.
   async windows() {
-    const device = new MockDevice({ window: 256, stallMs: 3 });
+    const device = new MockDevice({ window: 256, stallMs: 3, collections: 0 });
     // Not a whole multiple of the window on purpose: the last one is 130
     // bytes, and the end of the file ends the window whether it is full or not.
     // 256 rather than the mock's own default, so that a client which had kept
@@ -251,7 +272,7 @@ const CLIENT_ONLY = {
   // and it has to fail - silently discarded bytes, then the timeout, which is
   // what the bench really did before any of this existed.
   async outran() {
-    const device = new MockDevice({ window: 256, stallMs: 3 });
+    const device = new MockDevice({ window: 256, stallMs: 3, collections: 0 });
     const content = blob(16, 2178);
     const name = "t" + hex8(16).repeat(4) + ".bin";
     const wire = device.open();
@@ -304,7 +325,7 @@ const CLIENT_ONLY = {
   // this, which is exactly why it needs forcing - without this scenario the
   // client could stop comparing and every test here would still pass.
   async slipped() {
-    const device = new MockDevice({ window: 256 });
+    const device = new MockDevice({ window: 256, collections: 0 });
     const content = blob(17, 900);
     const name = "t" + hex8(17).repeat(4) + ".bin";
     device.failAt = { name, how: "ack" };
@@ -327,7 +348,7 @@ const CLIENT_ONLY = {
 
   // A device that stores the file and then finds the checksum wrong.
   async badcrc() {
-    const device = new MockDevice({ failAt: null });
+    const device = new MockDevice({ failAt: null, collections: 0 });
     const made = payload(8, 2);
     const name = [...made.keys()][0];
     device.failAt = { name, how: "crc" };
@@ -346,7 +367,7 @@ const CLIENT_ONLY = {
 
   // A transfer given up on. Everything afterwards is refused until hello.
   async short() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const made = payload(9, 2);
     const name = [...made.keys()][0];
     device.failAt = { name, how: "short" };
@@ -406,7 +427,7 @@ const CLIENT_ONLY = {
   // Stopping partway. Nothing after the abort, and above all no "done" - that
   // is what makes the device read its new layout in.
   async cancel() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const made = payload(12, 6);
     const cable = new Cable(device.open(), { onLog: () => {} });
     const hello = await cable.hello();
@@ -437,7 +458,7 @@ const CLIENT_ONLY = {
   // one - there is no next turn of the loop - so it is the only case that
   // proves the guard in front of "done" is load-bearing.
   async cancelLast() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const made = payload(13, 4);
     const cable = new Cable(device.open(), { onLog: () => {} });
     const hello = await cable.hello();
@@ -466,7 +487,7 @@ const CLIENT_ONLY = {
   // step over them AND record them. A client that stopped skipping unknown
   // keywords would read "gap" where it expects "ok".
   async timings() {
-    const device = new MockDevice({});
+    const device = new MockDevice({ collections: 0 });
     const made = payload(14, 3);
     const cable = new Cable(device.open(), { onLog: () => {} });
     const hello = await cable.hello();
@@ -485,7 +506,7 @@ const CLIENT_ONLY = {
 
   // Room the device has not got. Refused before "go", so nothing is sent.
   async nospace() {
-    const device = new MockDevice({ total: 300 });   // smaller than the first file
+    const device = new MockDevice({ total: 300, collections: 0 });   // smaller than the first file
     const made = payload(10, 2);
     const name = [...made.keys()][0];
     const cable = new Cable(device.open(), { onLog: () => {} });
@@ -506,6 +527,126 @@ const CLIENT_ONLY = {
     }
     return { caught, sentBytes: device.transcript().length };
   },
+
+  // --- A device that holds more than one collection --------------------------
+  //
+  // Everything above this line is a talker with one collection on it, where a
+  // transfer replaces what is there. These two are the other kind, and the
+  // difference is a number in the greeting rather than a mode this client
+  // chooses.
+
+  // Two collections side by side. The second transfer adds and sweeps nothing,
+  // which is the whole change: on a device that holds one, everything the new
+  // payload does not name is stale, and on one that holds several it belongs
+  // to the other game.
+  async additive() {
+    const device = new MockDevice({ collections: 16 });
+    const first = collection("aa", 20, 4);
+    const second = collection("bb", 21, 3);
+
+    // A log of its own: these two are client-only and are not handed a run's
+    // one, because nothing replays their bytes into the C reader.
+    const log = [];
+    await session(device, first, log);
+    const two = await session(device, second, log);
+
+    if (two.plan.remove.length) {
+      throw new Error(`an additive transfer removed ${two.plan.remove.length} `
+                      + "file(s) - the other collection's");
+    }
+    const held = [...device.files.keys()];
+    for (const name of first.keys()) {
+      if (!held.includes(name)) {
+        throw new Error(`${name} went when the second collection arrived`);
+      }
+    }
+    const collections = held.filter(isCollection);
+    if (collections.length !== 2) {
+      throw new Error(`${collections.length} collection(s) on the device, not 2`);
+    }
+    // And the numbers the page says before anybody presses Send. `total` is
+    // what the collection comes to, `already` is what the device had, and the
+    // difference is what really crossed.
+    if (two.plan.total - two.plan.already !== two.plan.needed) {
+      throw new Error("the cost does not add up: "
+                      + `${two.plan.total} - ${two.plan.already} is not `
+                      + `${two.plan.needed}`);
+    }
+    return {
+      collections: collections.length, held: held.length,
+      total: two.plan.total, already: two.plan.already, sent: two.plan.needed,
+    };
+  },
+
+  // And one of them removed again, with the tiles and recordings no other
+  // collection still names. The subtraction is planRemoval(), and what feeds
+  // it is `get`: the collections that stay are read back off the device,
+  // because a collection file IS the list of what it needs.
+  async removal() {
+    const device = new MockDevice({ collections: 16 });
+    const first = collection("aa", 30, 4);
+    // A payload that shares one file with the first, so that the removal has
+    // something it must NOT take. Shared by name, which is what sharing means
+    // here: a name is a hash of what went into the file.
+    const second = collection("bb", 31, 3);
+    const shared = [...first.keys()].find((n) => !isCollection(n));
+    second.set(shared, first.get(shared));
+
+    const log = [];
+    await session(device, first, log);
+    await session(device, second, log);
+
+    const going = [...first.keys()].find(isCollection);
+    const staying = [...second.keys()].find(isCollection);
+
+    const cable = new Cable(device.open(), { onLog: () => {} });
+    await cable.hello();
+    const have = await cable.list();
+    const bytes = await cable.get(staying);
+    if (bytes.length !== second.get(staying).bytes.length) {
+      throw new Error(`get handed back ${bytes.length} bytes of ${staying}, `
+                      + `not ${second.get(staying).bytes.length}`);
+    }
+    // Read back byte for byte, which is what makes the subtraction below worth
+    // anything: a `get` that handed over the right length and the wrong file
+    // would name the wrong tiles.
+    for (let i = 0; i < bytes.length; i++) {
+      if (bytes[i] !== second.get(staying).bytes[i]) {
+        throw new Error(`${staying} came back different at byte ${i}`);
+      }
+    }
+    // What the collection that stays names, out of the payload rather than out
+    // of a reader: this file has no layout reader in it, and the point here is
+    // the subtraction. loader/src/cable.ts is where the bytes become names.
+    const keeping = new Set([staying, ...[...second.keys()]
+      .filter((n) => !isCollection(n))]);
+    const { remove, frees } = planRemoval(have, going, keeping);
+
+    if (remove[0] !== going) {
+      throw new Error(`the collection went ${remove.indexOf(going) + 1}th, `
+                      + "not first - a session that broke off would leave a "
+                      + "name in the menu whose keys are black");
+    }
+    if (remove.includes(shared)) {
+      throw new Error(`${shared} was swept, and the other collection names it`);
+    }
+    for (const name of remove) {
+      await cable.rm(name);
+    }
+    await cable.done();
+    await cable.close();
+
+    const held = [...device.files.keys()];
+    if (held.includes(going)) throw new Error("the collection is still there");
+    if (!held.includes(shared)) throw new Error("the shared file went with it");
+    for (const name of second.keys()) {
+      if (!held.includes(name)) {
+        throw new Error(`${name} went with the other collection`);
+      }
+    }
+    return { removed: remove.length, frees, left: held.length };
+  },
+
 };
 
 // --- Reading what the C formatters wrote --------------------------------------
@@ -520,7 +661,8 @@ async function readback(text) {
   const lines = text.split("\n").filter((l) => l.length);
   const groups = {
     hello: lines.filter(
-      (l) => /^< (vorlaut|firmware|total|free|files|tiles|end hello)/.test(l)),
+      (l) => /^< (vorlaut|firmware|total|free|files|collections|tiles|end hello)/
+        .test(l)),
     list: lines.filter((l) => /^< (file|end list)/.test(l)),
     crc: [lines.find((l) => l.startsWith("< crc layout.bin 1a2b3c4d"))],
     big: [lines.find((l) => l.startsWith("< crc layout.bin deadbeef"))],

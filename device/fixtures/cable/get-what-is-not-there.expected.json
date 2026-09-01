@@ -1,0 +1,74 @@
+{
+  "fixture": "get-what-is-not-there",
+  "kind": "cable",
+  "summary": "Asking for a file the device does not hold. The same word a checksum of one gets.",
+  "ends": [
+    "device"
+  ],
+  "protocol_version": 2,
+  "device_speaks": 2,
+  "version_verdict": "ok",
+  "device_firmware": "",
+  "device_tiles": "",
+  "device_collections": 16,
+  "window": 4096,
+  "device_starts_with": [],
+  "capacity": 1441792,
+  "steps": [
+    {
+      "from": "host",
+      "line": "> hello"
+    },
+    {
+      "from": "device",
+      "line": "< vorlaut 2"
+    },
+    {
+      "from": "device",
+      "line": "< total 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< free 1441792"
+    },
+    {
+      "from": "device",
+      "line": "< files 0"
+    },
+    {
+      "from": "device",
+      "line": "< collections 16"
+    },
+    {
+      "from": "device",
+      "line": "< end hello"
+    },
+    {
+      "from": "host",
+      "line": "> get c0123456789abcdef0123456789abcdef.bin"
+    },
+    {
+      "from": "device",
+      "line": "< err missing c0123456789abcdef0123456789abcdef.bin"
+    },
+    {
+      "from": "host",
+      "line": "> done"
+    },
+    {
+      "from": "device",
+      "line": "< bye 0 0 0"
+    }
+  ],
+  "device_ends_with": {
+    "files": [],
+    "stored": 0,
+    "removed": 0,
+    "bytes": 0
+  },
+  "client_script": null,
+  "notes": [
+    "An error rather than a head line saying zero bytes. A zero-length answer would be indistinguishable from an empty file, and an empty collection file and a missing one are different things to a page deciding what may be removed.",
+    "It arrives before any raw bytes, so there is nothing to drain and the session carries on - the same shape a refused put has."
+  ]
+}

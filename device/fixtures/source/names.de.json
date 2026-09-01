@@ -28,5 +28,25 @@
   "flower_pot": "Blumentopf",
   "sunshine": "Sonnenschein",
   "hand_shoe": "Hand + Schuh",
-  "fire_defence": "Feuer + Wehr"
+  "fire_defence": "Feuer + Wehr",
+
+  "_collections": "What a collection is called in the device's own menu, which is the name of its first set - the format carries no name for a collection and collectionHeadName() in firmware/vorlaut/collections.h is where that is argued. Their own group because of what is asked of them: nine characters a line and two lines, so these are the names that have to survive being wrapped and cut.",
+
+  "mirror_and_egg_game": "Spiegel und Ei",
+  "shadow_game": "Schattenspiel",
+  "question_game": "Fragespiel",
+  "at_home": "Zuhause",
+  "morning_with_mum": "Guten Morgen mit Mama",
+  "greetings": "Grüße",
+  "leading_space": "  Ei",
+
+  "_wrapped": "The same names as a key really shows them: nine glyphs a line and two lines, broken at spaces. The pairs live here rather than in the generator for the reason every other string does - one of them carries an umlaut, and quoting a fragment of German inside an English file is what tests/test_language.py is there to catch. They are written out and never computed: a fixture that worked its own expectation out would agree with whatever it worked it out with.",
+
+  "mirror_and_egg_game_on_a_key": ["Spiegel", "und Ei"],
+  "shadow_game_on_a_key": ["Schattens", "piel"],
+  "question_game_on_a_key": ["Fragespie", "l"],
+  "at_home_on_a_key": ["Zuhause", ""],
+  "greetings_on_a_key": ["Grüße", ""],
+  "morning_with_mum_on_a_key": ["Guten", "Morgen"],
+  "leading_space_on_a_key": ["Ei", ""]
 }

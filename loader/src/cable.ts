@@ -20,14 +20,17 @@
 // from, and what the page is told while it happens.
 import { forDevice } from "./tile_encode.js";
 import {
-  Cable, CABLE_VERSION, LAYOUT_FILE, plan, push, versionVerdict,
+  Cable, CABLE_VERSION, isCollection, LAYOUT_FILE, plan, planRemoval, push,
+  versionVerdict,
 } from "../tools/cable.js";
+import { readLayoutBin } from "./layout_format.js";
 import { Trouble } from "./errors.js";
 
 /** What is to be on the device, by the name it goes under.
  *
- * compileDevice() answers with exactly this - layout.bin, one t<hash>.bin per
- * distinct picture, one a<hash>.wav per distinct sentence. It used to come out
+ * compileDevice() answers with exactly this - one c<hash>.bin for the
+ * collection, one t<hash>.bin per distinct picture, one a<hash>.wav per
+ * distinct sentence. It used to come out
  * of the `data` store instead, through builtFiles(), and sendToDevice() went
  * and fetched it: the build wrote into storage, and the transport read it back
  * by name, which is the arrangement builder.py had with data/ on disk.
@@ -100,6 +103,15 @@ export function watchDevices(changed: () => void): void {
 
 export type Plan = {
   put: number; remove: number; keep: number; needed: number; tight: boolean;
+  /** What the collection comes to altogether, and how much of that the device
+   *  already holds. `needed` is the difference, and it is the only one of the
+   *  three that crosses the cable - see plan() in loader/tools/cable.js. */
+  total: number; already: number;
+  /** What the partition has left once this has landed. */
+  freeAfter: number;
+  /** How many collections the device would then hold, and how many it says it
+   *  can. */
+  collections: number; room: number;
 };
 
 /** Which talker answered, in the two words it says about itself.
@@ -116,7 +128,13 @@ export type Plan = {
  * version to hold either against. The comparison arrives with whoever ships
  * an image to compare with.
  */
-export type Talker = { version: number; firmware: string };
+export type Talker = {
+  version: number; firmware: string;
+  /** How many collections this device holds. One where it did not say, which
+   *  is every talker flashed before 2026-08-31 and is what those really hold -
+   *  see the note on the keyword in loader/tools/cable.js. */
+  collections: number;
+};
 
 export type Sending = {
   /** Every line on the wire that is not protocol: the device's own serial log,
@@ -232,7 +250,245 @@ export async function askTalker(
     // the one port on this machine known to have a talker on it, and the
     // firmware section needs it later to reboot that talker into its
     // bootloader without anybody opening the case. See flash.ts.
-    return { version: hello.version, firmware: hello.firmware, port };
+    return { version: hello.version, firmware: hello.firmware,
+             collections: hello.collections, port };
+  } finally {
+    await cable.close().catch(() => {});
+    await port.close().catch(() => {});
+  }
+}
+
+/** The collection file inside a payload. There is exactly one - compileDevice()
+ *  writes it and says which - and this is how a caller that was handed only the
+ *  map finds it again. */
+const collectionIn = (files: Build | Map<string, { bytes: Uint8Array }>) =>
+  [...files.keys()].find((name) => isCollection(name)) ?? "";
+
+/**
+ * The payload under the names this particular talker actually reads.
+ *
+ * A collection travels as `c<hash>.bin`, because a device that holds several
+ * needs a name per collection for there to be a list at all. **A talker
+ * flashed before 2026-08-31 holds exactly one, under `layout.bin`, and opens
+ * no other name.** Sending it the new name would store a file it never reads
+ * and - because one collection means a transfer is a replacement - sweep away
+ * the `layout.bin` it does read. The device would come back with five black
+ * keys from a transfer that reported success, and the only way out would be a
+ * reflash.
+ *
+ * So the collection goes under the old name where the device is an old one.
+ * It says which it is in its greeting, and silence means one.
+ *
+ * This is the same decision the tiles make, in the same place and for the same
+ * reason: here is the first place that knows who is listening. The compile
+ * stays device-independent because it also feeds the preview and the folder
+ * export, and neither of those has a talker to ask.
+ */
+function underDeviceNames(made: Map<string, { bytes: Uint8Array }>,
+                          holds: number): Map<string, { bytes: Uint8Array }> {
+  if (holds > 1) return made;
+  const named = collectionIn(made);
+  if (!named || named === LAYOUT_FILE) return made;
+  return new Map([...made].map(
+    ([name, file]) => [name === named ? LAYOUT_FILE : name, file]));
+}
+
+/**
+ * The diff, and the sentence about it.
+ *
+ * Split out of sendToDevice() because it is also what the page asks for on its
+ * own: **what a transfer would cost, said before anybody presses Send.** The
+ * numbers cannot be known without talking to the device - which files it
+ * already has is the whole of the answer - and they are not free at the device
+ * either, so this happens on a press and never on a timer.
+ */
+async function worked(cable: InstanceType<typeof Cable>,
+                      made: Map<string, { bytes: Uint8Array }>,
+                      have: { name: string; size: number }[],
+                      hello: { free: number; collections: number }) {
+  // The one name in the payload whose content its name does not promise, so
+  // its presence proves nothing and it has to be asked about. Every other name
+  // is a hash of what went into the file and answers the question by existing.
+  const collection = collectionIn(made);
+  const already = have.some((f) => f.name === collection)
+    ? await cable.crc(collection)
+    : null;
+  const work = plan(made, have, hello, already);
+  return {
+    ...work,
+    said: {
+      put: work.put.length, remove: work.remove.length,
+      keep: work.keep.length, needed: work.needed, tight: work.tight,
+      total: work.total, already: work.already,
+      freeAfter: Math.max(0, hello.free - work.needed),
+      collections: work.collections, room: work.room,
+    } as Plan,
+  };
+}
+
+/** What is about to be sent, in one session that sends nothing.
+ *
+ * Opens, greets, lists, works the diff out, closes. The press behind it is
+ * somebody asking what a transfer would cost before committing to one, which
+ * on an additive device is the difference between "this is a tile" and "this is
+ * most of a game". */
+export async function costOnDevice(
+  ports: SerialPort[], build: Build, onLog: (line: string) => void = () => {},
+): Promise<Plan & { firmware: string }> {
+  const { port, cable, hello } = await findTalker(ports, onLog);
+  try {
+    const made = underDeviceNames(
+      new Map([...forDevice(build, hello.tiles)].map(
+        ([name, bytes]) => [name, { bytes }])), hello.collections);
+    const have = await cable.list();
+    const work = await worked(cable, made, have, hello);
+    await cable.done();
+    return { ...work.said, firmware: hello.firmware };
+  } finally {
+    await cable.close().catch(() => {});
+    await port.close().catch(() => {});
+  }
+}
+
+/** One collection on a device, as this page can speak about it. */
+export type OnDevice = {
+  /** The file it lies under, which is what a removal names. */
+  file: string;
+  /** Its first set's name, which is what the device's own menu shows - see
+   *  collectionHeadName() in firmware/vorlaut/collections.h. Empty where this
+   *  page could not read the file. */
+  name: string;
+  sets: number;
+  /** The bytes of it and of everything it names. Not what removing it would
+   *  free - a picture two collections share is counted for both. */
+  size: number;
+  /** What removing it really frees: itself, plus everything no other
+   *  collection names. */
+  frees: number;
+  /** True where this page could not read the file at all. Such a collection is
+   *  listed and cannot be removed, because sweeping on behalf of a collection
+   *  whose contents are unknown would take another one's files with it. */
+  unreadable: boolean;
+};
+
+/**
+ * What the talker is holding, collection by collection.
+ *
+ * One session: greet, list, and read back every file whose name is a
+ * collection's. They are a few kilobytes each, and reading them is what lets
+ * the deciding stay on this side of the cable - see `get` in
+ * loader/tools/cable.js.
+ *
+ * Only asked of a device that says it holds more than one. A talker flashed
+ * before 2026-08-31 has one collection under one name and does not have the
+ * verb; there is nothing to list and nothing to subtract.
+ */
+export async function readCollections(
+  ports: SerialPort[], onLog: (line: string) => void = () => {},
+): Promise<{ talker: Talker; free: number; total: number; on: OnDevice[] }> {
+  const { port, cable, hello } = await findTalker(ports, onLog);
+  try {
+    const have = await cable.list();
+    const sizes = new Map(have.map((f) => [f.name, f.size]));
+    const files = have.filter((f) => isCollection(f.name)).map((f) => f.name);
+
+    // Only where the device says it holds more than one. A talker flashed
+    // before 2026-08-31 says nothing, which means one - and it has no `get` to
+    // ask with either, because the verb and the capability arrived in the same
+    // firmware. There is also nothing to work out: one collection names
+    // everything on the partition, so removing it is removing all of it.
+    const canRead = hello.collections > 1;
+    const read = new Map<string, ReturnType<typeof readLayoutBin>>();
+    if (canRead) {
+      for (const file of files) read.set(file, readLayoutBin(await cable.get(file)));
+    }
+    await cable.done();
+
+    const on = files.map((file) => {
+      const layout = read.get(file);
+      // Everything every OTHER collection names, plus every other collection
+      // file. What is left over is what this one would take with it.
+      const keeping = new Set<string>();
+      for (const [other, theirs] of read) {
+        if (other === file) continue;
+        keeping.add(other);
+        if (theirs) for (const named of theirs.files) keeping.add(named);
+        // A collection this page cannot read contributes nothing, which is why
+        // `unreadable` below stops a removal rather than merely annotating it.
+      }
+      const { frees } = planRemoval(have, file, keeping);
+      const size = layout
+        ? (sizes.get(file) ?? 0)
+          + [...layout.files].reduce((sum, n) => sum + (sizes.get(n) ?? 0), 0)
+        // Nothing was read, so nothing is known about what this names. On a
+        // one-collection device that is every byte on the partition, which is
+        // also what removing it frees.
+        : frees;
+      return {
+        file, name: layout?.name ?? "", sets: layout?.sets ?? 0, size, frees,
+        unreadable: canRead && !layout,
+      };
+    });
+    return {
+      talker: { version: hello.version, firmware: hello.firmware,
+                collections: hello.collections },
+      free: hello.free, total: hello.total, on,
+    };
+  } finally {
+    await cable.close().catch(() => {});
+    await port.close().catch(() => {});
+  }
+}
+
+/**
+ * One collection off the device, and everything nothing else needs with it.
+ *
+ * The list is read again inside this session rather than being carried over
+ * from readCollections(), and that is not belt and braces: the two are separate
+ * sessions with a person's decision between them, and what a removal must never
+ * do is subtract against a picture of the device that is minutes old. A
+ * collection sent in between would have its files swept out from under it.
+ */
+export async function removeCollection(
+  ports: SerialPort[], file: string, options: Sending = {},
+): Promise<{ removed: number; freed: number }> {
+  const { onLog = () => {}, onStep = () => {}, signal } = options;
+  const { port, cable } = await findTalker(ports, onLog);
+  try {
+    const have = await cable.list();
+    if (!have.some((f) => f.name === file)) {
+      // Already gone - somebody removed it in another session, or the device
+      // was reflashed. Not a failure: it is in the state that was asked for.
+      await cable.done();
+      return { removed: 0, freed: 0 };
+    }
+    const keeping = new Set<string>();
+    for (const other of have.filter((f) => isCollection(f.name))) {
+      if (other.name === file) continue;
+      keeping.add(other.name);
+      const theirs = readLayoutBin(await cable.get(other.name));
+      if (!theirs) {
+        // Refused rather than guessed at. A collection this page cannot read
+        // names files it cannot enumerate, and sweeping anyway would take them.
+        throw new Trouble("cable_unreadable_collection", { name: other.name });
+      }
+      for (const named of theirs.files) keeping.add(named);
+    }
+    const { remove, frees } = planRemoval(have, file, keeping);
+    let step = 0;
+    for (const name of remove) {
+      signal?.throwIfAborted();
+      onStep("rm", name, ++step, remove.length);
+      await cable.rm(name).catch((error) => {
+        // A file that is not there is already in the state we wanted it in -
+        // the same forgiveness push()'s sweep has, and for the same reason.
+        if (!(error instanceof Error && /missing/.test(error.message))) throw error;
+      });
+    }
+    // "done" is what makes the device read its collections in again, so it is
+    // what makes the menu stop offering the one that has gone.
+    await cable.done();
+    return { removed: remove.length, freed: frees };
   } finally {
     await cable.close().catch(() => {});
     await port.close().catch(() => {});
@@ -249,12 +505,18 @@ export async function askTalker(
  * exists for.
  *
  * The order is the protocol's, and it is the safe one: send what is missing,
- * send layout.bin, then delete what is stale. layout.bin is the commit, and
- * until it lands the device still reads the old one, which still points at
- * files that are all still there. The exception is a payload that will not fit
- * alongside what is already on the partition - then plan() says `tight` and
- * the clearing goes first, which is a worse failure mode and is reported so
- * the page can say as much before anybody presses anything.
+ * send the collection, then delete what is stale. The collection file is the
+ * commit, and until it lands the device still reads the old one, which still
+ * points at files that are all still there. The exception is a payload that
+ * will not fit alongside what is already on the partition - then plan() says
+ * `tight` and the clearing goes first, which is a worse failure mode and is
+ * reported so the page can say as much before anybody presses anything.
+ *
+ * **On a device that holds several collections there is no deleting at all.**
+ * A transfer adds, and what it does not name belongs to the other collections
+ * rather than being stale - plan() is where that is argued. Removing one is a
+ * separate press with a subtraction of its own, and removeCollection() above is
+ * it.
  */
 export async function sendToDevice(
   ports: SerialPort[], build: Build, options: Sending = {},
@@ -274,23 +536,19 @@ export async function sendToDevice(
   // bytes it got yesterday. The compile stays raw for the same reason - it
   // also feeds the preview and the folder export, and neither of those has a
   // talker to ask.
-  const made = new Map([...forDevice(build, hello.tiles)].map(
-    ([name, bytes]) => [name, { bytes }]));
-  onFound({ version: hello.version, firmware: hello.firmware });
+  const made = underDeviceNames(
+    new Map([...forDevice(build, hello.tiles)].map(
+      ([name, bytes]) => [name, { bytes }])), hello.collections);
+  onFound({ version: hello.version, firmware: hello.firmware,
+            collections: hello.collections });
   try {
     const have = await cable.list();
-    // The one file whose name never changes, so its presence proves nothing
-    // and it has to be asked about. Every other name is a hash of what went
-    // into it and answers the question by existing.
-    const layoutCrc = have.some((f) => f.name === LAYOUT_FILE)
-      ? await cable.crc(LAYOUT_FILE)
-      : null;
-
-    const work = plan(made, have, hello, layoutCrc);
-    onPlan({
-      put: work.put.length, remove: work.remove.length, keep: work.keep.length,
-      needed: work.needed, tight: work.tight,
-    });
+    const work = await worked(cable, made, have, hello);
+    onPlan(work.said);
+    if (work.full) {
+      throw new Trouble("cable_too_many",
+                        { on: work.collections, room: work.room });
+    }
     if (!work.fits) {
       throw new Trouble("cable_too_big", { needed: work.needed, free: hello.free });
     }

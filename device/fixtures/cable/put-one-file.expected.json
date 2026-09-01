@@ -11,6 +11,7 @@
   "version_verdict": "ok",
   "device_firmware": "",
   "device_tiles": "",
+  "device_collections": 0,
   "window": 4096,
   "device_starts_with": [],
   "capacity": 1441792,
@@ -90,7 +91,8 @@
         "free": 1441792,
         "files": 0,
         "firmware": "",
-        "tiles": ""
+        "tiles": "",
+        "collections": 1
       }
     },
     {

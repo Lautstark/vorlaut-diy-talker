@@ -67,12 +67,13 @@ which only works on a silent wire fails here rather than on a bench.
 
 ## The device is deliberately stupid
 
-Six verbs, and each of them is one thing:
+Seven verbs, and each of them is one thing:
 
 ```
 > hello                      who are you
 > list                       what have you got
 > crc <name>                 checksum one file
+> get <name>                 hand one back, as raw bytes
 > put <name> <size> <crc>    one file follows, as raw bytes
 > rm <name>                  throw one away
 > done                       that is all
@@ -85,6 +86,29 @@ browser is the end with the memory, the language and the whole layout in front
 of it. Everything the device would have had to hold in a `String` to do the
 comparison is a `String` it does not allocate.
 
+**`get` is the seventh verb and the newest, and it is here to keep that
+sentence true rather than to soften it.** Once a device holds several
+collections, removing one means working out which tiles and recordings the
+collections that *stay* still name. Something has to read those layouts, and
+there were only two candidates: the device parses its own files and answers a
+question about them, or it hands the files over and the browser does the
+arithmetic it already does for every `put`.
+
+A device that walked its own layouts would be a device with an opinion — the
+first thing here that decides rather than does, and the exact shape the Wi-Fi
+version had before the push turned it around. Handing a file back is one more
+thing the device *does* and no more thinking, which is the same shape `crc`
+already had: the browser asks a narrow question, the device answers it without
+knowing why. So the vocabulary grew and the stance did not.
+[ADR 0021](../adr/0021-the-device-holds-several-collections.md) argues it at
+length.
+
+Nobody probes for the verb. `collections` in the greeting says whether a device
+holds more than one, the verb and the capability arrived in the same firmware,
+and only a device that named a number above one is ever sent a `get` — so an
+older talker is never asked something it cannot answer. If one were, `err verb`
+comes back, which is a word to act on rather than a silence to guess at.
+
 So `list` walks the directory and prints it as it goes, and the diff happens in
 `loader/tools/cable.js`. The answers:
 
@@ -94,6 +118,7 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 < total 1441792              the partition
 < free 1146880               what is left of it
 < files 37
+< collections 16             how many collections it will hold
 < tiles vt1                  and which tile forms it can draw
 < end hello
 
@@ -102,6 +127,8 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 < end list 37
 
 < crc layout.bin 1a2b3c4d
+< data c3bd7….bin 5104 1a2b3c4d   a file coming back: length, checksum, then bytes
+< sent c3bd7….bin 5104       and that is what really went
 < go 4096                    send at most this much, then wait
 < ack 8192                   this much is in the file system
 < ok a8c1….wav 41008
@@ -159,6 +186,31 @@ The word is matched whole and never ordered. There is no "newer" here: a
 browser that read an unknown form as probably-compatible would be sending a
 file it cannot know the other end can read, and neither end would say anything
 when it was wrong.
+
+**`collections` is the third, on 2026-09-01, and it decides whether a transfer
+adds or replaces.** A talker used to carry one collection in `layout.bin`, so
+what the payload did not name was stale and the sweep below is a correct sweep.
+A talker that holds several has no way to tell "stale" from "belongs to the
+other game" — every tile is named for its content, so two collections that use
+the same picture use the same file — and there the sweep is the one edit that
+silently breaks a collection nobody touched.
+
+So the device says how many it will hold, and **silence means one**, which is
+what every talker flashed before that day really holds. A number, not a flag:
+the browser has to refuse a payload that would push a device past what it can
+keep, and it cannot do that against a boolean.
+[ADR 0021](../adr/0021-the-device-holds-several-collections.md) is the decision,
+and `fixtures/cable/collections-named-in-the-hello` is the transcript.
+
+It also runs the other way, and this is the half that is easy to get wrong. A
+page that knows about collections sends `c<hash>.bin`; a device that does not
+opens `/layout.bin` and no other name. Sent the new name it would store a file
+it never reads and — being a one-collection device, so a device every transfer
+replaces — sweep away the one it does, coming back with five black keys from a
+transfer that reported success. **So the greeting picks the name too:** one
+collection gets `layout.bin`, more than one gets `c<hash>.bin`, decided in
+`underDeviceNames()` in `loader/src/cable.ts` at the same point the tiles pick
+their form, because that is the first place that knows who is listening.
 
 **A verb the device does not know is answered, not ignored.** `err verb` comes
 back. A browser waiting for a reply that never arrives looks exactly like a

@@ -470,6 +470,155 @@ def check_sleep(reader: Path, want: dict) -> None:
           f"either end")
 
 
+# --- Several collections -----------------------------------------------------
+
+def check_collections(reader: Path, want: dict) -> None:
+    """Everything collections.h decides, asked one question at a time.
+
+    One process and a little command language rather than one run per case,
+    because the questions share state: the listing is built up by offering
+    files, and choosing is what falls back through the order it came out in.
+    """
+    asked: list[str] = ["limits"]
+    for one in want["names"]:
+        asked.append(f"name {one['name']}")
+    for one in want["heads"]:
+        asked.append(f"head {one['head']}")
+    for one in want["menu"]:
+        asked.append(f"menu {one['name']}")
+    asked.append("clear")
+    for one in want["offering"]:
+        asked.append(f"offer {one['file']} {one['head']}")
+    asked.append("list")
+    asked.append("clear")
+    for name in want["over_the_limit"]["files"]:
+        asked.append(f"offer {name} {want['over_the_limit']['head']}")
+    asked.append("list")
+    asked.append("clear")
+    for one in want["listing"]["given"]:
+        asked.append(f"offer {one['file']} {one['head']}")
+    asked.append("list")
+    for one in want["choosing"]:
+        asked.append(f"choose {one['asked']}")
+    for one in want["paging"]:
+        asked.append(f"page {one['count']}")
+
+    said = run(reader, ["collections"],
+               ("\n".join(asked) + "\n").encode()).split("\n")
+    at = 0
+
+    def take() -> str:
+        nonlocal at
+        line = said[at]
+        at += 1
+        return line
+
+    limits = {}
+    for _ in range(7):
+        key, _, value = take().partition(" ")
+        limits[key] = value
+    check("the collection prefix is the letter the name rule states",
+          limits["prefix"] == want["name_rule"]["prefix"], limits["prefix"])
+    check("and the suffix, the legacy name and the room are what it states",
+          limits["suffix"] == want["name_rule"]["suffix"]
+          and limits["legacy"] == want["name_rule"]["legacy"]
+          and int(limits["max"]) == want["max"]
+          and int(limits["head_bytes"]) == want["head_bytes"]
+          and int(limits["menu_max_chars"]) == want["menu_max_chars"]
+          and int(limits["keys"]) == want["keys"],
+          str(limits))
+    counted("collections")
+
+    for one in want["names"]:
+        got = take().split(" ", 1)[1]
+        check(f"{one['what']} is {one['kind']}", got == one["kind"], got)
+        counted("collections")
+
+    for one in want["heads"]:
+        got = take()
+        wanted = ("head no" if one["name"] is None
+                  else "head ok " + one["name"].encode().hex())
+        check(f"a head for {one['what']}: "
+              + ("no name" if one["name"] is None
+                 else f"the name {one['name']!r}"),
+              got == wanted, got)
+        counted("collections")
+
+    for one in want["menu"]:
+        got = take().split(" ", 1)[1] if " " in said[at] else take()
+        wanted = f"{one['first']}|{one['second']}"
+        check(f"{one['name']!r} on a key: {one['first']!r} over "
+              f"{one['second']!r}", got == wanted, got)
+        counted("collections")
+
+    take()                                   # clear
+    for one in want["offering"]:
+        got = take().split(" ", 1)[1]
+        check(f"offering {one['what']}: {one['taken']}",
+              got == one["taken"], got)
+        counted("collections")
+    count = int(take().split(" ")[1])
+    refused = int(take().split(" ")[1])
+    taken = [one for one in want["offering"] if one["taken"] == "taken"]
+    while said[at].startswith("at "):
+        take()
+    check("a list holds what was taken into it and counts what was not",
+          count == len(taken) and refused == 1, f"{count} held, {refused} refused")
+    counted("collections")
+
+    take()                                   # clear
+    for _ in want["over_the_limit"]["files"]:
+        take()
+    count = int(take().split(" ")[1])
+    refused = int(take().split(" ")[1])
+    while said[at].startswith("at "):
+        take()
+    check(f"{len(want['over_the_limit']['files'])} collections offered where "
+          f"there is room for {want['max']}",
+          count == want["over_the_limit"]["taken"]
+          and refused == want["over_the_limit"]["refused"],
+          f"{count} held, {refused} refused")
+    counted("collections")
+
+    take()                                   # clear
+    for _ in want["listing"]["given"]:
+        take()
+    take()                                   # count
+    take()                                   # refused
+    order = []
+    while said[at].startswith("at "):
+        order.append(take().split(" ")[2])
+    check("the menu lists them by the name shown and then by the file",
+          order == want["listing"]["order"],
+          " ".join(order))
+    counted("collections")
+
+    for one in want["choosing"]:
+        _, outcome, file = take().split(" ")
+        check(f"choosing when {one['what']}: {one['outcome']}, {one['chose']}",
+              outcome == one["outcome"] and file == one["chose"],
+              f"{outcome} {file}")
+        counted("collections")
+
+    for one in want["paging"]:
+        head = take().split(" ")
+        rows = [take().split(" ")[1:] for _ in one["keys"]]
+        check(f"{one['count']} collections: {one['per_page']} to a screen, "
+              f"{one['pages']} {'screen' if one['pages'] == 1 else 'screens'}",
+              int(head[1]) == one["count"] and int(head[3]) == one["per_page"]
+              and int(head[5]) == one["pages"]
+              and [[int(k) for k in row] for row in rows] == one["keys"],
+              f"{head} {rows}")
+        counted("collections")
+
+    # What the paging is worth, asked of all of it at once. A device that put
+    # four names on every screen would satisfy every case where there are four
+    # or fewer, and one that always paged would satisfy the rest.
+    pers = {one["per_page"] for one in want["paging"]}
+    check("the cases cover a screen that pages and one that does not",
+          len(pers) > 1, f"{sorted(pers)} names to a screen")
+
+
 # --- The cable ---------------------------------------------------------------
 
 def wire(want: dict) -> bytes:
@@ -503,8 +652,8 @@ class Loose(list):
 def device_groups(steps: list[dict]) -> list[list[str]]:
     groups: list[list[str]] = []
     for step in steps:
-        if step["from"] != "device":
-            continue
+        if step["from"] != "device" or "line" not in step:
+            continue        # a file coming back is not a line - see check_cable
         if step.get("any_order") and groups and isinstance(groups[-1], Loose):
             groups[-1].append(step["line"])
         elif step.get("any_order"):
@@ -514,13 +663,59 @@ def device_groups(steps: list[dict]) -> list[list[str]]:
     return groups
 
 
+def spoken_and_raw(out: bytes) -> tuple[list[str], list[bytes], str]:
+    """The device's half, split the way a browser has to split it.
+
+    Lines up to a newline - except after a "data" line, where the next `size`
+    bytes are a file coming back and are not text at all. Counted rather than
+    searched for, because that is the whole of the framing: anything looking
+    for the next line at a newline finds one inside a picture sooner or later.
+
+    Anything that is not marked is the harness's own trailing report, which
+    the caller reads separately.
+    """
+    lines: list[str] = []
+    raws: list[bytes] = []
+    at = 0
+    while at < len(out):
+        cut = out.find(b"\n", at)
+        if cut < 0:
+            break
+        line = out[at:cut].decode("utf-8", "replace")
+        at = cut + 1
+        lines.append(line)
+        if line.startswith("< data "):
+            size = int(line.split()[-2])
+            raws.append(out[at:at + size])
+            at += size
+    return ([l for l in lines if l.startswith("< ")], raws,
+            "\n".join(l for l in lines if not l.startswith("< ")))
+
+
 def check_cable(reader: Path, name: str, want: dict) -> None:
-    got = run(reader, ["cable", str(want["capacity"]), str(want["window"]),
-                       want["device_firmware"], want["device_tiles"]],
-              wire(want))
-    spoken = [l for l in got.split("\n") if l.startswith("< ")]
+    result = subprocess.run(
+        [str(reader), "cable", str(want["capacity"]), str(want["window"]),
+         want["device_firmware"], want["device_tiles"],
+         str(want["device_collections"])],
+        input=wire(want), capture_output=True)
+    if result.returncode != 0:
+        raise SystemExit(f"device_host cable fell over:\n"
+                         + result.stderr.decode()[:2000])
+    spoken, raws, got = spoken_and_raw(result.stdout)
     groups = device_groups(want["steps"])
     wanted = [line for group in groups for line in group]
+
+    # And the bytes the device sent back, if any. A `get` is the one place
+    # where what the device says is not all text, and a transcript that stated
+    # only the lines would be satisfied by a device that sent the right head
+    # and the wrong file.
+    sent = [base64.b64decode(step["raw"]) for step in want["steps"]
+            if step["from"] == "device" and "raw" in step]
+    if sent or raws:
+        check(f"{name}: and hands back exactly the bytes the transcript holds",
+              raws == sent,
+              f"{[len(r) for r in raws]} against {[len(r) for r in sent]}")
+        counted("cable")
 
     # Walked group by group rather than line by line, so that the one run the
     # format leaves unordered is compared as a multiset and everything else is
@@ -607,6 +802,8 @@ def main() -> int:
                 check_sleep(reader, want)
             elif kind == "press":
                 check_press(reader, want)
+            elif kind == "collections":
+                check_collections(reader, want)
             elif kind == "package":
                 # The other boundary, and neither of its ends is the device:
                 # a device package is the .obz the editor writes and the

@@ -1,0 +1,370 @@
+{
+  "fixture": "collections",
+  "kind": "collections",
+  "summary": "Which files on a device are collections, what each is called, in what order the menu lists them, which one is showing, and how four keys hold more than four names.",
+  "name_rule": {
+    "prefix": "c",
+    "digits": 32,
+    "suffix": ".bin",
+    "legacy": "layout.bin",
+    "what_is_hashed": "The collection's identity - the root board's id out of the package - and never its bytes. A collection edited and exported again keeps its name, which is what makes a device replace it rather than hold two of it."
+  },
+  "max": 16,
+  "head_bytes": 44,
+  "names": [
+    {
+      "what": "a collection the loader wrote",
+      "name": "c0123456789abcdef0123456789abcdef.bin",
+      "kind": "named",
+      "note": null
+    },
+    {
+      "what": "the one name a device used to hold its only collection under",
+      "name": "layout.bin",
+      "kind": "legacy",
+      "note": null
+    },
+    {
+      "what": "a tile",
+      "name": "t0123456789abcdef0123456789abcdef.bin",
+      "kind": "not",
+      "note": null
+    },
+    {
+      "what": "a recording",
+      "name": "afedcba9876543210fedcba9876543210.wav",
+      "kind": "not",
+      "note": null
+    },
+    {
+      "what": "upper-case hex",
+      "name": "c0123456789ABCDEF0123456789ABCDEF.bin",
+      "kind": "not",
+      "note": "Lower case only, and refused rather than folded. The device opens the name it was given; a name it read one way and opened another would be a collection in the menu that shows nothing."
+    },
+    {
+      "what": "half a hash",
+      "name": "c0123456789abcdef.bin",
+      "kind": "not",
+      "note": "Exactly 32 digits. A short name is a name no builder writes, so a file under one is a file whose bytes nobody here wrote - and listing it as a collection would put a name in the menu on the strength of a guess."
+    },
+    {
+      "what": "the right length and the wrong suffix",
+      "name": "c0123456789abcdef0123456789abcdef.wav",
+      "kind": "not",
+      "note": null
+    },
+    {
+      "what": "nothing at all",
+      "name": "",
+      "kind": "not",
+      "note": null
+    }
+  ],
+  "heads": [
+    {
+      "what": "an ordinary collection",
+      "head": "4d54524403010400000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "name": "Zuhause",
+      "note": null
+    },
+    {
+      "what": "a name that fills the field",
+      "head": "4d54524403010400000000004772756e64776f727473636861747a20667565722064656e20416e66616e6721",
+      "name": "Grundwortschatz fuer den Anfang!",
+      "note": null
+    },
+    {
+      "what": "sixty-four sets",
+      "head": "4d5452440340040000000000536368617474656e737069656c00000000000000000000000000000000000000",
+      "name": "Schattenspiel",
+      "note": null
+    },
+    {
+      "what": "no sets at all",
+      "head": "4d54524403000400000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "name": null,
+      "note": "Parsed happily by parseLayout and still not a collection anybody can choose: there is nothing behind the name to show. A device holding only this one has no collections, which is the same state as an empty device and is drawn the same way."
+    },
+    {
+      "what": "a version this build does not read",
+      "head": "4d54524404010400000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "name": null,
+      "note": "A name in the menu leading to a talker with nothing on it is the failure docs/device-interface.md section 6 is a whole section about. So a file whose head this build cannot read is not named and not listed - it is simply not there, as far as the menu is concerned."
+    },
+    {
+      "what": "the wrong magic",
+      "head": "4d54524503010400000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "name": null,
+      "note": null
+    },
+    {
+      "what": "the wrong slot count",
+      "head": "4d54524403010500000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "name": null,
+      "note": null
+    },
+    {
+      "what": "a file shorter than the head",
+      "head": "4d54524403010400000000005a756861757365000000000000000000000000000000000000000000000000",
+      "name": null,
+      "note": "Forty-four bytes or it is not readable. That is the whole of what a device reads to build its menu, and it is why holding sixteen collections costs a directory walk instead of sixteen parses."
+    }
+  ],
+  "menu_max_chars": 9,
+  "menu": [
+    {
+      "name": "Spiegel und Ei",
+      "first": "Spiegel",
+      "second": "und Ei",
+      "note": "Two words and a bit, broken at a space, which is why there is a wrap at all rather than a cut at eighteen characters. Breaking mid-word here would be the same letters and a different thing to read."
+    },
+    {
+      "name": "Schattenspiel",
+      "first": "Schattens",
+      "second": "piel",
+      "note": "One word longer than a line, cut where the line ends and not where the syllable does. The two lines read down as the word, which is what makes it legible; hyphenating properly needs a dictionary per language, and the failure of a wrong guess at one is a name that reads as a different word."
+    },
+    {
+      "name": "Fragespiel",
+      "first": "Fragespie",
+      "second": "l",
+      "note": "Ten characters, and the tenth is on a line of its own. The panel is nine glyphs wide at text size 2 and this is what the edge of it looks like."
+    },
+    {
+      "name": "Zuhause",
+      "first": "Zuhause",
+      "second": "",
+      "note": null
+    },
+    {
+      "name": "Grüße",
+      "first": "Grüße",
+      "second": "",
+      "note": "Five glyphs and seven bytes. Counted in glyphs, through the same walk toPanelText() draws with - a wrapper counting bytes puts every name with an umlaut in it two characters short of where it belongs."
+    },
+    {
+      "name": "Guten Morgen mit Mama",
+      "first": "Guten",
+      "second": "Morgen",
+      "note": "Two lines and no more. The last two words are dropped rather than shrunk: a smaller font would fit them and would be unreadable across a room, which is the only distance this is ever looked at from."
+    },
+    {
+      "name": "  Ei",
+      "first": "Ei",
+      "second": "",
+      "note": "A leading space is nothing. It would otherwise be a glyph of the nine, spent on air."
+    },
+    {
+      "name": "",
+      "first": "",
+      "second": "",
+      "note": null
+    }
+  ],
+  "offering": [
+    {
+      "what": "a collection",
+      "file": "c0123456789abcdef0123456789abcdef.bin",
+      "head": "4d54524403010400000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "taken": "taken",
+      "note": null
+    },
+    {
+      "what": "a tile",
+      "file": "t0123456789abcdef0123456789abcdef.bin",
+      "head": "4d54524403010400000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "taken": "not_one",
+      "note": "Refused on the name alone, before the head is looked at. Everything on the partition goes past this - every tile and every recording of every collection - so the cheap question is asked first and the read only happens for the handful that pass it."
+    },
+    {
+      "what": "a collection this build cannot read",
+      "file": "cfedcba9876543210fedcba9876543210.bin",
+      "head": "4d54524404010400000000005a75686175736500000000000000000000000000000000000000000000000000",
+      "taken": "unreadable",
+      "note": "Counted rather than merely dropped. A device that quietly showed one name fewer than there are files would be indistinguishable from one that had lost a file, and the serial log is where the difference is said."
+    }
+  ],
+  "over_the_limit": {
+    "files": [
+      "c00000000000000000000000000000000.bin",
+      "c01010101010101010101010101010101.bin",
+      "c02020202020202020202020202020202.bin",
+      "c03030303030303030303030303030303.bin",
+      "c04040404040404040404040404040404.bin",
+      "c05050505050505050505050505050505.bin",
+      "c06060606060606060606060606060606.bin",
+      "c07070707070707070707070707070707.bin",
+      "c08080808080808080808080808080808.bin",
+      "c09090909090909090909090909090909.bin",
+      "c10101010101010101010101010101010.bin",
+      "c11111111111111111111111111111111.bin",
+      "c12121212121212121212121212121212.bin",
+      "c13131313131313131313131313131313.bin",
+      "c14141414141414141414141414141414.bin",
+      "c15151515151515151515151515151515.bin",
+      "c16161616161616161616161616161616.bin"
+    ],
+    "head": "4d54524403010400000000005a75686175736500000000000000000000000000000000000000000000000000",
+    "taken": 16,
+    "refused": 1,
+    "note": "The seventeenth is refused and counted. Nothing writes seventeen collection files - the loader refuses to send past the number the device names in its greeting - so this is the case where something else has: a folder export, an image built by hand, a device that was flashed with a smaller limit than the one that wrote it."
+  },
+  "listing": {
+    "given": [
+      {
+        "file": "c11111111111111111111111111111111.bin",
+        "name": "Schattenspiel",
+        "head": "4d5452440301040000000000536368617474656e737069656c00000000000000000000000000000000000000"
+      },
+      {
+        "file": "layout.bin",
+        "name": "Zuhause",
+        "head": "4d54524403010400000000005a75686175736500000000000000000000000000000000000000000000000000"
+      },
+      {
+        "file": "c22222222222222222222222222222222.bin",
+        "name": "Spiegel und Ei",
+        "head": "4d54524403010400000000005370696567656c20756e64204569000000000000000000000000000000000000"
+      },
+      {
+        "file": "c00000000000000000000000000000000.bin",
+        "name": "Spiegel und Ei",
+        "head": "4d54524403010400000000005370696567656c20756e64204569000000000000000000000000000000000000"
+      }
+    ],
+    "order": [
+      "c11111111111111111111111111111111.bin",
+      "c00000000000000000000000000000000.bin",
+      "c22222222222222222222222222222222.bin",
+      "layout.bin"
+    ],
+    "note": "Two of them are called the same thing, which is the case the tie-break exists for and the one a person really meets: the same collection exported twice under two identities. The file name decides, and the pair sit next to each other in the menu rather than swapping places between one start and the next."
+  },
+  "choosing": [
+    {
+      "what": "the one that was showing is still there",
+      "asked": "layout.bin",
+      "chose": "layout.bin",
+      "outcome": "asked",
+      "note": null
+    },
+    {
+      "what": "it has been removed since",
+      "asked": "c99999999999999999999999999999999.bin",
+      "chose": "c11111111111111111111111111111111.bin",
+      "outcome": "fell_back",
+      "note": "The ordinary case rather than a corruption: removing a collection from the loader page is one press and the name in NVS survives it. A device that answered that with a black screen would be a device somebody broke by tidying up."
+    },
+    {
+      "what": "nothing was ever chosen",
+      "asked": "",
+      "chose": "c11111111111111111111111111111111.bin",
+      "outcome": "fell_back",
+      "note": "A device out of the box, and a device whose stored name this build refuses to believe. Both are the first collection in the order."
+    }
+  ],
+  "keys": 4,
+  "paging": [
+    {
+      "count": 0,
+      "per_page": 4,
+      "pages": 1,
+      "keys": [
+        [
+          -1,
+          -1,
+          -1,
+          -1
+        ]
+      ]
+    },
+    {
+      "count": 1,
+      "per_page": 4,
+      "pages": 1,
+      "keys": [
+        [
+          0,
+          -1,
+          -1,
+          -1
+        ]
+      ]
+    },
+    {
+      "count": 4,
+      "per_page": 4,
+      "pages": 1,
+      "keys": [
+        [
+          0,
+          1,
+          2,
+          3
+        ]
+      ]
+    },
+    {
+      "count": 5,
+      "per_page": 3,
+      "pages": 2,
+      "keys": [
+        [
+          0,
+          1,
+          2,
+          -1
+        ],
+        [
+          3,
+          4,
+          -1,
+          -1
+        ]
+      ]
+    },
+    {
+      "count": 7,
+      "per_page": 3,
+      "pages": 3,
+      "keys": [
+        [
+          0,
+          1,
+          2,
+          -1
+        ],
+        [
+          3,
+          4,
+          5,
+          -1
+        ],
+        [
+          6,
+          -1,
+          -1,
+          -1
+        ]
+      ]
+    }
+  ],
+  "rules": [
+    "A collection is one file. The list of collections on a device is what lies in its directory - there is no index, nothing to keep in step, and adding one is `put` while removing one is `rm`.",
+    "A collection file holds exactly the bytes of layout.bin version 3. Nothing about the format moved for this, which is why a talker flashed before 2026-08-31 can still be sent a collection: what changed is the name it goes under and how many of them a device will hold.",
+    "The name a person reads in the menu is the FIRST SET'S name. The header has no field for one and a `.obz` carries no name for a Sammlung; the root board is the first set, and its name is already in the file at a fixed offset. A builder should therefore name the first page of a collection after the collection.",
+    "A device reads the head of each collection file and parses only the one it is showing. That is what keeps the cost of holding a second game disk rather than SRAM, and it is why the head is 44 bytes and not the whole file.",
+    "A file whose head this build cannot read is not a collection. It is not named, not listed and not choosable - a name in a menu leading to a talker with nothing on it is worse than a name that is not there.",
+    "layout.bin is a collection. A device carrying one from before this existed shows it as the one collection it has always been, with a name of its own like any other.",
+    "The order is by the name shown and then by the file name. A file system promises no order, so a menu that took the directory's would move between one morning and the next - and a menu nobody can learn is worse than an order nobody chose.",
+    "Which collection is showing is kept outside the format, beside the volume. It is something the person in the room changes, so it is not a field in a file; and it is the FILE NAME rather than a position, because a position means something different the moment a collection is added or removed.",
+    "The collection that was showing can be gone. Then the first in the order is shown instead, and the name that was asked for is left where it is - a collection that comes back should be showing again without anybody asking for it twice.",
+    "Four names to a screen, and three once there are more than four, because the fourth key has to become the way to the rest."
+  ],
+  "notes": [
+    "There is no artefact for this kind and no refusal code. Nothing here is a byte of layout.bin - it is what a device does with files that hold those bytes, which is a different question and one that had no fixture at all.",
+    "Only the name rule crosses. The loader has to agree about which names are collections, because a name it says yes to and the device says no to is a file the page offers to remove and the device never shows, and the other way round is the page sweeping up the file the talker is reading. Everything else here - the wrapping, the order, the fallback, the paging - is the device's alone and has no browser half, which is the shape `press` already has.",
+    "Nothing here reaches a clock or a display. That the two lines are legible on a real panel is not a question a fixture can answer; what it can say is how many glyphs of a name reach it and where the break falls."
+  ]
+}

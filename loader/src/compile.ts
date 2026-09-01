@@ -26,7 +26,7 @@
 
 import { planLayout, type ReadDevicePackage }
   from "./device_package.js";
-import { LAYOUT_BIN, renderLayoutBin } from "./layout_format.js";
+import { collectionFile, renderLayoutBin } from "./layout_format.js";
 import * as tiles from "./tiles.js";
 
 /**
@@ -82,13 +82,26 @@ export interface Screens {
 export interface DeviceBuild {
   files: Map<string, Uint8Array<ArrayBuffer>>;
   screens: Screens[];
+  /** The file the collection itself goes under, which is one of `files`.
+   *
+   * Said rather than worked out again by whoever needs it. Three things do -
+   * the transfer compares it by checksum, the folder export writes it, and the
+   * page names it in a sentence - and each of them recomputing the hash would
+   * be three chances to name a different file from the one that was built. */
+  collection: string;
 }
 
 /**
  * A device export, compiled into exactly the files a build puts in the store.
  *
- * layout.bin, one t<hash>.bin per distinct picture, one a<hash>.wav per
- * distinct sentence - the map builtFiles() answers with and the cable sends.
+ * One c<hash>.bin for the collection itself, one t<hash>.bin per distinct
+ * picture, one a<hash>.wav per distinct sentence - the map builtFiles()
+ * answers with and the cable sends.
+ *
+ * The collection file was `layout.bin` until 2026-08-31, and it is named now
+ * because a device holds several: the list of collections on a talker is what
+ * lies in its directory, so a collection has to have a name of its own for
+ * there to be a list at all. adr/0021.
  *
  * This is the claim the whole file exists for, so it is worth saying what it
  * does *not* need: no store, no Sammlung, no synthesiser, no Azure key, no
@@ -171,11 +184,22 @@ export async function compileDevice(
     audioFiles.push(audioNames);
   }
 
-  files.set(LAYOUT_BIN,
+  // The collection, under the name that identifies it rather than under
+  // layout.bin. `read.id` is the root board's id and nothing about the bytes,
+  // so a collection sent twice lands on one file both times and a device
+  // replaces it instead of holding two of it. See collectionFile().
+  //
+  // Hashed with the same hasher every other name here goes through, for the
+  // reason DeviceHost.hash exists at all: two hashers would be two opinions
+  // about a file name.
+  const collection = collectionFile(
+    await host.hash(new TextEncoder().encode(read.id) as Uint8Array<ArrayBuffer>));
+  files.set(collection,
     renderLayoutBin(planLayout(plan), labelFiles, tileFiles, audioFiles,
                     labelSounds));
   return {
     files,
     screens: labelFiles.map((label, at) => ({ label, slots: tileFiles[at]! })),
+    collection,
   };
 }

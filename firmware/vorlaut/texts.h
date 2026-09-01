@@ -1,7 +1,7 @@
 // Every word the device shows, in one place.
 //
-// The firmware itself contains almost no text - a dozen words, all of them on
-// the menu or the info page. It was twice that until the Wi-Fi path went, and
+// The firmware itself contains almost no text - a dozen words, all of them in
+// the menu. It was twice that until the Wi-Fi path went, and
 // most of what went was reasons: no network, no server, wrong key, too late.
 // A cable has none of those to report. But they are the only thing on the
 // device tied to a language, and they used to sit as literals in the middle of
@@ -36,14 +36,16 @@
 #define MENU_MAX_CHARS 9
 
 struct Strings {
-  const char *back;          // set key: leave the menu
-  const char *info;          // key 1: open the info page
+  const char *back;          // set key: one screen back, or out of the menu
+  const char *collections;   // menu key 4: the collections, one level down
+  const char *next;          // collections: the fourth key, where they page
   const char *menu;          // shown while the menu gesture is held
-  const char *sets;          // info page: label for the number of sets
-  const char *storage1;      // info page: label for the file system, line 1
-  const char *storage2;      //                                     line 2
+  const char *storage1;      // no collections: label for the file system, line 1
+  const char *storage2;      //                                           line 2
   const char *storagePresent;   // ... and its two answers
   const char *storageMissing;
+  const char *free1;         // no collections: label for the room left, line 1
+  const char *free2;         //                                         line 2
   const char *empty1;        // nothing on the device yet, line 1
   const char *empty2;        //                            line 2
   const char *cable;         // ... a browser is pushing content down the cable
@@ -67,13 +69,15 @@ struct Strings {
 static const Strings LANGUAGES[] = {
   {  // 0 - English
     /* back            */ "back",
-    /* info            */ "Info",
+    /* collections     */ "Content",
+    /* next            */ "next",
     /* menu            */ "Menu",
-    /* sets            */ "Sets",
     /* storage1        */ "File",
     /* storage2        */ "system",
     /* storagePresent  */ "ready",
     /* storageMissing  */ "missing",
+    /* free1           */ "free",
+    /* free2           */ "KiB",
     /* empty1          */ "no",
     /* empty2          */ "content",
     /* cable           */ "cable",
@@ -84,13 +88,15 @@ static const Strings LANGUAGES[] = {
   },
   {  // 1 - German
     /* back            */ "zurück",
-    /* info            */ "Info",
+    /* collections     */ "Sammlung",
+    /* next            */ "weiter",
     /* menu            */ "Menü",
-    /* sets            */ "Sets",
     /* storage1        */ "Datei-",
     /* storage2        */ "system",
     /* storagePresent  */ "da",
     /* storageMissing  */ "fehlt",
+    /* free1           */ "frei",
+    /* free2           */ "KiB",
     /* empty1          */ "keine",
     /* empty2          */ "Inhalte",
     /* cable           */ "Kabel",

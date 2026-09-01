@@ -148,6 +148,8 @@ ALLOWED = [
     ("`ä ö ü ß é à ñ ç`", "which letters the font has"),
     # Test data that is German on purpose.
     ("Ein sehr langer Name", "a name with umlauts, to test the encoding"),
+    ("*Spiegel und Ei*", "a collection's title, named in adr/0021 the way "
+                         "adr/0020 names the round it is built from"),
     ('"PNG mit Rahmen"', "a METACOM folder name, spaces for underscores, "
                          "as the picker captions a twin"),
     # The Wi-Fi captive portal: what a parent reads on their phone. That is

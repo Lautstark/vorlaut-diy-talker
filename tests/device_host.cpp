@@ -32,6 +32,12 @@
 //                   with no display and no clock
 //   cable           a whole transcript on stdin, replayed into a device made
 //                   of a std::map, a window of file content at a time
+//   collections     the questions that arrive once a device holds more than
+//                   one: which names are collections, what each is called, how
+//                   a name is broken over two keys, the order they come out
+//                   in, which one is showing, and the paging arithmetic. A
+//                   little command language on stdin, because it is six
+//                   questions rather than one file
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +53,7 @@
 #include "../firmware/vorlaut/name_format.h"
 #include "../firmware/vorlaut/cable_format.h"
 #include "../firmware/vorlaut/texts.h"
+#include "../firmware/vorlaut/collections.h"
 
 // --- Reading a file ----------------------------------------------------------
 
@@ -269,7 +276,11 @@ static int namesMode(void) {
         bytes[i] = (uint8_t)value;
       }
       char out[2 + HASH_BYTES * 2 + 8];
-      hashPath(out, kind, bytes, kind == 't' ? ".bin" : ".wav");
+      // The suffix follows the letter: a recording is the only .wav, and both
+      // a tile and a collection are .bin. Written as the exception rather than
+      // as a table because that is what it is - see the name rule in
+      // firmware/vorlaut/name_format.h.
+      hashPath(out, kind, bytes, kind == 'a' ? ".wav" : ".bin");
       printf("path %s\n", out);
       continue;
     }
@@ -363,7 +374,7 @@ static bool readLine(std::string &out) {
 // before the keyword existed. An empty word is the second of those, and it is
 // said by saying nothing.
 static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
-                     const char *tiles) {
+                     const char *tiles, uint32_t collections) {
   Fake device;
   device.capacity = capacity;
   char out[CABLE_LINE_MAX];
@@ -418,6 +429,15 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
         cableSayNumber(out, sizeof(out), "total", (uint32_t)device.capacity); say(out);
         cableSayNumber(out, sizeof(out), "free", (uint32_t)(device.capacity - used)); say(out);
         cableSayNumber(out, sizeof(out), "files", (uint32_t)device.files.size()); say(out);
+        // How many collections the device in THIS transcript says it holds,
+        // and nothing at all where it says nothing. From the fixture and not
+        // from MAX_COLLECTIONS, the same argument as the firmware word above:
+        // a harness that said its own number could only ever produce one
+        // transcript, and the eight where the line is absent are the ones that
+        // stand for every talker already in a drawer.
+        if (collections) {
+          cableSayNumber(out, sizeof(out), "collections", collections); say(out);
+        }
         // Which tile forms this device says it draws, from the fixture rather
         // than from CABLE_TILE_FORMS - a harness that read the constant could
         // only ever produce the one transcript its own build allows, and the
@@ -450,6 +470,29 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
                                      (const uint8_t *)it->second.data(),
                                      it->second.size()));
         }
+        say(out);
+        break;
+      }
+      case CABLE_GET: {
+        auto it = device.files.find(command.name);
+        if (it == device.files.end()) {
+          cableSayErr(out, sizeof(out), "missing", command.name);
+          say(out);
+          break;
+        }
+        // The head, then the bytes with no newline anywhere near them, then
+        // what really went. Written straight to stdout the way the firmware
+        // writes them to Serial - a harness that base64'd them here would be
+        // testing a framing nobody uses.
+        cableSayNameNumberHex(out, sizeof(out), "data", command.name,
+                              (uint32_t)it->second.size(),
+                              cableCrc32(CABLE_CRC_INIT,
+                                         (const uint8_t *)it->second.data(),
+                                         it->second.size()));
+        say(out);
+        fwrite(it->second.data(), 1, it->second.size(), stdout);
+        cableSayNameNumber(out, sizeof(out), "sent", command.name,
+                           (uint32_t)it->second.size());
         say(out);
         break;
       }
@@ -539,6 +582,144 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
   return 0;
 }
 
+// --- Several collections -----------------------------------------------------
+//
+// Everything in collections.h, driven from stdin. A little command language
+// rather than one mode per question, because the questions share state: the
+// listing has to be built up before it can be ordered, and the order is what
+// choosing then falls back through.
+//
+// Nothing here decides anything. collectionKind(), collectionHeadName(),
+// collectionMenuLines(), collectionsOffer(), collectionsChoose() and the
+// paging arithmetic are the device's own, and this prints what they answer.
+//
+//   name <file>            collectionKind()
+//   head <hex>             collectionHeadName()
+//   menu <name>            collectionMenuLines()
+//   offer <file> <hex>     collectionsOffer(), into the list being built
+//   list                   the list as it now stands, in order
+//   choose <file>          collectionsChoose(), and what it settled on
+//   page <count>           collectionsPerPage(), collectionsPages() and
+//                          collectionsOnPage() for every key of every page
+//   limits                 the constants a fixture states beside the rules
+
+static const char *collectionKindName(CollectionKind kind) {
+  switch (kind) {
+    case COLLECTION_NAMED: return "named";
+    case COLLECTION_LEGACY: return "legacy";
+    default: return "not";
+  }
+}
+
+static const char *collectionTakenName(CollectionTaken taken) {
+  switch (taken) {
+    case COLLECTION_TAKEN: return "taken";
+    case COLLECTION_NOT_ONE: return "not_one";
+    case COLLECTION_UNREADABLE: return "unreadable";
+    default: return "no_room";
+  }
+}
+
+static const char *collectionChoiceName(CollectionChoice choice) {
+  switch (choice) {
+    case COLLECTION_ASKED: return "asked";
+    case COLLECTION_FELL_BACK: return "fell_back";
+    default: return "nothing";
+  }
+}
+
+/** Hex digits into bytes. A head is stated as hex in the fixture because it is
+ *  a header and a name field, and a name field may hold a character cut in
+ *  half - which is not text and cannot travel as text. */
+static std::vector<uint8_t> unhex(const char *from) {
+  std::vector<uint8_t> out;
+  for (const char *at = from; at[0] && at[1]; at += 2) {
+    unsigned value = 0;
+    if (sscanf(at, "%2x", &value) != 1) break;
+    out.push_back((uint8_t)value);
+  }
+  return out;
+}
+
+static int collectionsMode() {
+  Collections held;
+  collectionsClear(held);
+  std::string line;
+  while (readLine(line)) {
+    if (line.empty()) continue;
+    const size_t space = line.find(' ');
+    const std::string verb = line.substr(0, space);
+    const std::string rest =
+        space == std::string::npos ? std::string() : line.substr(space + 1);
+
+    if (verb == "limits") {
+      printf("prefix %c\n", COLLECTION_PREFIX);
+      printf("suffix %s\n", COLLECTION_SUFFIX);
+      printf("legacy %s\n", COLLECTION_LEGACY_FILE);
+      printf("max %d\n", MAX_COLLECTIONS);
+      printf("head_bytes %d\n", COLLECTION_HEAD_BYTES);
+      printf("menu_max_chars %d\n", MENU_MAX_CHARS);
+      printf("keys %d\n", COLLECTION_KEYS);
+    } else if (verb == "name") {
+      printf("name %s\n", collectionKindName(collectionKind(rest.c_str())));
+    } else if (verb == "head") {
+      const std::vector<uint8_t> head = unhex(rest.c_str());
+      char name[NAME_BYTES + 1];
+      if (collectionHeadName(head.data(), (uint32_t)head.size(), name)) {
+        // As hex, for the reason the layout mode prints a set name as hex.
+        printf("head ok ");
+        hex((const uint8_t *)name, (int)strlen(name));
+        printf("\n");
+      } else {
+        printf("head no\n");
+      }
+    } else if (verb == "menu") {
+      char first[MENU_LINE_BYTES], second[MENU_LINE_BYTES];
+      collectionMenuLines(rest.c_str(), first, second);
+      printf("menu %s|%s\n", first, second);
+    } else if (verb == "offer") {
+      const size_t cut = rest.find(' ');
+      const std::string file = rest.substr(0, cut);
+      const std::vector<uint8_t> head =
+          cut == std::string::npos ? std::vector<uint8_t>()
+                                   : unhex(rest.c_str() + cut + 1);
+      printf("offer %s\n", collectionTakenName(collectionsOffer(
+          held, file.c_str(), head.data(), (uint32_t)head.size())));
+    } else if (verb == "list") {
+      printf("count %u\n", (unsigned)held.count);
+      printf("refused %u\n", (unsigned)held.refused);
+      for (uint8_t i = 0; i < held.count; i++) {
+        printf("at %u %s\n", i, held.at[i].file);
+      }
+    } else if (verb == "choose") {
+      const CollectionChoice choice = collectionsChoose(held, rest.c_str());
+      printf("choose %s %s\n", collectionChoiceName(choice),
+             held.count ? held.at[held.active].file : "-");
+    } else if (verb == "page") {
+      const uint8_t count = (uint8_t)strtoul(rest.c_str(), nullptr, 10);
+      const uint8_t per = collectionsPerPage(count);
+      const uint8_t pages = collectionsPages(count);
+      printf("page %u per %u pages %u paging %d\n", (unsigned)count,
+             (unsigned)per, (unsigned)pages,
+             collectionsPaging(count) ? 1 : 0);
+      for (uint8_t at = 0; at < pages; at++) {
+        printf("keys");
+        for (uint8_t key = 0; key < COLLECTION_KEYS; key++) {
+          printf(" %d", (int)collectionsOnPage(count, at, key));
+        }
+        printf("\n");
+      }
+    } else if (verb == "clear") {
+      collectionsClear(held);
+      printf("clear\n");
+    } else {
+      fprintf(stderr, "collections: no such question: %s\n", verb.c_str());
+      return 2;
+    }
+  }
+  return 0;
+}
+
 // --- What a press does -------------------------------------------------------
 //
 // keyPress() out of key_press.h, and the four constants beside it. Nothing
@@ -619,6 +800,7 @@ int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "language") == 0) return languageMode();
   if (argc >= 2 && strcmp(argv[1], "sleep") == 0) return sleepMode();
   if (argc >= 2 && strcmp(argv[1], "press") == 0) return pressMode();
+  if (argc >= 2 && strcmp(argv[1], "collections") == 0) return collectionsMode();
   if (argc >= 3 && strcmp(argv[1], "walk") == 0) return walkMode(argv[2]);
   if (argc >= 4 && strcmp(argv[1], "cable") == 0) {
     // The firmware word and the tile forms are optional at the command line
@@ -629,11 +811,13 @@ int main(int argc, char **argv) {
     return cableMode((uint32_t)strtoul(argv[2], nullptr, 10),
                      (uint32_t)strtoul(argv[3], nullptr, 10),
                      argc >= 5 ? argv[4] : "",
-                     argc >= 6 ? argv[5] : "");
+                     argc >= 6 ? argv[5] : "",
+                     argc >= 7 ? (uint32_t)strtoul(argv[6], nullptr, 10) : 0);
   }
   fprintf(stderr, "usage: device_host layout <file> | tile <file> [decoded] | "
                   "audio <file> | names | language | sleep | press | "
-                  "walk <file> | "
-                  "cable <capacity> <window> [firmware] [tiles]\n");
+                  "collections | walk <file> | "
+                  "cable <capacity> <window> [firmware] [tiles] "
+                  "[collections]\n");
   return 2;
 }

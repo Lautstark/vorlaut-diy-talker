@@ -407,6 +407,20 @@ export const wavSeconds = (format: WavFormat): number => {
  * and "reconstruct a device build without the editor's IndexedDB" is a slogan.
  */
 export interface ReadDevicePackage {
+  /** What this package IS, as opposed to what is in it: the id of its root
+   *  board.
+   *
+   * The device holds one file per collection and the file is named for this,
+   * so that a collection edited and exported again lands on the file it landed
+   * on last time and the talker replaces it rather than collecting two.
+   *
+   * The root board's id and not its name, because a renamed collection is the
+   * same collection, and not a hash of the bytes, because an edited collection
+   * is the same collection too. It is the only thing in a `.obz` that is about
+   * the Sammlung rather than about a board or a picture, and the manifest
+   * already has to name it - readDevicePackage() refuses a package whose root
+   * is not there. adr/0021. */
+  id: string;
   plan: DevicePlan;
   /** Sources by reference, as they were written. */
   sources: Map<string, DeviceSource>;
@@ -604,6 +618,7 @@ export function readDevicePackage(pkg: DevicePackage): ReadDevicePackage {
   }
 
   return {
+    id: rootId,
     plan: {
       language: String(root.locale ?? ""),
       voice: String(root.ext_vorlaut_voice ?? ""),

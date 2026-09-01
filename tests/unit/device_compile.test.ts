@@ -9,7 +9,7 @@ import {
   planLayout, readDevicePackage, type ReadDevicePackage,
 } from "../../loader/src/device_package.js";
 import {
-  HASH_BYTES, LAYOUT_BIN, renderLayoutBin,
+  collectionFile, HASH_BYTES, renderLayoutBin,
 } from "../../loader/src/layout_format.js";
 import { blank, renderPixels, toRgb565Be } from "../../loader/src/tiles.js";
 
@@ -164,7 +164,11 @@ async function expected(read: ReadDevicePackage) {
     tileFiles.push(tileNames);
     audioFiles.push(audioNames);
   }
-  files.set(LAYOUT_BIN,
+  // Under the name that identifies the collection rather than under
+  // layout.bin, and named from the same thing compileDevice() names it from -
+  // the root board's id, hashed. Not from the compiler's answer: this
+  // expectation is built beside the compiler and never out of it.
+  files.set(collectionFile(hashOf(new TextEncoder().encode(read.id))),
             renderLayoutBin(planLayout(read.plan), labelFiles, tileFiles, audioFiles));
   return files;
 }
@@ -185,13 +189,36 @@ describe("a fixture package, compiled into what a talker reads", () => {
 
   it("writes the three shapes of file the device reads, and nothing else",
      async () => {
-    const { files: compiled } = await compileDevice(await opened(), host);
-    for (const name of compiled.keys()) {
-      expect(name === LAYOUT_BIN
-             || /^t[0-9a-f]{32}\.bin$/.test(name)
-             || /^a[0-9a-f]{32}\.wav$/.test(name), name).toBe(true);
+    const made = await compileDevice(await opened(), host);
+    for (const name of made.files.keys()) {
+      expect(/^t[0-9a-f]{32}\.bin$/.test(name)
+             || /^a[0-9a-f]{32}\.wav$/.test(name)
+             || /^c[0-9a-f]{32}\.bin$/.test(name), name).toBe(true);
     }
-    expect(compiled.has(LAYOUT_BIN)).toBe(true);
+    // And it says which of them is the collection, rather than leaving three
+    // callers to work the hash out again - see DeviceBuild.collection.
+    expect(made.files.has(made.collection)).toBe(true);
+    expect(/^c[0-9a-f]{32}\.bin$/.test(made.collection)).toBe(true);
+  });
+
+  it("names the collection after what it is and not after what is in it",
+     async () => {
+    /* The whole reason the name is a hash of the root board's id: a collection
+       edited and exported again has to land on the file it landed on last
+       time, or a device collects two of it and the person has to work out
+       which is which. So the same package compiled twice is the same name, and
+       the same package with a key changed is still the same name. */
+    const read = await opened();
+    const first = await compileDevice(read, host);
+    const again = await compileDevice(await opened(), host);
+    expect(again.collection).toBe(first.collection);
+
+    const edited = await opened();
+    edited.plan.sets[0]!.slots[0]!.text = "something else entirely";
+    const changed = await compileDevice(edited, host);
+    expect(changed.collection).toBe(first.collection);
+    expect(Buffer.from(changed.files.get(changed.collection)!))
+      .not.toEqual(Buffer.from(first.files.get(first.collection)!));
   });
 
   it("draws a crossed-out key as a different tile from the plain one",
