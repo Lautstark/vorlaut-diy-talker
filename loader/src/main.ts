@@ -96,6 +96,7 @@ class Step {
   readonly root = document.createElement("section");
   private readonly body = document.createElement("div");
   private readonly aheadLine = document.createElement("p");
+  private hasAhead = false;
   private readonly mark = document.createElement("span");
   private readonly badge = document.createElement("span");
 
@@ -148,15 +149,35 @@ class Step {
      * Nothing in begin(), waiting() or done() has to remember it. */
     this.aheadLine.className = "step__ahead";
     this.aheadLine.textContent = aheadKey ? t(aheadKey) : "";
-    this.aheadLine.hidden = !aheadKey;
+    this.hasAhead = Boolean(aheadKey);
 
     this.body.className = "body";
-    this.root.append(head, this.aheadLine, this.body);
+    this.root.append(head, this.body);
+    this.ahead(true);
   }
 
   /** What this step came to, beside its heading: a count of notes, a size, a
    *  refusal. The outcome of a step is what somebody scrolling past is looking
    *  for, and it was four sentences into the body. */
+  /** In the document while the step is waiting, and out of it otherwise.
+   *
+   * data-state would be enough to *hide* it, and it is still what does the
+   * hiding. What it is not enough for is a question: a section-scoped `p`
+   * selector finds a hidden paragraph exactly as readily as a shown one, so a
+   * preview left lying in the document goes on being the first paragraph of a
+   * step that has long since said something else. e2e asks that question - "is
+   * the compile step's first paragraph the compiled summary?" - and it was
+   * answered with this sentence instead.
+   *
+   * Which is the better rule anyway, and not only the one that passes: a step
+   * that has run says what it did, and what it was *going* to do has stopped
+   * being true. It should be no more findable than it is readable. */
+  private ahead(on: boolean): void {
+    if (!this.hasAhead) return;
+    if (on) this.root.insertBefore(this.aheadLine, this.body);
+    else this.aheadLine.remove();
+  }
+
   chip(text: string | null, kind = ""): void {
     this.badge.hidden = !text;
     this.badge.textContent = text ?? "";
@@ -167,6 +188,7 @@ class Step {
    *  itself whole rather than appending, so that a second file dropped on the
    *  page cannot leave a line from the first one standing. */
   begin(): void {
+    this.ahead(false);
     this.root.dataset.state = "doing";
     this.mark.textContent = this.n === null ? "" : String(this.n);
     this.chip(null);
@@ -174,6 +196,7 @@ class Step {
   }
 
   waiting(): void {
+    this.ahead(true);
     this.root.dataset.state = "waiting";
     this.mark.textContent = this.n === null ? "" : String(this.n);
     this.chip(null);
@@ -184,11 +207,13 @@ class Step {
    *  and must not look like it. The state a step is left in when this browser
    *  cannot do it at all. */
   blocked(): void {
+    this.ahead(false);
     this.root.dataset.state = "blocked";
     this.mark.textContent = this.n === null ? "" : String(this.n);
   }
 
   done(): void {
+    this.ahead(false);
     this.root.dataset.state = "done";
     this.mark.textContent = this.n === null ? "" : "✓";
   }
