@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/locale-not-in-the-table.obz",
   "summary": "A locale of \"de-DE\", which is not a language the device has. The reader takes it as it stands and byte 7 falls back to English.",
-  "bytes": 4967,
+  "bytes": 5093,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2289,
-      "sha256": "56479737beecb35caee0baede20675dc04954aeb7e8fb149604eca49f397cf78"
+      "bytes": 2415,
+      "sha256": "868aadeda996f981e5963c1e8d4061796444d4fad82a937cb9953cb260cbde74"
     },
     {
       "path": "images/907686e9833c7e5b.bin",
@@ -160,7 +160,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 600,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     }
   ],
   "read": {
@@ -217,6 +219,10 @@
         }
       ]
     },
+    "package": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "sources": [
       {
         "reference": "ja.bmp",
@@ -251,6 +257,10 @@
     ]
   },
   "write": {
+    "collection": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "layout": {
       "language": "de-DE",
       "voice": "piper:de_DE-thorsten-medium",

@@ -303,11 +303,16 @@ export interface DeviceBoard {
   grid: { rows: number; columns: number; order: (string | null)[][] };
   images: DeviceImageEntry[];
   sounds: DeviceSoundEntry[];
-  /** Root board only, both of them - a manifest is an index of a zip and gets
+  /** Root board only, all four - a manifest is an index of a zip and gets
    *  rebuilt by any tool that touches it, whereas a board is the document.
    *  obf.ts puts them in the same place for the same reason. */
   ext_vorlaut_sleep_timeout_seconds?: number;
   ext_vorlaut_voice?: string;
+  /** Which Sammlung this is and what it is called - see ReadDevicePackage's
+   *  packageId and packageName, where the whole of it is written down. Both
+   *  optional because a package written before 2026-09-01 has neither. */
+  ext_lautstark_package_id?: string;
+  ext_lautstark_package_name?: string;
 }
 
 export interface DeviceManifest {
@@ -407,20 +412,51 @@ export const wavSeconds = (format: WavFormat): number => {
  * and "reconstruct a device build without the editor's IndexedDB" is a slogan.
  */
 export interface ReadDevicePackage {
-  /** What this package IS, as opposed to what is in it: the id of its root
-   *  board.
+  /** The id of the root board.
    *
-   * The device holds one file per collection and the file is named for this,
-   * so that a collection edited and exported again lands on the file it landed
-   * on last time and the talker replaces it rather than collecting two.
+   * **Not the Sammlung's identity, although it was read as one until
+   * 2026-09-01.** The device names a collection's file after what identifies
+   * the collection, and this was what it used - on the belief, written down
+   * here, that a root board's id was "the only thing in a `.obz` that is about
+   * the Sammlung rather than about a board".
    *
-   * The root board's id and not its name, because a renamed collection is the
-   * same collection, and not a hash of the bytes, because an edited collection
-   * is the same collection too. It is the only thing in a `.obz` that is about
-   * the Sammlung rather than about a board or a picture, and the manifest
-   * already has to name it - readDevicePackage() refuses a package whose root
-   * is not there. adr/0021. */
+   * It is not. It is about a board, exactly as it says, and the editor's export
+   * calls every root board `set-1`: `boardId(at)` in that repository is
+   * `set-${at + 1}` and nothing else. So every Sammlung ever exported carried
+   * the same id, every one of them hashed to the same `c<hash>.bin`, and a
+   * second collection sent to a talker replaced the first instead of joining
+   * it - which is the one thing adr/0021 exists to prevent.
+   *
+   * Kept, and still the fallback below, because a package written before
+   * `ext_lautstark_package_id` existed has nothing else to offer and one
+   * collection from such a file is right. */
   id: string;
+  /** What this package IS, as opposed to what is in it.
+   *
+   * `ext_lautstark_package_id` off the root board - the editor's own
+   * CollectionRef.id, opaque here on purpose. Not derived from the content:
+   * a renamed Sammlung is the same Sammlung, an edited one is too, and two
+   * that happen to hold the same boards are still two. The talker names a
+   * collection's file after this, so that a Sammlung exported twice lands on
+   * one file and is replaced rather than collected.
+   *
+   * Empty where the package predates the field. compileDevice() then falls
+   * back to `id` above, which is what every package written before 2026-09-01
+   * has. */
+  packageId: string;
+  /** What a person calls this Sammlung, and what the talker's menu shows.
+   *
+   * `ext_lautstark_package_name` off the root board. **OBF has no name for a
+   * package** - exchange/SPEC.md says so where it defines this field: "A
+   * package with three pages has three names and no name." Until this field
+   * arrived the name never left the editor at all; it survived as the
+   * download's filename and nothing more, so the talker's menu had only the
+   * first set's name to show and two different games both read `Runde 1`.
+   *
+   * Empty where the package predates the field, and then the first set's name
+   * is what the menu gets - which is what every collection already on a talker
+   * is listed under. */
+  packageName: string;
   plan: DevicePlan;
   /** Sources by reference, as they were written. */
   sources: Map<string, DeviceSource>;
@@ -619,6 +655,8 @@ export function readDevicePackage(pkg: DevicePackage): ReadDevicePackage {
 
   return {
     id: rootId,
+    packageId: String(root.ext_lautstark_package_id ?? ""),
+    packageName: String(root.ext_lautstark_package_name ?? ""),
     plan: {
       language: String(root.locale ?? ""),
       voice: String(root.ext_vorlaut_voice ?? ""),

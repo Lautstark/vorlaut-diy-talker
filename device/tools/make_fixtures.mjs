@@ -2963,7 +2963,8 @@ function packageGrid(id, slots) {
  * word either - the key the build drew a grey cross for would compile to a
  * blank. So the gap travels as a gap.
  */
-function packageOf({ layout, voice, sources = [], sounds = [] }) {
+function packageOf({ layout, voice, sources = [], sounds = [],
+                     collection = PACKAGE_COLLECTION }) {
   const sourceBy = new Map(sources.map((one) => [one.reference, one]));
   const soundBy = new Map(sounds.map((one) => [one.text, one]));
   const members = new Map();
@@ -3133,11 +3134,17 @@ function packageOf({ layout, voice, sources = [], sounds = [] }) {
       images: [...images.values()].sort(byId),
       sounds: [...soundEntries.values()].sort(byId),
     };
-    // Root board only, both of them. A manifest is an index of a zip and gets
+    // Root board only, all four. A manifest is an index of a zip and gets
     // rebuilt by any tool that touches it; a board is the document.
     if (at === 0) {
       board.ext_vorlaut_sleep_timeout_seconds = plan.sleep_timeout_seconds;
       board.ext_vorlaut_voice = plan.voice;
+      // Which Sammlung this is and what it is called. OBF identifies boards
+      // and never packages, and a device that holds several collections needs
+      // both: the id is what its file on the talker is named for, and the name
+      // is what its menu shows. See adr/0021.
+      board.ext_lautstark_package_id = collection.id;
+      board.ext_lautstark_package_name = collection.name;
     }
     boards.push(board);
   }
@@ -3166,6 +3173,10 @@ function packageOf({ layout, voice, sources = [], sounds = [] }) {
     members,
     read: {
       plan,
+      // What the reader answers about the package itself rather than about the
+      // Sammlung inside it. Separate from `plan` because it is: the plan is
+      // what the device shows, this is which collection is showing it.
+      package: { id: collection.id, name: collection.name },
       sources: [...readSources.values()],
       sounds: [...readSounds.values()],
     },
@@ -3228,6 +3239,18 @@ function packageFixture({ name, summary, outcome, conforming, pkg = null,
  * file as the Sammlung it was, which is what makes the export something
  * somebody can archive rather than a build artefact. */
 const PACKAGE_VOICE = "piper:de_DE-thorsten-medium";
+
+/* One Sammlung identity for all of them, for the same reason as the voice.
+ *
+ * The id is the editor's own CollectionRef.id and is opaque here on purpose -
+ * nothing derives it from the content, which is the whole point: it survives a
+ * rename, and two Sammlungen that happen to hold the same boards are still two.
+ * That is what the talker names a collection's file after, and what stops a
+ * second game replacing the first. */
+const PACKAGE_COLLECTION = {
+  id: "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+  name: de.collection,
+};
 
 /* Two pictures that really are pictures, one that really is an SVG, and one
  * that is a magic number and nothing behind it.
@@ -3304,8 +3327,12 @@ const goesAs = (key, ring) => {
 /** The `write` half: the Sammlung a conforming writer is given, and where the
  *  bytes behind it are to be found in this fixture's own archive. */
 function writeHalf({ layout, sources = [], sounds = [], refuses = null,
-                     bytesFrom = {} }) {
+                     bytesFrom = {}, collection = PACKAGE_COLLECTION }) {
   return {
+    // Which Sammlung is being written out. An input rather than something the
+    // layout carries: a layout does not know which Sammlung holds it, and the
+    // id has to outlive every rename of the one that does.
+    collection,
     layout: {
       language: layout.language,
       voice: PACKAGE_VOICE,
@@ -3963,6 +3990,19 @@ const JOINING_SOUNDS = [
 // tests/test_device_fixtures.py refuses a suffix here, and refuses this file
 // and the committed index.json disagreeing about the version at all.
 const INDEX = {
+  // 2.3.0 is 2026-09-01, later the same day, and it is what 2.2.0 could not
+  // do. A device package gained ext_lautstark_package_id and
+  // ext_lautstark_package_name on its root board: which Sammlung it is, and
+  // what a talker's menu calls it. Without the first, every package the editor
+  // wrote carried the root board id `set-1`, so every collection hashed to one
+  // file name and a second game replaced the first - the failure 2.2.0 was
+  // built to prevent, through the one door it did not look at.
+  //
+  // MINOR, and by the same reading as the two below: two optional fields
+  // added, nothing existing changed, and a package written without them
+  // compiles to exactly the file it compiled to before. adr/0021, "The
+  // amendment".
+  //
   // 2.2.0 is 2026-09-01: the device holds several collections. The greeting
   // gained a "collections" keyword, the cable gained a `get`, and a collection
   // travels as c<hash>.bin instead of layout.bin.
@@ -4005,7 +4045,7 @@ const INDEX = {
   // the cable's greeting gained a "firmware" keyword. Both MINOR, because on
   // the cable both ends skip what they do not know, so a device already
   // flashed neither misreads the addition nor sees it.
-  device_interface_version: "2.2.0",
+  device_interface_version: "2.3.0",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };

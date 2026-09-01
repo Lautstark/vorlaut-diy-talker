@@ -185,18 +185,42 @@ export async function compileDevice(
   }
 
   // The collection, under the name that identifies it rather than under
-  // layout.bin. `read.id` is the root board's id and nothing about the bytes,
-  // so a collection sent twice lands on one file both times and a device
-  // replaces it instead of holding two of it. See collectionFile().
+  // layout.bin, so that a Sammlung exported twice lands on one file and the
+  // device replaces it instead of holding two of it. See collectionFile().
+  //
+  // **What identifies it is the package's own id, and falling back to the root
+  // board's is a compatibility path rather than a preference.** This hashed
+  // `read.id` alone until 2026-09-01, on the belief that a root board's id was
+  // the Sammlung's - and the editor calls every root board `set-1`, so every
+  // Sammlung hashed to one file name and a second game sent to a talker swept
+  // the first away. A package written since carries
+  // ext_lautstark_package_id; one written before has only the root board, and
+  // for such a file one collection is the right answer anyway.
   //
   // Hashed with the same hasher every other name here goes through, for the
   // reason DeviceHost.hash exists at all: two hashers would be two opinions
   // about a file name.
+  const identity = read.packageId || read.id;
   const collection = collectionFile(
-    await host.hash(new TextEncoder().encode(read.id) as Uint8Array<ArrayBuffer>));
+    await host.hash(new TextEncoder().encode(identity) as Uint8Array<ArrayBuffer>));
+
+  // And what the talker's menu calls it.
+  //
+  // The device reads a collection's name out of the head of the file, which is
+  // the first set's name slot - adr/0021 decision 2, and there is nowhere else
+  // for it to be without a longer header and a format break. So the name the
+  // package carries is written into that slot, and the set keeps its own name
+  // everywhere this page speaks about sets.
+  //
+  // Without a name from the package the slot is left as it was, which is the
+  // first set's name: that is what every collection already on a talker is
+  // listed under, and it is the only thing an older package can offer.
+  const named = planLayout(plan);
+  if (read.packageName && named.sets.length) {
+    named.sets[0] = { ...named.sets[0]!, name: read.packageName };
+  }
   files.set(collection,
-    renderLayoutBin(planLayout(plan), labelFiles, tileFiles, audioFiles,
-                    labelSounds));
+    renderLayoutBin(named, labelFiles, tileFiles, audioFiles, labelSounds));
   return {
     files,
     screens: labelFiles.map((label, at) => ({ label, slots: tileFiles[at]! })),

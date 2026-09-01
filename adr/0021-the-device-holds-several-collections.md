@@ -1,6 +1,6 @@
 # ADR 0021 — The device holds several collections, and a collection is one file
 
-**Status:** accepted · **Date:** 2026-09-01 · **Applies to:**
+**Status:** accepted, amended 2026-09-01 (decisions 1 and 2 — see *The amendment*) · **Date:** 2026-09-01 · **Applies to:**
 [`firmware/vorlaut/collections.h`](../firmware/vorlaut/collections.h),
 [`firmware/vorlaut/cable_format.h`](../firmware/vorlaut/cable_format.h),
 [`loader/src/compile.ts`](../loader/src/compile.ts),
@@ -39,31 +39,33 @@ silently breaks a collection nobody touched.
 a new format and not a new `LAYOUT_VERSION`** — a collection is parsed by
 `parseLayout()` and by nothing else.
 
-The hash is of the root board's id, not of the bytes, so a collection sent
-twice lands on one file both times and is replaced rather than duplicated.
+The hash is of the **Sammlung's own id**, not of the bytes, so a collection
+sent twice lands on one file both times and is replaced rather than
+duplicated — and two Sammlungen are two files however alike their contents.
 
 **The list of collections is not a structure anybody maintains — it is what
 lies in the directory.** Adding one is `put`, removing one is `rm`, and both of
 those verbs already existed. There is no index file to fall out of step with
 the files it names, and none to repair when it does.
 
-### 2. A collection is called what its first set is called
+### 2. A collection's name lives at the head of its file
 
-There is no name field, and that is a decision rather than an omission. The
-header is twelve bytes with nothing spare, so a name of its own would be a
+There is no name field of its own, and that is a decision rather than an
+omission. The header is twelve bytes with nothing spare, so a name would be a
 longer header, a new `LAYOUT_VERSION` and a MAJOR of the whole device
-interface — to hold the same string the file already contains. An `.obz`
-carries no name for a Sammlung; it carries the root board's name, the root
-board is the first set, and the first set's name is already there at a fixed
-offset.
+interface. The first set's name is already there at a fixed offset, so **the
+first `NAME_BYTES` after the header is what the menu shows**, and the device
+reads 44 bytes of each file to learn it.
 
-So the device reads 44 bytes of each file — the header and the first name — and
-that is what keeps holding sixteen collections a directory walk instead of
+That is what keeps holding sixteen collections a directory walk instead of
 sixteen parses. **Only the active collection is parsed**, which is why the cost
 of a second game is disk and not the 13580 bytes of SRAM a layout occupies.
 
-A builder should know that the first set's name is what a person reads in the
-menu.
+What goes into that slot is the **Sammlung's own name**, which the loader
+writes there when it renders the file. Where the package carries no name — one
+written before `ext_lautstark_package_name` existed — the slot keeps the first
+set's name, which is what every collection already on a talker is listed
+under.
 
 ### 3. The greeting says how many, and silence means one
 
@@ -146,8 +148,10 @@ each, against 13580 for the one that is showing.
 
 ## Consequences
 
-- **The device interface is 2.2.0**: a capability added, nothing existing
-  changed, no reader made to misread anything it already accepts.
+- **The device interface is 2.3.0**: 2.2.0 for the collections themselves, and
+  2.3.0 for the two package fields the amendment below adds. Both MINOR: a
+  capability added, nothing existing changed, no reader made to misread anything
+  it already accepts.
 - **A collection travels under the old name to a device that only knows the old
   name.** The loader sends `layout.bin` where the greeting says one collection,
   and `c<hash>.bin` where it says more — decided in `underDeviceNames()` in
@@ -173,19 +177,48 @@ each, against 13580 for the one that is showing.
 - **A collection this page cannot read cannot be removed.** Sweeping on behalf
   of a collection whose contents are unknown would take another one's files
   with it, so such a collection is listed and left alone.
-- **Two collections whose first sets are called the same thing look the same
-  in the menu.** The order stays deterministic — `collectionOrder()` breaks the
-  tie on the file name — but a person cannot tell them apart, and this is not
-  hypothetical: of the three collections this change was built for, two have a
-  root board called `Runde 1`. **The remedy is on the content side and costs
-  nothing** — name the root board after the collection — which is exactly why
-  decision 2 above is written as something a builder has to know rather than as
-  an implementation detail. A page that warned when a payload would land a
-  second collection under a name already on the device would close it properly,
-  and is not built here.
+- **Two collections a person has given the same name look the same in the
+  menu.** The order stays deterministic — `collectionOrder()` breaks the tie on
+  the file name — but a person cannot tell them apart. They are still two
+  collections and neither replaces the other; what is lost is only the ability
+  to choose between them by reading. The remedy is a rename in the editor, and
+  a page that warned when a payload would land a second collection under a name
+  already on the device would close it properly.
 - **The set a talker is on resets when the collection changes.** Set 4 of one
   collection is not set 4 of another.
 - **About 1.2 KiB of RAM**, static: sixteen names and file names.
+
+## The amendment
+
+Decisions 1 and 2 were written believing two things about an `.obz` that are
+not true, and both were found the same day by looking at the three real
+collections this was built for rather than at the format.
+
+**A root board's id does not identify a Sammlung.** Decision 1 named a
+collection's file after it, on the reasoning — written into
+`loader/src/device_package.ts` — that it was "the only thing in a `.obz` that is
+about the Sammlung rather than about a board". It is about a board, exactly as
+it says. The editor's `boardId(at)` is `set-${at + 1}`, so **every Sammlung ever
+exported carried the root board id `set-1`**, every one of them hashed to the
+same `c<hash>.bin`, and a second collection sent to a talker replaced the first.
+That is the one failure this ADR exists to prevent, arriving through the door it
+did not look at.
+
+**An `.obz` did not carry the Sammlung's name, and did not have to stay that
+way.** Decision 2 read that absence as a fact about the format. It was a fact
+about the export: the name went into the download's filename and nowhere else.
+Of the three collections here, two have a root board called `Runde 1`, so the
+menu showed one name twice and neither named a game.
+
+Both are one omission — the device package carried no package identity — and
+both are closed by writing the two fields `exchange/SPEC.md` already defines for
+exactly this, `ext_lautstark_package_id` and `ext_lautstark_package_name`, on
+the root board of the device export. **No format changed and no version moved.**
+The loader hashes the package id where there is one and the root board's id
+where there is not, and writes the package name into the head of the collection
+file where there is one and leaves the first set's name where there is not — so
+a package written before this keeps compiling to exactly the file it compiled to
+before.
 
 ## Not to be "fixed" later
 
@@ -199,6 +232,12 @@ transfer that says it worked.
 **The list must not become an index file.** See *Why*. Every proposal to speed
 up the directory walk by writing down what it found is this, and the walk is
 44 bytes a file on a partition that holds sixteen.
+
+**The collection's identity must not go back to being read off a board.** A
+root board's id, its name, a hash of its bytes — each looks like it identifies
+a Sammlung and none of them does. The id is the editor's own, opaque here, and
+it is opaque on purpose: it survives a rename, it survives an edit, and two
+Sammlungen holding identical boards are still two.
 
 **`collections` in the greeting is a number and must not become a flag.** The
 page has to refuse a payload that would push a device past what it can hold,

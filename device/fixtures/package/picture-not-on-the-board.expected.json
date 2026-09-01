@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/picture-not-on-the-board.obz",
   "summary": "A key naming a picture its own board does not list.",
-  "bytes": 9886,
+  "bytes": 10012,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2702,
-      "sha256": "2546c91c992a95924f2979f5cd781fbe78e95a8993242e213cd4c534162906c5"
+      "bytes": 2828,
+      "sha256": "776ad732b945f567fd9a821e3c73a0b738e89479b95de1af9648045f066f3113"
     },
     {
       "path": "boards/set-2.obf",
@@ -194,7 +194,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 1800,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     },
     {
       "format": "open-board-0.1",

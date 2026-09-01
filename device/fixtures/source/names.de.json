@@ -1,24 +1,19 @@
 {
   "_": "German fixture content, kept out of the generator so that device/tools/make_fixtures.mjs stays English like the rest of the code. The same arrangement exchange/fixtures/source/labels.de.json has, for the same reason. Real set names are German, and a name rule about UTF-8 has to be exercised on text that actually ships rather than on an ASCII stand-in.",
-
   "breakfast": "Frühstück",
+  "collection": "Frühstück und mehr",
   "outside": "Draußen",
   "feelings": "Gefühle",
-
   "exactly_32_bytes": "Grundwortschatz fuer den Anfang!",
   "cut_mid_character": "Brot, Butter und Marmelade, süß",
-
   "_sentences": "Whole sentences, for the package fixtures. A key on a talker says a sentence rather than a word, and the package carries it twice - as the label any other editor shows and as the vocalization the device speaks - so the fixtures need text that is a sentence.",
-
   "hungry": "Ich habe Hunger",
   "not_hungry": "Ich habe keinen Hunger",
   "thirsty": "Ich habe Durst",
   "go_outside": "Wir gehen nach draußen",
   "go_home": "Wir gehen nach Hause",
   "all_done": "Ich bin fertig",
-
   "_joining": "The joining game, which is what layout.bin version 3 is for: a set key shows a tile split down the diagonal with the two halves of a compound word on it and says them out loud, and one of the four speech keys carries the word those halves make. Two rounds' worth of words, because a single round cannot show a key going anywhere - and two more set names after them, because a chain that comes back round to where it started needs more rounds than it has ends.",
-
   "mirror_egg": "Spiegel + Ei",
   "fried_egg": "Spiegelei",
   "egg_cup": "Eierbecher",
@@ -29,9 +24,7 @@
   "sunshine": "Sonnenschein",
   "hand_shoe": "Hand + Schuh",
   "fire_defence": "Feuer + Wehr",
-
   "_collections": "What a collection is called in the device's own menu, which is the name of its first set - the format carries no name for a collection and collectionHeadName() in firmware/vorlaut/collections.h is where that is argued. Their own group because of what is asked of them: nine characters a line and two lines, so these are the names that have to survive being wrapped and cut.",
-
   "mirror_and_egg_game": "Spiegel und Ei",
   "shadow_game": "Schattenspiel",
   "question_game": "Fragespiel",
@@ -39,14 +32,33 @@
   "morning_with_mum": "Guten Morgen mit Mama",
   "greetings": "Grüße",
   "leading_space": "  Ei",
-
   "_wrapped": "The same names as a key really shows them: nine glyphs a line and two lines, broken at spaces. The pairs live here rather than in the generator for the reason every other string does - one of them carries an umlaut, and quoting a fragment of German inside an English file is what tests/test_language.py is there to catch. They are written out and never computed: a fixture that worked its own expectation out would agree with whatever it worked it out with.",
-
-  "mirror_and_egg_game_on_a_key": ["Spiegel", "und Ei"],
-  "shadow_game_on_a_key": ["Schattens", "piel"],
-  "question_game_on_a_key": ["Fragespie", "l"],
-  "at_home_on_a_key": ["Zuhause", ""],
-  "greetings_on_a_key": ["Grüße", ""],
-  "morning_with_mum_on_a_key": ["Guten", "Morgen"],
-  "leading_space_on_a_key": ["Ei", ""]
+  "mirror_and_egg_game_on_a_key": [
+    "Spiegel",
+    "und Ei"
+  ],
+  "shadow_game_on_a_key": [
+    "Schattens",
+    "piel"
+  ],
+  "question_game_on_a_key": [
+    "Fragespie",
+    "l"
+  ],
+  "at_home_on_a_key": [
+    "Zuhause",
+    ""
+  ],
+  "greetings_on_a_key": [
+    "Grüße",
+    ""
+  ],
+  "morning_with_mum_on_a_key": [
+    "Guten",
+    "Morgen"
+  ],
+  "leading_space_on_a_key": [
+    "Ei",
+    ""
+  ]
 }
