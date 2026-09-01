@@ -235,6 +235,26 @@ file where there is one and leaves the first set's name where there is not — s
 a package written before this keeps compiling to exactly the file it compiled to
 before.
 
+**Only the reading half is in, and until the writing half lands this fixes
+nothing anybody can see.** The loader reads the two fields; the editor does not
+yet write them, so every `.obz` it produces still carries an empty package id,
+still falls back to the root board's `set-1`, and still lands every Sammlung on
+one file. The talker is ready for the fix and is not yet being given it.
+
+The editor half is `claude/package-identity-in-the-device-export` in
+`Lautstark/vorlaut-editor`, and it is blocked on something older: that
+repository's device export never followed
+[ADR 0020](0020-every-key-says-what-it-does.md) — `devicePlan()` there has no
+`does` and no `target`, and its set key can neither speak nor say where it goes
+— so the fixture pin cannot move until that is caught up. Its own suite is green
+only because the pin still stands at the repository split.
+
+The name clash the page warns about is in the same position. With every
+collection sharing one file name a second Sammlung is a replacement rather than
+a clash, and the warning is right to stay silent; it has one live case until the
+editor half lands, which is a talker still carrying `layout.bin` from before
+2026-08-31 beside a newer collection.
+
 ## Not to be "fixed" later
 
 **`layout.bin` is not deprecated and must not stop being read.** It is what
