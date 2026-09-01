@@ -83,9 +83,16 @@ export function isCollectionFile(name) {
  *
  * `hash` is the same sixteen bytes as hex that a tile or a recording is named
  * for, and what goes INTO it is the collection's identity rather than its
- * content - the root board's id out of the package. That is the difference
- * that makes this work: a collection edited and sent again lands on the file it
- * landed on last time, so the device replaces it instead of collecting two.
+ * content - `ext_lautstark_package_id` out of the package, falling back to the
+ * root board's id for one written before that field existed. That is the
+ * difference that makes this work: a collection edited and sent again lands on
+ * the file it landed on last time, so the device replaces it instead of
+ * collecting two - and two Sammlungen are two files however alike they are.
+ *
+ * The fallback is a compatibility path and not a preference. The root board's
+ * id is `set-1` in every package the editor writes, so a collection identified
+ * that way is every collection identified the same way; adr/0021's amendment
+ * is what that cost.
  *
  * Which means the name proves nothing about the bytes, and this is therefore
  * the file the cable has to compare by checksum - exactly the exception
