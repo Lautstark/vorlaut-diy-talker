@@ -152,6 +152,27 @@ decoder changes the size of a write and not the shape of the loop.
 
 ## Consequences
 
+- **Heard on the device on 2026-09-01, and that is what decided it.** All 36
+  recordings of *Spiegel und Ei* were read back off a talker, compressed, put
+  back, and played through the speaker: *almost identical, with a faint click.*
+  Kept on that judgement. **Whether that click is a new one was not
+  established**, and it is worth knowing that there is an old one to confuse it
+  with — [`bring-up.md`](../docs/bring-up.md) stage 5 ends "a faint click
+  survived all four bench experiments and was never accounted for". Telling
+  them apart is one transfer and one key press, on a device that has both forms
+  of the same word.
+- **The decoder is not starving the bus, whatever the click is.** The device's
+  own log over five words: `played` came out 3 to 4 per cent *below* the
+  expected length every time, and a starved I2S stream overshoots rather than
+  undershoots — the constant shortfall is the last buffer still in the DMA when
+  `i2s.write()` returns. Reads were 1 to 5 ms against an `AMP_WAKE_MS` of 50,
+  so the whole word still arrives inside the wait the amplifier needs anyway.
+- **Long words stopped being streamed**, which was not the point and is the
+  larger gain. `AUDIO_PRELOAD` is 48 KiB, so a word over about 1.5 seconds used
+  to be read a chunk at a time while it played — the arrangement `bring-up.md`
+  calls a lottery on a full file system. A 3.6-second word is 117 KiB of PCM
+  and 29 KiB compressed, so it now plays out of RAM. None of the five words
+  logged reported `streamed`.
 - **The first sync after this re-sends every recording.** `plan()` keeps a file
   by name and size, and the compressed file has a different size, so each word
   goes across once more. That is one transfer, and it is what buys every
