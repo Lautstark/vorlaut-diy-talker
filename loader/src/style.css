@@ -663,3 +663,52 @@ input[type="file"] {
 /* The name of the view somebody is standing in. Not a step, so not a step
    heading: the five had numbers and these have places. */
 .view__title { margin: 0 0 0.8rem; font-size: 1.15rem; }
+
+/* ------------------------------------------------------ the firmware pair ---
+
+   The two builds side by side, which is the fact this section exists to
+   deliver. It replaced flash.carries and flash.device_says at the top of the
+   panel: those two sentences said the same thing at four times the length and
+   pushed the one that mattered - the verdict - into third place. */
+.fw {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* Behind, and the only one of the five answers that is a thing to do. */
+.fw--behind { border-color: var(--accent); background: var(--accent-soft); }
+
+.fw__label {
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-right: 0.15rem;
+}
+
+.fw__now, .fw__next {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.fw--behind .fw__next { color: var(--accent-strong); }
+.fw__to { color: var(--text-faint); font-size: 0.85rem; }
+
+/* What the press below it will do, said where the choice is made rather than
+   after it. --danger and not --accent: this is the one control on the page
+   that can leave a device worse than it found it. */
+.warnchip {
+  font-size: 0.75rem;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  white-space: nowrap;
+}
