@@ -548,3 +548,118 @@ input[type="file"] {
   overflow-wrap: anywhere;
   color: var(--text-dim);
 }
+
+/* ------------------------------------------------------- the three views ---
+
+   The page is three things now, not one long column: the door, the talker,
+   and sending. Only one is in the document at a time - main.ts swaps them -
+   so nothing here hides anything, and a section that is not on screen is not
+   findable either. That is the same rule the step preview settled on, applied
+   to the page rather than to one paragraph. */
+
+/* The door. One card, one press, and a way past it for anyone with no talker
+   on the desk - which is every reader in Firefox and Safari, and the reason
+   the way past is a link on the card rather than a paragraph below it. */
+.door {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.25rem 1.4rem;
+}
+.door h2 { margin: 0 0 0.25rem; font-size: 1rem; }
+.door p { margin: 0 0 0.9rem; color: var(--text-dim); }
+.door .btn { width: 100%; justify-content: center; }
+.door__past { margin: 0.85rem 0 0; text-align: center; }
+.door__browsers {
+  margin: 1.1rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+/* What the talker is, in the three facts its greeting already carries.
+   Always the same three, in the same order, so the strip is read by position
+   after the first time rather than re-read. */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin: 0 0 0.6rem;
+}
+.fact { background: var(--surface); padding: 0.5rem 0.7rem; min-width: 0; }
+.fact dt {
+  margin: 0 0 0.1rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.fact dd {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.fact dd small { font-weight: 400; font-size: 0.78rem; color: var(--text-dim); }
+
+/* A dot rather than a word: the fact strip is read at a glance, and "update
+   available" spelled out there would be the only sentence in a row of
+   numbers. The panel below says it in words. */
+.fact__dot {
+  display: inline-block;
+  width: 0.44rem; height: 0.44rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  margin-left: 0.3rem;
+  vertical-align: 0.12rem;
+}
+
+.meter {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.meter i { display: block; height: 100%; background: var(--accent); }
+
+/* One collection, and the way to take it off. */
+.coll {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+.coll:first-of-type { border-top: 0; }
+.coll__name { font-weight: 600; }
+.coll__size {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Where you are, and the way back. A button rather than a link because it
+   goes nowhere - it swaps the view - which is the same reason .linklike
+   exists for the folder picker. */
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.crumb b { color: var(--text); font-weight: 600; }
+
+/* The name of the view somebody is standing in. Not a step, so not a step
+   heading: the five had numbers and these have places. */
+.view__title { margin: 0 0 0.8rem; font-size: 1.15rem; }
