@@ -53,9 +53,9 @@ import {
 import { CABLE_AUDIO_FORM } from "../tools/cable.js";
 import { browserHost } from "./browser_host.js";
 import {
-  askForDevice, askTalker, type Build, cableSupported, costOnDevice,
-  type OnDevice, readCollections, removeCollection, sendToDevice,
-  type Plan, type Talker,
+  askForDevice, askTalker, type Build, CableError, cableSupported,
+  costOnDevice, type OnDevice, readCollections, removeCollection,
+  sendToDevice, type Plan, type Talker,
 } from "./cable.js";
 import { compileDevice, type DeviceBuild } from "./compile.js";
 import { connectDevice, devices, haveDevice, watchForDevices } from "./device.js";
@@ -937,6 +937,38 @@ function sendStep(): void {
   steps.send.row(go, ask);
 }
 
+/** The sentence for a failure, whichever end of the cable it came from.
+ *
+ * Two vocabularies meet here. Trouble carries a word this page raised itself.
+ * CableError carries the word the *device* answered with, and that half used
+ * to arrive as prose: "Sending failed: session" put a protocol token where a
+ * sentence belonged, and on a read-only look it was not even sending. What to
+ * do about it is already written down in errors.ts - a word is a case, and a
+ * case has a line in boot_data.ts.
+ *
+ * Under err.device_ because the two vocabularies are separate and stay that
+ * way: one is raised on this side and one is quoted from the other, and a word
+ * that means one thing over the wire should not be able to collide with a word
+ * this page chose. says() is the guard for the rest of it - a future firmware
+ * may answer with a word this page has never heard of, and that should reach
+ * somebody as the generic sentence rather than as "err.device_whatever". */
+function saying(error: unknown): string {
+  if (error instanceof Trouble) {
+    return t(`err.${error.word}`, { name: String(error.facts.name || "") });
+  }
+  /* Asserted once here rather than at each place that asks. tools/cable.js is
+     JavaScript, so `instanceof` against CableError establishes which thing this
+     is without narrowing what it holds - and the shape it holds is two strings
+     that file has carried since it was written. */
+  const said = error instanceof CableError
+    ? (error as { word: string; detail?: string })
+    : null;
+  if (said && says(`err.device_${said.word}`)) {
+    return t(`err.device_${said.word}`, { name: String(said.detail || "") });
+  }
+  return t("cable.failed", { error: reason(error) });
+}
+
 /** The sentence, without sending anything. */
 async function cost(ask: HTMLButtonElement): Promise<void> {
   if (!build) return;
@@ -955,7 +987,7 @@ async function cost(ask: HTMLButtonElement): Promise<void> {
       });
       connectStep({ andSend: false });
     } else {
-      line.textContent = t("cable.failed", { error: reason(error) });
+      line.textContent = saying(error);
     }
   } finally {
     ask.disabled = false;
@@ -1056,7 +1088,7 @@ async function send(go: HTMLButtonElement): Promise<void> {
         name: String(error.facts.name || ""),
       }));
     } else {
-      add(t("cable.failed", { error: reason(error) }));
+      add(saying(error));
     }
   } finally {
     stop.remove();
@@ -1185,9 +1217,7 @@ async function look(button?: HTMLButtonElement): Promise<void> {
     if (error instanceof Trouble && error.word === "cable_no_device") {
       askAgain = true;
     }
-    line.textContent = error instanceof Trouble
-      ? t(`err.${error.word}`, { name: String(error.facts.name || "") })
-      : t("cable.failed", { error: reason(error) });
+    line.textContent = saying(error);
     /* And the way back in. begin() took the button out of the body on the way
        past, and collectionsSection() would redraw over the sentence that has
        just been written - so it goes back beside the failure rather than
@@ -1235,9 +1265,7 @@ async function drop(one: OnDevice, go: HTMLButtonElement): Promise<void> {
     collections.row(collections.button(t("load.collections_check"),
                                        () => void look()));
   } catch (error) {
-    add(error instanceof Trouble
-      ? t(`err.${error.word}`, { name: String(error.facts.name || "") })
-      : t("cable.failed", { error: reason(error) }));
+    add(saying(error));
     now(t("cable.failed_short"));
     removing = null;
     onDevice = null;
