@@ -183,6 +183,25 @@ export class Cable {
     this.rest = new Uint8Array(0);
     // A read of raw bytes in flight, or null. See #readRaw().
     this.raw = null;
+    /* Whether a `data` head has been read and the bytes it announced have not
+     * been asked for yet.
+     *
+     * #chew() says the rule already - "while a `get` is in flight the stream is
+     * a file and not a conversation" - and `this.raw` was the only thing
+     * enforcing it, which left a gap the width of an await. #deliver() resolves
+     * the promise `get` is waiting on, but the code that awaited it cannot run
+     * until #chew()'s synchronous loop lets go, and that loop carried on
+     * parsing lines. A file arriving in the same read as its own head was
+     * therefore read as conversation and handed to onLog, byte for byte, and
+     * the raw read that started afterwards waited for bytes that had already
+     * been thrown away: "the device sent 0 of 1072 bytes and stopped", with the
+     * file itself in the log pane underneath it.
+     *
+     * It only bit where one read held both. A device that paused between the
+     * head and the body - or a slower stream that split them - gave the await
+     * time to land and looked perfectly well, which is why every test and a
+     * run against real hardware from node missed it and a browser did not. */
+    this.holding = false;
     this.closed = false;
     this.failure = null;
     // The longest the device waited for bytes, and the longest a single write
@@ -213,6 +232,7 @@ export class Cable {
       this.failure = error;
     } finally {
       this.closed = true;
+      this.holding = false;
       if (this.waiting) this.#deliver(null);
       if (this.raw) {
         const stopped = this.raw;
@@ -248,6 +268,11 @@ export class Cable {
         whole.resolve(whole.into);
         continue;
       }
+      /* Bytes are owed to a `get` that has not set up its read yet. They stay
+         in `rest` until #readRaw() takes them; parsing them as lines here is
+         exactly the bug this flag exists for. */
+      if (this.holding) return;
+
       const cut = this.rest.indexOf(10);
       if (cut < 0) return;
       const line = decoder.decode(this.rest.subarray(0, cut)).replace(/\r$/, "");
@@ -288,12 +313,18 @@ export class Cable {
       }
       this.raw = { want, into: new Uint8Array(want), at: 0, resolve, reject,
                    timer: null };
+      // The bytes have somewhere to go now, so the stream can be read again.
+      this.holding = false;
       this.#rawTick();
       this.#chew();
     });
   }
 
   #deliver(line) {
+    /* Set here rather than in get(), because here is the only moment that is
+       still inside #chew()'s pass. By the time get() sees this line the loop
+       has already had its chance to eat the file. */
+    if (line !== null && line.startsWith("data ")) this.holding = true;
     if (this.waiting) {
       const { resolve } = this.waiting;
       this.waiting = null;
@@ -325,7 +356,13 @@ export class Cable {
     });
   }
 
+  /* A command means the conversation has resumed, whatever happened to the
+     last one. Without this a `get` that threw between its head and its read -
+     a size that would not parse, a caller that gave up - would leave the
+     reader holding for ever, and every later answer would sit unread in
+     `rest`. Cheap, and it makes the flag impossible to get stuck in. */
   async send(text) {
+    this.holding = false;
     await this.writer.write(encoder.encode(`> ${text}\n`));
   }
 
