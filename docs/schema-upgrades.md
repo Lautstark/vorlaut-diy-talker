@@ -232,12 +232,26 @@ rather than a wipe, which nobody notices until a carer writes in.
 - **Nothing in a step may `await` a non-request.** No hashing, no base64, no
   folder write, no question put to a person. It is written into
   `migrations.ts` where the next person will be standing.
-- **A step may move a layout and may not rewrite one.** The stored `text` and
-  the `version` hash over it are a matched pair, and re-deriving the hash is a
-  `crypto.subtle` call, which is exactly what the rule above forbids. **So a
-  change to what is inside a layout cannot be done as a step at all.** That is
-  an open gap rather than a solved problem, and it is more likely to come up
-  than a store change is.
+- **A step may move a layout, and may rewrite one without re-stamping it.** The
+  stored `text` and the `version` hash over it are a matched pair, and
+  re-deriving the hash is a `crypto.subtle` call, which is exactly what the rule
+  above forbids. Until 2026-09-01 this bullet drew a further conclusion from
+  that — **that a change to what is inside a layout could not be done as a step
+  at all** — and called it an open gap. The rule stands. The conclusion does
+  not, and the gap is closed.
+
+  Nothing ever holds the stamp against freshly computed bytes. There is one
+  place it is compared at all, `writeLayout()` in the editor's `store.ts`, and
+  both sides of that comparison come out of the stored record: the caller's
+  `expected` was read from it earlier. So a step may rewrite a layout and leave
+  the stamp standing, and the next ordinary save re-stamps it.
+
+  A reader from before the step never reaches that comparison, and it is the
+  version number rather than the stamp that sees to it: such a reader is on a
+  smaller `DB_VERSION`, so it either blocks the upgrade — which then does not
+  run, leaving no rewritten record — or lets go and meets `VersionError` on
+  reopening, which is the downgrade behaviour two bullets down. Worked out in
+  `adr/0023` of `Lautstark/vorlaut-editor`, which lists every reader.
 - **A downgrade is safe and says the wrong thing.** An older build meeting a
   newer database gets `VersionError`; the database is untouched, and the page
   reports it as an ordinary load failure rather than "this browser has a newer
