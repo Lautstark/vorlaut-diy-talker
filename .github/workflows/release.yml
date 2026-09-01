@@ -13,6 +13,10 @@ on:
 
 permissions:
   contents: write
+  # For the dispatch at the end. `gh workflow run` is an API write against
+  # Actions, and contents: write does not cover it - the failure is a 403 on
+  # the very last step of a release that otherwise succeeded.
+  actions: write
 
 jobs:
   release:
@@ -111,8 +115,10 @@ jobs:
           the build runs in a browser now, and a workflow cannot press a
           button in one. What the first flash still shows without any content
           is whether the displays, the partition scheme and the file system
-          are right - **Info** in the menu says whether the file system
-          mounted, and the two menu keys respond either way.
+          are right. The menu is where it says so: hold the set key and key 2
+          together for five seconds, then **Sammlung** - a device with nothing
+          on it draws the diagnosis there, and whether the file system mounted
+          is the first line of it.
 
           > **This image is 8 MB and covers the whole flash.** It erases
           > whatever content is on the device. To update the program of a
@@ -147,3 +153,39 @@ jobs:
             --prerelease \
             build/vorlaut/vorlaut.ino.merged.bin \
             build/vorlaut/vorlaut.ino.bin
+
+      # **A release nobody can flash from the page is half a release.**
+      #
+      # adr/0017 has the page carry the image as an asset of its own deploy,
+      # and resolve it at deploy time: tools/firmware_for_pages.mjs asks GitHub
+      # for the newest v* release while pages.yml is building. The ADR's reason
+      # for that being cheap is that "main deploys on every merge already" -
+      # which is true and does not cover this case. A tag is cut from a commit
+      # that is already on main, so it produces no push to main, and pages.yml
+      # triggers on branches: [main]. The newest release therefore reached the
+      # page on somebody's next unrelated merge, hours or days later, and until
+      # then the page offered the tag before it without saying anything was
+      # missing. That is exactly the silent kind of wrong the release step above
+      # refuses to publish an image for.
+      #
+      # **--ref main, not the tag.** pages.yml on a tag would check out the
+      # tag's tree and publish the page from it, so a tag cut while main had
+      # moved on would roll the page back to older TypeScript while updating its
+      # firmware - two versions moving in opposite directions from one push.
+      # What has to be deployed is main's tip; the release it picks up is
+      # whichever v* is newest, which is now this one.
+      #
+      # It runs after `gh release create` for the ordering: the deploy asks for
+      # the newest release and has to find this one.
+      #
+      # **The built-in token is enough, and that is worth writing down because
+      # it looks as though it should not be.** GitHub does not let a workflow
+      # start another one with GITHUB_TOKEN - that is the recursion guard - and
+      # `workflow_dispatch` is one of the two events it exempts by name. So
+      # nobody needs to mint a PAT for this, and a future 403 here is the
+      # `actions: write` above having gone missing rather than the token being
+      # the wrong kind.
+      - name: The page carries this release from now on
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main

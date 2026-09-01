@@ -85,6 +85,15 @@ why the device comes up empty, the note that the firmware has run on one
 talker and not a fleet, and the SHA-256 sums of both binaries pinned to the
 tag's own tree.
 
+**And the tag deploys the page.** The last step of `release.yml` dispatches
+`pages.yml` against `main`, because a tag is cut from a commit that is already
+there and so pushes nothing: without the dispatch the newest release reached
+the page on somebody's next unrelated merge, and until then the page went on
+offering the tag before it without saying anything was missing. The dispatch
+names `main` rather than the tag on purpose — `pages.yml` run on a tag would
+publish the page from the tag's tree, so a tag cut after `main` had moved on
+would take the page's TypeScript backwards while taking its firmware forwards.
+
 **Those notes are written by hand on purpose, and the inconsistency with the
 builder's generated ones is not a defect to be fixed.** They are instructions
 for somebody holding a soldering iron and a USB cable, and almost none of what
