@@ -372,7 +372,16 @@ static bool loadLayout(const char *file) {
  * Every decision here is in collections.h so that a test can make the same
  * ones: which names are collections, which heads are readable, and what order
  * they come out in. This function is the part that needs LittleFS. */
-static void scanCollections() {
+/** Every file in the root, looked at once. The slow way, and the true one.
+ *
+ * The cost here is the directory walk, not the reads: openNextFile() is a
+ * lookup per file on the partition, and the partition holds a tile and a
+ * recording for every key of every collection. It is hundreds of files on a
+ * device somebody actually uses, and all of it happens in setup() with the
+ * backlight deliberately off - which is to say inside the gap between a
+ * child's press and a picture. scanCollections() is what keeps it off the
+ * ordinary wake. */
+static void walkCollections() {
   collectionsClear(held);
   if (!filesystemReady) return;
   File dir = LittleFS.open("/");
@@ -387,12 +396,15 @@ static void scanCollections() {
     collectionsOffer(held, name, head, got > 0 ? (uint32_t)got : 0);
   }
   dir.close();
-  Serial.printf("collections: %u found", (unsigned)held.count);
-  if (held.refused) Serial.printf(", %u not readable", (unsigned)held.refused);
-  Serial.println();
-  for (uint8_t i = 0; i < held.count; i++) {
-    Serial.printf("  %s  %s\n", held.at[i].file, held.at[i].name);
-  }
+  sayCollections("walked");
+}
+
+/** The list, from the cache where there is one and from the partition where
+ *  there is not. Everything that wants the list calls this. */
+static void scanCollections() {
+  if (loadCollectionsCache()) return;
+  walkCollections();
+  saveCollectionsCache();
 }
 
 /** The collection the device shows, and the content read in from it.
@@ -733,6 +745,12 @@ static void cableProgress(const char *what, uint16_t done, uint32_t bytes) {
   char count[12];
   snprintf(count, sizeof(count), "%u", done);
   if (strcmp(what, "hello") == 0) {
+    // Before anything can be written, rather than when something is. The
+    // browser may be about to add a collection or take one away, and the
+    // window between the partition changing and NVS being told must not
+    // contain a cache that is confidently wrong - so it contains no cache.
+    // The end of the session puts one back.
+    forgetCollectionsCache();
     // All five, so it is obvious at a glance that this is not the talker and
     // that the keys are not going to say anything for a moment.
     showOnAll(text().cable, nullptr);
@@ -1178,6 +1196,20 @@ static void saveVolume() {
   settings.end();
 }
 
+/** What was found, however it was found. One printer rather than two, because
+ *  the walked list and the remembered list have to be the same list - and a
+ *  log that said so in two different shapes would be the first place to doubt
+ *  it. The word is which path it came down: a device that is slow to wake and
+ *  says "walked" every time is a cache that is not sticking. */
+static void sayCollections(const char *how) {
+  Serial.printf("collections: %u found (%s)", (unsigned)held.count, how);
+  if (held.refused) Serial.printf(", %u not readable", (unsigned)held.refused);
+  Serial.println();
+  for (uint8_t i = 0; i < held.count; i++) {
+    Serial.printf("  %s  %s\n", held.at[i].file, held.at[i].name);
+  }
+}
+
 // --- Which collection ---------------------------------------------------------
 
 /** The collection last chosen, by file name, or empty for none.
@@ -1210,6 +1242,112 @@ static void saveCollection() {
   settings.begin("vorlaut", false);
   settings.putString("collection", activeFile);
   settings.end();
+}
+
+// --- The list, kept across a sleep -------------------------------------------
+
+/**
+ * The collection list, remembered, so that waking does not walk the partition.
+ *
+ * A deep sleep is a restart: setup() runs in full on every press that wakes
+ * the device, and walkCollections() was in it. That walk costs a lookup per
+ * file, the file count grows with every collection, and all of it happens
+ * before the backlight comes on - so it is paid in the one place nobody can
+ * afford it, by a child holding a talker that looks broken.
+ *
+ * **What makes this safe is that the device never writes content itself.**
+ * Tiles, recordings and collections arrive over the cable and leave over the
+ * cable, and nothing else on this device creates or removes one - removing is
+ * on the loader page rather than in the menu, which adr/0021 argues for on its
+ * own grounds and which happens to be why this cache can exist at all. So
+ * there is exactly one moment the list can change, and it is a moment this
+ * firmware is present for.
+ *
+ * The cache is therefore dropped when a cable session opens, not when it
+ * writes. Dropping it at `hello` is what makes a power cut safe: the window
+ * between "the list changed" and "the cache says so" never contains a stale
+ * cache, only no cache, and no cache costs one slow wake and nothing else.
+ * cableProgress() drops it; the end of the session puts it back.
+ *
+ * Two things it still checks on the way in, because NVS outlives things it
+ * should not. The mark catches a cache written by another build. The existence
+ * check catches a partition that has been formatted underneath it - LittleFS
+ * .begin(true) does that to a file system it cannot mount - and costs sixteen
+ * lookups at worst against the whole directory.
+ *
+ * It cannot catch a file that appeared without a cable session. Nothing makes
+ * one.
+ */
+#define COLLECTIONS_CACHE_KEY "collections"
+
+/** Bumped when the shape below changes, so that a cache from another build is
+ *  discarded rather than read as this one. */
+#define COLLECTIONS_CACHE_MARK 1
+
+struct CollectionsCache {
+  uint8_t mark;
+  uint8_t count;
+  uint8_t refused;
+  Collection at[MAX_COLLECTIONS];
+};
+
+/** Only the entries that are used. Usually one or two collections, so this is
+ *  a couple of hundred bytes rather than the table's full 1136. */
+static size_t collectionsCacheBytes(uint8_t count) {
+  return offsetof(CollectionsCache, at) + (size_t)count * sizeof(Collection);
+}
+
+static void forgetCollectionsCache() {
+  settings.begin("vorlaut", false);
+  settings.remove(COLLECTIONS_CACHE_KEY);
+  settings.end();
+}
+
+static void saveCollectionsCache() {
+  CollectionsCache cache;
+  cache.mark = COLLECTIONS_CACHE_MARK;
+  cache.count = held.count;
+  cache.refused = held.refused;
+  for (uint8_t i = 0; i < held.count; i++) cache.at[i] = held.at[i];
+  settings.begin("vorlaut", false);
+  settings.putBytes(COLLECTIONS_CACHE_KEY, &cache,
+                    collectionsCacheBytes(cache.count));
+  settings.end();
+}
+
+/** True when `held` was filled from the cache. False leaves it untouched, so
+ *  the caller walks. */
+static bool loadCollectionsCache() {
+  if (!filesystemReady) return false;
+
+  CollectionsCache cache;
+  settings.begin("vorlaut", true);          // read-only
+  const size_t got = settings.getBytes(COLLECTIONS_CACHE_KEY, &cache,
+                                       sizeof(cache));
+  settings.end();
+
+  if (got < collectionsCacheBytes(0)) return false;
+  if (cache.mark != COLLECTIONS_CACHE_MARK) return false;
+  if (cache.count > MAX_COLLECTIONS) return false;
+  // The length has to agree with the count it carries. A blob that is one
+  // entry short would otherwise be read as a list ending in whatever was on
+  // the stack.
+  if (got != collectionsCacheBytes(cache.count)) return false;
+
+  // Still there? A formatted partition is the case this is really for, and it
+  // shows up as the first name not being found.
+  for (uint8_t i = 0; i < cache.count; i++) {
+    cache.at[i].file[COLLECTION_FILE_CHARS] = '\0';
+    cache.at[i].name[NAME_BYTES] = '\0';
+    if (!LittleFS.exists(String("/") + cache.at[i].file)) return false;
+  }
+
+  collectionsClear(held);
+  held.count = cache.count;
+  held.refused = cache.refused;
+  for (uint8_t i = 0; i < cache.count; i++) held.at[i] = cache.at[i];
+  sayCollections("remembered");
+  return true;
 }
 
 /** A short note at the current volume, so a press can be heard as well as read.
@@ -1612,6 +1750,14 @@ void loop() {
           collectionPage = held.count
               ? (uint8_t)(held.active / collectionsPerPage(held.count)) : 0;
         }
+      } else {
+        // Nothing was stored and nothing removed - a session that only looked.
+        // The list in RAM is still the list on the partition, so it goes back
+        // into NVS rather than leaving the next wake to walk for it. Reading
+        // the collections back is exactly what the loader page's "Have a look"
+        // does, and it would otherwise cost a slow wake every time somebody
+        // checked what was on the device.
+        saveCollectionsCache();
       }
       delay(1500);            // long enough to read the count on the displays
       waitForRelease();
