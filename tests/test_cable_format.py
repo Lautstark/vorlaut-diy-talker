@@ -561,6 +561,7 @@ def check_sessions(reader: Path, node: str, problems: list[str]) -> list[str]:
 
 CLIENT_ONLY = [
     ("ungreeted", "a verb before hello is refused, and hello still gets in after"),
+    ("glued", "a file arriving in one read with its own head is still a file"),
     ("windows", "a file crosses a window at a time, waiting for each to be taken"),
     ("outran", "and a client that does not wait has its bytes thrown away"),
     ("slipped", "an ack that disagrees with what was sent stops the transfer"),

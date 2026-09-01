@@ -157,6 +157,84 @@ const SCENARIOS = {
 // worth its own run even though only half of the pair is in it.
 
 const CLIENT_ONLY = {
+  /* A file that arrives in the same read as its own head.
+   *
+   * USB does not promise that one write is one read, and a small file leaves
+   * the device as a head line, a body and a tail line that arrive as a single
+   * buffer. #chew() then parsed the head, resolved the promise `get` was
+   * waiting on - and carried straight on through the same synchronous loop,
+   * because the code that awaited that promise cannot run until the loop lets
+   * go. So the file was read as conversation and handed to onLog byte for
+   * byte, and the raw read set up a microtask later waited for bytes that had
+   * already been thrown away: "the device sent 0 of 1072 bytes and stopped",
+   * with the file itself in the log underneath.
+   *
+   * The wire below glues the device's writes back together the way USB does,
+   * which is the whole of the reproduction: with the head and the body in
+   * separate reads - which is what every other test here gets, and what a run
+   * against real hardware from node happened to get - the await lands in time
+   * and nothing looks wrong at all.
+   */
+  async glued() {
+    const name = "c" + "9".repeat(32) + ".bin";
+    const body = new Uint8Array(1072);
+    for (let i = 0; i < body.length; i++) body[i] = (i * 7) & 0xff;
+
+    const device = new MockDevice({ files: new Map([[name, body]]),
+                                    collections: 4 });
+    const wire = device.open();
+
+    let hold = [], timer = null;
+    const coalesced = new ReadableStream({
+      start(control) {
+        const reader = wire.readable.getReader();
+        (async () => {
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            hold.push(value);
+            if (timer) continue;
+            timer = setTimeout(() => {
+              timer = null;
+              const whole = new Uint8Array(
+                hold.reduce((total, part) => total + part.length, 0));
+              let at = 0;
+              for (const part of hold) { whole.set(part, at); at += part.length; }
+              hold = [];
+              control.enqueue(whole);
+            }, 0);
+          }
+          /* close() throws if the reader has already been let go, which is
+             what cable.close() does on the way out of this scenario. The
+             stream ending twice is not a fault worth reporting. */
+          try { control.close(); } catch { /* already closed */ }
+        })().catch(() => { /* the wire went first; nothing left to pump */ });
+      },
+      cancel() { if (timer) { clearTimeout(timer); timer = null; } },
+    });
+
+    const heard = [];
+    const cable = new Cable({ readable: coalesced, writable: wire.writable },
+                            { onLog: (line) => heard.push(line) });
+    await cable.hello({ tries: 1 });
+    const got = await cable.get(name);
+    await cable.close().catch(() => {});
+
+    if (got.length !== body.length) {
+      throw new Error(`read ${got.length} of ${body.length} bytes`);
+    }
+    for (let i = 0; i < body.length; i++) {
+      if (got[i] !== body[i]) throw new Error(`byte ${i} came back wrong`);
+    }
+    /* The half that says which bug it was. A client that lost the race still
+       ends up with the right bytes on a retry; what it cannot do is keep the
+       file out of the log. */
+    if (heard.length) {
+      throw new Error(`${heard.length} line(s) of the file reached the log`);
+    }
+    return { bytes: got.length, logged: heard.length };
+  },
+
   // A verb that speaks out of turn.
   //
   // cable.h answers nothing but hello until it has answered one - `open`
