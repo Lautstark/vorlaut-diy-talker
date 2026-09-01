@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/sound-at-the-wrong-rate.obz",
   "summary": "A recording at 24 kHz. The device does not refuse one - it plays it at 16 - so both halves of this boundary refuse it instead.",
-  "bytes": 5044,
+  "bytes": 5170,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2286,
-      "sha256": "280fc21694079fb21d95e90be4f6bfc2e10ef7f457721aebb2894cdc458cce5a"
+      "bytes": 2412,
+      "sha256": "d0457325f30b2e22de6270382c0136356c7206a99ddab60e4a218f85ab3e17f7"
     },
     {
       "path": "images/907686e9833c7e5b.bin",
@@ -160,7 +160,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 600,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     }
   ],
   "read": {
@@ -169,6 +171,10 @@
     "because": "is not the WAV the device plays"
   },
   "write": {
+    "collection": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "layout": {
       "language": "de",
       "voice": "piper:de_DE-thorsten-medium",

@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/set-key-cell-names-nothing.obz",
   "summary": "A grid whose set-key cell names a button the board does not hold.",
-  "bytes": 4968,
+  "bytes": 5094,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2290,
-      "sha256": "b79053499aad7ab7391fa7d76c32246fe4c75bde575acfe0aa05aa02f609ac7e"
+      "bytes": 2416,
+      "sha256": "45889d226e69a2541bd21afbcfef07b91dd8ed3932b04729a2ca7861d7430f8a"
     },
     {
       "path": "images/907686e9833c7e5b.bin",
@@ -160,7 +160,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 600,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     }
   ],
   "read": {

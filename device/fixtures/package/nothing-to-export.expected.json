@@ -10,6 +10,10 @@
   "boards": null,
   "read": null,
   "write": {
+    "collection": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "layout": {
       "language": "de",
       "voice": "piper:de_DE-thorsten-medium",

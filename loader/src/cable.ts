@@ -113,6 +113,10 @@ export type Plan = {
   /** How many collections the device would then hold, and how many it says it
    *  can. */
   collections: number; room: number;
+  /** The name the device's menu already shows for a DIFFERENT collection, and
+   *  would show a second time once this one has landed. Empty where there is
+   *  nothing to say, which is the ordinary case - see sameNameOnDevice(). */
+  sameName: string;
 };
 
 /** Which talker answered, in the two words it says about itself.
@@ -341,6 +345,81 @@ function asTheDeviceReadsIt(
 }
 
 /**
+ * A name the device's menu would then be showing twice.
+ *
+ * A collection's name lives at the head of its file, in the first set's name
+ * slot - there is no field of its own, and adr/0021 decision 2 refused one
+ * rather than overlooked it. The device reads 44 bytes off each head and shows
+ * what it finds; collectionHeadName() in firmware/vorlaut/collections.h is the
+ * other end of it. Nothing stops two collections from answering with the same
+ * string, and **nothing breaks when they do**: collectionOrder() breaks the tie
+ * on the file name, so the list is stable, both collections stay, and each
+ * entry opens the file it points at. What cannot be done is telling the two
+ * apart, and the person who has to is holding the talker rather than sitting
+ * at this page.
+ *
+ * Which is why this is a sentence and not a refusal, and why it is said before
+ * the transfer rather than after: what the timing buys is the size of the
+ * remedy. Beforehand it is a rename in the editor. Afterwards it is a rename,
+ * a re-export and a second transfer. adr/0021 names this as the case a warning
+ * would close.
+ *
+ * **The name is asked of the FILE and never of the plan.** What goes into that
+ * slot is the Sammlung's name where the package carries one and the first
+ * set's where it does not - compileDevice() is what decides between them - so
+ * reading the head back is how this stays right without knowing which case it
+ * was, on either side of the comparison.
+ *
+ * **Only where the device says it holds more than one.** A talker that holds
+ * one has nothing to collide with, and one that SAYS one has no `get` to ask
+ * with either: the verb and the capability arrived in the same firmware.
+ *
+ * **A different file, and that is the condition rather than a detail of it.**
+ * The hash is of the Sammlung's own id, so the same collection sent twice lands
+ * on the same name both times - matching itself is a replacement, which is the
+ * ordinary case and not worth a word.
+ *
+ * Answers with the name, because that is what the sentence quotes, and "" for
+ * nothing to say.
+ */
+async function sameNameOnDevice(
+  cable: InstanceType<typeof Cable>,
+  made: Map<string, { bytes: Uint8Array }>,
+  have: { name: string; size: number }[],
+  holds: number,
+): Promise<string> {
+  if (holds <= 1) return "";
+  const file = collectionIn(made);
+  const mine = readLayoutBin(made.get(file)?.bytes)?.name ?? "";
+  // A collection whose first set has no name is shown under a blank line, and
+  // that is a different complaint from this one. Two blanks are not a clash
+  // worth a sentence about renaming.
+  if (!mine) return "";
+
+  for (const other of have) {
+    if (other.name === file || !isCollection(other.name)) continue;
+    let theirs: ReturnType<typeof readLayoutBin> = null;
+    try {
+      // A few kilobytes, and the only way to the name: the head is 44 bytes but
+      // `get` hands back a whole file, and adr/0021 keeps the verb that simple
+      // on purpose. Small beside the payload this is being said about.
+      theirs = readLayoutBin(await cable.get(other.name));
+    } catch {
+      // A file that went between the list and the read, or a `get` that failed.
+      // This sentence is advisory and must never be the thing that stops a
+      // transfer, so a name that cannot be asked for is a name that says
+      // nothing.
+      continue;
+    }
+    // A collection this page cannot read says nothing about what it is called,
+    // and is passed over rather than guessed at - the same forgiveness the
+    // listing gives it, for the same reason.
+    if (theirs && theirs.name === mine) return mine;
+  }
+  return "";
+}
+
+/**
  * The diff, and the sentence about it.
  *
  * Split out of sendToDevice() because it is also what the page asks for on its
@@ -348,6 +427,12 @@ function asTheDeviceReadsIt(
  * numbers cannot be known without talking to the device - which files it
  * already has is the whole of the answer - and they are not free at the device
  * either, so this happens on a press and never on a timer.
+ *
+ * Not only numbers, since sameNameOnDevice() below: the one thing here that a
+ * person reads rather than compares travels in the same Plan, because it is
+ * wanted at exactly the same two moments and reading the collections is more
+ * of what this already does. Both presses pay for it and neither pays much -
+ * a few kilobytes a collection, against a payload measured in hundreds.
  */
 async function worked(cable: InstanceType<typeof Cable>,
                       made: Map<string, { bytes: Uint8Array }>,
@@ -369,6 +454,7 @@ async function worked(cable: InstanceType<typeof Cable>,
       total: work.total, already: work.already,
       freeAfter: Math.max(0, hello.free - work.needed),
       collections: work.collections, room: work.room,
+      sameName: await sameNameOnDevice(cable, made, have, hello.collections),
     } as Plan,
   };
 }

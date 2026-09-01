@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/sound-named-for-nothing.obz",
   "summary": "A recording under a name layout.bin cannot carry. Refused here, at both ends, rather than at the far end of a build nobody is watching.",
-  "bytes": 4852,
+  "bytes": 4978,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2238,
-      "sha256": "04c1e98c588b1c3a1038d691f6338f8fb9b7df520c03e9f11a2ca4fc6f31ca51"
+      "bytes": 2364,
+      "sha256": "25b0d0dd238c246b14723328c15243ba82088586bb5cb71184a5fb08f6b083be"
     },
     {
       "path": "images/907686e9833c7e5b.bin",
@@ -160,7 +160,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 600,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     }
   ],
   "read": {
@@ -169,6 +171,10 @@
     "because": "is not a name layout.bin can carry"
   },
   "write": {
+    "collection": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "layout": {
       "language": "de",
       "voice": "piper:de_DE-thorsten-medium",

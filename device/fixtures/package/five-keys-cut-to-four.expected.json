@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/five-keys-cut-to-four.obz",
   "summary": "A set with five keys in it. Four reach the package, and the fifth key's picture and recording are not in the archive at all.",
-  "bytes": 5393,
+  "bytes": 5519,
   "conforming": true,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2333,
-      "sha256": "c2dd7a0dead8661c2a4acedb0bb02c07399b398ebad75727f03a4d022f167ce3"
+      "bytes": 2459,
+      "sha256": "983481daafb0c6d0d793d892c2754a57e08823e46c7e53adc360e999e3f454b2"
     },
     {
       "path": "images/907686e9833c7e5b.bin",
@@ -158,7 +158,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 600,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     }
   ],
   "read": {
@@ -215,6 +217,10 @@
         }
       ]
     },
+    "package": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "sources": [
       {
         "reference": "ja.bmp",
@@ -248,6 +254,10 @@
     ]
   },
   "write": {
+    "collection": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "layout": {
       "language": "de",
       "voice": "piper:de_DE-thorsten-medium",

@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/picture-with-no-reference.obz",
   "summary": "A picture entry with bytes behind it and no reference beside them.",
-  "bytes": 9881,
+  "bytes": 10007,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2697,
-      "sha256": "9861f49cc12b92f87328cb84bc4010d2de6b56977d0b35d1a27eeb94b2cfb9d0"
+      "bytes": 2823,
+      "sha256": "4122825a857020e67fd5be374124872885befb1468d2d98869b8fd01ab9bf3e4"
     },
     {
       "path": "boards/set-2.obf",
@@ -194,7 +194,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 1800,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     },
     {
       "format": "open-board-0.1",
