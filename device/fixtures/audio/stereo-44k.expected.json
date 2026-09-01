@@ -6,6 +6,8 @@
   "bytes": 644,
   "conforming": false,
   "read": {
+    "format_tag": 1,
+    "block_align": 4,
     "accepts": true,
     "data_offset": 44,
     "data_bytes": 600

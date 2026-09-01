@@ -327,6 +327,7 @@ ANSWERS = """\
 < files 37
 < collections 16
 < tiles vt1
+< audio va1
 < end hello
 < file t3bd7a1c045e29f8b6d0a4e17c93f5028.bin 26912
 < end list 37
@@ -384,7 +385,14 @@ def check_readback(node: str, problems: list[str], answers: str) -> None:
                   # ordered - adr/0019. Written out here for the same reason
                   # every other line is: a change on either side has to be
                   # made twice, on purpose.
-                  "tiles": "vt1"},
+                  "tiles": "vt1",
+                  # And the word that decides whether it may send a compressed
+                  # recording, read the same way and for a louder failure -
+                  # adr/0022. Two words rather than one because they are two
+                  # capabilities: a firmware may gain either without the other,
+                  # and a browser that took one answer for both would send a
+                  # file on the strength of an unrelated yes.
+                  "audio": "va1"},
         "list": [{"name": "t3bd7a1c045e29f8b6d0a4e17c93f5028.bin", "size": 26912}],
         "crc": "1a2b3c4d",
         # The one where a signed shift would turn eight digits into eleven.

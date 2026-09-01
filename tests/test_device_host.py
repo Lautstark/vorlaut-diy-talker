@@ -329,6 +329,15 @@ def check_audio(reader: Path, name: str, path: Path, want: dict) -> None:
     check(f"{name}: the firmware {'accepts' if r['accepts'] else 'refuses'} it",
           said.get("accepts") == ("1" if r["accepts"] else "0"),
           said.get("accepts", "-"))
+    # Which codec it read out of fmt, on every one of these and not only on the
+    # compressed one: nine of the ten say plain PCM, and what needs holding is
+    # that a reader which grew a fmt branch still says so about all of them.
+    check(f"{name}: and reads it as WAVE format tag 0x{r['format_tag']:04x}",
+          said.get("format_tag") == str(r["format_tag"]),
+          said.get("format_tag", "-"))
+    check(f"{name}: with a block length of {r['block_align']}",
+          said.get("block_align") == str(r["block_align"]),
+          said.get("block_align", "-"))
     if not r["accepts"]:
         counted("audio")
         return
@@ -695,7 +704,7 @@ def spoken_and_raw(out: bytes) -> tuple[list[str], list[bytes], str]:
 def check_cable(reader: Path, name: str, want: dict) -> None:
     result = subprocess.run(
         [str(reader), "cable", str(want["capacity"]), str(want["window"]),
-         want["device_firmware"], want["device_tiles"],
+         want["device_firmware"], want["device_tiles"], want["device_audio"],
          str(want["device_collections"])],
         input=wire(want), capture_output=True)
     if result.returncode != 0:

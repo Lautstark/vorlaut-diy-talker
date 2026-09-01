@@ -50,6 +50,7 @@ import { Trouble, reason } from "./errors.js";
 import {
   readDevicePackage, type ReadDevicePackage,
 } from "./device_package.js";
+import { CABLE_AUDIO_FORM } from "../tools/cable.js";
 import { browserHost } from "./browser_host.js";
 import {
   askForDevice, askTalker, type Build, cableSupported, costOnDevice,
@@ -224,6 +225,39 @@ class Step {
     button.textContent = label;
     button.onclick = run;
     return button;
+  }
+
+  /** A question with two answers, asked before a press rather than during it.
+   *
+   *  A checkbox and not two buttons, because it is not a thing to do: it
+   *  changes what the button below it will do, and it has to be readable as
+   *  set or unset at a glance while somebody decides whether to press that.
+   *
+   *  The label and the sentence under it are one control for a screen reader -
+   *  aria-describedby rather than a paragraph that happens to sit nearby -
+   *  because the sentence is the whole of why anybody would tick this. */
+  choice(label: string, describes: string, on: boolean,
+         changed: (now: boolean) => void): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "choice";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = on;
+    box.id = `choice-${this.n ?? "x"}-${label.length}`;
+    const words = document.createElement("label");
+    words.htmlFor = box.id;
+    words.textContent = label;
+    const why = document.createElement("p");
+    why.className = "footnote";
+    why.id = `${box.id}-why`;
+    why.textContent = describes;
+    box.setAttribute("aria-describedby", why.id);
+    box.onchange = () => changed(box.checked);
+    const line = document.createElement("div");
+    line.className = "row";
+    line.append(box, words);
+    wrap.append(line, why);
+    return wrap;
   }
 
   /** Anything that is not a sentence, a list or a control. Two callers: the
@@ -847,9 +881,26 @@ function costSaid(work: Plan): string[] {
   return said;
 }
 
+/** Whether the recordings may travel compressed, as somebody answered it.
+ *
+ * Here rather than in the checkbox, because every step redraws itself whole -
+ * a second file dropped on the page rebuilds this step, and an answer that
+ * lived in the DOM would quietly become "no" again while still looking like
+ * whatever it was. False to begin with: a talker exists to be understood, so
+ * the form that loses nothing is what a transfer nobody thought about sends.
+ */
+let smallerRecordings = false;
+
 function sendStep(): void {
   steps.send.begin();
   steps.send.say(t("load.send_lead"));
+  /* Above the buttons rather than below them, because it changes what both of
+     them do - Send and the quiet "what would this cost" both send or count the
+     form this decides. A choice under the button it modifies is a choice
+     somebody has already walked past. */
+  steps.send.show(steps.send.choice(
+    t("load.smaller"), t("load.smaller_lead"), smallerRecordings,
+    (now) => { smallerRecordings = now; }));
   const go = steps.send.button(t("load.send"), () => void send(go), "btn primary");
   /* Asking first is a press of its own, and it is the quiet one. Nothing about
      the cost can be known without talking to the device - which files it
@@ -868,7 +919,7 @@ async function cost(ask: HTMLButtonElement): Promise<void> {
   ask.disabled = true;
   const line = steps.send.say(t("cable.looking"), "aside");
   try {
-    const work = await costOnDevice(devices(), build);
+    const work = await costOnDevice(devices(), build, () => {}, smallerRecordings);
     line.textContent = costSaid(work).join(" ");
     announce(line.textContent);
   } catch (error) {
@@ -907,6 +958,7 @@ async function send(go: HTMLButtonElement): Promise<void> {
   try {
     const sent = await sendToDevice(devices(), build, {
       signal: stopper.signal,
+      smallerRecordings,
       // The device's own serial output. Indented, because it is the device
       // talking and not this page, and it is the most useful thing on the wire
       // when something has gone wrong.
@@ -916,9 +968,20 @@ async function send(go: HTMLButtonElement): Promise<void> {
       // worth having above the failure when there is one - and because a
       // device that does not name its firmware is not a fault to be badged,
       // only one that was flashed before the line existed.
-      onFound: (who) => add(who.firmware
-        ? t("cable.firmware", { version: who.firmware })
-        : t("cable.firmware_unnamed")),
+      onFound: (who) => {
+        add(who.firmware
+          ? t("cable.firmware", { version: who.firmware })
+          : t("cable.firmware_unnamed"));
+        /* Only when somebody asked for it, and then always - including when
+           the answer is no. A ticked box that quietly does nothing is the
+           failure this line exists to prevent: the transfer would be four
+           times the size somebody was expecting, succeed, and say nothing
+           about why. */
+        if (smallerRecordings) {
+          add(who.audio === CABLE_AUDIO_FORM
+            ? t("cable.smaller") : t("cable.smaller_unheard"));
+        }
+      },
       onPlan: (work: Plan) => {
         cleared = work.tight;
         add(t("cable.plan", {

@@ -62,7 +62,7 @@ export class MockDevice {
    */
   constructor({ files = new Map(), total = 1441792, noise = false,
                 failAt = null, window = MOCK_WINDOW, stallMs = 0,
-                firmware = "dev", collections = 16 } = {}) {
+                firmware = "dev", collections = 16, audio = "" } = {}) {
     this.files = files;
     this.total = total;
     // What this device would say its build is. "dev" is what a sketch compiled
@@ -72,6 +72,12 @@ export class MockDevice {
     // other real case and the one a client must not read as a fault.
     this.firmware = firmware;
     this.collections = collections;
+    // Which recording form this device says it plays, and empty by default -
+    // which is a talker flashed before 2026-09-01 and is the case a client
+    // must work against, because a client that only works against a device
+    // with the newest greeting does not work. A test that wants the other
+    // device asks for it.
+    this.audio = audio;
     this.noise = noise;
     this.failAt = failAt;
     this.window = window;
@@ -238,6 +244,7 @@ export class MockDevice {
         if (this.collections) {
           await this.reply(`collections ${this.collections}`);
         }
+        if (this.audio) await this.reply(`audio ${this.audio}`);
         await this.reply("end hello");
         return null;
 

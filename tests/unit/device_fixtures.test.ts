@@ -15,6 +15,7 @@ import { decodeTile } from "../../loader/src/tile_encode.js";
 import {
   DEVICE_SAMPLE_RATE, DEVICE_CHANNELS, DEVICE_BITS_PER_SAMPLE,
 } from "../../loader/src/audio_format.js";
+import { wavFormatTag } from "../../loader/src/audio_encode.js";
 import {
   Cable, CABLE_VERSION, crc32, hex8, isCollection, versionVerdict,
 } from "../../loader/tools/cable.js";
@@ -389,6 +390,25 @@ for (const { listed: one, want } of ofKind("audio")) {
   check(`${one.fixture}: the fixture is the length it says it is`,
         bytes.length === want.bytes, `${bytes.length} bytes`);
 
+  /* Which codec the file declares, read by the browser's own walk over the
+   * chunks and held against the number the firmware's reader answered with.
+   * The two are separate implementations of one question, and it is the
+   * question the whole of adr/0022 turns on: a file the two ends disagree
+   * about is a word played as a hiss, out loud, in somebody's house.
+   *
+   * Only where the firmware got far enough to look. A file refused on its
+   * twelve-byte header never reaches fmt, and what it reports there is an
+   * assumption rather than a reading - the fixture states it, and asking this
+   * side to agree about an assumption would be checking nothing. */
+  if (want.read?.accepts) {
+    const tag = wavFormatTag(bytes);
+    check(`${one.fixture}: the browser reads the same WAVE format tag`,
+          tag === want.read.format_tag, `0x${(tag ?? 0).toString(16).padStart(4, "0")}`);
+  }
+
+  /* The compressed form has no `write` and is skipped here by that alone:
+   * what a builder must emit is the plain form, and adr/0022 is why the other
+   * one is made at the cable and never put in a package. */
   if (!want.write) continue;
   const w = want.write;
   check(`${one.fixture}: the browser writes ${w.sample_rate} Hz, `

@@ -291,6 +291,14 @@
       "expected": "audio/spoken.expected.json"
     },
     {
+      "fixture": "spoken-compressed",
+      "kind": "audio",
+      "outcome": "accepted",
+      "summary": "The other form a recording may travel in: IMA ADPCM, WAVE format tag 0x11, in the same container as every other recording.",
+      "file": "audio/spoken-compressed.wav",
+      "expected": "audio/spoken-compressed.expected.json"
+    },
+    {
       "fixture": "extra-chunk",
       "kind": "audio",
       "outcome": "accepted",
@@ -394,6 +402,20 @@
       "outcome": "accepted",
       "summary": "A device that says which tile forms it can draw. Silence means raw, and silence is what every talker flashed before 2026-08-31 says.",
       "expected": "cable/tiles-named-in-the-hello.expected.json"
+    },
+    {
+      "fixture": "audio-named-in-the-hello",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A device that draws compressed tiles and plays only plain recordings. Two capabilities, two words, and this is the device that has one of them.",
+      "expected": "cable/audio-named-in-the-hello.expected.json"
+    },
+    {
+      "fixture": "audio-form-named-in-the-hello",
+      "kind": "cable",
+      "outcome": "accepted",
+      "summary": "A device that says which recording forms it plays. Silence means 16-bit PCM, and silence is what every talker flashed before 2026-09-01 says.",
+      "expected": "cable/audio-form-named-in-the-hello.expected.json"
     },
     {
       "fixture": "firmware-named-in-the-hello",

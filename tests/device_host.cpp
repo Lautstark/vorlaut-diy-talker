@@ -238,8 +238,15 @@ static int audioMode(const char *path) {
   const std::string file = slurp(path);
   Bytes reader{ (const uint8_t *)file.data(), (uint32_t)file.size() };
   uint32_t dataBytes = 0;
-  const bool ok = seekToWavData(reader, dataBytes);
+  WavShape shape;
+  const bool ok = seekToWavData(reader, dataBytes, &shape);
   printf("accepts %d\n", ok ? 1 : 0);
+  // Which codec the file declared, and how long one block of it is. The two
+  // fields the acceptor reads out of fmt and the only thing that tells a
+  // compressed recording from a plain one - everything else about fmt is still
+  // walked past, which is what stereo-44k states.
+  printf("format_tag %u\n", (unsigned)shape.formatTag);
+  printf("block_align %u\n", (unsigned)shape.blockAlign);
   printf("sample_rate %u\n", (unsigned)WAV_SAMPLE_RATE);
   printf("channels %u\n", (unsigned)WAV_CHANNELS);
   printf("bits_per_sample %u\n", (unsigned)WAV_BITS_PER_SAMPLE);
@@ -374,7 +381,8 @@ static bool readLine(std::string &out) {
 // before the keyword existed. An empty word is the second of those, and it is
 // said by saying nothing.
 static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
-                     const char *tiles, uint32_t collections) {
+                     const char *tiles, const char *audio,
+                     uint32_t collections) {
   Fake device;
   device.capacity = capacity;
   char out[CABLE_LINE_MAX];
@@ -445,6 +453,14 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
         // matter most. Same argument as the firmware word above.
         if (tiles && *tiles) {
           cableSayWord(out, sizeof(out), "tiles", tiles); say(out);
+        }
+        // And which recording forms it plays, on the same terms and for the
+        // same reason. Two words rather than one because they are two
+        // capabilities: this harness has to be able to be a device that draws
+        // compressed tiles and plays no compressed recording, which is exactly
+        // what every talker flashed between 2026-08-31 and 2026-09-01 is.
+        if (audio && *audio) {
+          cableSayWord(out, sizeof(out), "audio", audio); say(out);
         }
         cableSayWord(out, sizeof(out), "end", "hello"); say(out);
         break;
@@ -803,7 +819,7 @@ int main(int argc, char **argv) {
   if (argc >= 2 && strcmp(argv[1], "collections") == 0) return collectionsMode();
   if (argc >= 3 && strcmp(argv[1], "walk") == 0) return walkMode(argv[2]);
   if (argc >= 4 && strcmp(argv[1], "cable") == 0) {
-    // The firmware word and the tile forms are optional at the command line
+    // The firmware word and the two form words are optional at the command line
     // and required of the runner: a fixture always states them, and states
     // them empty where the device says nothing. Defaulted here so that driving
     // this by hand is two arguments shorter than driving it from the
@@ -812,12 +828,13 @@ int main(int argc, char **argv) {
                      (uint32_t)strtoul(argv[3], nullptr, 10),
                      argc >= 5 ? argv[4] : "",
                      argc >= 6 ? argv[5] : "",
-                     argc >= 7 ? (uint32_t)strtoul(argv[6], nullptr, 10) : 0);
+                     argc >= 7 ? argv[6] : "",
+                     argc >= 8 ? (uint32_t)strtoul(argv[7], nullptr, 10) : 0);
   }
   fprintf(stderr, "usage: device_host layout <file> | tile <file> [decoded] | "
                   "audio <file> | names | language | sleep | press | "
                   "collections | walk <file> | "
-                  "cable <capacity> <window> [firmware] [tiles] "
+                  "cable <capacity> <window> [firmware] [tiles] [audio] "
                   "[collections]\n");
   return 2;
 }

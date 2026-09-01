@@ -120,6 +120,7 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 < files 37
 < collections 16             how many collections it will hold
 < tiles vt1                  and which tile forms it can draw
+< audio va1                  and which recording forms it can play
 < end hello
 
 < file t3bd7….bin 26912
@@ -211,6 +212,29 @@ transfer that reported success. **So the greeting picks the name too:** one
 collection gets `layout.bin`, more than one gets `c<hash>.bin`, decided in
 `underDeviceNames()` in `loader/src/cable.ts` at the same point the tiles pick
 their form, because that is the first place that knows who is listening.
+
+**`audio` is the fourth, on 2026-09-01, and it is the same rule with a louder
+failure behind it.** A recording may now travel as IMA ADPCM
+([ADR 0022](../adr/0022-recordings-may-travel-compressed.md)) — four bits a
+sample instead of sixteen, still a WAV, distinguished only by the tag in its
+`fmt` chunk. A device flashed before that day never opens `fmt`: it plays
+whatever is in `data` as 16-bit PCM, so a compressed recording comes out as a
+full-volume hiss where a word should be, at the moment somebody pressed a key
+expecting one.
+
+Two words rather than one, and that is not tidiness. Every talker flashed
+between 2026-08-31 and 2026-09-01 draws a compressed tile and plays no
+compressed recording, so a browser that read `tiles vt1` as a general yes would
+send that device a file on the strength of an answer about pictures.
+`fixtures/cable/audio-named-in-the-hello` is exactly that device, and
+`fixtures/cable/audio-form-named-in-the-hello` is one that names both.
+
+Naming the form is only half of what has to be true before a recording is
+compressed. **The other half is a person**, because nothing in a package says
+whether its recordings are words in a game or things somebody is understood
+through, and four bits a sample is bearable only in the first case. The loader
+page asks, above the button, and the answer is not remembered — ADR 0022 has
+why.
 
 **A verb the device does not know is answered, not ignored.** `err verb` comes
 back. A browser waiting for a reply that never arrives looks exactly like a

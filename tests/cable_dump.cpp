@@ -120,6 +120,10 @@ static int sayAll(void) {
   // first one being swept off.
   cableSayNumber(out, sizeof(out), "collections", MAX_COLLECTIONS); say(out);
   cableSayWord(out, sizeof(out), "tiles", CABLE_TILE_FORMS); say(out);
+  // And which recording forms it plays. Out of the constant rather than a
+  // literal, for the same reason the line above is: what this harness is for
+  // is the words the firmware would really send.
+  cableSayWord(out, sizeof(out), "audio", CABLE_AUDIO_FORMS); say(out);
   cableSayWord(out, sizeof(out), "end", "hello"); say(out);
   cableSayNameNumber(out, sizeof(out), "file",
                      "t3bd7a1c045e29f8b6d0a4e17c93f5028.bin", 26912u); say(out);

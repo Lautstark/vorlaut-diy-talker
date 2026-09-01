@@ -99,14 +99,15 @@ const stateOf = (page: Page, key: string) =>
  *  The two modules are served into the page rather than bundled with it. The
  *  page has no business importing a mock, and a route is the whole of what it
  *  takes to let one arrive as a module the way any other would. */
-async function withDevice(page: Page, { granted = true, firmware = "dev" } = {}) {
+async function withDevice(page: Page,
+                          { granted = true, firmware = "dev", audio = "" } = {}) {
   for (const name of ["cable.js", "cable_mock.js"]) {
     await page.route(`**/__cable/${name}`, (route) => route.fulfill({
       contentType: "text/javascript",
       body: readFileSync(join(HERE, "..", "loader", "tools", name), "utf8"),
     }));
   }
-  await page.addInitScript(({ granted, firmware }) => {
+  await page.addInitScript(({ granted, firmware, audio }) => {
     const ready = import(new URL("__cable/cable_mock.js", location.href).href)
       .then(({ MockDevice }) => {
         /* Chattering on purpose: a real device prints its own serial log
@@ -117,7 +118,7 @@ async function withDevice(page: Page, { granted = true, firmware = "dev" } = {})
            build it carries - "dev" for a sketch off a desk, a tag for a
            release, and empty for a talker flashed before the greeting named
            one at all. */
-        const device = new MockDevice({ noise: true, firmware });
+        const device = new MockDevice({ noise: true, firmware, audio });
         (globalThis as Record<string, unknown>).__device = device;
         let streams: { readable: ReadableStream; writable: WritableStream } | null = null;
         return {
@@ -144,7 +145,7 @@ async function withDevice(page: Page, { granted = true, firmware = "dev" } = {})
         addEventListener: () => {},
       },
     });
-  }, { granted, firmware });
+  }, { granted, firmware, audio });
 }
 
 /** What the device is holding. The counters are not read: the device clears
@@ -156,8 +157,27 @@ async function onDevice(page: Page) {
     return {
       names: [...device.files.keys()].sort(),
       sizes: Object.fromEntries([...device.files].map(([n, b]) => [n, b.length])),
+      // The WAVE format tag out of each recording's fmt chunk, walked here
+      // rather than read at a fixed offset - the recordings in the fixture
+      // package carry a LIST chunk, and a reader that assumed the canonical
+      // 44-byte header would find the wrong two bytes. It is the only thing
+      // that says which form a recording arrived in.
+      tags: Object.fromEntries([...device.files]
+        .filter(([n]) => n.startsWith("a") && n.endsWith(".wav"))
+        .map(([n, b]) => {
+          const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
+          let at = 12;
+          while (at + 8 <= b.length) {
+            const id = String.fromCharCode(b[at], b[at + 1], b[at + 2], b[at + 3]);
+            const size = view.getUint32(at + 4, true);
+            if (id === "fmt ") return [n, view.getUint16(at + 8, true)];
+            at += 8 + size + (size % 2);
+          }
+          return [n, 0];
+        })),
     };
-  })()`) as { names: string[]; sizes: Record<string, number> };
+  })()`) as { names: string[]; sizes: Record<string, number>;
+              tags: Record<string, number> };
 }
 
 /** Opens the page and hands it a file, the way somebody with a talker does.
@@ -279,6 +299,66 @@ test("a recording that is not the WAV the device plays is refused",
   await expect(findings(page, "load.step_check").filter({ hasText: "✖" }).first())
     .toContainText("24000");
   expect(await stateOf(page, "load.step_compile")).toBe("waiting");
+});
+
+/* ------------------------------------------------- the recordings' form --- */
+
+/* Two answers both have to be yes before a recording travels compressed, and
+   the failure that matters is the one where a person said yes and the device
+   did not. adr/0022: a talker flashed before 2026-09-01 plays whatever is in
+   the data chunk as 16-bit PCM, so a compressed recording reaches it as a
+   full-volume hiss where a word should be.
+
+   The page's protection is that it never asks the device to guess. What these
+   two check is that the protection is the page's and not the person's: the
+   same tick, against two devices, has to produce two different payloads - and
+   the one that changes nothing has to say so, because a ticked box that
+   quietly does nothing is a transfer four times the size somebody expected
+   that succeeds and explains none of it. */
+
+async function sendWithSmallerRecordings(page: Page) {
+  const send = step(page, "load.step_send");
+  await send.getByLabel(SPEAKS["load.smaller"]!).check();
+  await send.getByRole("button", { name: SPEAKS["load.send"], exact: true }).click();
+  await expect(send).toContainText(opening("cable.sent"), { timeout: 60_000 });
+  return send;
+}
+
+test("a talker that plays the compressed form is sent it", async ({ page }) => {
+  await withDevice(page, { audio: "va1" });
+  await choose(page, packageBytes());
+  await compiled(page);
+  const plain = await onDevice(page);          // nothing sent yet
+  expect(Object.keys(plain.sizes)).toHaveLength(0);
+
+  const send = await sendWithSmallerRecordings(page);
+  await expect(send).toContainText(SPEAKS["cable.smaller"]!);
+
+  const held = await onDevice(page);
+  const wavs = held.names.filter((n) => /^a[0-9a-f]{32}\.wav$/.test(n));
+  expect(wavs).toHaveLength(SPOKEN.length);
+  /* WAVE format tag 0x11, in every one of them. The name is unchanged - it is
+     a hash of the recording the editor synthesised, not of the file - so the
+     tag is the only thing that says which form arrived. */
+  for (const wav of wavs) expect(held.tags[wav]).toBe(0x11);
+});
+
+test("a talker that does not play it is sent the plain form, and the page says so",
+     async ({ page }) => {
+  await withDevice(page);                      // says nothing about recordings
+  await choose(page, packageBytes());
+  await compiled(page);
+
+  const send = await sendWithSmallerRecordings(page);
+  /* The line, and it is the whole point of this test. The transfer succeeded
+     and the device works; without this sentence nothing anywhere would say
+     that the thing somebody asked for did not happen. */
+  await expect(send).toContainText(SPEAKS["cable.smaller_unheard"]!);
+
+  const held = await onDevice(page);
+  const wavs = held.names.filter((n) => /^a[0-9a-f]{32}\.wav$/.test(n));
+  expect(wavs).toHaveLength(SPOKEN.length);
+  for (const wav of wavs) expect(held.tags[wav]).toBe(0x01);
 });
 
 /* ---------------------------------------------------------- compiling it --- */

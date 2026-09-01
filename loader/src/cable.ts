@@ -18,6 +18,7 @@
 // What is left for here, then, is three things the wire format has no opinion
 // about: which port out of the several a laptop has, where the files come
 // from, and what the page is told while it happens.
+import { recordingsForDevice } from "./audio_encode.js";
 import { forDevice } from "./tile_encode.js";
 import {
   Cable, CABLE_VERSION, isCollection, LAYOUT_FILE, plan, planRemoval, push,
@@ -138,6 +139,14 @@ export type Talker = {
    *  is every talker flashed before 2026-08-31 and is what those really hold -
    *  see the note on the keyword in loader/tools/cable.js. */
   collections: number;
+  /** Which recording form it plays, empty where it did not say - which is
+   *  every talker flashed before 2026-09-01, and those play 16-bit PCM only.
+   *
+   *  Carried out to the page rather than kept in here, because the page has
+   *  something to say about it: somebody who asked for smaller recordings and
+   *  is holding a talker that cannot play them should be told, and this is the
+   *  only place that knows both halves. */
+  audio: string;
 };
 
 export type Sending = {
@@ -152,6 +161,16 @@ export type Sending = {
   /** What is about to happen, once the diff is known and before it starts. */
   onPlan?: (what: Plan) => void;
   onStep?: (what: "put" | "rm", name: string, done: number, total: number) => void;
+  /** Whether the recordings may travel compressed, which is a question about
+   *  this collection and not about this device. False unless somebody said
+   *  otherwise: four bits a sample is audibly worse, and a talker exists to be
+   *  understood, so the form that loses nothing is what a transfer nobody
+   *  thought about sends. adr/0022.
+   *
+   *  It is an offer rather than an instruction. The device still has to have
+   *  named the form, and a talker that did not gets exactly the recordings it
+   *  got yesterday. */
+  smallerRecordings?: boolean;
   signal?: AbortSignal;
 };
 
@@ -255,7 +274,7 @@ export async function askTalker(
     // firmware section needs it later to reboot that talker into its
     // bootloader without anybody opening the case. See flash.ts.
     return { version: hello.version, firmware: hello.firmware,
-             collections: hello.collections, port };
+             collections: hello.collections, audio: hello.audio, port };
   } finally {
     await cable.close().catch(() => {});
     await port.close().catch(() => {});
@@ -295,6 +314,34 @@ function underDeviceNames(made: Map<string, { bytes: Uint8Array }>,
   if (!named || named === LAYOUT_FILE) return made;
   return new Map([...made].map(
     ([name, file]) => [name === named ? LAYOUT_FILE : name, file]));
+}
+
+/**
+ * The build, in the forms the talker in front of us can actually read.
+ *
+ * The tiles, the recordings and the collection's name, decided in one place
+ * because they are one decision made three times: here is the first point that
+ * knows who is listening. Split out of sendToDevice() when the recordings
+ * joined the tiles, because costOnDevice() has to make the identical choice -
+ * a sentence about what a transfer costs that was computed from different
+ * bytes than the transfer sends is worse than no sentence.
+ *
+ * The compile stays device-independent for the reason it always did: it also
+ * feeds the preview and the folder export, and neither of those has a talker
+ * to ask.
+ */
+function asTheDeviceReadsIt(
+  build: Build, hello: { tiles: string; audio: string; collections: number },
+  smallerRecordings: boolean,
+): Map<string, { bytes: Uint8Array }> {
+  const shaped = recordingsForDevice(
+    forDevice(build, hello.tiles), hello.audio, smallerRecordings);
+  // plan() and push() want {bytes} per name, because a plan may also be made
+  // from sizes and checksums alone. One line of shaping rather than a second
+  // shape for compileDevice() to answer in.
+  return underDeviceNames(
+    new Map([...shaped].map(([name, bytes]) => [name, { bytes }])),
+    hello.collections);
 }
 
 /**
@@ -420,12 +467,11 @@ async function worked(cable: InstanceType<typeof Cable>,
  * most of a game". */
 export async function costOnDevice(
   ports: SerialPort[], build: Build, onLog: (line: string) => void = () => {},
+  smallerRecordings = false,
 ): Promise<Plan & { firmware: string }> {
   const { port, cable, hello } = await findTalker(ports, onLog);
   try {
-    const made = underDeviceNames(
-      new Map([...forDevice(build, hello.tiles)].map(
-        ([name, bytes]) => [name, { bytes }])), hello.collections);
+    const made = asTheDeviceReadsIt(build, hello, smallerRecordings);
     const have = await cable.list();
     const work = await worked(cable, made, have, hello);
     await cable.done();
@@ -517,7 +563,7 @@ export async function readCollections(
     });
     return {
       talker: { version: hello.version, firmware: hello.firmware,
-                collections: hello.collections },
+                collections: hello.collections, audio: hello.audio },
       free: hello.free, total: hello.total, on,
     };
   } finally {
@@ -609,24 +655,12 @@ export async function sendToDevice(
 ): Promise<Sent> {
   const {
     onLog = () => {}, onFound = () => {}, onPlan = () => {}, onStep = () => {},
-    signal,
+    smallerRecordings = false, signal,
   } = options;
   const { port, cable, hello } = await findTalker(ports, onLog);
-  // plan() and push() want {bytes} per name, because the plan may also be made
-  // from sizes and checksums alone. One line of shaping rather than a second
-  // shape for compileDevice() to answer in.
-  //
-  // The tiles are compressed here and nowhere earlier, because here is the
-  // first place that knows who is listening: the device says in its hello
-  // which forms it can draw, and one that says nothing gets exactly the raw
-  // bytes it got yesterday. The compile stays raw for the same reason - it
-  // also feeds the preview and the folder export, and neither of those has a
-  // talker to ask.
-  const made = underDeviceNames(
-    new Map([...forDevice(build, hello.tiles)].map(
-      ([name, bytes]) => [name, { bytes }])), hello.collections);
+  const made = asTheDeviceReadsIt(build, hello, smallerRecordings);
   onFound({ version: hello.version, firmware: hello.firmware,
-            collections: hello.collections });
+            collections: hello.collections, audio: hello.audio });
   try {
     const have = await cable.list();
     const work = await worked(cable, made, have, hello);
