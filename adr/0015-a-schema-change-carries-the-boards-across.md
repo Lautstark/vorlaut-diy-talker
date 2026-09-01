@@ -135,6 +135,16 @@ against.
   `crypto.subtle` call. **A change to what is inside a layout cannot be done as
   a step**, and has to come back to this ADR rather than around it. That is a
   known gap, not an oversight.
+
+  **It came back, on 2026-09-01, and the second half of that is wrong.** The
+  rule against awaiting a non-request stands unchanged; what does not follow is
+  the conclusion drawn from it. The stamp is never held against freshly
+  computed bytes — `writeLayout()` compares it against a value that came out of
+  the same record — so a step may rewrite a layout and leave the stamp
+  standing, and the next ordinary save re-stamps it. `adr/0023` in
+  `Lautstark/vorlaut-editor` reads out every place the stamp is used, and
+  `docs/schema-upgrades.md` carries the same correction where it stated the
+  gap.
 - **The steps are typeless.** They work on shapes that are no longer in the
   schema `store.ts` declares, so the compiler cannot check them — which is the
   same trade every migration system makes, and the reason each step is covered
