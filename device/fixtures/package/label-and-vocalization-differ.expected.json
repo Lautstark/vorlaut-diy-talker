@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/label-and-vocalization-differ.obz",
   "summary": "A key whose label is a caption and whose vocalization is the sentence. What the device says is the vocalization.",
-  "bytes": 9886,
+  "bytes": 10012,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2702,
-      "sha256": "4837cc0fb0c9b7104b8a381920015029487e22180c35e70914bce51220e4c535"
+      "bytes": 2828,
+      "sha256": "c62d99e33d3d4c56e76835a021fa4f8cb7a496d16322d97665d0f2238d2b04ab"
     },
     {
       "path": "boards/set-2.obf",
@@ -194,7 +194,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 1800,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     },
     {
       "format": "open-board-0.1",
@@ -383,6 +385,10 @@
           ]
         }
       ]
+    },
+    "package": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
     },
     "sources": [
       {

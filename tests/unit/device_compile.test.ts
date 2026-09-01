@@ -166,10 +166,23 @@ async function expected(read: ReadDevicePackage) {
   }
   // Under the name that identifies the collection rather than under
   // layout.bin, and named from the same thing compileDevice() names it from -
-  // the root board's id, hashed. Not from the compiler's answer: this
+  // the package's own id, hashed, falling back to the root board's for a file
+  // written before that field existed. Not from the compiler's answer: this
   // expectation is built beside the compiler and never out of it.
-  files.set(collectionFile(hashOf(new TextEncoder().encode(read.id))),
-            renderLayoutBin(planLayout(read.plan), labelFiles, tileFiles, audioFiles));
+  //
+  // The fallback is what makes this worth restating rather than importing: the
+  // root board's id is `set-1` in every package the editor writes, so a
+  // compiler that quietly went back to it would put every Sammlung on one file
+  // and this expectation would follow it there.
+  const identity = read.packageId || read.id;
+  // And the name the talker's menu shows, in the first set's name slot, which
+  // is where the device reads a collection's name from - adr/0021.
+  const named = planLayout(read.plan);
+  if (read.packageName && named.sets.length) {
+    named.sets[0] = { ...named.sets[0]!, name: read.packageName };
+  }
+  files.set(collectionFile(hashOf(new TextEncoder().encode(identity))),
+            renderLayoutBin(named, labelFiles, tileFiles, audioFiles));
   return files;
 }
 

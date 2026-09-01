@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/a-key-that-goes-on.obz",
   "summary": "Two rounds of the joining game: a set key that speaks and goes nowhere, and one speech key per board that speaks and then loads the next.",
-  "bytes": 12739,
+  "bytes": 12865,
   "conforming": true,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2981,
-      "sha256": "703548281741cd97e487891c1d5b6452588a8e8b6d196e4cc89cdb928f1aa283"
+      "bytes": 3107,
+      "sha256": "65539015f99ba4491e6519ac7f12908aa3197bd1929f0ae86ee353e12e26d8e7"
     },
     {
       "path": "boards/set-2.obf",
@@ -227,7 +227,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 600,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     },
     {
       "format": "open-board-0.1",
@@ -455,6 +457,10 @@
         }
       ]
     },
+    "package": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "sources": [
       {
         "reference": "nein.bmp",
@@ -525,6 +531,10 @@
     ]
   },
   "write": {
+    "collection": {
+      "id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "name": "Frühstück und mehr"
+    },
     "layout": {
       "language": "de",
       "voice": "piper:de_DE-thorsten-medium",

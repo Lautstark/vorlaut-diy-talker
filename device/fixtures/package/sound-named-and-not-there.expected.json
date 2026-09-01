@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/sound-named-and-not-there.obz",
   "summary": "A recording named by a board and not in the archive.",
-  "bytes": 9362,
+  "bytes": 9488,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2706,
-      "sha256": "8ded193a6d579db111fff0e9ddb836b2c9dc20e36f7063618fb9de106849f15f"
+      "bytes": 2832,
+      "sha256": "a9f2a04b0863487cd5e16bb9271b21cdfe4a6c1ba4c158a97a22bf8c1d5e43be"
     },
     {
       "path": "boards/set-2.obf",
@@ -189,7 +189,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 1800,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     },
     {
       "format": "open-board-0.1",

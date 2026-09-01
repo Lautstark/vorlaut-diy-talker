@@ -3,7 +3,7 @@
   "kind": "package",
   "file": "package/sound-not-on-the-board.obz",
   "summary": "A key naming a recording its own board does not list.",
-  "bytes": 9869,
+  "bytes": 9995,
   "conforming": false,
   "members": [
     {
@@ -13,8 +13,8 @@
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2685,
-      "sha256": "13f5167eb90bb0eb6485a1e9f5dbede83e6d2b8c9e9f931782288b3e119195f2"
+      "bytes": 2811,
+      "sha256": "82fec2c842241ece72037440a14a4cde47e51a5920bbf489ff428af1c5deaadb"
     },
     {
       "path": "boards/set-2.obf",
@@ -194,7 +194,9 @@
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 1800,
-      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium"
+      "ext_vorlaut_voice": "piper:de_DE-thorsten-medium",
+      "ext_lautstark_package_id": "c8f21a04-6b3d-4e57-9a10-2d7f5c0e8b46",
+      "ext_lautstark_package_name": "Frühstück und mehr"
     },
     {
       "format": "open-board-0.1",
