@@ -327,6 +327,12 @@ class Cable {
     // they were being sent anyway. That is why compression costs no protocol
     // version: the older device is not broken by it, it is not offered it.
     put(cableSayWord(out, sizeof(out), "tiles", CABLE_TILE_FORMS), out);
+    // And which recording forms it can play, on exactly the same terms. The
+    // two are separate words because they are separate capabilities: a
+    // firmware could gain one without the other, and a browser that read one
+    // answer for both would be sending a file on the strength of an unrelated
+    // yes.
+    put(cableSayWord(out, sizeof(out), "audio", CABLE_AUDIO_FORMS), out);
     put(cableSayWord(out, sizeof(out), "end", "hello"), out);
   }
 

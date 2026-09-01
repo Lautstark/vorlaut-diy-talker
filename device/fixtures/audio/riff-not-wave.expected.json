@@ -6,6 +6,8 @@
   "bytes": 244,
   "conforming": false,
   "read": {
+    "format_tag": 1,
+    "block_align": 0,
     "accepts": false
   },
   "write": null,

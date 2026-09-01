@@ -379,3 +379,38 @@ export function wavFormatTag(wav: Uint8Array): number | null {
 export function isRecording(name: string): boolean {
   return name.startsWith("a") && name.endsWith(".wav");
 }
+
+/**
+ * A build, as the talker in front of us should receive it.
+ *
+ * The decision rather than the transport, exported for the same reason
+ * forDevice() in tile_encode.ts is: what is worth checking here is *who gets
+ * which form*, and a check that had to drive a serial port to ask would be a
+ * test of the port.
+ *
+ * Two answers have to line up before a recording is compressed, and they are
+ * different kinds of answer:
+ *
+ * `form` is the word out of the device's hello - CABLE_AUDIO_FORM from a
+ * talker that can play the compressed form, and an empty string from every one
+ * flashed before 2026-09-01, which had no such line to say. Anything else is
+ * treated as silence: a word this browser does not know is a device it must
+ * not guess about. This is a fact about the machine.
+ *
+ * `wanted` is what the person sending said, and it is a fact about the
+ * collection. A talker's whole purpose is being understood, so audibly worse
+ * speech is only bearable where the recordings are words in a game rather than
+ * things somebody says - and nothing in a package tells the two apart. See
+ * adr/0022 for why the answer is asked on this side rather than carried in the
+ * file, and why the default is the form that loses nothing.
+ *
+ * The tiles, the collection file and anything else pass through untouched.
+ * Only recordings compress, and only into a form the listener named.
+ */
+export function recordingsForDevice(
+  build: Map<string, Uint8Array<ArrayBuffer>>, form: string, wanted: boolean,
+): Map<string, Uint8Array<ArrayBuffer>> {
+  if (!wanted || form !== "va1") return build;
+  return new Map([...build].map(([name, bytes]) =>
+    [name, isRecording(name) ? encodeAdpcmWav(bytes) : bytes]));
+}

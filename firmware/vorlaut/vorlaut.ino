@@ -101,6 +101,11 @@ static_assert(SET_BUTTON == SET_KEY_INDEX,
 // were the same thing and neither could be asked about on its own.
 #include "wav_format.h"
 
+// And how to read the compressed one. A recording is a WAV either way - IMA
+// ADPCM is WAVE format tag 0x11 - so this is a second codec behind the same
+// acceptor rather than a second kind of file. adr/0022.
+#include "adpcm_format.h"
+
 // --- Fetching content over the cable ----------------------------------------
 //
 // The editor is a page with no server behind it, and a tab cannot be something
@@ -914,13 +919,34 @@ static void playWav(const char *path) {
     return;
   }
   uint32_t remaining = 0;
-  if (!seekToWavData(file, remaining)) {
+  WavShape shape;
+  if (!seekToWavData(file, remaining, &shape)) {
     Serial.printf("not a valid WAV: %s\n", path);
     file.close();
     return;
   }
 
+  // Which codec the samples are in. A file whose tag this build has never
+  // heard of is played as PCM, which is what it would have been yesterday and
+  // is the only answer that cannot make an older recording stop working.
+  //
+  // The block length comes out of fmt and is brought inside what a block can
+  // be rather than trusted: it decides how many bytes are read into `chunk`
+  // and handed to the decoder, and a corrupt fmt claiming 40000 would be a
+  // read past the end of a 1024-byte buffer. On a board with no memory
+  // protection that is not a failure, it is whatever was next in RAM.
+  const bool adpcm = shape.formatTag == WAV_FORMAT_IMA_ADPCM;
+  const uint32_t block =
+      (shape.blockAlign >= 5 && shape.blockAlign <= ADPCM_BLOCK_BYTES)
+          ? shape.blockAlign : ADPCM_BLOCK_BYTES;
+
   static uint8_t chunk[AUDIO_CHUNK];
+  // One block's worth of samples, decoded. Static for the same reason `spoken`
+  // and `chunk` are: playWav() is never re-entered - a key pressed during a
+  // word is dropped, deliberately - so one of these is enough for the device,
+  // and 1010 bytes on the stack of a function that also holds the panel poll
+  // is not a thing to find out about the hard way.
+  static int16_t decoded[ADPCM_BLOCK_SAMPLES];
   digitalWrite(PIN_AMP_SD, HIGH);
 
   // The whole word, read while the amplifier is coming up rather than while it
@@ -988,9 +1014,21 @@ static void playWav(const char *path) {
   // two, because everything after the read - the peak, the volume, the writing
   // and the button poll - is the same work either way, and two copies of it
   // would drift.
+  //
+  // A compressed recording adds a step and not a path: the bytes arrive the
+  // same way, become samples here, and everything after that is the loop that
+  // was already here. That is deliberate and it is the whole of why the
+  // decoder takes a buffer rather than a file - docs/bring-up.md stage 5 is
+  // what a starved I2S stream sounds like, and the one thing this loop must
+  // never gain is a second place it can go to the file system.
   uint32_t at = 0;
+  uint32_t played = 0;
   while (remaining > 0) {
-    size_t want = remaining < AUDIO_CHUNK ? remaining : AUDIO_CHUNK;
+    // A block at a time when it is compressed, because a block is the unit the
+    // decoder reads: it carries its own first sample and step index in a
+    // four-byte header, and half of one decodes to nothing.
+    const size_t unit = adpcm ? (size_t)block : AUDIO_CHUNK;
+    size_t want = remaining < unit ? remaining : unit;
     size_t got;
     if (held) {
       memcpy(chunk, spoken + at, want);
@@ -1000,9 +1038,26 @@ static void playWav(const char *path) {
       got = file.read(chunk, want);
     }
     if (got == 0) break;
-    for (size_t i = 0; i + 1 < got; i += 2) {
+    remaining -= got;
+
+    // What is about to be scaled and written: the bytes as they arrived for a
+    // plain recording, and the samples they decode to for a compressed one.
+    // The decoder writes int16 in the machine's own order and the loop below
+    // reads them back little-endian, which is the same thing on this board and
+    // is the same assumption playWav() has always made about a data chunk.
+    uint8_t *samples = chunk;
+    size_t bytes = got;
+    if (adpcm) {
+      const uint32_t made = adpcmDecodeBlock(chunk, (uint32_t)got, decoded);
+      if (made == 0) continue;         // a tail too short to hold a sample
+      samples = (uint8_t *)decoded;
+      bytes = made * 2;
+    }
+    played += (uint32_t)bytes;
+
+    for (size_t i = 0; i + 1 < bytes; i += 2) {
       const int16_t sample =
-          (int16_t)((uint16_t)chunk[i] | ((uint16_t)chunk[i + 1] << 8));
+          (int16_t)((uint16_t)samples[i] | ((uint16_t)samples[i + 1] << 8));
       // INT16_MIN has no positive counterpart, so its size is taken as the
       // largest one that has. Only the measurement needs this; the sample
       // itself is scaled below and keeps its sign.
@@ -1016,11 +1071,10 @@ static void playWav(const char *path) {
       // keeps a setting of 100 an exact no-op.
       const int16_t quieter =
           (int16_t)(((int32_t)sample * (int32_t)volumeNow) / 100);
-      chunk[i] = (uint8_t)((uint16_t)quieter & 0xff);
-      chunk[i + 1] = (uint8_t)(((uint16_t)quieter >> 8) & 0xff);
+      samples[i] = (uint8_t)((uint16_t)quieter & 0xff);
+      samples[i + 1] = (uint8_t)(((uint16_t)quieter >> 8) & 0xff);
     }
-    i2s.write(chunk, got);
-    remaining -= got;
+    i2s.write(samples, bytes);
 
     const int8_t caught = pollButtons();
     if (caught >= 0) pendingKey = caught;
@@ -1033,11 +1087,17 @@ static void playWav(const char *path) {
   // it ever happens anyway. The read is the file system's own time, and it is
   // interesting when it approaches AMP_WAKE_MS - that is the point where a
   // word starts costing latency rather than hiding inside the wake.
-  Serial.printf("  %u bytes, read %u ms, played %u ms (%u expected)%s, "
+  // Expected out of what was actually played rather than out of the file's
+  // size, because those are no longer the same number: a compressed recording
+  // is a quarter of the bytes and the same length of word. The file's size is
+  // still said, beside the form it was in, because "smaller than I expected"
+  // is how somebody notices a talker being sent the wrong form.
+  Serial.printf("  %u bytes %s, read %u ms, played %u ms (%u expected)%s, "
                 "peak %d of 32767 (%d%%)\n",
-                (unsigned)sampleBytes, (unsigned)readMs,
+                (unsigned)sampleBytes, adpcm ? "adpcm" : "pcm",
+                (unsigned)readMs,
                 (unsigned)(millis() - began),
-                (unsigned)(sampleBytes / (SAMPLE_RATE / 500)),
+                (unsigned)(played / (SAMPLE_RATE / 500)),
                 held ? "" : " streamed",
                 (int)peak, (int)((int32_t)peak * 100 / 32767));
 

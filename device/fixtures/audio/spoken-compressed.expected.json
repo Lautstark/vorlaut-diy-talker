@@ -1,0 +1,23 @@
+{
+  "fixture": "spoken-compressed",
+  "kind": "audio",
+  "file": "audio/spoken-compressed.wav",
+  "summary": "The other form a recording may travel in: IMA ADPCM, WAVE format tag 0x11, in the same container as every other recording.",
+  "bytes": 572,
+  "conforming": false,
+  "read": {
+    "format_tag": 17,
+    "block_align": 256,
+    "accepts": true,
+    "data_offset": 60,
+    "data_bytes": 512
+  },
+  "write": null,
+  "notes": [
+    "There is no `write` here and that is the statement, not an omission. What a builder must emit is 16 kHz mono 16-bit PCM and nothing else; this form is made at the cable, by the browser, for one device, and a package that carried it would have thrown away the master it was made from. isDeviceWav() answers false to this file on purpose.",
+    "A codec change and not a container change, which is the whole shape of adr/0022. The file is still a RIFF/WAVE, seekToWavData() still walks the chunks to `data`, and the only thing that says which form it is in is the tag in fmt - so a device that reads the tag plays it and one that does not plays the nibbles as though they were samples.",
+    "That second device is why this form is offered only to a talker that named it in its hello. Sent blind, a compressed recording is not a quiet fault: it is a full-volume hiss where a word should be, at the moment somebody pressed a key expecting one. device/fixtures/cable/audio-form-named-in-the-hello is the other half of this.",
+    "The fmt chunk is twenty bytes rather than sixteen - a cbSize and the samples one block holds - and the fact chunk states the sample count before padding. Neither is read by the device, and both are here because a bench tool reads them and because a writer that omitted them would be writing a file other readers refuse.",
+    "The block length is what the device reads a block at a time into a 1024-byte buffer, so it is taken from fmt and then brought inside what a block can be. A corrupt fmt claiming a longer one is the difference between a refused file and a read past the end of that buffer."
+  ]
+}

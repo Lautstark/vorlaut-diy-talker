@@ -1304,6 +1304,13 @@ function rowsOf(count, index) {
 const WAV_SAMPLE_RATE = 16000;
 const WAV_CHANNELS = 1;
 const WAV_BITS = 16;
+// The two WAVE format tags a recording may declare. The device reads exactly
+// this field to decide which codec the data chunk is in - wav_format.h - and
+// it is the only thing that tells the two forms apart. adr/0022.
+const WAV_FORMAT_PCM = 0x0001;
+const WAV_FORMAT_IMA_ADPCM = 0x0011;
+const ADPCM_BLOCK_BYTES = 256;
+const ADPCM_BLOCK_SAMPLES = 1 + (ADPCM_BLOCK_BYTES - 4) * 2;
 
 /** One RIFF chunk. An odd body is followed by a pad byte the size does not
  *  count, and a reader that forgets it lands one byte out. */
@@ -1318,12 +1325,36 @@ function chunk(id, body) {
 function fmtChunk({ rate = WAV_SAMPLE_RATE, channels = WAV_CHANNELS,
                     bits = WAV_BITS } = {}) {
   const body = Buffer.alloc(16);
-  body.writeUInt16LE(1, 0);                                    // PCM
+  body.writeUInt16LE(WAV_FORMAT_PCM, 0);
   body.writeUInt16LE(channels, 2);
   body.writeUInt32LE(rate, 4);
   body.writeUInt32LE(rate * channels * (bits / 8), 8);         // byte rate
   body.writeUInt16LE(channels * (bits / 8), 12);               // block align
   body.writeUInt16LE(bits, 14);
+  return chunk("fmt ", body);
+}
+
+/** The fmt chunk of a compressed recording: twenty bytes rather than sixteen,
+ *  because a codec that is not PCM carries a cbSize and what that size is for.
+ *
+ *  Written out here rather than encoded by loader/src/audio_encode.ts, and
+ *  that is the point of this fixture. What device/fixtures/audio/ states is
+ *  the ACCEPTOR - whether a file is taken, where its samples start, and which
+ *  codec it declares - and the acceptor must not be checked with bytes our own
+ *  encoder produced. Whether the samples come back as the word that went in is
+ *  a different question, asked in tests/test_adpcm.py against the four real
+ *  recordings in example/speech/. */
+function adpcmFmtChunk() {
+  const body = Buffer.alloc(20);
+  body.writeUInt16LE(WAV_FORMAT_IMA_ADPCM, 0);
+  body.writeUInt16LE(WAV_CHANNELS, 2);
+  body.writeUInt32LE(WAV_SAMPLE_RATE, 4);
+  body.writeUInt32LE(
+    Math.floor(WAV_SAMPLE_RATE * ADPCM_BLOCK_BYTES / ADPCM_BLOCK_SAMPLES), 8);
+  body.writeUInt16LE(ADPCM_BLOCK_BYTES, 12);
+  body.writeUInt16LE(4, 14);                                   // bits a sample
+  body.writeUInt16LE(2, 16);                                   // cbSize
+  body.writeUInt16LE(ADPCM_BLOCK_SAMPLES, 18);
   return chunk("fmt ", body);
 }
 
@@ -1347,6 +1378,18 @@ function riff(...chunks) {
 
 function audioFixture({ name, summary, artefact, read, write = null,
                         conforming, notes = [] }) {
+  // Which codec the file declares and how long one block of it is, stated on
+  // every one of these rather than only on the compressed one. The acceptor
+  // reads two fields out of fmt and walked past all of them yesterday, so what
+  // needs holding is that the other ten files still report exactly what they
+  // always meant.
+  //
+  // The default pair is what fmtChunk() writes: plain PCM, two bytes to a
+  // frame. A file that never reaches a fmt chunk states its own - both fields
+  // come back as what a reader assumes when nothing said otherwise, and that
+  // assumption is the behaviour every talker in the field has.
+  read = { format_tag: WAV_FORMAT_PCM, block_align: WAV_CHANNELS * (WAV_BITS / 8),
+           ...read };
   fixture({
     kind: "audio", name, dir: "audio", file: `${name}.wav`, artefact,
     outcome: read.accepts ? "accepted" : "refused",
@@ -1372,6 +1415,53 @@ function audioFixture({ name, summary, artefact, read, write = null,
     },
     notes: [
       "44 is 12 for the RIFF header, 8 + 16 for fmt, 8 for the data header. Stated as a number because a reader that walks the chunks and a reader that assumes 44 agree here and nowhere else - see extra-chunk.",
+    ],
+  });
+}
+
+{
+  // Two whole blocks of a compressed recording. The bytes are a deterministic
+  // ramp rather than an encoding of anything: what this fixture states is that
+  // the container is walked and the codec is read out of it, and both halves
+  // answer that from the header alone. What the nibbles decode to is
+  // tests/test_adpcm.py's question, asked of real speech.
+  const blocks = Buffer.alloc(2 * ADPCM_BLOCK_BYTES);
+  for (let i = 0; i < blocks.length; i++) blocks[i] = (i * 37) & 0xff;
+  // Each block's header holds the sample it starts from and the step index it
+  // starts at, so those two are written as something a decoder can use rather
+  // than left as ramp. The reserved fourth byte is zero, which is what a
+  // writer emits and what a reader ignores.
+  for (let b = 0; b < 2; b++) {
+    const at = b * ADPCM_BLOCK_BYTES;
+    blocks.writeInt16LE(b === 0 ? 0 : -1200, at);
+    blocks[at + 2] = 12;
+    blocks[at + 3] = 0;
+  }
+  const fact = Buffer.alloc(4);
+  fact.writeUInt32LE(2 * ADPCM_BLOCK_SAMPLES, 0);
+  audioFixture({
+    name: "spoken-compressed",
+    summary: "The other form a recording may travel in: IMA ADPCM, WAVE format tag 0x11, in the same container as every other recording.",
+    artefact: riff(adpcmFmtChunk(), chunk("fact", fact), chunk("data", blocks)),
+    // Not what a builder writes, which is why there is no `write` beside this
+    // and why it is not conforming in the sense the other nine are. **A device
+    // package carries the plain form** - form rule 3 at the head of
+    // loader/src/device_package.ts, and adr/0008 for why a recording is never
+    // derived - and readDevicePackage() refuses this file for that reason. It
+    // is made on the way to a talker that said it can play one, out of a PCM
+    // recording that was already in the package, and it exists nowhere else.
+    conforming: false,
+    read: {
+      accepts: true, data_offset: 12 + 8 + 20 + 8 + 4 + 8,
+      data_bytes: blocks.length,
+      format_tag: WAV_FORMAT_IMA_ADPCM, block_align: ADPCM_BLOCK_BYTES,
+    },
+    notes: [
+      "There is no `write` here and that is the statement, not an omission. What a builder must emit is 16 kHz mono 16-bit PCM and nothing else; this form is made at the cable, by the browser, for one device, and a package that carried it would have thrown away the master it was made from. isDeviceWav() answers false to this file on purpose.",
+      "A codec change and not a container change, which is the whole shape of adr/0022. The file is still a RIFF/WAVE, seekToWavData() still walks the chunks to `data`, and the only thing that says which form it is in is the tag in fmt - so a device that reads the tag plays it and one that does not plays the nibbles as though they were samples.",
+      "That second device is why this form is offered only to a talker that named it in its hello. Sent blind, a compressed recording is not a quiet fault: it is a full-volume hiss where a word should be, at the moment somebody pressed a key expecting one. device/fixtures/cable/audio-form-named-in-the-hello is the other half of this.",
+      "The fmt chunk is twenty bytes rather than sixteen - a cbSize and the samples one block holds - and the fact chunk states the sample count before padding. Neither is read by the device, and both are here because a bench tool reads them and because a writer that omitted them would be writing a file other readers refuse.",
+      "The block length is what the device reads a block at a time into a 1024-byte buffer, so it is taken from fmt and then brought inside what a block can be. A corrupt fmt claiming a longer one is the difference between a refused file and a read past the end of that buffer.",
     ],
   });
 }
@@ -1419,7 +1509,11 @@ audioFixture({
   summary: "44.1 kHz stereo. The device accepts it - it never reads fmt - and plays it out at 16 kHz mono.",
   artefact: riff(fmtChunk({ rate: 44100, channels: 2 }), chunk("data", samples(300))),
   conforming: false,
-  read: { accepts: true, data_offset: 44, data_bytes: 600 },
+  // Four bytes to a frame, because this one is stereo - and it is the whole
+  // point of this fixture that the device reads that number and then ignores
+  // what it means. The block length is only ever used to size an ADPCM block;
+  // for PCM it is read, reported and never acted on.
+  read: { accepts: true, data_offset: 44, data_bytes: 600, block_align: 4 },
   notes: [
     "The reader walks past fmt like any other chunk. Rate, channel count and sample width are never looked at, so this file is taken and then played at the one rate I2S was started with: a word about a third as long as it should be, at the wrong pitch, in a voice nobody chose.",
     "A device that works and is wrong, which is the dangerous kind. The fixture records it as it stands rather than blessing it: a writer MUST emit 16 kHz mono 16-bit, and the reader as it is today does not check. Whether it should is a change to the firmware and a decision this fixture set does not make - it makes the decision visible.",
@@ -1429,6 +1523,7 @@ audioFixture({
 const AUDIO_REFUSALS = [
   {
     name: "not-riff",
+    read: { block_align: 0 },
     summary: "A file that is not a RIFF at all, under a .wav name.",
     artefact: Buffer.concat([Buffer.from("OggS", "latin1"), samples(100)]),
     notes: [
@@ -1437,6 +1532,7 @@ const AUDIO_REFUSALS = [
   },
   {
     name: "riff-not-wave",
+    read: { block_align: 0 },
     summary: "A RIFF whose form is AVI rather than WAVE.",
     artefact: (() => {
       const f = riff(fmtChunk(), chunk("data", samples(100)));
@@ -1457,6 +1553,7 @@ const AUDIO_REFUSALS = [
   },
   {
     name: "header-truncated",
+    read: { block_align: 0 },
     summary: "Eight bytes. Not even the RIFF header is whole.",
     artefact: Buffer.from("RIFF    ", "latin1"),
     notes: [
@@ -1471,7 +1568,12 @@ for (const refusal of AUDIO_REFUSALS) {
     summary: refusal.summary,
     artefact: refusal.artefact,
     conforming: false,
-    read: { accepts: false },
+    // Two of these are refused on the twelve-byte header and one never has
+    // twelve bytes, so no chunk of any kind is walked and fmt is never
+    // reached. What the reader reports then is what it assumes: plain PCM, and
+    // a block length of nothing, which is exactly what it assumed about every
+    // file before it read fmt at all.
+    read: { accepts: false, ...(refusal.read ?? {}) },
     notes: refusal.notes,
   });
 }
@@ -2069,7 +2171,8 @@ const anyOrder = (line) => ({ from: "device", line, any_order: true });
 function cableFixture({ name, summary, ends, start = [], steps, end = null,
                         script = null, notes = [], window = WINDOW,
                         spoken = CABLE_VERSION, verdict = "ok",
-                        firmware = "", tiles = "", collections = 0 }) {
+                        firmware = "", tiles = "", audio = "",
+                        collections = 0 }) {
   fixture({
     kind: "cable", name, dir: "cable", outcome: "accepted", summary,
     expected: {
@@ -2108,6 +2211,20 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       // fault would fail on all of them. What silence means is raw tiles, and
       // raw tiles are what those devices were being sent anyway.
       device_tiles: tiles,
+      // And which recording forms it says it plays, empty where it says
+      // nothing. A separate field from the tile forms above because they are
+      // separate capabilities: a firmware may gain one without the other, and
+      // between 2026-08-31 and 2026-09-01 every talker was exactly that - it
+      // drew a compressed tile and played no compressed recording. A fixture
+      // set that could not state that pair would be stating a device that has
+      // never existed.
+      //
+      // Empty is the common case here for the third time, and it carries the
+      // sharpest consequence of the three. Silence means 16-bit PCM, which is
+      // what those devices were being sent anyway; a browser that guessed at a
+      // form the device did not name would put a full-volume hiss where a word
+      // should be, out loud, in a house nobody here knows about.
+      device_audio: audio,
       // How many collections the device in this transcript says it holds, and
       // zero where it says nothing at all. Zero is not one: it is the ABSENCE
       // of the line, and what a client must make of the absence is one - which
@@ -2136,7 +2253,7 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       // firmware comes after files, for exactly this reason.
       client_script: script && script.map((step) => (
         step.call === "hello"
-          ? { ...step, returns: { ...step.returns, firmware, tiles,
+          ? { ...step, returns: { ...step.returns, firmware, tiles, audio,
                                   collections: collections || 1 } }
           : step)),
       notes,
@@ -2236,6 +2353,72 @@ function cableFixture({ name, summary, ends, start = [], steps, end = null,
       "The word is matched whole rather than parsed. A firmware that could draw a second form would say a different word here, not a list, so that two ends can never half-agree about what a tile is - and half-agreeing is the failure that puts a palette on a panel as though it were pixels.",
       "A browser that treated the absence of this line as a fault would refuse every talker in the field. Absence means raw, raw is what those devices have always been sent, and that is the whole of why a compressed tile format did not have to move CABLE_VERSION: an older device is not broken by it, it is simply not offered it.",
       "It sits after 'files' and before 'end hello' because that is where the firmware puts it, and the browser skips keywords it does not know in any position - see skip-unknown-keyword. The order is stated here so that a device which moved it would be noticed, not because a reader may depend on it.",
+    ],
+  });
+}
+
+{
+  // The recording form, on the same terms as the tile form above and with a
+  // louder failure behind it. A tile a device cannot read is a panel of noise
+  // somebody can look away from; a recording it cannot read is a full-volume
+  // hiss out of the speaker, at the moment a child pressed a key expecting a
+  // word. adr/0022.
+  const FORMS = "va1";
+  cableFixture({
+    name: "audio-named-in-the-hello",
+    summary: "A device that draws compressed tiles and plays only plain recordings. Two capabilities, two words, and this is the device that has one of them.",
+    ends: ["device", "browser"],
+    tiles: "vt1",
+    audio: "",
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device("< tiles vt1"),
+      device("< end hello"),
+      host("> done"),
+      device("< bye 0 0 0"),
+    ],
+    end: { files: [], stored: 0, removed: 0, bytes: 0 },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY, files: 0 } },
+      { call: "done", returns: { stored: 0, removed: 0, bytes: 0 } },
+    ],
+    notes: [
+      "Every talker flashed between 2026-08-31 and 2026-09-01 is this device, and it is why the two forms are two words rather than one. A browser that read `tiles vt1` as a general yes would send it a compressed recording on the strength of an answer about pictures.",
+      "The absence of a line is the answer, not a gap in the transcript. Silence means 16-bit PCM, which is what these devices were always sent, and that is the whole of why a second codec cost no protocol version either.",
+    ],
+  });
+
+  cableFixture({
+    name: "audio-form-named-in-the-hello",
+    summary: "A device that says which recording forms it plays. Silence means 16-bit PCM, and silence is what every talker flashed before 2026-09-01 says.",
+    ends: ["device", "browser"],
+    audio: FORMS,
+    steps: [
+      host("> hello"),
+      device(`< vorlaut ${CABLE_VERSION}`),
+      device(`< total ${CAPACITY}`),
+      device(`< free ${CAPACITY}`),
+      device("< files 0"),
+      device(`< audio ${FORMS}`),
+      device("< end hello"),
+      host("> done"),
+      device("< bye 0 0 0"),
+    ],
+    end: { files: [], stored: 0, removed: 0, bytes: 0 },
+    script: [
+      { call: "hello", returns: { version: CABLE_VERSION, total: CAPACITY,
+                                  free: CAPACITY, files: 0 } },
+      { call: "done", returns: { stored: 0, removed: 0, bytes: 0 } },
+    ],
+    notes: [
+      "The word is matched whole rather than parsed or ordered, exactly as the tile form is. There is no newer here: a browser that read an unknown word as 'newer, so probably fine' would be sending a file it cannot know the device can play, and what comes out of the speaker is the loudest wrong answer this device can give.",
+      "Naming the form is only half of what has to be true before a recording is compressed. The other half is a person saying that this collection is one where four bits a sample is bearable - a game rather than a collection somebody is understood through - and no package says which it is. adr/0022 is why that question is asked on the browser's side.",
+      "It sits after 'tiles' and before 'end hello' because that is where the firmware puts it. The order is stated so that a device which moved it would be noticed, not because a reader may depend on it - see skip-unknown-keyword.",
     ],
   });
 }

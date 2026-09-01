@@ -32,6 +32,7 @@ says what the cleanup will look like when it is proposed.
 | [0019](0019-tiles-travel-compressed.md) | A tile may travel compressed, and the device says whether it can read one |
 | [0020](0020-every-key-says-what-it-does.md) | Every key says what it does and where it goes, and the device holds 64 sets |
 | [0021](0021-the-device-holds-several-collections.md) | The device holds several collections, and a collection is one file |
+| [0022](0022-recordings-may-travel-compressed.md) | A recording may travel compressed, and the device says whether it can play one |
 
 ## The shape
 

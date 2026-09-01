@@ -1,8 +1,10 @@
 import { check } from "./harness.js";
 import {
   ADPCM_BLOCK_BYTES, ADPCM_BLOCK_SAMPLES, decodeAdpcmWav, encodeAdpcmWav,
-  isRecording, WAV_FORMAT_IMA_ADPCM, WAV_FORMAT_PCM, wavFormatTag,
+  isRecording, recordingsForDevice, WAV_FORMAT_IMA_ADPCM, WAV_FORMAT_PCM,
+  wavFormatTag,
 } from "../../loader/src/audio_encode.js";
+import { CABLE_AUDIO_FORM } from "../../loader/tools/cable.js";
 
 /* What the browser will and will not compress, and what it hands back when it
  * will not.
@@ -178,4 +180,69 @@ for (const [name, want] of [
   ["layout.bin", false],
 ] as [string, boolean][]) {
   check(`${name} is ${want ? "" : "not "}a recording`, isRecording(name) === want);
+}
+
+// --- who gets which form -----------------------------------------------------
+
+/* The decision, and it is the half with the expensive failure. Sending a
+ * compressed recording to a talker that cannot play one does not draw
+ * something odd on a screen: it puts a full-volume hiss out of the speaker, at
+ * the moment a child pressed a key expecting a word. That device is in
+ * somebody's house and there is no update channel.
+ *
+ * So the rule is a whitelist and not a comparison. Two answers both have to be
+ * yes - the device named this exact word, and a person said this collection is
+ * one where four bits a sample is bearable - and everything else is the plain
+ * form.
+ */
+{
+  const RECORDING = "afedcba9876543210fedcba9876543210.wav";
+  const TILE = "t0123456789abcdef0123456789abcdef.bin";
+  const COLLECTION = "c00112233445566778899aabbccddeeff.bin";
+  const spokenWav = wav(spoken(8000));
+
+  const build = new Map<string, Uint8Array<ArrayBuffer>>([
+    [RECORDING, spokenWav],
+    [TILE, new Uint8Array([1, 2, 3, 4])],
+    [COLLECTION, new Uint8Array([9, 9, 9])],
+  ]);
+
+  {
+    const sent = recordingsForDevice(build, CABLE_AUDIO_FORM, true);
+    const heard = sent.get(RECORDING)!;
+    check("a talker that named the form, for a collection somebody chose, "
+          + "gets the recording compressed",
+          heard.length < spokenWav.length
+          && wavFormatTag(heard) === WAV_FORMAT_IMA_ADPCM,
+          `${heard.length} of ${spokenWav.length} bytes`);
+    for (const [what, name] of [["tile", TILE], ["collection", COLLECTION]] as const) {
+      const bytes = sent.get(name)!;
+      check(`and the ${what} goes across untouched`,
+            bytes === build.get(name), `${bytes.length} bytes`);
+    }
+  }
+
+  /* Every way of not being both answers. Written out one by one rather than as
+   * a table, because each of them is a different device or a different person
+   * and the point is that all of them get the same bytes. */
+  for (const [what, form, wanted] of [
+    ["a talker that named no recording form", "", true],
+    ["a talker flashed before the hello had the line", "", false],
+    ["a talker naming a form this browser has never heard of", "va9", true],
+    ["a talker naming something newer-looking", "va2", true],
+    ["a form word with the right letters in the wrong case", "VA1", true],
+    ["a collection nobody said that about, on a talker that could", "va1", false],
+  ] as [string, string, boolean][]) {
+    const sent = recordingsForDevice(build, form, wanted);
+    check(`${what} gets the recording as it always was`,
+          sent.get(RECORDING) === spokenWav);
+  }
+
+  {
+    // The map itself, not only its contents. Where nothing is compressed the
+    // build is handed straight back, which is what keeps the common case free
+    // and is the same thing forDevice() does for tiles.
+    check("a build nothing applies to is not copied at all",
+          recordingsForDevice(build, "", false) === build);
+  }
 }

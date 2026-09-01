@@ -11,6 +11,7 @@
   "version_verdict": "ok",
   "device_firmware": "",
   "device_tiles": "",
+  "device_audio": "",
   "device_collections": 0,
   "window": 256,
   "device_starts_with": [],
@@ -110,6 +111,7 @@
         "files": 0,
         "firmware": "",
         "tiles": "",
+        "audio": "",
         "collections": 1
       }
     },

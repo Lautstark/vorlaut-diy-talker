@@ -29,6 +29,17 @@
  *  ends either agree completely or do not try. */
 export const CABLE_TILE_FORM = "vt1";
 
+/** The recording form this client can write, matched whole against what the
+ *  device says in its hello. The mirror of CABLE_AUDIO_FORMS in
+ *  firmware/vorlaut/cable_format.h, and device/fixtures/cable/audio-named-in-
+ *  the-hello is where the two are held together.
+ *
+ *  Read exactly like the tile form above and for a sharper version of the same
+ *  reason. A tile sent to a device that cannot read it is a panel of noise;
+ *  a recording sent to one is a full-volume hiss out of the speaker, which is
+ *  the one failure on this device that a person cannot look away from. */
+export const CABLE_AUDIO_FORM = "va1";
+
 /** The protocol version this client speaks. See CABLE_VERSION in
  *  firmware/vorlaut/cable_format.h. */
 export const CABLE_VERSION = 2;
@@ -80,7 +91,8 @@ export function versionVerdict(theirs) {
  * client to the device's own reader.
  *
  * @typedef {{version: number, total: number, free: number, files: number,
- *            firmware: string, tiles: string, collections: number}} Greeting
+ *            firmware: string, tiles: string, audio: string,
+ *            collections: number}} Greeting
  * @typedef {{name: string, size: number}} Held
  * @typedef {{stored: number, removed: number, bytes: number}} Farewell
  * @typedef {{put: {name: string, size: number, crc: number}[], remove: string[],
@@ -406,7 +418,7 @@ export class Cable {
       // say", and giving that state a name here is cheaper than every reader
       // inventing one.
       const answer = { version: 0, total: 0, free: 0, files: 0, firmware: "",
-                       tiles: "", collections: 1 };
+                       tiles: "", audio: "", collections: 1 };
       for (;;) {
         const { key, rest } = await this.expect();
         if (key === "end") return answer;              // "end hello"
@@ -434,6 +446,11 @@ export class Cable {
         // browser that guessed at a form the device did not name would be
         // sending it a file it draws as noise, and nothing would say so.
         else if (key === "tiles") answer.tiles = rest;
+        // Which recording form the device can play, empty when it did not say.
+        // Empty is the answer for every talker flashed before 2026-09-01,
+        // which plays 16-bit PCM and nothing else, and it is a separate answer
+        // from the tile form above because they are separate capabilities.
+        else if (key === "audio") answer.audio = rest;
         // Anything else is skipped: a newer device may say more than this
         // one knows how to ask about.
       }

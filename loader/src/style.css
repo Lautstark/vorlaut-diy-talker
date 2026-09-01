@@ -355,6 +355,28 @@ input[type="file"] {
   margin: 0.75rem 0 0.25rem;
 }
 
+/* --------------------------------------------------------- the choice ---
+
+   A question above the two buttons that act on it.
+
+   The sentence under the label carries the whole of why anybody would tick
+   this - what it costs and which kind of collection it is right for - so it is
+   .footnote for its weight and aria-describedby for its reading order, rather
+   than a paragraph that merely happens to sit nearby. Its top margin is
+   removed because the row above it already opened the gap; .footnote's own
+   1.25rem is for a sentence that stands alone. */
+.choice {
+  margin-bottom: 0.25rem;
+}
+
+.choice .footnote {
+  margin-top: 0.15rem;
+  /* Under the label rather than under the checkbox: the sentence belongs to
+     the words, and starting it beneath the box makes the two read as separate
+     paragraphs. 1.5rem is the box plus the row's own gap. */
+  margin-left: 1.5rem;
+}
+
 /* ---------------------------------------------------------- the folder ---
 
    The other way in, demoted but not hidden.

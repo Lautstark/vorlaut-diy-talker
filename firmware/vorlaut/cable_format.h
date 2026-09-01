@@ -66,6 +66,22 @@
 // half-agree. A device that says nothing reads raw tiles only.
 #define CABLE_TILE_FORMS "vt1"
 
+// The recording forms this firmware plays, said the same way and read the same
+// way. "va1" is IMA ADPCM at four bits a sample - WAVE format tag 0x11, in a
+// WAV like every other recording, which is why this is a word about a codec
+// and not about a file name. adpcm_format.h is the decoder and adr/0022 is the
+// decision.
+//
+// A device that says nothing plays 16-bit PCM and nothing else, and that is
+// every talker flashed before 2026-09-01. Sent a compressed recording, such a
+// device would play the nibbles as though they were samples - a full-volume
+// hiss where a word should be, in a house nobody here knows about, with no
+// update channel. So the word is matched whole rather than compared, exactly
+// as CABLE_TILE_FORMS is: there is no ordering on these, and a browser that
+// read an unknown word as "newer, so probably fine" would be guessing with the
+// one file whose failure is loud and reaches a child.
+#define CABLE_AUDIO_FORMS "va1"
+
 #define CABLE_LINE_MAX 128
 
 // A content name is 34 characters ("t" + 32 hex + ".bin"). This leaves room

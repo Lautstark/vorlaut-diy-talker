@@ -10,6 +10,7 @@
   "version_verdict": "device_newer",
   "device_firmware": "",
   "device_tiles": "",
+  "device_audio": "",
   "device_collections": 0,
   "window": 4096,
   "device_starts_with": [],
@@ -51,6 +52,7 @@
         "files": 0,
         "firmware": "",
         "tiles": "",
+        "audio": "",
         "collections": 1
       }
     }
