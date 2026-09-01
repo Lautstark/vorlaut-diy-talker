@@ -187,6 +187,15 @@ behaviour depends on a rate limit, and what it costs is the sentence above
 about nothing leaving this machine. A deploy per release is not a burden here:
 `main` deploys on every merge already.
 
+> **That last sentence was true and did not cover the case it was written for**
+> — 2026-09-01. A `v*` tag is cut from a commit already on `main`, so it pushes
+> nothing and `pages.yml` (`branches: [main]`) did not run; the release reached
+> the page on the next unrelated merge instead, and until then the page carried
+> the tag before it and said nothing was missing. `release.yml` now dispatches
+> `pages.yml` against `main` as its last step. The decision above is unchanged
+> — the deploy is still what carries the image — this is the deploy actually
+> happening when the ADR says it does.
+
 **Somebody will propose merging content into the image so a first flash
 speaks.** The releases did exactly that until `build.py` went, and the note in
 `release.yml` explains why it is not coming back: the build runs in a browser
