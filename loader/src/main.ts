@@ -1226,24 +1226,42 @@ function collectionsSection(): void {
   if (!onDevice.on.length) collections.say(t("load.collections_none"));
 
   for (const one of onDevice.on) {
-    const row = document.createElement("p");
-    row.className = "file";
+    /* One line each: what it is called, what it costs, and the way to take it
+       off. The name and size were a line and the button was another under it,
+       so four collections were eight rows and a column of buttons that all
+       said the same word - and which one belonged to which name was a matter
+       of counting. */
+    const row = document.createElement("div");
+    row.className = "coll";
     const named = document.createElement("span");
-    named.className = "file__name";
+    named.className = "coll__name";
     /* The name the DEVICE shows, which is the first set's. A collection this
        page could not read has none, and then the file name is the only true
        thing there is to call it. */
     named.textContent = one.name || one.file;
     const sized = document.createElement("span");
-    sized.className = "file__size";
+    sized.className = "coll__size";
     sized.textContent = t("load.chip_size", { size: KIB(one.size) });
     row.append(named, sized);
+
+    if (!one.unreadable && removing !== one.file) {
+      const off = document.createElement("button");
+      off.type = "button";
+      off.className = "btn quiet";
+      off.textContent = t("load.collections_remove");
+      off.onclick = () => { removing = one.file; collectionsSection(); };
+      row.append(off);
+    }
     collections.show(row);
+
     if (one.unreadable) {
       collections.say(t("load.collections_unreadable", { file: one.file }),
                       "aside");
       continue;
     }
+    /* The second press and the sentence between them, under the row it is
+       about rather than beside it - it is the one irreversible thing here and
+       it should not read as part of a list. */
     if (removing === one.file) {
       collections.say(t("load.collections_warning", {
         name: one.name || one.file, frees: KIB(one.frees),
@@ -1254,15 +1272,13 @@ function collectionsSection(): void {
         removing = null;
         collectionsSection();
       }, "btn quiet"));
-    } else {
-      collections.row(collections.button(t("load.collections_remove"), () => {
-        removing = one.file;
-        collectionsSection();
-      }));
     }
   }
-  collections.row(collections.button(t("load.collections_check"),
-                                     () => void look()));
+  /* No "have a look" here any more. Arriving at the talker is what asks, a
+     removal asks again on its own, and a failure offers "try again" beside the
+     sentence that says what went wrong - so a button whose whole job was to
+     start the thing that has already happened is one press describing the
+     past. It stays in the branch above, where nothing has been asked yet. */
 }
 
 /** Whether a look is in flight, and what the last one came to. Both are read
@@ -1412,6 +1428,44 @@ let nothingAnswered = false;
  * out. announcer is a polite live region: what belongs in it is "the device
  * carries v0.3, this page carries v0.4", and what does not is a heading, a
  * warning and two buttons. */
+/** The two builds, as a pair rather than as two sentences.
+ *
+ * `dev -> v0.11` says what the talker has, what the page has, and that there
+ * is a difference, before a word of prose is read. It replaces the two lines
+ * that used to open this section - flash.carries and flash.device_says - which
+ * said the same thing at four times the length and put the sentence that
+ * mattered third.
+ *
+ * The arrow only where the two are ordered. Where they are not - a build
+ * somebody compiled themselves, which carries no number - the pair is still
+ * worth showing and the claim that one follows the other is not. */
+function fwPair(theirs: string | null, ours: string, behind: boolean): HTMLElement {
+  const panel = document.createElement("div");
+  panel.className = behind ? "fw fw--behind" : "fw";
+
+  const label = document.createElement("span");
+  label.className = "fw__label";
+  label.textContent = t("talker.fact_firmware");
+
+  const now = document.createElement("b");
+  now.className = "fw__now";
+  now.textContent = theirs || "-";
+  panel.append(label, now);
+
+  if (theirs !== ours) {
+    const to = document.createElement("span");
+    to.className = "fw__to";
+    /* An arrow claims an order. Two dots claim only that there are two. */
+    to.textContent = behind ? "\u2192" : "\u00B7\u00B7";
+    to.setAttribute("aria-hidden", "true");
+    const next = document.createElement("b");
+    next.className = "fw__next";
+    next.textContent = ours;
+    panel.append(to, next);
+  }
+  return panel;
+}
+
 function firmwareSection(): string[] {
   const said: string[] = [];
   const say = (text: string, className = "") => {
@@ -1420,9 +1474,13 @@ function firmwareSection(): string[] {
   };
   if (!carried) return said;
   firmware.waiting();
-  say(t("flash.carries", { release: carried.release }));
 
+  /* Nothing has been asked yet. Rare now that arriving at the talker asks, and
+     still reachable: a look that failed for a reason other than silence leaves
+     the device unnamed. */
   if (!deviceSays && !nothingAnswered) {
+    firmware.show(fwPair(null, carried.release, false));
+    say(t("flash.carries", { release: carried.release }), "aside");
     say(t("flash.check_lead"), "aside");
     const button = firmware.button(t("flash.check"), () => void probe(button));
     firmware.row(button);
@@ -1430,25 +1488,25 @@ function firmwareSection(): string[] {
   }
 
   if (nothingAnswered) {
+    firmware.show(fwPair(null, carried.release, false));
     say(t("flash.nothing_answered"));
-    offerWrite("whole");
+    offerWrite("whole", t("flash.write_to", { release: carried.release }));
     return said;
   }
 
   const word = deviceSays!.firmware;
-  say(word
-    ? t("flash.device_says", { version: word })
-    : t("flash.device_unnamed"));
-
   /* An empty word is not a version, so it does not go through the comparison -
-     it goes straight to the answer the comparison would have given it anyway,
-     with a sentence of its own above. */
+     it goes straight to the answer the comparison would have given it anyway. */
   const verdict = word ? firmwareVerdict(word, carried.release) : "unorderable";
+  firmware.show(fwPair(word || null, carried.release,
+                       verdict === "device_older"));
+
   if (verdict === "same" || verdict === "device_newer") {
     say(t(verdict === "same" ? "flash.same" : "flash.newer"));
     firmware.row(firmware.button(t("flash.check"), () => void probe()));
     return said;
   }
+
   say(verdict === "device_older" ? t("flash.older", { release: carried.release })
       : word ? t("flash.unorderable", { device: word, release: carried.release })
       // A device that said nothing has no word to put in that sentence, and
@@ -1456,7 +1514,9 @@ function firmwareSection(): string[] {
       // v0.5 cannot be compared" on a real screen. Two sentences rather than
       // one with a hole in it.
       : t("flash.unnamed_unorderable", { release: carried.release }));
-  offerWrite("program");
+  offerWrite("program", verdict === "device_older"
+    ? t("flash.update_to", { release: carried.release })
+    : t("flash.write_to", { release: carried.release }));
   return said;
 }
 
@@ -1497,18 +1557,43 @@ async function probe(button?: HTMLButtonElement): Promise<void> {
  * entering download mode is what makes the old port disappear and a new one
  * appear. A single button would have to ask for a port that does not exist
  * yet. */
-function offerWrite(which: "whole" | "program"): void {
-  firmware.say(t(which === "whole" ? "flash.whole_warning"
-                                   : "flash.program_warning"));
-  /* Which sentence depends on whether there is a talker to reboot. One that
-     answered can be put into write mode from here; one that answered nothing
-     cannot be told anything at all, and then the buttons on the board are the
-     only way in - which somebody with an assembled talker cannot reach, and
-     the sentence says that too rather than sending them to look for them. */
-  firmware.say(t(deviceSays ? "flash.write_mode_here" : "flash.download_mode"));
-  const go = firmware.button(t("flash.choose_and_write"),
-                             () => void write(which, go), "btn primary");
-  firmware.row(go, firmware.button(t("flash.check"), () => void probe()));
+/**
+ * The offer, and then the warning, and then the write.
+ *
+ * **Still two presses with a sentence between them** - which is the rule this
+ * section has always been built around - but the sentence is now behind the
+ * first press instead of in front of it. Four paragraphs about partition
+ * tables and write mode were the first thing anybody read about their talker,
+ * every time, including the many times they were only looking. They belong to
+ * the person who has said they want to write, and that is who now sees them.
+ *
+ * The offer removes itself rather than sitting above its own consequence: two
+ * buttons that both write, one of them a step further along, is a way to press
+ * the wrong one.
+ */
+function offerWrite(which: "whole" | "program", label: string): void {
+  const chip = document.createElement("span");
+  chip.className = "warnchip";
+  chip.textContent = t("flash.writes_device");
+
+  const go = firmware.button(label, () => {
+    row.remove();
+    firmware.say(t(which === "whole" ? "flash.whole_warning"
+                                     : "flash.program_warning"));
+    /* Which sentence depends on whether there is a talker to reboot. One that
+       answered can be put into write mode from here; one that answered nothing
+       cannot be told anything at all, and then the buttons on the board are
+       the only way in - which somebody with an assembled talker cannot reach,
+       and the sentence says that too rather than sending them to look. */
+    firmware.say(t(deviceSays ? "flash.write_mode_here"
+                              : "flash.download_mode"));
+    const write2 = firmware.button(t("flash.choose_and_write"),
+                                   () => void write(which, write2),
+                                   "btn primary");
+    firmware.row(write2, firmware.button(t("flash.check"), () => void probe()));
+  }, "btn primary");
+
+  const row = firmware.row(go, chip);
 }
 
 async function write(which: "whole" | "program",

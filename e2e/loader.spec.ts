@@ -709,16 +709,26 @@ test("the firmware section names both builds and offers the program",
 
   /* No press. Arriving at the talker is what asks, and the greeting that
      answered carries both the build and the room left - so the comparison is
-     made once, on the way in. */
-  await expect(firmwareSection(page))
-    .toContainText(filled("flash.carries", { release: "v0.4" }),
-                   { timeout: 30_000 });
+     made once, on the way in.
 
-  await expect(firmwareSection(page))
-    .toContainText(filled("flash.device_says", { version: "v0.3" }),
-                   { timeout: 30_000 });
+     Both builds, as the pair rather than as two sentences about them. */
+  await expect(firmwareSection(page).locator(".fw"))
+    .toHaveText(/v0\.3/, { timeout: 30_000 });
+  await expect(firmwareSection(page).locator(".fw")).toHaveText(/v0\.4/);
+  /* Behind, which is the one of the five answers that is a thing to do. */
+  await expect(firmwareSection(page).locator(".fw--behind")).toHaveCount(1);
   await expect(firmwareSection(page))
     .toContainText(filled("flash.older", { release: "v0.4" }));
+
+  /* The warnings are behind the offer, not in front of it: four paragraphs
+     about partition tables were what anybody looking at their talker read
+     first, every time, including the times they were only looking. */
+  await expect(firmwareSection(page))
+    .not.toContainText(SPEAKS["flash.program_warning"]);
+  await firmwareSection(page).getByRole("button", {
+    name: filled("flash.update_to", { release: "v0.4" }), exact: true,
+  }).click();
+
   /* The program alone, so the content stays - and the instruction, because
      the port the browser is about to ask for is not the one it is holding. */
   await expect(firmwareSection(page)).toContainText(SPEAKS["flash.program_warning"]);
@@ -772,9 +782,8 @@ test("the talker view says what the talker is before what is on it",
   await page.goto("./loader/");
   await toTalker(page);
 
-  await expect(firmwareSection(page))
-    .toContainText(filled("flash.device_says", { version: "v0.3" }),
-                   { timeout: 30_000 });
+  await expect(firmwareSection(page).locator(".fw"))
+    .toHaveText(/v0\.3/, { timeout: 30_000 });
   await expect(firmwareSection(page))
     .toContainText(filled("flash.older", { release: "v0.4" }));
 
@@ -831,6 +840,13 @@ test("a port that answers nothing is offered a first flash", async ({ page }) =>
 
   await expect(firmwareSection(page))
     .toContainText(opening("flash.nothing_answered"), { timeout: 60_000 });
+
+  /* The same one press as everywhere else - a board with nothing on it is
+     still somebody deciding to write, and it gets the same sentence between
+     the deciding and the doing. */
+  await firmwareSection(page).getByRole("button", {
+    name: filled("flash.write_to", { release: "v0.4" }), exact: true,
+  }).click();
   await expect(firmwareSection(page)).toContainText(SPEAKS["flash.whole_warning"]);
   await expect(firmwareSection(page)).toContainText(opening("flash.download_mode"));
 });
