@@ -197,6 +197,22 @@ h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
 .step[data-state="waiting"] .step__mark { border-style: dashed; }
 .step[data-state="waiting"] .body { display: none; }
 
+/* Except the one sentence saying what the step will ask for, which is beside
+   the body rather than in it precisely so that the rule above can stay as it
+   is. It shows only while the step is waiting: once the step is live its own
+   output says what is happening, and a sentence about what is *about* to
+   happen would then be the second answer to a question nobody is still asking.
+
+   Dimmed with the heading rather than against it. The point of these three
+   rules together is "still legible, plainly not the one to look at", and a
+   sentence at full contrast under a dimmed heading would undo it. */
+.step__ahead {
+  display: none;
+  margin: .25rem 0 0;
+  color: var(--text-dim);
+}
+.step[data-state="waiting"] .step__ahead { display: block; }
+
 /* And "waiting" means something else in it, so it does not look or behave like
    waiting. For the five, waiting is *not yet*: the heading dims and the body is
    display:none, because a step nobody can reach yet has nothing worth reading

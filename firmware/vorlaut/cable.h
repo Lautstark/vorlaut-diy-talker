@@ -127,6 +127,12 @@ class Cable {
       // because whatever is on the wire is then most likely not a browser at
       // all and the keys are waiting. Afterwards it is the full wait, because
       // a browser between two files is entitled to think for a moment.
+      //
+      // Silence *since the device stopped talking*, which is the assignment at
+      // the foot of this loop and not the one after readLine(). The difference
+      // is the whole of what this window is for: it is the browser's to spend,
+      // and measuring it from a command's arrival spent it on the answer to
+      // that command instead.
       if (millis() - lastLine > (result.ran ? CABLE_QUIET_MS : CABLE_GREET_MS)) {
         if (!result.ran) return result;    // nobody ever said hello
         result.error = "the browser stopped talking";
@@ -233,6 +239,31 @@ class Cable {
         default:
           break;
       }
+
+      // The answer has gone out; the browser's wait starts here. Before this,
+      // a `get` was charged to the browser: sayFile() reads the file twice and
+      // blocks in Serial.write() until the host drains it, and every one of
+      // those milliseconds came off a window that was supposed to measure
+      // somebody else's silence. A browser that replied the instant it had the
+      // file could still arrive after the window had gone, and then the next
+      // verb met a shut session and came back "err session" - with nothing
+      // wrong at either end.
+      //
+      // Reading a run of collections back is where this showed, because a get
+      // is slow and there are several of them in a row. It is not the only
+      // verb exposed to it: receive() has its own clock for the bytes, but the
+      // time it spends is charged to this window just the same the moment it
+      // returns, so a put slow enough would have shut the session on the way
+      // out of a file that stored perfectly. That it has not is a fact about
+      // how fast a window-and-ack transfer happens to be, not a difference in
+      // the rule - and it stops being a fact the day a file gets bigger.
+      // Which is the argument for fixing it here, in the one place both verbs
+      // come back to, rather than in the one that complained.
+      //
+      // One assignment and no new words: the wire says exactly what it said
+      // before, and a browser cannot tell this version from the last except by
+      // it working.
+      lastLine = millis();
     }
     return result;
   }

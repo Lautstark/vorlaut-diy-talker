@@ -95,10 +95,12 @@ const KIB = (bytes: number) => Math.round(bytes / 1024);
 class Step {
   readonly root = document.createElement("section");
   private readonly body = document.createElement("div");
+  private readonly aheadLine = document.createElement("p");
   private readonly mark = document.createElement("span");
   private readonly badge = document.createElement("span");
 
-  constructor(private readonly n: number | null, titleKey: string) {
+  constructor(private readonly n: number | null, titleKey: string,
+              aheadKey: string | null = null) {
     this.root.className = n === null ? "step step--aside" : "step";
     this.root.dataset.state = "waiting";
 
@@ -126,8 +128,30 @@ class Step {
     this.badge.hidden = true;
 
     head.append(this.mark, heading, this.badge);
+
+    /* What this step is going to ask for, while it is still waiting.
+     *
+     * Four numbered headings with nothing under them was what somebody
+     * arriving read: "Check", "Compile", "Connect", "Send" and no way to find
+     * out what any of them wanted short of walking into it. The
+     * two that ask something of a person - a port, the press that writes to
+     * the device - were exactly as silent beforehand as the two that ask
+     * nothing.
+     *
+     * Beside the body and not in it, which is the whole of why this is an
+     * element rather than a say(). components.css hides a waiting step's body
+     * on purpose - "a step nobody can reach yet has nothing worth reading in
+     * it" - and that rule is load-bearing for the two sections that are not
+     * steps. This sentence is the exception to the sentiment, not to the rule:
+     * it lives outside the body, so the body rules and the afternoon behind
+     * them are untouched, and `data-state` alone decides whether it shows.
+     * Nothing in begin(), waiting() or done() has to remember it. */
+    this.aheadLine.className = "step__ahead";
+    this.aheadLine.textContent = aheadKey ? t(aheadKey) : "";
+    this.aheadLine.hidden = !aheadKey;
+
     this.body.className = "body";
-    this.root.append(head, this.body);
+    this.root.append(head, this.aheadLine, this.body);
   }
 
   /** What this step came to, beside its heading: a count of notes, a size, a
@@ -321,10 +345,10 @@ class Step {
 
 const steps = {
   file: new Step(1, "load.step_file"),
-  check: new Step(2, "load.step_check"),
-  compile: new Step(3, "load.step_compile"),
-  connect: new Step(4, "load.step_connect"),
-  send: new Step(5, "load.step_send"),
+  check: new Step(2, "load.step_check", "load.step_check_ahead"),
+  compile: new Step(3, "load.step_compile", "load.step_compile_ahead"),
+  connect: new Step(4, "load.step_connect", "load.step_connect_ahead"),
+  send: new Step(5, "load.step_send", "load.step_send_ahead"),
 };
 
 /** Whether this browser can reach the device at all, said above the first step
@@ -1164,6 +1188,13 @@ async function look(button?: HTMLButtonElement): Promise<void> {
     line.textContent = error instanceof Trouble
       ? t(`err.${error.word}`, { name: String(error.facts.name || "") })
       : t("cable.failed", { error: reason(error) });
+    /* And the way back in. begin() took the button out of the body on the way
+       past, and collectionsSection() would redraw over the sentence that has
+       just been written - so it goes back beside the failure rather than
+       instead of it, which is what drop()'s own failure path does. Without
+       this the only way to ask a second time is to reload the page. */
+    collections.row(collections.button(t("load.collections_check"),
+                                       () => void look()));
     return;
   } finally {
     if (button) button.disabled = false;
