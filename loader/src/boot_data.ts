@@ -35,6 +35,7 @@ export const DEFAULT_LANGUAGE = "en";
 export const TEXTS: Record<string, Record<string, string>> = {
   "de": {
     "cable.failed": "Übertragen fehlgeschlagen: {error}",
+    "cable.failed_reading": "Das Gerät ließ sich nicht lesen: {error}",
     "cable.failed_short": "fehlgeschlagen",
     "cable.looking": "Sucht das Gerät ...",
     "cable.firmware": "Das Gerät meldet Firmware {version}.",
@@ -207,6 +208,7 @@ export const TEXTS: Record<string, Record<string, string>> = {
   },
   "en": {
     "cable.failed": "Sending failed: {error}",
+    "cable.failed_reading": "Reading the device failed: {error}",
     "cable.failed_short": "failed",
     "cable.looking": "Looking for the device ...",
     "cable.firmware": "The device reports firmware {version}.",

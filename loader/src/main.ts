@@ -1001,7 +1001,7 @@ function sendStep(): void {
  * this page chose. says() is the guard for the rest of it - a future firmware
  * may answer with a word this page has never heard of, and that should reach
  * somebody as the generic sentence rather than as "err.device_whatever". */
-function saying(error: unknown): string {
+function saying(error: unknown, generic = "cable.failed"): string {
   if (error instanceof Trouble) {
     return t(`err.${error.word}`, { name: String(error.facts.name || "") });
   }
@@ -1015,7 +1015,12 @@ function saying(error: unknown): string {
   if (said && says(`err.device_${said.word}`)) {
     return t(`err.device_${said.word}`, { name: String(said.detail || "") });
   }
-  return t("cable.failed", { error: reason(error) });
+  /* The generic sentence names what was being done, because "Sending failed"
+     under a heading that says "Your talker" is a page describing an action
+     nobody took. The word matters most exactly here: this is the branch for a
+     failure nothing has a prepared sentence for, so the verb is the only
+     context it carries. */
+  return t(generic, { error: reason(error) });
 }
 
 /** The sentence, without sending anything. */
@@ -1264,6 +1269,10 @@ function collectionsSection(): void {
  *  by talkerView(), which is the only thing that draws either. */
 let looking = false;
 let lookFailed: string | null = null;
+/** What the talker printed while it was being asked. Shown under a failure
+ *  and nowhere else: on the way to an answer it is noise, and on the way to a
+ *  refusal it is the only thing that names which file and how far. */
+let heard: string[] = [];
 
 async function look(button?: HTMLButtonElement): Promise<void> {
   if (button) button.disabled = true;
@@ -1278,13 +1287,18 @@ async function look(button?: HTMLButtonElement): Promise<void> {
     if (!haveDevice()) {
       if (!await connectDevice()) { looking = false; talkerView(); return; }
     }
-    onDevice = await readCollections(devices());
+    /* The device's own log, kept for the failure path. It arrives unmarked on
+       the same wire and is the most useful thing there is when a transfer goes
+       wrong - cable.h says so where it prints it - and a view that showed only
+       the sentence threw it away. */
+    heard = [];
+    onDevice = await readCollections(devices(), (line) => heard.push(line));
   } catch (error) {
     onDevice = null;
     if (error instanceof Trouble && error.word === "cable_no_device") {
       askAgain = true;
     }
-    lookFailed = saying(error);
+    lookFailed = saying(error, "cable.failed_reading");
     /* Which is also what a board that has never been flashed looks like: there
        is no firmware on it to answer with. So the failure is recorded the way
        the firmware section reads it, rather than only as a sentence - see the
@@ -1782,6 +1796,12 @@ function talkerView(): void {
        device the first flash exists for. A view that showed only the failure
        would put the one thing that helps behind a door that cannot open. */
     const under: HTMLElement[] = [];
+    if (heard.length) {
+      const log = document.createElement("pre");
+      log.className = "log";
+      log.textContent = heard.join("\n");
+      under.push(log);
+    }
     if (carried) {
       firmwareSection();
       under.push(firmware.root);
