@@ -1255,6 +1255,21 @@ async function look(button?: HTMLButtonElement): Promise<void> {
     if (button) button.disabled = false;
   }
   collectionsSection();
+
+  /* And the firmware answer, from the session that has just finished.
+   *
+   * The greeting names the build, so a look already knows what the firmware
+   * section used to open its own connection to find out. Two presses and two
+   * sessions for two facts that arrive in the same line was a page asking the
+   * device twice out of tidiness.
+   *
+   * It only ever fills the answer in; it never blanks one. A probe() that ran
+   * first has the same word from the same greeting, so there is nothing here
+   * that can disagree with it. */
+  deviceSays = { ...onDevice.talker, port: onDevice.port };
+  nothingAnswered = false;
+  if (carried) firmwareSection();
+
   announce(t("load.collections_room", {
     on: onDevice.on.length, room: onDevice.talker.collections,
     free: KIB(onDevice.free),
@@ -1513,8 +1528,20 @@ watchForDevices();
 /* The collections section is on the page from the start, and unlike the
  * firmware one it is drawn whether or not this browser can reach a cable: on
  * Firefox it says so, which is a truer page than one where a whole section is
- * silently missing. It comes before the firmware section because it is about
- * content, which is what the five steps above it are about. */
+ * silently missing.
+ *
+ * **The firmware section goes above it**, which is the other way round from
+ * how these two arrived. The old order followed the five steps - content after
+ * content - and that is a reason about this page rather than about the thing
+ * on the desk. What somebody who has just connected a talker wants first is
+ * what the talker *is*, and only then what is on it; and the one of these two
+ * that can be out of date without anybody noticing is the program, not the
+ * collections.
+ *
+ * insertBefore() rather than appending it first, because *when* it appears
+ * still has to be honest: a deploy carrying no image leaves the section
+ * unbuilt, so it arrives with the manifest and takes its place above rather
+ * than holding an empty one from the start. */
 page.append(collections.root);
 collectionsSection();
 
@@ -1522,7 +1549,7 @@ if (cableSupported()) {
   void carriedFirmware().then((found) => {
     if (!found) return;
     carried = found;
-    page.append(firmware.root);
+    page.insertBefore(firmware.root, collections.root);
     firmwareSection();
   });
 }
