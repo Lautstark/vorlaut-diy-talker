@@ -174,9 +174,9 @@ tone, at `AMPLITUDE` 0.22, and what is loud here is normalised speech coming
 out of an assembled talker with its case on. The gain still needs nothing done
 to it, because there is nothing that can be done to it — the MAX98357A's GAIN
 pin is strapped on the board rather than wired to a GPIO. The answer is in
-software, and it is in the menu: **leiser** and **lauter** on keys 3 and 4,
-with the setting between them on key 2, kept in NVS and heard as a short note
-at the new level each time it moves. Ten steps, the quietest of them still
+software, and it is in the menu, on a screen of its own: **leiser** and
+**lauter** either side of the setting, kept in NVS and heard as a short note at
+the new level each time it moves. Ten steps, the quietest of them still
 audible — a talker that says nothing looks broken.
 `AUDIO_VOLUME_PERCENT` in the sketch is only where a device with nothing
 stored starts, at 50: half the amplitude, about 6 dB down.

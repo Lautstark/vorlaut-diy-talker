@@ -37,7 +37,7 @@
 
 struct Strings {
   const char *back;          // set key: one screen back, or out of the menu
-  const char *collections;   // menu key 4: the collections, one level down
+  const char *collections;   // menu key 2: the collections, one level down
   const char *next;          // collections: the fourth key, where they page
   const char *menu;          // shown while the menu gesture is held
   const char *storage1;      // no collections: label for the file system, line 1
@@ -50,9 +50,9 @@ struct Strings {
   const char *empty2;        //                            line 2
   const char *cable;         // ... a browser is pushing content down the cable
   const char *done;          // ... and the transfer finished
-  const char *volume;        // menu: label over how loud the device is
-  const char *quieter;       // menu key 3: one step down
-  const char *louder;        // menu key 4: one step up
+  const char *volume;        // menu key 1, and the label over the reading
+  const char *quieter;       // volume key 1: one step down
+  const char *louder;        // volume key 3: one step up
 
   // The order of these declarations is the order of the initialisers below,
   // and nothing checks that but the compiler counting. The /* name */ comments
