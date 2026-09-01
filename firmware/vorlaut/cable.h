@@ -283,8 +283,42 @@ class Cable {
   // not gagged. It arrives unmarked, the browser puts it in its log pane, and
   // that is the most useful thing on the wire when something goes wrong.
 
+  // **Serial.write() is not a promise.** On the S3's native USB it returns how
+  // many bytes it managed, and a full transmit queue makes that fewer than it
+  // was asked for - the call gives up on its own timeout rather than blocking
+  // until the host catches up. Ignoring that number is how a device comes to
+  // count bytes it never sent: the browser waits for a file that is short by
+  // exactly the amount dropped and eventually says "sent 570 of 1072 bytes and
+  // stopped", which is true and names the wrong culprit.
+  //
+  // receive() has always checked the other direction - a short file.write() is
+  // "lost" and ends the transfer - and this is that same check on the way out.
+  //
+  // The delay is what makes retrying worth anything rather than a spin: the
+  // bytes leave when the USB task runs, and it cannot run while this loop has
+  // the core. Giving up after CABLE_QUIET_MS keeps the rule the rest of this
+  // file is built on - the device gives up first, so it is the end that gets
+  // to say why.
+  //
+  // Returns what really went out, so a caller can stop counting on it.
+  static size_t writeAll(const uint8_t *bytes, size_t length) {
+    size_t gone = 0;
+    uint32_t moved = millis();
+    while (gone < length) {
+      const size_t wrote = Serial.write(bytes + gone, length - gone);
+      if (wrote > 0) {
+        gone += wrote;
+        moved = millis();
+        continue;
+      }
+      if (millis() - moved > CABLE_QUIET_MS) break;   // nobody is reading
+      delay(1);
+    }
+    return gone;
+  }
+
   static void put(int length, const char *text) {
-    if (length > 0) Serial.write((const uint8_t *)text, (size_t)length);
+    if (length > 0) writeAll((const uint8_t *)text, (size_t)length);
   }
 
   static void say(const char *word, const char *detail,
@@ -449,8 +483,13 @@ class Cable {
     while (sent < size) {
       const int got = file.read(buffer, sizeof(buffer));
       if (got <= 0) break;
-      Serial.write(buffer, (size_t)got);
-      sent += (uint32_t)got;
+      // What went out rather than what was handed over. A chunk that could not
+      // be finished ends the file here: carrying on would put the rest of it
+      // into a stream the browser is already counting wrong, and the "sent"
+      // line below is the one thing that can still tell the truth about it.
+      const size_t wrote = writeAll(buffer, (size_t)got);
+      sent += (uint32_t)wrote;
+      if (wrote < (size_t)got) break;
     }
     file.close();
     // The count the device really sent, which is the head's number on a file
