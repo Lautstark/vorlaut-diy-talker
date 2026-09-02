@@ -33,7 +33,7 @@ import {
    caught thing is one of them. */
 export { CableError };
 import { readLayoutBin } from "./layout_format.js";
-import { Trouble } from "./errors.js";
+import { reason, Trouble } from "./errors.js";
 
 /** What is to be on the device, by the name it goes under.
  *
@@ -217,10 +217,15 @@ export async function findTalker(
   ports: SerialPort[], onLog: (line: string) => void,
 ) {
   let mismatch: Trouble | null = null;
+  let unopened: string = "";
   for (const port of ports) {
     let cable: InstanceType<typeof Cable> | null = null;
+    // Which half failed is the whole difference between two sentences, and
+    // until this flag existed there was no way to ask: see the catch below.
+    let opened = false;
     try {
       await port.open({ baudRate: BAUD });
+      opened = true;
       // Raising DTR is what makes the device's own Serial report a connection.
       // The pair is never driven in sequence: that is esptool's way into the
       // bootloader, and doing it by accident would take the talker off the
@@ -243,14 +248,34 @@ export async function findTalker(
       }
       await cable.close();
       await port.close();
-    } catch {
-      // Not this one. Whatever it is, it is not answering as a talker, and the
-      // next port deserves the same chance.
+    } catch (error) {
+      /* Not this one - but *why* not is worth keeping, and this is where it
+       * used to be thrown away.
+       *
+       * A bare catch made every failure here into one sentence, and that
+       * sentence was "nothing answered, is the cable in, is the device
+       * awake?". A port that could not be opened at all says exactly that,
+       * and the commonest reason for it is another program holding the port:
+       * a second tab of this page, a serial monitor, the Arduino IDE. Somebody
+       * then goes and checks a cable that was never the problem, on a device
+       * that was awake the whole time. It happened, which is why this changed.
+       *
+       * The test is which half failed rather than which error arrived. What
+       * open() rejects with is not the same across browsers and versions - a
+       * NetworkError here, an UnknownError there - and hanging a sentence on
+       * those names would be guessing. Whether open() returned is not a guess.
+       */
+      if (!opened) unopened ||= reason(error);
+      onLog(`(${reason(error)})`);
       if (cable) await cable.close().catch(() => {});
       await port.close().catch(() => {});
     }
   }
-  throw mismatch ?? new Trouble("cable_no_device");
+  if (mismatch) throw mismatch;
+  // A port that would not open outranks one that opened and stayed quiet: the
+  // quiet one may simply be a printer, while the one that refused to open is a
+  // thing somebody can go and do something about.
+  throw unopened ? new Trouble("cable_port_taken") : new Trouble("cable_no_device");
 }
 
 /**
