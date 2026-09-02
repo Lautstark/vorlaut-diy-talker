@@ -42,10 +42,6 @@
     },
     {
       "from": "device",
-      "line": "< files 1"
-    },
-    {
-      "from": "device",
       "line": "< collections 16"
     },
     {
@@ -97,7 +93,7 @@
         "version": 2,
         "total": 1441792,
         "free": 1441568,
-        "files": 1,
+        "files": 0,
         "firmware": "",
         "tiles": "",
         "audio": "",

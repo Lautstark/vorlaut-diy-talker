@@ -35,10 +35,6 @@
     },
     {
       "from": "device",
-      "line": "< files 0"
-    },
-    {
-      "from": "device",
       "line": "< audio va1"
     },
     {

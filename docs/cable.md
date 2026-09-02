@@ -117,7 +117,6 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 < firmware v0.4              and this is the build it is carrying
 < total 1441792              the partition
 < free 1146880               what is left of it
-< files 37
 < collections 16             how many collections it will hold
 < tiles vt1                  and which tile forms it can draw
 < audio va1                  and which recording forms it can play
@@ -138,7 +137,24 @@ So `list` walks the directory and prints it as it goes, and the diff happens in
 < err nospace                may replace any of the above
 ```
 
-**`hello` is how the browser knows what it is talking to at all.** The person
+**`hello` is how the browser knows what it is talking to at all.**
+
+There used to be a `files` line here, and taking it out on 2026-09-02 is worth
+a paragraph because of how it was found. The device could not say the number
+without walking its whole root, a lookup per entry, and on a 7040 KiB partition
+holding 322 files that walk took 6.4 seconds against a browser that gave any
+one answer five. So a talker that had been filled up stopped answering the
+loading page, and said so in the words for a device that is not there - the
+cable was in and the device was awake. The browser end got patience for the
+walks that remain, and then the walk that nothing needed was taken out: nothing
+read the number. The page works in `total` and `free`, and what is on the
+device it asks for with `list`, which walks once, when somebody wants it.
+
+Dropping a line costs no protocol version for the same reason gaining one does
+not, and the notes below say it several times over: a browser that hears no
+`files` keeps whatever it started with. The direction that needs holding is the
+other one - every talker flashed before that release still says it - and that
+is held on the browser's side, where the reader is. The person
 picks a port out of a dialog, and a laptop has several — a dongle, a printer,
 another dev board. A port that does not answer `vorlaut` within a moment is
 not the talker, and saying so is nicer than timing out later mid-transfer.

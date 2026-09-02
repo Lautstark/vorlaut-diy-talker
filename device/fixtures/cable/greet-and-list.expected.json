@@ -48,10 +48,6 @@
     },
     {
       "from": "device",
-      "line": "< files 2"
-    },
-    {
-      "from": "device",
       "line": "< end hello"
     },
     {
@@ -105,7 +101,7 @@
         "version": 2,
         "total": 1441792,
         "free": 1440956,
-        "files": 2,
+        "files": 0,
         "firmware": "",
         "tiles": "",
         "audio": "",

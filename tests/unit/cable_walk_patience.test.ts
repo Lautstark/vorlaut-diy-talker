@@ -104,3 +104,34 @@ await mute.close().catch(() => {});
 
 check("a silent port is called silent quickly", gaveUp !== "" && waited < 1000,
       `${waited} ms, ${gaveUp || "it never gave up"}`);
+
+/* And the talker that is still in a drawer, which says the line the firmware
+ * has since stopped saying.
+ *
+ * `files` was dropped on 2026-09-02: the device walked its whole root to say
+ * it and nothing read the number. Dropping a line costs no protocol version
+ * for the same reason gaining one does not - what a reader has never been
+ * promised it cannot miss - but the direction that needs holding is the other
+ * one. Every talker flashed before that release still says it, into a browser
+ * that must go on reading the rest of the greeting around it.
+ */
+const older = slowWalk(
+  ["< vorlaut 2", "< firmware v0.11", "< total 7208960", "< free 3231744",
+   "< files 322", "< collections 16", "< tiles vt1", "< audio va1",
+   "< end hello"],
+  0, [],
+);
+const drawer = new Cable(older, { timeout: IMPATIENT });
+let old: { files?: number; collections?: number; audio?: string } | null = null;
+try {
+  old = await drawer.hello();
+} catch {
+  old = null;
+}
+await drawer.close().catch(() => {});
+
+check("a greeting that still carries `files` is read whole", old !== null);
+check("the lines after it are not lost with it", old?.collections === 16,
+      `collections ${old?.collections}`);
+check("and the recording form still arrives", old?.audio === "va1",
+      `audio ${old?.audio}`);

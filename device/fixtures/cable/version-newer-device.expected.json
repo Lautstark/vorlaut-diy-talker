@@ -34,10 +34,6 @@
     },
     {
       "from": "device",
-      "line": "< files 0"
-    },
-    {
-      "from": "device",
       "line": "< end hello"
     }
   ],

@@ -436,7 +436,13 @@ static int cableMode(uint32_t capacity, uint32_t window, const char *firmware,
         }
         cableSayNumber(out, sizeof(out), "total", (uint32_t)device.capacity); say(out);
         cableSayNumber(out, sizeof(out), "free", (uint32_t)(device.capacity - used)); say(out);
-        cableSayNumber(out, sizeof(out), "files", (uint32_t)device.files.size()); say(out);
+        // No `files` line. The firmware stopped saying it - saying it cost a
+        // walk of the whole root on every greeting, and nothing read the
+        // number - and this end follows, because a transcript describing a
+        // line no device sends would be describing a device that does not
+        // exist. A talker still in a drawer says it; that a browser reading
+        // one is unharmed is held on the browser's side, in
+        // tests/unit/cable_walk_patience.test.ts, where the reader lives.
         // How many collections the device in THIS transcript says it holds,
         // and nothing at all where it says nothing. From the fixture and not
         // from MAX_COLLECTIONS, the same argument as the firmware word above:

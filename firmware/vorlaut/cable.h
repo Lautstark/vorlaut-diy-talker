@@ -377,7 +377,23 @@ class Cable {
     put(cableSayNumber(out, sizeof(out), "free",
                        (uint32_t)(LittleFS.totalBytes() - LittleFS.usedBytes())),
         out);
-    put(cableSayNumber(out, sizeof(out), "files", count()), out);
+    // No `files` line. It was here, and saying it cost a walk of the whole
+    // root - a lookup per entry - on every greeting: measured at 6.4 s on a
+    // 7040 KiB partition holding 322 files, against a browser that gives an
+    // answer five. So a talker that had been filled up stopped answering the
+    // loading page, in the words for a device that is not there, and the
+    // remedy on that side was patience rather than speed.
+    //
+    // Nothing read the number. The page works in `total` and `free`, and what
+    // is actually on the device it asks for with `list`, which walks once and
+    // is asked when somebody wants the answer. This was a walk paid on every
+    // connect for a line nobody listened to.
+    //
+    // Dropping it costs no protocol version, for the same reason the notes
+    // below give for gaining one: a browser that hears no `files` keeps
+    // whatever it started with, which is zero, and nothing asks it anything.
+    // The same walk was taken out of waking on 2026-09-01 - see
+    // scanCollections() in vorlaut.ino - and this is the greeting's half of it.
     // How many collections this device will hold, which is the one thing a
     // browser cannot work out from the file list: a talker flashed before
     // 2026-08-31 holds exactly one, under the name layout.bin, and sending it
@@ -499,16 +515,6 @@ class Cable {
     sayNameNumber("sent", name, sent);
   }
 
-  static uint32_t count() {
-    uint32_t found = 0;
-    File dir = LittleFS.open("/");
-    if (!dir) return 0;
-    for (File entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
-      if (!entry.isDirectory() && cableNameOk(bare(entry.name()))) found++;
-    }
-    dir.close();
-    return found;
-  }
 
   // LittleFS is not consistent about the leading slash between versions.
   static const char *bare(const char *name) {
