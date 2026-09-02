@@ -707,17 +707,37 @@ two pages now, and [ADR 0011](../adr/0011-editor-exports-the-talker-repository-s
 why: the editor writes a file for the talker — the `⋯` beside the Sammlung's
 name — and says where to take it, and `/loader/` is the page that takes one.
 
-**5. Choose the file there.** The page runs five steps down one column and says
-what it found at each: what is in the file, anything the device will not be
-able to do with it, what it compiled, which port it is going to, and then the
-transfer itself with the device's own serial output inline in the log. The log
-stays on the page when it is over — it is the most useful thing there is when
-something has gone wrong, and it must not disappear with the last line.
+**5. Connect the talker there, and then send.** The page opens on one card
+with one press on it. Connecting is what answers everything else — the greeting
+carries the build, the free space and the collection count in one line — so the
+view behind that press is the talker itself: what it is running, what it is
+holding, and the way to take a collection off it.
 
-**Connecting is a step of its own**, because a port has to be granted and
+*Send a collection* is a task entered from there rather than the page itself,
+and it runs four steps down one column, saying what it found at each: what is
+in the file, anything the device will not be able to do with it, what it
+compiled, and then the transfer with the device's own serial output inline in
+the log. Four and not five, because connecting already happened at the door;
+the connect step comes back only when the connection wants something again — a
+talker that went to sleep halfway, a port that was never granted.
+
+The log stays on the page when it is over — it is the most useful thing there
+is when something has gone wrong, and it must not disappear with the last
+line.
+
+**The door is not a gate.** WebSerial is Chrome and Edge, and so is
+`showDirectoryPicker()`; the same card carries a second way in that needs no
+device at all, and in a browser without a cable that way in is the primary
+button. Checking a file and seeing the boards is worth opening this page for on
+any browser, and a page that asked for a talker before it would say so would be
+the mistake `gate()` was written to undo, in a better-looking shape.
+
+**Connecting is the first press**, because a port has to be granted and
 `requestPort()` needs transient activation that expires in about five seconds.
-The step explains what the browser is about to ask and puts *Choose the port*
-under it; that button's own click is the activation. Chrome's chooser is drawn
+It used to be the fourth step, behind a build; at the door there is nothing
+waiting behind it at all, which is the shape that rule always wanted. The card
+explains what the browser is about to ask and puts *Connect the talker* under
+it; that button's own click is the activation. Chrome's chooser is drawn
 in the browser's chrome and no token of ours reaches it, which is why
 everything around it is ours and it is not.
 

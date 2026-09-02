@@ -72,13 +72,17 @@ one that speaks WebSerial — Chrome or Edge. Firefox and Safari can check and
 compile a file and write the result into a folder, but cannot talk to the cable.
 
 No key and no `.env` to write. Nothing is uploaded and nothing is stored: the
-page is opened with a file and a cable, does its five steps, and is closed
-again.
+page is opened with a cable, says what the talker is holding, takes a file
+across if that is what is wanted, and is closed again.
 
 Getting content onto the talker is two steps and two pages. In the editor,
 *Export this collection* in the `⋯` beside the collection's name, then *For the
-talker*; then open this page, choose that file, and it checks it, compiles it
-into what the talker reads and pushes it down the USB-C cable. Flash the
+talker*; then open this page and connect the talker, which is the first press
+and the one that answers everything else — which build it runs, what is on it,
+how much room is left. *Send a collection* from there chooses the file, checks
+it, compiles it into what the talker reads and pushes it down the USB-C cable.
+A browser that cannot reach a cable — Firefox, Safari — takes the other way in
+from the same card and can still check a file and see the boards. Flash the
 firmware once first; [docs/cable.md](docs/cable.md) is the wire, and
 [adr/0011](adr/0011-editor-exports-the-talker-repository-sends.md) is why it is
 two pages.
