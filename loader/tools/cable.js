@@ -156,6 +156,25 @@ export class CableError extends Error {
 // which arrives here as a word to act on instead of a silence to guess at.
 const DEFAULT_TIMEOUT = 5000;
 
+/* How long a command that has to walk the file system may take to answer.
+ *
+ * `hello` and `list` are the two, and the cost is the walk rather than the
+ * wire: measured on v0.11 with a 7040 KiB partition holding 322 files, the
+ * greeting's `free` line arrived at 0.7s and `files` at 7.1s, with everything
+ * before and after it instant. A full talker stopped answering a page that the
+ * same talker answered fine when it was nearly empty, and from the outside
+ * that is indistinguishable from no device at all. The partition grew from
+ * 1536 to 7040 KiB; the patience did not grow with it.
+ *
+ * Deliberately not DEFAULT_TIMEOUT and deliberately not a raise of it. That
+ * number is pinned just above the device's own CABLE_QUIET_MS so that during a
+ * transfer the device gives up first and says `err short` - a word to act on
+ * rather than a silence to guess at - and raising it would hand that race to
+ * the browser. Nothing races during a walk: the device is computing, not
+ * waiting on us. The only thing this patience costs is the wait before a port
+ * that really is silent is called silent. */
+const WALK_TIMEOUT = 30000;
+
 export class Cable {
   /**
    * @param {{readable: ReadableStream, writable: WritableStream}} port
@@ -447,6 +466,8 @@ export class Cable {
 
   async #greet() {
     await this.send("hello");
+    // Every line of the greeting, not only the slow one: which line the walk
+    // sits behind is the firmware's business, and it has already moved once.
     {
       // firmware starts empty rather than at some placeholder version, and
       // empty is a real answer rather than a missing one: it is what a device
@@ -457,7 +478,7 @@ export class Cable {
       const answer = { version: 0, total: 0, free: 0, files: 0, firmware: "",
                        tiles: "", audio: "", collections: 1 };
       for (;;) {
-        const { key, rest } = await this.expect();
+        const { key, rest } = await this.expect(WALK_TIMEOUT);
         if (key === "end") return answer;              // "end hello"
         if (key === "vorlaut") answer.version = Number(rest);
         else if (key === "total") answer.total = Number(rest);
@@ -502,7 +523,7 @@ export class Cable {
       await this.send("list");
       const files = [];
       for (;;) {
-        const { key, rest } = await this.expect();
+        const { key, rest } = await this.expect(WALK_TIMEOUT);
         if (key === "end") return files;               // "end list <count>"
         if (key !== "file") continue;
         const cut = rest.lastIndexOf(" ");
