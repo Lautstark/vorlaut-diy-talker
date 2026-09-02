@@ -75,3 +75,32 @@ try {
 await listing.close().catch(() => {});
 
 check("and so does a listing", held?.length === 2, `${held?.length} files`);
+
+/* And the port that is not a talker at all still gives up quickly.
+ *
+ * The first cut of this fix gave every line of the greeting the walk's
+ * patience, which is right for a device that has answered and wrong for the
+ * probe: findTalker() greets every granted port to find which one is a talker,
+ * so a printer went from costing three attempts of five seconds to three of
+ * thirty, and somebody who picked the wrong port in the chooser waited a
+ * minute and a half. The e2e suite caught it; this holds it here, where the
+ * timeout being borrowed is visible.
+ *
+ * A port that says nothing at all, against a 10 ms per-answer timeout: if the
+ * first line had the walk's 30 s this would sit here for thirty seconds. */
+const mute = new Cable(
+  { readable: new ReadableStream({ start() {} }), writable: new WritableStream() },
+  { timeout: IMPATIENT },
+);
+const began = Date.now();
+let gaveUp = "";
+try {
+  await mute.hello();
+} catch (error) {
+  gaveUp = String((error as Error).message ?? error);
+}
+const waited = Date.now() - began;
+await mute.close().catch(() => {});
+
+check("a silent port is called silent quickly", gaveUp !== "" && waited < 1000,
+      `${waited} ms, ${gaveUp || "it never gave up"}`);

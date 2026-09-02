@@ -171,8 +171,11 @@ const DEFAULT_TIMEOUT = 5000;
  * transfer the device gives up first and says `err short` - a word to act on
  * rather than a silence to guess at - and raising it would hand that race to
  * the browser. Nothing races during a walk: the device is computing, not
- * waiting on us. The only thing this patience costs is the wait before a port
- * that really is silent is called silent. */
+ * waiting on us.
+ *
+ * A silent port does not pay for it. The greeting's first line keeps the short
+ * timeout - that line is what tells a talker from a printer - and only the
+ * lines after it, from a device that has already named itself, get this. */
 const WALK_TIMEOUT = 30000;
 
 export class Cable {
@@ -466,8 +469,19 @@ export class Cable {
 
   async #greet() {
     await this.send("hello");
-    // Every line of the greeting, not only the slow one: which line the walk
-    // sits behind is the firmware's business, and it has already moved once.
+    /* The patience below starts only once the device has said something.
+     *
+     * A greeting is also the probe - findTalker() walks every port the person
+     * granted and greets each one to find out which is a talker - so the first
+     * line is what separates a talker from a printer, and it has to be allowed
+     * to fail fast. Giving it the walk's patience made a genuinely silent port
+     * cost three attempts of thirty seconds rather than three of five, and
+     * somebody who picked the wrong port in the chooser would have sat through
+     * a minute and a half of nothing. e2e/loader.spec.ts caught exactly that.
+     *
+     * After the first line there is no such doubt: it said `vorlaut`, it is
+     * one of ours, and the seconds it needs now are the file-system walk
+     * behind `files` rather than an absence. */
     {
       // firmware starts empty rather than at some placeholder version, and
       // empty is a real answer rather than a missing one: it is what a device
@@ -477,8 +491,8 @@ export class Cable {
       // inventing one.
       const answer = { version: 0, total: 0, free: 0, files: 0, firmware: "",
                        tiles: "", audio: "", collections: 1 };
-      for (;;) {
-        const { key, rest } = await this.expect(WALK_TIMEOUT);
+      for (let first = true; ; first = false) {
+        const { key, rest } = await this.expect(first ? this.timeout : WALK_TIMEOUT);
         if (key === "end") return answer;              // "end hello"
         if (key === "vorlaut") answer.version = Number(rest);
         else if (key === "total") answer.total = Number(rest);
