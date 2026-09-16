@@ -20,13 +20,16 @@
     // -----------------------------------------------------------------------
     //
     // Until that date this file disabled Renovate for @lautstark/** outright:
-    // the packages were github: tags, hard for the npm manager to follow, and
+    // the packages were github: tags, thought hard for the npm manager to
+    // follow (it is not: a github:owner/repo#vX.Y.Z pin resolves through the
+    // github-tags datasource), and
     // a bump of one was a decision rather than an update - made by a person
     // moving the pin, with pins.js saying when one had fallen behind.
     //
-    // The packages are on npmjs.org now, released from their main branches by
-    // CI, and the decision has not gone away; it has moved to where the
-    // information is. The package's author makes it in the commit subject -
+    // The packages are tagged from their main branches by CI now - there is
+    // still no registry, and the pin is still a github: tag, which Renovate
+    // follows through the github-tags datasource - and the decision has not
+    // gone away; it has moved to where the information is. The package's author makes it in the commit subject -
     // feat is a minor, fix a patch, feat! a major - and this repository's
     // tests make it again on the branch Renovate pushes. So the shared preset
     // says: a minor or a patch of a shared package merges to main on its own
