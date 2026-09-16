@@ -38,7 +38,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TILES = ROOT / "tests" / "reference" / "tiles"
-JS_RUNNER = ROOT / "node_modules" / ".bin" / "vite-node"
+# Plain node runs loader/src/tile_encode.ts: node strips types itself, and
+# tests/node_ts.mjs resolves the `.js` names the sources import each other by.
+# vite-node did this until 2026-09-16 - see test_tile_render_js.py.
+JS_RUNNER = ["node", "--disable-warning=ExperimentalWarning",
+             "--import", str(ROOT / "tests" / "node_ts.mjs")]
 RAW_BYTES = 32768
 
 failures: list[str] = []
@@ -69,9 +73,9 @@ def build(target: Path) -> bool:
 
 def encoded_by_the_browser() -> dict[str, tuple[str, bytes]] | None:
     """Every frozen tile, run through loader/src/tile_encode.ts."""
-    if not JS_RUNNER.exists():
+    if shutil.which("node") is None:
         return None
-    result = subprocess.run([str(JS_RUNNER), str(ROOT / "tests" / "tile_node.mjs")],
+    result = subprocess.run([*JS_RUNNER, str(ROOT / "tests" / "tile_node.mjs")],
                             capture_output=True, text=True, cwd=ROOT)
     if result.returncode != 0:
         check("the browser's encoder runs", False, result.stderr.strip()[:600])
@@ -92,9 +96,8 @@ def main() -> int:
 
     written = encoded_by_the_browser()
     if written is None:
-        print("  skipped: node_modules/.bin/vite-node is not there, so the "
-              "browser's encoder was not run. `npm install` puts it there, "
-              "and without it nothing below means anything.")
+        print("  skipped: node is not on PATH, so the browser's encoder was "
+              "not run, and without it nothing below means anything.")
         return 0
 
     with tempfile.TemporaryDirectory() as raw:
