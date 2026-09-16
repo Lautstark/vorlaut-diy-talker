@@ -17,7 +17,9 @@ name: Deploy the loader page to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'renovate/**']
+    # renovate/**, since 2026-09-16: Renovate merges a branch to main itself
+    # once this run is green on it, and never a branch that has no run.
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -100,7 +102,9 @@ jobs:
   build:
     needs: test
     # Pull requests are tested but never published.
-    if: github.event_name != 'pull_request'
+    # By ref, not by event: a renovate/** push is tested above and must not
+    # reach Pages. Only main deploys.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -143,7 +147,9 @@ jobs:
 
   deploy:
     needs: build
-    if: github.event_name != 'pull_request'
+    # By ref, not by event: a renovate/** push is tested above and must not
+    # reach Pages. Only main deploys.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
