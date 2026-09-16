@@ -18,7 +18,7 @@
     "build:pages": "BASE_PATH=/ npm run build"
   },
   "dependencies": {
-    "@lautstark/design": "github:Lautstark/design#v1.23.0",
+    "@lautstark/design": "github:Lautstark/design#v1.31.3",
     "esptool-js": "^0.6.1"
   },
   "devDependencies": {
