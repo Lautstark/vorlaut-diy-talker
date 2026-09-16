@@ -43,7 +43,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEECH = ROOT / "example" / "speech"
-JS_RUNNER = ROOT / "node_modules" / ".bin" / "vite-node"
+# Plain node runs loader/src/audio_encode.ts: node strips types itself, and
+# tests/node_ts.mjs resolves the `.js` names the sources import each other by.
+# vite-node did this until 2026-09-16 - see test_tile_render_js.py.
+JS_RUNNER = ["node", "--disable-warning=ExperimentalWarning",
+             "--import", str(ROOT / "tests" / "node_ts.mjs")]
 
 WAV_FORMAT_PCM = 0x0001
 WAV_FORMAT_IMA_ADPCM = 0x0011
@@ -101,9 +105,9 @@ def encoded_by_the_browser() -> dict[str, tuple[bytes, bytes]] | None:
     it). The second half is what makes a disagreement legible: if the two
     decoders differ, this says which of them moved.
     """
-    if not JS_RUNNER.exists():
+    if shutil.which("node") is None:
         return None
-    result = subprocess.run([str(JS_RUNNER), str(ROOT / "tests" / "adpcm_node.mjs")],
+    result = subprocess.run([*JS_RUNNER, str(ROOT / "tests" / "adpcm_node.mjs")],
                             capture_output=True, text=True, cwd=ROOT)
     if result.returncode != 0:
         check("the browser's encoder runs", False, result.stderr.strip()[:600])
@@ -202,7 +206,7 @@ def main() -> int:
 
         made = encoded_by_the_browser()
         if made is None:
-            print("\nNo vite-node - skipping the browser's half.")
+            print("\nNo node - skipping the browser's half.")
             return 1 if failures else 0
         if not made:
             return 1
