@@ -1,81 +1,41 @@
 // Renovate, for this repository.
 //
-// Everything general lives in Lautstark/.github, which is where the preset
-// moved on 2026-08-28. This repository and vorlaut-editor each held a
-// byte-identical copy of it, which is the drift the move removes. What is left
-// here is the part that is true of this repository and of no other, and that
-// is the whole point of the split.
+// Everything general - when updates arrive, what groups with what, what may
+// merge itself, and since 2026-09-16 how the family's own packages and the
+// toolchain are handled - lives in Lautstark/.github and is true of every
+// repository. What is here is the part that is true of this one and would be
+// wrong to inherit.
+//
+// The .json5 is spelled out on purpose: the //path/to/file syntax implies a
+// .json extension, so omitting it looks for a file that is not there and
+// Renovate stops before it does anything. The shorter "owner/repo:name" form
+// implies it too.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-
-  // The .json5 is spelled out on purpose: the //path/to/file syntax implies
-  // a .json extension, so omitting it looks for a file that is not there
-  // and Renovate stops before it does anything. The shorter "owner/repo:name"
-  // form implies it too.
   extends: ["github>Lautstark/.github//renovate-shared.json5"],
 
   packageRules: [
     // -----------------------------------------------------------------------
-    // The shared packages: Renovate does not touch them
+    // The shared packages: what "a bump is a decision" means since 2026-09-16
     // -----------------------------------------------------------------------
     //
-    // @lautstark/design is pinned as a github: dependency by release tag, and
-    // is not on npm:
+    // Until that date this file disabled Renovate for @lautstark/** outright:
+    // the packages were github: tags, hard for the npm manager to follow, and
+    // a bump of one was a decision rather than an update - made by a person
+    // moving the pin, with pins.js saying when one had fallen behind.
     //
-    //     "@lautstark/design": "github:Lautstark/design#v1.17.0"
+    // The packages are on npmjs.org now, released from their main branches by
+    // CI, and the decision has not gone away; it has moved to where the
+    // information is. The package's author makes it in the commit subject -
+    // feat is a minor, fix a patch, feat! a major - and this repository's
+    // tests make it again on the branch Renovate pushes. So the shared preset
+    // says: a minor or a patch of a shared package merges to main on its own
+    // once the tests here are green, and a major waits for a person with the
+    // changelog in front of them. That rule is not repeated here.
     //
-    // It was four - bildquelle, sicherung and stimmquelle answered questions
-    // the editor asks and went with it (adr/0012). The rule stays written for
-    // the whole namespace rather than for the one package left, because which
-    // of them this repository depends on is the thing that changes.
-    //
-    // Renovate can be made to follow those, but not with the npm manager that
-    // finds them: it needs git-refs or github-tags wired up by hand, with a
-    // versioning scheme told to it, per package. docs/packages.md already
-    // records that neither Renovate nor Dependabot bumps a github: dependency
-    // reliably, tag or sha.
-    //
-    // It is disabled here rather than configured, for a reason that is not
-    // about the plumbing: **a bump of these is a decision, not an update.**
-    // A refresh that moves section 1 or 2 of stimmquelle's contract
-    // re-renders every recording on every device in the field. Its CHANGELOG
-    // says which edits a consumer has to make, and it means it. A pull
-    // request that arrives on a Monday morning and merges itself is the wrong
-    // shape for that.
-    //
-    // What keeps the pins from going stale is a check rather than a service:
-    //
-    //     node node_modules/@lautstark/design/pins.js
-    //
-    // runs early in both workflows, asks each repository for its newest tag,
-    // and names the pins that are behind. It warns and never fails.
-    //
-    // This rule is also the clearest thing that must NOT move into the shared
-    // preset. It is about four specific packages and one specific contract,
-    // and a repository that inherited it would be silently opting out of
-    // updates to dependencies it does not have.
-    {
-      matchPackageNames: ["@lautstark/**"],
-      enabled: false,
-    },
-
-    // -----------------------------------------------------------------------
-    // onnxruntime-web had a rule here, and no longer needs one
-    // -----------------------------------------------------------------------
-    //
-    // Its version was written in three places - package.json for the wasm
-    // binaries piperVendor() copied into vendor/, src/backend/local.ts for the
-    // CDN URL, and src/types/cdn.d.ts for that URL's module declaration - and
-    // Renovate was disabled on it because bumping one of the three gives a
-    // build where the wasm and the runtime are different releases of the same
-    // library. Nothing fails at build time; the first sentence somebody tries
-    // to speak does.
-    //
-    // All three of those are vorlaut-editor's now (adr/0012). This page speaks
-    // nothing: it reads WAVs the editor already synthesised out of the package
-    // and hands them to the device. The dependency is gone from package.json
-    // with piperVendor(), so a rule naming it would match nothing - and a rule
-    // that matches nothing is worse than none, because it reads as a hazard
-    // somebody is still guarding against.
+    // This repository takes one shared package, @lautstark/design, and it
+    // follows the preset. Nothing to except - the rule is written for the
+    // namespace there, so which packages this repository depends on can
+    // change without this file noticing.
   ],
 }

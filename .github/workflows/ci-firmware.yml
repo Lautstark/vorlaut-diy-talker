@@ -12,7 +12,9 @@ name: Firmware build
 # accept it.
 on:
   push:
-    branches: [main]
+    branches: [main, 'renovate/**']
+    # renovate/**, since 2026-09-16: Renovate merges a branch to main itself
+    # once this run is green on it, and never a branch that has no run.
     paths: &paths
       - firmware/**
       - device/**

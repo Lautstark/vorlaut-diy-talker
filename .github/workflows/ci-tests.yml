@@ -39,7 +39,9 @@ name: Tests
 # with the workflow that read them.
 on:
   push:
-    branches: [main]
+    branches: [main, 'renovate/**']
+    # renovate/**, since 2026-09-16: Renovate merges a branch to main itself
+    # once this run is green on it, and never a branch that has no run.
     paths: &paths
       # The page itself, which sits at the repository root because it is the
       # only one - adr/0012. src/** was here beside it until the editor left.
