@@ -121,7 +121,9 @@ export const DEFAULT_LANGUAGE = "en";
  * In an `.obz` this is not one field but two: a key that goes somewhere has a
  * `load_board`, and `ext_lautstark_speak_on_navigate` beside it says whether
  * it also says its own word. loader/src/device_package.ts is where the two
- * become one.
+ * become one. The exchange format has carried a second navigating form since
+ * SPEC.md 1.5.0 - an `action` of `":home"`, which the flag rides on too - and
+ * a device board has none, so on this side `load_board` is the whole of it.
  */
 export const KEY_DOES = { speak: 0, "speak-and-go": 1, go: 2 };
 /** The three words, as a type. The only annotation in this file, and it earns

@@ -3246,7 +3246,10 @@ function packageOf({ layout, voice, sources = [], sounds = [],
      *  somewhere has a `load_board`, and `ext_lautstark_speak_on_navigate`
      *  beside it says whether it also says its own word first. Written only
      *  where each is true, so a Sammlung whose keys all speak is the file it
-     *  was before either field existed. */
+     *  was before either field existed. The flag rides on an `action` of
+     *  `":home"` too in the exchange format, since SPEC.md 1.5.0; a device
+     *  board has no `:home`, so the form written here is always the
+     *  `load_board` one. */
     const goingInto = (button, key) => {
       if (key.does === "speak") return;
       const board = ids[key.target];

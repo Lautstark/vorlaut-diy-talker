@@ -288,8 +288,11 @@ export interface DeviceButton {
    *  `ext_lautstark_append_on_navigate`, which SPEC.md 1.2.0 already carries,
    *  and it is a fact about a button that any viewer of a board can act on -
    *  not one that is meaningless off this device, which is adr/0001's own test
-   *  for what belongs in `ext_vorlaut_*`. It rides on `load_board` and means
-   *  nothing without one. */
+   *  for what belongs in `ext_vorlaut_*`. In the exchange format it rides on
+   *  either navigating form - a `load_board` or an `action` of `":home"` -
+   *  since SPEC.md 1.5.0 widened it to match that sibling. A device board has
+   *  no `:home`, so here it rides on `load_board` and means nothing without
+   *  one. */
   ext_lautstark_speak_on_navigate?: boolean;
 }
 
