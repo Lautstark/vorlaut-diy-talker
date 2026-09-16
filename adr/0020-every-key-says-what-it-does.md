@@ -60,6 +60,11 @@ carries a `load_board`, and **`ext_lautstark_speak_on_navigate`** beside it says
 whether it also says its own word first — the exact sibling of
 `ext_lautstark_append_on_navigate`, which SPEC.md has carried since 1.2.0.
 
+*Note, 2026-09-16: SPEC.md 1.5.0 widened the flag to ride on an `action` of
+`":home"` as well, which is where that sibling already rode. Nothing decided
+here changes. A device board has no `:home` and the loader derives `does` from
+`load_board` alone, so the widened form is unreachable on this side.*
+
 Three things about that byte are decided here rather than left to a reader:
 
 - **The parser hands it back as it stands**, and what it MEANS is settled in
