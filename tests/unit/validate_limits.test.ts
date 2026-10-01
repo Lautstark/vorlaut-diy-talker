@@ -84,3 +84,43 @@ describe("a Sammlung against the room the device has", () => {
     expect(found[0]!.says).toContain("255");
   });
 });
+
+/* The name-length note, and which name it measures.
+ *
+ * compileDevice() writes the package's name into the first set's name slot,
+ * because that slot is where the talker's menu reads a collection's name from
+ * (adr/0021). The note measured set.name for every set, so for the first one
+ * it measured a name the device never sees - warning about a long first set
+ * that the menu would show uncut, and saying nothing about a long Sammlung
+ * name that the menu would cut. */
+describe("the name cut, measured on the name that is written", () => {
+  const long = "Breakfast at the kitchen table, with grandma";  // > 32 bytes
+  const named = (first: string, packageName: string): ReadDevicePackage => {
+    const read = planOf(1);
+    read.plan.sets[0]!.name = first;
+    return { ...read, id: "set-1", packageId: "c", packageName };
+  };
+
+  it("notes a Sammlung name the menu will cut, with the set's own name short", () => {
+    const found = check(named("Breakfast", long));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.refuses).toBe(false);
+    expect(found[0]!.says).toContain(long);
+    expect(found[0]!.says)
+      .toContain(String(new TextEncoder().encode(long).length));
+  });
+
+  it("says nothing about a long first set when the package names itself", () => {
+    // The set's own name is not what goes into the slot, so it is not cut.
+    expect(check(named(long, "Breakfast"))).toEqual([]);
+  });
+
+  it("measures the set's own name where the package carries none", () => {
+    // An older package: compileDevice() leaves the slot holding set 0's name,
+    // and that is then the name to measure.
+    const found = check(named(long, ""));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.says)
+      .toContain(String(new TextEncoder().encode(long).length));
+  });
+});
