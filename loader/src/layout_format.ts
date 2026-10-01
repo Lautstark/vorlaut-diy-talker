@@ -264,7 +264,7 @@ function keyTarget(said, fallback) {
  * nobody asked for.
  */
 export function renderLayoutBin(layout, labelFiles, tileFiles, audioFiles,
-                                labelSounds = []) {
+                                labelSounds: string[] = []) {
   // Every set in the layout: a Sammlung is the selection, so there is nothing
   // to filter out here. The file lists are built the same way, and setCount in
   // the header has to match them.
@@ -386,9 +386,9 @@ export function readLayoutBin(bytes) {
   // Collected as a list and made a set at the end rather than added to a set
   // as they are found. It reads the same and it types better: a set built from
   // an array of names is a set OF names, where an empty one started from
-  // nothing is a set of anything - and this file carries no annotations to say
-  // otherwise.
-  const files = [];
+  // nothing is a set of anything. The one annotation is still needed, because
+  // with strictNullChecks on an unannotated `[]` is an array of nothing.
+  const files: string[] = [];
   let name = "";
   for (let set = 0; set < sets; set++) {
     const at = HEADER_BYTES + set * SET_BYTES;
