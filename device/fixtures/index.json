@@ -1,5 +1,5 @@
 {
-  "device_interface_version": "2.3.0",
+  "device_interface_version": "2.3.1",
   "generated_by": "device/tools/make_fixtures.mjs",
   "fixtures": [
     {
@@ -523,6 +523,14 @@
       "summary": "Two boards and the ring between them, a crossed-out key sharing one picture with a plain one, a METACOM reference, a name past the 32 bytes layout.bin cuts at, and a reference behind which there is nothing.",
       "file": "package/two-sets-and-the-ring.obz",
       "expected": "package/two-sets-and-the-ring.expected.json"
+    },
+    {
+      "fixture": "set-key-crossed-out",
+      "kind": "package",
+      "outcome": "accepted",
+      "summary": "A set key crossed out, beside a speech key carrying the same picture plain. One member in images/, and ext_vorlaut_negated on the set key's button is the only thing telling the two tiles apart.",
+      "file": "package/set-key-crossed-out.obz",
+      "expected": "package/set-key-crossed-out.expected.json"
     },
     {
       "fixture": "five-keys-cut-to-four",

@@ -1,20 +1,20 @@
 {
-  "fixture": "five-keys-cut-to-four",
+  "fixture": "set-key-crossed-out",
   "kind": "package",
-  "file": "package/five-keys-cut-to-four.obz",
-  "summary": "A set with five keys in it. Four reach the package, and the fifth key's picture and recording are not in the archive at all.",
-  "bytes": 5519,
+  "file": "package/set-key-crossed-out.obz",
+  "summary": "A set key crossed out, beside a speech key carrying the same picture plain. One member in images/, and ext_vorlaut_negated on the set key's button is the only thing telling the two tiles apart.",
+  "bytes": 5639,
   "conforming": true,
   "members": [
     {
       "path": "manifest.json",
       "bytes": 588,
-      "sha256": "09fc89368ed888d1e6ef3582bfef0b24b8110275f6bd0e0a01b13d1df817b2d9"
+      "sha256": "7f823dacd75da1abac8e1bf0a98b6ed549eac63a442eba0e8e354f427b8860e0"
     },
     {
       "path": "boards/set-1.obf",
-      "bytes": 2459,
-      "sha256": "983481daafb0c6d0d793d892c2754a57e08823e46c7e53adc360e999e3f454b2"
+      "bytes": 2419,
+      "sha256": "2bb9a18f5fc11c5b7b12786c8e7641874533ca88d09efa80dbeebe2de258b802"
     },
     {
       "path": "images/907686e9833c7e5b.bin",
@@ -32,14 +32,14 @@
       "sha256": "0606e1cfbeb4d83f8358e04ed2901dd643d9f83ba83646e62b4202fcfeaa56ef"
     },
     {
+      "path": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+      "bytes": 524,
+      "sha256": "a9a2ae021f191cad80ac57d068ace7ce1b85cb7f25de64955191537eaffdf4e9"
+    },
+    {
       "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
       "bytes": 204,
       "sha256": "50fe4983f78d423519396ab6d2d08392a44953c40f2c8b83a8dd51f118612cd7"
-    },
-    {
-      "path": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav",
-      "bytes": 364,
-      "sha256": "0606e1cfbeb4d83f8358e04ed2901dd643d9f83ba83646e62b4202fcfeaa56ef"
     }
   ],
   "manifest": {
@@ -55,8 +55,8 @@
       },
       "sounds": {
         "snd-aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav",
-        "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
-        "snd-ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav"
+        "snd-ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+        "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav"
       }
     }
   },
@@ -65,7 +65,7 @@
       "format": "open-board-0.1",
       "id": "set-1",
       "locale": "de",
-      "name": "Draußen",
+      "name": "Frühstück",
       "buttons": [
         {
           "id": "set-1-key-1",
@@ -78,27 +78,24 @@
           "id": "set-1-key-2",
           "label": "Ich habe Durst",
           "vocalization": "Ich habe Durst",
+          "image_id": "img-e121ccc1471f37d4",
           "sound_id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
         },
         {
           "id": "set-1-key-3",
-          "label": "",
-          "image_id": "img-e121ccc1471f37d4"
+          "label": ""
         },
         {
           "id": "set-1-key-4",
-          "label": "Wir gehen nach Hause",
-          "vocalization": "Wir gehen nach Hause",
-          "sound_id": "snd-ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5"
+          "label": ""
         },
         {
           "id": "set-1-set",
-          "label": "Draußen",
-          "load_board": {
-            "id": "set-1",
-            "name": "Draußen",
-            "path": "boards/set-1.obf"
-          }
+          "label": "Ich habe keinen Hunger",
+          "image_id": "img-907686e9833c7e5b",
+          "ext_vorlaut_negated": true,
+          "vocalization": "Ich habe keinen Hunger",
+          "sound_id": "snd-ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
         }
       ],
       "grid": {
@@ -145,16 +142,16 @@
           "duration": 0.01
         },
         {
+          "id": "snd-ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+          "path": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+          "content_type": "audio/wav",
+          "duration": 0.015
+        },
+        {
           "id": "snd-ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
           "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
           "content_type": "audio/wav",
           "duration": 0.005
-        },
-        {
-          "id": "snd-ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5",
-          "path": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav",
-          "content_type": "audio/wav",
-          "duration": 0.01
         }
       ],
       "ext_vorlaut_sleep_timeout_seconds": 600,
@@ -171,13 +168,13 @@
       "sleep_timeout_seconds": 600,
       "sets": [
         {
-          "name": "Draußen",
+          "name": "Frühstück",
           "key": {
-            "text": "Draußen",
-            "symbol": "",
-            "negated": false,
+            "text": "Ich habe keinen Hunger",
+            "symbol": "ja.bmp",
+            "negated": true,
             "empty": false,
-            "does": "go",
+            "does": "speak",
             "target": 0
           },
           "slots": [
@@ -191,14 +188,6 @@
             },
             {
               "text": "Ich habe Durst",
-              "symbol": "",
-              "negated": false,
-              "empty": false,
-              "does": "speak",
-              "target": 0
-            },
-            {
-              "text": "",
               "symbol": "nein.bmp",
               "negated": false,
               "empty": false,
@@ -206,10 +195,18 @@
               "target": 0
             },
             {
-              "text": "Wir gehen nach Hause",
+              "text": "",
               "symbol": "",
               "negated": false,
-              "empty": false,
+              "empty": true,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "",
+              "symbol": "",
+              "negated": false,
+              "empty": true,
               "does": "speak",
               "target": 0
             }
@@ -247,9 +244,9 @@
         "path": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav"
       },
       {
-        "text": "Wir gehen nach Hause",
-        "name": "ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav",
-        "path": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav"
+        "text": "Ich habe keinen Hunger",
+        "name": "ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+        "path": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav"
       }
     ]
   },
@@ -264,12 +261,12 @@
       "sleep_timeout_seconds": 600,
       "sets": [
         {
-          "name": "Draußen",
+          "name": "Frühstück",
           "key": {
-            "text": "Draußen",
-            "symbol": "",
-            "negated": false,
-            "does": "go",
+            "text": "Ich habe keinen Hunger",
+            "symbol": "ja.bmp",
+            "negated": true,
+            "does": "speak",
             "target": 0
           },
           "slots": [
@@ -282,6 +279,13 @@
             },
             {
               "text": "Ich habe Durst",
+              "symbol": "nein.bmp",
+              "negated": false,
+              "does": "speak",
+              "target": 0
+            },
+            {
+              "text": "",
               "symbol": "",
               "negated": false,
               "does": "speak",
@@ -289,20 +293,6 @@
             },
             {
               "text": "",
-              "symbol": "nein.bmp",
-              "negated": false,
-              "does": "speak",
-              "target": 0
-            },
-            {
-              "text": "Wir gehen nach Hause",
-              "symbol": "",
-              "negated": false,
-              "does": "speak",
-              "target": 0
-            },
-            {
-              "text": "Ich bin fertig",
               "symbol": "",
               "negated": false,
               "does": "speak",
@@ -334,26 +324,20 @@
         "member": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav"
       },
       {
+        "text": "Ich habe keinen Hunger",
+        "name": "ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav",
+        "member": "sounds/ab2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2.wav"
+      },
+      {
         "text": "Ich habe Durst",
         "name": "ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav",
         "member": "sounds/ac3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3.wav"
-      },
-      {
-        "text": "Wir gehen nach Hause",
-        "name": "ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav",
-        "member": "sounds/ae5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5.wav"
-      },
-      {
-        "text": "Ich bin fertig",
-        "name": "af6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6.wav",
-        "member": "sounds/aa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1.wav"
       }
     ],
     "refuses": null
   },
   "notes": [
-    "Four keys, because that is what a set holds. Cut and deliberately not padded: a short set is one layout.bin writes zero hashes for, which is what the device already does with one.",
-    "The fifth key's recording is listed in what the writer was given and is in nothing it wrote. That is the half of the cut a member list can show: a package carrying a recording no button names would be one that had kept a key it cannot deliver.",
-    "A package carrying a fifth key would be a package of something that cannot reach the device, which is worse than one that carries four: it would import as a Sammlung nobody could build."
+    "The set key has been a key like the other four since layout.bin version 3, and a crossed-out key is a flag beside the picture wherever the key sits. A writer that writes the flag only on the four speech keys passes every other fixture in this directory and fails this one.",
+    "The set key carries a word of its own, so its button has a vocalization and a recording, and its label is that word rather than the board's name - the set key is labelled like the other four."
   ]
 }

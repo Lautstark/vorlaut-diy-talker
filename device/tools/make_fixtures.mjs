@@ -3159,7 +3159,12 @@ function packageOf({ layout, voice, sources = [], sounds = [],
       key: {
         text: (set.key?.text ?? "") || set.name,
         symbol: set.symbol ?? "",
-        negated: false,
+        // The set key is a key like the other four since layout.bin version 3,
+        // and that includes being crossed out. This said `false` outright
+        // until 2026-10-01, which held no writer to the flag on the one button
+        // that is not a slot - and the editor's writer duly dropped it, so the
+        // device drew the plain picture where the editor drew it crossed out.
+        negated: Boolean(set.key?.negated),
         empty: keyIsEmpty({ text: (set.key?.text ?? "") || set.name,
                             symbol: set.symbol ?? "" }),
         ...goingOf(set.key ?? {}, (at + 1) % layout.sets.length),
@@ -3279,10 +3284,19 @@ function packageOf({ layout, voice, sources = [], sounds = [],
       buttons.push(button);
     }
 
-    const switchKey = { id: `${id}-set`, label: set.name };
+    // Labelled with its word, like the four above, and with the board's name
+    // only where it has none - which is what `set.key.text` already is. It
+    // said `set.name` outright until 2026-10-01, and no fixture could tell the
+    // two apart: every set key with a word of its own had the board's name as
+    // that word. package/set-key-crossed-out is the first that does not.
+    const switchKey = { id: `${id}-set`, label: set.key.text };
     goingInto(switchKey, set.key);
     const setPicture = putImage(set.key.symbol);
     if (setPicture) switchKey.image_id = setPicture;
+    // The same flag, written the same way, as on the four keys above: only
+    // where it is true, so a Sammlung whose set keys are all plain is the file
+    // it was before a set key could be crossed out.
+    if (set.key.negated) switchKey.ext_vorlaut_negated = true;
     // A vocalization only where the set key was given a word of its own.
     // Without one the label IS the word - a reader takes
     // `vocalization ?? label` - and writing it twice would say nothing the
@@ -3511,6 +3525,9 @@ function writeHalf({ layout, sources = [], sounds = [], refuses = null,
         key: {
           text: (set.key?.text ?? "") || set.name,
           symbol: set.symbol ?? "",
+          // Always stated, like a slot's, so that what the writer is handed
+          // says "not crossed out" rather than leaving it to a default.
+          negated: Boolean(set.key?.negated),
           ...goesAs(set.key ?? {}, (at + 1) % layout.sets.length),
         },
         slots: set.slots.map((slot) => ({
@@ -3655,6 +3672,58 @@ packageFixture({
     "The set names are the boards' `name`, uncut. What cuts a name at 32 bytes is layout.bin, four steps further on - device/fixtures/layout/name-cut-mid-character is where that rule lives, and it is the reader's business rather than this file's.",
   ],
 });
+
+/* A set key crossed out - the fifth panel saying "not yes".
+ *
+ * Every fixture before this one wrote `negated: false` on the set key, so a
+ * writer that never put ext_vorlaut_negated on the set key's button passed all
+ * of them, and the editor's did exactly that: the editor drew the cross and
+ * the device drew the plain picture. The same reference sits plain on a speech
+ * key beside it, so the archive holds one member and the flag is the only
+ * thing telling the two tiles apart - form rule 2, on the button it had never
+ * been asked of. */
+const CROSSED_SET_KEY_LAYOUT = {
+  language: "de",
+  sleep_timeout_seconds: 600,
+  sets: [{
+    name: de.breakfast,
+    symbol: SOURCES.ja.reference,
+    // Speaks and stays, so its word is one the device says. A set key that
+    // only goes has no vocalization in the editor's writer, and that is a
+    // different question from this one.
+    key: { text: de.not_hungry, negated: true, goesTo: null },
+    slots: [
+      { text: de.hungry, symbol: SOURCES.ja.reference },
+      { text: de.thirsty, symbol: SOURCES.nein.reference },
+      { text: "", symbol: "" },
+      { text: "", symbol: "" },
+    ],
+  }],
+};
+const CROSSED_SET_KEY_SOURCES = [SOURCES.ja, SOURCES.nein];
+const CROSSED_SET_KEY_SOUNDS = [SOUND_HUNGRY, SOUND_NOT_HUNGRY, SOUND_THIRSTY];
+
+{
+  const pkg = packageOf({
+    layout: CROSSED_SET_KEY_LAYOUT, voice: PACKAGE_VOICE,
+    sources: CROSSED_SET_KEY_SOURCES, sounds: CROSSED_SET_KEY_SOUNDS,
+  });
+  packageFixture({
+    name: "set-key-crossed-out",
+    summary: "A set key crossed out, beside a speech key carrying the same picture plain. One member in images/, and ext_vorlaut_negated on the set key's button is the only thing telling the two tiles apart.",
+    outcome: "accepted",
+    conforming: true,
+    pkg,
+    read: readOk(pkg),
+    write: writeHalf({ layout: CROSSED_SET_KEY_LAYOUT,
+                       sources: CROSSED_SET_KEY_SOURCES,
+                       sounds: CROSSED_SET_KEY_SOUNDS }),
+    notes: [
+      "The set key has been a key like the other four since layout.bin version 3, and a crossed-out key is a flag beside the picture wherever the key sits. A writer that writes the flag only on the four speech keys passes every other fixture in this directory and fails this one.",
+      "The set key carries a word of its own, so its button has a vocalization and a recording, and its label is that word rather than the board's name - the set key is labelled like the other four.",
+    ],
+  });
+}
 
 /* A Sammlung with five keys in a set, which the device has no room for. */
 const FIVE_KEY_LAYOUT = {
@@ -4159,6 +4228,13 @@ const JOINING_SOUNDS = [
 // tests/test_device_fixtures.py refuses a suffix here, and refuses this file
 // and the committed index.json disagreeing about the version at all.
 const INDEX = {
+  // 2.3.1 is 2026-10-01: package/set-key-crossed-out. ext_vorlaut_negated on
+  // the set key's button was always part of the format - the reader took it
+  // and the compiler drew it - and no fixture asked a writer for it, so the
+  // editor's writer left it off and nothing could see. PATCH, because nothing
+  // in the format moved: this is a fixture for a field the package already
+  // had, holding a writer to what it should have been doing.
+  //
   // 2.3.0 is 2026-09-01, later the same day, and it is what 2.2.0 could not
   // do. A device package gained ext_lautstark_package_id and
   // ext_lautstark_package_name on its root board: which Sammlung it is, and
@@ -4214,7 +4290,7 @@ const INDEX = {
   // the cable's greeting gained a "firmware" keyword. Both MINOR, because on
   // the cable both ends skip what they do not know, so a device already
   // flashed neither misreads the addition nor sees it.
-  device_interface_version: "2.3.0",
+  device_interface_version: "2.3.1",
   generated_by: "device/tools/make_fixtures.mjs",
   fixtures: index,
 };

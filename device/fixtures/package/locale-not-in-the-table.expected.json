@@ -271,6 +271,7 @@
           "key": {
             "text": "Frühstück",
             "symbol": "foto.png",
+            "negated": false,
             "does": "go",
             "target": 0
           },
