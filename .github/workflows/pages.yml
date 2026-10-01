@@ -29,11 +29,14 @@ permissions:
   pages: write
   id-token: write
 
-# Let a running deploy finish; queue at most one more. Cancelling a deploy half
-# way leaves Pages serving whatever it had got to.
+# One run per branch. A newer push to a renovate/** branch replaces that
+# branch's older run; a run on main is never cancelled. The group used to be
+# "pages" for every branch, and GitHub keeps only one pending run per group -
+# so a renovate/** push queued behind a running one replaced main's pending
+# run, and main's deploy was dropped without a word (bildhaft, 2026-10-01).
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # Nothing reaches Pages unless this passes. Three toolchains, because the
@@ -150,6 +153,11 @@ jobs:
     # By ref, not by event: a renovate/** push is tested above and must not
     # reach Pages. Only main deploys.
     if: github.ref == 'refs/heads/main'
+    # Only the deploy shares a group across runs: let a running one finish,
+    # because cancelling half way leaves Pages serving whatever it had got to.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment:
       name: github-pages
