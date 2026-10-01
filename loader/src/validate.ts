@@ -190,9 +190,21 @@ export function check(read: ReadDevicePackage): Finding[] {
     // Bytes, not characters: renderLayoutBin() cuts the encoded name at
     // NAME_BYTES, so a name of umlauts is half as long as it looks and this
     // has to measure the same thing the writer cuts.
-    const nameBytes = new TextEncoder().encode(set.name).length;
+    //
+    // And the same NAME, which for the first set is not always its own.
+    // compileDevice() writes the package's name into set 0's slot, because
+    // that slot is where the talker's menu reads a collection's name from
+    // (adr/0021). Measuring set.name there warned about a name that never
+    // reaches the device and stayed silent about the one that is cut. The
+    // fallback is compileDevice()'s own: no package name, the set's.
+    const written = at === 0 && read.packageName ? read.packageName : set.name;
+    const nameBytes = new TextEncoder().encode(written).length;
     if (nameBytes > NAME_BYTES) {
-      note(t("load.name_cut", { label: where, bytes: nameBytes, max: NAME_BYTES }));
+      note(written === set.name
+        ? t("load.name_cut", { label: where, bytes: nameBytes, max: NAME_BYTES })
+        : t("load.collection_name_cut", {
+            name: written, bytes: nameBytes, max: NAME_BYTES,
+          }));
     }
 
     for (const [nth, slot] of set.slots.slice(0, SLOTS_PER_SET).entries()) {

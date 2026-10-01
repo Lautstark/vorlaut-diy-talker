@@ -549,7 +549,8 @@ export class Cable {
 
   /** The checksum of one file. Needed for layout.bin, whose name stays the
    *  same when its content changes - every other name is a hash and answers
-   *  the question by existing. */
+   *  the question by existing.
+   *  @returns {Promise<number>} */
   crc(name) {
     return this.#serial(async () => {
       await this.send(`crc ${name}`);
@@ -724,8 +725,11 @@ export function isCollection(name) {
  * @param room  {total, free, collections} out of hello(). `collections` is how
  *   many the device holds; one - the default - means every transfer is a
  *   replacement, which is what a talker flashed before 2026-08-31 is.
- * @param collectionCrc  the device's checksum of the collection file this
- *   payload carries, or null if it is not holding one under that name.
+ * @param {number | null} [collectionCrc]  the device's checksum of the
+ *   collection file this payload carries, or null if it is not holding one
+ *   under that name. Typed because loader/src/cable.ts calls this with a
+ *   number, and a bare `= null` default reads to the compiler as a parameter
+ *   that can only ever be null.
  *
  * A name is a hash of the input that produced the file, so a name that is
  * already there is already the right content and needs no transfer. That is

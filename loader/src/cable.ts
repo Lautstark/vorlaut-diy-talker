@@ -555,7 +555,10 @@ export async function readCollections(
   const { port, cable, hello } = await findTalker(ports, onLog);
   try {
     const have = await cable.list();
-    const sizes = new Map(have.map((f) => [f.name, f.size]));
+    // Typed, because a pair written as an array literal is an array and not
+    // a pair, and a Map built from those has keys and values of nothing in
+    // particular.
+    const sizes = new Map<string, number>(have.map((f) => [f.name, f.size]));
     const files = have.filter((f) => isCollection(f.name)).map((f) => f.name);
 
     // Only where the device says it holds more than one. A talker flashed

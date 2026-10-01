@@ -196,14 +196,16 @@ function coefficients(inSize, outSize, start, end) {
   const scale = (end - start) / outSize;
   const filterScale = Math.max(scale, 1.0);
   const support = LANCZOS_SUPPORT * filterScale;
-  const bounds = [];
-  const weights = [];
+  // Typed, because an empty literal is otherwise an array of nothing at all
+  // once strictNullChecks is on, and every push below would be refused.
+  const bounds: [number, number][] = [];
+  const weights: number[][] = [];
 
   for (let out = 0; out < outSize; out++) {
     const center = start + (out + 0.5) * scale;
     const min = Math.max(0, Math.trunc(center - support + 0.5));
     const max = Math.min(inSize, Math.trunc(center + support + 0.5));
-    const taps = [];
+    const taps: number[] = [];
     let sum = 0;
     for (let i = min; i < max; i++) {
       const w = lanczos((i - center + 0.5) / filterScale);
@@ -384,7 +386,8 @@ function wideLinePolygon(x0, y0, x1, y1, width) {
  */
 function fillPolygon(target, points, colour) {
   const { data, width, height } = target;
-  const edges = [];
+  const edges: { ax: number; ay: number; min: number; max: number;
+                 slope: number }[] = [];
   for (let i = 0; i < points.length; i++) {
     const [ax, ay] = points[i];
     const [bx, by] = points[(i + 1) % points.length];
@@ -501,7 +504,16 @@ function scratch(width, height) {
     : Object.assign(document.createElement("canvas"), { width, height });
   // Reading pixels back is the point of every one of these canvases, so tell
   // the browser not to put it on the GPU.
-  return canvas.getContext("2d", { willReadFrequently: true });
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  // getContext() answers null rather than throwing when the browser will not
+  // make one - a canvas past the size it allows, a tab out of memory. Every
+  // caller draws into the result on the next line, so a null here surfaced as
+  // "cannot read properties of null" from somewhere inside drawing a tile.
+  // Said where it happens and in words instead.
+  if (!context) {
+    throw new Error(`The browser would not give a ${width}x${height} canvas to draw a tile on.`);
+  }
+  return context;
 }
 
 /** The source picture as plain RGBA bytes, at its own size. */

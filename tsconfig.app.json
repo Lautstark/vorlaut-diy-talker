@@ -8,9 +8,16 @@
        code. Implicit any is what that costs, and it is the one strictness flag
        turned off rather than the whole of `strict` - strictNullChecks, which is
        where the real bugs are, stays on. Turn this on file by file as the
-       signatures get written. */
+       signatures get written.
+
+       It did not stay on, until 2026-10-01: this comment said so above a
+       `false`, in this file and in tsconfig.e2e.json, and turning it on found
+       twenty-nine errors. Nearly all of them were empty array literals, which
+       are arrays of nothing under this flag, and the one that could happen at
+       run time was getContext() answering null - see scratch() in
+       loader/src/tiles.ts. */
     "noImplicitAny": false,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
 
 
     /* loader/tools/cable.js is JavaScript on purpose and is included below, so the

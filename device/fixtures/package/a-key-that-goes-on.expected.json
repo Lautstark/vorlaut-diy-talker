@@ -545,6 +545,7 @@
           "key": {
             "text": "Spiegel + Ei",
             "symbol": "ja.bmp",
+            "negated": false,
             "does": "speak",
             "target": 0
           },
@@ -584,6 +585,7 @@
           "key": {
             "text": "Sonne + Blume",
             "symbol": "foto.png",
+            "negated": false,
             "does": "speak",
             "target": 0
           },

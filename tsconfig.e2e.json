@@ -11,8 +11,11 @@
   "extends": "@lautstark/toolchain/tsconfig.json",
   "compilerOptions": {
     "types": ["node", "vite/client"],
+    /* The same two flags as tsconfig.app.json, for the same reasons: this
+       program checks loader/ a second time, and checking it under a looser
+       rule would be a second opinion about the same files. */
     "noImplicitAny": false,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "verbatimModuleSyntax": true,
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo"

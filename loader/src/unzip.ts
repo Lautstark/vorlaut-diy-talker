@@ -47,20 +47,37 @@ export class NotAPackage extends Error {
  * reason, and it is about six lines of stream plumbing rather than anything
  * either file has an opinion about.
  */
-async function inflate(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
+async function inflate(
+  bytes: Uint8Array<ArrayBuffer>, name: string,
+): Promise<Uint8Array> {
   const stream = new DecompressionStream("deflate-raw");
   const writer = stream.writable.getWriter();
   const written = writer.write(bytes).then(() => writer.close());
+  // Handled here and now, and for one case: a member whose deflate data is
+  // broken. The read below throws first, the function leaves without ever
+  // reaching `await written`, and the write's own rejection was then nobody's
+  // - an unhandled rejection in the console, on top of the real error. The
+  // read is the one that says what went wrong, so this one is only quieted;
+  // when the data is sound, `await written` below still sees it.
+  written.catch(() => {});
   const reader = stream.readable.getReader();
   const parts: Uint8Array[] = [];
   let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    parts.push(value);
-    total += value.length;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      total += value.length;
+    }
+    await written;
+  } catch {
+    // What the platform says here is a TypeError with an empty message in
+    // Chromium and Node alike - nothing a person holding the file can act on,
+    // and not a NotAPackage, so main.ts reported it as a bug in this page.
+    // It is a damaged file, and the member it is in is what can be named.
+    throw new NotAPackage(`${name} is damaged - its compressed data does not unpack`);
   }
-  await written;
   const out = new Uint8Array(total);
   let at = 0;
   for (const part of parts) {
@@ -118,7 +135,7 @@ export async function unzip(
       + view.getUint16(start + 28, true);
     const packed = bytes.subarray(from, from + packedSize) as Uint8Array<ArrayBuffer>;
     if (method === DEFLATED) {
-      members.set(name, (await inflate(packed)) as Uint8Array<ArrayBuffer>);
+      members.set(name, (await inflate(packed, name)) as Uint8Array<ArrayBuffer>);
     } else if (method === STORED) {
       members.set(name, new Uint8Array(packed) as Uint8Array<ArrayBuffer>);
     } else {

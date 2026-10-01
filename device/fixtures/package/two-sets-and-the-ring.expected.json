@@ -453,6 +453,7 @@
           "key": {
             "text": "Frühstück",
             "symbol": "metacom:hilfe.svg",
+            "negated": false,
             "does": "go",
             "target": 1
           },
@@ -492,6 +493,7 @@
           "key": {
             "text": "Brot, Butter und Marmelade, süß",
             "symbol": "",
+            "negated": false,
             "does": "go",
             "target": 0
           },
