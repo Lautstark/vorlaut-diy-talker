@@ -681,9 +681,6 @@ const firmwareSection = (page: Page) =>
     }),
   });
 
-const check = (page: Page) => firmwareSection(page)
-  .getByRole("button", { name: SPEAKS["flash.check"], exact: true });
-
 test("a deploy that carries no image has no firmware section at all",
      async ({ page }) => {
   /* Which is every deploy so far: no `v*` release has been cut, so
@@ -759,13 +756,6 @@ test("a device that already carries the page's build is offered nothing",
     name: SPEAKS["flash.choose_and_write"], exact: true,
   })).toHaveCount(0);
 });
-
-const collectionsSection = (page: Page) =>
-  page.locator("section.step").filter({
-    has: page.getByRole("heading", {
-      name: SPEAKS["load.collections_title"], exact: true,
-    }),
-  });
 
 test("the talker view says what the talker is before what is on it",
      async ({ page }) => {

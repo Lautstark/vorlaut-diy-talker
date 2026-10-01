@@ -1,12 +1,8 @@
 {
+  "extends": "@lautstark/toolchain/tsconfig.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "types": ["vite/client"],
 
-    "strict": true,
     /* The port from JavaScript was a rename, not a rewrite: the modules came
        across unchanged so that the frozen references still measure the same
        code. Implicit any is what that costs, and it is the one strictness flag
@@ -16,9 +12,6 @@
     "noImplicitAny": false,
     "strictNullChecks": false,
 
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
 
     /* loader/tools/cable.js is JavaScript on purpose and is included below, so the
        compiler has to be willing to read it. checkJs stays off: that file is
@@ -27,11 +20,7 @@
        annotations in a file two other runtimes import raw. */
     "allowJs": true,
 
-    "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "noEmit": true,
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   },

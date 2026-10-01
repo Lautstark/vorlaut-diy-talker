@@ -1,4 +1,5 @@
-import { defineConfig, devices } from "@playwright/test";
+import { devices } from "@playwright/test";
+import { playwrightConfig } from "@lautstark/toolchain/playwright";
 
 /* The check whose absence let a page that rendered nothing ship green.
  *
@@ -19,16 +20,22 @@ const BASE = "/";
  * gets a port of its own. */
 const PORT = Number(process.env.E2E_PORT || 8802);
 
-export default defineConfig({
-  testDir: "./e2e",
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
+/* The rest - the e2e directory, parallelism, forbidOnly, the reporter, the
+ * trace, `vite preview` as the server - is @lautstark/toolchain's. What is passed
+ * back over it is this page's own, and each is a fact rather than a taste: two
+ * retries on CI; no pinned locale, because the loader picks its language out of
+ * `navigator` and e2e/loader.spec.ts asserts that; the one project below; and the
+ * BASE_PATH the server needs (the base is baked into the bundle at build time
+ * and read from this same variable, so the server has to be told it too or it
+ * serves the built page from the wrong root and every asset 404s). --host pins
+ * 127.0.0.1: without it vite preview binds IPv6 loopback only, and Playwright's
+ * baseURL - a literal address, not a name - never connects. */
+export default playwrightConfig({
+  port: PORT,
+  host: "127.0.0.1",
+  base: BASE,
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? "github" : "list",
-  use: {
-    baseURL: `http://127.0.0.1:${PORT}${BASE}`,
-    trace: "on-first-retry",
-  },
+  use: { locale: undefined },
   /* One, and it is a desktop. There were two until the split adr/0012 decided:
      the editor's mobile.spec.ts ran under a Pixel 7 because below 820px its
      sidebar is a layer over the work rather than a column beside it
@@ -45,18 +52,5 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    // `npm run test:e2e` builds first; this only serves what that produced.
-    // --host pins it to 127.0.0.1. Without it vite preview binds IPv6 loopback
-    // only, and Playwright's baseURL - which has to be a literal address, not a
-    // name - never connects.
-    command: `npx vite preview --port ${PORT} --strictPort --host 127.0.0.1`,
-    // The base is baked into the bundle at build time and read from this same
-    // variable, so the server has to be told it too or it serves the built
-    // /vorlaut-diy-talker/ page from the root and every asset 404s.
-    env: { BASE_PATH: BASE },
-    url: `http://127.0.0.1:${PORT}${BASE}`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: { env: { BASE_PATH: BASE } },
 });

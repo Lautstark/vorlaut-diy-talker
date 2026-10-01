@@ -22,10 +22,7 @@
     "esptool-js": "^0.6.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.63.0",
-    "@types/node": "^24.19.0",
-    "typescript": "^6.0.3",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.3"
+    "@lautstark/toolchain": "github:Lautstark/toolchain#v4.1.0",
+    "@types/node": "^24.19.0"
   }
 }
